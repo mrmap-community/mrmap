@@ -73,6 +73,7 @@ interface TreeProps {
   attributeContainer?: 'modal' | 'drawer';
   contextMenuOnNode?: boolean;
   showMaskOnNodeAttributeForm?: boolean;
+  checkableNodes?: boolean;
 }
 
 //  TODO: create helper with several tree methods
@@ -133,11 +134,12 @@ export const TreeFormField: FC<TreeProps> = ({
   title = '',
   attributeContainer = 'modal',
   contextMenuOnNode = false,
-  showMaskOnNodeAttributeForm = false
+  showMaskOnNodeAttributeForm = false,
+  checkableNodes = false
 }) => {
   const [form] = useForm();
 
-  const nodeNameTextInput = createRef();
+  const nodeNameTextInput:any = createRef();
 
   const [_treeData, setTreeData] = useState<TreeNodeType[]>(treeData);
   const [isNodeAttributeFormVisible, setIsNodeAttributeFormVisible] = useState<boolean>(false);
@@ -149,7 +151,8 @@ export const TreeFormField: FC<TreeProps> = ({
   const [isDraggingNode, setIsDraggingNode] = useState<boolean>(false); // TODO
   const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeType | undefined>(undefined);
-  const [editingNodeName, setEditingNodeName] = useState<{id: string | number, value:string}>({ id: '', value: '' });
+  const [newNodeName, setNewNodeName] = useState<string>('');
+  const [isEditingNodeName, setIsEditingNewNodeName] = useState<boolean>(false);
 
   /**
    * @description: Toggles the modal showing the form with the node properties
@@ -422,7 +425,7 @@ export const TreeFormField: FC<TreeProps> = ({
     if (node) {
       if (values && node) {
         node.title = values.title;
-        node.properties = values;
+        node.properties = values.properties;
         delete node.properties.title;
       }
       if (asyncTree) {
@@ -529,10 +532,26 @@ export const TreeFormField: FC<TreeProps> = ({
     }
   });
 
-  const onNodeNameEditing = (nodeData: TreeNodeType, newName: string) => {
-    onEditNode(nodeData, { ...nodeData, properties: { ...nodeData.properties, name: newName } });
+  const onNodeNameEditing = (nodeData: TreeNodeType | undefined, newName: string) => {
+    if (nodeData) {
+      onEditNode(
+        nodeData,
+        {
+          ...nodeData.properties,
+          properties: {
+            ...nodeData.properties,
+            name: newName
+          }
+        }
+      );
+    }
   };
 
+  /**
+   * @description TSX element to show context menu
+   * @param nodeData
+   * @returns
+   */
   const nodeContextMenu = (nodeData: TreeNodeType) => (
     <Menu>
       <Menu.Item
@@ -578,6 +597,11 @@ export const TreeFormField: FC<TreeProps> = ({
     </Menu>
   );
 
+  /**
+   * @description TSX element to show node title
+   * @param nodeData
+   * @returns
+   */
   const nodeTitle = (nodeData: TreeNodeType) => (
     <Dropdown
       overlay={nodeContextMenu(nodeData)}
@@ -586,32 +610,42 @@ export const TreeFormField: FC<TreeProps> = ({
       <div
         className='tree-form-field-node-title'
         onDoubleClick={() => {
-          // @ts-ignore
-          nodeNameTextInput.current?.focus();
-          setEditingNodeName({ id: nodeData.key, value: nodeData.properties.name });
+          setSelectedNode(nodeData);
+          setIsEditingNewNodeName(true);
+          setNewNodeName(nodeData.properties.name);
         }}
       >
-        <Tooltip
-          placement='topLeft'
-          title={nodeData.title}
-        >
-          {nodeData.key === editingNodeName.id
-            ? (
-              <Input
-                // @ts-ignore
-                ref={nodeNameTextInput}
-                defaultValue={nodeData.properties.name}
-                name='nodeName'
-                value={editingNodeName.value}
-                onChange={(e) => setEditingNodeName({ ...editingNodeName, value: e.target.value })}
-              />
-              )
-            : nodeData.properties.name}
-        </Tooltip>
+        {isEditingNodeName && nodeData.key === selectedNode?.key
+          ? (
+            <Input
+              ref={nodeNameTextInput}
+              name='nodeName'
+              value={newNodeName}
+              onChange={(e) => setNewNodeName(e.target.value)}
+              onKeyDown={(e) => {
+                e.preventDefault();
+                if (e.key === 'Enter') {
+                  onNodeNameEditing(selectedNode, newNodeName);
+                  setNewNodeName('');
+                  setIsEditingNewNodeName(false);
+                }
+                if (e.key === 'Escape') {
+                  setNewNodeName('');
+                  setIsEditingNewNodeName(false);
+                }
+              }}
+            />
+            )
+          : nodeData.properties.name}
       </div>
     </Dropdown>
   );
 
+  /**
+   * @description TSX element to show node action
+   * @param nodeData
+   * @returns
+   */
   const nodeActions = (nodeData: TreeNodeType) => (
     <div className='tree-form-field-node-actions'>
       <Tooltip title='Create Node'>
@@ -630,7 +664,7 @@ export const TreeFormField: FC<TreeProps> = ({
             onClick={() => {
               Modal.warning({
                 title: 'Remove Node',
-                content: 'The selectd node will be removed, Are you sure?',
+                content: 'The selected node will be removed, Are you sure?',
                 onOk: () => onRemoveNode(nodeData),
                 okButtonProps: {
                   disabled: isRemovingNode,
@@ -656,6 +690,7 @@ export const TreeFormField: FC<TreeProps> = ({
       </Tooltip>
     </div>
   );
+
   /**
    * @description: Hook to run on component mount. Creates sets the initial tree data
    */
@@ -674,25 +709,34 @@ export const TreeFormField: FC<TreeProps> = ({
   }, []);
 
   /**
-   * @description: Hook to detect a click anywhere on the document. This will reset the isEditingNameOnNode value
+   * @description: Hook to detect a click anywhere on the document. This will reset the isEditingNameOnNode value.
+   * Event  will be removed when editingNodeName.id is not present
+   */
+  // useEffect(() => {
+  //   const setNodeNameOnClick = () => {
+  //     setIsEditingNewNodeName(false);
+  //     setNewNodeName('');
+  //   };
+  //   if (isEditingNodeName) {
+  //     // TODO: shouldthe naame  be changed here  aas  well?
+  //     document.addEventListener('click', setNodeNameOnClick, false);
+  //   }
+  //   // cleanup. Removes event and changes the node name
+  //   return () => {
+  //     document.removeEventListener('click', setNodeNameOnClick, false);
+  //   };
+  // }, [isEditingNodeName]);
+
+  /**
+   * @description: This hook is a backup since the modal is not being destroyed on close,
+   * this is a backup solution. Reseting or setting the values when the modal becomes visible
    */
   useEffect(() => {
-    document.addEventListener('click', () => setEditingNodeName({ id: '', value: '' }), false);
-    // cleanup. Removes event
-    return () => {
-      document.removeEventListener('click', () => setEditingNodeName({ id: '', value: '' }), false);
-    };
-  }, []);
-
-  useEffect(() => {
-    // since the modal is not being destroyed on close,
-    // this is a backup solution. Reseting or setting the values when the modal becomes visible
     if (isNodeAttributeFormVisible) {
       form.resetFields();
       if (isEditingNodeAttributes && selectedNode) {
         form.setFieldsValue({
           ...selectedNode.properties,
-          // name: selectedNode.properties.name,
           title: selectedNode.title
         });
       }
@@ -700,10 +744,20 @@ export const TreeFormField: FC<TreeProps> = ({
   // eslint-disable-next-line
   }, [isNodeAttributeFormVisible]);
 
+  /**
+   * @description: Hook to control focus once node name input edit field is shown on the node
+   */
+  useEffect(() => {
+    if (nodeNameTextInput.current && isEditingNode) {
+      nodeNameTextInput.current.focus();
+    }
+  }, [nodeNameTextInput, isEditingNode]);
+
   return (
     <>
       <h1>{title}</h1>
       <Tree
+        checkable={checkableNodes}
         className='tree-form-field'
         draggable={draggable}
         showIcon

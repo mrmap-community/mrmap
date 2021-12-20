@@ -8,7 +8,7 @@ import { useAuth } from '../../../Hooks/AuthContextProvider';
 export const Login = (): ReactElement => {
   const auth = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const location:any = useLocation();
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
 

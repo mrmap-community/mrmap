@@ -1,8 +1,25 @@
-.map-context-form {
-  float: left;
-  width: 120px;
-  height: 31px;
-  margin: 16px 24px 16px 0;
-  background: rgba(255, 255, 255, 0.2);
+.Map {
+  background: #ffffff;
+  flex: 1 1 auto;
+  display:flex;
+  flex-direction: row;
 }
 
+.Map #map {
+  height:100%;
+  width:100%;
+}
+
+.layer-section {
+  position: absolute;
+  top: 115px;
+  left: 35px;
+  height: 200px;
+}
+
+.steps-content {
+  width: 100%;
+  height:100%;
+  display:flex;
+  flex-direction: column;
+}

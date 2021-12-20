@@ -1,7 +1,14 @@
 import './MapContext.css';
 
+import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrestris/react-geo';
 import { Button, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
+import OlLayerGroup from 'ol/layer/Group';
+import OlLayerTile from 'ol/layer/Tile';
+import OlMap from 'ol/Map';
+import OlSourceOsm from 'ol/source/OSM';
+import OlSourceTileWMS from 'ol/source/TileWMS';
+import OlView from 'ol/View';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -14,6 +21,64 @@ import { MapContextLayerForm } from './MapContextLayerForm';
 
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
+
+// TODO: Should be in a separate component or helper
+const layerGroup = new OlLayerGroup({
+  // @ts-ignore
+  name: 'Layergroup',
+  layers: [
+    new OlLayerTile({
+      source: new OlSourceOsm(),
+      // @ts-ignore
+      name: 'OSM'
+    }),
+    new OlLayerTile({
+      // @ts-ignore
+      name: 'SRTM30-Contour',
+      minResolution: 0,
+      maxResolution: 10,
+      source: new OlSourceTileWMS({
+        url: 'https://ows.terrestris.de/osm/service',
+        params: {
+          LAYERS: 'SRTM30-Contour'
+        }
+      })
+    }),
+    new OlLayerTile({
+      // @ts-ignore
+      name: 'OSM-Overlay-WMS',
+      minResolution: 0,
+      maxResolution: 200,
+      source: new OlSourceTileWMS({
+        url: 'https://ows.terrestris.de/osm/service',
+        params: {
+          LAYERS: 'OSM-Overlay-WMS'
+        }
+      })
+    })
+  ]
+});
+
+const center = [788453.4890155146, 6573085.729161344];
+
+const olMap = new OlMap({
+  view: new OlView({
+    center: center,
+    zoom: 16
+  }),
+  layers: [layerGroup]
+});
+
+// TODO: This is creating a component naamed map. Should be separated
+function Map () {
+  const map = useMap();
+
+  return (
+    <MapComponent
+      map={map}
+    />
+  );
+}
 
 export const MapContext = (): ReactElement => {
   const navigate = useNavigate();
@@ -65,32 +130,34 @@ export const MapContext = (): ReactElement => {
       title: 'Map Context',
       content: (
         <>
-          <MapContextForm
-            onSubmit={async (values) => {
-              if (!id) {
-                setIsSubmittingMapContext(true);
-                try {
-                  const response = await mapContextRepo.create(values);
-                  if (response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
-                    setCreatedMapContextId((response.data.data as JsonApiPrimaryData).id);
+          <div className='mapcontextform-map-area'>
+            <MapContextForm
+              onSubmit={async (values) => {
+                if (!id) {
+                  setIsSubmittingMapContext(true);
+                  try {
+                    const response = await mapContextRepo.create(values);
+                    if (response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
+                      setCreatedMapContextId((response.data.data as JsonApiPrimaryData).id);
+                    }
+                    return response;
+                  } catch (error) {
+                    setIsSubmittingMapContext(false);
+                    // @ts-ignore
+                    throw new Error(error);
+                  } finally {
+                    setIsSubmittingMapContext(false);
+                    nextStep();
                   }
-                  return response;
-                } catch (error) {
-                  setIsSubmittingMapContext(false);
-                  // @ts-ignore
-                  throw new Error(error);
-                } finally {
-                  setIsSubmittingMapContext(false);
+                } else {
+                  // TODO add action to edit
+                  setCreatedMapContextId(id);
                   nextStep();
                 }
-              } else {
-                // TODO add action to edit
-                setCreatedMapContextId(id);
-                nextStep();
-              }
-            }}
-            form={form}
-          />
+              }}
+              form={form}
+            />
+          </div>
           <div className='steps-action'>
             <Button
               type='primary'
@@ -101,13 +168,19 @@ export const MapContext = (): ReactElement => {
               Next Step
             </Button>
           </div>
-        </>
+
+          </>
       )
     },
     {
       title: 'Map Context Layers',
       content: (
         <>
+          <div className='Map'>
+          <ReactGeoMapContext.Provider value={olMap}>
+            <Map />
+          </ReactGeoMapContext.Provider>
+          <div className='layer-section'>
           <TreeFormField
             treeData={initTreeData}
             asyncTree
@@ -140,6 +213,9 @@ export const MapContext = (): ReactElement => {
             attributeContainer='drawer'
             contextMenuOnNode
           />
+          </div>
+          </div>
+
           <div className='steps-action'>
             <Button
               type='primary'

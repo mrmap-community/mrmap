@@ -6,7 +6,7 @@
 
 .tree-form-field {
   border: 1px solid black;
-  height:  50vh;
-  max-height: 50vh;
-  overflow-y: scroll;
+  height:  100%;
+  max-height: 100%;
+  overflow: scroll;
 }

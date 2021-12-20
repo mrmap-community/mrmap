@@ -21,7 +21,6 @@ def update_task_result_listeners(**kwargs):
     Send the information to the channel group when a TaskResult is created/modified
     """
     # TODO: check task_name and filter by it
-    print(kwargs['instance'].__dict__)
     request = get_current_request()
     if request and (not hasattr(request, 'query_params') or not request.query_params):
         request.query_params = OrderedDict()

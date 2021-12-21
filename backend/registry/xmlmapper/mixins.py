@@ -1,9 +1,9 @@
 from django.apps import apps
-from django.db import models
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.db import models
 from eulxml import xmlmap
 from lxml.etree import XPathEvalError
-from django.conf import settings
 
 
 class DBModelConverterMixin:
@@ -25,7 +25,8 @@ class DBModelConverterMixin:
                                        f"'{self.__class__.__name__}'.")
         if isinstance(self.model, str):
             app_label, model_name = self.model.split('.', 1)
-            self.model = apps.get_model(app_label=app_label, model_name=model_name)
+            self.model = apps.get_model(
+                app_label=app_label, model_name=model_name)
         elif not issubclass(self.model, models.Model):
             raise ImproperlyConfigured(f"the configured model attribute on class '{self.__class__.__name__}' "
                                        f"isn't from type models.Model")
@@ -58,6 +59,7 @@ class DBModelConverterMixin:
                 if not (isinstance(self._fields.get(key), xmlmap.NodeField) or
                         isinstance(self._fields.get(key), xmlmap.NodeListField)):
                     if isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) and getattr(self, key) is None or \
+                       isinstance(self._fields.get(key), xmlmap.StringField) and getattr(self, key) is None or \
                        isinstance(self._fields.get(key), xmlmap.IntegerField) and getattr(self, key) is None:
                         # we don't append None values, cause if we construct a model with key=None and the db field
                         # don't allow Null values but has a default for Boolean the db will raise integrity
@@ -65,8 +67,10 @@ class DBModelConverterMixin:
                         continue
                     field_dict.update({key: getattr(self, key)})
             except XPathEvalError as e:
-                settings.ROOT_LOGGER.error(msg=f"error during parsing field: {key} in class {self.__class__.__name__}")
-                settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
+                settings.ROOT_LOGGER.error(
+                    msg=f"error during parsing field: {key} in class {self.__class__.__name__}")
+                settings.ROOT_LOGGER.exception(
+                    e, stack_info=True, exc_info=True)
         return field_dict
 
     def update_fields(self, obj: dict):

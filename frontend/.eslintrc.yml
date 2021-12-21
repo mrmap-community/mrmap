@@ -32,6 +32,9 @@ plugins:
   - react
   - "@typescript-eslint"
   - simple-import-sort
+settings:
+  react:
+    version: detect
 rules:
   no-console:
     - warn

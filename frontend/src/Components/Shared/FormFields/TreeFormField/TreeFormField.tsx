@@ -1,11 +1,11 @@
 import './TreeFormField.css';
 
 import { EditFilled, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
-import { Button, Modal, Tooltip, Tree } from 'antd';
+import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { DataNode } from 'antd/lib/tree';
-import React, { cloneElement, FC, ReactNode, useEffect, useState } from 'react';
+import React, { cloneElement, createRef, FC, ReactNode, useEffect, useState } from 'react';
 
 import { JsonApiPrimaryData, JsonApiResponse } from '../../../../Repos/JsonApiRepo';
 
@@ -54,7 +54,7 @@ export interface TreeNodeType extends DataNode {
   expanded?: boolean;
 }
 
-interface TreeProps {
+export interface TreeProps {
   treeData: TreeNodeType[];
   asyncTree?: boolean;
   addNodeDispatchAction?:(
@@ -70,9 +70,16 @@ interface TreeProps {
   removeNodeActionIcon?: ReactNode;
   editNodeActionIcon?: ReactNode;
   title?: string;
+  attributeContainer?: 'modal' | 'drawer';
+  contextMenuOnNode?: boolean;
+  showMaskOnNodeAttributeForm?: boolean;
+  checkableNodes?: boolean;
 }
 
-//  TODO: create helper with several tree methods
+// TODO: create helper files with several tree methods inside. This file is too big.
+// Maybe separate it into helper functions for specific aactions on the tree and aanother with rendering
+// of subcomponents
+
 /**
 * @description: Method to parse an MPTT tree array to a TreeNodeType array
 * @param list
@@ -127,9 +134,15 @@ export const TreeFormField: FC<TreeProps> = ({
   addNodeActionIcon = (<PlusCircleFilled />),
   removeNodeActionIcon = (<MinusCircleFilled />),
   editNodeActionIcon = (<EditFilled />),
-  title = ''
+  title = '',
+  attributeContainer = 'modal',
+  contextMenuOnNode = false,
+  showMaskOnNodeAttributeForm = false,
+  checkableNodes = false
 }) => {
   const [form] = useForm();
+
+  const nodeNameTextInput:any = createRef();
 
   const [_treeData, setTreeData] = useState<TreeNodeType[]>(treeData);
   const [isNodeAttributeFormVisible, setIsNodeAttributeFormVisible] = useState<boolean>(false);
@@ -141,22 +154,8 @@ export const TreeFormField: FC<TreeProps> = ({
   const [isDraggingNode, setIsDraggingNode] = useState<boolean>(false); // TODO
   const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeType | undefined>(undefined);
-
-  useEffect(() => {
-    // since the modal is not being destroyed on close,
-    // this is a backup solution. Reseting or setting the values when the modal becomes visible
-    if (isNodeAttributeFormVisible) {
-      form.resetFields();
-      if (isEditingNodeAttributes && selectedNode) {
-        form.setFieldsValue({
-          ...selectedNode.properties,
-          // name: selectedNode.properties.name,
-          title: selectedNode.title
-        });
-      }
-    }
-  // eslint-disable-next-line
-  }, [isNodeAttributeFormVisible]);
+  const [newNodeName, setNewNodeName] = useState<string>('');
+  const [isEditingNodeName, setIsEditingNewNodeName] = useState<boolean>(false);
 
   /**
    * @description: Toggles the modal showing the form with the node properties
@@ -429,7 +428,7 @@ export const TreeFormField: FC<TreeProps> = ({
     if (node) {
       if (values && node) {
         node.title = values.title;
-        node.properties = values;
+        node.properties = values.properties;
         delete node.properties.title;
       }
       if (asyncTree) {
@@ -524,17 +523,180 @@ export const TreeFormField: FC<TreeProps> = ({
     onAddNode(nodeToCreate, nodeToCreateAttributes);
   };
 
-  // @ts-ignore
-  const clonedNodeAttributeForm = cloneElement(nodeAttributeForm, {
-    form,
-    onSubmit: (values) => {
-      if (!isEditingNodeAttributes) {
-        onAddNode(selectedNode, values);
-      } else {
-        onEditNode(selectedNode, values);
+  const clonedNodeAttributeForm = (node: TreeNodeType| undefined) => {
+    // @ts-ignore
+    return cloneElement(nodeAttributeForm, {
+      form,
+      onSubmit: (values) => {
+        if (!isEditingNodeAttributes) {
+          onAddNode(node, values);
+        } else {
+          onEditNode(node, values);
+        }
       }
+    });
+  };
+
+  const onNodeNameEditing = (nodeData: TreeNodeType | undefined, newName: string) => {
+    if (nodeData) {
+      onEditNode(
+        nodeData,
+        {
+          ...nodeData.properties,
+          properties: {
+            ...nodeData.properties,
+            name: newName
+          }
+        }
+      );
     }
-  });
+  };
+
+  /**
+   * @description TSX element to show context menu
+   * @param nodeData
+   * @returns
+   */
+  const nodeContextMenu = (nodeData: TreeNodeType) => (
+    <Menu>
+      <Menu.Item
+        onClick={() => {
+          setSelectedNode(nodeData);
+          setIsNodeAttributeFormVisible(true);
+        }}
+        icon={addNodeActionIcon}
+        key='add-node'
+      >
+        Add new layer
+      </Menu.Item>
+      {nodeData.parent && (
+        <Menu.Item
+          onClick={() => {
+            Modal.warning({
+              title: 'Remove Node',
+              content: 'The selected node will be removed, Are you sure?',
+              onOk: () => onRemoveNode(nodeData),
+              okButtonProps: {
+                disabled: isRemovingNode,
+                loading: isRemovingNode
+              }
+            });
+          }}
+          icon={removeNodeActionIcon}
+          key='remove-node'
+        >
+          Delete
+        </Menu.Item>
+      )}
+      <Menu.Item
+        onClick={() => {
+          setSelectedNode(nodeData);
+          setIsNodeAttributeFormVisible(true);
+          setIsEditingNodeAttributes(true);
+        }}
+        icon={editNodeActionIcon}
+        key='edit-node'
+      >
+        Properties
+      </Menu.Item>
+    </Menu>
+  );
+
+  /**
+   * @description TSX element to show node title
+   * @param nodeData
+   * @returns
+   */
+  const nodeTitle = (nodeData: TreeNodeType) => (
+    <Dropdown
+      overlay={nodeContextMenu(nodeData)}
+      trigger={contextMenuOnNode ? ['contextMenu'] : []}
+    >
+      <div
+        className='tree-form-field-node-title'
+        onDoubleClick={() => {
+          setSelectedNode(nodeData);
+          setIsEditingNewNodeName(true);
+          setNewNodeName(nodeData.properties.name);
+        }}
+      >
+        {isEditingNodeName && nodeData.key === selectedNode?.key
+          ? (
+            <Input
+              id='nodeNameInput'
+              ref={nodeNameTextInput}
+              name='nodeName'
+              value={newNodeName}
+              onChange={(e) => {
+                setNewNodeName(e.target.value);
+              }}
+              onKeyUp={(e) => {
+                if (newNodeName !== '' && e.key === 'Enter') {
+                  onNodeNameEditing(selectedNode, newNodeName);
+                  setNewNodeName('');
+                  setIsEditingNewNodeName(false);
+                }
+                if (e.key === 'Escape') {
+                  setNewNodeName('');
+                  setIsEditingNewNodeName(false);
+                }
+              }}
+            />
+            )
+          : nodeData.properties.name}
+      </div>
+    </Dropdown>
+  );
+
+  /**
+   * @description TSX element to show node action
+   * @param nodeData
+   * @returns
+   */
+  const nodeActions = (nodeData: TreeNodeType) => (
+    <div className='tree-form-field-node-actions'>
+      <Tooltip title='Create Node'>
+        <Button
+          onClick={() => {
+            setSelectedNode(nodeData);
+            setIsNodeAttributeFormVisible(true);
+          }}
+          type='text'
+          icon={addNodeActionIcon}
+        />
+      </Tooltip>
+      {nodeData.parent && (
+        <Tooltip title='Remove Node'>
+          <Button
+            onClick={() => {
+              Modal.warning({
+                title: 'Remove Node',
+                content: 'The selected node will be removed, Are you sure?',
+                onOk: () => onRemoveNode(nodeData),
+                okButtonProps: {
+                  disabled: isRemovingNode,
+                  loading: isRemovingNode
+                }
+              });
+            }}
+            type='text'
+            icon={removeNodeActionIcon}
+          />
+        </Tooltip>
+      )}
+      <Tooltip title='Edit Node'>
+        <Button
+          onClick={() => {
+            setSelectedNode(nodeData);
+            setIsNodeAttributeFormVisible(true);
+            setIsEditingNodeAttributes(true);
+          }}
+          type='text'
+          icon={editNodeActionIcon}
+        />
+      </Tooltip>
+    </div>
+  );
 
   /**
    * @description: Hook to run on component mount. Creates sets the initial tree data
@@ -553,10 +715,58 @@ export const TreeFormField: FC<TreeProps> = ({
     // eslint-disable-next-line
   }, []);
 
+  /**
+   * @description: Hook to detect a click anywhere on the document. This will reset the isEditingNameOnNode value.
+   * Event  will be removed when editingNodeName.id is not present
+   */
+  useEffect(() => {
+    const setNodeNameOnClick = (e:any) => {
+      if (e.target.id !== 'nodeNameInput') {
+        setIsEditingNewNodeName(false);
+        setNewNodeName('');
+      }
+    };
+    if (isEditingNodeName) {
+      // TODO: shouldthe name  be changed here  aas  well?
+      document.addEventListener('click', setNodeNameOnClick, false);
+    }
+    // cleanup. Removes event and changes the node name
+    return () => {
+      document.removeEventListener('click', setNodeNameOnClick, false);
+    };
+  }, [isEditingNodeName]);
+
+  /**
+   * @description: This hook is a backup since the modal is not being destroyed on close,
+   * this is a backup solution. Reseting or setting the values when the modal becomes visible
+   */
+  useEffect(() => {
+    if (isNodeAttributeFormVisible) {
+      form.resetFields();
+      if (isEditingNodeAttributes && selectedNode) {
+        form.setFieldsValue({
+          ...selectedNode.properties,
+          title: selectedNode.title
+        });
+      }
+    }
+  // eslint-disable-next-line
+  }, [isNodeAttributeFormVisible, selectedNode]);
+
+  /**
+   * @description: Hook to control focus once node name input edit field is shown on the node
+   */
+  useEffect(() => {
+    if (nodeNameTextInput.current && isEditingNodeName) {
+      nodeNameTextInput.current.focus();
+    }
+  }, [nodeNameTextInput, isEditingNodeName]);
+
   return (
     <>
       <h1>{title}</h1>
       <Tree
+        checkable={checkableNodes}
         className='tree-form-field'
         draggable={draggable}
         showIcon
@@ -571,67 +781,48 @@ export const TreeFormField: FC<TreeProps> = ({
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>
-            <div className='tree-form-field-node-title'>
-              <h3> {nodeData.title} </h3>
-            </div>
-            <div className='tree-form-field-node-actions'>
-              <Tooltip title='Create Node'>
-                <Button
-                  onClick={() => {
-                    setSelectedNode(nodeData);
-                    setIsNodeAttributeFormVisible(true);
-                  }}
-                  type='text'
-                  icon={addNodeActionIcon}
-                />
-              </Tooltip>
-              {nodeData.parent && (
-                <Tooltip title='Remove Node'>
-                  <Button
-                    onClick={() => {
-                      Modal.warning({
-                        title: 'Remove Node',
-                        content: 'The selectd node will be removed, Are you sure?',
-                        onOk: () => onRemoveNode(nodeData),
-                        okButtonProps: {
-                          disabled: isRemovingNode,
-                          loading: isRemovingNode
-                        }
-                      });
-                    }}
-                    type='text'
-                    icon={removeNodeActionIcon}
-                  />
-                </Tooltip>
-              )}
-              <Tooltip title='Edit Node'>
-                <Button
-                  onClick={() => {
-                    setSelectedNode(nodeData);
-                    setIsNodeAttributeFormVisible(true);
-                    setIsEditingNodeAttributes(true);
-                  }}
-                  type='text'
-                  icon={editNodeActionIcon}
-                />
-              </Tooltip>
-            </div>
+            {nodeTitle(nodeData)}
+            {!contextMenuOnNode && nodeActions(nodeData)}
           </div>
+
         )}
       />
-      <Modal
-        title={getNodeAttributeFormTitle()}
-        visible={isNodeAttributeFormVisible}
-        onOk={onNodeAttributeFormOkClick}
-        onCancel={onNodeAttributeFormCancelClick}
-        destroyOnClose
-        okButtonProps={{
-          disabled: isAddingNode || isEditingNode,
-          loading: isAddingNode || isEditingNode
-        }}
-      >
-        {clonedNodeAttributeForm}
-      </Modal>
+      {attributeContainer === 'modal' && (
+        <Modal
+          mask={showMaskOnNodeAttributeForm}
+          title={getNodeAttributeFormTitle()}
+          visible={isNodeAttributeFormVisible}
+          onOk={onNodeAttributeFormOkClick}
+          onCancel={onNodeAttributeFormCancelClick}
+          destroyOnClose
+          okButtonProps={{
+            disabled: isAddingNode || isEditingNode,
+            loading: isAddingNode || isEditingNode
+          }}
+        >
+          {clonedNodeAttributeForm(selectedNode)}
+        </Modal>
+      )}
+      {attributeContainer === 'drawer' && (
+        <Drawer
+          mask={showMaskOnNodeAttributeForm}
+          title={getNodeAttributeFormTitle()}
+          placement='right'
+          width={500}
+          onClose={onNodeAttributeFormCancelClick}
+          visible={isNodeAttributeFormVisible}
+          extra={
+            <Space>
+              <Button onClick={onNodeAttributeFormCancelClick}>Cancel</Button>
+              <Button type='primary' onClick={onNodeAttributeFormOkClick}>
+                OK
+              </Button>
+            </Space>
+          }
+        >
+        {clonedNodeAttributeForm(selectedNode)}
+      </Drawer>
+      )}
     </>
   );
 };

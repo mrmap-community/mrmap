@@ -10,7 +10,7 @@
             "facsimile": "",
             "city": "Offenbach",
             "postal_code": "63067",
-            "address_type": null,
+            "address_type": "",
             "address": "Frankfurter Strasse 135",
             "state_or_province": "Hessen",
             "country": "Germany"

@@ -6,11 +6,12 @@ import { Provider } from 'react-redux';
 
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { store } from './store';
+import { store } from './Services/ReduxStore/Store';
+import WebSockets from './Services/WebSockets';
 
 ReactDOM.render(
   <Provider store={store}>
-
+    <WebSockets />
     <App />
   </Provider>,
 

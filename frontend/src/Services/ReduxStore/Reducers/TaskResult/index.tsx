@@ -1,7 +1,7 @@
 import { AnyAction, createEntityAdapter, createSlice, ThunkAction } from '@reduxjs/toolkit';
 
-import TaskResultRepo, { TaskResult } from '../../Repos/TaskResultRepo';
-import { RootState } from '../../store';
+import TaskResultRepo, { TaskResult } from '../../../../Repos/TaskResultRepo';
+import { RootState } from '../../Store';
 
 const taskResultsAdapter = createEntityAdapter<TaskResult>({
   selectId: (taskResult) => taskResult.id,
@@ -45,11 +45,6 @@ export const fetchTaskResults = (): ThunkAction<void, RootState, unknown, AnyAct
           payload: response.data.data
         }
       );
-      // if (response.data.links && Object.prototype.hasOwnProperty.call(response.data.links, 'next')) {
-      //   dispatch(hasNext(response.data.links.next));
-      // } else {
-      //   dispatch(resetNext());
-      // }
     }
   } catch (e: any) {
     // dispatch(hasError(e.message));

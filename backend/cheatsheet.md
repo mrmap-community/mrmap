@@ -43,5 +43,5 @@ async_to_sync(get_channel_layer().group_send)("default", {"type": "send.msg", "j
 {'payload': {'type': 'TaskResult', 'id': '1', 'attributes': {'result': {}, 'task_meta': {}, 'task_id': '123', 'task_name': None, 'task_args': None, 'task_kwargs': None, 'status': 'PENDING', 'worker': None, 'content_type': '', 'content_encoding': '', 'date_created': '2021-12-21T09:15:34.813060+01:00', 'date_done': '2021-12-21T09:15:34.813088+01:00', 'traceback': None}, 'links': {'self': 'http://testserver/api/v1/notify/task-results/1/'}}, 
 'type': 'taskResults/add'}
 
-{'payload': {'type': 'TaskResult', 'id': '1', 'attributes': {'task_id': '123', 'task_name': '', 'task_args': '', 'task_kwargs': '', 'status': 'PENDING', 'worker': '', 'content_type': '', 'content_encoding': '', 'result': '', 'date_created': '2021-12-21 08:15:34.813060+00:00', 'date_done': '2021-12-21 08:15:34.813088+00:00', 'traceback': '', 'task_meta': ''}},
-'type': 'taskResults/add'}
+async_to_sync(get_channel_layer().group_send)("default", {"type": "send.msg", "json": {'payload': {'type': 'TaskResult', 'id': '123', 'attributes': {'task_id': '123', 'task_name': '', 'task_args': '', 'task_kwargs': '', 'status': 'PENDING', 'worker': '', 'content_type': '', 'content_encoding': '', 'result': '', 'date_created': '2021-12-21 08:15:34.813060+00:00', 'date_done': '2021-12-21 08:15:34.813088+00:00', 'traceback': '', 'task_meta': ''}},
+'type': 'taskResults/add'}})

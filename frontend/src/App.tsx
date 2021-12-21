@@ -5,9 +5,8 @@ import './App.css';
 import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { ConfigProvider, Layout, Space } from 'antd';
 import deDE from 'antd/lib/locale/de_DE';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-import useWebSocket from 'react-use-websocket';
 
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import MapContextTable from './Components/MapContext/MapContextTable';
@@ -25,7 +24,6 @@ import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
-import { store } from './store';
 
 const { Content, Footer, Sider } = Layout;
 
@@ -53,29 +51,6 @@ export default function App (): JSX.Element {
   const onCollapse = (collapsed: boolean) => {
     setCollapsed(collapsed);
   };
-
-  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const hostname = window.location.hostname;
-  const port = window.location.port;
-  const defaultWsUrl = scheme + '://' + hostname + ':' + port + '/ws/default/';
-
-  const lastMessage = useWebSocket(defaultWsUrl, {
-    shouldReconnect: () => { return true; },
-    reconnectInterval: 3000
-  });
-
-  const handleMessage = (lastJsonMessage:any) => {
-    // TODO: check if the schema matches
-    store.dispatch(lastJsonMessage);
-  };
-
-  useEffect(() => {
-    if (lastMessage !== null && lastMessage.lastJsonMessage) {
-      // eslint-disable-next-line
-      handleMessage(lastMessage.lastJsonMessage);
-    }
-    // eslint-disable-next-lint
-  }, [lastMessage]);
 
   return (
     <Router>

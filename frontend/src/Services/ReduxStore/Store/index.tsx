@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 
-import taskResultReducer from './Features/TaskResult/taskResultSlice';
+import taskResultReducer from '../Reducers/TaskResult';
 
 export const store = configureStore({
   // @ts-ignore

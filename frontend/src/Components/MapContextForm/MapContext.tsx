@@ -7,7 +7,6 @@ import OlLayerGroup from 'ol/layer/Group';
 import OlLayerTile from 'ol/layer/Tile';
 import OlMap from 'ol/Map';
 import OlSourceOsm from 'ol/source/OSM';
-import OlSourceTileWMS from 'ol/source/TileWMS';
 import OlView from 'ol/View';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -32,30 +31,6 @@ const layerGroup = new OlLayerGroup({
       source: new OlSourceOsm(),
       // @ts-ignore
       name: 'OSM'
-    }),
-    new OlLayerTile({
-      // @ts-ignore
-      name: 'SRTM30-Contour',
-      minResolution: 0,
-      maxResolution: 10,
-      source: new OlSourceTileWMS({
-        url: 'https://ows.terrestris.de/osm/service',
-        params: {
-          LAYERS: 'SRTM30-Contour'
-        }
-      })
-    }),
-    new OlLayerTile({
-      // @ts-ignore
-      name: 'OSM-Overlay-WMS',
-      minResolution: 0,
-      maxResolution: 200,
-      source: new OlSourceTileWMS({
-        url: 'https://ows.terrestris.de/osm/service',
-        params: {
-          LAYERS: 'OSM-Overlay-WMS'
-        }
-      })
     })
   ]
 });

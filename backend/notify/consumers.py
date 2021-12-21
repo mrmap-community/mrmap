@@ -1,5 +1,3 @@
-import json
-
 from notify.auth import NonAnonymousJsonWebsocketConsumer
 
 

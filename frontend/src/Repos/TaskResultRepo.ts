@@ -8,19 +8,19 @@ interface TaskMeta{
 }
 
 interface TaskResultAttributes{
-  task_id: string,
-  task_name: string,
-  task_args: string,
-  task_kwargs: string,
+  task_id: string,//eslint-disable-line
+  task_name: string,//eslint-disable-line
+  task_args: string,//eslint-disable-line
+  task_kwargs: string,//eslint-disable-line
   status: string,
   worker: string,
-  content_type: string,
-  content_encoding: string,
+  content_type: string,//eslint-disable-line
+  content_encoding: string,//eslint-disable-line
   result: any,
-  date_created: string,
-  date_done: string,
+  date_created: string,//eslint-disable-line
+  date_done: string,//eslint-disable-line
   traceback: string,
-  task_meta: TaskMeta
+  task_meta: TaskMeta//eslint-disable-line
 }
 
 export interface TaskResult extends JsonApiPrimaryData {

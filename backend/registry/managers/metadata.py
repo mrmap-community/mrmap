@@ -1,11 +1,11 @@
 from datetime import date, datetime
 
 from crum import get_current_user
+from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import OperationalError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from extras.transaction import LockedAtomicTransaction
 from registry.enums.metadata import MetadataOrigin
 
 
@@ -81,10 +81,28 @@ class IsoMetadataManager(models.Manager):
 
         field_dict = parsed_metadata.get_field_dict()
         update = False
-        exists = False
+        defaults = {
+            'metadata_contact': db_metadata_contact,
+            'dataset_contact': db_dataset_contact,
+            'origin': MetadataOrigin.ISO_METADATA.value,
+            'origin_url': origin_url,
+            **field_dict,
+            **self.common_info
+        }
+
         try:
-            db_dataset_metadata = self.model.objects.select_for_update().get(dataset_id=field_dict["dataset_id"],
-                                                                             dataset_id_code_space=field_dict["dataset_id_code_space"])
+            # FIXME use empty string for dataset_id_code_space (avoid multiple identical rows)
+            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(defaults=defaults, dataset_id=field_dict["dataset_id"],
+                                                                                                dataset_id_code_space=field_dict["dataset_id_code_space"])
+        except MultipleObjectsReturned:
+            # TODO clarify if datasets with NULL dataset_id/dataset_id_code_space can be ruled out somehow?
+            db_dataset_metadata = self.model.objects.create(
+                dataset_id=field_dict["dataset_id"],
+                dataset_id_code_space=field_dict["dataset_id_code_space"],
+                **defaults)
+            created = True
+
+        if not created:
             with transaction.atomic():
                 # todo: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
                 if isinstance(field_dict["date_stamp"], date):
@@ -93,22 +111,14 @@ class IsoMetadataManager(models.Manager):
                 dt_aware = timezone.make_aware(
                     field_dict["date_stamp"], timezone.get_current_timezone())
                 if dt_aware > db_dataset_metadata.date_stamp:
-                    # todo: on update we need to check custom metadata
-                    self.model.objects.update(metadata_contact=db_metadata_contact,
-                                              dataset_contact=db_dataset_contact,
-                                              last_modified_by=self.current_user,
-                                              **field_dict)
+                    [setattr(db_dataset_metadata, key, value)
+                     for key, value in field_dict]
+                    db_dataset_metadata.metadata_contact = db_dataset_contact
+                    db_dataset_metadata.dataset_contact = db_dataset_contact
+                    db_dataset_metadata.last_modified_by = self.current_user
+                    db_dataset_metadata.save()
                     update = True
-                exists = True
-        except self.model.DoesNotExist:
-            with LockedAtomicTransaction(self.model):
-                db_dataset_metadata = super().create(metadata_contact=db_metadata_contact,
-                                                     dataset_contact=db_dataset_contact,
-                                                     origin=MetadataOrigin.ISO_METADATA.value,
-                                                     origin_url=origin_url,
-                                                     **field_dict,
-                                                     **self.common_info)
-        return db_dataset_metadata, exists, update
+        return db_dataset_metadata, not created, update
 
     def _create_service_metadata(self, parsed_metadata, *args, **kwargs):
         db_metadata_contact = self._create_contact(

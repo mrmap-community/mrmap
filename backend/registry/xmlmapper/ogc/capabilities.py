@@ -1,17 +1,18 @@
-from django.utils import timezone
-from django.contrib.gis.geos import Polygon
-from eulxml import xmlmap
 from pathlib import Path
+
+from django.conf import settings
+from django.contrib.gis.geos import Polygon
+from django.utils import timezone
+from eulxml import xmlmap
+from isodate.duration import Duration
+from isodate.isodates import parse_date
 from isodate.isodatetime import parse_datetime
 from isodate.isoduration import parse_duration
-from isodate.isodates import parse_date
 from isodate.isoerror import ISO8601Error
-from isodate.duration import Duration
+from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum
+from registry.xmlmapper.consts import NS_WC
 from registry.xmlmapper.exceptions import SemanticError
 from registry.xmlmapper.mixins import DBModelConverterMixin
-from registry.xmlmapper.consts import NS_WC
-from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum
-from django.conf import settings
 
 
 class XlinkHref(xmlmap.XmlObject):
@@ -44,7 +45,8 @@ class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
 class WmsOperationUrl(OperationUrl):
     method = xmlmap.StringField(xpath="name(..)")
     operation = xmlmap.StringField(xpath="name(../../../..)")
-    mime_types = xmlmap.NodeListField(xpath=f"../../../../{NS_WC}Format']", node_class=MimeType)
+    mime_types = xmlmap.NodeListField(
+        xpath=f"../../../../{NS_WC}Format']", node_class=MimeType)
 
 
 class WfsCswOperationUrl(OperationUrl):
@@ -68,7 +70,8 @@ class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     """
     model = 'registry.MetadataContact'
 
-    name = xmlmap.StringField(xpath=f"{NS_WC}ContactPersonPrimary']/{NS_WC}ContactOrganization']|{NS_WC}ProviderName']")
+    name = xmlmap.StringField(
+        xpath=f"{NS_WC}ContactPersonPrimary']/{NS_WC}ContactOrganization']|{NS_WC}ProviderName']")
     person_name = xmlmap.StringField(
         xpath=f"{NS_WC}ContactPersonPrimary']/{NS_WC}ContactPerson']|{NS_WC}ServiceContact']/{NS_WC}IndividualName']")
     phone = xmlmap.StringField(
@@ -92,7 +95,8 @@ class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
 class LegendUrl(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'registry.LegendUrl'
 
-    legend_url = xmlmap.NodeField(xpath=f"{NS_WC}OnlineResource']", node_class=XlinkHref)
+    legend_url = xmlmap.NodeField(
+        xpath=f"{NS_WC}OnlineResource']", node_class=XlinkHref)
     height = xmlmap.IntegerField(xpath=f"@{NS_WC}height']")
     width = xmlmap.IntegerField(xpath=f"@{NS_WC}width']")
     mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
@@ -103,7 +107,8 @@ class Style(DBModelConverterMixin, xmlmap.XmlObject):
 
     name = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
-    legend_url = xmlmap.NodeField(xpath=f"{NS_WC}LegendURL']", node_class=LegendUrl)
+    legend_url = xmlmap.NodeField(
+        xpath=f"{NS_WC}LegendURL']", node_class=LegendUrl)
 
 
 class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
@@ -114,7 +119,7 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
     def get_field_dict(self):
         dic = super().get_field_dict()
 
-        ref_system = dic.get("ref_system", None)
+        ref_system = dic.pop("ref_system", None)
         if "::" in ref_system:
             # example: ref_system = urn:ogc:def:crs:EPSG::4326
             code = ref_system.rsplit(":")[-1]
@@ -127,7 +132,6 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
             raise SemanticError("reference system unknown")
         dic.update({"code": code,
                     "prefix": prefix.upper()})
-        del dic["ref_system"]
         return dic
 
 
@@ -161,7 +165,8 @@ class Dimension111(DBModelConverterMixin, xmlmap.XmlObject):
     units = xmlmap.StringField(xpath=f"@{NS_WC}units']")
 
     parsed_extent = None
-    parsed_extents = xmlmap.NodeListField(xpath=f"../{NS_WC}Extent']", node_class=Extent111)
+    parsed_extents = xmlmap.NodeListField(
+        xpath=f"../{NS_WC}Extent']", node_class=Extent111)
     extents = []
 
     def parse_extent_value(self, start, stop, resolution) -> tuple:
@@ -191,7 +196,8 @@ class Dimension111(DBModelConverterMixin, xmlmap.XmlObject):
     def parse_extent(self):
         if hasattr(self, "parsed_extents"):
             try:
-                parsed_extent = next(extent for extent in self.parsed_extents if extent.name == self.name)
+                parsed_extent = next(
+                    extent for extent in self.parsed_extents if extent.name == self.name)
                 self.parsed_extent = parsed_extent.__str__()
             except StopIteration:
                 self.parsed_extent = None
@@ -202,29 +208,36 @@ class Dimension111(DBModelConverterMixin, xmlmap.XmlObject):
                 intervals = self.parsed_extent.split(",")
                 for interval in intervals:
                     split = interval.split("/")
-                    start, stop, resolution = self.parse_extent_value(start=split[0], stop=split[1], resolution=split[2])
-                    self.extents.append(TimeExtent(start=start, stop=stop, resolution=resolution))
+                    start, stop, resolution = self.parse_extent_value(
+                        start=split[0], stop=split[1], resolution=split[2])
+                    self.extents.append(TimeExtent(
+                        start=start, stop=stop, resolution=resolution))
             elif "/" in self.parsed_extent:
                 # one interval detected
                 split = self.parsed_extent.split("/")
-                start, stop, resolution = self.parse_extent_value(start=split[0], stop=split[1], resolution=split[2])
-                self.extents.append(TimeExtent(start=start, stop=stop, resolution=resolution))
+                start, stop, resolution = self.parse_extent_value(
+                    start=split[0], stop=split[1], resolution=split[2])
+                self.extents.append(TimeExtent(
+                    start=start, stop=stop, resolution=resolution))
             elif "," in self.parsed_extent:
                 # a list of single values detected
                 split = self.parsed_extent.split(",")
                 for value in split:
                     _value = self.parse_datetime_or_date(value)
                     if _value:
-                        self.extents.append(TimeExtent(start=_value, stop=_value))
+                        self.extents.append(TimeExtent(
+                            start=_value, stop=_value))
                     else:
-                        settings.ROOT_LOGGER.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
+                        settings.ROOT_LOGGER.error(
+                            msg=f"can't parse time dimension from value: {self.parsed_extent}")
             else:
                 # one single value was detected
                 _value = self.parse_datetime_or_date(self.parsed_extent)
                 if _value:
                     self.extents.append(TimeExtent(start=_value, stop=_value))
                 else:
-                    settings.ROOT_LOGGER.error(msg=f"can't parse time dimension from value: {self.parsed_extent}")
+                    settings.ROOT_LOGGER.error(
+                        msg=f"can't parse time dimension from value: {self.parsed_extent}")
 
 
 class Dimension130(Dimension111):
@@ -234,7 +247,8 @@ class Dimension130(Dimension111):
 class RemoteMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'registry.RemoteMetadata'
 
-    link = xmlmap.StringField(xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']|@{NS_WC}href']")
+    link = xmlmap.StringField(
+        xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']|@{NS_WC}href']")
 
 
 class ServiceElementMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -259,7 +273,8 @@ class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
     title = xmlmap.StringField(xpath=f"{NS_WC}Title']")
     abstract = xmlmap.StringField(xpath=f"{NS_WC}Abstract']")
     fees = xmlmap.StringField(xpath=f"{NS_WC}Fees']")
-    access_constraints = xmlmap.StringField(xpath=f"{NS_WC}AccessConstraints']")
+    access_constraints = xmlmap.StringField(
+        xpath=f"{NS_WC}AccessConstraints']")
 
     # ForeignKey
     service_contact = xmlmap.NodeField(xpath=f"{NS_WC}ContactInformation']|../{NS_WC}ServiceProvider']",
@@ -281,8 +296,10 @@ class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
     left = 0
     right = 0
 
-    scale_min = xmlmap.FloatField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}min']|{NS_WC}MinScaleDenominator']")
-    scale_max = xmlmap.FloatField(xpath=f"{NS_WC}ScaleHint']/@{NS_WC}max']|{NS_WC}MaxScaleDenominator']")
+    scale_min = xmlmap.FloatField(
+        xpath=f"{NS_WC}ScaleHint']/@{NS_WC}min']|{NS_WC}MinScaleDenominator']")
+    scale_max = xmlmap.FloatField(
+        xpath=f"{NS_WC}ScaleHint']/@{NS_WC}max']|{NS_WC}MaxScaleDenominator']")
     bbox_min_x = xmlmap.FloatField(
         xpath=f"{NS_WC}LatLonBoundingBox']/@{NS_WC}minx']|{NS_WC}EX_GeographicBoundingBox']/{NS_WC}westBoundLongitude']")
     bbox_max_x = xmlmap.FloatField(
@@ -291,28 +308,34 @@ class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
         xpath=f"{NS_WC}LatLonBoundingBox']/@{NS_WC}miny']|{NS_WC}EX_GeographicBoundingBox']/{NS_WC}southBoundLatitude']")
     bbox_max_y = xmlmap.FloatField(
         xpath=f"{NS_WC}LatLonBoundingBox']/@{NS_WC}maxy']|{NS_WC}EX_GeographicBoundingBox']/{NS_WC}northBoundLatitude']")
-    reference_systems = xmlmap.NodeListField(xpath=f"{NS_WC}SRS']|{NS_WC}CRS']", node_class=ReferenceSystem)
+    reference_systems = xmlmap.NodeListField(
+        xpath=f"{NS_WC}SRS']|{NS_WC}CRS']", node_class=ReferenceSystem)
     identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     styles = xmlmap.NodeListField(xpath=f"{NS_WC}Style']", node_class=Style)
-    is_queryable = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}queryable']", true=1, false=0)
-    is_opaque = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}opaque']", true=1, false=0)
-    is_cascaded = xmlmap.SimpleBooleanField(xpath=f"@{NS_WC}cascaded']", true=1, false=0)
+    is_queryable = xmlmap.SimpleBooleanField(
+        xpath=f"@{NS_WC}queryable']", true=1, false=0)
+    is_opaque = xmlmap.SimpleBooleanField(
+        xpath=f"@{NS_WC}opaque']", true=1, false=0)
+    is_cascaded = xmlmap.SimpleBooleanField(
+        xpath=f"@{NS_WC}cascaded']", true=1, false=0)
     parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
     metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
-    remote_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
-    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension111)
+    remote_metadata = xmlmap.NodeListField(
+        xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
+    dimensions = xmlmap.NodeListField(
+        xpath=f"{NS_WC}Dimension']", node_class=Dimension111)
 
     def get_field_dict(self):
         dic = super().get_field_dict()
         # there is no default xmlmap field which parses to a geos polygon. So we convert it here.
-        min_x = dic.get('bbox_min_x')
-        max_x = dic.get('bbox_max_x')
-        min_y = dic.get('bbox_min_y')
-        max_y = dic.get('bbox_max_y')
-        del dic['bbox_min_x'], dic['bbox_max_x'], dic['bbox_min_y'], dic['bbox_max_y']
+        min_x = dic.pop('bbox_min_x')
+        max_x = dic.pop('bbox_max_x')
+        min_y = dic.pop('bbox_min_y')
+        max_y = dic.pop('bbox_max_y')
         if min_x and max_x and min_y and max_y:
-            bbox_lat_lon = Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
+            bbox_lat_lon = Polygon(
+                ((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
             dic.update({"bbox_lat_lon": bbox_lat_lon})
         return dic
 
@@ -344,13 +367,15 @@ class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
 class Layer110(Layer111):
     # wms 1.1.0 supports whitelist spacing of srs. There is no default split function way in xpath 1.0
     # todo: try to use f"{NS_WC}SRS/tokenize(.," ")']"
-    reference_systems = xmlmap.NodeListField(xpath=f"{NS_WC}SRS']", node_class=ReferenceSystem)
+    reference_systems = xmlmap.NodeListField(
+        xpath=f"{NS_WC}SRS']", node_class=ReferenceSystem)
     parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
 
 
 class Layer130(Layer111):
-    dimensions = xmlmap.NodeListField(xpath=f"{NS_WC}Dimension']", node_class=Dimension130)
+    dimensions = xmlmap.NodeListField(
+        xpath=f"{NS_WC}Dimension']", node_class=Dimension130)
     parent = xmlmap.NodeField(xpath=f"../../{NS_WC}Layer']", node_class="self")
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
 
@@ -359,10 +384,14 @@ class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
     model = "registry.FeatureType"
     identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     metadata = xmlmap.NodeField(xpath=".", node_class=FeatureTypeMetadata)
-    remote_metadata = xmlmap.NodeListField(xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
-    bbox_lower_corner = xmlmap.StringField(xpath=f"{NS_WC}WGS84BoundingBox']/{NS_WC}LowerCorner']")
-    bbox_upper_corner = xmlmap.StringField(xpath=f"{NS_WC}WGS84BoundingBox']/{NS_WC}UpperCorner']")
-    output_formats = xmlmap.NodeListField(xpath=f"{NS_WC}OutputFormats']/{NS_WC}Format']", node_class=MimeType)
+    remote_metadata = xmlmap.NodeListField(
+        xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
+    bbox_lower_corner = xmlmap.StringField(
+        xpath=f"{NS_WC}WGS84BoundingBox']/{NS_WC}LowerCorner']")
+    bbox_upper_corner = xmlmap.StringField(
+        xpath=f"{NS_WC}WGS84BoundingBox']/{NS_WC}UpperCorner']")
+    output_formats = xmlmap.NodeListField(
+        xpath=f"{NS_WC}OutputFormats']/{NS_WC}Format']", node_class=MimeType)
     reference_systems = xmlmap.NodeListField(
         xpath=f"{NS_WC}DefaultSRS']|{NS_WC}OtherSRS']|{NS_WC}DefaultCRS']|{NS_WC}OtherCRS']",
         node_class=ReferenceSystem)
@@ -371,8 +400,8 @@ class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
     def get_field_dict(self):
         dic = super().get_field_dict()
         # there is no default xmlmap field which parses to a geos polygon. So we convert it here.
-        bbox_lower_corner = dic.get('bbox_lower_corner', None)
-        bbox_upper_corner = dic.get('bbox_upper_corner', None)
+        bbox_lower_corner = dic.pop('bbox_lower_corner')
+        bbox_upper_corner = dic.pop('bbox_upper_corner')
 
         if bbox_lower_corner and bbox_upper_corner:
             min_x = float(bbox_lower_corner.split(" ")[0])
@@ -380,10 +409,9 @@ class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
             max_x = float(bbox_upper_corner.split(" ")[0])
             max_y = float(bbox_upper_corner.split(" ")[1])
 
-            bbox_lat_lon = Polygon(((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
+            bbox_lat_lon = Polygon(
+                ((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
             dic.update({"bbox_lat_lon": bbox_lat_lon})
-
-        del dic['bbox_lower_corner'], dic['bbox_upper_corner']
 
         return dic
 
@@ -392,7 +420,8 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
     model = "registry.ServiceType"
 
     wms_name = xmlmap.StringField(xpath=f"{NS_WC}Service']/{NS_WC}Name']")
-    wfs_csw_name = xmlmap.StringField(xpath=f"{NS_WC}ServiceIdentification']/{NS_WC}ServiceType']")
+    wfs_csw_name = xmlmap.StringField(
+        xpath=f"{NS_WC}ServiceIdentification']/{NS_WC}ServiceType']")
     version = xmlmap.StringField(xpath=f"@{NS_WC}version']")
 
     def get_field_dict(self):
@@ -408,13 +437,12 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
         """
         dic = super().get_field_dict()
         if dic.get("wms_name", None):
-            name = dic.get("wms_name").lower()
+            name = dic.pop("wms_name", None).lower()
         elif dic.get("wfs_csw_name", None):
-            name = dic.get("wfs_csw_name").lower()
+            name = dic.pop("wfs_csw_name", None).lower()
         else:
-            raise SemanticError("could not determine the service type for the parsed capabilities document.")
-
-        del dic["wms_name"], dic["wfs_csw_name"]
+            raise SemanticError(
+                "could not determine the service type for the parsed capabilities document.")
 
         if ":" in name:
             name = name.split(":", 1)[-1]
@@ -432,7 +460,8 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
 class Service(DBModelConverterMixin, xmlmap.XmlObject):
     # todo: new field with node_class RemoteMetadata for wms and wfs
     remote_metadata = None
-    service_url = xmlmap.NodeField(xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
+    service_url = xmlmap.NodeField(
+        xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
     version = xmlmap.StringField(xpath=f"@{NS_WC}version']")
 
     def get_field_dict(self):
@@ -447,7 +476,8 @@ class WmsService(Service):
 
     all_layers = None
     service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
-    service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
+    service_metadata = xmlmap.NodeField(
+        xpath=f"{NS_WC}Service']", node_class=ServiceMetadata)
     operation_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']"
                                                 f"//{NS_WC}OnlineResource']",
                                           node_class=WmsOperationUrl)
@@ -459,22 +489,26 @@ class WmsService(Service):
 
 
 class Wms110Service(WmsService):
-    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer110)
+    root_layer = xmlmap.NodeField(
+        xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer110)
 
 
 class Wms111Service(WmsService):
-    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer111)
+    root_layer = xmlmap.NodeField(
+        xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer111)
 
 
 class Wms130Service(WmsService):
-    root_layer = xmlmap.NodeField(xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer130)
+    root_layer = xmlmap.NodeField(
+        xpath=f"{NS_WC}Capability']/{NS_WC}Layer']", node_class=Layer130)
 
 
 class Wfs200Service(Service):
     model = 'registry.WebFeatureService'
 
     service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
-    service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
+    service_metadata = xmlmap.NodeField(
+        xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
     operation_urls = xmlmap.NodeListField(
         xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"
               f"{NS_WC}OperationsMetadata']/{NS_WC}Operation']//{NS_WC}DCP']/{NS_WC}HTTP']/*",
@@ -487,7 +521,8 @@ class CswService(Service):
     model = 'registry.CatalougeService'
 
     # service_type = xmlmap.NodeField(xpath=".", node_class=ServiceType)
-    service_metadata = xmlmap.NodeField(xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
+    service_metadata = xmlmap.NodeField(
+        xpath=f"{NS_WC}ServiceIdentification']", node_class=ServiceMetadata)
     operation_urls = xmlmap.NodeListField(
         xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"
               f"{NS_WC}OperationsMetadata']/{NS_WC}Operation']//{NS_WC}DCP']/{NS_WC}HTTP']/*",

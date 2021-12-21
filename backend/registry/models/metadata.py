@@ -123,45 +123,46 @@ class ReferenceSystem(models.Model):
 
 class MetadataContact(models.Model):
     name = models.CharField(max_length=256,
-                            null=True,
+                            default='',
                             verbose_name=_("Name"),
                             help_text=_("The name of the organization"))
     person_name = models.CharField(max_length=200,
-                                   null=True,
+                                   default='',
                                    verbose_name=_("Contact person"))
     email = models.EmailField(max_length=100,
-                              null=True,
+                              default='',
                               verbose_name=_('E-Mail'))
     phone = models.CharField(max_length=100,
-                             null=True,
+                             default='',
                              verbose_name=_('Phone'))
     facsimile = models.CharField(max_length=100,
-                                 null=True,
-                                 blank=True,
+                                 default='',
                                  verbose_name=_("Facsimile"))
     city = models.CharField(max_length=100,
-                            null=True,
+                            default='',
                             verbose_name=_("City"))
     postal_code = models.CharField(max_length=100,
-                                   null=True,
+                                   default='',
                                    verbose_name=_("Postal code"))
     address_type = models.CharField(max_length=100,
-                                    null=True,
+                                    default='',
                                     verbose_name=_("Address type"))
     address = models.CharField(max_length=100,
-                               null=True,
+                               default='',
                                verbose_name=_("Address"))
     state_or_province = models.CharField(max_length=100,
-                                         null=True,
+                                         default='',
                                          verbose_name=_("State or province"))
     country = models.CharField(max_length=100,
-                               null=True,
+                               default='',
                                verbose_name=_("Country"))
 
     class Meta:
         ordering = ["name"]
         constraints = [
             # we store only atomic contact records, identified by all fields
+            # NOTE: Avoid nullable columns that are part of a unique constraint:
+            # https://wladimirguerra.medium.com/only-one-null-in-unique-columns-234672fefc08
             models.UniqueConstraint(fields=['name',
                                             'person_name',
                                             'email',
@@ -638,8 +639,8 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
                                   null=True,  # empty dataset_id signals broken dataset metadata records
                                   help_text=_("identifier of the remote data"))
     dataset_id_code_space = models.CharField(max_length=4096,
-                                             null=True,
                                              blank=True,
+                                             default='',
                                              help_text=_("code space for the given identifier"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
@@ -682,7 +683,7 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
             # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
             # identifier
             models.UniqueConstraint(fields=['dataset_id', 'dataset_id_code_space'],
-                                    name='%(app_label)s_%(class)s_unique_origin_url_file_identifier')
+                                    name='%(app_label)s_%(class)s_unique_dataset_id_dataset_id_code_space')
         ]
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):

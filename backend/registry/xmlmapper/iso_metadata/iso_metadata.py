@@ -1,12 +1,12 @@
-from django.contrib.gis.geos import Polygon as GeosPolygon
-from django.contrib.gis.geos import MultiPolygon
-from eulxml import xmlmap
-
-from registry.xmlmapper.gml.gml import Gml
-from registry.xmlmapper.mixins import DBModelConverterMixin
 import urllib
 
-from registry.xmlmapper.namespaces import GMD_NAMESPACE, GCO_NAMESPACE, SRV_NAMESPACE, GML_3_1_1_NAMESPACE
+from django.contrib.gis.geos import MultiPolygon
+from django.contrib.gis.geos import Polygon as GeosPolygon
+from eulxml import xmlmap
+from registry.xmlmapper.gml.gml import Gml
+from registry.xmlmapper.mixins import DBModelConverterMixin
+from registry.xmlmapper.namespaces import (GCO_NAMESPACE, GMD_NAMESPACE,
+                                           GML_3_1_1_NAMESPACE, SRV_NAMESPACE)
 
 
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
@@ -32,10 +32,14 @@ class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE),
                             ("gml", GML_3_1_1_NAMESPACE)])
 
-    temporal_extent_start = xmlmap.DateTimeField(xpath="gml:TimePeriod/gml:beginPosition")
-    temporal_extent_start_indeterminate_position = xmlmap.StringField(xpath="gml:TimePeriod/gml:beginPosition/@indeterminatePosition")
-    temporal_extent_end = xmlmap.DateTimeField(xpath="gml:TimePeriod/gml:endPosition")
-    temporal_extent_end_indeterminate_position = xmlmap.StringField(xpath="gml:TimePeriod/gml:endPosition/@indeterminatePosition")
+    temporal_extent_start = xmlmap.DateTimeField(
+        xpath="gml:TimePeriod/gml:beginPosition")
+    temporal_extent_start_indeterminate_position = xmlmap.StringField(
+        xpath="gml:TimePeriod/gml:beginPosition/@indeterminatePosition")
+    temporal_extent_end = xmlmap.DateTimeField(
+        xpath="gml:TimePeriod/gml:endPosition")
+    temporal_extent_end_indeterminate_position = xmlmap.StringField(
+        xpath="gml:TimePeriod/gml:endPosition/@indeterminatePosition")
 
 
 class EXGeographicBoundingBox(xmlmap.XmlObject):
@@ -92,8 +96,7 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
             else:
                 code = field_dict["ref_system"].split(":")[-1]
             field_dict.update({"code": code})
-
-        del field_dict["ref_system"]
+            del field_dict["ref_system"]
 
         return field_dict
 
@@ -102,12 +105,16 @@ class CiResponsibleParty(DBModelConverterMixin, xmlmap.XmlObject):
     model = "registry.MetadataContact"
     ROOT_NAME = "CI_ResponsibleParty"
     ROOT_NS = "gmd"
-    ROOT_NAMESPACES = dict([("gmd", "http://www.isotc211.org/2005/gmd"), ("gco", "http://www.isotc211.org/2005/gco")])
+    ROOT_NAMESPACES = dict([("gmd", "http://www.isotc211.org/2005/gmd"),
+                           ("gco", "http://www.isotc211.org/2005/gco")])
 
     name = xmlmap.StringField(xpath="gmd:organisationName/gco:CharacterString")
-    person_name = xmlmap.StringField(xpath="gmd:individualName/gco:CharacterString")
-    phone = xmlmap.StringField(xpath="gmd:contactInfo/gmd:CI_Contact/gmd:phone/gmd:CI_Telephone/gmd:voice/gco:CharacterString")
-    email = xmlmap.StringField(xpath="gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString")
+    person_name = xmlmap.StringField(
+        xpath="gmd:individualName/gco:CharacterString")
+    phone = xmlmap.StringField(
+        xpath="gmd:contactInfo/gmd:CI_Contact/gmd:phone/gmd:CI_Telephone/gmd:voice/gco:CharacterString")
+    email = xmlmap.StringField(
+        xpath="gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString")
 
 
 class BaseIsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -127,13 +134,18 @@ class BaseIsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class BasicInformation(BaseIsoMetadata):
-    title = xmlmap.StringField(xpath="gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
+    title = xmlmap.StringField(
+        xpath="gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString")
     abstract = xmlmap.StringField(xpath="gmd:abstract/gco:CharacterString")
-    access_constraints = xmlmap.StringField(xpath="gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue=\"otherRestrictions\"]/gmd:otherConstraints/gco:CharacterString")
+    access_constraints = xmlmap.StringField(
+        xpath="gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue=\"otherRestrictions\"]/gmd:otherConstraints/gco:CharacterString")
     # dataset specific fields
-    code_md = xmlmap.StringField(xpath="gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString")
-    code_rs = xmlmap.StringField(xpath="gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
-    code_space_rs = xmlmap.StringField(xpath="gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:codeSpace/gco:CharacterString")
+    code_md = xmlmap.StringField(
+        xpath="gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString")
+    code_rs = xmlmap.StringField(
+        xpath="gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
+    code_space_rs = xmlmap.StringField(
+        xpath="gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:codeSpace/gco:CharacterString")
 
     # character_set_code = xmlmap.StringField(xpath=f"{NS_WC}characterSet']/{NS_WC}MD_CharacterSetCode']/@codeListValue")
 
@@ -157,7 +169,8 @@ class BasicInformation(BaseIsoMetadata):
         elif self.ground_res is not None and self.ground_res > 0:
             field_dict["spatial_res_value"] = self.ground_res
             field_dict["spatial_res_type"] = "groundDistance"
-        del field_dict["equivalent_scale"], field_dict["ground_res"]
+        field_dict.pop("equivalent_scale", None)
+        field_dict.pop("ground_res", None)
 
     def get_dataset_id(self, field_dict):
         if field_dict.get("code_md", None):
@@ -171,7 +184,8 @@ class BasicInformation(BaseIsoMetadata):
             if parsed_url.scheme == "http" or parsed_url.scheme == "https" and "/" in parsed_url.path:
                 tmp = code.split("/")
                 field_dict["dataset_id"] = tmp[len(tmp) - 1]
-                field_dict["dataset_id_code_space"] = code.replace(field_dict["dataset_id"], "")
+                field_dict["dataset_id_code_space"] = code.replace(
+                    field_dict["dataset_id"], "")
             elif parsed_url.scheme == "http" or parsed_url.scheme == "https" and "#" in code:
                 tmp = code.split("#")
                 field_dict["dataset_id"] = tmp[1]
@@ -179,6 +193,7 @@ class BasicInformation(BaseIsoMetadata):
             else:
                 field_dict["dataset_id"] = code
                 field_dict["dataset_id_code_space"] = ""
+            del field_dict["code_md"]
 
         elif field_dict.get("code_rs", None):
             # try to read code from RS_Identifier
@@ -189,23 +204,25 @@ class BasicInformation(BaseIsoMetadata):
                 field_dict["dataset_id_code_space"] = code_space
             else:
                 field_dict["is_broken"] = True
+            del field_dict["code_rs"]
 
-        del field_dict["code_rs"], field_dict["code_space_rs"], field_dict["code_md"]
+        field_dict.pop("code_space_rs", None)
 
     def get_date_stamp(self, field_dict):
-        date = field_dict.get("date_stamp_date", None)
-        date_time = field_dict.get("date_stamp_date_time", None)
+        date = field_dict.pop("date_stamp_date", None)
+        date_time = field_dict.pop("date_stamp_date_time", None)
         if date:
             field_dict.update({"date_stamp": date})
         elif date_time:
             field_dict.update({"date_stamp": date_time})
-        del field_dict["date_stamp_date"], field_dict["date_stamp_date_time"]
 
 
 class MdDataIdentification(BasicInformation):
     ROOT_NAME = "MD_DataIdentification"
-    equivalent_scale = xmlmap.FloatField(xpath="gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
-    ground_res = xmlmap.FloatField(xpath="gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gmd:Distance")
+    equivalent_scale = xmlmap.FloatField(
+        xpath="gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer")
+    ground_res = xmlmap.FloatField(
+        xpath="gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gmd:Distance")
     categories = xmlmap.NodeListField(xpath="gmd:topicCategory/gmd:MD_TopicCategoryCode",
                                       node_class=Category)
     bbox_lat_lon_list = xmlmap.NodeListField(xpath="gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox",
@@ -222,9 +239,12 @@ class SvOperationMetadata(BasicInformation):
                             ("gco", GCO_NAMESPACE),
                             ("srv", SRV_NAMESPACE)])
     # mandatory fields
-    operation = xmlmap.StringField(xpath="svr:operationName/gco:characterString")
-    dcp = xmlmap.StringListField(xpath="srv:DCP/srv:DCPList[codeList='http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#DCPList']/@codeListValue")
-    url = xmlmap.StringListField(xpath="srv:connectPoint/gmd:CI_OnlineResource/gmd:linkage/gmd:URL")
+    operation = xmlmap.StringField(
+        xpath="svr:operationName/gco:characterString")
+    dcp = xmlmap.StringListField(
+        xpath="srv:DCP/srv:DCPList[codeList='http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#DCPList']/@codeListValue")
+    url = xmlmap.StringListField(
+        xpath="srv:connectPoint/gmd:CI_OnlineResource/gmd:linkage/gmd:URL")
 
 
 class SvServiceIdentification(BaseIsoMetadata):
@@ -234,11 +254,13 @@ class SvServiceIdentification(BaseIsoMetadata):
                             ("srv", SRV_NAMESPACE)])
     # mandatory fields
     service_type = xmlmap.StringField(xpath="srv:serviceType/gco:LocalName")
-    coupling_type = xmlmap.StringField(xpath="srv:couplingType/srv:SV_CouplingType[@codeList='SV_CouplingType']/@codeListValue")
+    coupling_type = xmlmap.StringField(
+        xpath="srv:couplingType/srv:SV_CouplingType[@codeList='SV_CouplingType']/@codeListValue")
     contains_operations = xmlmap.NodeListField(xpath="srv:containsOperations/svr:SV_OperationMetadata",
                                                node_class=SvOperationMetadata)
     # optional fields
-    service_type_version = xmlmap.StringListField(xpath="srv:serviceTypeVersion/gco:characterString")
+    service_type_version = xmlmap.StringListField(
+        xpath="srv:serviceTypeVersion/gco:characterString")
     bbox_lat_lon_list = xmlmap.NodeListField(xpath="srv:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_GeographicBoundingBox",
                                              node_class=EXGeographicBoundingBox)
     bounding_polygon_list = xmlmap.NodeListField(xpath="srv:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon",
@@ -271,13 +293,18 @@ class MdMetadata(BaseIsoMetadata):
     model = "registry.ServiceMetadata"
     ROOT_NAME = "MD_Metadata"
 
-    file_identifier = xmlmap.StringField(xpath="gmd:fileIdentifier/gco:CharacterString")
+    file_identifier = xmlmap.StringField(
+        xpath="gmd:fileIdentifier/gco:CharacterString")
     # language = xmlmap.StringField(xpath=f"{NS_WC}identificationInfo']//{NS_WC}language']/{NS_WC}LanguageCode']")
-    hierarchy_level = xmlmap.StringField(xpath="gmd:hierarchyLevel/gmd:MD_ScopeCode[@codeList='http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode']/@codeListValue")
+    hierarchy_level = xmlmap.StringField(
+        xpath="gmd:hierarchyLevel/gmd:MD_ScopeCode[@codeList='http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode']/@codeListValue")
     date_stamp_date = xmlmap.DateField(xpath="gmd:dateStamp/gco:Date")
-    date_stamp_date_time = xmlmap.DateTimeField(xpath="gmd:dateStamp/gco:DateTime")
-    metadata_contact = xmlmap.NodeField(xpath="gmd:contact/gmd:CI_ResponsibleParty", node_class=CiResponsibleParty)
-    reference_systems = xmlmap.NodeListField(xpath="gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier", node_class=ReferenceSystem)
+    date_stamp_date_time = xmlmap.DateTimeField(
+        xpath="gmd:dateStamp/gco:DateTime")
+    metadata_contact = xmlmap.NodeField(
+        xpath="gmd:contact/gmd:CI_ResponsibleParty", node_class=CiResponsibleParty)
+    reference_systems = xmlmap.NodeListField(
+        xpath="gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier", node_class=ReferenceSystem)
 
     md_data_identification = xmlmap.NodeField(xpath="gmd:identificationInfo/gmd:MD_DataIdentification",
                                               node_class=MdDataIdentification)
@@ -307,10 +334,14 @@ class MdMetadata(BaseIsoMetadata):
         elif self.sv_service_identification:
             field_dict["bounding_geometry"] = self.sv_service_identification.get_bounding_geometry()
             field_dict.update(self.sv_service_identification.get_field_dict())
-            self.sv_service_identification.get_spatial_res(field_dict=field_dict)
-            self.sv_service_identification.get_dataset_id(field_dict=field_dict)
-            self.sv_service_identification.get_date_stamp(field_dict=field_dict)
-        del field_dict["hierarchy_level"]  # no database field. So we drop it here.
+            self.sv_service_identification.get_spatial_res(
+                field_dict=field_dict)
+            self.sv_service_identification.get_dataset_id(
+                field_dict=field_dict)
+            self.sv_service_identification.get_date_stamp(
+                field_dict=field_dict)
+        # no database field. So we drop it here.
+        field_dict.pop("hierarchy_level", None)
         return field_dict
 
 
@@ -322,4 +353,5 @@ class WrappedIsoMetadata(xmlmap.XmlObject):
     """
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE)])
 
-    iso_metadata = xmlmap.NodeListField(xpath="//gmd:MD_Metadata", node_class=MdMetadata)
+    iso_metadata = xmlmap.NodeListField(
+        xpath="//gmd:MD_Metadata", node_class=MdMetadata)

@@ -1,6 +1,3 @@
-
-
-from django.urls import path
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 from notify import views

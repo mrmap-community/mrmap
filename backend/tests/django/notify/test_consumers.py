@@ -17,7 +17,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
     async def test_auth_on_default_consumer_without_user(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
-                                             path=f"/ws/default/")
+                                             path="/ws/default/")
         connected, exit_code = await communicator.connect()
         self.assertFalse(connected)
         self.assertEqual(1000, exit_code)
@@ -28,7 +28,7 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
     async def test_auth_on_default_consumer_with_user(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
-                                             path=f"/ws/default/",
+                                             path="/ws/default/",
                                              headers=self.headers)
         connected, exit_code = await communicator.connect()
         self.assertTrue(connected)

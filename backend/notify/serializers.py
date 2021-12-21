@@ -3,7 +3,7 @@ import json
 from django_celery_results.models import TaskResult
 from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
-from rest_framework_json_api.serializers import CharField, ModelSerializer
+from rest_framework_json_api.serializers import ModelSerializer
 
 
 class TaskResultSerializer(ModelSerializer):

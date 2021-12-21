@@ -1,7 +1,6 @@
 from django.urls import path
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
-from registry.views import jobs as jobs_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import service as service_views
@@ -46,10 +45,6 @@ nested_api_router = ExtendedSimpleRouter()
         r'styles', metadata_views.StyleViewSet, basename='style'),
     nested_api_router.register(
         r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata'),
-
-    # jobs
-    nested_api_router.register(
-        r'task-results', jobs_views.TaskResultReadOnlyViewSet, basename='taskresult')
 )
 
 urlpatterns = nested_api_router.urls

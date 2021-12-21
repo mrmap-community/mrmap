@@ -2,10 +2,11 @@ import json
 
 from celery import states
 from django_celery_results.models import TaskResult
-from registry.serializers.jobs import TaskResultSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
+
+from notify.serializers import TaskResultSerializer
 
 
 class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):

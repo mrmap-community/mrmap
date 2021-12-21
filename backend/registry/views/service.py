@@ -3,13 +3,13 @@ from typing import OrderedDict
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
+from notify.serializers import TaskResultSerializer
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       OgcServiceFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, OgcService, WebFeatureService,
                              WebMapService)
-from registry.serializers.jobs import TaskResultSerializer
 from registry.serializers.service import (FeatureTypeSerializer,
                                           LayerSerializer,
                                           OgcServiceCreateSerializer,
@@ -142,14 +142,15 @@ class OgcServiceViewSet(ModelViewSet):
                                            'collect_metadata_records'],
                                        service_auth_pk=serializer.service_auth.id if hasattr(
                                            serializer, 'service_auth') else None,
-                                       **{'current_user': request.user.pk})
+                                       **{'current_user': request.user.pk, 'request': {'path': request.path, 'method': request.method, 'content_type': request.content_type, 'data': request.GET}})
         task_result, created = TaskResult.objects.get_or_create(
-            task_id=task.id)
+            task_id=task.id,
+            task_name='registry.tasks.service.build_ogc_service')
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(
             path=request.build_absolute_uri(
-                reverse("registry:taskresult-detail", args=[task_result.pk])
+                reverse("notify:taskresult-detail", args=[task_result.pk])
             ),
             data={},
         )

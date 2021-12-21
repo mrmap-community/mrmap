@@ -2,12 +2,19 @@ import './index.css';
 
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { Provider } from 'react-redux';
 
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { store } from './Services/ReduxStore/Store';
+import WebSockets from './Services/WebSockets';
 
 ReactDOM.render(
-  <App />,
+  <Provider store={store}>
+    <WebSockets />
+    <App />
+  </Provider>,
+
   document.getElementById('root')
 );
 

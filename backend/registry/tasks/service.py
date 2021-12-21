@@ -71,6 +71,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     self.update_state(state=states.SUCCESS, meta={'done': 3, 'total': 3})
 
+    # TODO: use correct Serializer and render the json:api as result
     return_dict = {
         "data": {
             "type": resource_name,

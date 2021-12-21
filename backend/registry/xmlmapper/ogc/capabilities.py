@@ -75,21 +75,21 @@ class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
     person_name = xmlmap.StringField(
         xpath=f"{NS_WC}ContactPersonPrimary']/{NS_WC}ContactPerson']|{NS_WC}ServiceContact']/{NS_WC}IndividualName']")
     phone = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactVoiceTelephone']|{NS_WC}ContactInfo']/{NS_WC}Phone']/{NS_WC}Voice']")
+        xpath=f"{NS_WC}ContactVoiceTelephone']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Phone']/{NS_WC}Voice']")
     facsimile = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactFacsimileTelephone']|{NS_WC}ContactInfo']/{NS_WC}Phone']/{NS_WC}Facsimile']")
+        xpath=f"{NS_WC}ContactFacsimileTelephone']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Phone']/{NS_WC}Facsimile']")
     email = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactElectronicMailAddress']|{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}ElectronicMailAddress']")
+        xpath=f"{NS_WC}ContactElectronicMailAddress']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}ElectronicMailAddress']")
     country = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactAddress']/{NS_WC}Country']|{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}Country']")
+        xpath=f"{NS_WC}ContactAddress']/{NS_WC}Country']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}Country']")
     postal_code = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactAddress']/{NS_WC}PostCode']|{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}PostalCode']")
+        xpath=f"{NS_WC}ContactAddress']/{NS_WC}PostCode']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}PostalCode']")
     city = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactAddress']/{NS_WC}City']|{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}City']")
+        xpath=f"{NS_WC}ContactAddress']/{NS_WC}City']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}City']")
     state_or_province = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactAddress']/{NS_WC}StateOrProvince']|{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}AdministrativeArea']")
+        xpath=f"{NS_WC}ContactAddress']/{NS_WC}StateOrProvince']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}AdministrativeArea']")
     address = xmlmap.StringField(
-        xpath=f"{NS_WC}ContactAddress']/{NS_WC}Address']|{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}DeliveryPoint']")
+        xpath=f"{NS_WC}ContactAddress']/{NS_WC}Address']|{NS_WC}ServiceContact']/{NS_WC}ContactInfo']/{NS_WC}Address']/{NS_WC}DeliveryPoint']")
 
 
 class LegendUrl(DBModelConverterMixin, xmlmap.XmlObject):

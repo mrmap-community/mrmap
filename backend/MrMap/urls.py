@@ -31,6 +31,7 @@ urlpatterns = [
     # registry api urls
     path("api/v1/registry/", include("registry.urls", namespace="registry")),
     path("api/v1/accounts/", include("accounts.urls", namespace="accounts")),
+    path("api/v1/notify/", include("notify.urls", namespace='notify')),
     # path('api/v1/auth/', include('dj_rest_auth.urls')),
     path(
         "api/schema/",

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-12-21 14:27+0100\n"
+"POT-Creation-Date: 2021-12-21 18:52+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:160
+#: MrMap/settings.py:161
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:161
+#: MrMap/settings.py:162
 msgid "German"
 msgstr "Deutsch"
 
@@ -280,6 +280,10 @@ msgstr "Zuletzt geändert von"
 #: extras/models.py:169
 msgid "The last user who has modified this object."
 msgstr "Der Benutzer der dieses Objekt zuletzt verändert hat."
+
+#: notify/apps.py:9
+msgid "Notify"
+msgstr "Benachrichtigung"
 
 #: registry/apps.py:9
 msgid "Registry"

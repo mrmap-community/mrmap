@@ -9,6 +9,7 @@ export interface JsonApiDocument {
     data?: JsonApiPrimaryData[] | JsonApiPrimaryData;
     errors?: JsonApiErrorObject;
     meta?: any;
+    links?: any;
 }
 
 export interface JsonApiErrorObject {

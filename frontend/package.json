@@ -25,7 +25,6 @@
     "react-highlight-words": "^0.17.0",
     "react-router-dom": "^6.0.2",
     "react-scripts": "4.0.3",
-    "start": "^5.1.0",
     "typescript": "4.4.4",
     "web-vitals": "^1.0.1",
     "react-use-websocket": "^2.9.1",
@@ -88,9 +87,7 @@
     "eslint-plugin-react": "^7.27.0",
     "eslint-plugin-simple-import-sort": "^7.0.0",
     "eslint-plugin-standard": "^5.0.0",
-    "install": "^0.13.0",
-    "jest-fetch-mock": "^3.0.3",
-    "npm": "^8.2.0"
+    "jest-fetch-mock": "^3.0.3"
   },
   "jest": {
     "snapshotSerializers": [

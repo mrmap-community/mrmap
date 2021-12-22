@@ -37,7 +37,7 @@ export interface QueryParams {
     filters?: any;
 }
 
-export class JsonApiRepo {
+class JsonApiRepo {
     private static apiInstance: OpenAPIClientAxios;
 
     private static clientInstance: OpenAPIClient;

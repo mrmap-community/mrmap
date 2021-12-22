@@ -1,11 +1,11 @@
 import React from 'react';
-
 import FeatureTypeRepo from '../../Repos/FeatureTypeRepo';
 import RepoTable from '../Shared/Table/RepoTable';
 
+
 const repo = new FeatureTypeRepo();
 
-export const FeatureTypeTable = (): JSX.Element => {
+const FeatureTypeTable = (): JSX.Element => {
   return <RepoTable repo={repo} />;
 };
 

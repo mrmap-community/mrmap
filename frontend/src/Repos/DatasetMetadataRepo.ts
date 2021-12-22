@@ -1,7 +1,7 @@
 
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
-export class DatasetMetadataRepo extends JsonApiRepo {
+class DatasetMetadataRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/dataset-metadata/', 'Metadatensätze');
   }

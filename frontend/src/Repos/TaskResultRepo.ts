@@ -32,7 +32,7 @@ export interface TaskResults {
   [key: string]: TaskResult
 }
 
-export class TaskResultRepo extends JsonApiRepo {
+class TaskResultRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/notify/task-results/', 'Ergebnisse');
   }

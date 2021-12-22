@@ -5,7 +5,7 @@ export interface Login {
     password: string; // eslint-disable-line
 }
 
-export class LoginRepo extends JsonApiRepo {
+class LoginRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/accounts/login/', '');
   }

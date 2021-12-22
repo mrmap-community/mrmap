@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
-
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
+
 
 export interface MapContextLayerCreate {
     name: string;
@@ -34,7 +34,7 @@ type MapContextLayerAttributesUpdate = {
   selectionLayerId?: string;
 };
 
-export class MapContextLayerRepo extends JsonApiRepo {
+class MapContextLayerRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontextlayers/', 'Kartenebenen');
   }

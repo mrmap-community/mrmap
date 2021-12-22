@@ -6,7 +6,7 @@ export interface OgcServiceCreate {
     collect_metadata_records: boolean; // eslint-disable-line
 }
 
-export class OgcServiceRepo extends JsonApiRepo {
+class OgcServiceRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/ogcservices/', 'OGC Dienste');
   }

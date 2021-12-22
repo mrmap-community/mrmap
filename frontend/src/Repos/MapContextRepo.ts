@@ -13,7 +13,7 @@ interface MapContextWithLayersResponseType {
   mapContextLayers: MPTTJsonApiTreeNodeType[]
 }
 
-export class MapContextRepo extends JsonApiRepo {
+class MapContextRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/mapcontexts/', 'Karten');
   }

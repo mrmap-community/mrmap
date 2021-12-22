@@ -1,7 +1,8 @@
 import { AnyAction, createEntityAdapter, createSlice, ThunkAction } from '@reduxjs/toolkit';
-
 import TaskResultRepo, { TaskResult } from '../../../../Repos/TaskResultRepo';
 import { RootState } from '../../Store';
+
+
 
 const taskResultsAdapter = createEntityAdapter<TaskResult>({
   selectId: (taskResult) => taskResult.id,

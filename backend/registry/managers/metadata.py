@@ -70,7 +70,7 @@ class IsoMetadataManager(models.Manager):
 
     def _create_contact(self, contact):
         contact, created = contact.get_model_class(
-        ).objects.select_for_update().get_or_create(**contact.get_field_dict())
+        ).objects.get_or_create(**contact.get_field_dict())
         return contact
 
     def _create_dataset_metadata(self, parsed_metadata, origin_url):
@@ -148,12 +148,13 @@ class IsoMetadataManager(models.Manager):
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(str(parsed_metadata.serializeDocument(), "UTF-8")))
                 elif update:
-                    # todo: on update we need to check custom metadata
-                    # todo: delete old file
+                    # TODO: on update we need to check custom metadata
+                    # TODO: delete old file
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(
                                                          str(parsed_metadata.serializeDocument(), "UTF-8")))
             if update:
+                # TODO: how to handle keywords, ref systems on update? append (merge) or delete and set?
                 db_keyword_list = []
                 for keyword in parsed_metadata.keywords:
                     if not self.keyword_cls:
@@ -174,7 +175,7 @@ class IsoMetadataManager(models.Manager):
                     db_reference_system_list.append(db_reference_system)
                 db_metadata.reference_systems.add(*db_reference_system_list)
 
-            # todo: categories
+            # TODO: categories
 
             return db_metadata
 

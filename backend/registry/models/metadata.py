@@ -8,6 +8,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from extras.managers import UniqueConstraintDefaultValueManager
 from extras.models import CommonInfo, GenericModelMixin
 from MrMap.settings import PROXIES
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
@@ -157,6 +158,8 @@ class MetadataContact(models.Model):
                                default='',
                                verbose_name=_("Country"))
 
+    objects = UniqueConstraintDefaultValueManager()
+
     class Meta:
         ordering = ["name"]
         constraints = [
@@ -174,7 +177,7 @@ class MetadataContact(models.Model):
                                             'address',
                                             'state_or_province',
                                             'country'],
-                                    name='%(app_label)s_%(class)s_unique_metadata_contact')
+                                    name='%(app_label)s_%(class)s_unique_together_metadata_contact')
         ]
 
     def __str__(self):
@@ -673,7 +676,7 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
                                                                  "services"),
                                                              help_text=_("all services from which this dataset was harvested."))
 
-    objects = models.Manager()
+    objects = UniqueConstraintDefaultValueManager()
     iso_metadata = IsoMetadataManager()
 
     class Meta:
@@ -683,7 +686,7 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
             # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
             # identifier
             models.UniqueConstraint(fields=['dataset_id', 'dataset_id_code_space'],
-                                    name='%(app_label)s_%(class)s_unique_dataset_id_dataset_id_code_space')
+                                    name='%(app_label)s_%(class)s_unique_together_dataset_id_dataset_id_code_space')
         ]
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):

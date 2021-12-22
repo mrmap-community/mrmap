@@ -38,6 +38,10 @@ export interface QueryParams {
 }
 
 export class JsonApiRepo {
+    private static readonly REACT_APP_REST_API_BASE_URL = '/';
+
+    private static readonly REACT_APP_REST_API_SCHEMA_URL = '/api/schema/';
+
     private static apiInstance: OpenAPIClientAxios;
 
     private static clientInstance: OpenAPIClient;
@@ -60,16 +64,10 @@ export class JsonApiRepo {
 
     static async getApiInstance (): Promise<OpenAPIClientAxios> {
       if (!this.apiInstance) {
-        if (process.env.REACT_APP_REST_API_SCHEMA_URL === undefined) {
-          throw new Error('Environment variable REACT_APP_REST_API_SCHEMA_URL is undefined.');
-        }
-        if (process.env.REACT_APP_REST_API_BASE_URL === undefined) {
-          throw new Error('Environment variable REACT_APP_REST_API_BASE_URL is undefined.');
-        }
         this.apiInstance = new OpenAPIClientAxios({
-          definition: process.env.REACT_APP_REST_API_SCHEMA_URL,
+          definition: JsonApiRepo.REACT_APP_REST_API_SCHEMA_URL,
           axiosConfigDefaults: {
-            baseURL: process.env.REACT_APP_REST_API_BASE_URL
+            baseURL: JsonApiRepo.REACT_APP_REST_API_BASE_URL
           }
         });
         try {

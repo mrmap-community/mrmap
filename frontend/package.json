@@ -106,5 +106,6 @@
       "default",
       "jest-junit"
     ]
-  }
+  },
+  "proxy": "http://localhost:8001/"
 }

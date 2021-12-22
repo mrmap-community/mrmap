@@ -38,13 +38,7 @@ function RequireAuth ({ children }:{ children: JSX.Element }) {
 }
 
 export default function App (): JSX.Element {
-  if (process.env.REACT_APP_REST_API_SCHEMA_URL === undefined) {
-    throw new Error('Environment variable REACT_APP_REST_API_SCHEMA_URL is undefined.');
-  }
-  if (process.env.REACT_APP_REST_API_BASE_URL === undefined) {
-    throw new Error('Environment variable REACT_APP_REST_API_BASE_URL is undefined.');
-  }
-  const swaggerUiUrl = process.env.REACT_APP_REST_API_SCHEMA_URL + 'swagger-ui/';
+  const swaggerUiUrl = '/swagger-ui/';
 
   const [collapsed, setCollapsed] = useState(false);
 

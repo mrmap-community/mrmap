@@ -73,4 +73,3 @@ ENV/
 # npm-related
 node_modules/
 /mrmap/static/
-package-lock.json

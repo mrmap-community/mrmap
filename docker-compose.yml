@@ -2,7 +2,7 @@
 version: '3.8'
 services:
   postgis:
-    image: postgis/postgis:13-3.1-alpine
+    image: postgis/postgis:14-3.1-alpine
     volumes:
       - type: volume
         source: db-data
@@ -47,7 +47,6 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
-  
   frontend:
     build:
       context: ./frontend
@@ -73,10 +72,10 @@ services:
       dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
-    tty: true  # To support colorized log output.
+    tty: true # To support colorized log output.
     entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
-    command: 
-      /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
+    command: /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker
+      --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
     hostname: "mrmap-backend"
     volumes:
       - type: bind
@@ -107,7 +106,7 @@ services:
         MRMAP_PRODUCTION: "True"
     command: >
       /bin/bash -c "celery -A MrMap worker -E -l INFO -n default -Q default"
-    tty: true  # To support colorized log output.
+    tty: true # To support colorized log output.
     hostname: "mrmap-celery-default-worker"
     volumes:
       - type: bind
@@ -125,7 +124,7 @@ services:
       - ./docker/backend/.mrmap.env
     depends_on:
       - postgis
-      - redis    
+      - redis
   celery-download-worker:
     build:
       context: ./backend
@@ -133,8 +132,9 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     command: >
-      /bin/bash -c "celery -A MrMap worker -E -l INFO -n download -Q download_iso_metadata,download_described_elements,harvest"
-    tty: true  # To support colorized log output.
+      /bin/bash -c "celery -A MrMap worker -E -l INFO -n download -Q
+      download_iso_metadata,download_described_elements,harvest"
+    tty: true # To support colorized log output.
     hostname: "mrmap-celery-worker"
     volumes:
       - type: bind
@@ -155,11 +155,12 @@ services:
       - redis
 
 volumes:
-  mrmap-static:
-  mrmap-media:
-  mrmap-log:
-  db-data:
+  mrmap-static: null
+  mrmap-media: null
+  mrmap-log: null
+  db-data: null
   mem-db-data:
 
+    null
 networks:
-  mrmap-internal:
+  mrmap-internal: null

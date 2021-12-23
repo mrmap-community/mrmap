@@ -1,13 +1,13 @@
 import { Button } from 'antd';
 import React, { useRef } from 'react';
-
 import WmsRepo from '../../Repos/WmsRepo';
 import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/Table/RepoTable';
 import { buildSearchTransformDateRange } from '../Shared/Table/TableHelper';
 
+
 const repo = new WmsRepo();
 
-export const WmsTable = (): JSX.Element => {
+const WmsTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
   const columns: RepoTableColumnType[] = [{
     dataIndex: 'id',

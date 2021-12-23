@@ -1,7 +1,7 @@
 import { SearchFieldData } from '../Components/Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 import JsonApiRepo from './JsonApiRepo';
 
-export class OrganizationRepo extends JsonApiRepo {
+class OrganizationRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/accounts/organizations/', 'Organisationen');
   }

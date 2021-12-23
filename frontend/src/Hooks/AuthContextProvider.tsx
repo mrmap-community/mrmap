@@ -1,9 +1,9 @@
 import React, { ReactElement, useEffect } from 'react';
-
 import LoginRepo from '../Repos/LoginRepo';
 import LogoutRepo from '../Repos/LogoutRepo';
-import { UserRepo } from '../Repos/UserRepo';
+import UserRepo from '../Repos/UserRepo';
 import { useLocalStorage } from '../utils';
+
 
 export interface AuthContextType {
   user: any;

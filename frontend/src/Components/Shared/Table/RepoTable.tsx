@@ -1,14 +1,14 @@
-import '@ant-design/pro-table/dist/table.css';
-
 import { PlusOutlined } from '@ant-design/icons';
 import ProTable, { ActionType, ProColumnType } from '@ant-design/pro-table';
+import '@ant-design/pro-table/dist/table.css';
 import { Button, Modal, notification, Space } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-
 import JsonApiRepo from '../../../Repos/JsonApiRepo';
 import { augmentColumnWithJsonSchema } from './TableHelper';
+
+
 
 export interface RepoTableProps {
     /** Repository that defines the schema and offers CRUD operations */
@@ -58,7 +58,7 @@ function augmentColumns (resourceSchema: any, queryParams: any,
   return Object.values(columns);
 }
 
-export const RepoTable = ({
+const RepoTable = ({
   repo,
   columns = undefined,
   actionRef = undefined,

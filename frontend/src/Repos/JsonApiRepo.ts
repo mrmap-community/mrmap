@@ -37,7 +37,7 @@ export interface QueryParams {
     filters?: any;
 }
 
-export class JsonApiRepo {
+class JsonApiRepo {
     private static readonly REACT_APP_REST_API_BASE_URL = '/';
 
     private static readonly REACT_APP_REST_API_SCHEMA_URL = '/api/schema/';

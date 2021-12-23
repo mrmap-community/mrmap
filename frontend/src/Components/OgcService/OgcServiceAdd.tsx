@@ -2,10 +2,10 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import { OgcServiceRepo } from '../../Repos/OgcServiceRepo';
+import OgcServiceRepo from '../../Repos/OgcServiceRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
 import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
+
 
 const layout = {
   labelCol: { span: 3 },
@@ -19,7 +19,7 @@ const tailLayout = {
 const repo = new OgcServiceRepo();
 const organizationRepo = new OrganizationRepo();
 
-export const OgcServiceAdd = (): ReactElement => {
+const OgcServiceAdd = (): ReactElement => {
   const [form] = Form.useForm();
 
   const [options, setOptions] = useState<SearchFieldData[]>([]);

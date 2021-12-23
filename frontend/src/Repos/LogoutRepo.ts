@@ -1,6 +1,6 @@
 import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
-export class LogoutRepo extends JsonApiRepo {
+class LogoutRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/accounts/logout/', '');
   }

@@ -1,7 +1,7 @@
 
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
-export class FeatureTypeRepo extends JsonApiRepo {
+class FeatureTypeRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/featuretypes/', 'WFS-Feature Types');
   }

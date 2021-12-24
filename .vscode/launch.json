@@ -2,6 +2,7 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    // install python 3.10 on ubuntu from source: https://ubuntuhandbook.org/index.php/2021/10/compile-install-python-3-10-ubuntu/
     "version": "0.2.0",
     "configurations": [
         {
@@ -18,8 +19,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
-                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
                 }
             ],
             "justMyCode": false
@@ -38,8 +39,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
-                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
                 }
             ],
             "justMyCode": false
@@ -58,8 +59,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
-                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
                 }
             ],
             "justMyCode": false
@@ -78,8 +79,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
-                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
                 }
             ],
             "justMyCode": false
@@ -98,8 +99,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.9/site-packages",
-                    "remoteRoot": "/usr/local/lib/python3.9/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
                 }
             ],
             "justMyCode": false

@@ -98,11 +98,12 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSeria
     #     return reverse(viewname='accounts:user-detail', args=[instance.created_by], request=self.context.get('request', None))
 
     def get_created_by(self, instance):
-        HistoricalWebMapService = apps.get_model(
-            app_label='registry', model_name='HistoricalWebMapService')
-        history_create_event = HistoricalWebMapService.objects.select_related(
-            'history_user').filter(history_relation=instance.pk).earliest()
-        return history_create_event.history_user
+        # HistoricalWebMapService = apps.get_model(
+        #     app_label='registry', model_name='HistoricalWebMapService')
+        # history_create_event = HistoricalWebMapService.objects.select_related(
+        #     'history_user').filter(history_relation=instance.pk).earliest()
+        # return history_create_event.history_user
+        return instance.first_history[0].history_user if hasattr(instance, 'first_history') else None
 
     def get_is_accessible(self, obj):
         perm_checker = self.get_perm_checker()

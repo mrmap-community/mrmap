@@ -1,5 +1,9 @@
 from typing import OrderedDict
 
+from django.apps import apps
+from django.contrib.auth import get_user_model
+from django.db.models.expressions import OuterRef, Subquery
+from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
@@ -45,6 +49,16 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    # FIXME: first_history is not an attribute of the objects...
+    def get_queryset(self):
+        qs = super().get_queryset()
+        HistoricalWebMapService = apps.get_model(
+            app_label='registry', model_name='HistoricalWebMapService')
+        first_history = Prefetch('change_logs', queryset=HistoricalWebMapService.objects.select_related(
+            'history_user').filter(history_type='+'), to_attr='first_history')
+        qs.prefetch_related(first_history)
+        return qs
 
 
 class LayerRelationshipView(RelationshipView):

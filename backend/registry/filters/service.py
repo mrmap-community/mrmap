@@ -36,7 +36,6 @@ class OgcServiceFilterSet(FilterSet):
         fields = {
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains'],
-            'owner': ['exact'],
         }
 
     def bbox_lat_lon_contains(self, queryset, name, value):
@@ -78,9 +77,7 @@ class WebMapServiceFilterSet(FilterSet):
         model = WebMapService
         fields = {
             'title': ['exact', 'icontains', 'contains'],
-            'abstract': ['exact', 'icontains', 'contains'],
-            'created_at': ['lte', 'gte'],
-            'last_modified_at': ['lte', 'gte'],
+            'abstract': ['exact', 'icontains', 'contains']
         }
 
 

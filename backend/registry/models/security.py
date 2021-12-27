@@ -11,7 +11,6 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from extras.models import CommonInfo, GenericModelMixin
 from MrMap.validators import geometry_is_empty
 from PIL import Image
 from registry.enums.security import EntityUnits
@@ -30,7 +29,7 @@ def key_file_path(instance, filename):
     return 'ext_auth_keys/{0}/{1}'.format(instance.pk, filename)
 
 
-class ServiceAuthentication(GenericModelMixin, CommonInfo):
+class ServiceAuthentication(models.Model):
     username = models.CharField(max_length=255,
                                 verbose_name=_("username"),
                                 help_text=_("the username used for the authentication."))
@@ -158,13 +157,13 @@ class AllowedOperationGroupRelation(models.Model):
         return self.allowed_operation.__str__()
 
 
-class ServiceAccessGroup(GenericModelMixin, Group, CommonInfo):
+class ServiceAccessGroup(Group):
     description = models.CharField(max_length=512,
                                    verbose_name=_("description"),
                                    help_text=_("a short description what this group is for."))
 
 
-class AllowedOperation(GenericModelMixin, CommonInfo):
+class AllowedOperation(models.Model):
     """ A AllowedOperation represents a security configuration for a given :class:`registry.models.service.Service`.
 
     :attr operations:  :class:`django.db.models.fields.related.ManyToManyField` field to configure allowed OGC
@@ -266,7 +265,7 @@ class AllowedOperation(GenericModelMixin, CommonInfo):
                                             camouflage=True)
 
 
-class ProxySetting(GenericModelMixin, CommonInfo):
+class ProxySetting(models.Model):
     camouflage = models.BooleanField(default=False,
                                      verbose_name=_("camouflage"),
                                      help_text=_("if true, all related xml documents are secured, by replace all "
@@ -385,7 +384,7 @@ class HttpResponseLog(models.Model):
         return super().delete(*args, **kwargs)
 
 
-class AnalyzedResponseLog(GenericModelMixin, CommonInfo):
+class AnalyzedResponseLog(models.Model):
     response = models.OneToOneField(to=HttpResponseLog,
                                     on_delete=models.PROTECT,
                                     related_name="analyzed_response",

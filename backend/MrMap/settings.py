@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
+    "simple_history",
     "mptt",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "accounts",
@@ -66,7 +67,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     'django.contrib.messages.middleware.MessageMiddleware',  # for django admin pages
-    "crum.CurrentRequestUserMiddleware",
+    "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
 TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
@@ -436,6 +437,8 @@ LOGGING = {
         },
     },
 }
+
+SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 
 REST_FRAMEWORK = {
     "PAGE_SIZE": 10,

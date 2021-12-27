@@ -9,7 +9,6 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from extras.managers import UniqueConstraintDefaultValueManager
-from extras.models import CommonInfo, GenericModelMixin
 from MrMap.settings import PROXIES
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOrigin, MetadataOriginEnum,
@@ -34,7 +33,7 @@ class MimeType(models.Model):
         return self.mime_type
 
 
-class Style(CommonInfo):
+class Style(models.Model):
     layer = models.ForeignKey(to="registry.Layer",
                               on_delete=models.CASCADE,
                               editable=False,
@@ -54,14 +53,11 @@ class Style(CommonInfo):
                              help_text=_("The Title is a human-readable string as an alternative for the name "
                                          "attribute."))
 
-    class Meta(CommonInfo.Meta):
-        pass
-
     def __str__(self):
         return self.layer.identifier + ": " + self.name
 
 
-class LegendUrl(CommonInfo):
+class LegendUrl(models.Model):
     legend_url = models.URLField(max_length=4096,
                                  editable=False,
                                  help_text=_("contains the location of an image of a map legend appropriate to the "
@@ -85,9 +81,6 @@ class LegendUrl(CommonInfo):
                                      "the style entity which is linked to this legend url"),
                                  related_name="legend_url",
                                  related_query_name="legend_url")
-
-    class Meta(CommonInfo.Meta):
-        pass
 
 
 class Licence(models.Model):
@@ -204,7 +197,7 @@ class Keyword(models.Model):
         return (self.keyword,)
 
 
-class RemoteMetadata(CommonInfo):
+class RemoteMetadata(models.Model):
     """ Concrete model class to store linked iso metadata records while registration processing to fetch them after
         the service was registered. This helps us to parallelize the download processing with a celery group.
 
@@ -395,13 +388,11 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
     service_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="service_contact_%(class)s_metadata",
-                                        related_query_name="service_contact_%(class)s_metadata",
                                         verbose_name=_("service contact"),
                                         help_text=_("This is the contact for the service provider."))
     metadata_contact = models.ForeignKey(to=MetadataContact,
                                          on_delete=models.RESTRICT,
                                          related_name="metadata_contact_%(class)s_metadata",
-                                         related_query_name="metadata_contact_%(class)s_metadata",
                                          verbose_name=_("metadata contact"),
                                          help_text=_("This is the contact for the metadata information."))
     iso_metadata = IsoMetadataManager()
@@ -442,7 +433,7 @@ class FeatureTypeMetadata(AbstractMetadata):
         abstract = True
 
 
-class DatasetMetadataRelation(CommonInfo):
+class DatasetMetadataRelation(models.Model):
     """ Model to store additional information for m2m relations for a dataset metadata which is related by a layer,
         feature type or harvested by csw.
 
@@ -518,7 +509,7 @@ class DatasetMetadataRelation(CommonInfo):
         # todo: some more cases are possible
 
 
-class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, CommonInfo):
+class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
@@ -734,7 +725,7 @@ class DatasetMetadata(GenericModelMixin, MetadataTermsOfUse, AbstractMetadata, C
         ).delete()
 
 
-class Dimension(CommonInfo):
+class Dimension(models.Model):
     name = models.CharField(max_length=50,
                             verbose_name=_("name"),
                             help_text=_("the type of the content stored in extent field."))
@@ -783,7 +774,7 @@ class Dimension(CommonInfo):
                 "link two or more related objects is not supported.")
 
 
-class TimeExtent(CommonInfo):
+class TimeExtent(models.Model):
     start = models.DateTimeField()
     # FIXME: allow null=True, to signal no ending time interval
     stop = models.DateTimeField()

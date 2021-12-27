@@ -1,12 +1,12 @@
 from datetime import date, datetime
 
-from crum import get_current_user
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import OperationalError, models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from registry.enums.metadata import MetadataOrigin
+from simple_history.models import HistoricalRecords
 
 
 class LicenceManager(models.Manager):
@@ -62,11 +62,8 @@ class IsoMetadataManager(models.Manager):
         self.dataset_contact_cls = None
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.current_user = get_current_user()
-        self.common_info = {
-            "created_by_user": self.current_user,
-            "last_modified_by": self.current_user
-        }
+        if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
+            self.current_user = HistoricalRecords.context.request.user
 
     def _create_contact(self, contact):
         contact, created = contact.get_model_class(
@@ -87,7 +84,6 @@ class IsoMetadataManager(models.Manager):
             'origin': MetadataOrigin.ISO_METADATA.value,
             'origin_url': origin_url,
             **field_dict,
-            **self.common_info
         }
 
         try:

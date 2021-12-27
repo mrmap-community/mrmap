@@ -9,7 +9,7 @@ from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
-from extras.models import CommonInfo, GenericModelMixin
+from extras.models import HistoricalRecordMixin
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from MrMap.validators import validate_get_capablities_uri
@@ -33,6 +33,7 @@ from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from requests.auth import HTTPDigestAuth
+from simple_history.models import HistoricalRecords
 
 
 class CommonServiceInfo(models.Model):
@@ -49,7 +50,7 @@ class CommonServiceInfo(models.Model):
         abstract = True
 
 
-class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata, CommonServiceInfo, CommonInfo, PolymorphicModel):
+class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo, PolymorphicModel):
     """ Abstract Service model to store OGC service. """
     version = models.CharField(max_length=10,
                                choices=OGCServiceVersionEnum.as_choices(),
@@ -66,14 +67,12 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
                                            help_text=_(
                                                "the capabilities url of the ogc service"),
                                            validators=[validate_get_capablities_uri])
+
     objects = PolymorphicManager()
     security = ServiceSecurityManager()
 
     # todo:
     xml_mapper_cls = None
-
-    class Meta(CommonInfo.Meta):
-        pass
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -109,7 +108,8 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
         return session
 
 
-class WebMapService(OgcService):
+class WebMapService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     objects = WebMapServiceManager()
     capabilities = WebMapServiceCapabilitiesManager()
 
@@ -122,7 +122,8 @@ class WebMapService(OgcService):
         return self.layers.get(parent=None)
 
 
-class WebFeatureService(OgcService):
+class WebFeatureService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     objects = WebFeatureServiceManager()
     capabilities = WebFeatureServiceCapabilitiesManager()
 
@@ -131,7 +132,8 @@ class WebFeatureService(OgcService):
         verbose_name_plural = _("web feature services")
 
 
-class CatalougeService(OgcService):
+class CatalougeService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     capabilities = CatalougeServiceCapabilitiesManager()
 
     class Meta:
@@ -139,7 +141,7 @@ class CatalougeService(OgcService):
         verbose_name_plural = _("catalouge services")
 
 
-class OperationUrl(CommonInfo):
+class OperationUrl(models.Model):
     """ Concrete model class to store operation urls for registered services
 
         With that urls we can perform all needed request to a given service.
@@ -184,7 +186,7 @@ class OperationUrl(CommonInfo):
         return f'{reverse("registry:service_operation_view", args=[self.service_id, ])}?REQUEST={self.operation}&VERSION={self.service.service_version}'
 
 
-class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceInfo, CommonInfo):
+class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
     """ Abstract model class to generalize some fields and functions for layers and feature types """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -233,7 +235,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
         return ""
 
 
-class Layer(LayerMetadata, ServiceElement, MPTTModel):
+class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
@@ -282,6 +284,9 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
                                   help_text=_("maximum scale for a possible request to this layer. If the request is "
                                               "out of the given scope, the service will response with empty transparent"
                                               "images. None value means no restriction."))
+    change_log = HistoricalRecords(
+        related_name='change_logs',
+        excluded_fields=['lft', 'rght', 'tree_id', 'level'])
 
     class Meta:
         verbose_name = _("layer")
@@ -412,7 +417,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
 
 
-class FeatureType(FeatureTypeMetadata, ServiceElement):
+class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     """Concrete model class to store parsed FeatureType.
 
     :attr objects: custom models manager :class:`registry.managers.service.FeatureTypeManager`
@@ -440,6 +445,7 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                           "describe feature type"),
                                                       help_text=_("the fetched content of the download describe feature"
                                                                   " type document."))
+    change_log = HistoricalRecords(related_name='change_logs')
 
     class Meta:
         verbose_name = _("feature type")
@@ -505,7 +511,7 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                                      related_object=self)
 
 
-class FeatureTypeElement(CommonInfo):
+class FeatureTypeElement(models.Model):
     max_occurs = models.IntegerField(default=1)
     min_occurs = models.IntegerField(default=0)
     name = models.CharField(max_length=255)

@@ -17,6 +17,10 @@ class ExtendedHyperlinkedRelatedField(HyperlinkedRelatedField):
         if self.meta_attrs:
             meta = {}
             for lookup, name in self.meta_attrs.items():
-                meta.update({name: getattr(obj, lookup)})
+                try:
+                    meta.update({name: getattr(obj, lookup)})
+                except AttributeError:
+                    # TODO: print warning that the attribute is not present
+                    pass
             links.update({'meta': meta})
         return links

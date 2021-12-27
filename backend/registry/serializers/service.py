@@ -1,5 +1,7 @@
-
 from accounts.models.groups import Organization
+from accounts.serializers.users import UserSerializer
+from django.apps import apps
+from django.contrib.auth import get_user_model
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from registry.models.metadata import Keyword, Style
@@ -10,9 +12,12 @@ from registry.models.service import (FeatureType, Layer, OgcService,
 from registry.serializers.metadata import KeywordSerializer, StyleSerializer
 from rest_framework.fields import BooleanField, SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
+from rest_framework.reverse import reverse
 from rest_framework_gis.fields import GeometryField
-from rest_framework_json_api.relations import (HyperlinkedRelatedField,
-                                               ResourceRelatedField)
+from rest_framework_json_api.relations import (
+    HyperlinkedRelatedField, ResourceRelatedField,
+    SerializerMethodHyperlinkedRelatedField,
+    SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (ModelSerializer,
                                                  PolymorphicModelSerializer)
 
@@ -73,14 +78,31 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSeria
 
     is_accessible = SerializerMethodField()
 
+    #created_by = SerializerMethodField()
+    created_by = SerializerMethodResourceRelatedField(
+        model=get_user_model(),
+        required=False,
+    )
+
     included_serializers = {
         'layers': LayerSerializer,
+        'created_by': UserSerializer,
     }
 
     class Meta:
         model = WebMapService
         fields = "__all__"
         meta_fields = ('is_accessible', )
+
+    # def get_created_by(self, instance):
+    #     return reverse(viewname='accounts:user-detail', args=[instance.created_by], request=self.context.get('request', None))
+
+    def get_created_by(self, instance):
+        HistoricalWebMapService = apps.get_model(
+            app_label='registry', model_name='HistoricalWebMapService')
+        history_create_event = HistoricalWebMapService.objects.select_related(
+            'history_user').filter(history_relation=instance.pk).earliest()
+        return history_create_event.history_user
 
     def get_is_accessible(self, obj):
         perm_checker = self.get_perm_checker()

@@ -4,12 +4,14 @@ from django.apps import apps
 from django.contrib.auth import get_user_model
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
-from registry.models.metadata import Keyword, Style
+from registry.models.metadata import Keyword, MetadataContact, Style
 from registry.models.security import ServiceAuthentication
 from registry.models.service import (FeatureType, Layer, OgcService,
                                      OperationUrl, WebFeatureService,
                                      WebMapService)
-from registry.serializers.metadata import KeywordSerializer, StyleSerializer
+from registry.serializers.metadata import (KeywordSerializer,
+                                           MetadataContactSerializer,
+                                           StyleSerializer)
 from rest_framework.fields import BooleanField, SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework.reverse import reverse
@@ -18,7 +20,8 @@ from rest_framework_json_api.relations import (
     HyperlinkedRelatedField, ResourceRelatedField,
     SerializerMethodHyperlinkedRelatedField,
     SerializerMethodResourceRelatedField)
-from rest_framework_json_api.serializers import (ModelSerializer,
+from rest_framework_json_api.serializers import (HyperlinkedModelSerializer,
+                                                 ModelSerializer,
                                                  PolymorphicModelSerializer)
 
 
@@ -72,38 +75,64 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSeria
         related_link_view_name='registry:wms-layers-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
-        required=False,
         meta_attrs={'layer_count': 'count'}
+    )
+
+    service_contact = HyperlinkedRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name='registry:wms-service-contact-list',
+        related_link_url_kwarg='parent_lookup_service_contact_webmapservice_metadata'
+    )
+    metadata_contact = HyperlinkedRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name='registry:wms-metadata-contact-list',
+        related_link_url_kwarg='parent_lookup_metadata_contact_webmapservice_metadata'
+    )
+    keywords = ExtendedHyperlinkedRelatedField(
+        queryset=Keyword.objects,
+        many=True,
+        related_link_view_name='registry:wms-keywords-list',
+        related_link_url_kwarg='parent_lookup_ogcservice_metadata',
+        meta_attrs={'keyword_count': 'count'}
     )
 
     is_accessible = SerializerMethodField()
 
     #created_by = SerializerMethodField()
-    created_by = SerializerMethodResourceRelatedField(
-        model=get_user_model(),
-        required=False,
-    )
+    # created_by = SerializerMethodResourceRelatedField(
+    #     model=get_user_model(),
+    #     required=False,
+    #     related_link_view_name='accounts:user-detail',
+    #     related_link_url_kwarg='pk',
+    # )
 
-    included_serializers = {
-        'layers': LayerSerializer,
-        'created_by': UserSerializer,
-    }
+    # included_serializers = {
+    #     'layers': LayerSerializer,
+    #     'service_contact': MetadataContactSerializer,
+    #     'metadata_contact': MetadataContactSerializer,
+    #     'keywords': KeywordSerializer,
+
+    #     # 'created_by': UserSerializer,
+    # }
 
     class Meta:
         model = WebMapService
-        fields = "__all__"
+        exclude = ("polymorphic_ctype",)
         meta_fields = ('is_accessible', )
+
+    # class JSONAPIMeta:
+    #     included_resources = ['keywords']
 
     # def get_created_by(self, instance):
     #     return reverse(viewname='accounts:user-detail', args=[instance.created_by], request=self.context.get('request', None))
 
-    def get_created_by(self, instance):
-        # HistoricalWebMapService = apps.get_model(
-        #     app_label='registry', model_name='HistoricalWebMapService')
-        # history_create_event = HistoricalWebMapService.objects.select_related(
-        #     'history_user').filter(history_relation=instance.pk).earliest()
-        # return history_create_event.history_user
-        return instance.first_history[0].history_user if hasattr(instance, 'first_history') else None
+    # def get_created_by(self, instance):
+    #     # HistoricalWebMapService = apps.get_model(
+    #     #     app_label='registry', model_name='HistoricalWebMapService')
+    #     # history_create_event = HistoricalWebMapService.objects.select_related(
+    #     #     'history_user').filter(history_relation=instance.pk).earliest()
+    #     # return history_create_event.history_user
+    #     return instance.first_history[0].history_user if hasattr(instance, 'first_history') else get_user_model().objects.get(pk=instance.history.filter(history_type='+').values_list('history_user', flat=True).get())
 
     def get_is_accessible(self, obj):
         perm_checker = self.get_perm_checker()

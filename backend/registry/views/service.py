@@ -45,19 +45,18 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     )
     queryset = WebMapService.objects.with_meta()
     serializer_class = WebMapServiceSerializer
-    prefetch_for_includes = {"__all__": [], "layers": ["layers"]}
+    prefetch_for_includes = {
+        "__all__": [],
+        # "layers": ["layers"],
+        # "keywords": ["keywords"],
+        # "created_by": [Prefetch('history', queryset=WebMapService.history.select_related('history_user').filter(history_type='+'), to_attr='first_history')]
+    }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
-    # FIXME: first_history is not an attribute of the objects...
     def get_queryset(self):
         qs = super().get_queryset()
-        HistoricalWebMapService = apps.get_model(
-            app_label='registry', model_name='HistoricalWebMapService')
-        first_history = Prefetch('change_logs', queryset=HistoricalWebMapService.objects.select_related(
-            'history_user').filter(history_type='+'), to_attr='first_history')
-        qs.prefetch_related(first_history)
         return qs
 
 
@@ -83,6 +82,15 @@ class LayerViewSet(NestedViewSetMixin, ModelViewSet):
         "keywords": ["keywords"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    # FIXME: first_history is not an attribute of the objects...
+
+    # def get_queryset(self):
+    #     qs = super().get_queryset()
+    #     prefetch_ordered_histories = Prefetch('history', queryset=Layer.change_log.order_by(
+    #         '-history_date'), to_attr='ordered_histories')
+    #     qs.prefetch_related(prefetch_ordered_histories)
+    #     return qs
 
 
 class WebFeatureServiceRelationshipView(RelationshipView):

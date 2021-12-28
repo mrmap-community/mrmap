@@ -1,7 +1,10 @@
 
-from registry.models.metadata import DatasetMetadata, Keyword, Style
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, Style)
 from registry.serializers.metadata import (DatasetMetadataSerializer,
-                                           KeywordSerializer, StyleSerializer)
+                                           KeywordSerializer,
+                                           MetadataContactSerializer,
+                                           StyleSerializer)
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet
@@ -44,3 +47,11 @@ class DatasetMetadataViewSet(ModelViewSet):
         'keywords__keyword': ['exact', 'icontains', 'contains'],
     }
     search_fields = ('title', 'abstract', 'keywords__keyword')
+
+
+class MetadataContactViewSet(ModelViewSet):
+    schema = AutoSchema(
+        tags=['Metadata'],
+    )
+    queryset = MetadataContact.objects.all()
+    serializer_class = MetadataContactSerializer

@@ -1,4 +1,8 @@
-from rest_framework_json_api.relations import HyperlinkedRelatedField
+from rest_framework.fields import SkipField
+from rest_framework.relations import RelatedField
+from rest_framework_json_api.relations import (HyperlinkedMixin,
+                                               HyperlinkedRelatedField,
+                                               SkipDataMixin)
 
 
 class ExtendedHyperlinkedRelatedField(HyperlinkedRelatedField):
@@ -22,5 +26,6 @@ class ExtendedHyperlinkedRelatedField(HyperlinkedRelatedField):
                 except AttributeError:
                     # TODO: print warning that the attribute is not present
                     pass
-            links.update({'meta': meta})
+            if meta:
+                links.update({'meta': meta})
         return links

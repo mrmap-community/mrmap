@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
-from django.db.models.functions import Coalesce
+from django.db.models.aggregates import Count
 from polymorphic.managers import PolymorphicManager
 from registry.enums.metadata import MetadataOrigin
 from simple_history.models import HistoricalRecords
@@ -460,8 +460,8 @@ class WebMapServiceManager(PolymorphicManager):
 
     def with_meta(self):
         return self.annotate(
-            layer_count=Coalesce(models.Count("layer"), 0),
-            keyword_count=Coalesce(models.Count("keywords"), 0),
+            layer_count=Count("layer", distinct=True),
+            keyword_count=Count("keywords", distinct=True)
         )
 
 
@@ -469,6 +469,6 @@ class WebFeatureServiceManager(PolymorphicManager):
 
     def with_meta(self):
         return self.annotate(
-            featuretype_count=Coalesce(models.Count("featuretype"), 0),
-            keyword_count=Coalesce(models.Count("keywords"), 0),
+            featuretype_count=Count("featuretype"),
+            keyword_count=Count("keywords")
         )

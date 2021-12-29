@@ -110,6 +110,7 @@ if DEBUG:
             'debug_toolbar.panels.redirects.RedirectsPanel',
             'debug_toolbar.panels.profiling.ProfilingPanel',
         },
+        "RENDER_PANELS": True,
         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
         "PRETTIFY_SQL": True,
     }
@@ -461,9 +462,9 @@ REST_FRAMEWORK = {
         # If you're performance testing, you will want to use the browseable API
         # without forms, as the forms can generate their own queries.
         # If performance testing, enable:
-        # 'example.utils.BrowsableAPIRendererWithoutForms',
+        "extras.utils.BrowsableAPIRendererWithoutForms",
         # Otherwise, to play around with the browseable API, enable:
-        # 'rest_framework_json_api.renderers.BrowsableAPIRenderer'
+        # "rest_framework_json_api.renderers.BrowsableAPIRenderer",
     ),
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
     "DEFAULT_SCHEMA_CLASS": "rest_framework_json_api.schemas.openapi.AutoSchema",

@@ -69,31 +69,31 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSeria
         view_name='registry:wms-detail',
     )
 
-    layers = ExtendedHyperlinkedRelatedField(
+    layers = ResourceRelatedField(
         queryset=Layer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:wms-layers-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
-        meta_attrs={'layer_count': 'count'}
+        #meta_attrs={'layer_count': 'count'}
     )
 
-    service_contact = HyperlinkedRelatedField(
+    service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name='registry:wms-service-contact-list',
         related_link_url_kwarg='parent_lookup_service_contact_webmapservice_metadata'
     )
-    metadata_contact = HyperlinkedRelatedField(
+    metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name='registry:wms-metadata-contact-list',
         related_link_url_kwarg='parent_lookup_metadata_contact_webmapservice_metadata'
     )
-    keywords = ExtendedHyperlinkedRelatedField(
+    keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
         related_link_view_name='registry:wms-keywords-list',
         related_link_url_kwarg='parent_lookup_ogcservice_metadata',
-        meta_attrs={'keyword_count': 'count'}
+        #meta_attrs={'keyword_count': 'count'}
     )
 
     is_accessible = SerializerMethodField()

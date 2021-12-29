@@ -3,7 +3,6 @@ import { Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
-import WmsRepo from '../../Repos/WmsRepo';
 import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 
 
@@ -16,10 +15,9 @@ const tailLayout = {
   wrapperCol: { offset: 3, span: 8 }
 };
 
-const repo = new WmsRepo();
 const organizationRepo = new OrganizationRepo();
 
-const OgcServiceAdd = (): ReactElement => {
+const OgcServiceAdd = (props: any): ReactElement => {
   const [form] = Form.useForm();
 
   const [options, setOptions] = useState<SearchFieldData[]>([]);
@@ -29,7 +27,7 @@ const OgcServiceAdd = (): ReactElement => {
 
   const onFinish = (values: any) => {
     async function postData () {
-      const res = await repo.create(values);
+      const res = await props.repo.create(values);
       if (res.status === 202) {
         notification.info({
           message: 'Service registration job started',

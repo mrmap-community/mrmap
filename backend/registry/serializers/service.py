@@ -2,7 +2,8 @@ from accounts.models.groups import Organization
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from registry.models.metadata import Keyword, MetadataContact, Style
-from registry.models.security import WebMapServiceAuthentication
+from registry.models.security import (WebFeatureServiceAuthentication,
+                                      WebMapServiceAuthentication)
 from registry.models.service import (FeatureType, Layer, OperationUrl,
                                      WebFeatureService, WebMapService)
 from registry.serializers.metadata import KeywordSerializer, StyleSerializer
@@ -187,3 +188,22 @@ class WebFeatureServiceSerializer(ModelSerializer):
     class Meta:
         model = WebFeatureService
         fields = "__all__"
+
+
+class WebFeatureServiceCreateSerializer(ModelSerializer):
+
+    service_auth = ResourceRelatedField(
+        queryset=WebFeatureServiceAuthentication.objects,
+        required=False)
+    owner = ResourceRelatedField(
+        queryset=Organization.objects)
+
+    collect_metadata_records = BooleanField(default=True)
+
+    class Meta:
+        model = WebFeatureService
+        fields = (
+            "get_capabilities_url",
+            "owner",
+            "service_auth",
+            "collect_metadata_records")

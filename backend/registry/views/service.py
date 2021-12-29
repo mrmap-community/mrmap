@@ -11,6 +11,7 @@ from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.serializers.service import (FeatureTypeSerializer,
                                           LayerSerializer,
+                                          WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceCreateSerializer,
                                           WebMapServiceSerializer)
@@ -150,12 +151,15 @@ class WebFeatureServiceRelationshipView(RelationshipView):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
-class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
+class WebFeatureServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, OgcServiceCreateMixin, ModelViewSet):
     schema = AutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = WebFeatureService.objects.with_meta()
-    serializer_class = WebFeatureServiceSerializer
+    serializer_classes = {
+        "default": WebFeatureServiceSerializer,
+        "create": WebFeatureServiceCreateSerializer,
+    }
     prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")

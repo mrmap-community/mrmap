@@ -13,8 +13,8 @@ import DatasetMetadataTable from './Components/Metadata/DatasetMetadataTable';
 import { NavBar } from './Components/NavBar/NavBar';
 import FeatureTypeTable from './Components/OgcService/FeatureTypeTable';
 import LayerTable from './Components/OgcService/LayerTable';
+import OgcServiceAdd from './Components/OgcService/OgcServiceAdd';
 import WfsTable from './Components/OgcService/WfsTable';
-import OgcServiceAdd from './Components/OgcService/WmsAdd';
 import WmsTable from './Components/OgcService/WmsTable';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import { TaskProgressList } from './Components/Task/TaskProgress';
@@ -22,6 +22,8 @@ import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
+import WebFeatureServiceRepo from './Repos/WfsRepo';
+import WebMapServiceRepo from './Repos/WmsRepo';
 
 
 
@@ -110,13 +112,17 @@ export default function App (): JSX.Element {
                 path='/registry/services/wms'
                 element={<WmsTable />}
               />
+               <Route
+                path='/registry/services/wms/add'
+                element={<OgcServiceAdd repo={new WebMapServiceRepo()} />}
+              />
               <Route
                 path='/registry/services/wfs'
                 element={<WfsTable />}
               />
               <Route
-                path='/registry/services/add'
-                element={<OgcServiceAdd />}
+                path='/registry/services/wfs/add'
+                element={<OgcServiceAdd repo={new WebFeatureServiceRepo()} />}
               />
               <Route
                 path='/registry/layers'

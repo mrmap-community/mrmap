@@ -9,9 +9,6 @@ app_name = 'registry'
 
 router = ExtendedSimpleRouter()
 (
-    # ogc service
-    router.register(
-        r'ogcservices', service_views.OgcServiceViewSet, basename='ogcservice'),
 
     # web map service
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')

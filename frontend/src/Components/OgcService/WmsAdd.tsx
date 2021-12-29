@@ -2,8 +2,8 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import OgcServiceRepo from '../../Repos/OgcServiceRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
+import WmsRepo from '../../Repos/WmsRepo';
 import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 
 
@@ -16,7 +16,7 @@ const tailLayout = {
   wrapperCol: { offset: 3, span: 8 }
 };
 
-const repo = new OgcServiceRepo();
+const repo = new WmsRepo();
 const organizationRepo = new OrganizationRepo();
 
 const OgcServiceAdd = (): ReactElement => {

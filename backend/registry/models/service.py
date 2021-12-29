@@ -14,8 +14,6 @@ from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from MrMap.validators import validate_get_capablities_uri
 from ows_client.request_builder import OgcService as OgcServiceClient
-from polymorphic.managers import PolymorphicManager
-from polymorphic.models import PolymorphicModel
 from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
                                     OGCOperationEnum, OGCServiceVersionEnum)
 from registry.managers.security import (OperationUrlManager,
@@ -50,7 +48,7 @@ class CommonServiceInfo(models.Model):
         abstract = True
 
 
-class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo, PolymorphicModel):
+class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo):
     """ Abstract Service model to store OGC service. """
     version = models.CharField(max_length=10,
                                choices=OGCServiceVersionEnum.as_choices(),
@@ -68,11 +66,11 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                                                "the capabilities url of the ogc service"),
                                            validators=[validate_get_capablities_uri])
 
-    objects = PolymorphicManager()
+    objects = models.Manager()
     security = ServiceSecurityManager()
 
-    # todo:
-    xml_mapper_cls = None
+    class Meta:
+        abstract = True
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -163,20 +161,15 @@ class OperationUrl(models.Model):
     mime_types = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
                                         blank=True,
                                         editable=False,
-                                        related_name="operation_urls",
-                                        related_query_name="operation_url",
+                                        related_name="%(class)s_operation_urls",
+                                        related_query_name="%(class)s_operation_url",
                                         verbose_name=_("internet mime type"),
                                         help_text=_("all available mime types of the remote url"))
-    service = models.ForeignKey(to=OgcService,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="operation_urls",
-                                related_query_name="operation_url",
-                                verbose_name=_("related web map service"),
-                                help_text=_("the web map service for that this url can be used for."))
-
     objects = models.Manager()
     security_objects = OperationUrlManager()
+
+    class Meta:
+        abstract = True
 
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"
@@ -184,6 +177,36 @@ class OperationUrl(models.Model):
     @property
     def concrete_url(self):
         return f'{reverse("registry:service_operation_view", args=[self.service_id, ])}?REQUEST={self.operation}&VERSION={self.service.service_version}'
+
+
+class WebMapServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=WebMapService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related web map service"),
+                                help_text=_("the web map service for that this url can be used for."))
+
+
+class WebFeatureServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=WebFeatureService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related web feature service"),
+                                help_text=_("the web feature service for that this url can be used for."))
+
+
+class CatalougeServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=CatalougeService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related catalouge service"),
+                                help_text=_("the catalouge service for that this url can be used for."))
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):

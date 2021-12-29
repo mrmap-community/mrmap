@@ -1,28 +1,17 @@
 from accounts.models.groups import Organization
-from accounts.serializers.users import UserSerializer
-from django.apps import apps
-from django.contrib.auth import get_user_model
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from registry.models.metadata import Keyword, MetadataContact, Style
-from registry.models.security import ServiceAuthentication
-from registry.models.service import (FeatureType, Layer, OgcService,
-                                     OperationUrl, WebFeatureService,
-                                     WebMapService)
-from registry.serializers.metadata import (KeywordSerializer,
-                                           MetadataContactSerializer,
-                                           StyleSerializer)
+from registry.models.security import WebMapServiceAuthentication
+from registry.models.service import (FeatureType, Layer, OperationUrl,
+                                     WebFeatureService, WebMapService)
+from registry.serializers.metadata import KeywordSerializer, StyleSerializer
 from rest_framework.fields import BooleanField, SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
-from rest_framework.reverse import reverse
 from rest_framework_gis.fields import GeometryField
-from rest_framework_json_api.relations import (
-    HyperlinkedRelatedField, ResourceRelatedField,
-    SerializerMethodHyperlinkedRelatedField,
-    SerializerMethodResourceRelatedField)
-from rest_framework_json_api.serializers import (HyperlinkedModelSerializer,
-                                                 ModelSerializer,
-                                                 PolymorphicModelSerializer)
+from rest_framework_json_api.relations import (HyperlinkedRelatedField,
+                                               ResourceRelatedField)
+from rest_framework_json_api.serializers import ModelSerializer
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -117,7 +106,7 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSeria
 
     class Meta:
         model = WebMapService
-        exclude = ("polymorphic_ctype",)
+        fields = "__all__"
         meta_fields = ('is_accessible', )
 
     # class JSONAPIMeta:
@@ -137,6 +126,25 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSeria
     def get_is_accessible(self, obj):
         perm_checker = self.get_perm_checker()
         return perm_checker.has_perm(f'view_{obj._meta.model_name}', obj)
+
+
+class WebMapServiceCreateSerializer(ModelSerializer):
+
+    service_auth = ResourceRelatedField(
+        queryset=WebMapServiceAuthentication.objects,
+        required=False)
+    owner = ResourceRelatedField(
+        queryset=Organization.objects)
+
+    collect_metadata_records = BooleanField(default=True)
+
+    class Meta:
+        model = WebMapService
+        fields = (
+            "get_capabilities_url",
+            "owner",
+            "service_auth",
+            "collect_metadata_records")
 
 
 class FeatureTypeSerializer(ModelSerializer):
@@ -179,31 +187,3 @@ class WebFeatureServiceSerializer(ModelSerializer):
     class Meta:
         model = WebFeatureService
         fields = "__all__"
-
-
-class OgcServiceSerializer(PolymorphicModelSerializer):
-    polymorphic_serializers = [
-        WebMapServiceSerializer, WebFeatureServiceSerializer]
-
-    class Meta:
-        model = OgcService
-        fields = "__all__"
-
-
-class OgcServiceCreateSerializer(ModelSerializer):
-
-    service_auth = ResourceRelatedField(
-        queryset=ServiceAuthentication.objects,
-        required=False)
-    owner = ResourceRelatedField(
-        queryset=Organization.objects)
-
-    collect_metadata_records = BooleanField(default=True)
-
-    class Meta:
-        model = OgcService
-        fields = (
-            "get_capabilities_url",
-            "owner",
-            "service_auth",
-            "collect_metadata_records")

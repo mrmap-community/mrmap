@@ -33,7 +33,6 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 INSTALLED_APPS = [
     "channels",
     "guardian",
-    "polymorphic",
     "django.contrib.auth",
     "django.contrib.admin",  # for django admin pages
     "django.contrib.messages",  # for django admin pages

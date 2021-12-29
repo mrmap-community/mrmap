@@ -16,10 +16,10 @@ from PIL import Image
 from registry.enums.security import EntityUnits
 from registry.enums.service import (AuthTypeEnum, OGCOperationEnum,
                                     OGCServiceEnum)
-from registry.managers.security import (AllowedOperationManager,
-                                        AnalyzedResponseLogTableManager)
-from registry.models.service import (FeatureType, Layer, OgcService,
-                                     WebFeatureService, WebMapService)
+from registry.managers.security import AllowedOperationManager
+from registry.models.service import (CatalougeService, FeatureType, Layer,
+                                     OgcService, WebFeatureService,
+                                     WebMapService)
 from registry.tasks.security import async_analyze_log
 from requests.auth import HTTPDigestAuth
 
@@ -43,15 +43,9 @@ class ServiceAuthentication(models.Model):
     key_file = models.FileField(upload_to=key_file_path,
                                 editable=False,
                                 max_length=1024)
-    service = models.OneToOneField(to=OgcService,
-                                   verbose_name=_("web map service"),
-                                   help_text=_(
-                                       "the optional authentication type and credentials to request the service."),
-                                   related_query_name="auth",
-                                   related_name="auth",
-                                   on_delete=models.CASCADE,
-                                   null=True,
-                                   blank=True)
+
+    class Meta:
+        abstract = True
 
     def save(self, *args, **kwargs):
         if self._state.adding and not self.key_file:
@@ -133,6 +127,42 @@ class ServiceAuthentication(models.Model):
         else:
             auth = None
         return auth
+
+
+class WebMapServiceAuthentication(ServiceAuthentication):
+    service = models.OneToOneField(to=WebMapService,
+                                   verbose_name=_("web map service"),
+                                   help_text=_(
+                                       "the optional authentication type and credentials to request the service."),
+                                   related_query_name="auth",
+                                   related_name="auth",
+                                   on_delete=models.CASCADE,
+                                   null=True,
+                                   blank=True)
+
+
+class WebFeatureServiceAuthentication(ServiceAuthentication):
+    service = models.OneToOneField(to=WebFeatureService,
+                                   verbose_name=_("web feature service"),
+                                   help_text=_(
+                                       "the optional authentication type and credentials to request the service."),
+                                   related_query_name="auth",
+                                   related_name="auth",
+                                   on_delete=models.CASCADE,
+                                   null=True,
+                                   blank=True)
+
+
+class CatalougeServiceAuthentication(ServiceAuthentication):
+    service = models.OneToOneField(to=CatalougeService,
+                                   verbose_name=_("web feature service"),
+                                   help_text=_(
+                                       "the optional authentication type and credentials to request the service."),
+                                   related_query_name="auth",
+                                   related_name="auth",
+                                   on_delete=models.CASCADE,
+                                   null=True,
+                                   blank=True)
 
 
 class OGCOperation(models.Model):
@@ -403,7 +433,6 @@ class AnalyzedResponseLog(models.Model):
                                    choices=EntityUnits.as_choices(
                                        drop_empty_choice=True),
                                    help_text="The unit in which the entity count is stored.")
-    objects = AnalyzedResponseLogTableManager()
 
     def analyze_response(self):
         if self.response.request.service.is_service_type(OGCServiceEnum.WMS):

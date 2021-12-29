@@ -1,6 +1,5 @@
 Django==3.2.9
 django-extensions==3.1.5
-django-polymorphic==3.1.0
 django-simple-history==3.0.0
 django-filter==21.1
 django-guardian==2.4.0

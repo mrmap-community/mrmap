@@ -6,13 +6,12 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
 from django.db.models.aggregates import Count
-from polymorphic.managers import PolymorphicManager
 from registry.enums.metadata import MetadataOrigin
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 
 
-class ServiceCapabilitiesManager(PolymorphicManager):
+class ServiceCapabilitiesManager(models.Manager):
     """
     handles the creation of objects by using the parsed service which is stored in the given :class:`new.Service`
     instance.
@@ -456,7 +455,7 @@ class FeatureTypeElementXmlManager(models.Manager):
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class WebMapServiceManager(PolymorphicManager):
+class WebMapServiceManager(models.Manager):
 
     def with_meta(self):
         return self.annotate(
@@ -465,7 +464,7 @@ class WebMapServiceManager(PolymorphicManager):
         )
 
 
-class WebFeatureServiceManager(PolymorphicManager):
+class WebFeatureServiceManager(models.Manager):
 
     def with_meta(self):
         return self.annotate(

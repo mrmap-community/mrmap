@@ -1,24 +1,18 @@
 from typing import OrderedDict
 
-from django.apps import apps
-from django.contrib.auth import get_user_model
-from django.db.models.expressions import OuterRef, Subquery
-from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from notify.serializers import TaskResultSerializer
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
-                                      OgcServiceFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
-from registry.models import (FeatureType, Layer, OgcService, WebFeatureService,
+from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.serializers.service import (FeatureTypeSerializer,
                                           LayerSerializer,
-                                          OgcServiceCreateSerializer,
-                                          OgcServiceSerializer,
                                           WebFeatureServiceSerializer,
+                                          WebMapServiceCreateSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
@@ -31,6 +25,62 @@ from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 
+class OgcServiceCreateMixin:
+
+    def get_serializer_class(self):
+        return self.serializer_classes.get(
+            self.action, self.serializer_classes["default"]
+        )
+
+    def create(self, request, *args, **kwargs):
+        # followed the jsonapi recommendation for async processing
+        # https://jsonapi.org/recommendations/#asynchronous-processing
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        task = build_ogc_service.delay(get_capabilities_url=serializer.validated_data['get_capabilities_url'],
+                                       collect_metadata_records=serializer.validated_data[
+                                           'collect_metadata_records'],
+                                       service_auth_pk=serializer.service_auth.id if hasattr(
+                                           serializer, 'service_auth') else None,
+                                       **{'request': {'path': request.path, 'method': request.method, 'content_type': request.content_type, 'data': request.GET, 'user_pk': request.user.pk}})
+        task_result, created = TaskResult.objects.get_or_create(
+            task_id=task.id,
+            task_name='registry.tasks.service.build_ogc_service')
+
+        # TODO: add auth information and other headers we need here
+        dummy_request = APIRequestFactory().get(
+            path=request.build_absolute_uri(
+                reverse("notify:taskresult-detail", args=[task_result.pk])
+            ),
+            data={},
+        )
+
+        dummy_request.query_params = OrderedDict()
+        # FIXME: wrong response data type is used. We need to set the resource_name to TaskResult here.
+        serialized_task_result = TaskResultSerializer(
+            task_result, **{"context": {"request": dummy_request}}
+        )
+        serialized_task_result_data = serialized_task_result.data
+        # meta object is None... we need to set it to an empty dict to prevend uncaught runtime exceptions
+        if not serialized_task_result_data.get("meta", None):
+            serialized_task_result_data.update({"meta": {}})
+
+        headers = self.get_success_headers(serialized_task_result_data)
+
+        return Response(
+            serialized_task_result_data,
+            status=status.HTTP_202_ACCEPTED,
+            headers=headers,
+        )
+
+    def get_success_headers(self, data):
+        try:
+            return {"Content-Location": str(data[api_settings.URL_FIELD_NAME])}
+        except (TypeError, KeyError):
+            return {}
+
+
 class WebMapServiceRelationshipView(RelationshipView):
     schema = AutoSchema(
         tags=["WebMapService"],
@@ -39,12 +89,15 @@ class WebMapServiceRelationshipView(RelationshipView):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
-class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
+class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, OgcServiceCreateMixin, ModelViewSet):
     schema = AutoSchema(
         tags=["WebMapService"],
     )
     queryset = WebMapService.objects.with_meta()
-    serializer_class = WebMapServiceSerializer
+    serializer_classes = {
+        "default": WebMapServiceSerializer,
+        "create": WebMapServiceCreateSerializer
+    }
     prefetch_for_includes = {
         "__all__": [],
         # "layers": ["layers"],
@@ -54,10 +107,6 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        return qs
 
 
 class LayerRelationshipView(RelationshipView):
@@ -132,71 +181,3 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class OgcServiceViewSet(ModelViewSet):
-    schema = AutoSchema(
-        tags=["OgcServices"],
-    )
-    queryset = OgcService.objects.all()
-    serializer_classes = {
-        "default": OgcServiceSerializer,
-        "create": OgcServiceCreateSerializer,
-    }
-
-    filterset_class = OgcServiceFilterSet
-    search_fields = ("id", "title", "abstract", "keywords__keyword")
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-    def get_serializer_class(self):
-        return self.serializer_classes.get(
-            self.action, self.serializer_classes["default"]
-        )
-
-    def create(self, request, *args, **kwargs):
-        # followed the jsonapi recommendation for async processing
-        # https://jsonapi.org/recommendations/#asynchronous-processing
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        task = build_ogc_service.delay(get_capabilities_url=serializer.validated_data['get_capabilities_url'],
-                                       collect_metadata_records=serializer.validated_data[
-                                           'collect_metadata_records'],
-                                       service_auth_pk=serializer.service_auth.id if hasattr(
-                                           serializer, 'service_auth') else None,
-                                       **{'request': {'path': request.path, 'method': request.method, 'content_type': request.content_type, 'data': request.GET, 'user_pk': request.user.pk}})
-        task_result, created = TaskResult.objects.get_or_create(
-            task_id=task.id,
-            task_name='registry.tasks.service.build_ogc_service')
-
-        # TODO: add auth information and other headers we need here
-        dummy_request = APIRequestFactory().get(
-            path=request.build_absolute_uri(
-                reverse("notify:taskresult-detail", args=[task_result.pk])
-            ),
-            data={},
-        )
-
-        dummy_request.query_params = OrderedDict()
-        # FIXME: wrong response data type is used. We need to set the resource_name to TaskResult here.
-        serialized_task_result = TaskResultSerializer(
-            task_result, **{"context": {"request": dummy_request}}
-        )
-        serialized_task_result_data = serialized_task_result.data
-        # meta object is None... we need to set it to an empty dict to prevend uncaught runtime exceptions
-        if not serialized_task_result_data.get("meta", None):
-            serialized_task_result_data.update({"meta": {}})
-
-        headers = self.get_success_headers(serialized_task_result_data)
-
-        return Response(
-            serialized_task_result_data,
-            status=status.HTTP_202_ACCEPTED,
-            headers=headers,
-        )
-
-    def get_success_headers(self, data):
-        try:
-            return {"Content-Location": str(data[api_settings.URL_FIELD_NAME])}
-        except (TypeError, KeyError):
-            return {}

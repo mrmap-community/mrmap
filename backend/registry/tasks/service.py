@@ -4,7 +4,9 @@ from django.conf import settings
 from django.db import transaction
 from extras.tasks import CurrentUserTaskMixin
 from registry.models import CatalougeService, WebFeatureService, WebMapService
-from registry.models.metadata import DatasetMetadata, RemoteMetadata
+from registry.models.metadata import (DatasetMetadata,
+                                      WebFeatureServiceRemoteMetadata,
+                                      WebMapServiceRemoteMetadata)
 from registry.models.security import ServiceAuthentication
 from registry.xmlmapper.ogc.capabilities import CswService as CswXmlMapper
 from registry.xmlmapper.ogc.capabilities import Wfs200Service as WfsXmlMapper
@@ -83,10 +85,15 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
     }
 
     if collect_metadata_records:
-        remote_metadata_list = RemoteMetadata.objects.filter(
-            service__pk=db_service.pk)
+        remote_metadata_list = None
+        if isinstance(db_service, WebMapService):
+            remote_metadata_list = WebMapServiceRemoteMetadata.objects.filter(
+                service__pk=db_service.pk)
+        elif isinstance(db_service, WebFeatureService):
+            remote_metadata_list = WebFeatureServiceRemoteMetadata.objects.filter(
+                service__pk=db_service.pk)
         if remote_metadata_list:
-            job = group([fetch_remote_metadata_xml.s(remote_metadata.pk, **kwargs)
+            job = group([fetch_remote_metadata_xml.s(remote_metadata.pk, db_service.__class__.__name__, **kwargs)
                         for remote_metadata in remote_metadata_list])
             group_result = job.apply_async()
             group_result.save()
@@ -104,10 +111,19 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 @shared_task(bind=True,
              base=CurrentUserTaskMixin,
              queue="download_iso_metadata")
-def fetch_remote_metadata_xml(self, remote_metadata_id, **kwargs):
+def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
-    remote_metadata = RemoteMetadata.objects.get(pk=remote_metadata_id)
+
+    remote_metadata = None
+    if class_name == 'WebMapService':
+        remote_metadata = WebMapServiceRemoteMetadata.objects.get(
+            pk=remote_metadata_id)
+    elif class_name == 'WebFeatureService':
+        remote_metadata = WebFeatureServiceRemoteMetadata.objects.get(
+            pk=remote_metadata_id)
+    if not remote_metadata:
+        return None
     try:
         remote_metadata.fetch_remote_content()
         self.update_state(state=states.STARTED, meta={'done': 1, 'total': 2})

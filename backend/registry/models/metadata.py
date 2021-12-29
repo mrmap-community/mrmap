@@ -216,19 +216,15 @@ class RemoteMetadata(models.Model):
     remote_content = models.TextField(null=True,
                                       verbose_name=_("remote content"),
                                       help_text=_("the fetched content of the download url."))
-    service = models.ForeignKey(to="registry.OgcService",
-                                on_delete=models.CASCADE,
-                                related_name="remote_metadata",
-                                related_query_name="remote_metadata",
-                                verbose_name=_("web map service"),
-                                help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                            " was found in the GetCapabilites document of the related service."))
     content_type = models.ForeignKey(to=ContentType,
                                      on_delete=models.CASCADE)
     object_id = models.UUIDField(verbose_name=_("described resource"),
                                  help_text=_("the uuid of the described service, layer or feature type"))
     describes = GenericForeignKey(ct_field='content_type',
                                   fk_field='object_id', )
+
+    class Meta:
+        abstract = True
 
     def fetch_remote_content(self, save=True):
         """ Return the fetched remote content and update the content if save is True """
@@ -262,8 +258,8 @@ class RemoteMetadata(models.Model):
 
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
-        from registry.models.service import OgcService
-        if isinstance(self.describes, OgcService):
+        from registry.models.service import WebFeatureService, WebMapService
+        if isinstance(self.describes, (WebMapService, WebFeatureService,)):
             metadata_cls = ServiceMetadata
         else:
             metadata_cls = DatasetMetadata
@@ -271,6 +267,26 @@ class RemoteMetadata(models.Model):
                                                                      related_object=self.describes,
                                                                      origin_url=self.link,
                                                                      **kwargs)
+
+
+class WebMapServiceRemoteMetadata(RemoteMetadata):
+    service = models.ForeignKey(to="registry.WebMapService",
+                                on_delete=models.CASCADE,
+                                related_name="remote_metadata",
+                                related_query_name="remote_metadata",
+                                verbose_name=_("web map service"),
+                                help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                            " was found in the GetCapabilites document of the related service."))
+
+
+class WebFeatureServiceRemoteMetadata(RemoteMetadata):
+    service = models.ForeignKey(to="registry.WebFeatureService",
+                                on_delete=models.CASCADE,
+                                related_name="remote_metadata",
+                                related_query_name="remote_metadata",
+                                verbose_name=_("web map service"),
+                                help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                            " was found in the GetCapabilites document of the related service."))
 
 
 class MetadataTermsOfUse(models.Model):

@@ -94,20 +94,26 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     schema = AutoSchema(
         tags=["WebMapService"],
     )
-    queryset = WebMapService.objects.with_meta()
+    queryset = WebMapService.objects.all()
     serializer_classes = {
         "default": WebMapServiceSerializer,
         "create": WebMapServiceCreateSerializer
     }
     prefetch_for_includes = {
         "__all__": [],
-        # "layers": ["layers"],
+        "layers": ["layers"],
         # "keywords": ["keywords"],
         # "created_by": [Prefetch('history', queryset=WebMapService.history.select_related('history_user').filter(history_type='+'), to_attr='first_history')]
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'layer_pk' in self.kwargs:
+            self.lookup_field = 'layer'
+            self.lookup_url_kwarg = 'layer_pk'
+        return super().dispatch(request, *args, **kwargs)
 
 
 class LayerRelationshipView(RelationshipView):

@@ -1,4 +1,6 @@
 from accounts.models.groups import Organization
+from accounts.serializers.users import UserSerializer
+from django.contrib.auth import get_user_model
 from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from registry.models.metadata import Keyword, MetadataContact, Style
@@ -6,15 +8,18 @@ from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
 from registry.models.service import (FeatureType, Layer, OperationUrl,
                                      WebFeatureService, WebMapService)
-from registry.serializers.metadata import KeywordSerializer, StyleSerializer
-from rest_framework.fields import BooleanField, SerializerMethodField
+from registry.serializers.metadata import (KeywordSerializer,
+                                           MetadataContactSerializer,
+                                           StyleSerializer)
+from rest_framework.fields import BooleanField, DateTimeField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     HyperlinkedRelatedField, ResourceRelatedField,
     SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
-                                                 ModelSerializer)
+                                                 ModelSerializer,
+                                                 SerializerMethodField)
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -70,7 +75,7 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, Hyperlinke
         view_name='registry:wms-detail',
     )
 
-    layers = SerializerMethodResourceRelatedField(
+    layers = ResourceRelatedField(
         # queryset=Layer.objects,
         model=Layer,
         many=True,  # necessary for M2M fields & reverse FK fields
@@ -98,24 +103,29 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, Hyperlinke
         related_link_url_kwarg='parent_lookup_ogcservice_metadata',
         # meta_attrs={'keyword_count': 'count'}
     )
+    created_at = SerializerMethodField()
+    last_modified_at = SerializerMethodField()
 
     is_accessible = SerializerMethodField()
 
-    #created_by = SerializerMethodField()
-    # created_by = SerializerMethodResourceRelatedField(
-    #     model=get_user_model(),
-    #     required=False,
-    #     related_link_view_name='accounts:user-detail',
-    #     related_link_url_kwarg='pk',
-    # )
+    created_by = SerializerMethodResourceRelatedField(
+        model=get_user_model(),
+        required=False,
+        # related_link_view_name='accounts:user-detail',
+        # related_link_url_kwarg='pk',
+    )
+    last_modified_by = SerializerMethodResourceRelatedField(
+        model=get_user_model(),
+        required=False,
+    )
 
     included_serializers = {
         'layers': LayerSerializer,
-        #     'service_contact': MetadataContactSerializer,
-        #     'metadata_contact': MetadataContactSerializer,
-        #     'keywords': KeywordSerializer,
-
-        #     # 'created_by': UserSerializer,
+        'service_contact': MetadataContactSerializer,
+        'metadata_contact': MetadataContactSerializer,
+        'keywords': KeywordSerializer,
+        'created_by': UserSerializer,
+        'last_modified_by': UserSerializer,
     }
 
     class Meta:
@@ -123,25 +133,17 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, Hyperlinke
         fields = "__all__"
         meta_fields = ('is_accessible', )
 
-    # class JSONAPIMeta:
-    #     included_resources = ['keywords']
+    def get_created_at(self, instance):
+        return instance.change_log.filter(history_type='+').only('history_date').get().history_date
 
-    # def get_created_by(self, instance):
-    #     return reverse(viewname='accounts:user-detail', args=[instance.created_by], request=self.context.get('request', None))
+    def get_last_modified_at(self, instance):
+        return instance.change_log.only('history_date').latest().history_date
 
-    # def get_created_by(self, instance):
-    #     # HistoricalWebMapService = apps.get_model(
-    #     #     app_label='registry', model_name='HistoricalWebMapService')
-    #     # history_create_event = HistoricalWebMapService.objects.select_related(
-    #     #     'history_user').filter(history_relation=instance.pk).earliest()
-    #     # return history_create_event.history_user
-    #     return instance.first_history[0].history_user if hasattr(instance, 'first_history') else get_user_model().objects.get(pk=instance.history.filter(history_type='+').values_list('history_user', flat=True).get())
+    def get_created_by(self, instance):
+        return instance.change_log.filter(history_type='+').only('history_user').select_related('history_user').get().history_user
 
-    def get_layers(self, instance):
-        if 'include' in self.context['request'].GET and 'layers' in self.context['request'].GET['include']:
-            return instance.layers.all()
-        else:
-            return Layer.objects.none()
+    def get_last_modified_by(self, instance):
+        return instance.change_log.only('history_user').select_related('history_user').latest().history_user
 
     def get_is_accessible(self, obj):
         perm_checker = self.get_perm_checker()

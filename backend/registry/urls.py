@@ -45,6 +45,7 @@ router = ExtendedSimpleRouter()
 urlpatterns = router.urls
 
 urlpatterns.extend([
+      #path('wms/<created_by_pk>/created_by', service_views.WebMapServiceViewSet.as_view(actions={'get': 'retrieve'}), name='layer-wms-detail'),
       path('layers/<layer_pk>/service', service_views.WebMapServiceViewSet.as_view(actions={'get': 'retrieve'}), name='layer-wms-detail'),
 ])
 

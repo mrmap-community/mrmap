@@ -107,7 +107,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
-    history = HistoricalRecords()
+    change_log = HistoricalRecords(related_name='change_logs')
     objects = WebMapServiceManager()
     capabilities = WebMapServiceCapabilitiesManager()
 
@@ -121,7 +121,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
-    history = HistoricalRecords()
+    change_log = HistoricalRecords(related_name='change_logs')
     objects = WebFeatureServiceManager()
     capabilities = WebFeatureServiceCapabilitiesManager()
 
@@ -131,7 +131,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
 
 class CatalougeService(HistoricalRecordMixin, OgcService):
-    history = HistoricalRecords()
+    change_log = HistoricalRecords(related_name='change_logs')
     capabilities = CatalougeServiceCapabilitiesManager()
 
     class Meta:

@@ -1,5 +1,9 @@
 from typing import OrderedDict
 
+from django.apps import apps
+from django.db.models import F
+from django.db.models.query import Prefetch
+from django.db.models.query_utils import FilteredRelation, Q
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
@@ -99,11 +103,17 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
         "default": WebMapServiceSerializer,
         "create": WebMapServiceCreateSerializer
     }
+    select_for_includes = {
+        "service_contact": ["service_contact"],
+        "metadata_contact": ["metadata_contact"],
+    }
     prefetch_for_includes = {
         "__all__": [],
         "layers": ["layers"],
-        # "keywords": ["keywords"],
-        # "created_by": [Prefetch('history', queryset=WebMapService.history.select_related('history_user').filter(history_type='+'), to_attr='first_history')]
+        "keywords": ["keywords"]
+        # TODO: find a way to prefetch them correctly
+        # "created_by": [Prefetch('change_logs', queryset=WebMapService.change_log.select_related('history_user').filter(history_type='+'))]
+        # "last_modified_by": [Prefetch('change_logs', queryset=WebMapService.change_log.select_related('history_user').filter(history_type='+'))]
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")

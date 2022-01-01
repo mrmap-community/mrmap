@@ -109,7 +109,7 @@ if DEBUG:
             'debug_toolbar.panels.redirects.RedirectsPanel',
             'debug_toolbar.panels.profiling.ProfilingPanel',
         },
-        "RENDER_PANELS": True,
+        # "RENDER_PANELS": True,
         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
         "PRETTIFY_SQL": True,
     }

@@ -134,16 +134,16 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, Hyperlinke
         meta_fields = ('is_accessible', )
 
     def get_created_at(self, instance):
-        return instance.ordered_histories[0].history_date
+        return instance.first_history[0].history_date
 
     def get_last_modified_at(self, instance):
-        return instance.ordered_histories[-1].history_date
+        return instance.last_history[0].history_date
 
     def get_created_by(self, instance):
-        return instance.ordered_histories[0].history_user
+        return instance.first_history[0].history_user
 
     def get_last_modified_by(self, instance):
-        return instance.ordered_histories[-1].history_user
+        return instance.last_history[0].history_user
 
     def get_is_accessible(self, obj):
         perm_checker = self.get_perm_checker()

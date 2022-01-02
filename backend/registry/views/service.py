@@ -106,12 +106,15 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "__all__": [Prefetch('change_logs', queryset=WebMapService.change_log.order_by('history_date').select_related('history_user').only('history_relation', 'history_user__id', 'history_date'), to_attr='ordered_histories'), ],
+        "__all__": [
+            Prefetch('change_logs', queryset=WebMapService.change_log.filter(history_type='+').select_related(
+                'history_user').only('history_relation', 'history_user__id', 'history_date'), to_attr='first_history'),
+            Prefetch('change_logs', queryset=WebMapService.change_log.filter(history_date=WebMapService.change_log.values_list('history_date', flat=True).latest()).select_related('history_user').only(
+                'history_relation', 'history_user__id', 'history_date').order_by('history_date'), to_attr='last_history'),
+
+        ],
         "layers": ["layers"],
         "keywords": ["keywords"]
-        # TODO: find a way to prefetch them correctly
-        # "created_by": [Prefetch('change_logs', queryset=WebMapService.change_log.select_related('history_user').filter(history_type='+'))]
-        # "last_modified_by": [Prefetch('change_logs', queryset=WebMapService.change_log.select_related('history_user').filter(history_type='+'))]
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")

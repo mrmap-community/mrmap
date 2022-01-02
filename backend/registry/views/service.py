@@ -1,9 +1,6 @@
 from typing import OrderedDict
 
-from django.apps import apps
-from django.db.models import F
 from django.db.models.query import Prefetch
-from django.db.models.query_utils import FilteredRelation, Q
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
@@ -13,6 +10,7 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
+from registry.models.metadata import Keyword
 from registry.serializers.service import (FeatureTypeSerializer,
                                           LayerSerializer,
                                           WebFeatureServiceCreateSerializer,
@@ -98,9 +96,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     schema = AutoSchema(
         tags=["WebMapService"],
     )
-    queryset = WebMapService.objects.all().prefetch_related(
-
-        Prefetch('change_logs', queryset=WebMapService.change_log.order_by('history_date').select_related('history_user'), to_attr='ordered_histories'))
+    queryset = WebMapService.objects.all()
     serializer_classes = {
         "default": WebMapServiceSerializer,
         "create": WebMapServiceCreateSerializer
@@ -110,7 +106,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "__all__": [],
+        "__all__": [Prefetch('change_logs', queryset=WebMapService.change_log.order_by('history_date').select_related('history_user').only('history_relation', 'history_user__id', 'history_date'), to_attr='ordered_histories'), ],
         "layers": ["layers"],
         "keywords": ["keywords"]
         # TODO: find a way to prefetch them correctly
@@ -126,6 +122,16 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
             self.lookup_field = 'layer'
             self.lookup_url_kwarg = 'layer_pk'
         return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if 'include' not in self.request.GET:
+            qs = qs.prefetch_related(
+                Prefetch('layers', queryset=Layer.objects.only(
+                    'id', 'service_id', 'tree_id', 'lft', )),
+                Prefetch('keywords', queryset=Keyword.objects.only('id')),
+            )
+        return qs
 
 
 class LayerRelationshipView(RelationshipView):

@@ -98,7 +98,9 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
     schema = AutoSchema(
         tags=["WebMapService"],
     )
-    queryset = WebMapService.objects.all()
+    queryset = WebMapService.objects.all().prefetch_related(
+
+        Prefetch('change_logs', queryset=WebMapService.change_log.order_by('history_date').select_related('history_user'), to_attr='ordered_histories'))
     serializer_classes = {
         "default": WebMapServiceSerializer,
         "create": WebMapServiceCreateSerializer
@@ -108,7 +110,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "__all__": [Prefetch('change_logs', queryset=WebMapService.change_log.order_by('history_date').select_related('history_user'), to_attr='ordered_histories')],
+        "__all__": [],
         "layers": ["layers"],
         "keywords": ["keywords"]
         # TODO: find a way to prefetch them correctly

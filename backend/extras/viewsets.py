@@ -9,6 +9,7 @@ class ObjectPermissionCheckerViewSetMixin:
         if self.request:
             perm_checker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
-            perm_checker.prefetch_perms(self.get_queryset())
+            perm_checker.prefetch_perms(
+                self.get_queryset().prefetch_related(None))
             context.update({'perm_checker': perm_checker})
         return context

@@ -1,13 +1,13 @@
-import './TreeFormField.css';
-
 import { EditFilled, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
 import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { DataNode } from 'antd/lib/tree';
 import React, { cloneElement, createRef, FC, ReactNode, useEffect, useState } from 'react';
-
 import { JsonApiPrimaryData, JsonApiResponse } from '../../../../Repos/JsonApiRepo';
+import './TreeFormField.css';
+
+
 
 interface MPTTJsonApiAttributeType {
   name: string;
@@ -156,6 +156,7 @@ export const TreeFormField: FC<TreeProps> = ({
   const [selectedNode, setSelectedNode] = useState<TreeNodeType | undefined>(undefined);
   const [newNodeName, setNewNodeName] = useState<string>('');
   const [isEditingNodeName, setIsEditingNewNodeName] = useState<boolean>(false);
+
 
   /**
    * @description: Toggles the modal showing the form with the node properties
@@ -425,10 +426,11 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param node
    */
   const onEditNode = async (node: TreeNodeType | undefined, values: any) => {
+    console.log(node, values);
     if (node) {
       if (values && node) {
         node.title = values.title;
-        node.properties = values.properties;
+        node.properties = values;
         delete node.properties.title;
       }
       if (asyncTree) {
@@ -538,6 +540,7 @@ export const TreeFormField: FC<TreeProps> = ({
   };
 
   const onNodeNameEditing = (nodeData: TreeNodeType | undefined, newName: string) => {
+    console.log(nodeData);
     if (nodeData) {
       onEditNode(
         nodeData,
@@ -643,7 +646,7 @@ export const TreeFormField: FC<TreeProps> = ({
               }}
             />
             )
-          : nodeData.properties.name}
+          : nodeData.properties?.name}
       </div>
     </Dropdown>
   );

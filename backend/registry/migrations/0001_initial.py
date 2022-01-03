@@ -665,7 +665,7 @@ class Migration(migrations.Migration):
                 ('rules', models.ManyToManyField(related_name='rule_set', to='registry.Rule')),
             ],
         ),
-                migrations.CreateModel(
+        migrations.CreateModel(
             name='HistoricalCatalougeService',
             fields=[
                 ('xml_backup_file', models.TextField(editable=False, help_text='the original xml as backup to restore the xml field.', max_length=100, verbose_name='xml backup')),

@@ -1,7 +1,6 @@
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.contrib.auth import get_user_model
-from extras.fields import ExtendedHyperlinkedRelatedField
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
 from registry.models.metadata import Keyword, MetadataContact, Style
 from registry.models.security import (WebFeatureServiceAuthentication,
@@ -11,7 +10,7 @@ from registry.models.service import (FeatureType, Layer, OperationUrl,
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            StyleSerializer)
-from rest_framework.fields import BooleanField, DateTimeField
+from rest_framework.fields import BooleanField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     HyperlinkedRelatedField, ResourceRelatedField,

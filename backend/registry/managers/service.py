@@ -6,8 +6,6 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
 from django.db.models.aggregates import Count
-from django.db.models.query import Prefetch
-from django.db.models.query_utils import Q
 from registry.enums.metadata import MetadataOrigin
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history

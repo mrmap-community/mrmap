@@ -1,8 +1,4 @@
-from rest_framework.fields import SkipField
-from rest_framework.relations import RelatedField
-from rest_framework_json_api.relations import (HyperlinkedMixin,
-                                               HyperlinkedRelatedField,
-                                               SkipDataMixin)
+from rest_framework_json_api.relations import HyperlinkedRelatedField
 
 
 class ExtendedHyperlinkedRelatedField(HyperlinkedRelatedField):

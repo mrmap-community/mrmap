@@ -22,19 +22,19 @@
             "name": "Default-Permissions",
             "permissions": [
                 [
-                    "add_ogcservice",
+                    "add_webmapservice",
                     "registry",
-                    "ogcservice"
+                    "webmapservice"
                 ],
                 [
-                    "change_ogcservice",
+                    "change_webmapservice",
                     "registry",
-                    "ogcservice"
+                    "webmapservice"
                 ],
                 [
-                    "delete_ogcservice",
+                    "delete_webmapservice",
                     "registry",
-                    "ogcservice"
+                    "webmapservice"
                 ],
                 [
                     "add_mapcontext",
@@ -66,12 +66,7 @@
         "model": "accounts.organization",
         "pk": 4,
         "fields": {
-            "group_ptr_id": 4,
-            "created_at": "2021-12-08T14:11:45.924Z",
-            "created_by_user": null,
-            "owner": null,
-            "last_modified_at": "2021-12-08T14:11:45.925Z",
-            "last_modified_by": null
+            "group_ptr_id": 4
         }
     },
     {

@@ -58,7 +58,7 @@ class ServiceAuthentication(models.Model):
         else:
             # We check if password has become changed. If not we need to get the old password from the ciphered password
             # by set the decrypted password to the current ServiceAuthentication object.
-            old_self = ServiceAuthentication.objects.get(pk=self.pk)
+            old_self = self.__class__.objects.get(pk=self.pk)
             if old_self.password == self.password:
                 password = self.decrypt_password()
                 self.password = password

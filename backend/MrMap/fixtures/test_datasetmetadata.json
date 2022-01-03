@@ -19,11 +19,6 @@
     {
         "model": "registry.datasetmetadata",
         "fields": {
-            "created_at": "2021-12-10T13:51:53.839Z",
-            "created_by_user": null,
-            "owner": null,
-            "last_modified_at": "2021-12-10T13:51:53.843Z",
-            "last_modified_by": null,
             "xml_backup_file": "xml_documents/b503fa55-fd5e-4e07-82c7-cdf41552d53b/md_metadata.xml",
             "access_constraints": "Zugriffseinschränkungen: Es gelten keine Bedingungen.",
             "fees": null,
@@ -66,11 +61,6 @@
     {
         "model": "registry.datasetmetadata",
         "fields": {
-            "created_at": "2021-12-10T13:51:53.856Z",
-            "created_by_user": null,
-            "owner": null,
-            "last_modified_at": "2021-12-10T13:51:53.859Z",
-            "last_modified_by": null,
             "xml_backup_file": "xml_documents/14b3c007-c24a-4ef7-8d96-b13cfb52660c/md_metadata.xml",
             "access_constraints": "Zugriffseinschränkungen: Es gelten keine Bedingungen.",
             "fees": null,

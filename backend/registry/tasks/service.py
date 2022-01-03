@@ -1,3 +1,5 @@
+from urllib import parse
+
 from celery import shared_task, states
 from celery.canvas import group
 from django.conf import settings
@@ -7,7 +9,8 @@ from registry.models import CatalougeService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
-from registry.models.security import ServiceAuthentication
+from registry.models.security import (WebFeatureServiceAuthentication,
+                                      WebMapServiceAuthentication)
 from registry.xmlmapper.ogc.capabilities import CswService as CswXmlMapper
 from registry.xmlmapper.ogc.capabilities import Wfs200Service as WfsXmlMapper
 from registry.xmlmapper.ogc.capabilities import WmsService as WmsXmlMapper
@@ -24,7 +27,15 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     auth = None
     if service_auth_pk:
-        auth = ServiceAuthentication.objects.get(id=service_auth_pk)
+        match parse.parse_qs(parse.urlsplit(get_capabilities_url).query)['SERVICE'][0].lower():
+            case 'wms':
+                auth = WebMapServiceAuthentication.objects.get(
+                    id=service_auth_pk)
+            case 'wfs':
+                auth = WebFeatureServiceAuthentication.objects.get(
+                    id=service_auth_pk)
+            case _:
+                auth = None
 
     session = Session()
     session.proxies = settings.PROXIES

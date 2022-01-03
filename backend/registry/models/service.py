@@ -9,13 +9,11 @@ from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
-from extras.models import CommonInfo, GenericModelMixin
+from extras.models import HistoricalRecordMixin
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from MrMap.validators import validate_get_capablities_uri
 from ows_client.request_builder import OgcService as OgcServiceClient
-from polymorphic.managers import PolymorphicManager
-from polymorphic.models import PolymorphicModel
 from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
                                     OGCOperationEnum, OGCServiceVersionEnum)
 from registry.managers.security import (OperationUrlManager,
@@ -33,6 +31,7 @@ from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from requests.auth import HTTPDigestAuth
+from simple_history.models import HistoricalRecords
 
 
 class CommonServiceInfo(models.Model):
@@ -49,7 +48,7 @@ class CommonServiceInfo(models.Model):
         abstract = True
 
 
-class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata, CommonServiceInfo, CommonInfo, PolymorphicModel):
+class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo):
     """ Abstract Service model to store OGC service. """
     version = models.CharField(max_length=10,
                                choices=OGCServiceVersionEnum.as_choices(),
@@ -66,14 +65,12 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
                                            help_text=_(
                                                "the capabilities url of the ogc service"),
                                            validators=[validate_get_capablities_uri])
-    objects = PolymorphicManager()
+
+    objects = models.Manager()
     security = ServiceSecurityManager()
 
-    # todo:
-    xml_mapper_cls = None
-
-    class Meta(CommonInfo.Meta):
-        pass
+    class Meta:
+        abstract = True
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -109,7 +106,8 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
         return session
 
 
-class WebMapService(OgcService):
+class WebMapService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     objects = WebMapServiceManager()
     capabilities = WebMapServiceCapabilitiesManager()
 
@@ -122,7 +120,8 @@ class WebMapService(OgcService):
         return self.layers.get(parent=None)
 
 
-class WebFeatureService(OgcService):
+class WebFeatureService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     objects = WebFeatureServiceManager()
     capabilities = WebFeatureServiceCapabilitiesManager()
 
@@ -131,7 +130,8 @@ class WebFeatureService(OgcService):
         verbose_name_plural = _("web feature services")
 
 
-class CatalougeService(OgcService):
+class CatalougeService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     capabilities = CatalougeServiceCapabilitiesManager()
 
     class Meta:
@@ -139,7 +139,7 @@ class CatalougeService(OgcService):
         verbose_name_plural = _("catalouge services")
 
 
-class OperationUrl(CommonInfo):
+class OperationUrl(models.Model):
     """ Concrete model class to store operation urls for registered services
 
         With that urls we can perform all needed request to a given service.
@@ -161,20 +161,15 @@ class OperationUrl(CommonInfo):
     mime_types = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
                                         blank=True,
                                         editable=False,
-                                        related_name="operation_urls",
-                                        related_query_name="operation_url",
+                                        related_name="%(class)s_operation_urls",
+                                        related_query_name="%(class)s_operation_url",
                                         verbose_name=_("internet mime type"),
                                         help_text=_("all available mime types of the remote url"))
-    service = models.ForeignKey(to=OgcService,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="operation_urls",
-                                related_query_name="operation_url",
-                                verbose_name=_("related web map service"),
-                                help_text=_("the web map service for that this url can be used for."))
-
     objects = models.Manager()
     security_objects = OperationUrlManager()
+
+    class Meta:
+        abstract = True
 
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"
@@ -184,7 +179,37 @@ class OperationUrl(CommonInfo):
         return f'{reverse("registry:service_operation_view", args=[self.service_id, ])}?REQUEST={self.operation}&VERSION={self.service.service_version}'
 
 
-class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceInfo, CommonInfo):
+class WebMapServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=WebMapService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related web map service"),
+                                help_text=_("the web map service for that this url can be used for."))
+
+
+class WebFeatureServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=WebFeatureService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related web feature service"),
+                                help_text=_("the web feature service for that this url can be used for."))
+
+
+class CatalougeServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=CatalougeService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related catalouge service"),
+                                help_text=_("the catalouge service for that this url can be used for."))
+
+
+class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
     """ Abstract model class to generalize some fields and functions for layers and feature types """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -233,7 +258,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
         return ""
 
 
-class Layer(LayerMetadata, ServiceElement, MPTTModel):
+class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
@@ -282,6 +307,9 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
                                   help_text=_("maximum scale for a possible request to this layer. If the request is "
                                               "out of the given scope, the service will response with empty transparent"
                                               "images. None value means no restriction."))
+    change_log = HistoricalRecords(
+        related_name='change_logs',
+        excluded_fields=['lft', 'rght', 'tree_id', 'level'])
 
     class Meta:
         verbose_name = _("layer")
@@ -412,7 +440,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
 
 
-class FeatureType(FeatureTypeMetadata, ServiceElement):
+class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     """Concrete model class to store parsed FeatureType.
 
     :attr objects: custom models manager :class:`registry.managers.service.FeatureTypeManager`
@@ -440,6 +468,7 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                           "describe feature type"),
                                                       help_text=_("the fetched content of the download describe feature"
                                                                   " type document."))
+    change_log = HistoricalRecords(related_name='change_logs')
 
     class Meta:
         verbose_name = _("feature type")
@@ -505,7 +534,7 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                                      related_object=self)
 
 
-class FeatureTypeElement(CommonInfo):
+class FeatureTypeElement(models.Model):
     max_occurs = models.IntegerField(default=1)
     min_occurs = models.IntegerField(default=0)
     name = models.CharField(max_length=255)

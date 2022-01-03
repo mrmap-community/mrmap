@@ -1,20 +1,24 @@
-
 from accounts.models.groups import Organization
-from extras.fields import ExtendedHyperlinkedRelatedField
+from accounts.serializers.users import UserSerializer
+from django.contrib.auth import get_user_model
 from extras.serializers import ObjectPermissionCheckerSerializerMixin
-from registry.models.metadata import Keyword, Style
-from registry.models.security import ServiceAuthentication
-from registry.models.service import (FeatureType, Layer, OgcService,
-                                     OperationUrl, WebFeatureService,
-                                     WebMapService)
-from registry.serializers.metadata import KeywordSerializer, StyleSerializer
-from rest_framework.fields import BooleanField, SerializerMethodField
-from rest_framework.relations import HyperlinkedIdentityField
+from registry.models.metadata import Keyword, MetadataContact, Style
+from registry.models.security import (WebFeatureServiceAuthentication,
+                                      WebMapServiceAuthentication)
+from registry.models.service import (FeatureType, Layer, OperationUrl,
+                                     WebFeatureService, WebMapService)
+from registry.serializers.metadata import (KeywordSerializer,
+                                           MetadataContactSerializer,
+                                           StyleSerializer)
+from rest_framework.fields import BooleanField
 from rest_framework_gis.fields import GeometryField
-from rest_framework_json_api.relations import (HyperlinkedRelatedField,
-                                               ResourceRelatedField)
-from rest_framework_json_api.serializers import (ModelSerializer,
-                                                 PolymorphicModelSerializer)
+from rest_framework_json_api.relations import (
+    HyperlinkedRelatedField, ResourceRelatedField,
+    SerializerMethodResourceRelatedField)
+from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
+                                                 HyperlinkedModelSerializer,
+                                                 ModelSerializer,
+                                                 SerializerMethodField)
 
 
 class OperationsUrlSerializer(ModelSerializer):
@@ -30,6 +34,15 @@ class LayerSerializer(ModelSerializer):
     )
 
     bbox_lat_lon = GeometryField()
+
+    service = ResourceRelatedField(
+        # model=WebMapService,
+        queryset=WebMapService.objects,
+        related_link_view_name='registry:layer-wms-detail',
+        related_link_lookup_field='pk',
+        related_link_url_kwarg='layer_pk'
+        # elf_link_view_name='registry:wms-relationships',
+    )
     styles = HyperlinkedRelatedField(
         queryset=Style.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
@@ -55,26 +68,63 @@ class LayerSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSerializer):
+class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, HyperlinkedModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:wms-detail',
     )
 
-    layers = ExtendedHyperlinkedRelatedField(
-        queryset=Layer.objects,
+    layers = ResourceRelatedField(
+        # queryset=Layer.objects,
+        model=Layer,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:wms-layers-list',
         related_link_url_kwarg='parent_lookup_service',
         self_link_view_name='registry:wms-relationships',
-        required=False,
-        meta_attrs={'layer_count': 'count'}
+        read_only=True,
+        # meta_attrs={'layer_count': 'count'}
     )
+
+    service_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name='registry:wms-service-contact-list',
+        related_link_url_kwarg='parent_lookup_service_contact_webmapservice_metadata'
+    )
+    metadata_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name='registry:wms-metadata-contact-list',
+        related_link_url_kwarg='parent_lookup_metadata_contact_webmapservice_metadata'
+    )
+    keywords = ResourceRelatedField(
+        queryset=Keyword.objects,
+        many=True,
+        related_link_view_name='registry:wms-keywords-list',
+        related_link_url_kwarg='parent_lookup_ogcservice_metadata',
+        # meta_attrs={'keyword_count': 'count'}
+    )
+    created_at = SerializerMethodField()
+    last_modified_at = SerializerMethodField()
 
     is_accessible = SerializerMethodField()
 
+    created_by = SerializerMethodResourceRelatedField(
+        model=get_user_model(),
+        required=False,
+        # related_link_view_name='accounts:user-detail',
+        # related_link_url_kwarg='pk',
+    )
+    last_modified_by = SerializerMethodResourceRelatedField(
+        model=get_user_model(),
+        required=False,
+    )
+
     included_serializers = {
         'layers': LayerSerializer,
+        'service_contact': MetadataContactSerializer,
+        'metadata_contact': MetadataContactSerializer,
+        'keywords': KeywordSerializer,
+        'created_by': UserSerializer,
+        'last_modified_by': UserSerializer,
     }
 
     class Meta:
@@ -82,9 +132,40 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializerMixin, ModelSeria
         fields = "__all__"
         meta_fields = ('is_accessible', )
 
+    def get_created_at(self, instance):
+        return instance.first_history[0].history_date if instance.first_history and len(instance.first_history) == 1 else None
+
+    def get_last_modified_at(self, instance):
+        return instance.last_history[0].history_date if instance.last_history and len(instance.last_history) == 1 else None
+
+    def get_created_by(self, instance):
+        return instance.first_history[0].history_user if instance.first_history and len(instance.first_history) == 1 else None
+
+    def get_last_modified_by(self, instance):
+        return instance.last_history[0].history_user if instance.last_history and len(instance.last_history) == 1 else None
+
     def get_is_accessible(self, obj):
         perm_checker = self.get_perm_checker()
         return perm_checker.has_perm(f'view_{obj._meta.model_name}', obj)
+
+
+class WebMapServiceCreateSerializer(ModelSerializer):
+
+    service_auth = ResourceRelatedField(
+        queryset=WebMapServiceAuthentication.objects,
+        required=False)
+    owner = ResourceRelatedField(
+        queryset=Organization.objects)
+
+    collect_metadata_records = BooleanField(default=True)
+
+    class Meta:
+        model = WebMapService
+        fields = (
+            "get_capabilities_url",
+            "owner",
+            "service_auth",
+            "collect_metadata_records")
 
 
 class FeatureTypeSerializer(ModelSerializer):
@@ -129,19 +210,10 @@ class WebFeatureServiceSerializer(ModelSerializer):
         fields = "__all__"
 
 
-class OgcServiceSerializer(PolymorphicModelSerializer):
-    polymorphic_serializers = [
-        WebMapServiceSerializer, WebFeatureServiceSerializer]
-
-    class Meta:
-        model = OgcService
-        fields = "__all__"
-
-
-class OgcServiceCreateSerializer(ModelSerializer):
+class WebFeatureServiceCreateSerializer(ModelSerializer):
 
     service_auth = ResourceRelatedField(
-        queryset=ServiceAuthentication.objects,
+        queryset=WebFeatureServiceAuthentication.objects,
         required=False)
     owner = ResourceRelatedField(
         queryset=Organization.objects)
@@ -149,7 +221,7 @@ class OgcServiceCreateSerializer(ModelSerializer):
     collect_metadata_records = BooleanField(default=True)
 
     class Meta:
-        model = OgcService
+        model = WebFeatureService
         fields = (
             "get_capabilities_url",
             "owner",

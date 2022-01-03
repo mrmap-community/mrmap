@@ -7,7 +7,6 @@ Created on: 27.10.20
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from extras.models import CommonInfo, GenericModelMixin
 from registry.enums.conformity import (ConformityTypeEnum, ReportType,
                                        RuleFieldNameEnum, RuleOperatorEnum,
                                        RulePropertyEnum)
@@ -109,7 +108,7 @@ class ConformityCheckConfigurationInternal(ConformityCheckConfiguration):
                                                 blank=True)
 
 
-class ConformityCheckRun(CommonInfo, GenericModelMixin):
+class ConformityCheckRun(models.Model):
     """
     Model holding the relation of a resource to the results of a check.
     """
@@ -141,9 +140,6 @@ class WmsConformityCheckRun(ConformityCheckRun):
                                 verbose_name=_("service"),
                                 help_text=_("the service targeted by this check"))
 
-    class Meta(CommonInfo.Meta):
-        pass
-
     def get_validate_url(self):
         return self.get_add_url() + f"?service={self.service.pk}"
 
@@ -154,9 +150,6 @@ class LayerConformityCheckRun(ConformityCheckRun):
     """
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, null=True, blank=True, verbose_name=_("layer"),
                               help_text=_("the layer targeted by this check"))
-
-    class Meta(CommonInfo.Meta):
-        pass
 
     def get_validate_url(self):
         return self.get_add_url() + f"?layer={self.layer.pk}"
@@ -170,9 +163,6 @@ class FeatureTypeConformityCheckRun(ConformityCheckRun):
                                      verbose_name=_("feature type"),
                                      help_text=_("the feature type targeted by this check"))
 
-    class Meta(CommonInfo.Meta):
-        pass
-
     def get_validate_url(self):
         return self.get_add_url() + f"?feature_type={self.feature_type.pk}"
 
@@ -184,9 +174,6 @@ class DatasetMetadataConformityCheckRun(ConformityCheckRun):
     dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE, null=True, blank=True,
                                          verbose_name=_("dataset metadata"),
                                          help_text=_("the dataset metadata targeted by this check"))
-
-    class Meta(CommonInfo.Meta):
-        pass
 
     def get_validate_url(self):
         return self.get_add_url() + f"?dataset_metadata={self.dataset_metadata.pk}"

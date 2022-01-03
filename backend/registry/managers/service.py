@@ -1,17 +1,17 @@
 from abc import abstractmethod
 from random import randrange
 
-from crum import get_current_user
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
-from django.db.models.functions import Coalesce
-from polymorphic.managers import PolymorphicManager
+from django.db.models.aggregates import Count
 from registry.enums.metadata import MetadataOrigin
+from simple_history.models import HistoricalRecords
+from simple_history.utils import bulk_create_with_history
 
 
-class ServiceCapabilitiesManager(PolymorphicManager):
+class ServiceCapabilitiesManager(models.Manager):
     """
     handles the creation of objects by using the parsed service which is stored in the given :class:`new.Service`
     instance.
@@ -32,7 +32,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
     reference_system_cls = None
 
     current_user = None
-    common_info = {}
 
     def _reset_local_variables(self):
         """helper function to reset local variables.
@@ -59,11 +58,8 @@ class ServiceCapabilitiesManager(PolymorphicManager):
 
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.current_user = get_current_user()
-        self.common_info = {
-            "created_by_user": self.current_user,
-            "last_modified_by": self.current_user
-        }
+        if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
+            self.current_user = HistoricalRecords.context.request.user
 
     def _get_or_create_keywords(self, parsed_keywords, db_object):
         db_object.keyword_list = []
@@ -84,12 +80,11 @@ class ServiceCapabilitiesManager(PolymorphicManager):
         db_service_contact, created = service_contact_cls.objects.get_or_create(
             **parsed_service_contact.get_field_dict())
 
-        service = super().create(origin=MetadataOrigin.CAPABILITIES.value,
-                                 service_contact=db_service_contact,
-                                 metadata_contact=db_service_contact,
-                                 **self.common_info,
-                                 **parsed_service.get_field_dict(),
-                                 **parsed_service.service_metadata.get_field_dict())
+        service = self.create(origin=MetadataOrigin.CAPABILITIES.value,
+                              service_contact=db_service_contact,
+                              metadata_contact=db_service_contact,
+                              **parsed_service.get_field_dict(),
+                              **parsed_service.service_metadata.get_field_dict())
 
         self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
                                      db_object=service)
@@ -98,7 +93,10 @@ class ServiceCapabilitiesManager(PolymorphicManager):
         service.keywords.add(*service.keyword_list)
 
         service.xml_backup_file.save(name='capabilities.xml',
-                                     content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
+                                     content=ContentFile(
+                                         str(parsed_service.serializeDocument(), "UTF-8")),
+                                     save=False)
+        service.save(without_historical=True)
 
         operation_urls = []
         operation_url_model_cls = None
@@ -107,8 +105,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
                 operation_url_model_cls = operation_url.get_model_class()
 
             db_operation_url = operation_url_model_cls(service=service,
-
-                                                       **self.common_info,
                                                        **operation_url.get_field_dict())
             db_operation_url.mime_type_list = []
 
@@ -139,7 +135,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
             self.db_remote_metadata_list.append(self.remote_metadata_cls(service=db_service,
                                                                          content_type=self.sub_element_content_type,
                                                                          object_id=db_sub_element.pk,
-                                                                         **self.common_info,
                                                                          **remote_metadata.get_field_dict()))
 
     def _get_or_create_output_formats(self, parsed_feature_type, db_feature_type):
@@ -157,7 +152,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
             if not self.dimension_cls:
                 self.dimension_cls = dimension.get_model_class()
             db_dimension = self.dimension_cls(layer=db_layer,
-                                              **self.common_info,
                                               **dimension.get_field_dict())
             self.db_dimension_list.append(db_dimension)
             dimension.parse_extent()
@@ -165,7 +159,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
                 if not self.dimension_extent_cls:
                     self.dimension_extent_cls = dimension_extent.get_model_class()
                 self.db_dimension_extent_list.append(self.dimension_extent_cls(dimension=db_dimension,
-                                                     **self.common_info,
                                                      **dimension_extent.get_field_dict()))
 
     def _create_reference_system_instances(self, parsed_sub_element, db_sub_element):
@@ -260,7 +253,6 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             if not self.style_cls:
                 self.style_cls = style.get_model_class()
             db_style = self.style_cls(layer=db_layer,
-                                      **self.common_info,
                                       **style.get_field_dict())
             if style.legend_url:
                 # legend_url is optional for style entities
@@ -272,7 +264,6 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
                     **style.legend_url.mime_type.get_field_dict())
                 self.db_legend_url_list.append(self.legend_url_cls(style=db_style,
                                                                    mime_type=db_mime_type,
-                                                                   **self.common_info,
                                                                    **style.legend_url.get_field_dict()))
             self.db_style_list.append(db_style)
 
@@ -313,7 +304,6 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
                                             tree_id=tree_id,
                                             level=parsed_layer.level,
                                             origin=MetadataOrigin.CAPABILITIES.value,
-                                            **self.common_info,
                                             **parsed_layer.get_field_dict(),
                                             **parsed_layer.metadata.get_field_dict())
             db_layer.node_id = parsed_layer.node_id
@@ -337,8 +327,9 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         tree_id = self._construct_layer_tree(
             parsed_service=parsed_service, db_service=db_service)
 
-        db_layer_list = self.sub_element_cls.objects.bulk_create(
-            objs=self.db_layer_list)
+        db_layer_list = bulk_create_with_history(
+            objs=self.db_layer_list, model=self.sub_element_cls)
+
         # non documented function from mptt to rebuild the tree
         # todo: check if we need to rebuild if we create the tree with the correct right and left values.
         self.sub_element_cls.objects.partial_rebuild(tree_id=tree_id)
@@ -392,7 +383,6 @@ class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
         for parsed_feature_type in parsed_service.feature_types:
             db_feature_type = self.sub_element_cls(service=db_service,
                                                    origin=MetadataOrigin.CAPABILITIES.value,
-                                                   **self.common_info,
                                                    **parsed_feature_type.get_field_dict(),
                                                    **parsed_feature_type.metadata.get_field_dict())
             db_feature_type.db_output_format_list = []
@@ -413,8 +403,8 @@ class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self._create_reference_system_instances(parsed_sub_element=parsed_feature_type,
                                                     db_sub_element=db_feature_type)
 
-        db_feature_type_list = self.sub_element_cls.objects.bulk_create(
-            objs=db_feature_type_list)
+        db_feature_type_list = bulk_create_with_history(
+            objs=db_feature_type_list, model=self.sub_element_cls)
 
         if self.db_remote_metadata_list:
             self.remote_metadata_cls.objects.bulk_create(
@@ -447,16 +437,12 @@ class CatalougeServiceCapabilitiesManager(ServiceCapabilitiesManager):
 
 
 class FeatureTypeElementXmlManager(models.Manager):
-    common_info = {}
 
     def _reset_local_variables(self, **kwargs):
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.current_user = get_current_user()
-        self.common_info = {
-            "created_by_user": self.current_user,
-            "last_modified_by": self.current_user
-        }
+        if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
+            self.current_user = HistoricalRecords.context.request.user
 
     def create_from_parsed_xml(self, parsed_xml, related_object, *args, **kwargs):
         self._reset_local_variables(**kwargs)
@@ -465,24 +451,23 @@ class FeatureTypeElementXmlManager(models.Manager):
         for element in parsed_xml.elements:
             db_element_list.append(self.model(feature_type=related_object,
                                               *args,
-                                              **self.common_info,
                                               **element.get_field_dict()))
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class WebMapServiceManager(PolymorphicManager):
+class WebMapServiceManager(models.Manager):
 
     def with_meta(self):
         return self.annotate(
-            layer_count=Coalesce(models.Count("layer"), 0),
-            keyword_count=Coalesce(models.Count("keywords"), 0),
+            layer_count=Count("layer", distinct=True),
+            keyword_count=Count("keywords", distinct=True)
         )
 
 
-class WebFeatureServiceManager(PolymorphicManager):
+class WebFeatureServiceManager(models.Manager):
 
     def with_meta(self):
         return self.annotate(
-            featuretype_count=Coalesce(models.Count("featuretype"), 0),
-            keyword_count=Coalesce(models.Count("keywords"), 0),
+            featuretype_count=Count("featuretype"),
+            keyword_count=Count("keywords")
         )

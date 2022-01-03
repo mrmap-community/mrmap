@@ -1,20 +1,21 @@
 from typing import OrderedDict
 
+from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from notify.serializers import TaskResultSerializer
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
-                                      OgcServiceFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
-from registry.models import (FeatureType, Layer, OgcService, WebFeatureService,
+from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
+from registry.models.metadata import Keyword
 from registry.serializers.service import (FeatureTypeSerializer,
                                           LayerSerializer,
-                                          OgcServiceCreateSerializer,
-                                          OgcServiceSerializer,
+                                          WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
+                                          WebMapServiceCreateSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
@@ -27,104 +28,7 @@ from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 
-class WebMapServiceRelationshipView(RelationshipView):
-    schema = AutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = WebMapService.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = WebMapService.objects.with_meta()
-    serializer_class = WebMapServiceSerializer
-    prefetch_for_includes = {"__all__": [], "layers": ["layers"]}
-    filterset_class = WebMapServiceFilterSet
-    search_fields = ("id", "title", "abstract", "keywords__keyword")
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class LayerRelationshipView(RelationshipView):
-    schema = AutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = Layer.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class LayerViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = Layer.objects.all()
-    serializer_class = LayerSerializer
-    filterset_class = LayerFilterSet
-    search_fields = ("id", "title", "abstract", "keywords__keyword")
-    prefetch_for_includes = {
-        "__all__": [],
-        "styles": ["styles"],
-        "keywords": ["keywords"],
-    }
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class WebFeatureServiceRelationshipView(RelationshipView):
-    schema = AutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = WebFeatureService.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class WebFeatureServiceViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = WebFeatureService.objects.with_meta()
-    serializer_class = WebFeatureServiceSerializer
-    prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
-    filterset_class = WebFeatureServiceFilterSet
-    search_fields = ("id", "title", "abstract", "keywords__keyword")
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class FeatureTypeRelationshipView(RelationshipView):
-    schema = AutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = FeatureType.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = FeatureType.objects.all()
-    serializer_class = FeatureTypeSerializer
-    filterset_class = FeatureTypeFilterSet
-    search_fields = ("id", "title", "abstract", "keywords__keyword")
-
-    prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class OgcServiceViewSet(ModelViewSet):
-    schema = AutoSchema(
-        tags=["OgcServices"],
-    )
-    queryset = OgcService.objects.all()
-    serializer_classes = {
-        "default": OgcServiceSerializer,
-        "create": OgcServiceCreateSerializer,
-    }
-
-    filterset_class = OgcServiceFilterSet
-    search_fields = ("id", "title", "abstract", "keywords__keyword")
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+class OgcServiceCreateMixin:
 
     def get_serializer_class(self):
         return self.serializer_classes.get(
@@ -142,7 +46,7 @@ class OgcServiceViewSet(ModelViewSet):
                                            'collect_metadata_records'],
                                        service_auth_pk=serializer.service_auth.id if hasattr(
                                            serializer, 'service_auth') else None,
-                                       **{'current_user': request.user.pk, 'request': {'path': request.path, 'method': request.method, 'content_type': request.content_type, 'data': request.GET}})
+                                       **{'request': {'path': request.path, 'method': request.method, 'content_type': request.content_type, 'data': request.GET, 'user_pk': request.user.pk}})
         task_result, created = TaskResult.objects.get_or_create(
             task_id=task.id,
             task_name='registry.tasks.service.build_ogc_service')
@@ -178,3 +82,134 @@ class OgcServiceViewSet(ModelViewSet):
             return {"Content-Location": str(data[api_settings.URL_FIELD_NAME])}
         except (TypeError, KeyError):
             return {}
+
+
+class WebMapServiceRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=["WebMapService"],
+    )
+    queryset = WebMapService.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+
+class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, OgcServiceCreateMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=["WebMapService"],
+    )
+    queryset = WebMapService.objects.all()
+    serializer_classes = {
+        "default": WebMapServiceSerializer,
+        "create": WebMapServiceCreateSerializer
+    }
+    select_for_includes = {
+        "service_contact": ["service_contact"],
+        "metadata_contact": ["metadata_contact"],
+    }
+    prefetch_for_includes = {
+        "__all__": [
+            Prefetch('change_logs', queryset=WebMapService.change_log.filter(history_type='+').select_related(
+                'history_user').only('history_relation', 'history_user__id', 'history_date'), to_attr='first_history'),
+            Prefetch('change_logs', queryset=WebMapService.change_log.filter(history_date=WebMapService.change_log.values_list('history_date', flat=True)[:1]).select_related('history_user').only(
+                'history_relation', 'history_user__id', 'history_date').order_by('history_date'), to_attr='last_history'),
+
+        ],
+        "layers": ["layers"],
+        "keywords": ["keywords"]
+    }
+    filterset_class = WebMapServiceFilterSet
+    search_fields = ("id", "title", "abstract", "keywords__keyword")
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'layer_pk' in self.kwargs:
+            self.lookup_field = 'layer'
+            self.lookup_url_kwarg = 'layer_pk'
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if 'include' not in self.request.GET:
+            qs = qs.prefetch_related(
+                Prefetch('layers', queryset=Layer.objects.only(
+                    'id', 'service_id', 'tree_id', 'lft', )),
+                Prefetch('keywords', queryset=Keyword.objects.only('id')),
+            )
+
+        return qs
+
+
+class LayerRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=["WebMapService"],
+    )
+    queryset = Layer.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+
+class LayerViewSet(NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=["WebMapService"],
+    )
+    queryset = Layer.objects.all()
+    serializer_class = LayerSerializer
+    filterset_class = LayerFilterSet
+    search_fields = ("id", "title", "abstract", "keywords__keyword")
+    prefetch_for_includes = {
+        "__all__": [],
+        "styles": ["styles"],
+        "keywords": ["keywords"],
+    }
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    # FIXME: first_history is not an attribute of the objects...
+
+    # def get_queryset(self):
+    #     qs = super().get_queryset()
+    #     prefetch_ordered_histories = Prefetch('history', queryset=Layer.change_log.order_by(
+    #         '-history_date'), to_attr='ordered_histories')
+    #     qs.prefetch_related(prefetch_ordered_histories)
+    #     return qs
+
+
+class WebFeatureServiceRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=["WebFeatureService"],
+    )
+    queryset = WebFeatureService.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+
+class WebFeatureServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, OgcServiceCreateMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=["WebFeatureService"],
+    )
+    queryset = WebFeatureService.objects.with_meta()
+    serializer_classes = {
+        "default": WebFeatureServiceSerializer,
+        "create": WebFeatureServiceCreateSerializer,
+    }
+    prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
+    filterset_class = WebFeatureServiceFilterSet
+    search_fields = ("id", "title", "abstract", "keywords__keyword")
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+
+class FeatureTypeRelationshipView(RelationshipView):
+    schema = AutoSchema(
+        tags=["WebFeatureService"],
+    )
+    queryset = FeatureType.objects
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+
+class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=["WebFeatureService"],
+    )
+    queryset = FeatureType.objects.all()
+    serializer_class = FeatureTypeSerializer
+    filterset_class = FeatureTypeFilterSet
+    search_fields = ("id", "title", "abstract", "keywords__keyword")
+
+    prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]

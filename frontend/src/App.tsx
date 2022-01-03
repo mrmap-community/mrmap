@@ -22,6 +22,8 @@ import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
+import WebFeatureServiceRepo from './Repos/WfsRepo';
+import WebMapServiceRepo from './Repos/WmsRepo';
 
 
 
@@ -110,13 +112,17 @@ export default function App (): JSX.Element {
                 path='/registry/services/wms'
                 element={<WmsTable />}
               />
+               <Route
+                path='/registry/services/wms/add'
+                element={<OgcServiceAdd repo={new WebMapServiceRepo()} />}
+              />
               <Route
                 path='/registry/services/wfs'
                 element={<WfsTable />}
               />
               <Route
-                path='/registry/services/add'
-                element={<OgcServiceAdd />}
+                path='/registry/services/wfs/add'
+                element={<OgcServiceAdd repo={new WebFeatureServiceRepo()} />}
               />
               <Route
                 path='/registry/layers'

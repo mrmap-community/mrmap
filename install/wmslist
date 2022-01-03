@@ -1,1 +1,2 @@
 https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities
+https://komserv4gdi.service24.rlp.de/ows/wms/07131007_Bad_Neuenahr-Ahrweiler?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities

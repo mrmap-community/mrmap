@@ -10,7 +10,6 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from extras.models import CommonInfo, GenericModelMixin
 
 from guardian.shortcuts import assign_perm
 
@@ -86,7 +85,7 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
 
 
 # TODO: check if subscription should be part of users app?
-class Subscription(GenericModelMixin, CommonInfo):
+class Subscription(models.Model):
     id = models.UUIDField(primary_key=True,
                           default=uuid.uuid4)
     web_map_service = models.ForeignKey(to='registry.WebMapService',
@@ -120,7 +119,7 @@ class Subscription(GenericModelMixin, CommonInfo):
                                                 help_text=_("Sends an e-mai if the service's access has been changed."))
     created_on = models.DateTimeField(auto_now_add=True)
 
-    class Meta(CommonInfo.Meta):
+    class Meta:
         # It shall be restricted to create multiple subscription objects for the same service per user. This unique
         # constraint will also raise an form error if a user trays to add duplicates.
         unique_together = ('web_map_service', 'web_feature_service', 'user',)

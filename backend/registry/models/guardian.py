@@ -6,18 +6,9 @@ https://django-guardian.readthedocs.io/en/v2.3.0/userguide/performance.html#dire
 
 """
 from django.db import models
-from registry.models.service import (OgcService, WebFeatureService,
-                                     WebMapService)
+from registry.models.service import WebFeatureService, WebMapService
 
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
-
-
-class OgcServiceUserObjectPermission(UserObjectPermissionBase):
-    content_object = models.ForeignKey(to=OgcService, on_delete=models.CASCADE)
-
-
-class OgcServiceGroupObjectPermission(GroupObjectPermissionBase):
-    content_object = models.ForeignKey(to=OgcService, on_delete=models.CASCADE)
 
 
 class WebMapServiceUserObjectPermission(UserObjectPermissionBase):

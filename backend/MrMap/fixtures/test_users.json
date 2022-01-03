@@ -37,6 +37,21 @@
                     "webmapservice"
                 ],
                 [
+                    "add_webfeatureservice",
+                    "registry",
+                    "webfeatureservice"
+                ],
+                [
+                    "change_webfeatureservice",
+                    "registry",
+                    "webfeatureservice"
+                ],
+                [
+                    "delete_webfeatureservice",
+                    "registry",
+                    "webfeatureservice"
+                ],
+                [
                     "add_mapcontext",
                     "registry",
                     "mapcontext"

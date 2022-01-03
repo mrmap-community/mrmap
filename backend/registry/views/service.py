@@ -109,7 +109,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
         "__all__": [
             Prefetch('change_logs', queryset=WebMapService.change_log.filter(history_type='+').select_related(
                 'history_user').only('history_relation', 'history_user__id', 'history_date'), to_attr='first_history'),
-            Prefetch('change_logs', queryset=WebMapService.change_log.filter(history_date=WebMapService.change_log.values_list('history_date', flat=True).latest()).select_related('history_user').only(
+            Prefetch('change_logs', queryset=WebMapService.change_log.filter(history_date=WebMapService.change_log.values_list('history_date', flat=True)[:1]).select_related('history_user').only(
                 'history_relation', 'history_user__id', 'history_date').order_by('history_date'), to_attr='last_history'),
 
         ],
@@ -134,6 +134,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMix
                     'id', 'service_id', 'tree_id', 'lft', )),
                 Prefetch('keywords', queryset=Keyword.objects.only('id')),
             )
+
         return qs
 
 

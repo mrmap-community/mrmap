@@ -9,6 +9,7 @@ from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
@@ -20,10 +21,9 @@ from registry.managers.security import (OperationUrlManager,
                                         ServiceSecurityManager)
 from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        FeatureTypeElementXmlManager,
+                                       LayerManager,
                                        WebFeatureServiceCapabilitiesManager,
-                                       WebFeatureServiceManager,
-                                       WebMapServiceCapabilitiesManager,
-                                       WebMapServiceManager)
+                                       WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
                                       ServiceMetadata)
@@ -66,7 +66,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                                                "the capabilities url of the ogc service"),
                                            validators=[validate_get_capablities_uri])
 
-    objects = models.Manager()
+    objects = DefaultHistoryManager()
     security = ServiceSecurityManager()
 
     class Meta:
@@ -108,7 +108,6 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
 class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name='change_logs')
-    objects = WebMapServiceManager()
     capabilities = WebMapServiceCapabilitiesManager()
 
     class Meta:
@@ -122,7 +121,6 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name='change_logs')
-    objects = WebFeatureServiceManager()
     capabilities = WebFeatureServiceCapabilitiesManager()
 
     class Meta:
@@ -310,6 +308,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     change_log = HistoricalRecords(
         related_name='change_logs',
         excluded_fields=['lft', 'rght', 'tree_id', 'level'])
+
+    objects = LayerManager()
 
     class Meta:
         verbose_name = _("layer")

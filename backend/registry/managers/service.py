@@ -6,6 +6,8 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
 from django.db.models.aggregates import Count
+from extras.managers import DefaultHistoryManager
+from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
@@ -455,19 +457,6 @@ class FeatureTypeElementXmlManager(models.Manager):
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class WebMapServiceManager(models.Manager):
+class LayerManager(DefaultHistoryManager, TreeManager):
 
-    def with_meta(self):
-        return self.annotate(
-            layer_count=Count("layer", distinct=True),
-            keyword_count=Count("keywords", distinct=True)
-        )
-
-
-class WebFeatureServiceManager(models.Manager):
-
-    def with_meta(self):
-        return self.annotate(
-            featuretype_count=Count("featuretype"),
-            keyword_count=Count("keywords")
-        )
+    pass

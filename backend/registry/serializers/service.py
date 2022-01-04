@@ -29,7 +29,7 @@ class OperationsUrlSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class LayerSerializer(ModelSerializer):
+class FullLayerSerializer(ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:layer-detail',
     )
@@ -69,6 +69,18 @@ class LayerSerializer(ModelSerializer):
         fields = '__all__'
 
 
+class IncludeLayerSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:layer-detail',
+    )
+
+    bbox_lat_lon = GeometryField()
+
+    class Meta:
+        model = Layer
+        exclude = ('service', 'keywords', 'reference_systems', 'parent')
+
+
 class WebMapServiceSerializer(ObjectPermissionCheckerSerializer, HistoryInformationSerializer, ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -105,7 +117,7 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializer, HistoryInformat
     )
 
     included_serializers = {
-        'layers': LayerSerializer,
+        'layers': IncludeLayerSerializer,
         'service_contact': MetadataContactSerializer,
         'metadata_contact': MetadataContactSerializer,
         'keywords': KeywordSerializer,

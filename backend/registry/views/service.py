@@ -1,5 +1,7 @@
 from typing import OrderedDict
 
+from django.db.models.fields.related import ForeignKey, ManyToManyField
+from django.db.models.fields.reverse_related import ManyToManyRel, ManyToOneRel
 from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
@@ -14,7 +16,7 @@ from registry.models import (FeatureType, Layer, WebFeatureService,
 from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
 from registry.serializers.service import (FeatureTypeSerializer,
-                                          LayerSerializer,
+                                          FullLayerSerializer,
                                           WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceCreateSerializer,
@@ -108,7 +110,8 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, HistoryInformati
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "layers": ["layers"],
+        # FIXME: Prefetching of layers does not work as expected.... parent is not selected
+        "layers": [Prefetch('layers', queryset=Layer.objects.select_related('parent'))],
         "keywords": ["keywords"]
     }
     filterset_class = WebMapServiceFilterSet
@@ -146,7 +149,7 @@ class LayerViewSet(NestedViewSetMixin, ObjectPermissionCheckerViewSetMixin, Hist
         tags=["WebMapService"],
     )
     queryset = Layer.objects.all()
-    serializer_class = LayerSerializer
+    serializer_class = FullLayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     prefetch_for_includes = {
@@ -163,9 +166,12 @@ class LayerViewSet(NestedViewSetMixin, ObjectPermissionCheckerViewSetMixin, Hist
             defer = [f'service__{field.name}' for field in WebMapService._meta.get_fields(
             ) if field.name not in ['id', 'pk']]
             qs = qs.select_related('service').defer(*defer)
+        if not include or 'parent' not in include:
+            # TODO optimize queryset with defer
+            qs = qs.select_related('parent')
         if not include or 'styles' not in include:
             qs = qs.prefetch_related(
-                Prefetch('styles', queryset=Style.objects.only('id')))
+                Prefetch('styles', queryset=Style.objects.only('id', 'layer_id')))
         if not include or 'keywords' not in include:
             qs = qs.prefetch_related(
                 Prefetch('keywords', queryset=Keyword.objects.only('id')))

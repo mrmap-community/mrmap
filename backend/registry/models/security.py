@@ -13,9 +13,8 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from MrMap.validators import geometry_is_empty
 from PIL import Image
-from registry.enums.security import EntityUnits
-from registry.enums.service import (AuthTypeEnum, OGCOperationEnum,
-                                    OGCServiceEnum)
+from registry.enums.service import (AuthTypeEnum, SecureableWFSOperationEnum,
+                                    SecureableWMSOperationEnum)
 from registry.managers.security import AllowedOperationManager
 from registry.models.service import (CatalougeService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -164,32 +163,16 @@ class CatalougeServiceAuthentication(ServiceAuthentication):
                                    blank=True)
 
 
-class OGCOperation(models.Model):
+class WebMapServiceOperation(models.Model):
     operation = models.CharField(primary_key=True,
                                  max_length=30,
-                                 choices=OGCOperationEnum.as_choices())
-
-    def __str__(self):
-        return self.operation
+                                 choices=SecureableWMSOperationEnum.as_choices())
 
 
-class AllowedOperationGroupRelation(models.Model):
-    """ Custom M2M relation table model to protect referenced ServiceAccessGroup from deleting if they are referenced.
-
-    """
-    service_access_group = models.ForeignKey(to="ServiceAccessGroup",
-                                             on_delete=models.PROTECT)
-    allowed_operation = models.ForeignKey(to="AllowedOperation",
-                                          on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.allowed_operation.__str__()
-
-
-class ServiceAccessGroup(Group):
-    description = models.CharField(max_length=512,
-                                   verbose_name=_("description"),
-                                   help_text=_("a short description what this group is for."))
+class WebFeatureServiceOperation(models.Model):
+    operation = models.CharField(primary_key=True,
+                                 max_length=30,
+                                 choices=SecureableWFSOperationEnum.as_choices())
 
 
 class AllowedOperation(models.Model):
@@ -200,12 +183,7 @@ class AllowedOperation(models.Model):
     :attr allowed_groups: :class:`django.db.models.fields.related.ManyToManyField` field to configure allowed groups to
                           access the configured service.
     :attr allowed_area: (optional) :class:`django.contrib.gis.db.models.fields.MultiPolygonField` to configure an
-                        allowed area. If set, only the configured area is allowed to request.
-    :attr secured_service: :class:`django.db.models.fields.related.ForeignKey` field to configure the secured service.
-    :attr secured_layers: :class:`django.db.models.fields.related.ManyToManyField` field to configure all secured
-                          layers.
-    :attr secured_feature_types: :class:`django.db.models.fields.related.ManyToManyField` field to configure all secured
-                          feature types.
+                        allowed area. If set, only the configured area is allowed to request.   
     :attr description: :class:`django.db.models.fields.CharField` short description for better administrating different
                        :class:`~AllowedOperation` instances.
 
@@ -221,53 +199,24 @@ class AllowedOperation(models.Model):
         and one has no allowed area configured the one with ``allowed_area=None`` allows all areas.
 
     """
-    operations = models.ManyToManyField(to=OGCOperation,
-                                        related_name="allowed_operations",
-                                        related_query_name="allowed_operation")
-    # todo: to=Group? then we can add organizations
-    allowed_groups = models.ManyToManyField(to=ServiceAccessGroup,
-                                            through=AllowedOperationGroupRelation,
-                                            related_name="allowed_operations",
-                                            related_query_name="allowed_operation")
+    allowed_groups = models.ManyToManyField(to=Group,
+                                            related_name="%(class)s_allowed_operations",
+                                            related_query_name="%(class)s_allowed_operation")
     allowed_area = models.MultiPolygonField(null=True,
                                             blank=True,
                                             validators=[geometry_is_empty])
-    secured_wms = models.ForeignKey(to=WebMapService,
-                                    null=True,
-                                    blank=True,
-                                    on_delete=models.CASCADE,
-                                    related_name="allowed_operations",
-                                    related_query_name="allowed_operation",
-                                    verbose_name=_("secured service"),
-                                    help_text=_("the service where some layers or feature types are secured of."))
-    secured_wfs = models.ForeignKey(to=WebFeatureService,
-                                    null=True,
-                                    blank=True,
-                                    on_delete=models.CASCADE,
-                                    related_name="allowed_operations",
-                                    related_query_name="allowed_operation",
-                                    verbose_name=_("secured service"),
-                                    help_text=_("the service where some layers or feature types are secured of."))
-    secured_layers = models.ManyToManyField(to=Layer,
-                                            related_name="allowed_operations",
-                                            related_query_name="allowed_operation",
-                                            verbose_name=_("secured layers"),
-                                            help_text=_("Select one or more layers. Note that all sub layers of a "
-                                                        "selected layer will also be secured."), )
-    secured_feature_types = models.ManyToManyField(to=FeatureType,
-                                                   related_name="allowed_operations",
-                                                   related_query_name="allowed_operation",
-                                                   verbose_name=_(
-                                                       "secured feature types"),
-                                                   help_text=_("Select one or more feature types."))
     description = models.CharField(max_length=512,
+                                   default='',
                                    verbose_name=_("description"),
                                    help_text=_("a short description what this allowed operation controls."))
 
     objects = AllowedOperationManager()
 
+    class Meta:
+        abstract = True
+
     def __str__(self):
-        return f"AllowedOperation ({self.pk}) for service {self.secured_wms|self.secured_wfs}"
+        return f"AllowedOperation ({self.pk}) for service {self.secured_service_id}"
 
     def save(self, *args, **kwargs):
         """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.
@@ -280,18 +229,47 @@ class AllowedOperation(models.Model):
         super().save(*args, **kwargs)
         # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
         # does NOT call save() or triggers signals
-        if self.secured_wms:
-            proxy_setting = ProxySetting.objects.filter(
-                secured_wms=self.secured_wms).update(camouflage=True)
-            if proxy_setting == 0:
-                ProxySetting.objects.create(secured_wms=self.secured_wms,
-                                            camouflage=True)
-        if self.secured_wfs:
-            proxy_setting = ProxySetting.objects.filter(
-                secured_wfs=self.secured_wfs).update(camouflage=True)
-            if proxy_setting == 0:
-                ProxySetting.objects.create(secured_wfs=self.secured_wfs,
-                                            camouflage=True)
+        proxy_setting = ProxySetting.objects.filter(
+            secured_service=self.secured_service).update(camouflage=True)
+        if proxy_setting == 0:
+            ProxySetting.objects.create(
+                secured_service=self.secured_service, camouflage=True)
+
+
+class AllowedWebMapServiceOperation(AllowedOperation):
+    operations = models.ManyToManyField(to=WebMapServiceOperation,
+                                        related_name="allowed_operations",
+                                        related_query_name="allowed_operation")
+    secured_service = models.ForeignKey(to=WebMapService,
+                                        on_delete=models.CASCADE,
+                                        related_name="allowed_operations",
+                                        related_query_name="allowed_operation",
+                                        verbose_name=_("secured service"),
+                                        help_text=_("the service where some layers or feature types are secured of."))
+    secured_layers = models.ManyToManyField(to=Layer,
+                                            related_name="allowed_operations",
+                                            related_query_name="allowed_operation",
+                                            verbose_name=_("secured layers"),
+                                            help_text=_("Select one or more layers. Note that all sub layers of a "
+                                                        "selected layer will also be secured."), )
+
+
+class AllowedWebFeatureServiceOperation(AllowedOperation):
+    operations = models.ManyToManyField(to=WebFeatureServiceOperation,
+                                        related_name="allowed_operations",
+                                        related_query_name="allowed_operation")
+    secured_service = models.ForeignKey(to=WebFeatureService,
+                                        on_delete=models.CASCADE,
+                                        related_name="allowed_operations",
+                                        related_query_name="allowed_operation",
+                                        verbose_name=_("secured service"),
+                                        help_text=_("the service where some layers or feature types are secured of."))
+    secured_feature_types = models.ManyToManyField(to=FeatureType,
+                                                   related_name="allowed_operations",
+                                                   related_query_name="allowed_operation",
+                                                   verbose_name=_(
+                                                       "secured feature types"),
+                                                   help_text=_("Select one or more feature types."))
 
 
 class ProxySetting(models.Model):
@@ -303,20 +281,9 @@ class ProxySetting(models.Model):
     log_response = models.BooleanField(default=False,
                                        verbose_name=_("log response", ),
                                        help_text=_("if true, all responses of the related service will be logged."))
-    wms = models.OneToOneField(to=WebMapService,
-                               on_delete=models.CASCADE,
-                               related_name="web_map_service",
-                               related_query_name="web_map_service",
-                               verbose_name=_("proxy settings"),
-                               help_text=_("the security proxy settings for this service."))
-    wfs = models.OneToOneField(to=WebFeatureService,
-                               on_delete=models.CASCADE,
-                               related_name="web_feature_service",
-                               related_query_name="web_feature_service",
-                               verbose_name=_("proxy settings"),
-                               help_text=_("the security proxy settings for this service."))
 
     class Meta:
+        abstract = True
         constraints = [
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_log_response_without_camouflage",
@@ -344,6 +311,24 @@ class ProxySetting(models.Model):
             )
 
 
+class WebMapServiceProxySetting(ProxySetting):
+    secured_service = models.OneToOneField(to=WebMapService,
+                                           on_delete=models.CASCADE,
+                                           related_name="proxy_setting",
+                                           related_query_name="proxy_setting",
+                                           verbose_name=_("proxy settings"),
+                                           help_text=_("the security proxy settings for this service."))
+
+
+class WebFeatureServiceProxySetting(ProxySetting):
+    secured_service = models.OneToOneField(to=WebFeatureService,
+                                           on_delete=models.CASCADE,
+                                           related_name="proxy_setting",
+                                           related_query_name="proxy_setting",
+                                           verbose_name=_("proxy settings"),
+                                           help_text=_("the security proxy settings for this service."))
+
+
 def request_body_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/security_proxy/logs/requests/service_<id>/<username>/<filename>
     return 'security_proxy/logs/requests/service_{0}/{1}/{2}'.format(instance.service.id,
@@ -360,21 +345,30 @@ class HttpRequestLog(models.Model):
     headers = models.JSONField(default=dict)
     user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
                              on_delete=models.PROTECT,
-                             related_name="http_request_logs",
-                             related_query_name="http_request_log")
-    wms = models.ForeignKey(to=WebMapService,
-                            on_delete=models.PROTECT,
-                            related_name="http_request_logs",
-                            related_query_name="http_request_log")
-    wfs = models.ForeignKey(to=WebFeatureService,
-                            on_delete=models.PROTECT,
-                            related_name="http_request_logs",
-                            related_query_name="http_request_log")
+                             related_name="%(class)s_http_request_logs",
+                             related_query_name="%(class)shttp_request_log")
+
+    class Meta:
+        abstract = True
 
     def delete(self, *args, **kwargs):
         self.body.delete(save=False)
         d = super().delete(*args, **kwargs)
         return d
+
+
+class WebMapServiceHttpRequestLog(HttpRequestLog):
+    service = models.ForeignKey(to=WebMapService,
+                                on_delete=models.PROTECT,
+                                related_name="http_request_logs",
+                                related_query_name="http_request_log")
+
+
+class WebFeatureServiceHttpRequestLog(HttpRequestLog):
+    service = models.ForeignKey(to=WebFeatureService,
+                                on_delete=models.PROTECT,
+                                related_name="http_request_logs",
+                                related_query_name="http_request_log")
 
 
 def response_content_path(instance, filename):
@@ -392,10 +386,9 @@ class HttpResponseLog(models.Model):
     url = models.URLField(max_length=4096)
     content = models.FileField(
         upload_to=response_content_path, max_length=1024)
-    request = models.OneToOneField(to=HttpRequestLog,
-                                   on_delete=models.PROTECT,
-                                   related_name="response",
-                                   related_query_name="response")
+
+    class Meta:
+        abstract = True
 
     def save(self, *args, **kwargs):
         adding = False
@@ -413,11 +406,21 @@ class HttpResponseLog(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class WebMapServiceHttpResponseLog(HttpResponseLog):
+    request = models.OneToOneField(to=WebMapServiceHttpRequestLog,
+                                   on_delete=models.PROTECT,
+                                   related_name="response",
+                                   related_query_name="response")
+
+
+class WebFeatureServiceHttpResponseLog(HttpResponseLog):
+    request = models.OneToOneField(to=WebFeatureServiceHttpRequestLog,
+                                   on_delete=models.PROTECT,
+                                   related_name="response",
+                                   related_query_name="response")
+
+
 class AnalyzedResponseLog(models.Model):
-    response = models.OneToOneField(to=HttpResponseLog,
-                                    on_delete=models.PROTECT,
-                                    related_name="analyzed_response",
-                                    related_query_name="analyzed_response")
     entity_count = models.FloatField(help_text="Stores the response entity count. "
                                                "For WMS this will be the indiscreet number of megapixels that are "
                                                "returned by the service. "
@@ -428,18 +431,15 @@ class AnalyzedResponseLog(models.Model):
                                                      " returned by the service. "
                                                      "For WFS this will be discrete number of feature types that are "
                                                      "returned by the service.")
-    entity_unit = models.CharField(max_length=5,
-                                   choices=EntityUnits.as_choices(
-                                       drop_empty_choice=True),
-                                   help_text="The unit in which the entity count is stored.")
+
+
+class WebMapServiceAnalyzedResponseLog(AnalyzedResponseLog):
+    response = models.OneToOneField(to=WebMapServiceHttpResponseLog,
+                                    on_delete=models.PROTECT,
+                                    related_name="analyzed_response",
+                                    related_query_name="analyzed_response")
 
     def analyze_response(self):
-        if self.response.request.service.is_service_type(OGCServiceEnum.WMS):
-            self._analyze_wms_response()
-        elif self.response.request.service.is_service_type(OGCServiceEnum.WFS):
-            self._analyze_wfs_response()
-
-    def _analyze_wms_response(self):
         img = Image.open(self.response.content.open(mode='rb'))
         tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
         tmp.paste(img)
@@ -455,11 +455,17 @@ class AnalyzedResponseLog(models.Model):
             (len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
         # Compute full image pixel count (including transparent pixels)
         self.entity_total_count = round((img.height * img.width) / 1000000, 4)
-        self.entity_unit = EntityUnits.MEGA_PIXEL.value
 
         # TODO: implement GetFeatureInfo analyzing
 
-    def _analyze_wfs_response(self):
+
+class WebFeatureServiceAnalyzedResponseLog(AnalyzedResponseLog):
+    response = models.OneToOneField(to=WebFeatureServiceHttpResponseLog,
+                                    on_delete=models.PROTECT,
+                                    related_name="analyzed_response",
+                                    related_query_name="analyzed_response")
+
+    def analyze_response(self):
         # TODO: implement csv analyzing
         # TODO: implement kml analyzing
         # TODO: implement geojson analyzing

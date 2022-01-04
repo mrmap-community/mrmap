@@ -19,12 +19,23 @@ class OGCServiceEnum(EnumChoice):
     """ Defines all supported service types
 
     """
-
+    ALL = "all"
     WMS = "wms"
     WFS = "wfs"
     WMC = "wmc"
     DATASET = "dataset"
     CSW = "csw"
+
+
+class SecureableWMSOperationEnum(EnumChoice):
+    GET_CAPABILITIES = "GetCapabilities"
+    GET_MAP = "GetMap"
+    GET_FEATURE_INFO = "GetFeatureInfo"
+
+
+class SecureableWFSOperationEnum(EnumChoice):
+    GET_CAPABILITIES = "GetCapabilities"
+    GET_FEATURE = "GetFeature"
 
 
 class OGCOperationEnum(EnumChoice):

@@ -1,0 +1,921 @@
+{
+  "links": {
+    "first": "https://localhost/api/v1/registry/dataset-metadata/?page%5Bnumber%5D=1&page%5Bsize%5D=13",
+    "last": "https://localhost/api/v1/registry/dataset-metadata/?page%5Bnumber%5D=4&page%5Bsize%5D=13",
+    "next": "https://localhost/api/v1/registry/dataset-metadata/?page%5Bnumber%5D=2&page%5Bsize%5D=13",
+    "prev": null
+  },
+  "data": [
+    {
+      "type": "DatasetMetadata",
+      "id": "fd778be1-2851-4cba-9549-1192fcc6f95f",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/fd778be1-2851-4cba-9549-1192fcc6f95f/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:15.664887+01:00",
+        "file_identifier": "04c4fa1d-f238-3576-c364-5750a2d1ed23",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=04c4fa1df2383576c3645750a2d1ed23",
+        "title": "Wohnen für ältere Menschen in Einrichtungen",
+        "abstract": "Wohnen für ältere Menschen mit Unterstützungs- oder Pflegebedarf in Einrichtungen",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "04c4fa1df2383576c3645750a2d1ed23",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "eecdc27e-eb79-420a-8fb1-8d1a9306fcde" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/fd778be1-2851-4cba-9549-1192fcc6f95f/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "c8a8b70a-5b75-475c-911d-fafb99932aaa",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/c8a8b70a-5b75-475c-911d-fafb99932aaa/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:15.744879+01:00",
+        "file_identifier": "663e7d42-b9af-a285-447a-e39e255485cd",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=663e7d42b9afa285447ae39e255485cd",
+        "title": "Krankenhäuser",
+        "abstract": "Krankenhäuser in Rheinland-Pfalz",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "663e7d42b9afa285447ae39e255485cd",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "ed51984b-d0e5-49b7-8b31-a890c54a1d5b" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/c8a8b70a-5b75-475c-911d-fafb99932aaa/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "b39215fd-0aef-423b-82f5-17c9f3eacc98",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/b39215fd-0aef-423b-82f5-17c9f3eacc98/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:15.814339+01:00",
+        "file_identifier": "eab231a0-33e1-4b76-11a7-755f89e2eb77",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=eab231a033e14b7611a7755f89e2eb77",
+        "title": "Betreutes Wohnen für ältere Menschen",
+        "abstract": "Betreutes Wohnen für ältere Menschen in Rheinland-Pfalz",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "eab231a033e14b7611a7755f89e2eb77",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "60f9bf22-ec0c-4a8a-8ee7-d685384ec680" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/b39215fd-0aef-423b-82f5-17c9f3eacc98/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "4134e398-249a-4b47-97ea-6218ea3d581f",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/4134e398-249a-4b47-97ea-6218ea3d581f/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:15.924468+01:00",
+        "file_identifier": "b053e9f9-3744-21a6-1f5b-9f00900d3502",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=b053e9f9374421a61f5b9f00900d3502",
+        "title": "Selbsthilfegruppen",
+        "abstract": "Hilfe zur Selbsthilfe im Gesundheitswesen",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "b053e9f9374421a61f5b9f00900d3502",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "f75e207b-5ade-484e-828c-8e4874680495" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/4134e398-249a-4b47-97ea-6218ea3d581f/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "8a9f54be-2f5a-4de0-9db7-bb0705d71620",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/8a9f54be-2f5a-4de0-9db7-bb0705d71620/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:15.906769+01:00",
+        "file_identifier": "77c4dcf4-b1a4-39a2-08d2-2464cced7b44",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=77c4dcf4b1a439a208d22464cced7b44",
+        "title": "Integrative Kindertagesstätten und Förderkindergärten",
+        "abstract": "Integrative Kindertagesstätten und Förderkindergärten in Rheinland-Pfalz",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "77c4dcf4b1a439a208d22464cced7b44",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "cc841c45-fa61-465f-9370-087bde2e9edd" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/8a9f54be-2f5a-4de0-9db7-bb0705d71620/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "02a27834-6c66-4fe5-8ad5-d01e179f9790",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/02a27834-6c66-4fe5-8ad5-d01e179f9790/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.082605+01:00",
+        "file_identifier": "19cfb1a3-b35d-c15f-ac47-b11602fc7489",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=19cfb1a3b35dc15fac47b11602fc7489",
+        "title": "Einrichtungen für Menschen mit Behinderung",
+        "abstract": "Wohnangebote für Menschen mit Behinderung",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "19cfb1a3b35dc15fac47b11602fc7489",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "a91c1395-4a9d-4cd7-ae22-3b8bf6b5529b" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/02a27834-6c66-4fe5-8ad5-d01e179f9790/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "2df5dfb6-18ba-4465-9d17-e3b88cd298e1",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/2df5dfb6-18ba-4465-9d17-e3b88cd298e1/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.181871+01:00",
+        "file_identifier": "1b5b9006-a52a-96c1-6678-e0c5f5c66776",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=1b5b9006a52a96c16678e0c5f5c66776",
+        "title": "Werkstätten für behinderte Menschen",
+        "abstract": "Werkstätten für behinderte Menschen in Rheinland-Pfalz",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "1b5b9006a52a96c16678e0c5f5c66776",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "31fe14e3-9dfb-40c4-b371-df3480b84659" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/2df5dfb6-18ba-4465-9d17-e3b88cd298e1/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "bd0391b3-a217-4175-8182-89bad9290d9f",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/bd0391b3-a217-4175-8182-89bad9290d9f/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.182802+01:00",
+        "file_identifier": "563fa1b1-9067-af30-cd15-e6e89725b950",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=563fa1b19067af30cd15e6e89725b950",
+        "title": "Pflegestützpunkte",
+        "abstract": "Pflegestützpunkte in Rheinland-Pfalz",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "563fa1b19067af30cd15e6e89725b950",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "111181c7-e67d-4c93-bffa-9bf791634a2c" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/bd0391b3-a217-4175-8182-89bad9290d9f/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "0c27218f-55fe-4872-bd28-b7efe5c8101d",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/0c27218f-55fe-4872-bd28-b7efe5c8101d/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.352840+01:00",
+        "file_identifier": "e395d054-d1ea-b2d9-adda-d9bc25c115a0",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=e395d054d1eab2d9addad9bc25c115a0",
+        "title": "Suchtberatungsstellen",
+        "abstract": "Beratung und Betreuung für Betroffene und Angehörige ",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "e395d054d1eab2d9addad9bc25c115a0",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "14f7bd40-93e1-4ed3-a026-b424d45db3e8" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/0c27218f-55fe-4872-bd28-b7efe5c8101d/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "5b375431-8fa4-4bec-8dab-bdce011dd4ad",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/5b375431-8fa4-4bec-8dab-bdce011dd4ad/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.384992+01:00",
+        "file_identifier": "ebca6293-0c10-868e-c1da-84ef27586307",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=ebca62930c10868ec1da84ef27586307",
+        "title": "Frühförderzentren",
+        "abstract": "Frühförderung von Kindern mit besonderem Unterstützungsbedarf",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "ebca62930c10868ec1da84ef27586307",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "39dc1bf8-c4c6-49db-a89f-f1dea95876df" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/5b375431-8fa4-4bec-8dab-bdce011dd4ad/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "d058c84e-5d41-4f29-9198-f3d8ea2de020",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/d058c84e-5d41-4f29-9198-f3d8ea2de020/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.520155+01:00",
+        "file_identifier": "7368f457-159e-8bf5-aed1-24a89fdbeee1",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=7368f457159e8bf5aed124a89fdbeee1",
+        "title": "Schuldnerberatungsstellen",
+        "abstract": "Hilfe und Unterstützung bei Schuldenproblemen",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "7368f457159e8bf5aed124a89fdbeee1",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "82fd4b91-5eaf-4e43-9019-02bb7ef16681" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/d058c84e-5d41-4f29-9198-f3d8ea2de020/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "2812a204-91c2-4b28-9b8b-de370df16b08",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/2812a204-91c2-4b28-9b8b-de370df16b08/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.524331+01:00",
+        "file_identifier": "e9dea522-000b-7a84-0f05-a56d64aef1d2",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=e9dea522000b7a840f05a56d64aef1d2",
+        "title": "Fachkliniken für Suchtkranke",
+        "abstract": "Fachkliniken für Suchtkranke",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "e9dea522000b7a840f05a56d64aef1d2",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "e62bda9c-a2db-44fb-b609-542e6f487b9f" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/2812a204-91c2-4b28-9b8b-de370df16b08/"
+      }
+    },
+    {
+      "type": "DatasetMetadata",
+      "id": "3f027b5b-67a8-4ddc-8914-7e0bbae915c1",
+      "attributes": {
+        "xml_backup_file": "https://localhost/xml_documents/3f027b5b-67a8-4ddc-8914-7e0bbae915c1/md_metadata.xml",
+        "access_constraints": "Datenlizenz Deutschland – Namensnennung – Version 2.0; URL: https://www.govdata.de/dl-de/by-2-0 Die Namensnennung des Landes Rheinland-Pfalz als Rechteinhaber hat in folgender Weise zu erfolgen: Rheinland-Pfalz <Jahr des Datenbezugs>, dl-de/by-2-0, http://www.rlp.de [Daten bearbeitet];",
+        "fees": null,
+        "use_limitation": null,
+        "license_source_note": null,
+        "date_stamp": "2022-01-03T15:47:16.629458+01:00",
+        "file_identifier": "929ffe39-2272-38cf-0f0d-28c98efd3c92",
+        "origin": "iso metadata",
+        "origin_url": "https://gis.mffjiv.rlp.de/cgi-scripts/datasetMetadata.php?id=929ffe39227238cf0f0d28c98efd3c92",
+        "title": "Soziotherapeutische Einrichtungen für Suchtkranke",
+        "abstract": "Soziotherapeutische Einrichtungen für Suchtkranke",
+        "is_broken": false,
+        "is_customized": true,
+        "insufficient_quality": null,
+        "is_searchable": false,
+        "hits": 0,
+        "spatial_res_type": null,
+        "spatial_res_value": null,
+        "format": null,
+        "charset": null,
+        "inspire_top_consistence": false,
+        "preview_image": null,
+        "lineage_statement": null,
+        "update_frequency_code": null,
+        "bounding_geometry": {
+          "type": "MultiPolygon",
+          "coordinates": [
+            [
+              [
+                [6.03777, 48.898],
+                [6.03777, 51.0009],
+                [8.6177, 51.0009],
+                [8.6177, 48.898],
+                [6.03777, 48.898]
+              ]
+            ]
+          ]
+        },
+        "dataset_id": "929ffe39227238cf0f0d28c98efd3c92",
+        "dataset_id_code_space": "https://msagd.rlp.de/registry/spatial/dataset/",
+        "inspire_interoperability": false
+      },
+      "relationships": {
+        "licence": { "data": null },
+        "dataset_contact": { "data": { "type": "MetadataContact", "id": "2" } },
+        "metadata_contact": {
+          "data": { "type": "MetadataContact", "id": "2" }
+        },
+        "keywords": { "meta": { "count": 0 }, "data": [] },
+        "reference_systems": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_layers": {
+          "meta": { "count": 1 },
+          "data": [
+            { "type": "Layer", "id": "e854eae1-56f6-493d-887d-2fe5c791ea40" }
+          ]
+        },
+        "self_pointing_feature_types": { "meta": { "count": 0 }, "data": [] },
+        "self_pointing_catalouge_service": {
+          "meta": { "count": 0 },
+          "data": []
+        }
+      },
+      "links": {
+        "self": "https://localhost/api/v1/registry/dataset-metadata/3f027b5b-67a8-4ddc-8914-7e0bbae915c1/"
+      }
+    }
+  ],
+  "meta": { "pagination": { "page": 1, "pages": 4, "count": 42 } }
+}

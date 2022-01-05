@@ -1,4 +1,3 @@
-import uuid
 from abc import abstractmethod
 from random import randrange
 
@@ -244,7 +243,8 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self.db_style_list.append(db_style)
 
     def _treeify(self, parsed_layer, db_service, tree_id, db_parent=None, cursor=1, level=0):
-        """adapted function from 
+        """
+        adapted function from
         https://github.com/django-mptt/django-mptt/blob/7a6a54c6d2572a45ea63bd639c25507108fff3e6/mptt/managers.py#L716
         to construct the correct layer tree
         """

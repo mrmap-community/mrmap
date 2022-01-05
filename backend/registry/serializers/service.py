@@ -78,7 +78,7 @@ class IncludeLayerSerializer(ModelSerializer):
 
     class Meta:
         model = Layer
-        exclude = ('service', 'keywords', 'reference_systems', 'parent')
+        exclude = ('service', 'keywords', 'reference_systems', )
 
 
 class WebMapServiceSerializer(ObjectPermissionCheckerSerializer, HistoryInformationSerializer, ModelSerializer):

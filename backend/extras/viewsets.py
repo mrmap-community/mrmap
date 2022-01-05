@@ -20,7 +20,9 @@ class HistoryInformationViewSetMixin:
 
     def get_prefetch_related(self, include):
         prefetch_related = super().get_prefetch_related(include)
-        if include == "__all__" and not prefetch_related:
+        if prefetch_related:
+            return prefetch_related
+        elif include == "__all__":
             # TODO: better would be to extend the prefetch_related array
             return [
                 Prefetch('change_logs', queryset=self.queryset.model.objects.filter_first_history(

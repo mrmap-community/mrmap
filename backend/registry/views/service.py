@@ -110,8 +110,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, HistoryInformati
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        # FIXME: Prefetching of layers does not work as expected.... parent is not selected
-        "layers": [Prefetch('layers', queryset=Layer.objects.select_related('parent'))],
+        "layers": [Prefetch("layers", queryset=Layer.objects.select_related("parent")), ],
         "keywords": ["keywords"]
     }
     filterset_class = WebMapServiceFilterSet

@@ -6,9 +6,8 @@ from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
 from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
-from registry.models.service import (FeatureType, Layer, OperationUrl,
-                                     WebFeatureService, WebMapService,
-                                     WebMapServiceOperationUrl)
+from registry.models.service import (FeatureType, Layer, WebFeatureService,
+                                     WebMapService, WebMapServiceOperationUrl)
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            StyleSerializer)
@@ -18,7 +17,6 @@ from rest_framework_json_api.relations import (
     HyperlinkedRelatedField, ResourceRelatedField,
     SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 HyperlinkedModelSerializer,
                                                  ModelSerializer,
                                                  SerializerMethodField)
 

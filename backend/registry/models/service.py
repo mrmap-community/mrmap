@@ -5,8 +5,7 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import QuerySet, constraints
+from django.db.models import QuerySet
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _

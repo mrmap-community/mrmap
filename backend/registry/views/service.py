@@ -18,7 +18,6 @@ from registry.serializers.service import (FeatureTypeSerializer,
                                           WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceCreateSerializer,
-                                          WebMapServiceOperationUrlSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status

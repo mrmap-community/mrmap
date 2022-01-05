@@ -5,7 +5,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
-from django.db.models.aggregates import Count
 from extras.managers import DefaultHistoryManager
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin

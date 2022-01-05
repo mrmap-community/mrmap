@@ -282,6 +282,8 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
 
             Returns:
                 tree_id (int): the used tree id of the constructed layer objects.
+
+            # FIXME: use mptt manager function build_tree_nodes to create the tree
         """
         if not self.parent_lookup:
             self.parent_lookup = {}

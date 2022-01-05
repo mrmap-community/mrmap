@@ -1,17 +1,18 @@
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
-from django.contrib.auth import get_user_model
 from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer)
-from registry.models.metadata import Keyword, MetadataContact, Style
+from registry.models.metadata import (Keyword, MetadataContact,
+                                      ReferenceSystem, Style)
 from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
 from registry.models.service import (FeatureType, Layer, OperationUrl,
-                                     WebFeatureService, WebMapService)
+                                     WebFeatureService, WebMapService,
+                                     WebMapServiceOperationUrl)
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            StyleSerializer)
-from rest_framework.fields import BooleanField
+from rest_framework.fields import BooleanField, IntegerField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     HyperlinkedRelatedField, ResourceRelatedField,
@@ -22,19 +23,22 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  SerializerMethodField)
 
 
-class OperationsUrlSerializer(ModelSerializer):
+class WebMapServiceOperationUrlSerializer(ModelSerializer):
+
+    url = SerializerMethodField()
 
     class Meta:
-        model = OperationUrl
+        model = WebMapServiceOperationUrl
         fields = '__all__'
+
+    def get_url(self, instance):
+        return instance.get_url(request=self.context['request'])
 
 
 class LayerSerializer(ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:layer-detail',
     )
-
-    bbox_lat_lon = GeometryField()
 
     service = ResourceRelatedField(
         # model=WebMapService,
@@ -44,13 +48,6 @@ class LayerSerializer(ModelSerializer):
         related_link_url_kwarg='layer_pk'
         # elf_link_view_name='registry:wms-relationships',
     )
-    styles = ResourceRelatedField(
-        queryset=Style.objects,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name='registry:layer-styles-list',
-        related_link_url_kwarg='parent_lookup_layer',
-        self_link_view_name='registry:layer-relationships',
-    )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
@@ -59,7 +56,25 @@ class LayerSerializer(ModelSerializer):
         self_link_view_name='registry:layer-relationships',
     )
 
+    # TODO: prefetch ancestors for the following fields, cause otherwise this results in extra db transactions...
+    bbox_lat_lon = GeometryField(source='get_bbox')
+    scale_min = IntegerField(source='get_scale_min')
+    scale_max = IntegerField(source='get_scale_max')
+    styles = ResourceRelatedField(
+        queryset=Style.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        related_link_view_name='registry:layer-styles-list',
+        related_link_url_kwarg='parent_lookup_layer',
+        self_link_view_name='registry:layer-relationships',
+    )
+    reference_systems = SerializerMethodResourceRelatedField(
+        model=ReferenceSystem,
+        many=True,
+    )
+
     included_serializers = {
+        'service': 'registry.serializers.service.WebMapServiceSerializer',
+        'service.operation_urls': WebMapServiceOperationUrlSerializer,
         'styles': StyleSerializer,
         'keywords': KeywordSerializer,
     }
@@ -67,6 +82,9 @@ class LayerSerializer(ModelSerializer):
     class Meta:
         model = Layer
         fields = '__all__'
+
+    def get_reference_systems(self, instance):
+        return instance.get_reference_systems
 
 
 class WebMapServiceSerializer(ObjectPermissionCheckerSerializer, HistoryInformationSerializer, ModelSerializer):
@@ -104,6 +122,12 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializer, HistoryInformat
         # meta_attrs={'keyword_count': 'count'}
     )
 
+    operation_urls = ResourceRelatedField(
+        queryset=WebMapServiceOperationUrl.objects,
+        many=True,
+
+    )
+
     included_serializers = {
         'layers': LayerSerializer,
         'service_contact': MetadataContactSerializer,
@@ -111,6 +135,7 @@ class WebMapServiceSerializer(ObjectPermissionCheckerSerializer, HistoryInformat
         'keywords': KeywordSerializer,
         'created_by': UserSerializer,
         'last_modified_by': UserSerializer,
+        'operation_urls': WebMapServiceOperationUrlSerializer,
     }
 
     class Meta:

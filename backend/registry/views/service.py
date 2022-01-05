@@ -12,11 +12,13 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.models.metadata import Keyword, ReferenceSystem, Style
+from registry.models.service import WebMapServiceOperationUrl
 from registry.serializers.service import (FeatureTypeSerializer,
                                           LayerSerializer,
                                           WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceCreateSerializer,
+                                          WebMapServiceOperationUrlSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
@@ -108,7 +110,8 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, HistoryInformati
     }
     prefetch_for_includes = {
         "layers": [Prefetch("layers", queryset=Layer.objects.select_related("parent").prefetch_related("keywords", "styles", "reference_systems")), ],
-        "keywords": ["keywords"]
+        "keywords": ["keywords"],
+        "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
@@ -148,7 +151,12 @@ class LayerViewSet(NestedViewSetMixin, ObjectPermissionCheckerViewSetMixin, Hist
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    select_for_includes = {
+        "service": ["service"],
+    }
     prefetch_for_includes = {
+        "service": ["service__keywords", "service__layers"],
+        "service.operation_urls": [Prefetch("service__operation_urls", queryset=WebMapServiceOperationUrl.objects.prefetch_related("mime_types"))],
         "styles": ["styles"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],

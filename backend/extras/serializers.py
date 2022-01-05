@@ -47,13 +47,13 @@ class HistoryInformationSerializer(ModelSerializer):
         abstract = True
 
     def get_created_at(self, instance):
-        return instance.first_history[0].history_date if instance.first_history and len(instance.first_history) == 1 else None
+        return instance.first_history[0].history_date if hasattr(instance, 'first_history') and instance.first_history and len(instance.first_history) == 1 else None
 
     def get_last_modified_at(self, instance):
-        return instance.last_history[0].history_date if instance.last_history and len(instance.last_history) == 1 else None
+        return instance.last_history[0].history_date if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None
 
     def get_created_by(self, instance):
-        return instance.first_history[0].history_user if instance.first_history and len(instance.first_history) == 1 else None
+        return instance.first_history[0].history_user if hasattr(instance, 'first_history') and instance.first_history and len(instance.first_history) == 1 else None
 
     def get_last_modified_by(self, instance):
-        return instance.last_history[0].history_user if instance.last_history and len(instance.last_history) == 1 else None
+        return instance.last_history[0].history_user if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None

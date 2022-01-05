@@ -1,10 +1,12 @@
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.db.models import QuerySet
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import QuerySet, constraints
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -168,13 +170,26 @@ class OperationUrl(models.Model):
 
     class Meta:
         abstract = True
+        constraints = [
+            models.UniqueConstraint(fields=['method', 'operation'],
+                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+        ]
 
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"
 
-    @property
-    def concrete_url(self):
-        return f'{reverse("registry:service_operation_view", args=[self.service_id, ])}?REQUEST={self.operation}&VERSION={self.service.service_version}'
+    def get_url(self, request):
+        url_parsed = urlparse(self.url)
+        new_query = {}
+        for key, value in parse_qs(url_parsed.query).items():
+            new_query.update({key.upper(): value})
+        url_parsed._replace(query=new_query)
+        return url_parsed.geturl()
+        # TODO: check if service is secured and if so return the secured url
+        parsed_request_url = urlparse(request.get_full_path())
+        parsed_url = urlparse(self.url)
+        parsed_url._replace(netloc=parsed_request_url.netloc)
+        return parsed_url.geturl()
 
 
 class WebMapServiceOperationUrl(OperationUrl):
@@ -338,7 +353,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 self.get_descendants().update(is_active=self.is_active)
 
     @cached_property
-    def inherit_scale_min(self) -> float:
+    def get_scale_min(self) -> float:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -356,7 +371,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             return self.get_ancestors().exclude(scale_min=None).values_list("scale_min", flat=True).first()
 
     @cached_property
-    def inherit_scale_max(self) -> float:
+    def get_scale_max(self) -> float:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -374,7 +389,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             return self.get_ancestors().exclude(scale_max=None).values_list("scale_max", flat=True).first()
 
     @cached_property
-    def bbox(self) -> Polygon:
+    def get_bbox(self) -> Polygon:
         """Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -394,7 +409,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             return self.get_ancestors().exclude(bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True).first()
 
     @cached_property
-    def supported_reference_systems(self) -> QuerySet:
+    def get_reference_systems(self) -> QuerySet:
         """Return all supported reference systems for this layer, based on the inheritance from other layers as
         requested in the ogc specs.
 
@@ -409,12 +424,14 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
+        if self.reference_systems.exists():
+            return self.reference_systems.all()
         from registry.models import \
             ReferenceSystem  # to avoid circular import errors
-        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix", "version")
+        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix")
 
     @cached_property
-    def dimensions(self) -> QuerySet:
+    def get_dimensions(self) -> QuerySet:
         """Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
         specs.
 
@@ -435,6 +452,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
+        if self.layer_dimensions.exists():
+            return self.layer_dimensions.all()
         from registry.models import \
             Dimension  # to avoid circular import errors
         return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")

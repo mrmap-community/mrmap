@@ -1,23 +1,22 @@
-import './MapContext.css';
-
 import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrestris/react-geo';
 import { Button, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
-import OlLayerGroup from 'ol/layer/Group';
+import { default as OlLayerGroup } from 'ol/layer/Group';
 import OlLayerTile from 'ol/layer/Tile';
 import OlMap from 'ol/Map';
 import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
-import { LayerTree } from '../LayerTree/LayerTree';
+import { addLayerToGroup, createMrMapOlWMSLayer, LayerTree } from '../LayerTree/LayerTree';
 import { MPTTListToTreeNodeList, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
+import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
+
 
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
@@ -45,7 +44,7 @@ const olMap = new OlMap({
   layers: [layerGroup]
 });
 
-// TODO: This is creating a component naamed map. Should be separated
+// TODO: This is creating a component named map. Should be separated
 function Map () {
   const map = useMap();
 
@@ -67,7 +66,8 @@ export const MapContext = (): ReactElement => {
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
-  const [initTreeData, setInitTreeData] = useState<TreeNodeType[]>([]);
+  //eslint-disable-next-line
+  const [initTreeData, setInitTreeData] = useState<TreeNodeType[]>([]); //TODO
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
@@ -159,13 +159,43 @@ export const MapContext = (): ReactElement => {
             <div className='layer-section'>
               <LayerTree
                 map={olMap}
-                layers={initTreeData}
+                asyncTree
                 addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
-                  return await mapContextLayerRepo.create({
-                    ...nodeAttributes,
-                    parentLayerId: newNodeParent || '',
-                    mapContextId: createdMapContextId
-                  });
+                  try {
+                    const createdLayer = await mapContextLayerRepo.create({
+                      ...nodeAttributes,
+                      parentLayerId: newNodeParent || '',
+                      mapContextId: createdMapContextId
+                    });
+                    
+                    const layer = createMrMapOlWMSLayer({
+                      //eslint-disable-next-line
+                      url: 'https://gis.mffjiv.rlp.de/cgi-bin/mapserv?map=/data/mapserver/mapfiles/institutions_0601.map',
+                      version: '1.1.1',
+                      format: 'image/png',
+                      layers: 'GFB',
+                      visible: true,
+                      serverType: 'MAPSERVER',
+                      //@ts-ignore
+                      mrMapLayerId: createdLayer.data.data.id,
+                      legendUrl: 'string',
+                      //@ts-ignore
+                      title: createdLayer.data.data.attributes.title,
+                      //@ts-ignore
+                      name: createdLayer.data.data.attributes.name,
+                      properties: {
+                        //@ts-ignore
+                        parent: null
+                      }
+                    });
+                    
+                    addLayerToGroup(olMap, 'mrMapLayerTreeLayerGroup', layer);
+                    
+                    return createdLayer;
+                  } catch (error) {
+                    //@ts-ignore
+                    throw new Error(error);
+                  }
                 }}
                 removeLayerDispatchAction={async (nodeToRemove) => (
                   await mapContextLayerRepo?.delete(String(nodeToRemove.key))

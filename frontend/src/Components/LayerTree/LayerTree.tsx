@@ -1,12 +1,33 @@
+import { Key } from 'antd/lib/table/interface';
+import BaseLayer from 'ol/layer/Base';
+import LayerGroup from 'ol/layer/Group';
+import ImageLayer from 'ol/layer/Image';
 import OlMap from 'ol/Map';
-import React, { ReactNode } from 'react';
-
+import ImageWMS from 'ol/source/ImageWMS';
+import { getUid } from 'ol/util';
+import React, { ReactNode, useEffect, useState } from 'react';
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { TreeFormField, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 
+type OlWMSServerType = 'CARMENTA_SERVER' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
+
+interface CreateLayerOpts {
+  url: string;
+  version: '1.1.0' | '1.1.1' | '1.3.0';
+  format: 'image/jpeg' | 'image/png';
+  layers: string;
+  visible: boolean;
+  serverType: OlWMSServerType;
+  mrMapLayerId: string | number;
+  legendUrl: string;
+  title: string;
+  name: string;
+  properties: Record<string, string>;
+}
+
 interface LayerTreeProps {
   map: OlMap
-  layers: TreeNodeType[];
+  layerGroup?: LayerGroup;
   asyncTree?: boolean;
   addLayerDispatchAction?:(
     nodeAttributes: any,
@@ -18,10 +39,94 @@ interface LayerTreeProps {
   layerAttributeForm?: ReactNode;
 }
 
+const getAllMapLayers = (collection:OlMap | LayerGroup ) => {
+  if (!(collection instanceof OlMap) && !(collection instanceof LayerGroup)) {
+    console.error('Input parameter collection must be from type `ol.Map` or `ol.layer.Group`.');
+    return [];
+  }
+
+  const layers = collection.getLayers().getArray();
+  const allLayers:any = [];
+
+  layers.forEach((layer) => {
+    if (layer instanceof LayerGroup) {
+      getAllMapLayers(layer).forEach((layeri:any) => allLayers.push(layeri));
+    }
+    allLayers.push(layer);
+  });
+  
+  return allLayers;
+};
+
+export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWMS> => {
+  const olLayerSource = new ImageWMS({
+    url: opts.url,
+    params: {
+      'LAYERS': opts.layers,
+      'VERSION': opts.version,
+      'FORMAT': opts.format,
+      'TRANSPARENT': true
+    },
+    serverType: opts.serverType
+  });
+
+  const olWMSLayer = new ImageLayer({
+    source: olLayerSource,
+    visible: opts.visible
+  });
+
+  olWMSLayer.setProperties({
+    mrMapLayerId: opts.mrMapLayerId,
+    legendUrl: opts.legendUrl,
+    title: opts.title,
+    name: opts.name,
+    ...opts.properties
+  });
+
+  return olWMSLayer;
+};
+
+export const getLayerByMrMapLayerIdName= (map: OlMap, id: string | number): LayerGroup | BaseLayer => {
+  const layersToSearch = getAllMapLayers(map);
+  return layersToSearch.find((layer:any) => {
+    return String(layer.getProperties().mrMapLayerId) === String(id);
+  });
+};
+
+export const getLayerGroupByName = (map: OlMap, layerGroupName: string): LayerGroup | undefined=> {
+  const requiredLayerGroup =  map
+    .getLayerGroup()
+    .getLayers()
+    .getArray()
+    .find(layer => layer.getProperties().name === layerGroupName);
+  if(requiredLayerGroup instanceof LayerGroup){
+    return requiredLayerGroup;
+  }
+};
+
+export const addLayerToGroup = (map:OlMap, layerGroupName: string, layerToAdd: LayerGroup | BaseLayer): void => {
+  const layerGroup: LayerGroup | undefined = getLayerGroupByName(map, layerGroupName);
+  if(layerGroup) {
+    const layerArray = layerGroup.getLayers();
+    layerArray.push(layerToAdd);
+    layerGroup.setLayers(layerArray);
+  } else {
+    console.warn(`No layer group with the name ${layerGroupName}, was found on the map`);
+  }
+};
+
+const layerTreeLayerGroup = new LayerGroup({
+  opacity: 1,
+  visible: true,
+  properties: {
+    name: 'mrMapLayerTreeLayerGroup'
+  },
+  layers: []
+});
+
 export const LayerTree = ({
-  // TODO: remove eslint disaable when using the map
-  map,  // eslint-disable-line
-  layers,
+  map,
+  layerGroup = layerTreeLayerGroup,
   asyncTree = false,
   addLayerDispatchAction = () => undefined,
   removeLayerDispatchAction = () => undefined,
@@ -34,20 +139,109 @@ export const LayerTree = ({
   // The tree form field component handles generic logic for a tree, not for the layers or interaction with map.
   // Only change it if you detect aa bug thaat could be traced baack deep to the tree form field
 
-  // NOTE: Layers should be parsed as a tree node. Openlayers structure is very similar
+  const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
+
+  useEffect(() => {
+    // console.log(layerGroupToTreeData(layerGroup));
+    // setTreeData(layerGroupToTreeData(layerGroup));
+    map.addLayer(layerGroup);
+    //eslint-disable-next-line
+  }, [map]);
+  
+  /**
+   * @description: Takes the exinting layer group and transforms it into tree data type
+   */
+  const layerGroupToTreeData = (theLayerGroup: LayerGroup): TreeNodeType[] => {
+    const layers = theLayerGroup.getLayers().getArray();
+
+    const treeNodes: TreeNodeType[] = layers.map((layer: BaseLayer) => {
+      return layerToTreeNode(layer);
+    });
+    return treeNodes;
+  };
+
+  /**
+   * @description: takes a layer and transforms it into a tree node type data
+   * @param theLayerGroup
+   * @returns 
+   */
+  const layerToTreeNode = (layer: BaseLayer): TreeNodeType => {
+    const node: TreeNodeType = {
+      key: layer.getProperties().layerId,
+      title: layer.getProperties().title,
+      parent: layer.getProperties().parent,
+      properties: layer.getProperties(),
+      expanded: layer instanceof LayerGroup,
+      children: []
+    };
+
+    if (layer instanceof LayerGroup) {
+      const childLayers = layer.getLayers().getArray();
+      //@ts-ignore
+      node.children = childLayers.map((childLayer: BaseLayer) => {
+        return layerToTreeNode(childLayer);
+      });
+    }
+    return node;
+  };
+  
+  const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
+    const { checked } = info;
+    const eventKey = info.node.props.eventKey;
+    const layer = getLayerByMrMapLayerIdName(map, eventKey);
+    setLayerVisibility(layer, checked);
+  };
+
+  const setLayerVisibility = (layer: BaseLayer | LayerGroup, visibility: boolean) => {
+    // if (!(layer instanceof BaseLayer) || !(layer instanceof LayerGroup)) {
+    //   console.error('setLayerVisibility called without layer or layer group.');
+    //   return;
+    // }
+    if (layer instanceof LayerGroup) {
+      layer.setVisible(visibility);
+      layer.getLayers().forEach((subLayer) => {
+        setLayerVisibility(subLayer, visibility);
+      });
+    } else {
+      layer.setVisible(visibility);
+      // if layer has a parent folder, make it visible too
+      if (visibility) {
+        const group = layerGroup ? layerGroup : map.getLayerGroup();
+        setParentFoldersVisible(group, getUid(layer), group);
+      }
+    }
+  };
+
+  const setParentFoldersVisible = (currentGroup: LayerGroup, olUid: string, masterGroup: LayerGroup) => {
+    const items = currentGroup.getLayers().getArray();
+    const groups = items.filter(l => l instanceof LayerGroup) as LayerGroup[];
+    const match = items.find(i => getUid(i) === olUid);
+    if (match) {
+      currentGroup.setVisible(true);
+      setParentFoldersVisible(masterGroup, getUid(currentGroup), masterGroup);
+      return;
+    }
+    groups.forEach(g => {
+      setParentFoldersVisible(g, olUid, masterGroup);
+    });
+  };
+
   return (
     <TreeFormField
-      treeData={layers}
+      title='Layers'
+      treeData={treeData}
       asyncTree={asyncTree}
       addNodeDispatchAction={addLayerDispatchAction}
       removeNodeDispatchAction={removeLayerDispatchAction}
       editNodeDispatchAction={editLayerDispatchAction}
       dragNodeDispatchAction={dragLayerDispatchAction}
+      checkNodeDispacthAction={onCheckLayer}
       draggable
       nodeAttributeForm={layerAttributeForm}
       attributeContainer='drawer'
       contextMenuOnNode
       checkableNodes
+      createRootNode
     />
   );
 };

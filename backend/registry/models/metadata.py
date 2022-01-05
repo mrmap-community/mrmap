@@ -112,7 +112,7 @@ class ReferenceSystem(models.Model):
         ordering = ["-code"]
 
     def __str__(self):
-        return self.code
+        return f"{self.prefix}:{self.code}" if self.prefix else self.code
 
 
 class MetadataContact(models.Model):
@@ -507,11 +507,11 @@ class DatasetMetadataRelation(models.Model):
     def __str__(self):
         self_str = f"{self.dataset_metadata.title} linked by "
         if self.layer:
-            self_str += f" layer {self.layer.metadata.title}"
+            self_str += f" layer {self.layer.title}"
         elif self.feature_type:
-            self_str += f" feature type {self.feature_type.metadata.title}"
+            self_str += f" feature type {self.feature_type.title}"
         elif self.csw:
-            self_str += f" csw {self.csw.metadata.title}"
+            self_str += f" csw {self.csw.title}"
         return self_str
 
     def clean(self):
@@ -742,6 +742,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
 
 
 class Dimension(models.Model):
+    # TODO: refactor this class to conrete models for layer, featuretype and dataset
     name = models.CharField(max_length=50,
                             verbose_name=_("name"),
                             help_text=_("the type of the content stored in extent field."))

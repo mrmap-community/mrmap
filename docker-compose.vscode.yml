@@ -8,6 +8,9 @@ services:
     #   /opt/mrmap/manage.py makemigrations accounts registry"
     # entrypoint: >
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
+    #   /opt/mrmap/manage.py squashmigrations registry 0002"
+    # entrypoint: >
+    #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
     #   /opt/mrmap/manage.py migrate"
     # entrypoint: >
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678

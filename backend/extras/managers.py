@@ -20,3 +20,12 @@ class UniqueConstraintDefaultValueManager(models.Manager):
                     field: kwargs.get(field, self.model._meta.get_field(field).get_default()),
                 })
         return super().get_or_create(defaults=defaults, **kwargs)
+
+
+class DefaultHistoryManager(models.Manager):
+
+    def filter_first_history(self):
+        return self.model.change_log.filter(history_type='+').select_related('history_user').only('history_relation', 'history_user__id', 'history_date')
+
+    def filter_last_history(self):
+        return self.model.change_log.filter(history_date=self.model.change_log.values_list('history_date', flat=True)[:1]).select_related('history_user').only('history_relation', 'history_user__id', 'history_date').order_by('history_date')

@@ -5,7 +5,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
-from django.db.models.aggregates import Count
+from extras.managers import DefaultHistoryManager
+from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
@@ -189,6 +190,7 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
     parent_lookup = None
     current_parent = None
 
+    layer_opts = None
     db_layer_list = []
     db_style_list = []
     db_legend_url_list = []
@@ -221,33 +223,6 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         random = randrange(1, 20)
         return tree_id + random
 
-    def _update_current_parent(self, parsed_layer):
-        # todo: maybe we can move node id setting to get_all_layers()
-        if self.last_node_level < parsed_layer.level:
-            # Climb down the tree. In this case the last node is always the a parent node. (preorder traversal)
-            # We store it in our parent_lookup dict to resolve it if we climb up
-            # the tree again. In case of climb up we loose the directly parent.
-            self.current_parent = self.db_layer_list[-1]
-            self.parent_lookup.update(
-                {self.current_parent.node_id: self.current_parent})
-            parsed_layer.node_id = self.db_layer_list[-1].node_id + ".1"
-        elif self.last_node_level > parsed_layer.level:
-            # climb up the tree. We need to lookup the parent of this node.
-            sibling_node_id = self.db_layer_list[-1].parent.node_id.split(".")
-            sibling_node_id[-1] = str(int(sibling_node_id[-1]) + 1)
-            parsed_layer.node_id = ".".join(sibling_node_id)
-            self.current_parent = self.parent_lookup.get(
-                parsed_layer.node_id.rsplit(".", 1)[0])
-        else:
-            # sibling node. we just increase the node_id counter
-            if self.parent_lookup:
-                last_node_id = self.db_layer_list[-1].node_id.split(".")
-                last_node_id[-1] = str(int(last_node_id[-1]) + 1)
-                parsed_layer.node_id = ".".join(last_node_id)
-            else:
-                parsed_layer.node_id = "1"
-        self.last_node_level = parsed_layer.level
-
     def _construct_style_instances(self, parsed_layer, db_layer):
         for style in parsed_layer.styles:
             if not self.style_cls:
@@ -267,6 +242,49 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
                                                                    **style.legend_url.get_field_dict()))
             self.db_style_list.append(db_style)
 
+    def _treeify(self, parsed_layer, db_service, tree_id, db_parent=None, cursor=1, level=0):
+        """
+        adapted function from
+        https://github.com/django-mptt/django-mptt/blob/7a6a54c6d2572a45ea63bd639c25507108fff3e6/mptt/managers.py#L716
+        to construct the correct layer tree
+        """
+
+        node = self.sub_element_cls(service=db_service,
+                                    parent=db_parent,
+                                    origin=MetadataOrigin.CAPABILITIES.value,
+                                    **parsed_layer.get_field_dict(),
+                                    **parsed_layer.metadata.get_field_dict())
+
+        self.db_layer_list.append(node)
+
+        setattr(node, self.layer_opts.tree_id_attr, tree_id)
+        setattr(node, self.layer_opts.level_attr, level)
+        setattr(node, self.layer_opts.left_attr, cursor)
+
+        self._get_or_create_keywords(parsed_keywords=parsed_layer.metadata.keywords,
+                                     db_object=node)
+        self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
+                                                  db_service=db_service,
+                                                  db_sub_element=node)
+        self._construct_style_instances(parsed_layer=parsed_layer,
+                                        db_layer=node)
+        self._construct_dimension_instances(parsed_layer=parsed_layer,
+                                            db_layer=node)
+        self._create_reference_system_instances(parsed_sub_element=parsed_layer,
+                                                db_sub_element=node)
+
+        for child in parsed_layer.children:
+            cursor = self._treeify(
+                parsed_layer=child,
+                db_service=db_service,
+                tree_id=tree_id,
+                db_parent=node,
+                cursor=cursor + 1,
+                level=level + 1)
+        cursor += 1
+        setattr(node, self.layer_opts.right_attr, cursor)
+        return cursor
+
     def _construct_layer_tree(self, parsed_service, db_service):
         """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
             append them to global lists to use bulk create for all objects. Some db models will created instantly.
@@ -285,42 +303,16 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self.parent_lookup = {}
 
         if not self.sub_element_cls:
-            self.sub_element_cls = parsed_service.get_all_layers()[
-                0].get_model_class()
+            self.sub_element_cls = parsed_service.root_layer.get_model_class()
+            self.layer_opts = self.sub_element_cls._mptt_meta
 
         tree_id = self._get_next_tree_id(self.sub_element_cls)
+        self._treeify(
+            parsed_layer=parsed_service.root_layer,
+            db_service=db_service,
+            tree_id=tree_id,
+        )
 
-        for parsed_layer in parsed_service.get_all_layers():
-            # Note!!!: the given list must be ordered in preorder cause
-            # the following algorithm is written for preorder traversal
-            self._update_current_parent(parsed_layer=parsed_layer)
-
-            # to support bulk create for mptt model lft, rght, tree_id can't be None
-            # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owner
-            db_layer = self.sub_element_cls(service=db_service,
-                                            parent=self.current_parent,
-                                            lft=parsed_layer.left,
-                                            rght=parsed_layer.right,
-                                            tree_id=tree_id,
-                                            level=parsed_layer.level,
-                                            origin=MetadataOrigin.CAPABILITIES.value,
-                                            **parsed_layer.get_field_dict(),
-                                            **parsed_layer.metadata.get_field_dict())
-            db_layer.node_id = parsed_layer.node_id
-            self.db_layer_list.append(db_layer)
-            self._get_or_create_keywords(parsed_keywords=parsed_layer.metadata.keywords,
-                                         db_object=db_layer)
-
-            self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
-                                                      db_service=db_service,
-                                                      db_sub_element=db_layer)
-            self._construct_style_instances(parsed_layer=parsed_layer,
-                                            db_layer=db_layer)
-            self._construct_dimension_instances(parsed_layer=parsed_layer,
-                                                db_layer=db_layer)
-
-            self._create_reference_system_instances(parsed_sub_element=parsed_layer,
-                                                    db_sub_element=db_layer)
         return tree_id
 
     def _create_wms(self, parsed_service, db_service):
@@ -455,19 +447,6 @@ class FeatureTypeElementXmlManager(models.Manager):
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class WebMapServiceManager(models.Manager):
+class LayerManager(DefaultHistoryManager, TreeManager):
 
-    def with_meta(self):
-        return self.annotate(
-            layer_count=Count("layer", distinct=True),
-            keyword_count=Count("keywords", distinct=True)
-        )
-
-
-class WebFeatureServiceManager(models.Manager):
-
-    def with_meta(self):
-        return self.annotate(
-            featuretype_count=Count("featuretype"),
-            keyword_count=Count("keywords")
-        )
+    pass

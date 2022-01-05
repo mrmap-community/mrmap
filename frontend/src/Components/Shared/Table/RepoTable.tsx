@@ -36,7 +36,7 @@ export type RepoActionType = ActionType & {
 
 function augmentColumns (resourceSchema: any, queryParams: any,
   columnHints: ProColumnType[] | undefined): ProColumnType[] {
-  const props = resourceSchema.properties.data.items.properties.attributes.properties;
+  const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
   // phase 1: add a column for every column hint, merge with schema property definition (if available)
   if (columnHints) {

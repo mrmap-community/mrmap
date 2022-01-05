@@ -1,7 +1,5 @@
 from typing import OrderedDict
 
-from django.db.models.fields.related import ForeignKey, ManyToManyField
-from django.db.models.fields.reverse_related import ManyToManyRel, ManyToOneRel
 from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
@@ -13,10 +11,9 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import (Keyword, MetadataContact,
-                                      ReferenceSystem, Style)
+from registry.models.metadata import Keyword, ReferenceSystem, Style
 from registry.serializers.service import (FeatureTypeSerializer,
-                                          FullLayerSerializer,
+                                          LayerSerializer,
                                           WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceCreateSerializer,
@@ -110,7 +107,7 @@ class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, HistoryInformati
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "layers": [Prefetch("layers", queryset=Layer.objects.select_related("parent")), ],
+        "layers": [Prefetch("layers", queryset=Layer.objects.select_related("parent").prefetch_related("keywords", "styles", "reference_systems")), ],
         "keywords": ["keywords"]
     }
     filterset_class = WebMapServiceFilterSet
@@ -148,7 +145,7 @@ class LayerViewSet(NestedViewSetMixin, ObjectPermissionCheckerViewSetMixin, Hist
         tags=["WebMapService"],
     )
     queryset = Layer.objects.all()
-    serializer_class = FullLayerSerializer
+    serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     prefetch_for_includes = {

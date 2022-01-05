@@ -33,7 +33,6 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 INSTALLED_APPS = [
     "channels",
     "guardian",
-    "polymorphic",
     "django.contrib.auth",
     "django.contrib.admin",  # for django admin pages
     "django.contrib.messages",  # for django admin pages
@@ -51,6 +50,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
+    "simple_history",
     "mptt",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "accounts",
@@ -66,7 +66,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     'django.contrib.messages.middleware.MessageMiddleware',  # for django admin pages
-    "crum.CurrentRequestUserMiddleware",
+    "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
 TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
@@ -87,27 +87,31 @@ TEMPLATES = [
 ]
 
 if DEBUG:
+
     INSTALLED_APPS.append(
         "debug_toolbar",
     )
     # Disable all panels by default
     DEBUG_TOOLBAR_CONFIG = {
         "DISABLE_PANELS": {
-            "debug_toolbar.panels.versions.VersionsPanel",
-            "debug_toolbar.panels.timer.TimerPanel",
-            "debug_toolbar.panels.settings.SettingsPanel",
-            "debug_toolbar.panels.headers.HeadersPanel",
-            "debug_toolbar.panels.request.RequestPanel",
-            "debug_toolbar.panels.sql.SQLPanel",
-            "debug_toolbar.panels.staticfiles.StaticFilesPanel",
-            "debug_toolbar.panels.templates.TemplatesPanel",
-            "debug_toolbar.panels.cache.CachePanel",
-            "debug_toolbar.panels.signals.SignalsPanel",
-            "debug_toolbar.panels.logging.LoggingPanel",
-            "debug_toolbar.panels.redirects.RedirectsPanel",
-            "debug_toolbar.panels.profiling.ProfilingPanel",
+            'debug_toolbar.panels.history.HistoryPanel',
+            'debug_toolbar.panels.versions.VersionsPanel',
+            'debug_toolbar.panels.timer.TimerPanel',
+            'debug_toolbar.panels.settings.SettingsPanel',
+            'debug_toolbar.panels.headers.HeadersPanel',
+            'debug_toolbar.panels.request.RequestPanel',
+            'debug_toolbar.panels.sql.SQLPanel',
+            'debug_toolbar.panels.staticfiles.StaticFilesPanel',
+            'debug_toolbar.panels.templates.TemplatesPanel',
+            'debug_toolbar.panels.cache.CachePanel',
+            'debug_toolbar.panels.signals.SignalsPanel',
+            'debug_toolbar.panels.logging.LoggingPanel',
+            'debug_toolbar.panels.redirects.RedirectsPanel',
+            'debug_toolbar.panels.profiling.ProfilingPanel',
         },
+        # "RENDER_PANELS": True,
         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+        "PRETTIFY_SQL": True,
     }
 
     MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
@@ -437,6 +441,8 @@ LOGGING = {
     },
 }
 
+SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
+
 REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "MAX_PAGE_SIZE": 100,
@@ -447,17 +453,17 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework_json_api.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework_json_api.parsers.JSONParser",
-        # 'rest_framework.parsers.FormParser',
-        # 'rest_framework.parsers.MultiPartParser'
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser'
     ),
     "DEFAULT_RENDERER_CLASSES": (
         "rest_framework_json_api.renderers.JSONRenderer",
         # If you're performance testing, you will want to use the browseable API
         # without forms, as the forms can generate their own queries.
         # If performance testing, enable:
-        # 'example.utils.BrowsableAPIRendererWithoutForms',
+        "extras.utils.BrowsableAPIRendererWithoutForms",
         # Otherwise, to play around with the browseable API, enable:
-        # 'rest_framework_json_api.renderers.BrowsableAPIRenderer'
+        # "rest_framework_json_api.renderers.BrowsableAPIRenderer",
     ),
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
     "DEFAULT_SCHEMA_CLASS": "rest_framework_json_api.schemas.openapi.AutoSchema",

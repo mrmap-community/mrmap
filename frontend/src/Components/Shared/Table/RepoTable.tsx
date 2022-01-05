@@ -42,7 +42,9 @@ function augmentColumns (resourceSchema: any, queryParams: any,
     columnHints.forEach((columnHint) => {
       const columnName = columnHint.dataIndex as string;
       const schema = props[columnName];
-      columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema, queryParams);
+      if (schema){
+        columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema, queryParams);
+      }
     });
   }
   for (const propName in props) {

@@ -6,8 +6,8 @@ from django.test.utils import override_settings
 from django.urls.base import reverse
 from django_celery_results.models import GroupResult
 from registry.enums.service import AuthTypeEnum
-from registry.models.security import ServiceAuthentication
-from registry.models.service import OgcService
+from registry.models.security import WebMapServiceAuthentication
+from registry.models.service import WebMapService
 from registry.tasks.service import build_ogc_service
 from requests.sessions import Session
 from rest_framework import status
@@ -59,7 +59,7 @@ class BuildOgcServiceTaskTest(TestCase):
                                          service_auth_pk=None,
                                          **{'user_pk': 'somepk'})
 
-        db_service = OgcService.objects.latest()
+        db_service = WebMapService.objects.all()[:1][0]
 
         expected_result = {
             "data": {
@@ -81,7 +81,7 @@ class BuildOgcServiceTaskTest(TestCase):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
 
-        auth = ServiceAuthentication.objects.create(
+        auth = WebMapServiceAuthentication.objects.create(
             username="user", password="password", auth_type=AuthTypeEnum.BASIC.value)
 
         result = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
@@ -89,7 +89,7 @@ class BuildOgcServiceTaskTest(TestCase):
                                          service_auth_pk=auth.pk,
                                          **{'user_pk': 'somepk'})
 
-        db_service = OgcService.objects.latest()
+        db_service = WebMapService.objects.all()[:1][0]
 
         expected_result = {
             "data": {
@@ -116,7 +116,7 @@ class BuildOgcServiceTaskTest(TestCase):
                                          service_auth_pk=None,
                                          **{'user_pk': 'somepk'})
 
-        db_service = OgcService.objects.latest()
+        db_service = WebMapService.objects.all()[:1][0]
         group_result = GroupResult.objects.latest('date_created')
 
         expected_result = {

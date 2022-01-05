@@ -1,6 +1,5 @@
 from django.contrib.gis.db import models
 from eulxml import xmlmap
-from extras.models import CommonInfo
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
 
 
@@ -9,7 +8,7 @@ def result_file_path(instance, filename):
     return "harvest_results/service_{0}/job_{1}/{2}".format(instance.service_id, instance.job_id, filename)
 
 
-class HarvestResult(CommonInfo):
+class HarvestResult(models.Model):
     service = models.ForeignKey(to="CatalougeService",
                                 on_delete=models.CASCADE,
                                 related_name="harvest_results",
@@ -17,9 +16,6 @@ class HarvestResult(CommonInfo):
     result_file = models.FileField(upload_to=result_file_path,
                                    editable=False,
                                    max_length=1024)
-
-    class Meta(CommonInfo.Meta):
-        pass
 
     def parse(self):
         result_xml = xmlmap.load_xmlobject_from_string(string=self.result_file.open().read(),

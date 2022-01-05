@@ -1,6 +1,7 @@
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, Style)
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.serializers import ModelSerializer
-from registry.models.metadata import DatasetMetadata, Keyword, Style
 
 
 class KeywordSerializer(ModelSerializer):
@@ -33,4 +34,15 @@ class DatasetMetadataSerializer(ModelSerializer):
 
     class Meta:
         model = DatasetMetadata
+        fields = '__all__'
+
+
+class MetadataContactSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:metadatacontact-detail'
+    )
+
+    class Meta:
+        model = MetadataContact
         fields = '__all__'

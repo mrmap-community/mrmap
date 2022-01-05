@@ -1,3 +1,4 @@
+from django.db.models.query import Prefetch
 from guardian.core import ObjectPermissionChecker
 
 
@@ -9,6 +10,23 @@ class ObjectPermissionCheckerViewSetMixin:
         if self.request:
             perm_checker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
-            perm_checker.prefetch_perms(self.get_queryset())
+            perm_checker.prefetch_perms(
+                self.get_queryset().prefetch_related(None))
             context.update({'perm_checker': perm_checker})
         return context
+
+
+class HistoryInformationViewSetMixin:
+
+    def get_prefetch_related(self, include):
+        prefetch_related = super().get_prefetch_related(include)
+        if prefetch_related:
+            return prefetch_related
+        elif include == "__all__":
+            # TODO: better would be to extend the prefetch_related array
+            return [
+                Prefetch('change_logs', queryset=self.queryset.model.objects.filter_first_history(
+                ), to_attr='first_history'),
+                Prefetch('change_logs', queryset=self.queryset.model.objects.filter_last_history(
+                ), to_attr='last_history')
+            ]

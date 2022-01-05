@@ -144,7 +144,7 @@ const WmsTable = (): JSX.Element => {
             repo={repo}
             columns={columns}
             actionRef={actionRef as any}
-            onAddRecord='/registry/services/add'
+            onAddRecord='/registry/services/wms/add'
           />;
 };
 

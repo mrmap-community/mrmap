@@ -8,7 +8,6 @@ from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from ows_client.request_builder import WebService, WfsService, WmsService
-from polymorphic.managers import PolymorphicManager
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
@@ -108,7 +107,7 @@ class OperationUrlManager(models.Manager):
         ).values_list('url', flat=True)[:1]
 
 
-class ServiceSecurityManager(PolymorphicManager):
+class ServiceSecurityManager(models.Manager):
 
     def _collect_data_for_security_facade(self, request) -> QuerySet:
         from registry.models.security import \
@@ -175,13 +174,3 @@ class ServiceSecurityManager(PolymorphicManager):
         except ObjectDoesNotExist:
             pass
         return service
-
-
-class AnalyzedResponseLogTableManager(models.Manager):
-    def for_table_view(self):
-        return self.get_queryset().select_related("response",
-                                                  "response__request",
-                                                  "response__request__service",
-                                                  "response__request__service__service_type",
-                                                  "response__request__service__metadata",
-                                                  "response__request__user")

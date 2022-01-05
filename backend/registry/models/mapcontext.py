@@ -1,7 +1,6 @@
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
-from extras.models import CommonInfo, GenericModelMixin
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 from registry.managers.mapcontext import MapContextManager
@@ -14,7 +13,7 @@ def preview_image_file_path(instance, filename):
     return 'preview_images/{0}/{1}'.format(instance.pk, filename)
 
 
-class MapContext(GenericModelMixin, CommonInfo):
+class MapContext(models.Model):
     title = models.CharField(max_length=1000,
                              verbose_name=_("title"),
                              help_text=_("a short descriptive title for this map context"))
@@ -38,14 +37,11 @@ class MapContext(GenericModelMixin, CommonInfo):
 
     objects = MapContextManager()
 
-    class Meta(CommonInfo.Meta):
-        pass
-
     def __str__(self):
         return self.title
 
 
-class MapContextLayer(CommonInfo, MPTTModel):
+class MapContextLayer(MPTTModel):
     parent = TreeForeignKey("MapContextLayer", on_delete=models.CASCADE, null=True, blank=True,
                             related_name="child_layers")
     map_context = models.ForeignKey(to=MapContext,
@@ -108,9 +104,6 @@ class MapContextLayer(CommonInfo, MPTTModel):
                                         related_name="mapcontextlayers_selection",
                                         verbose_name=_("Selection layer"),
                                         help_text=_("Select a layer for feature selection."))
-
-    class Meta(CommonInfo.Meta):
-        pass
 
     def __str__(self):
         return f"{self.name}"

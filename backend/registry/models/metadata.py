@@ -507,11 +507,11 @@ class DatasetMetadataRelation(models.Model):
     def __str__(self):
         self_str = f"{self.dataset_metadata.title} linked by "
         if self.layer:
-            self_str += f" layer {self.layer.metadata.title}"
+            self_str += f" layer {self.layer.title}"
         elif self.feature_type:
-            self_str += f" feature type {self.feature_type.metadata.title}"
+            self_str += f" feature type {self.feature_type.title}"
         elif self.csw:
-            self_str += f" csw {self.csw.metadata.title}"
+            self_str += f" csw {self.csw.title}"
         return self_str
 
     def clean(self):

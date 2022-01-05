@@ -294,9 +294,6 @@ class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
                                     node_class=Keyword)
 
 
-EDGE_COUNTER = 0
-
-
 class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'registry.Layer'
 
@@ -347,30 +344,6 @@ class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
                 ((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
             dic.update({"bbox_lat_lon": bbox_lat_lon})
         return dic
-
-    def get_descendants(self, include_self=True, level=0):
-        global EDGE_COUNTER
-        EDGE_COUNTER += 1
-        self.left = EDGE_COUNTER
-
-        self.level = level
-
-        descendants = []
-
-        if self.children:
-            level += 1
-            for layer in self.children:
-                descendants.extend(layer.get_descendants(level=level))
-        else:
-            self.is_leaf_node = True
-
-        EDGE_COUNTER += 1
-        self.right = EDGE_COUNTER
-
-        if include_self:
-            descendants.insert(0, self)
-
-        return descendants
 
 
 class Layer110(Layer111):
@@ -490,11 +463,6 @@ class WmsService(Service):
     operation_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']"
                                                 f"//{NS_WC}OnlineResource']",
                                           node_class=WmsOperationUrl)
-
-    def get_all_layers(self):
-        if not self.all_layers:
-            self.all_layers = self.root_layer.get_descendants()
-        return self.all_layers
 
 
 class Wms110Service(WmsService):

@@ -16,59 +16,74 @@ from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from MrMap.validators import validate_get_capablities_uri
 from ows_client.request_builder import OgcService as OgcServiceClient
-from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
-                                    OGCOperationEnum, OGCServiceVersionEnum)
-from registry.managers.security import (OperationUrlManager,
-                                        ServiceSecurityManager)
-from registry.managers.service import (CatalougeServiceCapabilitiesManager,
-                                       FeatureTypeElementXmlManager,
-                                       LayerManager,
-                                       WebFeatureServiceCapabilitiesManager,
-                                       WebMapServiceCapabilitiesManager)
+from registry.enums.service import (
+    AuthTypeEnum,
+    HttpMethodEnum,
+    OGCOperationEnum,
+    OGCServiceVersionEnum,
+)
+from registry.managers.security import WebMapServiceSecurityManager
+from registry.managers.service import (
+    CatalougeServiceCapabilitiesManager,
+    FeatureTypeElementXmlManager,
+    LayerManager,
+    WebFeatureServiceCapabilitiesManager,
+    WebMapServiceCapabilitiesManager,
+)
 from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
-                                      ServiceMetadata)
-from registry.xmlmapper.ogc.wfs_describe_feature_type import \
-    DescribedFeatureType as XmlDescribedFeatureType
+from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
+from registry.xmlmapper.ogc.wfs_describe_feature_type import (
+    DescribedFeatureType as XmlDescribedFeatureType,
+)
 from requests import Session
 from requests.auth import HTTPDigestAuth
 from simple_history.models import HistoricalRecords
 
 
 class CommonServiceInfo(models.Model):
-    hits = models.PositiveIntegerField(default=0,
-                                       editable=False,
-                                       verbose_name=_("hits"),
-                                       help_text=_("how many times this metadata was requested by a client"), )
-    is_active = models.BooleanField(default=False,
-                                    verbose_name=_("is active?"),
-                                    help_text=_("Used to activate/deactivate the service. If it is deactivated, you "
-                                                "cant request the service through the Mr. Map proxy."))
+    hits = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_("hits"),
+        help_text=_("how many times this metadata was requested by a client"),
+    )
+    is_active = models.BooleanField(
+        default=False,
+        verbose_name=_("is active?"),
+        help_text=_(
+            "Used to activate/deactivate the service. If it is deactivated, you "
+            "cant request the service through the Mr. Map proxy."
+        ),
+    )
 
     class Meta:
         abstract = True
 
 
 class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo):
-    """ Abstract Service model to store OGC service. """
-    version = models.CharField(max_length=10,
-                               choices=OGCServiceVersionEnum.as_choices(),
-                               editable=False,
-                               verbose_name=_("version"),
-                               help_text=_("the version of the service type as sem version"))
-    service_url = models.URLField(max_length=4096,
-                                  editable=False,
-                                  verbose_name=_("url"),
-                                  help_text=_("the base url of the service"))
-    get_capabilities_url = models.URLField(max_length=4096,
-                                           verbose_name=_(
-                                               "get capabilities url"),
-                                           help_text=_(
-                                               "the capabilities url of the ogc service"),
-                                           validators=[validate_get_capablities_uri])
+    """Abstract Service model to store OGC service."""
+
+    version = models.CharField(
+        max_length=10,
+        choices=OGCServiceVersionEnum.as_choices(),
+        editable=False,
+        verbose_name=_("version"),
+        help_text=_("the version of the service type as sem version"),
+    )
+    service_url = models.URLField(
+        max_length=4096,
+        editable=False,
+        verbose_name=_("url"),
+        help_text=_("the base url of the service"),
+    )
+    get_capabilities_url = models.URLField(
+        max_length=4096,
+        verbose_name=_("get capabilities url"),
+        help_text=_("the capabilities url of the ogc service"),
+        validators=[validate_get_capablities_uri],
+    )
 
     objects = DefaultHistoryManager()
-    security = ServiceSecurityManager()
 
     class Meta:
         abstract = True
@@ -91,25 +106,26 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 self.featuretypes.update(is_active=self.is_active)
 
     def major_version(self) -> int:
-        return int(self.version.split('.')[0])
+        return int(self.version.split(".")[0])
 
     def minor_version(self) -> int:
-        return int(self.version.split('.')[1])
+        return int(self.version.split(".")[1])
 
     def fix_version(self) -> int:
-        return int(self.version.split('.')[2])
+        return int(self.version.split(".")[2])
 
     def get_session_for_request(self) -> Session:
         session = Session()
         session.proxies = PROXIES
-        if hasattr(self, 'auth'):
+        if hasattr(self, "auth"):
             session.auth = self.auth.get_auth_for_request()
         return session
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name='change_logs')
+    change_log = HistoricalRecords(related_name="change_logs")
     capabilities = WebMapServiceCapabilitiesManager()
+    security = WebMapServiceSecurityManager()
 
     class Meta:
         verbose_name = _("web map service")
@@ -121,7 +137,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name='change_logs')
+    change_log = HistoricalRecords(related_name="change_logs")
     capabilities = WebFeatureServiceCapabilitiesManager()
 
     class Meta:
@@ -130,7 +146,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
 
 class CatalougeService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name='change_logs')
+    change_log = HistoricalRecords(related_name="change_logs")
     capabilities = CatalougeServiceCapabilitiesManager()
 
     class Meta:
@@ -139,33 +155,41 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
 
 
 class OperationUrl(models.Model):
-    """ Concrete model class to store operation urls for registered services
+    """Concrete model class to store operation urls for registered services
 
-        With that urls we can perform all needed request to a given service.
+    With that urls we can perform all needed request to a given service.
     """
-    method = models.CharField(max_length=10,
-                              choices=HttpMethodEnum.as_choices(),
-                              verbose_name=_("http method"),
-                              help_text=_("the http method you can perform for this url"))
+
+    method = models.CharField(
+        max_length=10,
+        choices=HttpMethodEnum.as_choices(),
+        verbose_name=_("http method"),
+        help_text=_("the http method you can perform for this url"),
+    )
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
-    url = models.URLField(max_length=4096,
-                          editable=False,
-                          verbose_name=_("url"),
-                          help_text=_("the url for this operation"))
-    operation = models.CharField(max_length=30,
-                                 choices=OGCOperationEnum.as_choices(),
-                                 editable=False,
-                                 verbose_name=_("operation"),
-                                 help_text=_("the operation you can perform with this url."))
-    mime_types = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
-                                        blank=True,
-                                        editable=False,
-                                        related_name="%(class)s_operation_urls",
-                                        related_query_name="%(class)s_operation_url",
-                                        verbose_name=_("internet mime type"),
-                                        help_text=_("all available mime types of the remote url"))
+    url = models.URLField(
+        max_length=4096,
+        editable=False,
+        verbose_name=_("url"),
+        help_text=_("the url for this operation"),
+    )
+    operation = models.CharField(
+        max_length=30,
+        choices=OGCOperationEnum.as_choices(),
+        editable=False,
+        verbose_name=_("operation"),
+        help_text=_("the operation you can perform with this url."),
+    )
+    mime_types = models.ManyToManyField(
+        to="MimeType",  # use string to avoid from circular import error
+        blank=True,
+        editable=False,
+        related_name="%(class)s_operation_urls",
+        related_query_name="%(class)s_operation_url",
+        verbose_name=_("internet mime type"),
+        help_text=_("all available mime types of the remote url"),
+    )
     objects = models.Manager()
-    security_objects = OperationUrlManager()
 
     class Meta:
         abstract = True
@@ -188,80 +212,100 @@ class OperationUrl(models.Model):
 
 
 class WebMapServiceOperationUrl(OperationUrl):
-    service = models.ForeignKey(to=WebMapService,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="operation_urls",
-                                related_query_name="operation_url",
-                                verbose_name=_("related web map service"),
-                                help_text=_("the web map service for that this url can be used for."))
+    service = models.ForeignKey(
+        to=WebMapService,
+        on_delete=models.CASCADE,
+        editable=False,
+        related_name="operation_urls",
+        related_query_name="operation_url",
+        verbose_name=_("related web map service"),
+        help_text=_("the web map service for that this url can be used for."),
+    )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['method', 'operation', 'service'],
-                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+            models.UniqueConstraint(
+                fields=["method", "operation", "service"],
+                name="%(app_label)s_%(class)s_unique_together_method_id_operation",
+            )
         ]
 
 
 class WebFeatureServiceOperationUrl(OperationUrl):
-    service = models.ForeignKey(to=WebFeatureService,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="operation_urls",
-                                related_query_name="operation_url",
-                                verbose_name=_("related web feature service"),
-                                help_text=_("the web feature service for that this url can be used for."))
+    service = models.ForeignKey(
+        to=WebFeatureService,
+        on_delete=models.CASCADE,
+        editable=False,
+        related_name="operation_urls",
+        related_query_name="operation_url",
+        verbose_name=_("related web feature service"),
+        help_text=_("the web feature service for that this url can be used for."),
+    )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['method', 'operation', 'service'],
-                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+            models.UniqueConstraint(
+                fields=["method", "operation", "service"],
+                name="%(app_label)s_%(class)s_unique_together_method_id_operation",
+            )
         ]
 
 
 class CatalougeServiceOperationUrl(OperationUrl):
-    service = models.ForeignKey(to=CatalougeService,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="operation_urls",
-                                related_query_name="operation_url",
-                                verbose_name=_("related catalouge service"),
-                                help_text=_("the catalouge service for that this url can be used for."))
+    service = models.ForeignKey(
+        to=CatalougeService,
+        on_delete=models.CASCADE,
+        editable=False,
+        related_name="operation_urls",
+        related_query_name="operation_url",
+        verbose_name=_("related catalouge service"),
+        help_text=_("the catalouge service for that this url can be used for."),
+    )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['method', 'operation', 'service'],
-                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+            models.UniqueConstraint(
+                fields=["method", "operation", "service"],
+                name="%(app_label)s_%(class)s_unique_together_method_id_operation",
+            )
         ]
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
-    """ Abstract model class to generalize some fields and functions for layers and feature types """
-    id = models.UUIDField(primary_key=True,
-                          default=uuid4,
-                          editable=False)
-    identifier = models.CharField(max_length=500,
-                                  null=True,
-                                  editable=False,
-                                  verbose_name=_("identifier"),
-                                  help_text=_("this is a string which identifies the element on the remote service."))
-    bbox_lat_lon = gis_models.PolygonField(null=True,  # to support inherited bbox from ancestor layer null=True
-                                           blank=True,
-                                           editable=False,
-                                           verbose_name=_("bounding box"),
-                                           help_text=_("bounding box shall be supplied regardless of what CRS the map "
-                                                       "server may support, but it may be approximate if the data are "
-                                                       "not natively in geographic coordinates. The purpose of bounding"
-                                                       " box is to facilitate geographic searches without requiring "
-                                                       "coordinate transformations by the search engine."))
-    reference_systems = models.ManyToManyField(to="ReferenceSystem",  # to avoid circular import error
-                                               related_name="%(class)s",
-                                               related_query_name="%(class)s",
-                                               blank=True,
-                                               editable=False,
-                                               verbose_name=_(
-                                                   "reference systems"),
-                                               help_text=_("all reference systems which this element supports"))
+    """Abstract model class to generalize some fields and functions for layers and feature types"""
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    identifier = models.CharField(
+        max_length=500,
+        null=True,
+        editable=False,
+        verbose_name=_("identifier"),
+        help_text=_(
+            "this is a string which identifies the element on the remote service."
+        ),
+    )
+    bbox_lat_lon = gis_models.PolygonField(
+        null=True,  # to support inherited bbox from ancestor layer null=True
+        blank=True,
+        editable=False,
+        verbose_name=_("bounding box"),
+        help_text=_(
+            "bounding box shall be supplied regardless of what CRS the map "
+            "server may support, but it may be approximate if the data are "
+            "not natively in geographic coordinates. The purpose of bounding"
+            " box is to facilitate geographic searches without requiring "
+            "coordinate transformations by the search engine."
+        ),
+    )
+    reference_systems = models.ManyToManyField(
+        to="ReferenceSystem",  # to avoid circular import error
+        related_name="%(class)s",
+        related_query_name="%(class)s",
+        blank=True,
+        editable=False,
+        verbose_name=_("reference systems"),
+        help_text=_("all reference systems which this element supports"),
+    )
     # todo:
     xml_mapper_cls = None
 
@@ -277,8 +321,10 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
     def get_dataset_table_url(self) -> str:
         if self.dataset_metadata.exists():
             try:
-                return reverse(f'{self._meta.app_label}:dataset_metadata_list') + \
-                    f'?id__in={",".join([str(dataset.pk) for dataset in self.dataset_metadata.all()])}'
+                return (
+                    reverse(f"{self._meta.app_label}:dataset_metadata_list")
+                    + f'?id__in={",".join([str(dataset.pk) for dataset in self.dataset_metadata.all()])}'
+                )
             except NoReverseMatch:
                 pass
         return ""
@@ -289,53 +335,78 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
     """
-    service = models.ForeignKey(to=WebMapService,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="layers",
-                                related_query_name="layer",
-                                verbose_name=_("service"),
-                                help_text=_("the extras service where this element is part of"))
-    parent = TreeForeignKey(to="self",
-                            on_delete=models.CASCADE,
-                            null=True,
-                            editable=False,
-                            related_name="children",
-                            related_query_name="child",
-                            verbose_name=_("parent layer"),
-                            help_text=_("the ancestor of this layer."))
-    is_queryable = models.BooleanField(default=False,
-                                       editable=False,
-                                       verbose_name=_("is queryable"),
-                                       help_text=_("flag to signal if this layer provides factual information or not."
-                                                   " Parsed from capabilities."))
-    is_opaque = models.BooleanField(default=False,
-                                    editable=False,
-                                    verbose_name=_("is opaque"),
-                                    help_text=_("flag to signal if this layer support transparency content or not. "
-                                                "Parsed from capabilities."))
-    is_cascaded = models.BooleanField(default=False,
-                                      editable=False,
-                                      verbose_name=_("is cascaded"),
-                                      help_text=_("WMS cascading allows to expose layers coming from other WMS servers "
-                                                  "as if they were local layers"))
-    scale_min = models.FloatField(null=True,
-                                  blank=True,
-                                  editable=False,
-                                  verbose_name=_("scale minimum value"),
-                                  help_text=_("minimum scale for a possible request to this layer. If the request is "
-                                              "out of the given scope, the service will response with empty transparent"
-                                              "images. None value means no restriction."))
-    scale_max = models.FloatField(null=True,
-                                  blank=True,
-                                  editable=False,
-                                  verbose_name=_("scale maximum value"),
-                                  help_text=_("maximum scale for a possible request to this layer. If the request is "
-                                              "out of the given scope, the service will response with empty transparent"
-                                              "images. None value means no restriction."))
+
+    service = models.ForeignKey(
+        to=WebMapService,
+        on_delete=models.CASCADE,
+        editable=False,
+        related_name="layers",
+        related_query_name="layer",
+        verbose_name=_("service"),
+        help_text=_("the extras service where this element is part of"),
+    )
+    parent = TreeForeignKey(
+        to="self",
+        on_delete=models.CASCADE,
+        null=True,
+        editable=False,
+        related_name="children",
+        related_query_name="child",
+        verbose_name=_("parent layer"),
+        help_text=_("the ancestor of this layer."),
+    )
+    is_queryable = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name=_("is queryable"),
+        help_text=_(
+            "flag to signal if this layer provides factual information or not."
+            " Parsed from capabilities."
+        ),
+    )
+    is_opaque = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name=_("is opaque"),
+        help_text=_(
+            "flag to signal if this layer support transparency content or not. "
+            "Parsed from capabilities."
+        ),
+    )
+    is_cascaded = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name=_("is cascaded"),
+        help_text=_(
+            "WMS cascading allows to expose layers coming from other WMS servers "
+            "as if they were local layers"
+        ),
+    )
+    scale_min = models.FloatField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("scale minimum value"),
+        help_text=_(
+            "minimum scale for a possible request to this layer. If the request is "
+            "out of the given scope, the service will response with empty transparent"
+            "images. None value means no restriction."
+        ),
+    )
+    scale_max = models.FloatField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("scale maximum value"),
+        help_text=_(
+            "maximum scale for a possible request to this layer. If the request is "
+            "out of the given scope, the service will response with empty transparent"
+            "images. None value means no restriction."
+        ),
+    )
     change_log = HistoricalRecords(
-        related_name='change_logs',
-        excluded_fields=['lft', 'rght', 'tree_id', 'level'])
+        related_name="change_logs", excluded_fields=["lft", "rght", "tree_id", "level"]
+    )
 
     objects = LayerManager()
 
@@ -345,10 +416,10 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the layer, all his descendants and his related service.
-           If the given layer shall be active, the complete family (:meth:`mptt.models.MPTTModel.get_family`) of this
-           layer and the related :class:`registry.models.service.Service` will be updated with ``ìs_active=True``.
-           If the given layer shall be inactive, all descendants (:meth:`mptt.models.MPTTModel.get_descendants`) of this
-           layer will be updated with ``is_active=False``.
+        If the given layer shall be active, the complete family (:meth:`mptt.models.MPTTModel.get_family`) of this
+        layer and the related :class:`registry.models.service.Service` will be updated with ``ìs_active=True``.
+        If the given layer shall be inactive, all descendants (:meth:`mptt.models.MPTTModel.get_descendants`) of this
+        layer will be updated with ``is_active=False``.
         """
         adding = self._state.adding
         old = None
@@ -360,8 +431,9 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             # is the most efficient way to do it.
             if self.is_active:
                 self.get_family().update(is_active=self.is_active)
-                WebMapService.objects.filter(
-                    pk=self.service_id).update(is_active=self.is_active)
+                WebMapService.objects.filter(pk=self.service_id).update(
+                    is_active=self.is_active
+                )
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
@@ -381,7 +453,12 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.scale_min:
             return self.scale_min
         else:
-            return self.get_ancestors().exclude(scale_min=None).values_list("scale_min", flat=True).first()
+            return (
+                self.get_ancestors()
+                .exclude(scale_min=None)
+                .values_list("scale_min", flat=True)
+                .first()
+            )
 
     @cached_property
     def get_scale_max(self) -> float:
@@ -399,7 +476,12 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.scale_max:
             return self.scale_max
         else:
-            return self.get_ancestors().exclude(scale_max=None).values_list("scale_max", flat=True).first()
+            return (
+                self.get_ancestors()
+                .exclude(scale_max=None)
+                .values_list("scale_max", flat=True)
+                .first()
+            )
 
     @cached_property
     def get_bbox(self) -> Polygon:
@@ -419,7 +501,12 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.bbox_lat_lon:
             return self.bbox_lat_lon
         else:
-            return self.get_ancestors().exclude(bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True).first()
+            return (
+                self.get_ancestors()
+                .exclude(bbox_lat_lon=None)
+                .values_list("bbox_lat_lon", flat=True)
+                .first()
+            )
 
     @cached_property
     def get_reference_systems(self) -> QuerySet:
@@ -439,9 +526,11 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         """
         if self.reference_systems.exists():
             return self.reference_systems.all()
-        from registry.models import \
-            ReferenceSystem  # to avoid circular import errors
-        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix")
+        from registry.models import ReferenceSystem  # to avoid circular import errors
+
+        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct(
+            "code", "prefix"
+        )
 
     @cached_property
     def get_dimensions(self) -> QuerySet:
@@ -467,9 +556,11 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         """
         if self.layer_dimensions.exists():
             return self.layer_dimensions.all()
-        from registry.models import \
-            Dimension  # to avoid circular import errors
-        return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
+        from registry.models import Dimension  # to avoid circular import errors
+
+        return Dimension.objects.filter(
+            layer__in=self.get_ancestors(ascending=True)
+        ).distinct("name")
 
 
 class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
@@ -477,30 +568,39 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     :attr objects: custom models manager :class:`registry.managers.service.FeatureTypeManager`
     """
-    service = models.ForeignKey(to=WebFeatureService,
-                                on_delete=models.CASCADE,
-                                editable=False,
-                                related_name="featuretypes",
-                                related_query_name="featuretype",
-                                verbose_name=_("service"),
-                                help_text=_("the extras service where this element is part of"))
-    output_formats = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
-                                            blank=True,
-                                            editable=False,
-                                            related_name="feature_types",
-                                            related_query_name="feature_type",
-                                            verbose_name=_("output formats"),
-                                            help_text=_("This is a list of MIME types indicating the output formats "
-                                                        "that may be generated for a feature type.  If this optional "
-                                                        "element is not specified, then all the result formats "
-                                                        "listed for the GetFeature operation are assumed to be "
-                                                        "supported. "))
-    describe_feature_type_document = models.TextField(null=True,
-                                                      verbose_name=_(
-                                                          "describe feature type"),
-                                                      help_text=_("the fetched content of the download describe feature"
-                                                                  " type document."))
-    change_log = HistoricalRecords(related_name='change_logs')
+
+    service = models.ForeignKey(
+        to=WebFeatureService,
+        on_delete=models.CASCADE,
+        editable=False,
+        related_name="featuretypes",
+        related_query_name="featuretype",
+        verbose_name=_("service"),
+        help_text=_("the extras service where this element is part of"),
+    )
+    output_formats = models.ManyToManyField(
+        to="MimeType",  # use string to avoid from circular import error
+        blank=True,
+        editable=False,
+        related_name="feature_types",
+        related_query_name="feature_type",
+        verbose_name=_("output formats"),
+        help_text=_(
+            "This is a list of MIME types indicating the output formats "
+            "that may be generated for a feature type.  If this optional "
+            "element is not specified, then all the result formats "
+            "listed for the GetFeature operation are assumed to be "
+            "supported. "
+        ),
+    )
+    describe_feature_type_document = models.TextField(
+        null=True,
+        verbose_name=_("describe feature type"),
+        help_text=_(
+            "the fetched content of the download describe feature" " type document."
+        ),
+    )
+    change_log = HistoricalRecords(related_name="change_logs")
 
     class Meta:
         verbose_name = _("feature type")
@@ -508,33 +608,41 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the feature type and his related service.
-           If the given feature type shall be active, the feature type it self and the related
-           :class:`registry.models.service.Service` will be updated with ``is_active=True``.
-           If the given feature type shall be inactive only the feature type it self will be updated with
-           ``is_active=False``.
+        If the given feature type shall be active, the feature type it self and the related
+        :class:`registry.models.service.Service` will be updated with ``is_active=True``.
+        If the given feature type shall be inactive only the feature type it self will be updated with
+        ``is_active=False``.
         """
         adding = self._state.adding
         super().save(*args, **kwargs)
         if not adding and self.is_active:
-            WebFeatureService.objects.filter(
-                pk=self.service_id).update(is_active=self.is_active)
+            WebFeatureService.objects.filter(pk=self.service_id).update(
+                is_active=self.is_active
+            )
 
     def fetch_describe_feature_type_document(self, save=True):
-        """ Return the fetched described feature type document and update the content if save is True """
-        base_url = self.service.operation_urls.values_list('url', flat=True) \
-            .get(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
-                 method=HttpMethodEnum.GET.value)
-        request = OgcServiceClient(base_url=base_url,
-                                   service_type=self.service.service_type_name,
-                                   version=self.service.service_version) \
-            .get_describe_feature_type_request(type_name_list=self.identifier)
+        """Return the fetched described feature type document and update the content if save is True"""
+        base_url = self.service.operation_urls.values_list("url", flat=True).get(
+            operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
+            method=HttpMethodEnum.GET.value,
+        )
+        request = OgcServiceClient(
+            base_url=base_url,
+            service_type=self.service.service_type_name,
+            version=self.service.service_version,
+        ).get_describe_feature_type_request(type_name_list=self.identifier)
         if hasattr(self.service, "external_authentication"):
             username, password = self.service.external_authentication.decrypt()
-            if self.service.external_authentication.auth_type == AuthTypeEnum.BASIC.value:
+            if (
+                self.service.external_authentication.auth_type
+                == AuthTypeEnum.BASIC.value
+            ):
                 request.auth = (username, password)
-            elif self.service.external_authentication.auth_type == AuthTypeEnum.DIGEST.value:
-                request.auth = HTTPDigestAuth(username=username,
-                                              password=password)
+            elif (
+                self.service.external_authentication.auth_type
+                == AuthTypeEnum.DIGEST.value
+            ):
+                request.auth = HTTPDigestAuth(username=username, password=password)
         session = Session()
         response = session.send(request=request.prepare())
         if response.status_code <= 202 and "xml" in response.headers["content-type"]:
@@ -544,26 +652,32 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             return self.describe_feature_type_document
         else:
             settings.ROOT_LOGGER.error(
-                msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}")
+                msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}"
+            )
 
     def parse(self):
-        """ Return the parsed self.remote_content
+        """Return the parsed self.remote_content
 
-            Raises:
-                ValueError: if self.remote_content is null
+        Raises:
+            ValueError: if self.remote_content is null
         """
         if self.describe_feature_type_document:
-            parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(string=self.describe_feature_type_document,
-                                                                             xmlclass=XmlDescribedFeatureType)
+            parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(
+                string=self.describe_feature_type_document,
+                xmlclass=XmlDescribedFeatureType,
+            )
             return parsed_feature_type_elements
         else:
-            raise ValueError("there is no fetched content. You need to call fetch_describe_feature_type_document() "
-                             "first.")
+            raise ValueError(
+                "there is no fetched content. You need to call fetch_describe_feature_type_document() "
+                "first."
+            )
 
     def create_element_instances(self):
-        """ Return the created FeatureTypeElement record(s) """
-        return FeatureTypeElement.xml_objects.create_from_parsed_xml(parsed_xml=self.parse(),
-                                                                     related_object=self)
+        """Return the created FeatureTypeElement record(s)"""
+        return FeatureTypeElement.xml_objects.create_from_parsed_xml(
+            parsed_xml=self.parse(), related_object=self
+        )
 
 
 class FeatureTypeElement(models.Model):
@@ -572,13 +686,15 @@ class FeatureTypeElement(models.Model):
     name = models.CharField(max_length=255)
     data_type = models.CharField(max_length=255, null=True, blank=True)
     required = models.BooleanField(default=False)
-    feature_type = models.ForeignKey(to=FeatureType,
-                                     # editable=False,
-                                     related_name="elements",
-                                     related_query_name="element",
-                                     on_delete=models.CASCADE,
-                                     verbose_name=_("feature type"),
-                                     help_text=_("related feature type of this element"))
+    feature_type = models.ForeignKey(
+        to=FeatureType,
+        # editable=False,
+        related_name="elements",
+        related_query_name="element",
+        on_delete=models.CASCADE,
+        verbose_name=_("feature type"),
+        help_text=_("related feature type of this element"),
+    )
     objects = models.Manager()
     xml_objects = FeatureTypeElementXmlManager()
 

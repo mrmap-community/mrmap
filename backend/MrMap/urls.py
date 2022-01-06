@@ -23,7 +23,7 @@ from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
 urlpatterns = [
-    path('django-admin/', admin.site.urls),
+    path("django-admin/", admin.site.urls),
     # captcha support
     path("captcha/", include("captcha.urls")),
     # translation support
@@ -32,7 +32,7 @@ urlpatterns = [
     # registry api urls
     path("api/v1/registry/", include("registry.urls", namespace="registry")),
     path("api/v1/accounts/", include("accounts.urls", namespace="accounts")),
-    path("api/v1/notify/", include("notify.urls", namespace='notify')),
+    path("api/v1/notify/", include("notify.urls", namespace="notify")),
     path(
         "api/schema/",
         cache_page(timeout=60 * 15, cache="local-memory")(
@@ -46,11 +46,12 @@ urlpatterns = [
         ),
         name="openapi-schema",
     ),
-
     # ows views
-    path('mrmap-proxy/wms/<pk>',
-         security_proxy_views.GenericOwsServiceOperationFacade.as_view(), name='wms-operation')
-
+    path(
+        "mrmap-proxy/wms/<pk>",
+        security_proxy_views.WebMapServiceProxy.as_view(),
+        name="wms-operation",
+    ),
 ]
 
 if settings.DEBUG:
@@ -60,5 +61,4 @@ if settings.DEBUG:
 
     urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
     # to enable possibility to open media files during development (images, documents, etc)
-    urlpatterns += static(settings.MEDIA_URL,
-                          document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

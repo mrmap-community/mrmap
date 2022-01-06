@@ -1,5 +1,5 @@
 import { PlusOutlined } from '@ant-design/icons';
-import ProTable, { ActionType, ProColumnType } from '@ant-design/pro-table';
+import { ActionType, default as ProTable, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
 import { Button, Modal, notification, Space } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
@@ -10,7 +10,7 @@ import { augmentColumnWithJsonSchema } from './TableHelper';
 
 
 
-export interface RepoTableProps {
+export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'> {
     /** Repository that defines the schema and offers CRUD operations */
     repo: JsonApiRepo
     /** Optional column definitions, automatically augmented with the repository schema */
@@ -36,15 +36,21 @@ export type RepoActionType = ActionType & {
 
 function augmentColumns (resourceSchema: any, queryParams: any,
   columnHints: ProColumnType[] | undefined): ProColumnType[] {
-  const props = resourceSchema.properties.data.items.properties.attributes.properties;
+  const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
+  // phase 1: add a column for every column hint, merge with schema property definition (if available)
   if (columnHints) {
     columnHints.forEach((columnHint) => {
       const columnName = columnHint.dataIndex as string;
       const schema = props[columnName];
-      columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema, queryParams);
+      if (schema) {
+        columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema, queryParams);
+      } else {
+        columns[columnName] = columnHint;
+      }
     });
   }
+  // phase 2: add a column for every schema property that does not have a corresponding column hint
   for (const propName in props) {
     if (propName in columns) {
       continue;
@@ -63,7 +69,8 @@ const RepoTable = ({
   columns = undefined,
   actionRef = undefined,
   onAddRecord = undefined,
-  onEditRecord = undefined
+  onEditRecord = undefined,
+  ...passThroughProps
 }: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
@@ -103,6 +110,7 @@ const RepoTable = ({
 
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
+
     async function buildColumns () {
       const resourceSchema = await repo.getResourceSchema();
       const queryParams = await repo.getQueryParams();
@@ -188,7 +196,8 @@ const RepoTable = ({
   }
 
   return (
-    <>{ augmentedColumns.length > 0 && (<ProTable
+    <>{ augmentedColumns.length > 0 && (
+      <ProTable
         request={fetchData}
         columns={augmentedColumns}
         scroll={{ x: true }}
@@ -215,7 +224,8 @@ const RepoTable = ({
               layout: 'vertical'
             }
           : false}
-    />)}</>
+        {...passThroughProps}
+      />)}</>
   );
 };
 

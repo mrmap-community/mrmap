@@ -1,5 +1,3 @@
-import './MapContext.css';
-
 import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrestris/react-geo';
 import { Button, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
@@ -10,14 +8,17 @@ import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerTree } from '../LayerTree/LayerTree';
+import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
 import { MPTTListToTreeNodeList, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
+import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
+
+
 
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
@@ -188,6 +189,8 @@ export const MapContext = (): ReactElement => {
               />
             </div>
           </div>
+
+          <SearchDrawer />
 
           <div className='steps-action'>
             <Button

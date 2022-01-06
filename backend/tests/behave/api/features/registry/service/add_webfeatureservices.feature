@@ -1,10 +1,10 @@
-Feature: OgcService Add Endpoint
+Feature: WebFeatureService Add Endpoint
     As an API client,
-    I want to add ogcservices,
+    I want to add web feature services,
     so that I can manage them with Mr.Map.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/ogcservices/
+        Given I use the endpoint http://localhost:8000/api/v1/registry/wfs/
         Given I set the content type of the request to application/vnd.api+json
         Given I mock the function "delay" of the module "registry.tasks.service.build_ogc_service" with return value as object
             """
@@ -19,9 +19,9 @@ Feature: OgcService Add Endpoint
             """
             {
                 "data": {
-                    "type": "OgcService",
+                    "type": "WebFeatureService",
                     "attributes": {
-                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0",
+                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=WFS&VERSION=2.0.0",
                         "collect_metadata_records": "true"
                     },
                     "relationships": {
@@ -43,9 +43,9 @@ Feature: OgcService Add Endpoint
             """
             {
                 "data": {
-                    "type": "OgcService",
+                    "type": "WebFeatureService",
                     "attributes": {
-                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=WMS&VERSION=1.3.0",
+                        "get_capabilities_url": "http://some-service.de?REQUEST=GetCapabilities&SERVICE=WFS&VERSION=2.0.0",
                         "collect_metadata_records": "true"
                     },
                     "relationships": {
@@ -68,9 +68,9 @@ Feature: OgcService Add Endpoint
             """
             {
                 "data": {
-                    "type": "OgcService",
+                    "type": "WebFeatureService",
                     "attributes": {
-                        "get_capabilities_url": "http://some-service.de?SERVICE=WMS&VERSION=1.3.0",
+                        "get_capabilities_url": "http://some-service.de?SERVICE=WFS&VERSION=2.0.0",
                         "collect_metadata_records": "true"
                     },
                     "relationships": {

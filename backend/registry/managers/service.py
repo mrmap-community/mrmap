@@ -1,17 +1,18 @@
 from abc import abstractmethod
 from random import randrange
 
-from crum import get_current_user
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
-from django.db.models.functions import Coalesce
-from polymorphic.managers import PolymorphicManager
+from extras.managers import DefaultHistoryManager
+from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
+from simple_history.models import HistoricalRecords
+from simple_history.utils import bulk_create_with_history
 
 
-class ServiceCapabilitiesManager(PolymorphicManager):
+class ServiceCapabilitiesManager(models.Manager):
     """
     handles the creation of objects by using the parsed service which is stored in the given :class:`new.Service`
     instance.
@@ -32,7 +33,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
     reference_system_cls = None
 
     current_user = None
-    common_info = {}
 
     def _reset_local_variables(self):
         """helper function to reset local variables.
@@ -59,11 +59,8 @@ class ServiceCapabilitiesManager(PolymorphicManager):
 
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.current_user = get_current_user()
-        self.common_info = {
-            "created_by_user": self.current_user,
-            "last_modified_by": self.current_user
-        }
+        if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
+            self.current_user = HistoricalRecords.context.request.user
 
     def _get_or_create_keywords(self, parsed_keywords, db_object):
         db_object.keyword_list = []
@@ -84,12 +81,11 @@ class ServiceCapabilitiesManager(PolymorphicManager):
         db_service_contact, created = service_contact_cls.objects.get_or_create(
             **parsed_service_contact.get_field_dict())
 
-        service = super().create(origin=MetadataOrigin.CAPABILITIES.value,
-                                 service_contact=db_service_contact,
-                                 metadata_contact=db_service_contact,
-                                 **self.common_info,
-                                 **parsed_service.get_field_dict(),
-                                 **parsed_service.service_metadata.get_field_dict())
+        service = self.create(origin=MetadataOrigin.CAPABILITIES.value,
+                              service_contact=db_service_contact,
+                              metadata_contact=db_service_contact,
+                              **parsed_service.get_field_dict(),
+                              **parsed_service.service_metadata.get_field_dict())
 
         self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
                                      db_object=service)
@@ -98,7 +94,10 @@ class ServiceCapabilitiesManager(PolymorphicManager):
         service.keywords.add(*service.keyword_list)
 
         service.xml_backup_file.save(name='capabilities.xml',
-                                     content=ContentFile(str(parsed_service.serializeDocument(), "UTF-8")))
+                                     content=ContentFile(
+                                         str(parsed_service.serializeDocument(), "UTF-8")),
+                                     save=False)
+        service.save(without_historical=True)
 
         operation_urls = []
         operation_url_model_cls = None
@@ -107,8 +106,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
                 operation_url_model_cls = operation_url.get_model_class()
 
             db_operation_url = operation_url_model_cls(service=service,
-
-                                                       **self.common_info,
                                                        **operation_url.get_field_dict())
             db_operation_url.mime_type_list = []
 
@@ -139,7 +136,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
             self.db_remote_metadata_list.append(self.remote_metadata_cls(service=db_service,
                                                                          content_type=self.sub_element_content_type,
                                                                          object_id=db_sub_element.pk,
-                                                                         **self.common_info,
                                                                          **remote_metadata.get_field_dict()))
 
     def _get_or_create_output_formats(self, parsed_feature_type, db_feature_type):
@@ -157,7 +153,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
             if not self.dimension_cls:
                 self.dimension_cls = dimension.get_model_class()
             db_dimension = self.dimension_cls(layer=db_layer,
-                                              **self.common_info,
                                               **dimension.get_field_dict())
             self.db_dimension_list.append(db_dimension)
             dimension.parse_extent()
@@ -165,7 +160,6 @@ class ServiceCapabilitiesManager(PolymorphicManager):
                 if not self.dimension_extent_cls:
                     self.dimension_extent_cls = dimension_extent.get_model_class()
                 self.db_dimension_extent_list.append(self.dimension_extent_cls(dimension=db_dimension,
-                                                     **self.common_info,
                                                      **dimension_extent.get_field_dict()))
 
     def _create_reference_system_instances(self, parsed_sub_element, db_sub_element):
@@ -196,6 +190,7 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
     parent_lookup = None
     current_parent = None
 
+    layer_opts = None
     db_layer_list = []
     db_style_list = []
     db_legend_url_list = []
@@ -228,39 +223,11 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         random = randrange(1, 20)
         return tree_id + random
 
-    def _update_current_parent(self, parsed_layer):
-        # todo: maybe we can move node id setting to get_all_layers()
-        if self.last_node_level < parsed_layer.level:
-            # Climb down the tree. In this case the last node is always the a parent node. (preorder traversal)
-            # We store it in our parent_lookup dict to resolve it if we climb up
-            # the tree again. In case of climb up we loose the directly parent.
-            self.current_parent = self.db_layer_list[-1]
-            self.parent_lookup.update(
-                {self.current_parent.node_id: self.current_parent})
-            parsed_layer.node_id = self.db_layer_list[-1].node_id + ".1"
-        elif self.last_node_level > parsed_layer.level:
-            # climb up the tree. We need to lookup the parent of this node.
-            sibling_node_id = self.db_layer_list[-1].parent.node_id.split(".")
-            sibling_node_id[-1] = str(int(sibling_node_id[-1]) + 1)
-            parsed_layer.node_id = ".".join(sibling_node_id)
-            self.current_parent = self.parent_lookup.get(
-                parsed_layer.node_id.rsplit(".", 1)[0])
-        else:
-            # sibling node. we just increase the node_id counter
-            if self.parent_lookup:
-                last_node_id = self.db_layer_list[-1].node_id.split(".")
-                last_node_id[-1] = str(int(last_node_id[-1]) + 1)
-                parsed_layer.node_id = ".".join(last_node_id)
-            else:
-                parsed_layer.node_id = "1"
-        self.last_node_level = parsed_layer.level
-
     def _construct_style_instances(self, parsed_layer, db_layer):
         for style in parsed_layer.styles:
             if not self.style_cls:
                 self.style_cls = style.get_model_class()
             db_style = self.style_cls(layer=db_layer,
-                                      **self.common_info,
                                       **style.get_field_dict())
             if style.legend_url:
                 # legend_url is optional for style entities
@@ -272,9 +239,51 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
                     **style.legend_url.mime_type.get_field_dict())
                 self.db_legend_url_list.append(self.legend_url_cls(style=db_style,
                                                                    mime_type=db_mime_type,
-                                                                   **self.common_info,
                                                                    **style.legend_url.get_field_dict()))
             self.db_style_list.append(db_style)
+
+    def _treeify(self, parsed_layer, db_service, tree_id, db_parent=None, cursor=1, level=0):
+        """
+        adapted function from
+        https://github.com/django-mptt/django-mptt/blob/7a6a54c6d2572a45ea63bd639c25507108fff3e6/mptt/managers.py#L716
+        to construct the correct layer tree
+        """
+
+        node = self.sub_element_cls(service=db_service,
+                                    parent=db_parent,
+                                    origin=MetadataOrigin.CAPABILITIES.value,
+                                    **parsed_layer.get_field_dict(),
+                                    **parsed_layer.metadata.get_field_dict())
+
+        self.db_layer_list.append(node)
+
+        setattr(node, self.layer_opts.tree_id_attr, tree_id)
+        setattr(node, self.layer_opts.level_attr, level)
+        setattr(node, self.layer_opts.left_attr, cursor)
+
+        self._get_or_create_keywords(parsed_keywords=parsed_layer.metadata.keywords,
+                                     db_object=node)
+        self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
+                                                  db_service=db_service,
+                                                  db_sub_element=node)
+        self._construct_style_instances(parsed_layer=parsed_layer,
+                                        db_layer=node)
+        self._construct_dimension_instances(parsed_layer=parsed_layer,
+                                            db_layer=node)
+        self._create_reference_system_instances(parsed_sub_element=parsed_layer,
+                                                db_sub_element=node)
+
+        for child in parsed_layer.children:
+            cursor = self._treeify(
+                parsed_layer=child,
+                db_service=db_service,
+                tree_id=tree_id,
+                db_parent=node,
+                cursor=cursor + 1,
+                level=level + 1)
+        cursor += 1
+        setattr(node, self.layer_opts.right_attr, cursor)
+        return cursor
 
     def _construct_layer_tree(self, parsed_service, db_service):
         """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
@@ -294,51 +303,25 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self.parent_lookup = {}
 
         if not self.sub_element_cls:
-            self.sub_element_cls = parsed_service.get_all_layers()[
-                0].get_model_class()
+            self.sub_element_cls = parsed_service.root_layer.get_model_class()
+            self.layer_opts = self.sub_element_cls._mptt_meta
 
         tree_id = self._get_next_tree_id(self.sub_element_cls)
+        self._treeify(
+            parsed_layer=parsed_service.root_layer,
+            db_service=db_service,
+            tree_id=tree_id,
+        )
 
-        for parsed_layer in parsed_service.get_all_layers():
-            # Note!!!: the given list must be ordered in preorder cause
-            # the following algorithm is written for preorder traversal
-            self._update_current_parent(parsed_layer=parsed_layer)
-
-            # to support bulk create for mptt model lft, rght, tree_id can't be None
-            # todo: add commoninfo attributes like created_at, last_modified_by, created_by_user, owner
-            db_layer = self.sub_element_cls(service=db_service,
-                                            parent=self.current_parent,
-                                            lft=parsed_layer.left,
-                                            rght=parsed_layer.right,
-                                            tree_id=tree_id,
-                                            level=parsed_layer.level,
-                                            origin=MetadataOrigin.CAPABILITIES.value,
-                                            **self.common_info,
-                                            **parsed_layer.get_field_dict(),
-                                            **parsed_layer.metadata.get_field_dict())
-            db_layer.node_id = parsed_layer.node_id
-            self.db_layer_list.append(db_layer)
-            self._get_or_create_keywords(parsed_keywords=parsed_layer.metadata.keywords,
-                                         db_object=db_layer)
-
-            self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
-                                                      db_service=db_service,
-                                                      db_sub_element=db_layer)
-            self._construct_style_instances(parsed_layer=parsed_layer,
-                                            db_layer=db_layer)
-            self._construct_dimension_instances(parsed_layer=parsed_layer,
-                                                db_layer=db_layer)
-
-            self._create_reference_system_instances(parsed_sub_element=parsed_layer,
-                                                    db_sub_element=db_layer)
         return tree_id
 
     def _create_wms(self, parsed_service, db_service):
         tree_id = self._construct_layer_tree(
             parsed_service=parsed_service, db_service=db_service)
 
-        db_layer_list = self.sub_element_cls.objects.bulk_create(
-            objs=self.db_layer_list)
+        db_layer_list = bulk_create_with_history(
+            objs=self.db_layer_list, model=self.sub_element_cls)
+
         # non documented function from mptt to rebuild the tree
         # todo: check if we need to rebuild if we create the tree with the correct right and left values.
         self.sub_element_cls.objects.partial_rebuild(tree_id=tree_id)
@@ -392,7 +375,6 @@ class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
         for parsed_feature_type in parsed_service.feature_types:
             db_feature_type = self.sub_element_cls(service=db_service,
                                                    origin=MetadataOrigin.CAPABILITIES.value,
-                                                   **self.common_info,
                                                    **parsed_feature_type.get_field_dict(),
                                                    **parsed_feature_type.metadata.get_field_dict())
             db_feature_type.db_output_format_list = []
@@ -413,8 +395,8 @@ class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
             self._create_reference_system_instances(parsed_sub_element=parsed_feature_type,
                                                     db_sub_element=db_feature_type)
 
-        db_feature_type_list = self.sub_element_cls.objects.bulk_create(
-            objs=db_feature_type_list)
+        db_feature_type_list = bulk_create_with_history(
+            objs=db_feature_type_list, model=self.sub_element_cls)
 
         if self.db_remote_metadata_list:
             self.remote_metadata_cls.objects.bulk_create(
@@ -447,16 +429,12 @@ class CatalougeServiceCapabilitiesManager(ServiceCapabilitiesManager):
 
 
 class FeatureTypeElementXmlManager(models.Manager):
-    common_info = {}
 
     def _reset_local_variables(self, **kwargs):
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        self.current_user = get_current_user()
-        self.common_info = {
-            "created_by_user": self.current_user,
-            "last_modified_by": self.current_user
-        }
+        if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
+            self.current_user = HistoricalRecords.context.request.user
 
     def create_from_parsed_xml(self, parsed_xml, related_object, *args, **kwargs):
         self._reset_local_variables(**kwargs)
@@ -465,24 +443,10 @@ class FeatureTypeElementXmlManager(models.Manager):
         for element in parsed_xml.elements:
             db_element_list.append(self.model(feature_type=related_object,
                                               *args,
-                                              **self.common_info,
                                               **element.get_field_dict()))
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class WebMapServiceManager(PolymorphicManager):
+class LayerManager(DefaultHistoryManager, TreeManager):
 
-    def with_meta(self):
-        return self.annotate(
-            layer_count=Coalesce(models.Count("layer"), 0),
-            keyword_count=Coalesce(models.Count("keywords"), 0),
-        )
-
-
-class WebFeatureServiceManager(PolymorphicManager):
-
-    def with_meta(self):
-        return self.annotate(
-            featuretype_count=Coalesce(models.Count("featuretype"), 0),
-            keyword_count=Coalesce(models.Count("keywords"), 0),
-        )
+    pass

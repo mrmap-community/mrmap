@@ -26,7 +26,7 @@ class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
-    model = 'registry.OperationUrl'
+
     url = xmlmap.StringField(xpath="@xlink:href")
 
     def get_field_dict(self):
@@ -43,6 +43,7 @@ class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class WmsOperationUrl(OperationUrl):
+    model = 'registry.WebMapServiceOperationUrl'
     method = xmlmap.StringField(xpath="name(..)")
     operation = xmlmap.StringField(xpath="name(../../../..)")
     mime_types = xmlmap.NodeListField(
@@ -50,6 +51,7 @@ class WmsOperationUrl(OperationUrl):
 
 
 class WfsCswOperationUrl(OperationUrl):
+    model = 'registry.WebFeatureServiceOperationUrl'
     method = xmlmap.StringField(xpath="name(.)")
     operation = xmlmap.StringField(xpath=f"../../../@{NS_WC}name']")
     mime_types = xmlmap.NodeListField(
@@ -245,10 +247,17 @@ class Dimension130(Dimension111):
 
 
 class RemoteMetadata(DBModelConverterMixin, xmlmap.XmlObject):
-    model = 'registry.RemoteMetadata'
 
     link = xmlmap.StringField(
         xpath=f"{NS_WC}OnlineResource']/@{NS_WC}href']|@{NS_WC}href']")
+
+
+class WebMapServiceRemoteMetadata(RemoteMetadata):
+    model = 'registry.WebMapServiceRemoteMetadata'
+
+
+class WebFeatureServiceRemoteMetadata(RemoteMetadata):
+    model = 'registry.WebFeatureServiceRemoteMetadata'
 
 
 class ServiceElementMetadata(DBModelConverterMixin, xmlmap.XmlObject):
@@ -285,9 +294,6 @@ class ServiceMetadata(DBModelConverterMixin, xmlmap.XmlObject):
                                     node_class=Keyword)
 
 
-EDGE_COUNTER = 0
-
-
 class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
     model = 'registry.Layer'
 
@@ -322,7 +328,7 @@ class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
     children = xmlmap.NodeListField(xpath=f"{NS_WC}Layer']", node_class="self")
     metadata = xmlmap.NodeField(xpath=".", node_class=LayerMetadata)
     remote_metadata = xmlmap.NodeListField(
-        xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
+        xpath=f"{NS_WC}MetadataURL']", node_class=WebMapServiceRemoteMetadata)
     dimensions = xmlmap.NodeListField(
         xpath=f"{NS_WC}Dimension']", node_class=Dimension111)
 
@@ -338,30 +344,6 @@ class Layer111(DBModelConverterMixin, xmlmap.XmlObject):
                 ((min_x, min_y), (min_x, max_y), (max_x, max_y), (max_x, min_y), (min_x, min_y)))
             dic.update({"bbox_lat_lon": bbox_lat_lon})
         return dic
-
-    def get_descendants(self, include_self=True, level=0):
-        global EDGE_COUNTER
-        EDGE_COUNTER += 1
-        self.left = EDGE_COUNTER
-
-        self.level = level
-
-        descendants = []
-
-        if self.children:
-            level += 1
-            for layer in self.children:
-                descendants.extend(layer.get_descendants(level=level))
-        else:
-            self.is_leaf_node = True
-
-        EDGE_COUNTER += 1
-        self.right = EDGE_COUNTER
-
-        if include_self:
-            descendants.insert(0, self)
-
-        return descendants
 
 
 class Layer110(Layer111):
@@ -385,7 +367,7 @@ class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
     identifier = xmlmap.StringField(xpath=f"{NS_WC}Name']")
     metadata = xmlmap.NodeField(xpath=".", node_class=FeatureTypeMetadata)
     remote_metadata = xmlmap.NodeListField(
-        xpath=f"{NS_WC}MetadataURL']", node_class=RemoteMetadata)
+        xpath=f"{NS_WC}MetadataURL']", node_class=WebFeatureServiceRemoteMetadata)
     bbox_lower_corner = xmlmap.StringField(
         xpath=f"{NS_WC}WGS84BoundingBox']/{NS_WC}LowerCorner']")
     bbox_upper_corner = xmlmap.StringField(
@@ -481,11 +463,6 @@ class WmsService(Service):
     operation_urls = xmlmap.NodeListField(xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP']"
                                                 f"//{NS_WC}OnlineResource']",
                                           node_class=WmsOperationUrl)
-
-    def get_all_layers(self):
-        if not self.all_layers:
-            self.all_layers = self.root_layer.get_descendants()
-        return self.all_layers
 
 
 class Wms110Service(WmsService):

@@ -3,11 +3,11 @@ from typing import OrderedDict
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from crum import get_current_request
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django_celery_results.models import TaskResult
 from rest_framework_json_api.renderers import JSONRenderer
+from simple_history.models import HistoricalRecords
 
 from notify.serializers import TaskResultSerializer
 
@@ -18,9 +18,13 @@ def update_task_result_listeners(**kwargs):
     """
     Send the information to the channel group when a TaskResult is created/modified
     """
+    if hasattr(HistoricalRecords.context, "request"):
+        request = HistoricalRecords.context.request
+    else:
+        return
     try:
         # TODO: check task_name and filter by it
-        request = get_current_request()
+
         if request and (not hasattr(request, 'query_params') or not request.query_params):
             request.query_params = OrderedDict()
         task_serializer = TaskResultSerializer(

@@ -3,12 +3,12 @@ from typing import OrderedDict
 
 from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
-from crum import set_current_request
 from django.test import Client, TransactionTestCase
 from django.utils import timezone
 from django_celery_results.models import TaskResult
 from MrMap.asgi import application
 from rest_framework.test import APIRequestFactory
+from simple_history.models import HistoricalRecords
 
 
 class SignalsTestCase(TransactionTestCase):
@@ -25,7 +25,7 @@ class SignalsTestCase(TransactionTestCase):
         dummy_request = APIRequestFactory().get(path="/api/notify/task-results/")
         dummy_request.query_params = OrderedDict()
 
-        set_current_request(dummy_request)
+        HistoricalRecords.context.request = dummy_request
 
     @sync_to_async
     def create_pending_task(self):

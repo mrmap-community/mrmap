@@ -1,3 +1,4 @@
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from django.conf import settings
@@ -9,23 +10,21 @@ from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
-from extras.models import CommonInfo, GenericModelMixin
+from extras.managers import DefaultHistoryManager
+from extras.models import HistoricalRecordMixin
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from MrMap.validators import validate_get_capablities_uri
 from ows_client.request_builder import OgcService as OgcServiceClient
-from polymorphic.managers import PolymorphicManager
-from polymorphic.models import PolymorphicModel
 from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
                                     OGCOperationEnum, OGCServiceVersionEnum)
 from registry.managers.security import (OperationUrlManager,
                                         ServiceSecurityManager)
 from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        FeatureTypeElementXmlManager,
+                                       LayerManager,
                                        WebFeatureServiceCapabilitiesManager,
-                                       WebFeatureServiceManager,
-                                       WebMapServiceCapabilitiesManager,
-                                       WebMapServiceManager)
+                                       WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
                                       ServiceMetadata)
@@ -33,6 +32,7 @@ from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from requests.auth import HTTPDigestAuth
+from simple_history.models import HistoricalRecords
 
 
 class CommonServiceInfo(models.Model):
@@ -49,7 +49,7 @@ class CommonServiceInfo(models.Model):
         abstract = True
 
 
-class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetadata, CommonServiceInfo, CommonInfo, PolymorphicModel):
+class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo):
     """ Abstract Service model to store OGC service. """
     version = models.CharField(max_length=10,
                                choices=OGCServiceVersionEnum.as_choices(),
@@ -66,14 +66,12 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
                                            help_text=_(
                                                "the capabilities url of the ogc service"),
                                            validators=[validate_get_capablities_uri])
-    objects = PolymorphicManager()
+
+    objects = DefaultHistoryManager()
     security = ServiceSecurityManager()
 
-    # todo:
-    xml_mapper_cls = None
-
-    class Meta(CommonInfo.Meta):
-        pass
+    class Meta:
+        abstract = True
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -109,8 +107,8 @@ class OgcService(CapabilitiesDocumentModelMixin, GenericModelMixin, ServiceMetad
         return session
 
 
-class WebMapService(OgcService):
-    objects = WebMapServiceManager()
+class WebMapService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     capabilities = WebMapServiceCapabilitiesManager()
 
     class Meta:
@@ -122,8 +120,8 @@ class WebMapService(OgcService):
         return self.layers.get(parent=None)
 
 
-class WebFeatureService(OgcService):
-    objects = WebFeatureServiceManager()
+class WebFeatureService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     capabilities = WebFeatureServiceCapabilitiesManager()
 
     class Meta:
@@ -131,7 +129,8 @@ class WebFeatureService(OgcService):
         verbose_name_plural = _("web feature services")
 
 
-class CatalougeService(OgcService):
+class CatalougeService(HistoricalRecordMixin, OgcService):
+    change_log = HistoricalRecords(related_name='change_logs')
     capabilities = CatalougeServiceCapabilitiesManager()
 
     class Meta:
@@ -139,7 +138,7 @@ class CatalougeService(OgcService):
         verbose_name_plural = _("catalouge services")
 
 
-class OperationUrl(CommonInfo):
+class OperationUrl(models.Model):
     """ Concrete model class to store operation urls for registered services
 
         With that urls we can perform all needed request to a given service.
@@ -161,11 +160,39 @@ class OperationUrl(CommonInfo):
     mime_types = models.ManyToManyField(to="MimeType",  # use string to avoid from circular import error
                                         blank=True,
                                         editable=False,
-                                        related_name="operation_urls",
-                                        related_query_name="operation_url",
+                                        related_name="%(class)s_operation_urls",
+                                        related_query_name="%(class)s_operation_url",
                                         verbose_name=_("internet mime type"),
                                         help_text=_("all available mime types of the remote url"))
-    service = models.ForeignKey(to=OgcService,
+    objects = models.Manager()
+    security_objects = OperationUrlManager()
+
+    class Meta:
+        abstract = True
+        constraints = [
+            models.UniqueConstraint(fields=['method', 'operation'],
+                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+        ]
+
+    def __str__(self):
+        return f"{self.pk} | {self.url} ({self.method})"
+
+    def get_url(self, request):
+        url_parsed = urlparse(self.url)
+        new_query = {}
+        for key, value in parse_qs(url_parsed.query).items():
+            new_query.update({key.upper(): value})
+        url_parsed._replace(query=new_query)
+        return url_parsed.geturl()
+        # TODO: check if service is secured and if so return the secured url
+        parsed_request_url = urlparse(request.get_full_path())
+        parsed_url = urlparse(self.url)
+        parsed_url._replace(netloc=parsed_request_url.netloc)
+        return parsed_url.geturl()
+
+
+class WebMapServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=WebMapService,
                                 on_delete=models.CASCADE,
                                 editable=False,
                                 related_name="operation_urls",
@@ -173,18 +200,28 @@ class OperationUrl(CommonInfo):
                                 verbose_name=_("related web map service"),
                                 help_text=_("the web map service for that this url can be used for."))
 
-    objects = models.Manager()
-    security_objects = OperationUrlManager()
 
-    def __str__(self):
-        return f"{self.pk} | {self.url} ({self.method})"
+class WebFeatureServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=WebFeatureService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related web feature service"),
+                                help_text=_("the web feature service for that this url can be used for."))
 
-    @property
-    def concrete_url(self):
-        return f'{reverse("registry:service_operation_view", args=[self.service_id, ])}?REQUEST={self.operation}&VERSION={self.service.service_version}'
+
+class CatalougeServiceOperationUrl(OperationUrl):
+    service = models.ForeignKey(to=CatalougeService,
+                                on_delete=models.CASCADE,
+                                editable=False,
+                                related_name="operation_urls",
+                                related_query_name="operation_url",
+                                verbose_name=_("related catalouge service"),
+                                help_text=_("the catalouge service for that this url can be used for."))
 
 
-class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonServiceInfo, CommonInfo):
+class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
     """ Abstract model class to generalize some fields and functions for layers and feature types """
     id = models.UUIDField(primary_key=True,
                           default=uuid4,
@@ -233,7 +270,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, GenericModelMixin, CommonSe
         return ""
 
 
-class Layer(LayerMetadata, ServiceElement, MPTTModel):
+class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
@@ -282,6 +319,11 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
                                   help_text=_("maximum scale for a possible request to this layer. If the request is "
                                               "out of the given scope, the service will response with empty transparent"
                                               "images. None value means no restriction."))
+    change_log = HistoricalRecords(
+        related_name='change_logs',
+        excluded_fields=['lft', 'rght', 'tree_id', 'level'])
+
+    objects = LayerManager()
 
     class Meta:
         verbose_name = _("layer")
@@ -310,7 +352,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
                 self.get_descendants().update(is_active=self.is_active)
 
     @cached_property
-    def inherit_scale_min(self) -> float:
+    def get_scale_min(self) -> float:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -328,7 +370,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
             return self.get_ancestors().exclude(scale_min=None).values_list("scale_min", flat=True).first()
 
     @cached_property
-    def inherit_scale_max(self) -> float:
+    def get_scale_max(self) -> float:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -346,7 +388,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
             return self.get_ancestors().exclude(scale_max=None).values_list("scale_max", flat=True).first()
 
     @cached_property
-    def bbox(self) -> Polygon:
+    def get_bbox(self) -> Polygon:
         """Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -366,7 +408,7 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
             return self.get_ancestors().exclude(bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True).first()
 
     @cached_property
-    def supported_reference_systems(self) -> QuerySet:
+    def get_reference_systems(self) -> QuerySet:
         """Return all supported reference systems for this layer, based on the inheritance from other layers as
         requested in the ogc specs.
 
@@ -381,12 +423,14 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
+        if self.reference_systems.exists():
+            return self.reference_systems.all()
         from registry.models import \
             ReferenceSystem  # to avoid circular import errors
-        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix", "version")
+        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct("code", "prefix")
 
     @cached_property
-    def dimensions(self) -> QuerySet:
+    def get_dimensions(self) -> QuerySet:
         """Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
         specs.
 
@@ -407,12 +451,14 @@ class Layer(LayerMetadata, ServiceElement, MPTTModel):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
+        if self.layer_dimensions.exists():
+            return self.layer_dimensions.all()
         from registry.models import \
             Dimension  # to avoid circular import errors
         return Dimension.objects.filter(layer__in=self.get_ancestors(ascending=True)).distinct("name")
 
 
-class FeatureType(FeatureTypeMetadata, ServiceElement):
+class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     """Concrete model class to store parsed FeatureType.
 
     :attr objects: custom models manager :class:`registry.managers.service.FeatureTypeManager`
@@ -440,6 +486,7 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                           "describe feature type"),
                                                       help_text=_("the fetched content of the download describe feature"
                                                                   " type document."))
+    change_log = HistoricalRecords(related_name='change_logs')
 
     class Meta:
         verbose_name = _("feature type")
@@ -505,7 +552,7 @@ class FeatureType(FeatureTypeMetadata, ServiceElement):
                                                                      related_object=self)
 
 
-class FeatureTypeElement(CommonInfo):
+class FeatureTypeElement(models.Model):
     max_occurs = models.IntegerField(default=1)
     min_occurs = models.IntegerField(default=0)
     name = models.CharField(max_length=255)

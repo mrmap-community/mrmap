@@ -5,7 +5,6 @@ from django.db import models
 from django.db.models import QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from extras.models import CommonInfo
 
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import assign_perm, get_objects_for_group, remove_perm
@@ -79,7 +78,7 @@ class Contact(models.Model):
         )
 
 
-class Organization(Group, CommonInfo, Contact):
+class Organization(Group, Contact):
     """
     A organization represents a real life organization like a authority, company etc. The name of the organization can
     be null to store bad quality metadata as well.
@@ -93,7 +92,7 @@ class Organization(Group, CommonInfo, Contact):
         help_text=_("Describe what this organization representing"),
     )
 
-    class Meta(CommonInfo.Meta):
+    class Meta:
         # define default ordering for this model. This is needed for django tables2 ordering. If we use just the
         # foreignkey as column accessor the ordering will be done by the primary key. To avoid this we need to define
         # the right default way here...
@@ -139,7 +138,7 @@ class Organization(Group, CommonInfo, Contact):
             raise TypeError('given publisher is not from type Organization')
 
 
-class BaseInternalRequest(CommonInfo):
+class BaseInternalRequest(models.Model):
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(null=True, blank=True)
 
@@ -176,7 +175,7 @@ class PublishRequest(BaseInternalRequest):
     is_accepted = models.BooleanField(
         verbose_name=_("accepted"), default=False)
 
-    class Meta(CommonInfo.Meta):
+    class Meta:
         # It shall be restricted to create multiple requests objects for the same organization per group. This unique
         # constraint will also raise a form error if a user trays to add duplicates.
         unique_together = (

@@ -7,6 +7,7 @@ from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
                               OuterRef, Q, QuerySet)
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
+from django.http import HttpRequest
 from ows_client.request_builder import WebService, WfsService, WmsService
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
@@ -14,35 +15,29 @@ from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 class AllowedOperationManager(models.Manager):
 
-    def filter_qs_by_secured_element(self, qs, request):
+    def filter_qs_by_secured_element(self, qs: QuerySet, request: HttpRequest) -> QuerySet:
         dummy_service = WebService.manufacture_service(request.get_full_path())
         if isinstance(dummy_service, WmsService):
             layer_identifiers = dummy_service.get_requested_layers(
                 query_params=request.query_parameters)
-            qs.filter(
-                secured_layers__identifier__iregex=r'(' +
-                '|'.join(layer_identifiers) + ')'
-            )
+            qs = qs.filter(secured_layers__identifier__iregex=r'%s' % f"({'|'.join(layer_identifiers)})")
         elif isinstance(dummy_service, WfsService):
             feature_type_identifiers = dummy_service.get_requested_feature_types(query_params=request.query_parameters,
                                                                                  post_body=request.body)
-            qs.filter(
-                secured_feature_types__identifier__iregex=r'(' + '|'.join(
-                    feature_type_identifiers) + ')'
-            )
+            qs = qs.filter(secured_feature_types__identifier__iregex=r'%s' % f"({'|'.join(feature_type_identifiers)})")
         return qs
-
-    def find_all_allowed_areas_by_request(self, request) -> QuerySet:
-        # todo: filter also by requesting user; otherwise allowed operations without user restriction will returned
-        qs = self.get_queryset().filter(
+    
+    def find_all_allowed_areas_by_request(self, request: HttpRequest) -> QuerySet:
+        # TODO: filter also by requesting user; otherwise allowed operations without user restriction will returned
+        qs = self.filter(
             secured_service__pk=OuterRef('pk'),
             allowed_area__isnull=False
         )
         qs = self.filter_qs_by_secured_element(qs=qs, request=request)
         return qs
 
-    def find_all_empty_allowed_areas_by_request(self, request) -> QuerySet:
-        # todo: filter also by requesting user; otherwise allowed operations without user restriction will returned
+    def find_all_empty_allowed_areas_by_request(self, request: HttpRequest) -> QuerySet:
+        # TODO: filter also by requesting user; otherwise allowed operations without user restriction will returned
         qs = self.get_queryset().filter(
             secured_service__pk=OuterRef('pk'),
             allowed_area__isnull=True
@@ -55,40 +50,37 @@ class AllowedOperationManager(models.Manager):
             secured_service__pk=OuterRef('pk')
         ))
 
-    def is_spatial_secured(self, request):
+    def is_spatial_secured(self, request: HttpRequest):
         return ExpressionWrapper(Exists(self.find_all_allowed_areas_by_request(request=request)) and
                                  ~Exists(self.find_all_empty_allowed_areas_by_request(
                                      request=request)),
                                  output_field=BooleanField())
 
-    def is_spatial_secured_and_covers(self, request) -> Exists:
+    def is_spatial_secured_and_covers(self, request: HttpRequest) -> Exists:
         return Exists(self.get_queryset().filter(
             secured_service__pk=OuterRef('pk'),
             allowed_area__covers=request.bbox
         ))
 
-    def is_spatial_secured_and_intersects(self, request) -> Exists:
+    def is_spatial_secured_and_intersects(self, request: HttpRequest) -> Exists:
         return Exists(self.get_queryset().filter(
             secured_service__pk=OuterRef('pk'),
             allowed_area__intersects=request.bbox
         ))
 
-    def is_user_entitled(self, request) -> Exists:
-        anonymous_user_groups_subquery = Group.objects \
-            .filter(user=get_user_model().objects.get(username="AnonymousUser")) \
-            .values_list("pk", flat=True)
+    def is_user_entitled(self, request: HttpRequest) -> Exists:
+        """checks if the user of the request is member of any AllowedOperation object"""
+        anonymous_user_groups_subquery = Group.objects.filter(user=get_user_model().objects.get(username="AnonymousUser")).values_list("pk", flat=True)
         user_groups_subquery = request.user.groups.values_list("pk", flat=True)
         user_is_principle_entitled_subquery = self.get_queryset().filter(
             secured_service__pk=OuterRef('pk'),
             allowed_groups__pk__in=user_groups_subquery | anonymous_user_groups_subquery,
-            operations__operation__iexact=request.query_parameters.get(
-                "request")
+            operations__operation__iexact=request.query_parameters.get("request")
         )
         return Exists(user_is_principle_entitled_subquery)
 
-    def allowed_area_union(self, request) -> Union:
-        return Union(self.find_all_allowed_areas_by_request(request=request).distinct("pk").values_list("allowed_area",
-                                                                                                        flat=True))
+    def allowed_area_union(self, request: HttpRequest) -> Union:
+        return Union(self.find_all_allowed_areas_by_request(request=request).distinct("pk").values_list("allowed_area", flat=True))
 
 
 class OperationUrlManager(models.Manager):

@@ -10,14 +10,15 @@ def before_scenario(context, scenario):
     context.query_params = {}
     context.patchers = []
 
-    # basicly there are users, groups and keywords
-    context.fixtures = ['test_users.json', 'test_keywords.json']
+    # basicly there are users and groups
+    context.fixtures = ['test_users.json']
 
     if 'MapContext' in scenario.feature.name:
-        context.fixtures.append('test_mapcontext.json')
+        context.fixtures.extend(['test_keywords.json', 'test_mapcontext.json'])
     elif 'DatasetMetadata' in scenario.feature.name:
-        context.fixtures.append('test_datasetmetadata.json')
-
+        context.fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
+    elif 'AllowedWebMapServiceOperation' in scenario.feature.name:
+        context.fixtures.extend(['test_wms.json'])
 
 def after_scenario(context, scenario):
     for patcher in context.patchers:

@@ -3,6 +3,7 @@ from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
+from registry.views import security as security_views
 from registry.views import service as service_views
 
 app_name = 'registry'
@@ -39,6 +40,9 @@ router = ExtendedSimpleRouter()
     router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata'),
     router.register(r'metadata-contacts', metadata_views.MetadataContactViewSet, basename='metadatacontact'),
+
+    # security
+    router.register(r'security/allowed-wms-operations', security_views.AllowedWebMapServiceOperationViewSet, basename='allowedoperation')
 
 )
 

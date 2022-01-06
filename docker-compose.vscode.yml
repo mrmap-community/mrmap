@@ -15,6 +15,10 @@ services:
     # entrypoint: >
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
     #   /opt/mrmap/manage.py loaddata test_users"
+    entrypoint: >
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
+      /opt/mrmap/manage.py dumpdata --natural-foreign --natural-primary registry
+      > fixture.json"
     command: >
       /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
       /opt/mrmap/manage.py runserver 0.0.0.0:8001"
@@ -51,7 +55,7 @@ services:
     command: >
       /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage
       run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave --noinput
-      --tags=-skip --no-skipped tests/behave/api/features && python -m coverage
+      --tags=qwertz --no-skipped tests/behave/api/features && python -m coverage
       xml -i -o /opt/mrmap/acceptance-tests-coverage-report.xml"
     ports:
       - "0.0.0.0:3004:5678"

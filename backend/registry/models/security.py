@@ -169,6 +169,7 @@ class WebMapServiceOperation(models.Model):
                                  choices=SecureableWMSOperationEnum.as_choices())
 
 
+
 class WebFeatureServiceOperation(models.Model):
     operation = models.CharField(primary_key=True,
                                  max_length=30,
@@ -188,10 +189,10 @@ class AllowedOperation(models.Model):
                        :class:`~AllowedOperation` instances.
 
     One allowed operation is a configuration to allow
-        * a set of :class:`registry.models.security.ServiceAccessGroup`
+        * a set of :class:`django.contrib.auth.models.Group`
         * to access a set of :class:`registry.models.service.Layer` or :class:`registry.models.FeatureType`
         * for one configured :class:`registry.models.service.Service`
-        * limited by the configured :class:`registry.models.security.OGCOperation`
+        * limited by the configured :class:`registry.models.security.WebMapServiceOperation` or :class:`registry.models.security.WebFeatureServiceOperation`
         * and (optional) limited by a configured :class:`django.contrib.gis.geos.MultiPolygon`
 
     .. warning::
@@ -218,23 +219,6 @@ class AllowedOperation(models.Model):
     def __str__(self):
         return f"AllowedOperation ({self.pk}) for service {self.secured_service_id}"
 
-    def save(self, *args, **kwargs):
-        """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.
-        IF there is a related :class:`registry.models.security.ProxySetting` instance, the
-        :attr:`.ProxySetting.camouflage` attribute is updated to the value ``True``
-        ELSE we create a new :class:`registry.models.security.ProxySetting` instance with the initial
-        ``camouflage=True`` attribute.
-
-        """
-        super().save(*args, **kwargs)
-        # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
-        # does NOT call save() or triggers signals
-        proxy_setting = ProxySetting.objects.filter(
-            secured_service=self.secured_service).update(camouflage=True)
-        if proxy_setting == 0:
-            ProxySetting.objects.create(
-                secured_service=self.secured_service, camouflage=True)
-
 
 class AllowedWebMapServiceOperation(AllowedOperation):
     operations = models.ManyToManyField(to=WebMapServiceOperation,
@@ -252,6 +236,31 @@ class AllowedWebMapServiceOperation(AllowedOperation):
                                             verbose_name=_("secured layers"),
                                             help_text=_("Select one or more layers. Note that all sub layers of a "
                                                         "selected layer will also be secured."), )
+    class Meta:
+        pass
+        # TODO: only complete subtrees shall be part of the m2m secured_layers field
+        # constraints = {
+        #     models.CheckConstraint(
+        #         name="%(app_label)s_%(class)s_log_response_without_camouflage",
+        #         check=Q(camouflage=True, log_response=True) | Q(
+        #             camouflage=True, log_response=False) | Q(camouflage=False, log_response=False)
+        #     ),
+        # }
+
+    def save(self, *args, **kwargs):
+        """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.
+        IF there is a related :class:`registry.models.security.ProxySetting` instance, the
+        :attr:`.ProxySetting.camouflage` attribute is updated to the value ``True``
+        ELSE we create a new :class:`registry.models.security.ProxySetting` instance with the initial
+        ``camouflage=True`` attribute.
+
+        """
+        super().save(*args, **kwargs)
+        # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
+        # does NOT call save() or triggers signals
+        proxy_setting = WebMapServiceProxySetting.objects.filter(secured_service=self.secured_service).update(camouflage=True)
+        if proxy_setting == 0:
+            WebMapServiceProxySetting.objects.create(secured_service=self.secured_service, camouflage=True)
 
 
 class AllowedWebFeatureServiceOperation(AllowedOperation):
@@ -270,6 +279,21 @@ class AllowedWebFeatureServiceOperation(AllowedOperation):
                                                    verbose_name=_(
                                                        "secured feature types"),
                                                    help_text=_("Select one or more feature types."))
+
+    def save(self, *args, **kwargs):
+        """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.
+        IF there is a related :class:`registry.models.security.ProxySetting` instance, the
+        :attr:`.ProxySetting.camouflage` attribute is updated to the value ``True``
+        ELSE we create a new :class:`registry.models.security.ProxySetting` instance with the initial
+        ``camouflage=True`` attribute.
+
+        """
+        super().save(*args, **kwargs)
+        # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
+        # does NOT call save() or triggers signals
+        proxy_setting = WebFeatureServiceProxySetting.objects.filter(secured_service=self.secured_service).update(camouflage=True)
+        if proxy_setting == 0:
+            WebFeatureServiceProxySetting.objects.create(secured_service=self.secured_service, camouflage=True)
 
 
 class ProxySetting(models.Model):

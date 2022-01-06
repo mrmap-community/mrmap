@@ -28,13 +28,11 @@ class OGCServiceEnum(EnumChoice):
 
 
 class SecureableWMSOperationEnum(EnumChoice):
-    GET_CAPABILITIES = "GetCapabilities"
     GET_MAP = "GetMap"
     GET_FEATURE_INFO = "GetFeatureInfo"
 
 
 class SecureableWFSOperationEnum(EnumChoice):
-    GET_CAPABILITIES = "GetCapabilities"
     GET_FEATURE = "GetFeature"
 
 

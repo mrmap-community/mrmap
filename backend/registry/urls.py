@@ -5,6 +5,7 @@ from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import security as security_views
 from registry.views import service as service_views
+from registry.views_ows import security_proxy as security_proxy_views
 
 app_name = 'registry'
 
@@ -61,3 +62,4 @@ urlpatterns.extend([
     path('mapcontexts/<pk>relationships/<related_field>', mapcontext_views.MapContextRelationshipView.as_view(), name='mapcontext-relationships'),
     path('mapcontextlayers/<pk>relationships/<related_field>', mapcontext_views.MapContextLayerRelationshipView.as_view(), name='mapcontextlayer-relationships')
 ])
+

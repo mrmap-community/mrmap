@@ -23,7 +23,7 @@ from ows_client.exception_reports import (MULTIPLE_FEATURE_TYPES,
                                           NO_FEATURE_TYPES)
 from ows_client.exceptions import (MissingBboxParam, MissingServiceParam,
                                    MissingVersionParam)
-from ows_client.request_builder import WebService
+from ows_client.request_builder import WebService, WmsService
 from PIL import Image, ImageDraw, ImageFont
 from registry.enums.service import OGCOperationEnum, OGCServiceEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
@@ -59,9 +59,11 @@ class GenericOwsServiceOperationFacade(View):
         """Setup all basically needed attributes of this class."""
         super().setup(request=request, *args, **kwargs)
         self.start_time = datetime.datetime.now()
-        request.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
+        request.query_parameters = {
+            k.lower(): v for k, v in self.request.GET.items()}
         try:
-            request.bbox = WebService.construct_polygon_from_bbox_query_param(get_dict=request.query_parameters)
+            request.bbox = WmsService.construct_polygon_from_bbox_query_param(
+                get_dict=request.query_parameters)
         except (MissingBboxParam, MissingServiceParam):
             request.bbox = GEOSGeometry('POLYGON EMPTY')
 
@@ -71,7 +73,8 @@ class GenericOwsServiceOperationFacade(View):
         elif request.query_parameters.get("service").lower() == OGCServiceEnum.WFS.value:
             service_cls = WebFeatureService
 
-        self.service = service_cls.security.construct_service(pk=self.kwargs.get("pk"), request=request)
+        self.service = service_cls.security.get_with_security_info(
+            pk=self.kwargs.get("pk"), request=request)
 
         if self.service:
             try:
@@ -133,7 +136,7 @@ class GenericOwsServiceOperationFacade(View):
         elif not self.service.is_secured or not self.service.is_spatial_secured and self.service.user_is_principle_entitled:
             return self.return_http_response(response=self.get_remote_response())
         elif self.service.is_spatial_secured and self.service.user_is_principle_entitled:
-            return self.get_secured_response()
+            return self.handle_secured_wms()
         else:
             return self.return_http_response({"status_code": 403,
                                               "content": "User has no permissions to request this service."})
@@ -148,7 +151,8 @@ class GenericOwsServiceOperationFacade(View):
         # todo: handle different service versions
         capabilities = self.service.document.xml
         if self.service.camouflage:
-            capabilities = self.service.document.xml_secured(request=self.request)
+            capabilities = self.service.document.xml_secured(
+                request=self.request)
         return HttpResponse(status=200,
                             content=capabilities,
                             content_type="application/xml")
@@ -160,7 +164,8 @@ class GenericOwsServiceOperationFacade(View):
              secured_image (Image)
         """
         masks = []
-        get_params = self.remote_service.get_get_params(query_params=self.request.query_parameters)
+        get_params = self.remote_service.get_get_params(
+            query_params=self.request.query_parameters)
         width = int(get_params.get(self.remote_service.WIDTH_QP))
         height = int(get_params.get(self.remote_service.HEIGHT_QP))
         try:
@@ -223,13 +228,15 @@ class GenericOwsServiceOperationFacade(View):
         Returns:
              text_img (Image): The image containing text
         """
-        get_params = self.remote_service.get_get_params(query_params=self.request.query_parameters)
+        get_params = self.remote_service.get_get_params(
+            query_params=self.request.query_parameters)
         width = int(get_params.get(self.remote_service.WIDTH_QP))
         text_img = Image.new("RGBA", (width, int(h)), (255, 255, 255, 0))
         draw = ImageDraw.Draw(text_img)
         font_size = int(h * settings.FONT_IMG_RATIO)
 
-        font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
         draw.text((0, 0), txt, (0, 0, 0), font=font)
 
         return text_img
@@ -246,7 +253,8 @@ class GenericOwsServiceOperationFacade(View):
             # Transform byte-image to PIL-image object
             img = Image.open(io.BytesIO(img))
         except OSError:
-            raise Exception("Could not create image! Content was:\n {}".format(img))
+            raise Exception(
+                "Could not create image! Content was:\n {}".format(img))
         try:
             # Create an alpha layer, which is needed for the compositing of image and mask
             alpha_layer = Image.new("RGBA", img.size, (255, 0, 0, 0))
@@ -262,7 +270,8 @@ class GenericOwsServiceOperationFacade(View):
                     mask = Image.open(io.BytesIO(mask))
 
                 # Check if the mask is fine or indicates an error
-                is_error_mask = mask.getpixel((0, 0))[0] == settings.ERROR_MASK_VAL
+                is_error_mask = mask.getpixel(
+                    (0, 0))[0] == settings.ERROR_MASK_VAL
                 if is_error_mask:
                     # Create full-masking mask and create an access_denied_img
                     mask = Image.new("RGB", img.size, (255, 255, 255))
@@ -270,7 +279,8 @@ class GenericOwsServiceOperationFacade(View):
                                                                           settings.ERROR_MASK_TXT)
 
         except OSError:
-            raise Exception("Could not create image! Content was:\n {}".format(mask))
+            raise Exception(
+                "Could not create image! Content was:\n {}".format(mask))
 
         # Make sure mask is in grayscale and has the exact same size as the requested image
         mask = mask.convert("L").resize(img.size)
@@ -331,7 +341,7 @@ class GenericOwsServiceOperationFacade(View):
             :rtype: dict
         """
         if not self.service.is_spatial_secured_and_intersects:
-            # todo: return transparent image
+            # TODO: return transparent image
             return self.return_http_response({"status_code": 403,
                                               "content": "User has no permissions to access the requested area."})
         # we fetch the map image as it is and mask it, using our secured operations geometry.
@@ -362,7 +372,8 @@ class GenericOwsServiceOperationFacade(View):
                 mask = result
         if isinstance(remote_response, dict):
             return self.return_http_response(response=remote_response)
-        secured_image = self._create_masked_image(remote_response.content, mask)
+        secured_image = self._create_masked_image(
+            remote_response.content, mask)
         return self.return_http_response(response={"status_code": 200,
                                                    "reason": remote_response.reason,
                                                    "elapsed": remote_response.elapsed,
@@ -373,7 +384,8 @@ class GenericOwsServiceOperationFacade(View):
 
     def handle_get_feature_info_with_multithreading(self):
         """We use multithreading to send two requests at the same time to speed up the response time."""
-        request = self.remote_service.construct_request(query_params=self.request.GET)
+        request = self.remote_service.construct_request(
+            query_params=self.request.GET)
         thread_list = []
         results = Queue()
         xml_request = copy.deepcopy(request)
@@ -417,7 +429,8 @@ class GenericOwsServiceOperationFacade(View):
             return self.return_http_response(response=self.get_remote_response())
         else:
             try:
-                request = self.remote_service.construct_request(query_params=self.request.GET)
+                request = self.remote_service.construct_request(
+                    query_params=self.request.GET)
                 if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
                     xml_response, requested_response = self.handle_get_feature_info_with_multithreading()
                 else:
@@ -427,7 +440,8 @@ class GenericOwsServiceOperationFacade(View):
                                                                        xmlclass=FeatureCollection)
                 # FIXME: depends on xml wfs version not on the registered service version
                 axis_order_correction = True if self.service.major_service_version >= 2 else False
-                polygon = feature_collection.bounded_by.get_geometry(axis_order_correction)
+                polygon = feature_collection.bounded_by.get_geometry(
+                    axis_order_correction)
                 for pk, allowed_area in self.service.allowed_areas:
                     if allowed_area.contains(polygon.convex_hull):
                         return self.return_http_response(response=requested_response)
@@ -464,8 +478,10 @@ class GenericOwsServiceOperationFacade(View):
             # there where no filter xml we can parse and secure, so we try to handle the request in any case like a get
             if not self.request.bbox.empty:
                 if self.request.bbox.srid != self.service.allowed_area_united.srid:
-                    self.request.bbox.transform(ct=self.service.allowed_area_united.srid)
-                allowed_area = self.request.bbox.intersection(self.service.allowed_area_united)
+                    self.request.bbox.transform(
+                        ct=self.service.allowed_area_united.srid)
+                allowed_area = self.request.bbox.intersection(
+                    self.service.allowed_area_united)
                 if allowed_area.empty:
                     # todo: return empty FeatureCollection
                     return self.return_http_response(response={"status_code": 403,
@@ -476,7 +492,8 @@ class GenericOwsServiceOperationFacade(View):
 
             if hasattr(allowed_area, "ogr"):
                 allowed_area = allowed_area.ogr
-            type_names = self.request.query_parameters.get(self.remote_service.TYPE_NAME_QP.lower(), None)
+            type_names = self.request.query_parameters.get(
+                self.remote_service.TYPE_NAME_QP.lower(), None)
             if not type_names:
                 return self.return_http_response(response=NO_FEATURE_TYPES)
             elif len(type_names.split(" ")) > 1:
@@ -528,9 +545,11 @@ class GenericOwsServiceOperationFacade(View):
                                                            "content": "To many feature types at once."})
             for feature_type in transaction_xml.operation.feature_types:
                 if feature_type.element.geom:
-                    geometry = feature_type.element.geom.get_geometry(axis_order_correction=axis_order_correction)
+                    geometry = feature_type.element.geom.get_geometry(
+                        axis_order_correction=axis_order_correction)
                     if geometry.srid != self.service.allowed_area_united.srid:
-                        geometry.transform(ct=self.service.allowed_area_united.srid)
+                        geometry.transform(
+                            ct=self.service.allowed_area_united.srid)
                     if not self.service.allowed_area_united.covers(geometry):
                         return self.return_http_response(response={"status_code": 403,
                                                                    "content": "Some geometries are outside the allowed area."})
@@ -586,7 +605,8 @@ class GenericOwsServiceOperationFacade(View):
                    error occurs.
         """
         if not request:
-            request = self.remote_service.construct_request(query_params=self.request.GET)
+            request = self.remote_service.construct_request(
+                query_params=self.request.GET)
         if hasattr(self.service, "external_authentication"):
             request.auth = self.service.external_authentication.get_auth_for_request()
         s = Session()
@@ -639,9 +659,12 @@ class GenericOwsServiceOperationFacade(View):
                     request_log.save()
                 if isinstance(response, dict):
                     response_log = HttpResponseLog(status_code=response.get("status_code"),
-                                                   reason=response.get("reason"),
-                                                   elapsed=response.get("elapsed"),
-                                                   headers=response.get("headers"),
+                                                   reason=response.get(
+                                                       "reason"),
+                                                   elapsed=response.get(
+                                                       "elapsed"),
+                                                   headers=response.get(
+                                                       "headers"),
                                                    url=response.get("url"),
                                                    request=request_log)
                     if response.get("content", None):
@@ -657,7 +680,8 @@ class GenericOwsServiceOperationFacade(View):
                     response_log = HttpResponseLog(status_code=response.status_code,
                                                    reason=response.reason,
                                                    elapsed=response.elapsed,
-                                                   headers=dict(response.headers),
+                                                   headers=dict(
+                                                       response.headers),
                                                    url=response.url,
                                                    request=request_log)
                     if response.content:
@@ -688,7 +712,8 @@ class GenericOwsServiceOperationFacade(View):
             content = response.content
             status_code = response.status_code
             content_type = response.headers.get("content-type")
-            content_disposition = response.headers.get("content-disposition", None)
+            content_disposition = response.headers.get(
+                "content-disposition", None)
             content_encoding = response.headers.get("content-encoding", None)
             if content_disposition:
                 headers.update({"Content-Disposition": content_disposition})
@@ -704,7 +729,8 @@ class GenericOwsServiceOperationFacade(View):
         if len(content) >= 5000000:
             # data too big - we should stream it!
             computed_response = StreamingHttpResponse(status=status_code,
-                                                      streaming_content=BytesIO(content),
+                                                      streaming_content=BytesIO(
+                                                          content),
                                                       content_type=content_type,
                                                       headers=headers)
         else:

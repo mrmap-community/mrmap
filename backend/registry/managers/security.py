@@ -1,168 +1,200 @@
+from typing import Any
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
+from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
                               OuterRef, Q, QuerySet)
 from django.db.models import Value as V
+from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
+from django.db.models.query import Prefetch
 from django.http import HttpRequest
 from ows_client.request_builder import WebService, WfsService, WmsService
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
-class AllowedOperationManager(models.Manager):
+class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
 
-    def filter_qs_by_secured_element(self, qs: QuerySet, request: HttpRequest) -> QuerySet:
-        dummy_service = WebService.manufacture_service(request.get_full_path())
-        if isinstance(dummy_service, WmsService):
-            layer_identifiers = dummy_service.get_requested_layers(
-                query_params=request.query_parameters)
-            qs = qs.filter(secured_layers__identifier__iregex=r'%s' % f"({'|'.join(layer_identifiers)})")
-        elif isinstance(dummy_service, WfsService):
-            feature_type_identifiers = dummy_service.get_requested_feature_types(query_params=request.query_parameters,
-                                                                                 post_body=request.body)
-            qs = qs.filter(secured_feature_types__identifier__iregex=r'%s' % f"({'|'.join(feature_type_identifiers)})")
-        return qs
-    
-    def find_all_allowed_areas_by_request(self, request: HttpRequest) -> QuerySet:
+    def __init__(self, service_pk, request: HttpRequest, *args, **kwargs) -> None:
+        self.service_pk = service_pk
+        self.request = request
+        super().__init__(*args, **kwargs)
+
+    def filter_qs_by_secured_element(self) -> QuerySet:
+        dummy_service = WebService.manufacture_service(
+            self.request.get_full_path())
+        layer_identifiers = dummy_service.get_requested_layers(
+            query_params=self.request.query_parameters)
+        return self.filter(secured_layers__identifier__iregex=r'%s' %
+                           f"({'|'.join(layer_identifiers)})")
+
+    def find_all_allowed_areas_by_request(self) -> QuerySet:
         # TODO: filter also by requesting user; otherwise allowed operations without user restriction will returned
-        qs = self.filter(
-            secured_service__pk=OuterRef('pk'),
+        return self.filter(
+            secured_service__pk=self.service_pk,
             allowed_area__isnull=False
-        )
-        qs = self.filter_qs_by_secured_element(qs=qs, request=request)
-        return qs
+        ).filter_qs_by_secured_element()
 
-    def find_all_empty_allowed_areas_by_request(self, request: HttpRequest) -> QuerySet:
+    def find_all_empty_allowed_areas_by_request(self) -> QuerySet:
         # TODO: filter also by requesting user; otherwise allowed operations without user restriction will returned
-        qs = self.get_queryset().filter(
-            secured_service__pk=OuterRef('pk'),
+        return self.filter(
+            secured_service__pk=self.service_pk,
             allowed_area__isnull=True
-        )
-        qs = self.filter_qs_by_secured_element(qs=qs, request=request)
-        return qs
+        ).filter_qs_by_secured_element()
+
+    def is_spatial_secured_and_intersects(self, geom: GEOSGeometry) -> Exists:
+        return Exists(self.filter(
+            secured_service__pk=self.service_pk,
+            allowed_area__intersects=geom
+        ))
 
     def is_service_secured(self) -> Exists:
-        return Exists(self.get_queryset().filter(
-            secured_service__pk=OuterRef('pk')
+        return Exists(self.filter(
+            secured_service__pk=self.service_pk
         ))
 
-    def is_spatial_secured(self, request: HttpRequest):
-        return ExpressionWrapper(Exists(self.find_all_allowed_areas_by_request(request=request)) and
-                                 ~Exists(self.find_all_empty_allowed_areas_by_request(
-                                     request=request)),
+    def is_spatial_secured(self):
+        return ExpressionWrapper(Exists(self.find_all_allowed_areas_by_request()) and
+                                 ~Exists(
+                                     self.find_all_empty_allowed_areas_by_request()),
                                  output_field=BooleanField())
 
-    def is_spatial_secured_and_covers(self, request: HttpRequest) -> Exists:
+    def is_spatial_secured_and_covers(self) -> Exists:
         return Exists(self.get_queryset().filter(
-            secured_service__pk=OuterRef('pk'),
-            allowed_area__covers=request.bbox
+            secured_service__pk=self.service_pk,
+            allowed_area__covers=self.request.bbox
         ))
 
-    def is_spatial_secured_and_intersects(self, request: HttpRequest) -> Exists:
+    def is_spatial_secured_and_intersects(self) -> Exists:
         return Exists(self.get_queryset().filter(
-            secured_service__pk=OuterRef('pk'),
-            allowed_area__intersects=request.bbox
+            secured_service__pk=self.service_pk,
+            allowed_area__intersects=self.request.bbox
         ))
 
-    def is_user_entitled(self, request: HttpRequest) -> Exists:
+    def is_user_entitled(self) -> Exists:
         """checks if the user of the request is member of any AllowedOperation object"""
-        anonymous_user_groups_subquery = Group.objects.filter(user=get_user_model().objects.get(username="AnonymousUser")).values_list("pk", flat=True)
-        user_groups_subquery = request.user.groups.values_list("pk", flat=True)
-        user_is_principle_entitled_subquery = self.get_queryset().filter(
-            secured_service__pk=OuterRef('pk'),
+        if self.request.user.is_superuser:
+            return Value(True)
+        anonymous_user_groups_subquery = Group.objects.filter(user=get_user_model(
+        ).objects.get(username="AnonymousUser")).values_list("pk", flat=True)
+        user_groups_subquery = self.request.user.groups.values_list(
+            "pk", flat=True)
+        user_is_principle_entitled_subquery = self.filter(
+            secured_service__pk=self.service_pk,
             allowed_groups__pk__in=user_groups_subquery | anonymous_user_groups_subquery,
-            operations__operation__iexact=request.query_parameters.get("request")
+            operations__operation__iexact=self.request.query_parameters.get(
+                "request")
         )
         return Exists(user_is_principle_entitled_subquery)
 
-    def allowed_area_union(self, request: HttpRequest) -> Union:
-        return Union(self.find_all_allowed_areas_by_request(request=request).distinct("pk").values_list("allowed_area", flat=True))
+    def allowed_area_union(self) -> Union:
+        return Union(self.find_all_allowed_areas_by_request().distinct("pk").values_list("allowed_area", flat=True))
 
 
-class OperationUrlManager(models.Manager):
+class WebMapServiceOperationUrlQuerySet(models.QuerySet):
 
-    def get_base_url(self, request) -> str:
-        return self.get_queryset().filter(
-            service=OuterRef('pk'),
+    def __init__(self, service_pk, request: HttpRequest, *args, **kwargs) -> None:
+        self.service_pk = service_pk
+        self.request = request
+        super().__init__(*args, **kwargs)
+
+    def get_base_url(self) -> str:
+        return self.filter(
+            service=self.service_pk,
             method=HttpMethodEnum.GET.value,
-            operation__iexact=request.query_parameters.get("request")
+            operation__iexact=self.request.query_parameters.get("request")
         ).values_list('url', flat=True)[:1]
 
     def get_fallback_url(self) -> str:
         return self.get_queryset().filter(
-            service=OuterRef('pk'),
+            service=self.service_pk,
             method=HttpMethodEnum.GET.value,
         ).values_list('url', flat=True)[:1]
 
 
-class ServiceSecurityManager(models.Manager):
+class WebMapServiceSecurityManager(models.Manager):
 
-    def _collect_data_for_security_facade(self, request) -> QuerySet:
+    def get_allowed_operation_qs(self, service_pk) -> QuerySet:
         from registry.models.security import \
-            AllowedOperation  # to avoid circular import
+            AllowedWebMapServiceOperation  # to avoid circular import
+
+        # TODO: pass service pk
+        return AllowedWebMapServiceOperationQuerySet(service_pk=service_pk, model=AllowedWebMapServiceOperation, using=self._db)
+
+    def get_operation_url_qs(self, service_pk) -> QuerySet:
         from registry.models.service import \
-            OperationUrl  # to avoid circular import
+            WebMapServiceOperationUrl  # to avoid circular import
+
+        # TODO: pass service pk
+        return WebMapServiceOperationUrlQuerySet(service_pk=service_pk, model=WebMapServiceOperationUrl, using=self._db)
+
+    def prepare_with_security_info(self, request: HttpRequest) -> QuerySet:
         if request.query_parameters.get("request").lower() == OGCOperationEnum.GET_CAPABILITIES.value.lower():
-            return super().get_queryset().select_related("document") \
+            return self.get_queryset() \
                 .annotate(camouflage=Coalesce(F("proxy_setting__camouflage"), V(False)),
-                          base_operation_url=OperationUrl.security_objects.get_base_url(
+                          base_operation_url=self.get_operation_url_qs().get_base_url(
                               request=request),
-                          unknown_operation_url=OperationUrl.security_objects.get_fallback_url())
+                          unknown_operation_url=self.get_operation_url_qs().get_fallback_url())
         elif request.query_parameters.get("request").lower() not in SECURE_ABLE_OPERATIONS_LOWER:
-            return super().get_queryset() \
+            return self.get_queryset() \
                 .annotate(log_response=Coalesce(F("proxy_setting__log_response"), V(False)),
-                          base_operation_url=OperationUrl.security_objects.get_base_url(
+                          base_operation_url=self.get_operation_url_qs().get_base_url(
                               request=request),
-                          unknown_operation_url=OperationUrl.security_objects.get_fallback_url())
+                          unknown_operation_url=self.get_operation_url_qs().get_fallback_url())
         else:
-            return super().get_queryset().select_related(
-                "document",
-                "service_type",
-                "external_authentication", ) \
+            return self.get_queryset().select_related("auth",) \
                 .annotate(camouflage=Coalesce(F("proxy_setting__camouflage"), V(False)),
                           log_response=Coalesce(
                               F("proxy_setting__log_response"), V(False)),
-                          is_spatial_secured=AllowedOperation.objects.is_spatial_secured(
+                          is_spatial_secured=self.get_allowed_operation_qs(service_pk=OuterRef('pk')).is_spatial_secured(
                               request=request),
-                          is_secured=AllowedOperation.objects.is_service_secured(),
-                          user_is_principle_entitled=AllowedOperation.objects.is_user_entitled(
+                          is_secured=self.get_allowed_operation_qs(
+                              service_pk=OuterRef('pk')).is_service_secured(),
+                          user_is_principle_entitled=self.get_allowed_operation_qs(service_pk=OuterRef('pk')).is_user_entitled(
                               request=request),
-                          base_operation_url=OperationUrl.security_objects.get_base_url(
+                          base_operation_url=self.get_operation_url_qs().get_base_url(
                               request=request),
                           unknown_operation_url=OperationUrl.security_objects.get_fallback_url(),
-                          is_spatial_secured_and_covers=AllowedOperation.objects.is_spatial_secured_and_covers(
+                          is_spatial_secured_and_covers=self.get_allowed_operation_qs(service_pk=OuterRef('pk')).is_spatial_secured_and_covers(
                               request=request),
-                          is_spatial_secured_and_intersects=AllowedOperation.objects.is_spatial_secured_and_intersects(
+                          is_spatial_secured_and_intersects=self.get_allowed_operation_qs(service_pk=OuterRef('pk')).is_spatial_secured_and_intersects(
                               request=request),
-                          allowed_area_united=AllowedOperation.objects.allowed_area_union(request=request))
+                          allowed_area_united=self.get_allowed_operation_qs(service_pk=OuterRef('pk')).allowed_area_union(request=request))
 
-    def construct_service(self, pk, request):
+    def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
         service = None
+        self.dummy_remote_service = WebService.manufacture_service(
+            request.get_full_path())
         try:
-            service_qs = self._collect_data_for_security_facade(
+            service_qs = self.prepare_with_security_info(
                 request=request)
             if request.query_parameters.get("request").lower() in SECURE_ABLE_OPERATIONS_LOWER:
-                dummy_remote_service = WebService.manufacture_service(
-                    request.get_full_path())
-                if isinstance(dummy_remote_service, WmsService):
-                    service_qs.prefetch_related("allowed_operations")
-                    service = service_qs.get(pk=pk)
-                    layer_identifiers = dummy_remote_service.get_requested_layers(
+
+                if isinstance(self.dummy_remote_service, WmsService):
+                    from registry.models.security import \
+                        AllowedWebMapServiceOperation  # to avoid circular import
+                    layer_identifiers = self.dummy_remote_service.get_requested_layers(
                         query_params=request.query_parameters)
-                    query = Q(secured_layers__identifier__iregex=r'(' +
-                              '|'.join(layer_identifiers) + ')')
-                    service.allowed_areas = service.allowed_operations \
-                        .filter(query) \
-                        .distinct("pk") \
-                        .values_list("pk", "allowed_area")
+                    query = Q(secured_layers__identifier__iregex=r'%s' %
+                              f"({'|'.join(layer_identifiers) })")
+                    prefetch = Prefetch(
+                        "allowed_operations",
+                        queryset=AllowedWebMapServiceOperation.objects.filter(query).distinct(
+                            "pk").only("pk", "allowed_area"),
+                        to_attr='allowed_areas')
+                    service = service_qs.prefetch_related(
+                        prefetch).get(*args, **kwargs)
                 else:
-                    service = service_qs.get(pk=pk)
+                    service = service_qs.get(*args, **kwargs)
             else:
-                service = service_qs.get(pk=pk)
+                service = service_qs.get(*args, **kwargs)
+
+        # TODO: check if we should catch ObjectDoesNotExist?
         except ObjectDoesNotExist:
             pass
         return service

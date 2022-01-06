@@ -169,7 +169,6 @@ class WebMapServiceOperation(models.Model):
                                  choices=SecureableWMSOperationEnum.as_choices())
 
 
-
 class WebFeatureServiceOperation(models.Model):
     operation = models.CharField(primary_key=True,
                                  max_length=30,
@@ -201,6 +200,7 @@ class AllowedOperation(models.Model):
 
     """
     allowed_groups = models.ManyToManyField(to=Group,
+                                            blank=True,
                                             related_name="%(class)s_allowed_operations",
                                             related_query_name="%(class)s_allowed_operation")
     allowed_area = models.MultiPolygonField(null=True,
@@ -236,6 +236,7 @@ class AllowedWebMapServiceOperation(AllowedOperation):
                                             verbose_name=_("secured layers"),
                                             help_text=_("Select one or more layers. Note that all sub layers of a "
                                                         "selected layer will also be secured."), )
+
     class Meta:
         pass
         # TODO: only complete subtrees shall be part of the m2m secured_layers field
@@ -258,9 +259,11 @@ class AllowedWebMapServiceOperation(AllowedOperation):
         super().save(*args, **kwargs)
         # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
         # does NOT call save() or triggers signals
-        proxy_setting = WebMapServiceProxySetting.objects.filter(secured_service=self.secured_service).update(camouflage=True)
+        proxy_setting = WebMapServiceProxySetting.objects.filter(
+            secured_service=self.secured_service).update(camouflage=True)
         if proxy_setting == 0:
-            WebMapServiceProxySetting.objects.create(secured_service=self.secured_service, camouflage=True)
+            WebMapServiceProxySetting.objects.create(
+                secured_service=self.secured_service, camouflage=True)
 
 
 class AllowedWebFeatureServiceOperation(AllowedOperation):
@@ -291,9 +294,11 @@ class AllowedWebFeatureServiceOperation(AllowedOperation):
         super().save(*args, **kwargs)
         # Note: only use update if ProxySetting has NOT a custom save function. .update() is a bulk function which
         # does NOT call save() or triggers signals
-        proxy_setting = WebFeatureServiceProxySetting.objects.filter(secured_service=self.secured_service).update(camouflage=True)
+        proxy_setting = WebFeatureServiceProxySetting.objects.filter(
+            secured_service=self.secured_service).update(camouflage=True)
         if proxy_setting == 0:
-            WebFeatureServiceProxySetting.objects.create(secured_service=self.secured_service, camouflage=True)
+            WebFeatureServiceProxySetting.objects.create(
+                secured_service=self.secured_service, camouflage=True)
 
 
 class ProxySetting(models.Model):

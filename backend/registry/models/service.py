@@ -85,9 +85,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         if not adding and old and old.is_active != self.is_active:
             # the active sate of this and all descendant elements shall be changed to the new value. Bulk update
             # is the most efficient way to do it.
-            if isinstance(WebMapService):
+            if isinstance(self, WebMapService):
                 self.layers.update(is_active=self.is_active)
-            elif isinstance(WebFeatureService):
+            elif isinstance(self, WebFeatureService):
                 self.featuretypes.update(is_active=self.is_active)
 
     def major_version(self) -> int:
@@ -169,10 +169,6 @@ class OperationUrl(models.Model):
 
     class Meta:
         abstract = True
-        constraints = [
-            models.UniqueConstraint(fields=['method', 'operation'],
-                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
-        ]
 
     def __str__(self):
         return f"{self.pk} | {self.url} ({self.method})"
@@ -200,6 +196,12 @@ class WebMapServiceOperationUrl(OperationUrl):
                                 verbose_name=_("related web map service"),
                                 help_text=_("the web map service for that this url can be used for."))
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['method', 'operation', 'service'],
+                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+        ]
+
 
 class WebFeatureServiceOperationUrl(OperationUrl):
     service = models.ForeignKey(to=WebFeatureService,
@@ -210,6 +212,12 @@ class WebFeatureServiceOperationUrl(OperationUrl):
                                 verbose_name=_("related web feature service"),
                                 help_text=_("the web feature service for that this url can be used for."))
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['method', 'operation', 'service'],
+                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+        ]
+
 
 class CatalougeServiceOperationUrl(OperationUrl):
     service = models.ForeignKey(to=CatalougeService,
@@ -219,6 +227,12 @@ class CatalougeServiceOperationUrl(OperationUrl):
                                 related_query_name="operation_url",
                                 verbose_name=_("related catalouge service"),
                                 help_text=_("the catalouge service for that this url can be used for."))
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['method', 'operation', 'service'],
+                                    name='%(app_label)s_%(class)s_unique_together_method_id_operation')
+        ]
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):

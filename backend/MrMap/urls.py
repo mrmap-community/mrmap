@@ -18,6 +18,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
+from registry.views_ows import security_proxy as security_proxy_views
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
@@ -32,7 +33,6 @@ urlpatterns = [
     path("api/v1/registry/", include("registry.urls", namespace="registry")),
     path("api/v1/accounts/", include("accounts.urls", namespace="accounts")),
     path("api/v1/notify/", include("notify.urls", namespace='notify')),
-    # path('api/v1/auth/', include('dj_rest_auth.urls')),
     path(
         "api/schema/",
         cache_page(timeout=60 * 15, cache="local-memory")(
@@ -46,6 +46,11 @@ urlpatterns = [
         ),
         name="openapi-schema",
     ),
+
+    # ows views
+    path('mrmap-proxy/wms/<pk>',
+         security_proxy_views.GenericOwsServiceOperationFacade.as_view(), name='wms-operation')
+
 ]
 
 if settings.DEBUG:

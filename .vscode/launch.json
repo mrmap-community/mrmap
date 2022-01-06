@@ -6,6 +6,19 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug: frontend (CRA Tests)",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "${workspaceRoot}/frontend/node_modules/.bin/react-scripts",
+            "args": ["test", "--runInBand", "--no-cache", "--watchAll=false"],
+            "cwd": "${workspaceRoot}/frontend",
+            "protocol": "inspector",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "env": { "CI": "true" },
+            "disableOptimisticBPs": true
+        },
+        {
             "name": "Debug: backend",
             "type": "python",
             "request": "attach",

@@ -13,6 +13,7 @@ import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { addLayerToGroup, createMrMapOlWMSLayer, LayerTree } from '../LayerTree/LayerTree';
+import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
 import { MPTTListToTreeNodeList, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
@@ -172,11 +173,9 @@ export const MapContext = (): ReactElement => {
                     
                     //@ts-ignore
                     const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
-                    console.log(renderingLayerId);
                     if(renderingLayerId) {
                       try {
                         const rl = await layerRepo.autocompleteInitialValue(renderingLayerId);
-                        console.log(rl.attributes);
                         const renderingLayer = createMrMapOlWMSLayer({
                           //eslint-disable-next-line
                           url: rl.attributes.getMapInfo.url,
@@ -231,6 +230,8 @@ export const MapContext = (): ReactElement => {
               />
             </div>
           </div>
+
+          <SearchDrawer />
 
           <div className='steps-action'>
             <Button

@@ -93,6 +93,9 @@
     "coverageReporters": [
       "default",
       "jest-junit"
+    ],
+    "transformIgnorePatterns" : [
+      "node_modules/(?!(ol|antd|(rc-[a-z-]*)|@ant-design\/css-animation|@ant-design\/pro-[a-z]+|(@ant-design\/icons)(-[a-z]+)*|@babel\/runtime)/)"
     ]
   },
   "proxy": "http://localhost:8001/"

@@ -2,10 +2,13 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, Form, Input, notification } from 'antd';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import JsonApiRepo from '../../Repos/JsonApiRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
 import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 
-
+interface OgcServiceAddProps {
+  repo: JsonApiRepo;
+}
 const layout = {
   labelCol: { span: 3 },
   wrapperCol: { span: 8 }
@@ -17,7 +20,10 @@ const tailLayout = {
 
 const organizationRepo = new OrganizationRepo();
 
-const OgcServiceAdd = (props: any): ReactElement => {
+const OgcServiceAdd = ({
+  repo
+}: OgcServiceAddProps): ReactElement => {
+
   const [form] = Form.useForm();
 
   const [options, setOptions] = useState<SearchFieldData[]>([]);
@@ -27,7 +33,7 @@ const OgcServiceAdd = (props: any): ReactElement => {
 
   const onFinish = (values: any) => {
     async function postData () {
-      const res = await props.repo.create(values);
+      const res = await repo.create(values);
       if (res.status === 202) {
         notification.info({
           message: 'Service registration job started',

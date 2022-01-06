@@ -126,6 +126,11 @@ class JsonApiRepo {
       return await client['List' + this.resourcePath](jsonApiParams);
     }
 
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    async create (create: any): Promise<JsonApiResponse> {
+      throw new Error('This method is abstract');
+    }
+
     async get (id: string): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
       return await client['retrieve' + this.resourcePath + '{id}/'](id, {}, {

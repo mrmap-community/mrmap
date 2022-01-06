@@ -9,7 +9,7 @@ import React, { ReactNode, useEffect, useState } from 'react';
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { TreeFormField, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 
-type OlWMSServerType = 'CARMENTA_SERVER' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
+type OlWMSServerType = 'ESRI' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
 
 interface CreateLayerOpts {
   url: string;

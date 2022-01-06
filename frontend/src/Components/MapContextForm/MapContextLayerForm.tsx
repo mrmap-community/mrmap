@@ -23,6 +23,7 @@ const fetchData = async (
   setLoading(true);
   try {
     const response = await fetcher();
+    console.log(response);
     setValues(response);
   } catch (error: any) {
     notification.error({
@@ -85,7 +86,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   // }, [selectedDatasetMetadata]);
 
   /**
-   * @description: Hook  to run on component mount, if daataset metadata already has a value (on edit form)
+   * @description: Hook  to run on component mount, if dataset metadata already has a value (on edit form)
    */
   useEffect(() => {
     if (form?.getFieldValue('datasetMetadata')) {
@@ -149,7 +150,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   useEffect(() => {
     if (form?.getFieldValue('featureSelectionLayer')) {
       fetchData(
-        () => layerRepo.autocompleteInitialValue(form?.getFieldValue('featureSelectionLayer')),
+        () => featureTypesRepo.autocompleteInitialValue(form?.getFieldValue('featureSelectionLayer')),
         (values) => {
           setRenderingLayerOptions([values]);
           setSelectedRenderingLayer(values);

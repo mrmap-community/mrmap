@@ -9,6 +9,7 @@ import OlView from 'ol/View';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
+import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { addLayerToGroup, createMrMapOlWMSLayer, LayerTree } from '../LayerTree/LayerTree';
@@ -20,6 +21,7 @@ import { MapContextLayerForm } from './MapContextLayerForm';
 
 const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
+const layerRepo = new LayerRepo();
 
 // TODO: Should be in a separate component or helper
 const layerGroup = new OlLayerGroup({
@@ -168,28 +170,39 @@ export const MapContext = (): ReactElement => {
                       mapContextId: createdMapContextId
                     });
                     
-                    const layer = createMrMapOlWMSLayer({
-                      //eslint-disable-next-line
-                      url: 'https://gis.mffjiv.rlp.de/cgi-bin/mapserv?map=/data/mapserver/mapfiles/institutions_0601.map',
-                      version: '1.1.1',
-                      format: 'image/png',
-                      layers: 'GFB',
-                      visible: true,
-                      serverType: 'MAPSERVER',
-                      //@ts-ignore
-                      mrMapLayerId: createdLayer.data.data.id,
-                      legendUrl: 'string',
-                      //@ts-ignore
-                      title: createdLayer.data.data.attributes.title,
-                      //@ts-ignore
-                      name: createdLayer.data.data.attributes.name,
-                      properties: {
+                    //@ts-ignore
+                    const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
+                    console.log(renderingLayerId);
+                    if(renderingLayerId) {
+                      try {
+                        const rl = await layerRepo.autocompleteInitialValue(renderingLayerId);
+                        console.log(rl.attributes);
+                        const renderingLayer = createMrMapOlWMSLayer({
+                          //eslint-disable-next-line
+                          url: rl.attributes.getMapInfo.url,
+                          version: rl.attributes.getMapInfo.version,
+                          format: 'image/png',
+                          layers: rl.attributes.getMapInfo.layer,
+                          visible: true,
+                          serverType: rl.attributes.getMapInfo.serviceType,
+                          //@ts-ignore
+                          mrMapLayerId: createdLayer.data.data.id,
+                          legendUrl: 'string',
+                          //@ts-ignore
+                          title: createdLayer.data.data.attributes.title,
+                          //@ts-ignore
+                          name: createdLayer.data.data.attributes.name,
+                          properties: {
+                            //@ts-ignore
+                            parent: null
+                          }
+                        });
+                        addLayerToGroup(olMap, 'mrMapLayerTreeLayerGroup', renderingLayer);
+                      } catch (error) {
                         //@ts-ignore
-                        parent: null
+                        throw new Error(error);
                       }
-                    });
-                    
-                    addLayerToGroup(olMap, 'mrMapLayerTreeLayerGroup', layer);
+                    }
                     
                     return createdLayer;
                   } catch (error) {

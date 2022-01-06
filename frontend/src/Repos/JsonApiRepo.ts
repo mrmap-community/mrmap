@@ -156,7 +156,7 @@ class JsonApiRepo {
           }
         }
       }, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
       });
     }
 

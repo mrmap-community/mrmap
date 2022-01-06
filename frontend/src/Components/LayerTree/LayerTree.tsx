@@ -11,7 +11,7 @@ import { TreeFormField, TreeNodeType } from '../Shared/FormFields/TreeFormField/
 
 type OlWMSServerType = 'ESRI' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
 
-interface CreateLayerOpts {
+export interface CreateLayerOpts {
   url: string;
   version: '1.1.0' | '1.1.1' | '1.3.0';
   format: 'image/jpeg' | 'image/png';
@@ -115,6 +115,68 @@ export const addLayerToGroup = (map:OlMap, layerGroupName: string, layerToAdd: L
   }
 };
 
+//  /**
+//    * @description: Takes the exinting layer group and transforms it into tree data type
+//    */
+//   const layerGroupToTreeData = (theLayerGroup: LayerGroup): TreeNodeType[] => {
+//     const layers = theLayerGroup.getLayers().getArray();
+    
+//     const treeNodes: TreeNodeType[] = layers.map((layer: BaseLayer | LayerGroup) => {
+//       console.log(layer);
+//       return layerToTreeNode(layer);
+//     });
+//     return treeNodes;
+//   };
+
+//   /**
+//    * @description: takes a layer and transforms it into a tree node type data
+//    * @param theLayerGroup
+//    * @returns 
+//    */
+//   const layerToTreeNode = (layer: BaseLayer | LayerGroup): any => {
+//     const node: TreeNodeType = {
+//       key: layer.getProperties().mrMapLayerId,
+//       title: layer.getProperties().title,
+//       parent: layer.getProperties().parent,
+//       properties: layer.getProperties(),
+//       expanded: layer instanceof LayerGroup,
+//       children: []
+//     };
+
+//     console.log(node.properties.name, layer instanceof LayerGroup);
+//     if (layer instanceof LayerGroup) {
+//       const childLayers = layer.getLayers().getArray();
+//       // console.log(node.properties.name, childLayers);     
+//       //@ts-ignore
+//       node.children = childLayers.map((childLayer: BaseLayer | LayerGroup) => {
+//         if (childLayer instanceof LayerGroup) {
+//           console.log("here");
+//           return layerGroupToTreeData(childLayer);
+//         }
+//         return layerToTreeNode(childLayer);
+//       });
+//     }
+//     return node;
+//   };
+
+export const OlLayerGroupToTreeNodeList = (layerGroup: LayerGroup): TreeNodeType[] => {
+  const cena = layerGroup.getLayers().getArray().map((layer: LayerGroup | BaseLayer) => {
+    const node: any = {
+      key: layer.getProperties().mrMapLayerId,
+      title: layer.getProperties().title,
+      parent: layer.getProperties().parent,
+      properties: layer.getProperties(),
+      expanded: layer instanceof LayerGroup,
+      children: []
+    }; 
+    if (layer instanceof LayerGroup ) {
+      node.children = OlLayerGroupToTreeNodeList(layer);
+    }
+    return node;
+  });
+  return cena;
+};
+
 const layerTreeLayerGroup = new LayerGroup({
   opacity: 1,
   visible: true,
@@ -142,48 +204,9 @@ export const LayerTree = ({
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
 
   useEffect(() => {
-    // console.log(layerGroupToTreeData(layerGroup));
-    // setTreeData(layerGroupToTreeData(layerGroup));
     map.addLayer(layerGroup);
-    //eslint-disable-next-line
-  }, [map]);
-  
-  /**
-   * @description: Takes the exinting layer group and transforms it into tree data type
-   */
-  const layerGroupToTreeData = (theLayerGroup: LayerGroup): TreeNodeType[] => {
-    const layers = theLayerGroup.getLayers().getArray();
-
-    const treeNodes: TreeNodeType[] = layers.map((layer: BaseLayer) => {
-      return layerToTreeNode(layer);
-    });
-    return treeNodes;
-  };
-
-  /**
-   * @description: takes a layer and transforms it into a tree node type data
-   * @param theLayerGroup
-   * @returns 
-   */
-  const layerToTreeNode = (layer: BaseLayer): TreeNodeType => {
-    const node: TreeNodeType = {
-      key: layer.getProperties().layerId,
-      title: layer.getProperties().title,
-      parent: layer.getProperties().parent,
-      properties: layer.getProperties(),
-      expanded: layer instanceof LayerGroup,
-      children: []
-    };
-
-    if (layer instanceof LayerGroup) {
-      const childLayers = layer.getLayers().getArray();
-      //@ts-ignore
-      node.children = childLayers.map((childLayer: BaseLayer) => {
-        return layerToTreeNode(childLayer);
-      });
-    }
-    return node;
-  };
+    setTreeData(OlLayerGroupToTreeNodeList(layerGroup));
+  }, [map, layerGroup]);
   
   const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const { checked } = info;

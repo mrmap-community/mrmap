@@ -1,6 +1,7 @@
 import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrestris/react-geo';
 import { Button, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
+import Collection from 'ol/Collection';
 import { default as OlLayerGroup } from 'ol/layer/Group';
 import OlLayerTile from 'ol/layer/Tile';
 import OlMap from 'ol/Map';
@@ -12,9 +13,9 @@ import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
-import { addLayerToGroup, createMrMapOlWMSLayer, LayerTree } from '../LayerTree/LayerTree';
+import { LayerTree } from '../LayerTree/LayerTree';
 import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
-import { MPTTListToTreeNodeList, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
+import { MPTTListToOLLayerGroup } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
@@ -58,6 +59,15 @@ function Map () {
   );
 }
 
+const mapContextLayersGroup = new OlLayerGroup({
+  opacity: 1,
+  visible: true,
+  properties: {
+    name: 'mrMapMapContextLayers'
+  },
+  layers: []
+});
+
 export const MapContext = (): ReactElement => {
   const navigate = useNavigate();
   const [form] = useForm();
@@ -69,8 +79,7 @@ export const MapContext = (): ReactElement => {
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
-  //eslint-disable-next-line
-  const [initTreeData, setInitTreeData] = useState<TreeNodeType[]>([]); //TODO
+  const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
@@ -84,17 +93,29 @@ export const MapContext = (): ReactElement => {
             // @ts-ignore
             abstract: response.mapContext.attributes.abstract || ''
           });
-          //  set  Initial  Tree Data
-          const transformedTreeData = MPTTListToTreeNodeList(response.mapContextLayers);
-          setInitTreeData(transformedTreeData);
+          //  Convert the mapContext layers coming from the server to a compatible tree node list
+
+          const _initLayerTreeData = MPTTListToOLLayerGroup(response.mapContextLayers);
+          setInitLayerTreeData(_initLayerTreeData);
+          // initLayerTreeData.getArray().forEach(layer => addLayerToGroup(olMap, 'mrMapMapContextLayers', layer));
+          
+          // mapContextLayersGroup.setLayers(initLayerTreeData.getArray());
+          
+          
         } catch (error) {
           // @ts-ignore
           throw new Error(error);
         }
       };
       fetchMapContext();
+      // console.log(olMap.getLayers());
     }
   }, [id, form]);
+
+  useEffect(() => {
+    console.log(initLayerTreeData);
+    mapContextLayersGroup.setLayers(initLayerTreeData);
+  }, [initLayerTreeData]);
 
   const nextStep = () => {
     setCurrent(current + 1);
@@ -162,6 +183,7 @@ export const MapContext = (): ReactElement => {
             <div className='layer-section'>
               <LayerTree
                 map={olMap}
+                layerGroup={mapContextLayersGroup}
                 asyncTree
                 addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
                   try {
@@ -172,36 +194,36 @@ export const MapContext = (): ReactElement => {
                     });
                     
                     //@ts-ignore
-                    const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
-                    if(renderingLayerId) {
-                      try {
-                        const rl = await layerRepo.autocompleteInitialValue(renderingLayerId);
-                        const renderingLayer = createMrMapOlWMSLayer({
-                          //eslint-disable-next-line
-                          url: rl.attributes.getMapInfo.url,
-                          version: rl.attributes.getMapInfo.version,
-                          format: 'image/png',
-                          layers: rl.attributes.getMapInfo.layer,
-                          visible: true,
-                          serverType: rl.attributes.getMapInfo.serviceType,
-                          //@ts-ignore
-                          mrMapLayerId: createdLayer.data.data.id,
-                          legendUrl: 'string',
-                          //@ts-ignore
-                          title: createdLayer.data.data.attributes.title,
-                          //@ts-ignore
-                          name: createdLayer.data.data.attributes.name,
-                          properties: {
-                            //@ts-ignore
-                            parent: null
-                          }
-                        });
-                        addLayerToGroup(olMap, 'mrMapLayerTreeLayerGroup', renderingLayer);
-                      } catch (error) {
-                        //@ts-ignore
-                        throw new Error(error);
-                      }
-                    }
+                    // const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
+                    // if(renderingLayerId) {
+                    //   try {
+                    //     const rl = await layerRepo.autocompleteInitialValue(renderingLayerId);
+                    //     const renderingLayer = createMrMapOlWMSLayer({
+                    //       //eslint-disable-next-line
+                    //       url: rl.attributes.getMapInfo.url,
+                    //       version: rl.attributes.getMapInfo.version,
+                    //       format: 'image/png',
+                    //       layers: rl.attributes.getMapInfo.layer,
+                    //       visible: true,
+                    //       serverType: rl.attributes.getMapInfo.serviceType,
+                    //       //@ts-ignore
+                    //       mrMapLayerId: createdLayer.data.data.id,
+                    //       legendUrl: 'string',
+                    //       //@ts-ignore
+                    //       title: createdLayer.data.data.attributes.title,
+                    //       //@ts-ignore
+                    //       name: createdLayer.data.data.attributes.name,
+                    //       properties: {
+                    //         //@ts-ignore
+                    //         parent: null
+                    //       }
+                    //     });
+                    //     addLayerToGroup(olMap, 'mrMapLayerTreeLayerGroup', renderingLayer);
+                    //   } catch (error) {
+                    //     //@ts-ignore
+                    //     throw new Error(error);
+                    //   }
+                    // }
                     
                     return createdLayer;
                   } catch (error) {

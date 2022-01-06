@@ -3,8 +3,12 @@ import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree } fr
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { DataNode, EventDataNode } from 'antd/lib/tree';
+import Collection from 'ol/Collection';
+import BaseLayer from 'ol/layer/Base';
+import LayerGroup from 'ol/layer/Group';
 import React, { cloneElement, createRef, FC, ReactNode, useEffect, useState } from 'react';
 import { JsonApiPrimaryData, JsonApiResponse } from '../../../../Repos/JsonApiRepo';
+import { CreateLayerOpts, createMrMapOlWMSLayer } from '../../../LayerTree/LayerTree';
 import './TreeFormField.css';
 
 
@@ -95,6 +99,7 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
   list = list.map((element: MPTTJsonApiTreeNodeType) => ({ ...element, children: [] }));
 
   list.map((element:MPTTJsonApiTreeNodeType) => {
+    
     // transform the list element into a TreeNodeType element
     const node: TreeNodeType = {
       key: element.id,
@@ -123,6 +128,58 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
     return element;
   });
   return roots;
+};
+
+export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<LayerGroup | BaseLayer> => {
+  const layerList = list.map(node => {
+    if (node.children.length > 0) {
+
+      const layerGroupOpts = {
+        opacity: 1,
+        visible: true,
+        properties: {
+          title: node.properties.title,
+          name: node.properties.name,
+          parent: node.parent,
+          key: node.key,
+          mrMapLayerId: node.key
+        },
+        layers: TreeNodeListToOlLayerGroup(node.children)
+      };
+      return new LayerGroup(layerGroupOpts);
+    } 
+    if(node.children.length === 0) {
+      const layerOpts: CreateLayerOpts = {
+        url: '',
+        version: '1.1.0',
+        format: 'image/png',
+        layers: '',
+        visible: true,
+        serverType: 'MAPSERVER',
+        mrMapLayerId: '',
+        legendUrl: '',
+        title: node.properties.title,
+        name: node.properties.name,
+        properties: {
+          ...node.properties,
+          parent: node.parent,
+          key: node.key,
+          mrMapLayerId: node.key
+        }
+      };
+      
+      return createMrMapOlWMSLayer(layerOpts);
+    }
+    return new LayerGroup();
+  });
+  return new Collection(layerList);
+};
+
+export const MPTTListToOLLayerGroup = (list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> => {
+  const treeNodeList = MPTTListToTreeNodeList(list);
+  const layerGroupList = TreeNodeListToOlLayerGroup(treeNodeList);
+  return layerGroupList;
+  
 };
 
 export const TreeFormField: FC<TreeProps> = ({

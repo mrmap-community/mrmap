@@ -10,11 +10,12 @@ const repo = new DatasetMetadataRepo();
 
 export const SearchDrawer = (): ReactElement => {
 
-    const [visible, setVisible] = useState<boolean>(true);
+    const [visible, setVisible] = useState<boolean>(false);
 
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     const addDatasetToMap = (dataset: any) => {
+      console.log(dataset);
         notification.info({
           message: `Add dataset '${dataset.title}'`
         });

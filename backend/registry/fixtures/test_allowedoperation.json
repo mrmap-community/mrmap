@@ -9,7 +9,7 @@
                 "GetMap",
                 "GetFeatureInfo"
             ],
-            "secured_service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+            "secured_service": "4b453340-9cc9-47f6-8de3-f95c487bd83a"
         }
     },
     {
@@ -22,7 +22,7 @@
                 "GetMap",
                 "GetFeatureInfo"
             ],
-            "secured_service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+            "secured_service": "4b453340-9cc9-47f6-8de3-f95c487bd83a"
         }
     }
 ]

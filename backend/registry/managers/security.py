@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import models
+from django.db import models, reset_queries
 from django.db.models import (
     BooleanField,
     Exists,
@@ -26,7 +26,7 @@ from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
 class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
-    def filter_qs_by_secured_element(self, request) -> QuerySet:
+    def filter_qs_by_secured_element(self, request):
         dummy_service = WebService.manufacture_service(request.get_full_path())
         layer_identifiers = dummy_service.get_requested_layers(
             query_params=request.query_parameters
@@ -36,21 +36,19 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             % f"({'|'.join(layer_identifiers)})"
         )
 
-    def find_all_allowed_areas_by_request(
-        self, service_pk, request: HttpRequest
-    ) -> QuerySet:
-        # TODO: filter also by requesting user; otherwise allowed operations without user restriction will returned
-        return self.filter(
-            secured_service__pk=service_pk, allowed_area__isnull=False
-        ).filter_qs_by_secured_element(request=request)
+    def find_all_allowed_areas_by_request(self, service_pk, request: HttpRequest):
+        return (
+            self.filter(secured_service__pk=service_pk, allowed_area__isnull=False)
+            .filter_qs_by_secured_element(request=request)
+            .for_user(service_pk=service_pk, request=request)
+        )
 
-    def find_all_empty_allowed_areas_by_request(
-        self, service_pk, request: HttpRequest
-    ) -> QuerySet:
-        # TODO: filter also by requesting user; otherwise allowed operations without user restriction will returned
-        return self.filter(
-            secured_service__pk=service_pk, allowed_area__isnull=True
-        ).filter_qs_by_secured_element(request=request)
+    def find_all_empty_allowed_areas_by_request(self, service_pk, request: HttpRequest):
+        return (
+            self.filter(secured_service__pk=service_pk, allowed_area__isnull=True)
+            .filter_qs_by_secured_element(request=request)
+            .for_user(service_pk=service_pk, request=request)
+        )
 
     def is_spatial_secured_and_intersects(
         self, service_pk, geom: GEOSGeometry
@@ -95,27 +93,26 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             )
         )
 
+    def for_user(self, service_pk, request: HttpRequest):
+        return self.filter(
+            secured_service__pk=service_pk,
+            allowed_groups=None,
+            operations__operation__iexact=request.query_parameters.get("request"),
+        ) | self.filter(
+            secured_service__pk=service_pk,
+            allowed_groups__pk__in=Group.objects.filter(
+                user__username="AnonymouseUser"
+            ).values_list("pk", flat=True)
+            if request.user.is_anonymous
+            else request.user.groups.values_list("pk", flat=True),
+            operations__operation__iexact=request.query_parameters.get("request"),
+        )
+
     def is_user_entitled(self, service_pk, request: HttpRequest) -> Exists:
         """checks if the user of the request is member of any AllowedOperation object"""
         if request.user.is_superuser:
             return Value(True)
-
-        return Exists(
-            self.filter(
-                secured_service__pk=service_pk,
-                allowed_groups=None,
-                operations__operation__iexact=request.query_parameters.get("request"),
-            )
-            | self.filter(
-                secured_service__pk=service_pk,
-                allowed_groups__pk__in=Group.objects.filter(
-                    user__username="AnonymouseUser"
-                ).values_list("pk", flat=True)
-                if request.user.is_anonymous
-                else request.user.groups.values_list("pk", flat=True),
-                operations__operation__iexact=request.query_parameters.get("request"),
-            )
-        )
+        return Exists(self.for_user(service_pk=service_pk, request=request))
 
     def allowed_area_union(self, service_pk, request: HttpRequest) -> Union:
         return Union(
@@ -165,7 +162,7 @@ class WebMapServiceSecurityManager(models.Manager):
             using=self._db,
         )
 
-    def prepare_with_security_info(self) -> QuerySet:
+    def prepare_with_security_info(self):
         if (
             self.request.query_parameters.get("request").lower()
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
@@ -214,9 +211,10 @@ class WebMapServiceSecurityManager(models.Manager):
                     is_spatial_secured_and_intersects=self.get_allowed_operation_qs().is_spatial_secured_and_intersects(
                         service_pk=OuterRef("pk"), request=self.request
                     ),
-                    allowed_area_united=self.get_allowed_operation_qs().allowed_area_union(
-                        service_pk=OuterRef("pk"), request=self.request
-                    ),
+                    # TODO: only needed for wfs:
+                    # allowed_area_united=self.get_allowed_operation_qs().allowed_area_union(
+                    #     service_pk=OuterRef("pk"), request=self.request
+                    # ),
                     base_operation_url=self.get_operation_url_qs().get_base_url(
                         service_pk=OuterRef("pk"), request=self.request
                     ),

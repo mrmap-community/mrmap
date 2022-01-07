@@ -209,9 +209,12 @@ class WebMapServiceProxy(View):
         width = int(get_params.get(self.remote_service.WIDTH_QP))
         height = int(get_params.get(self.remote_service.HEIGHT_QP))
         try:
-            # todo: maybe it is possible to do this without a for loop in a single request...
-            for pk, allowed_area in self.service.allowed_areas:
-                if allowed_area is None or allowed_area.empty:
+            # TODO: maybe it is possible to do this without a for loop in a single request...
+            for allowed_operation in self.service.allowed_areas:
+                if (
+                    allowed_operation.allowed_area is None
+                    or allowed_operation.allowed_area.empty
+                ):
                     return None
                 query_parameters = {
                     self.remote_service.VERSION_QP: get_params.get(
@@ -231,7 +234,7 @@ class WebMapServiceProxy(View):
                     self.remote_service.HEIGHT_QP: height,
                     self.remote_service.TRANSPARENT_QP: "TRUE",
                     "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
-                    "keys": f"'{pk}'",
+                    "keys": f"'{allowed_operation.pk}'",
                     "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
                     "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
                     "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,

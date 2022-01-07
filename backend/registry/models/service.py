@@ -226,7 +226,7 @@ class WebMapServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation",
+                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
             )
         ]
 
@@ -246,7 +246,7 @@ class WebFeatureServiceOperationUrl(OperationUrl):
         constraints = [
             models.UniqueConstraint(
                 fields=["method", "operation", "service"],
-                name="%(app_label)s_%(class)s_unique_together_method_id_operation",
+                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
             )
         ]
 

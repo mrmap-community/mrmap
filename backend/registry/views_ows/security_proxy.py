@@ -202,58 +202,52 @@ class WebMapServiceProxy(View):
         Returns:
              secured_image (Image)
         """
-        masks = []
         get_params = self.remote_service.get_get_params(
             query_params=self.request.query_parameters
         )
         width = int(get_params.get(self.remote_service.WIDTH_QP))
         height = int(get_params.get(self.remote_service.HEIGHT_QP))
         try:
-            # TODO: maybe it is possible to do this without a for loop in a single request...
+            query_parameters = {
+                self.remote_service.VERSION_QP: get_params.get(
+                    self.remote_service.VERSION_QP
+                ),
+                self.remote_service.REQUEST_QP: "GetMap",
+                self.remote_service.SERVICE_QP: "WMS",
+                self.remote_service.FORMAT_QP: "image/png",
+                self.remote_service.LAYERS_QP: "mask",
+                self.remote_service.CRS_QP: get_params.get(self.remote_service.CRS_QP),
+                self.remote_service.BBOX_QP: get_params.get(
+                    self.remote_service.BBOX_QP
+                ),
+                self.remote_service.WIDTH_QP: width,
+                self.remote_service.HEIGHT_QP: height,
+                self.remote_service.TRANSPARENT_QP: "TRUE",
+                "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
+                "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
+                "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
+                "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
+            }
+
             for allowed_operation in self.service.allowed_areas:
                 if (
                     allowed_operation.allowed_area is None
                     or allowed_operation.allowed_area.empty
                 ):
                     return None
-                query_parameters = {
-                    self.remote_service.VERSION_QP: get_params.get(
-                        self.remote_service.VERSION_QP
-                    ),
-                    self.remote_service.REQUEST_QP: "GetMap",
-                    self.remote_service.SERVICE_QP: "WMS",
-                    self.remote_service.FORMAT_QP: "image/png",
-                    self.remote_service.LAYERS_QP: "mask",
-                    self.remote_service.CRS_QP: get_params.get(
-                        self.remote_service.CRS_QP
-                    ),
-                    self.remote_service.BBOX_QP: get_params.get(
-                        self.remote_service.BBOX_QP
-                    ),
-                    self.remote_service.WIDTH_QP: width,
-                    self.remote_service.HEIGHT_QP: height,
-                    self.remote_service.TRANSPARENT_QP: "TRUE",
-                    "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
-                    "keys": f"'{allowed_operation.pk}'",
-                    "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
-                    "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
-                    "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
-                }
-                request = Request(
-                    method="GET", url=settings.MAPSERVER_URL, params=query_parameters
-                )
-                session = Session()
-                response = session.send(request.prepare())
+                keys = query_parameters.get("keys", None)
+                if keys:
+                    query_parameters.update({"keys": f"{keys},{allowed_operation.pk}"})
+                else:
+                    query_parameters.update({"keys": str(allowed_operation.pk)})
 
-                mask = Image.open(io.BytesIO(response.content))
-                masks.append(mask)
+            request = Request(
+                method="GET", url=settings.MAPSERVER_URL, params=query_parameters
+            )
+            session = Session()
+            response = session.send(request.prepare())
 
-            # Create empty final mask object
-            mask = Image.new("RGBA", (width, height), (255, 0, 0, 0))
-
-            # Combine all single masks into one!
-            for m in masks:
-                mask = Image.alpha_composite(m, mask)
+            mask = Image.open(io.BytesIO(response.content))
 
             # Put combined mask on white background
             background = Image.new("RGB", (width, height), (255, 255, 255))

@@ -21,6 +21,10 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+  mapserver:
+    ports:
+      - "8090:80"
+
   pre-commit-check:
     build:
       context: ./backend

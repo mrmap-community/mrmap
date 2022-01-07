@@ -99,10 +99,19 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
         """checks if the user of the request is member of any AllowedOperation object"""
         if request.user.is_superuser:
             return Value(True)
+
         return Exists(
             self.filter(
                 secured_service__pk=service_pk,
-                allowed_groups=None
+                allowed_groups=None,
+                operations__operation__iexact=request.query_parameters.get("request"),
+            )
+        ) | Exists(
+            self.filter(
+                secured_service__pk=service_pk,
+                allowed_groups__pk__in=Group.objects.filter(
+                    user_set__username="AnonymouseUser"
+                ).values_list("pk", flat=True)
                 if request.user.is_anonymous
                 else request.user.groups.values_list("pk", flat=True),
                 operations__operation__iexact=request.query_parameters.get("request"),

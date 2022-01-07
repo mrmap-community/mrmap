@@ -106,11 +106,10 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
                 allowed_groups=None,
                 operations__operation__iexact=request.query_parameters.get("request"),
             )
-        ) | Exists(
-            self.filter(
+            | self.filter(
                 secured_service__pk=service_pk,
                 allowed_groups__pk__in=Group.objects.filter(
-                    user_set__username="AnonymouseUser"
+                    user__username="AnonymouseUser"
                 ).values_list("pk", flat=True)
                 if request.user.is_anonymous
                 else request.user.groups.values_list("pk", flat=True),

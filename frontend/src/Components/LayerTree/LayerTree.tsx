@@ -166,11 +166,13 @@ export const OlLayerGroupToTreeNodeList = (layerGroup: LayerGroup): TreeNodeType
       title: layer.getProperties().title,
       parent: layer.getProperties().parent,
       properties: layer.getProperties(),
+      isLeaf: true,
       expanded: layer instanceof LayerGroup,
       children: []
     }; 
     if (layer instanceof LayerGroup ) {
       node.children = OlLayerGroupToTreeNodeList(layer);
+      node.isLeaf = false;
     }
     return node;
   });
@@ -206,7 +208,12 @@ export const LayerTree = ({
   useEffect(() => {
     map.addLayer(layerGroup);
     setTreeData(OlLayerGroupToTreeNodeList(layerGroup));
-  }, [map, layerGroup]);
+    return () => {
+      map.removeLayer(layerGroup);
+    };
+
+  }, [layerGroup, map]);
+
   
   const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const { checked } = info;

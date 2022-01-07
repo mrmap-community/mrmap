@@ -87,6 +87,7 @@ export const MapContext = (): ReactElement => {
       const fetchMapContext = async () => {
         try {
           const response = await mapContextRepo.getMapContextWithLayers(String(id));
+          console.log(response);
           form.setFieldsValue({
             // @ts-ignore
             title: response.mapContext.attributes.title || '',
@@ -94,14 +95,8 @@ export const MapContext = (): ReactElement => {
             abstract: response.mapContext.attributes.abstract || ''
           });
           //  Convert the mapContext layers coming from the server to a compatible tree node list
-
           const _initLayerTreeData = MPTTListToOLLayerGroup(response.mapContextLayers);
           setInitLayerTreeData(_initLayerTreeData);
-          // initLayerTreeData.getArray().forEach(layer => addLayerToGroup(olMap, 'mrMapMapContextLayers', layer));
-          
-          // mapContextLayersGroup.setLayers(initLayerTreeData.getArray());
-          
-          
         } catch (error) {
           // @ts-ignore
           throw new Error(error);
@@ -113,7 +108,6 @@ export const MapContext = (): ReactElement => {
   }, [id, form]);
 
   useEffect(() => {
-    console.log(initLayerTreeData);
     mapContextLayersGroup.setLayers(initLayerTreeData);
   }, [initLayerTreeData]);
 

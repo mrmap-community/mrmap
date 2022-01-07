@@ -23,6 +23,7 @@ interface MPTTJsonApiAttributeType {
   rght: number;
   tree_id: number; // eslint-disable-line
   level: number;
+  is_leaf: boolean; // eslint-disable-line
 }
 
 interface MPTTJsonApiRelashionshipDataType {
@@ -99,13 +100,13 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
   list = list.map((element: MPTTJsonApiTreeNodeType) => ({ ...element, children: [] }));
 
   list.map((element:MPTTJsonApiTreeNodeType) => {
-    
     // transform the list element into a TreeNodeType element
     const node: TreeNodeType = {
       key: element.id,
       title: element.attributes.title,
       parent: element.relationships.parent.data?.id,
       children: element.children || [],
+      isLeaf: element.attributes.is_leaf,
       properties: {
         name: element.attributes.name,
         datasetMetadata: element.relationships.dataset_metadata.data?.id,
@@ -113,7 +114,7 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
         scaleMin: element.attributes.layer_scale_min,
         scaleMax: element.attributes.layer_scale_max,
         style: element.relationships.layer_style.data?.id,
-        featureSelectionLayer: element.relationships.selection_layer.data?.id
+        featureSelectionLayer: element.relationships.selection_layer.data?.id,
       },
       expanded: true
     };
@@ -132,8 +133,7 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
 
 export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<LayerGroup | BaseLayer> => {
   const layerList = list.map(node => {
-    if (node.children.length > 0) {
-
+    if (node.children.length >= 0 && !node.isLeaf) {
       const layerGroupOpts = {
         opacity: 1,
         visible: true,
@@ -148,7 +148,7 @@ export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<Lay
       };
       return new LayerGroup(layerGroupOpts);
     } 
-    if(node.children.length === 0) {
+    if(node.children.length === 0 && node.isLeaf) {
       const layerOpts: CreateLayerOpts = {
         url: '',
         version: '1.1.0',
@@ -176,10 +176,12 @@ export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<Lay
 };
 
 export const MPTTListToOLLayerGroup = (list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> => {
-  const treeNodeList = MPTTListToTreeNodeList(list);
-  const layerGroupList = TreeNodeListToOlLayerGroup(treeNodeList);
-  return layerGroupList;
-  
+  if(list) {
+    const treeNodeList = MPTTListToTreeNodeList(list);
+    const layerGroupList = TreeNodeListToOlLayerGroup(treeNodeList);
+    return layerGroupList;
+  }
+  return new Collection();
 };
 
 export const TreeFormField: FC<TreeProps> = ({

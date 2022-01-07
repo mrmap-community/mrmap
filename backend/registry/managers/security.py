@@ -99,17 +99,15 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
         """checks if the user of the request is member of any AllowedOperation object"""
         if request.user.is_superuser:
             return Value(True)
-        anonymous_user_groups_subquery = Group.objects.filter(
-            user=get_user_model().objects.get(username="AnonymousUser")
-        ).values_list("pk", flat=True)
-        user_groups_subquery = request.user.groups.values_list("pk", flat=True)
-        user_is_principle_entitled_subquery = self.filter(
-            secured_service__pk=service_pk,
-            allowed_groups__pk__in=user_groups_subquery
-            | anonymous_user_groups_subquery,
-            operations__operation__iexact=request.query_parameters.get("request"),
+        return Exists(
+            self.filter(
+                secured_service__pk=service_pk,
+                allowed_groups=None
+                if request.user.is_anonymous
+                else request.user.groups.values_list("pk", flat=True),
+                operations__operation__iexact=request.query_parameters.get("request"),
+            )
         )
-        return Exists(user_is_principle_entitled_subquery)
 
     def allowed_area_union(self, service_pk, request: HttpRequest) -> Union:
         return Union(
@@ -199,14 +197,8 @@ class WebMapServiceSecurityManager(models.Manager):
                     is_secured=self.get_allowed_operation_qs().is_service_secured(
                         service_pk=OuterRef("pk")
                     ),
-                    user_is_principle_entitled=self.get_allowed_operation_qs().is_user_entitled(
+                    is_user_principle_entitled=self.get_allowed_operation_qs().is_user_entitled(
                         service_pk=OuterRef("pk"), request=self.request
-                    ),
-                    base_operation_url=self.get_operation_url_qs().get_base_url(
-                        service_pk=OuterRef("pk"), request=self.request
-                    ),
-                    unknown_operation_url=self.get_operation_url_qs().get_fallback_url(
-                        service_pk=OuterRef("pk")
                     ),
                     is_spatial_secured_and_covers=self.get_allowed_operation_qs().is_spatial_secured_and_covers(
                         service_pk=OuterRef("pk"), request=self.request
@@ -216,6 +208,12 @@ class WebMapServiceSecurityManager(models.Manager):
                     ),
                     allowed_area_united=self.get_allowed_operation_qs().allowed_area_union(
                         service_pk=OuterRef("pk"), request=self.request
+                    ),
+                    base_operation_url=self.get_operation_url_qs().get_base_url(
+                        service_pk=OuterRef("pk"), request=self.request
+                    ),
+                    unknown_operation_url=self.get_operation_url_qs().get_fallback_url(
+                        service_pk=OuterRef("pk")
                     ),
                 )
             )

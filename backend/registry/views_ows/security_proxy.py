@@ -4,6 +4,7 @@ import re
 from io import BytesIO
 from queue import Queue
 from threading import Thread
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -84,13 +85,19 @@ class WebMapServiceProxy(View):
 
     def setup_remote_service(self):
         try:
-            query = self.request.get_full_path().split("?")[1]
-            # FIXME: use urllib to update queryparams instead of concat... wrong url's are possible here...
-            if self.service.base_operation_url:
-                url = f"{self.service.base_operation_url}?{query}"
-            else:
-                url = f"{self.service.unknown_operation_url}?{query}"
-            self.remote_service = WebService.manufacture_service(url=url)
+            requested_url_parts = urlparse(self.request.get_full_path())
+
+            service_url_parts = urlparse(
+                self.service.base_operation_url
+                if self.service.base_operation_url
+                else self.service.unknown_operation_url
+            )
+
+            service_url_parts._replace(query=parse_qsl(qs=requested_url_parts.query))
+
+            self.remote_service = WebService.manufacture_service(
+                url=service_url_parts._replace(query=requested_url_parts.query).geturl()
+            )
         except (MissingServiceParam, MissingVersionParam):
             # exception handling in self.get()
             pass
@@ -109,11 +116,11 @@ class WebMapServiceProxy(View):
             * request query parameter is provided. If not return ``400 - Request param is missing``
         **Service is not secured condition**:
             * service.is_secured == False ``OR``
-            * service.is_spatial_secured == False and service.user_is_principle_entitled == True ``OR``
+            * service.is_spatial_secured == False and service.is_user_principle_entitled == True ``OR``
             * request query parameter not in ['GetMap', 'GetFeatureType', 'GetFeature']
             If one condition matches, return the response from the remote service.
         **Service is secured condition**:
-            * service.is_spatial_secured ==True and service.user_is_principle_entitled == True
+            * service.is_spatial_secured ==True and service.is_user_principle_entitled == True
             If the condition matches, return the result from
             :meth:`~GenericOwsServiceOperationFacade.get_secured_response`
         **Default behavior**:
@@ -154,16 +161,16 @@ class WebMapServiceProxy(View):
             in SECURE_ABLE_OPERATIONS_LOWER
         ):
             # seperated from elif below, cause security.for_security_facade does not fill the fields like is_secured,
-            # is_spatial_secured, user_is_principle_entitled...
+            # is_spatial_secured, is_user_principle_entitled...
             return self.return_http_response(response=self.get_remote_response())
         elif (
             not self.service.is_secured
             or not self.service.is_spatial_secured
-            and self.service.user_is_principle_entitled
+            and self.service.is_user_principle_entitled
         ):
             return self.return_http_response(response=self.get_remote_response())
         elif (
-            self.service.is_spatial_secured and self.service.user_is_principle_entitled
+            self.service.is_spatial_secured and self.service.is_user_principle_entitled
         ):
             return self.handle_secured_wms()
         else:

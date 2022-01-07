@@ -1,4 +1,6 @@
 from django.db.models.query import Prefetch
+from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
+from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.models.metadata import (
     DatasetMetadata,
     Keyword,
@@ -46,7 +48,7 @@ class StyleViewSet(NestedViewSetMixin, ModelViewSet):
     )
 
 
-class DatasetMetadataViewSet(ModelViewSet):
+class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
     schema = AutoSchema(
         tags=["Metadata"],
     )
@@ -89,6 +91,7 @@ class DatasetMetadataViewSet(ModelViewSet):
         "reference_systems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()

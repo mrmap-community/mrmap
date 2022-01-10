@@ -21,12 +21,10 @@ from django.views.generic.base import View
 from eulxml import xmlmap
 from extras.utils import execute_threads
 from MrMap.settings import PROXIES
-from ows_client.exception_reports import MULTIPLE_FEATURE_TYPES, NO_FEATURE_TYPES
-from ows_client.exceptions import (
-    MissingBboxParam,
-    MissingServiceParam,
-    MissingVersionParam,
-)
+from ows_client.exception_reports import (MULTIPLE_FEATURE_TYPES,
+                                          NO_FEATURE_TYPES)
+from ows_client.exceptions import (MissingBboxParam, MissingServiceParam,
+                                   MissingVersionParam)
 from ows_client.request_builder import WebService, WmsService
 from PIL import Image, ImageDraw, ImageFont
 from registry.enums.service import OGCOperationEnum, OGCServiceEnum
@@ -64,7 +62,8 @@ class WebMapServiceProxy(View):
         """Setup all basically needed attributes of this class."""
         super().setup(request=request, *args, **kwargs)
         self.start_time = datetime.datetime.now()
-        request.query_parameters = {k.lower(): v for k, v in self.request.GET.items()}
+        request.query_parameters = {
+            k.lower(): v for k, v in self.request.GET.items()}
         try:
             request.bbox = WmsService.construct_polygon_from_bbox_query_param(
                 get_dict=request.query_parameters
@@ -93,10 +92,12 @@ class WebMapServiceProxy(View):
                 else self.service.unknown_operation_url
             )
 
-            service_url_parts._replace(query=parse_qsl(qs=requested_url_parts.query))
+            service_url_parts._replace(
+                query=parse_qsl(qs=requested_url_parts.query))
 
             self.remote_service = WebService.manufacture_service(
-                url=service_url_parts._replace(query=requested_url_parts.query).geturl()
+                url=service_url_parts._replace(
+                    query=requested_url_parts.query).geturl()
             )
         except (MissingServiceParam, MissingVersionParam):
             # exception handling in self.get()
@@ -191,7 +192,8 @@ class WebMapServiceProxy(View):
         # todo: handle different service versions
         capabilities = self.service.document.xml
         if self.service.camouflage:
-            capabilities = self.service.document.xml_secured(request=self.request)
+            capabilities = self.service.document.xml_secured(
+                request=self.request)
         return HttpResponse(
             status=200, content=capabilities, content_type="application/xml"
         )
@@ -230,6 +232,7 @@ class WebMapServiceProxy(View):
             }
 
             for allowed_operation in self.service.allowed_areas:
+
                 if (
                     allowed_operation.allowed_area is None
                     or allowed_operation.allowed_area.empty
@@ -237,9 +240,11 @@ class WebMapServiceProxy(View):
                     return None
                 keys = query_parameters.get("keys", None)
                 if keys:
-                    query_parameters.update({"keys": f"{keys},{allowed_operation.pk}"})
+                    query_parameters.update(
+                        {"keys": f"{keys},{allowed_operation.pk}"})
                 else:
-                    query_parameters.update({"keys": str(allowed_operation.pk)})
+                    query_parameters.update(
+                        {"keys": str(allowed_operation.pk)})
 
             request = Request(
                 method="GET", url=settings.MAPSERVER_URL, params=query_parameters
@@ -305,7 +310,8 @@ class WebMapServiceProxy(View):
             # Transform byte-image to PIL-image object
             img = Image.open(io.BytesIO(img))
         except OSError:
-            raise Exception("Could not create image! Content was:\n {}".format(img))
+            raise Exception(
+                "Could not create image! Content was:\n {}".format(img))
         try:
             # Create an alpha layer, which is needed for the compositing of image and mask
             alpha_layer = Image.new("RGBA", img.size, (255, 0, 0, 0))
@@ -321,7 +327,8 @@ class WebMapServiceProxy(View):
                     mask = Image.open(io.BytesIO(mask))
 
                 # Check if the mask is fine or indicates an error
-                is_error_mask = mask.getpixel((0, 0))[0] == settings.ERROR_MASK_VAL
+                is_error_mask = mask.getpixel(
+                    (0, 0))[0] == settings.ERROR_MASK_VAL
                 if is_error_mask:
                     # Create full-masking mask and create an access_denied_img
                     mask = Image.new("RGB", img.size, (255, 255, 255))
@@ -330,7 +337,8 @@ class WebMapServiceProxy(View):
                     )
 
         except OSError:
-            raise Exception("Could not create image! Content was:\n {}".format(mask))
+            raise Exception(
+                "Could not create image! Content was:\n {}".format(mask))
 
         # Make sure mask is in grayscale and has the exact same size as the requested image
         mask = mask.convert("L").resize(img.size)
@@ -434,7 +442,8 @@ class WebMapServiceProxy(View):
                 mask = result
         if isinstance(remote_response, dict):
             return self.return_http_response(response=remote_response)
-        secured_image = self._create_masked_image(remote_response.content, mask)
+        secured_image = self._create_masked_image(
+            remote_response.content, mask)
         return self.return_http_response(
             response={
                 "status_code": 200,
@@ -449,7 +458,8 @@ class WebMapServiceProxy(View):
 
     def handle_get_feature_info_with_multithreading(self):
         """We use multithreading to send two requests at the same time to speed up the response time."""
-        request = self.remote_service.construct_request(query_params=self.request.GET)
+        request = self.remote_service.construct_request(
+            query_params=self.request.GET)
         thread_list = []
         results = Queue()
         xml_request = copy.deepcopy(request)
@@ -458,7 +468,8 @@ class WebMapServiceProxy(View):
         thread_list.append(
             Thread(
                 target=lambda r: r.put(
-                    {"xml_response": self.get_remote_response(request=xml_request)},
+                    {"xml_response": self.get_remote_response(
+                        request=xml_request)},
                     connection.close(),
                 ),
                 args=(results,),
@@ -467,7 +478,8 @@ class WebMapServiceProxy(View):
         thread_list.append(
             Thread(
                 target=lambda r: r.put(
-                    {"requested_response": self.get_remote_response(request=request)},
+                    {"requested_response": self.get_remote_response(
+                        request=request)},
                     connection.close(),
                 ),
                 args=(results,),
@@ -685,7 +697,8 @@ class WebMapServiceProxy(View):
                         axis_order_correction=axis_order_correction
                     )
                     if geometry.srid != self.service.allowed_area_united.srid:
-                        geometry.transform(ct=self.service.allowed_area_united.srid)
+                        geometry.transform(
+                            ct=self.service.allowed_area_united.srid)
                     if not self.service.allowed_area_united.covers(geometry):
                         return self.return_http_response(
                             response={
@@ -893,7 +906,8 @@ class WebMapServiceProxy(View):
             content = response.content
             status_code = response.status_code
             content_type = response.headers.get("content-type")
-            content_disposition = response.headers.get("content-disposition", None)
+            content_disposition = response.headers.get(
+                "content-disposition", None)
             content_encoding = response.headers.get("content-encoding", None)
             if content_disposition:
                 headers.update({"Content-Disposition": content_disposition})

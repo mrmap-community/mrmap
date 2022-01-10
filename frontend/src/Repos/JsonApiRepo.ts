@@ -10,6 +10,7 @@ export interface JsonApiDocument {
     errors?: JsonApiErrorObject;
     meta?: any;
     links?: any;
+    included?: any;
 }
 
 export interface JsonApiErrorObject {

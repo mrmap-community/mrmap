@@ -6,6 +6,8 @@ import { DataNode, EventDataNode } from 'antd/lib/tree';
 import Collection from 'ol/Collection';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
+import ImageLayer from 'ol/layer/Image';
+import ImageWMS from 'ol/source/ImageWMS';
 import React, { cloneElement, createRef, FC, ReactNode, useEffect, useState } from 'react';
 import { JsonApiPrimaryData, JsonApiResponse } from '../../../../Repos/JsonApiRepo';
 import { CreateLayerOpts, createMrMapOlWMSLayer } from '../../../LayerTree/LayerTree';
@@ -131,12 +133,12 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
   return roots;
 };
 
-export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<LayerGroup | BaseLayer> => {
+export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<LayerGroup | ImageLayer<ImageWMS>> => {
   const layerList = list.map(node => {
     if (node.children.length >= 0 && !node.isLeaf) {
       const layerGroupOpts = {
         opacity: 1,
-        visible: true,
+        visible: false,
         properties: {
           title: node.properties.title,
           name: node.properties.name,
@@ -148,14 +150,15 @@ export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<Lay
       };
       return new LayerGroup(layerGroupOpts);
     } 
+
     if(node.children.length === 0 && node.isLeaf) {
       const layerOpts: CreateLayerOpts = {
         url: '',
         version: '1.1.0',
         format: 'image/png',
         layers: '',
-        visible: true,
         serverType: 'MAPSERVER',
+        visible: false,
         mrMapLayerId: '',
         legendUrl: '',
         title: node.properties.title,
@@ -167,7 +170,6 @@ export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<Lay
           mrMapLayerId: node.key
         }
       };
-      
       return createMrMapOlWMSLayer(layerOpts);
     }
     return new LayerGroup();
@@ -223,7 +225,6 @@ export const TreeFormField: FC<TreeProps> = ({
   const [newNodeName, setNewNodeName] = useState<string>('');
   const [isEditingNodeName, setIsEditingNewNodeName] = useState<boolean>(false);
   const [isCreatingGroupNode, setIsCreatingGroupNode] = useState<boolean>(true);
-  const [isTitleMenuOpen, setIsTitleMenuOpen] = useState<boolean>(false);
   const [newNodeGroupIncrementValue, setNewNodeGroupIncrementValue] = useState<number>(1);
   /**
    * @description: Toggles the modal showing the form with the node properties
@@ -437,12 +438,16 @@ export const TreeFormField: FC<TreeProps> = ({
         parent: isRoot ? null : node.key,
         properties: values || null,
         expanded: true,
-        isLeaf: !isCreatingGroupNode,
+        isLeaf: isCreatingGroupNode ? false : true,
       };
       if (asyncTree) {
         setIsAddingNode(true);
         try {
-          const response = await addNodeDispatchAction(values, newNode.parent);
+          const response = await addNodeDispatchAction({
+            ...values, 
+            isLeaf: newNode.isLeaf
+          }, 
+          newNode.parent);
           // update new node key
           if (response && response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
             newNode.key = (response.data.data as JsonApiPrimaryData).id;
@@ -459,6 +464,7 @@ export const TreeFormField: FC<TreeProps> = ({
         addNodeDispatchAction(values);
         setTreeDataOnAdd(node, newNode);
       }
+      setIsCreatingGroupNode(false);
     }
   };
 
@@ -591,9 +597,8 @@ export const TreeFormField: FC<TreeProps> = ({
       key: String(newNodeGroupIncrementValue),
       children: [],
       parent: null,
-      expanded: true,
-      isLeaf: false
     };
+    setIsCreatingGroupNode(true);
     const nodeToCreateAttributes = {
       name: `Group node (${newNodeGroupIncrementValue})`,
     };

@@ -23,7 +23,6 @@ const fetchData = async (
   setLoading(true);
   try {
     const response = await fetcher();
-    console.log(response);
     setValues(response);
   } catch (error: any) {
     notification.error({

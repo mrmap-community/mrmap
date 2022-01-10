@@ -1,5 +1,5 @@
 
-import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
+import JsonApiRepo, { JsonApiMimeType, JsonApiResponse, QueryParams } from './JsonApiRepo';
 
 class DatasetMetadataRepo extends JsonApiRepo {
   constructor () {
@@ -49,6 +49,33 @@ class DatasetMetadataRepo extends JsonApiRepo {
         next: undefined
       }
     };
+  }
+
+  /**
+   * @description overides the default findAll to add the include parameter
+   * @param queryParams 
+   * @returns 
+   */
+  async findAll (queryParams?: QueryParams): Promise<JsonApiResponse> {
+    const client = await JsonApiRepo.getClientInstance();
+    // TODO why does Parameters<UnknownParamsObject> not work?
+    let jsonApiParams: any;
+    if (queryParams) {
+      jsonApiParams = {
+        include: 'self_pointing_layers',
+        //'fields[DatasetMetadata]': 'title,abstract,self_pointing_layers',
+        //'fields[Layer]': 'title,name',
+        'page[number]': queryParams.page,
+        'page[size]': queryParams.pageSize,
+        ...queryParams.filters
+      };
+      if (queryParams.ordering) {
+        jsonApiParams.sort = queryParams.ordering;
+      }
+    }
+    const res = await client['List' + this.resourcePath](jsonApiParams);
+    return res;
+
   }
 }
 

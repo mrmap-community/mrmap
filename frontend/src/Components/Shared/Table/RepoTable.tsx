@@ -180,8 +180,14 @@ const RepoTable = ({
         const row = {
           key: record.id,
           id: record.id,
+          layers: [],
           ...record.attributes
         };
+        if(record.relationships?.self_pointing_layers?.data.length > 0){
+          const layerIds = record.relationships.self_pointing_layers.data.map((d:any) => d.id);
+          row.layers = layerIds;
+        }
+        
         data.push(row);
       });
     }

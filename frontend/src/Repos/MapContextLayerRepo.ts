@@ -17,6 +17,7 @@ export interface MapContextLayerCreate {
     selectionLayerId?: string;
     mapContextId: string
     parentLayerId?: string;
+    isLeaf?: boolean;
 }
 
 type MapContextLayerAttributesUpdate = {
@@ -65,6 +66,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       layer_scale_max: create.layerScaleMax, //eslint-disable-line
       layer_scale_min: create.layerScaleMin, //eslint-disable-line
       layer_style_id: create.layerStyleId, //eslint-disable-line
+      is_leaf: create.isLeaf, //eslint-disable-line
     };
     const relationships:any = {
       map_context: { // eslint-disable-line

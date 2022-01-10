@@ -7,6 +7,7 @@ import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
+import LayerRepo from '../../Repos/LayerRepo';
 import { TreeFormField, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 
 type OlWMSServerType = 'ESRI' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
@@ -18,11 +19,12 @@ export interface CreateLayerOpts {
   layers: string;
   visible: boolean;
   serverType: OlWMSServerType;
-  mrMapLayerId: string | number;
+  mrMapLayerId?: string | number;
   legendUrl: string;
   title: string;
-  name: string;
+  name?: string;
   properties: Record<string, string>;
+  extent?: any[]
 }
 
 interface LayerTreeProps {
@@ -39,7 +41,13 @@ interface LayerTreeProps {
   layerAttributeForm?: ReactNode;
 }
 
-const getAllMapLayers = (collection:OlMap | LayerGroup ) => {
+// export const setLayerSourceWMSParams = (layer: ImageLayer<ImageWMS>) => {
+//   const source = layer.getSource();
+//   source.setUrl('');
+//   source.serverType:
+// }
+
+export const getAllMapLayers = (collection:OlMap | LayerGroup ) => {
   if (!(collection instanceof OlMap) && !(collection instanceof LayerGroup)) {
     console.error('Input parameter collection must be from type `ol.Map` or `ol.layer.Group`.');
     return [];
@@ -72,7 +80,7 @@ export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWM
 
   const olWMSLayer = new ImageLayer({
     source: olLayerSource,
-    visible: opts.visible
+    visible: opts.visible,
   });
 
   olWMSLayer.setProperties({
@@ -80,6 +88,7 @@ export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWM
     legendUrl: opts.legendUrl,
     title: opts.title,
     name: opts.name,
+    extent: opts.extent,
     ...opts.properties
   });
 
@@ -115,52 +124,8 @@ export const addLayerToGroup = (map:OlMap, layerGroupName: string, layerToAdd: L
   }
 };
 
-//  /**
-//    * @description: Takes the exinting layer group and transforms it into tree data type
-//    */
-//   const layerGroupToTreeData = (theLayerGroup: LayerGroup): TreeNodeType[] => {
-//     const layers = theLayerGroup.getLayers().getArray();
-    
-//     const treeNodes: TreeNodeType[] = layers.map((layer: BaseLayer | LayerGroup) => {
-//       console.log(layer);
-//       return layerToTreeNode(layer);
-//     });
-//     return treeNodes;
-//   };
-
-//   /**
-//    * @description: takes a layer and transforms it into a tree node type data
-//    * @param theLayerGroup
-//    * @returns 
-//    */
-//   const layerToTreeNode = (layer: BaseLayer | LayerGroup): any => {
-//     const node: TreeNodeType = {
-//       key: layer.getProperties().mrMapLayerId,
-//       title: layer.getProperties().title,
-//       parent: layer.getProperties().parent,
-//       properties: layer.getProperties(),
-//       expanded: layer instanceof LayerGroup,
-//       children: []
-//     };
-
-//     console.log(node.properties.name, layer instanceof LayerGroup);
-//     if (layer instanceof LayerGroup) {
-//       const childLayers = layer.getLayers().getArray();
-//       // console.log(node.properties.name, childLayers);     
-//       //@ts-ignore
-//       node.children = childLayers.map((childLayer: BaseLayer | LayerGroup) => {
-//         if (childLayer instanceof LayerGroup) {
-//           console.log("here");
-//           return layerGroupToTreeData(childLayer);
-//         }
-//         return layerToTreeNode(childLayer);
-//       });
-//     }
-//     return node;
-//   };
-
 export const OlLayerGroupToTreeNodeList = (layerGroup: LayerGroup): TreeNodeType[] => {
-  const cena = layerGroup.getLayers().getArray().map((layer: LayerGroup | BaseLayer) => {
+  return layerGroup.getLayers().getArray().map((layer: LayerGroup | BaseLayer) => {
     const node: any = {
       key: layer.getProperties().mrMapLayerId,
       title: layer.getProperties().title,
@@ -176,7 +141,29 @@ export const OlLayerGroupToTreeNodeList = (layerGroup: LayerGroup): TreeNodeType
     }
     return node;
   });
-  return cena;
+};
+
+export const OlLayerToTreeNode = (layer: BaseLayer): TreeNodeType => {
+  const node: any = {
+    key: layer.getProperties().mrMapLayerId,
+    title: layer.getProperties().title,
+    parent: layer.getProperties().parent,
+    properties: layer.getProperties(),
+    isLeaf: true,
+    expanded: layer instanceof LayerGroup,
+    children: []
+  }; 
+  return node;
+};
+
+export const getLayerWMSDetailsById = async(layerId: string) => {
+  try {
+  const response = await new LayerRepo().autocompleteInitialValue(layerId);
+  return response;
+  } catch (error) {
+    //@ts-ignore
+    throw new Error(error);
+  }
 };
 
 const layerTreeLayerGroup = new LayerGroup({
@@ -196,7 +183,7 @@ export const LayerTree = ({
   removeLayerDispatchAction = () => undefined,
   editLayerDispatchAction = () => undefined,
   dragLayerDispatchAction = () => undefined,
-  layerAttributeForm
+  layerAttributeForm,
 }: LayerTreeProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -206,18 +193,47 @@ export const LayerTree = ({
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
 
   useEffect(() => {
+    const onLayerGroupChange = (e:any) => {
+        setTreeData(OlLayerGroupToTreeNodeList(layerGroup));
+    };
+    const setWMSParams = async(theLayer: ImageLayer<ImageWMS>) => {
+      try {
+        const source = theLayer.getSource();
+        const res = await new LayerRepo().autocompleteInitialValue(theLayer.getProperties().renderingLayer);
+        source.setUrl(res.attributes.WMSParams.url);
+        source.getParams().LAYERS = res.attributes.WMSParams.layer;
+        source.getParams().VERSION = res.attributes.WMSParams.version;
+        source.set('serverType',res.attributes.WMSParams.serviceType);
+      } catch (error) {
+        //@ts-ignore
+        throw new Error(error);
+      }
+    };
     map.addLayer(layerGroup);
     setTreeData(OlLayerGroupToTreeNodeList(layerGroup));
+    const allMapLayers = getAllMapLayers(layerGroup);
+    allMapLayers.forEach((mapLayer: any) => {
+      if(mapLayer instanceof ImageLayer) {
+        const src: ImageWMS = mapLayer.getSource();
+        // loaded layers from the DB will not have any information regarding the WMS parameters
+        // get them here
+        // TODO: Maybe they can be included in the initial response
+        if(!src.getUrl() && mapLayer.getProperties().renderingLayer){
+          setWMSParams(mapLayer);
+        }
+      }
+    });
+    layerGroup.on('change', onLayerGroupChange);
     return () => {
+      layerGroup.un('change', onLayerGroupChange);
       map.removeLayer(layerGroup);
     };
 
   }, [layerGroup, map]);
 
-  
   const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const { checked } = info;
-    const eventKey = info.node.props.eventKey;
+    const eventKey = info.node.key;
     const layer = getLayerByMrMapLayerIdName(map, eventKey);
     setLayerVisibility(layer, checked);
   };
@@ -227,6 +243,7 @@ export const LayerTree = ({
     //   console.error('setLayerVisibility called without layer or layer group.');
     //   return;
     // }
+    if(layer) {
     if (layer instanceof LayerGroup) {
       layer.setVisible(visibility);
       layer.getLayers().forEach((subLayer) => {
@@ -240,6 +257,7 @@ export const LayerTree = ({
         setParentFoldersVisible(group, getUid(layer), group);
       }
     }
+  }
   };
 
   const setParentFoldersVisible = (currentGroup: LayerGroup, olUid: string, masterGroup: LayerGroup) => {

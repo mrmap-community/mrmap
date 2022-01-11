@@ -1,19 +1,6 @@
 [
     {
         "model": "registry.allowedwebmapserviceoperation",
-        "pk": "1234",
-        "fields": {
-            "allowed_area": null,
-            "description": "no spatial restriction",
-            "operations": [
-                "GetMap",
-                "GetFeatureInfo"
-            ],
-            "secured_service": "4b453340-9cc9-47f6-8de3-f95c487bd83a"
-        }
-    },
-    {
-        "model": "registry.allowedwebmapserviceoperation",
         "pk": "1235",
         "fields": {
             "allowed_area": "SRID=4326;MULTIPOLYGON (((7.576103210449219 50.36709100023668, 7.568635940551757 50.36418924017004, 7.5626277923583975 50.35641383867465, 7.578248977661132 50.34721312721887, 7.596702575683594 50.3505540678909, 7.604598999023437 50.358275670499495, 7.6065731048583975 50.364955760072974, 7.601165771484375 50.36309419026128, 7.592582702636719 50.362491902041796, 7.58528709411621 50.363313202264315, 7.576103210449219 50.36709100023668)))",
@@ -22,7 +9,17 @@
                 "GetMap",
                 "GetFeatureInfo"
             ],
-            "secured_service": "4b453340-9cc9-47f6-8de3-f95c487bd83a"
+            "secured_service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "secured_layers": [
+                "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+                "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+                "c4ecdb87-31f4-4f30-8559-f577c8c59d08",
+                "ab645130-241d-4d6b-84c0-ab49c4bc6e4c",
+                "89fa6202-d252-4fb4-a772-22e2a441b312",
+                "d6e47039-b08a-4183-ae51-667083b8a803",
+                "4fdda4c4-c7bb-4525-a14d-f555ce0a9217",
+                "e95c2af1-9713-45fa-b6d4-7bb7e9813fdf"
+            ]
         }
     },
     {
@@ -35,7 +32,17 @@
                 "GetMap",
                 "GetFeatureInfo"
             ],
-            "secured_service": "4b453340-9cc9-47f6-8de3-f95c487bd83a"
+            "secured_service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "secured_layers": [
+                "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+                "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+                "c4ecdb87-31f4-4f30-8559-f577c8c59d08",
+                "ab645130-241d-4d6b-84c0-ab49c4bc6e4c",
+                "89fa6202-d252-4fb4-a772-22e2a441b312",
+                "d6e47039-b08a-4183-ae51-667083b8a803",
+                "4fdda4c4-c7bb-4525-a14d-f555ce0a9217",
+                "e95c2af1-9713-45fa-b6d4-7bb7e9813fdf"
+            ]
         }
     }
 ]

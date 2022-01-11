@@ -6,15 +6,8 @@ from django.contrib.gis.db.models import Union
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, reset_queries
-from django.db.models import (
-    BooleanField,
-    Exists,
-    ExpressionWrapper,
-    F,
-    OuterRef,
-    Q,
-    QuerySet,
-)
+from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
+                              OuterRef, Q, QuerySet)
 from django.db.models import Value as V
 from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
@@ -38,23 +31,18 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
 
     def find_all_allowed_areas_by_request(self, service_pk, request: HttpRequest):
         return (
-            self.filter(secured_service__pk=service_pk, allowed_area__isnull=False)
+            self.filter(secured_service__pk=service_pk,
+                        allowed_area__isnull=False)
             .filter_qs_by_secured_element(request=request)
             .for_user(service_pk=service_pk, request=request)
         )
 
     def find_all_empty_allowed_areas_by_request(self, service_pk, request: HttpRequest):
         return (
-            self.filter(secured_service__pk=service_pk, allowed_area__isnull=True)
+            self.filter(secured_service__pk=service_pk,
+                        allowed_area__isnull=True)
             .filter_qs_by_secured_element(request=request)
             .for_user(service_pk=service_pk, request=request)
-        )
-
-    def is_spatial_secured_and_intersects(
-        self, service_pk, geom: GEOSGeometry
-    ) -> Exists:
-        return Exists(
-            self.filter(secured_service__pk=service_pk, allowed_area__intersects=geom)
         )
 
     def is_service_secured(self, service_pk) -> Exists:
@@ -97,7 +85,8 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
         return self.filter(
             secured_service__pk=service_pk,
             allowed_groups=None,
-            operations__operation__iexact=request.query_parameters.get("request"),
+            operations__operation__iexact=request.query_parameters.get(
+                "request"),
         ) | self.filter(
             secured_service__pk=service_pk,
             allowed_groups__pk__in=Group.objects.filter(
@@ -105,7 +94,8 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             ).values_list("pk", flat=True)
             if request.user.is_anonymous
             else request.user.groups.values_list("pk", flat=True),
-            operations__operation__iexact=request.query_parameters.get("request"),
+            operations__operation__iexact=request.query_parameters.get(
+                "request"),
         )
 
     def is_user_entitled(self, service_pk, request: HttpRequest) -> Exists:
@@ -143,9 +133,8 @@ class WebMapServiceSecurityManager(models.Manager):
     request = None
 
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
-        from registry.models.security import (
-            AllowedWebMapServiceOperation,
-        )  # to avoid circular import
+        from registry.models.security import \
+            AllowedWebMapServiceOperation  # to avoid circular import
 
         return AllowedWebMapServiceOperationQuerySet(
             model=AllowedWebMapServiceOperation,
@@ -153,9 +142,8 @@ class WebMapServiceSecurityManager(models.Manager):
         )
 
     def get_operation_url_qs(self) -> WebMapServiceOperationUrlQuerySet:
-        from registry.models.service import (
-            WebMapServiceOperationUrl,
-        )  # to avoid circular import
+        from registry.models.service import \
+            WebMapServiceOperationUrl  # to avoid circular import
 
         return WebMapServiceOperationUrlQuerySet(
             model=WebMapServiceOperationUrl,
@@ -181,7 +169,8 @@ class WebMapServiceSecurityManager(models.Manager):
             not in SECURE_ABLE_OPERATIONS_LOWER
         ):
             return self.get_queryset().annotate(
-                log_response=Coalesce(F("proxy_setting__log_response"), V(False)),
+                log_response=Coalesce(
+                    F("proxy_setting__log_response"), V(False)),
                 base_operation_url=self.get_operation_url_qs().get_base_url(
                     service_pk=OuterRef("pk"), request=self.request
                 ),
@@ -194,8 +183,10 @@ class WebMapServiceSecurityManager(models.Manager):
                 self.get_queryset()
                 .select_related("auth")
                 .annotate(
-                    camouflage=Coalesce(F("proxy_setting__camouflage"), V(False)),
-                    log_response=Coalesce(F("proxy_setting__log_response"), V(False)),
+                    camouflage=Coalesce(
+                        F("proxy_setting__camouflage"), V(False)),
+                    log_response=Coalesce(
+                        F("proxy_setting__log_response"), V(False)),
                     is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
                         service_pk=OuterRef("pk"), request=self.request
                     ),
@@ -235,9 +226,8 @@ class WebMapServiceSecurityManager(models.Manager):
             self.request.query_parameters.get("request").lower()
             in SECURE_ABLE_OPERATIONS_LOWER
         ):
-            from registry.models.security import (
-                AllowedWebMapServiceOperation,
-            )  # to avoid circular import
+            from registry.models.security import \
+                AllowedWebMapServiceOperation  # to avoid circular import
 
             layer_identifiers = self.dummy_remote_service.get_requested_layers(
                 query_params=self.request.query_parameters
@@ -253,7 +243,8 @@ class WebMapServiceSecurityManager(models.Manager):
                 .only("pk", "allowed_area"),
                 to_attr="allowed_areas",
             )
-            service = service_qs.prefetch_related(prefetch).get(*args, **kwargs)
+            service = service_qs.prefetch_related(
+                prefetch).get(*args, **kwargs)
         else:
             service = service_qs.get(*args, **kwargs)
         return service

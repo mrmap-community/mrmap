@@ -68,9 +68,12 @@ class WebMapServiceProxy(View):
             request.bbox = WmsService.construct_polygon_from_bbox_query_param(
                 get_dict=request.query_parameters
             )
+            print(request.query_parameters)
         except (MissingBboxParam, MissingServiceParam):
+            # only to avoid error while handling sql in get_service()
             request.bbox = GEOSGeometry("POLYGON EMPTY")
 
+        print(request.bbox)
         self.get_service()
         self.setup_remote_service()
 
@@ -133,6 +136,7 @@ class WebMapServiceProxy(View):
         :rtype: dict or :class:`requests.models.Request`
         """
         if not self.service:
+            print("not self.service")
             return self.return_http_response(
                 {"status_code": 404, "content": "SERVICE_NOT_FOUND"}
             )
@@ -175,6 +179,7 @@ class WebMapServiceProxy(View):
         ):
             return self.handle_secured_wms()
         else:
+            print("else")
             return self.return_http_response(
                 {
                     "status_code": 403,
@@ -400,6 +405,7 @@ class WebMapServiceProxy(View):
         """
         if not self.service.is_spatial_secured_and_intersects:
             # TODO: return transparent image
+            print("not self.service.is_spatial_secured_and_intersects")
             return self.return_http_response(
                 {
                     "status_code": 403,

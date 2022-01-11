@@ -72,6 +72,7 @@ export interface TreeProps {
   editNodeDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
   dragNodeDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
   checkNodeDispacthAction?: (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => void;
+  selectNodeDispatchAction?: (selectedKeys: Key[], info: any) => void;
   draggable?: boolean;
   nodeAttributeForm?: ReactNode;
   addNodeGroupActionIcon?: ReactNode;
@@ -83,7 +84,6 @@ export interface TreeProps {
   contextMenuOnNode?: boolean;
   showMaskOnNodeAttributeForm?: boolean;
   checkableNodes?: boolean;
-  createRootNode?: boolean;
 }
 
 // TODO: create helper files with several tree methods inside. This file is too big.
@@ -194,6 +194,7 @@ export const TreeFormField: FC<TreeProps> = ({
   editNodeDispatchAction = () => undefined,
   dragNodeDispatchAction = () => undefined,
   checkNodeDispacthAction = () => undefined,
+  selectNodeDispatchAction = () => undefined,
   draggable = false,
   nodeAttributeForm = (<></>),
   addNodeGroupActionIcon = (<FolderAddFilled/>),
@@ -204,8 +205,7 @@ export const TreeFormField: FC<TreeProps> = ({
   attributeContainer = 'modal',
   contextMenuOnNode = false,
   showMaskOnNodeAttributeForm = false,
-  checkableNodes = false,
-  createRootNode = false
+  checkableNodes = false
 }) => {
   const [form] = useForm();
 
@@ -226,6 +226,7 @@ export const TreeFormField: FC<TreeProps> = ({
   const [isEditingNodeName, setIsEditingNewNodeName] = useState<boolean>(false);
   const [isCreatingGroupNode, setIsCreatingGroupNode] = useState<boolean>(true);
   const [newNodeGroupIncrementValue, setNewNodeGroupIncrementValue] = useState<number>(1);
+
   /**
    * @description: Toggles the modal showing the form with the node properties
    */
@@ -268,22 +269,25 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param children
    * @returns TreeNodeType[]
    */
-  const updateTreeData = (list: TreeNodeType[], key: React.Key, children: TreeNodeType[]): TreeNodeType[] => {
+  const updateTreeData = (list: TreeNodeType[], key?: React.Key, children?: TreeNodeType[]): TreeNodeType[] => {
     return list.map(node => {
-      if (node.key === key) {
-        return {
-          ...node,
-          children
-        };
+      if(key && children){
+        if (node.key === key) {
+          return {
+            ...node,
+            children
+          };
+        }
+        if (node.children) {
+          return {
+            ...node,
+            children: updateTreeData(node.children, key, children)
+          };
+        }
+        return node;
+      } else {
+        return node;
       }
-      if (node.children) {
-        return {
-          ...node,
-          children: updateTreeData(node.children, key, children)
-        };
-      }
-
-      return node;
     });
   };
 
@@ -321,6 +325,8 @@ export const TreeFormField: FC<TreeProps> = ({
     if (isNodeAttributeFormVisible) {
       toggleNodeAttributeForm();
     }
+    // reset to the default value
+    setIsCreatingGroupNode(true);
   };
 
   /**
@@ -329,13 +335,20 @@ export const TreeFormField: FC<TreeProps> = ({
    */
   const setTreeDataOnRemove = (node: TreeNodeType) => {
     const parentNode = getNodeParent(_treeData, node);
-    if (parentNode) {
+    if (parentNode.length > 0) {
       const indexToRemove = parentNode[0].children.indexOf(node);
       parentNode[0].children.splice(indexToRemove, 1);
       const expandedNodeIndexToRemove = expandedKeys.indexOf(node.key);
       expandedKeys.splice(expandedNodeIndexToRemove, 1);
       setExpandedKeys(expandedKeys);
       setTreeData(updateTreeData(_treeData, parentNode[0].key, parentNode[0].children));
+    } else {
+      const rootToRemove = _treeData.find(n => node.key === n.key);
+      if(rootToRemove) {
+        _treeData.splice(_treeData.indexOf(rootToRemove),1);
+        setTreeData(updateTreeData(_treeData));
+      }
+      
     }
   };
 
@@ -464,7 +477,6 @@ export const TreeFormField: FC<TreeProps> = ({
         addNodeDispatchAction(values);
         setTreeDataOnAdd(node, newNode);
       }
-      setIsCreatingGroupNode(false);
     }
   };
 
@@ -560,14 +572,17 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param expandedKeys
    * @param info
    */
-  const onExpand = (expandedKeys:Key[], info: { node: EventDataNode; expanded: boolean; nativeEvent: MouseEvent; }) => {
+  const onExpand = (
+    _expandedKeys:Key[], 
+    info: { node: EventDataNode; expanded: boolean; nativeEvent: MouseEvent; }
+  ) => {
     const node = info.node;
     if (info.expanded) {
-      expandedKeys.push(node.key);
+      _expandedKeys.push(node.key);
     } else {
-      expandedKeys.splice(expandedKeys.indexOf(node.key), 1);
+      _expandedKeys.splice(_expandedKeys.indexOf(node.key), 1);
     }
-    setExpandedKeys(expandedKeys);
+    setExpandedKeys(_expandedKeys);
   };
   
   /**
@@ -575,34 +590,36 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param checkedKeys
    * @param info
    */
-  const onCheck = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
+  const onCheck = (_checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const node = info.node;
     if (info.checked) {
       //@ts-ignore
       checkedKeys.push(info.node.props.key);
     } else {
       //@ts-ignore
-      checkedKeys.splice(checkedKeys.indexOf(node.key), 1);
+      checkedKeys.splice(_checkedKeys.indexOf(node.key), 1);
     }
-    setCheckedKeys(checkedKeys);
-    checkNodeDispacthAction(checkedKeys, info);
+    setCheckedKeys(_checkedKeys);
+    checkNodeDispacthAction(_checkedKeys, info);
   };
 
+  const onSelect = (_selectedKeys: Key[], info: any) => {
+    selectNodeDispatchAction(_selectedKeys, info);
+  };
   /**
    * @description Method to create a root node
    */
-  const onCreateNewNodeGroup = () => {
+  const onCreateNewNodeGroup = (isRoot: boolean) => {
     const nodeToCreate = {
       title: `Group node (${newNodeGroupIncrementValue})`,
       key: String(newNodeGroupIncrementValue),
       children: [],
       parent: null,
     };
-    setIsCreatingGroupNode(true);
     const nodeToCreateAttributes = {
       name: `Group node (${newNodeGroupIncrementValue})`,
     };
-    onAddNode(nodeToCreate, nodeToCreateAttributes, true);
+    onAddNode(nodeToCreate, nodeToCreateAttributes, isRoot);
   };
 
   /**
@@ -675,25 +692,23 @@ export const TreeFormField: FC<TreeProps> = ({
           </Menu.Item>
         </>
       )}
-      {nodeData && nodeData.parent && (
-        <Menu.Item
-          onClick={() => {
-            Modal.warning({
-              title: 'Remove Node',
-              content: 'The selected node will be removed, Are you sure?',
-              onOk: () => onRemoveNode(nodeData),
-              okButtonProps: {
-                disabled: isRemovingNode,
-                loading: isRemovingNode
-              }
-            });
-          }}
-          icon={removeNodeActionIcon}
-          key='remove-node'
-        >
-          Delete
-        </Menu.Item>
-      )}
+      <Menu.Item
+        onClick={() => {
+          Modal.warning({
+            title: 'Remove Node',
+            content: 'The selected node will be removed, Are you sure?',
+            onOk: () => onRemoveNode(nodeData),
+            okButtonProps: {
+              disabled: isRemovingNode,
+              loading: isRemovingNode
+            }
+          });
+        }}
+        icon={removeNodeActionIcon}
+        key='remove-node'
+      >
+        Delete
+      </Menu.Item>
       <Menu.Item
         onClick={() => {
           setSelectedNode(nodeData);
@@ -812,16 +827,6 @@ export const TreeFormField: FC<TreeProps> = ({
   }, [treeData]);
 
   /**
-   * @description: Hook to run on component mount. Creates a root node in case the tree is empty
-   */
-  // useEffect(() => {
-  //   if (_treeData.length === 0 && createRootNode) {
-  //     onCreateRootNode();
-  //   }
-  //   // eslint-disable-next-line
-  // }, []);
-
-  /**
    * @description: Hook to detect a click anywhere on the document. This will reset the isEditingNameOnNode value.
    * Event  will be removed when editingNodeName.id is not present
    */
@@ -882,7 +887,7 @@ export const TreeFormField: FC<TreeProps> = ({
             type='link'
             onClick={() => {
               setNewNodeGroupIncrementValue(newNodeGroupIncrementValue + 1);
-              onCreateNewNodeGroup();
+              onCreateNewNodeGroup(true);
             }}
           />
         </Tooltip>
@@ -901,6 +906,7 @@ export const TreeFormField: FC<TreeProps> = ({
         showLine
         multiple={false}
         expandedKeys={expandedKeys}
+        onSelect={onSelect}
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>

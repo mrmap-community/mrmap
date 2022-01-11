@@ -1,4 +1,5 @@
 import { Key } from 'antd/lib/table/interface';
+import Collection from 'ol/Collection';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
@@ -38,6 +39,7 @@ interface LayerTreeProps {
   removeLayerDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
   dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
+  selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
   layerAttributeForm?: ReactNode;
 }
 
@@ -95,32 +97,53 @@ export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWM
   return olWMSLayer;
 };
 
-export const getLayerByMrMapLayerIdName= (map: OlMap, id: string | number): LayerGroup | BaseLayer => {
+export const getLayerByMrMapLayerId= (map: OlMap, id: string | number): LayerGroup | BaseLayer => {
   const layersToSearch = getAllMapLayers(map);
   return layersToSearch.find((layer:any) => {
     return String(layer.getProperties().mrMapLayerId) === String(id);
   });
 };
 
+export const removeLayerByMrMapLayerId= (map: OlMap, id: string | number): LayerGroup | BaseLayer => {
+  const layersToSearch = getAllMapLayers(map);
+  return layersToSearch.map((layer:any) => id !== layer.getProperties().mrMapLayerId);
+};
+
 export const getLayerGroupByName = (map: OlMap, layerGroupName: string): LayerGroup | undefined=> {
-  const requiredLayerGroup =  map
-    .getLayerGroup()
-    .getLayers()
-    .getArray()
-    .find(layer => layer.getProperties().name === layerGroupName);
+  const requiredLayerGroup =  getAllMapLayers(map)
+    .find((layer:any) => layer.getProperties().name === layerGroupName);
   if(requiredLayerGroup instanceof LayerGroup){
     return requiredLayerGroup;
   }
 };
 
-export const addLayerToGroup = (map:OlMap, layerGroupName: string, layerToAdd: LayerGroup | BaseLayer): void => {
+export const getLayerGroupByMrMapLayerId = (map: OlMap, id: string|number): LayerGroup | undefined=> {
+  const requiredLayerGroup =  getAllMapLayers(map)
+    .find((layer:any) => layer.getProperties().mrMapLayerId === id);
+  if(requiredLayerGroup instanceof LayerGroup){
+    return requiredLayerGroup;
+  }
+};
+
+export const addLayerToGroupByName = (map:OlMap, layerGroupName: string, layerToAdd: LayerGroup | BaseLayer): void => {
   const layerGroup: LayerGroup | undefined = getLayerGroupByName(map, layerGroupName);
   if(layerGroup) {
-    const layerArray = layerGroup.getLayers();
+    const layerArray = layerGroup.getLayers().getArray();
     layerArray.push(layerToAdd);
-    layerGroup.setLayers(layerArray);
+    layerGroup.setLayers(new Collection(layerArray));
   } else {
     console.warn(`No layer group with the name ${layerGroupName}, was found on the map`);
+  }
+};
+
+export const addLayerToGroupByMrMapLayerId = (map:OlMap, id: string | number, layerToAdd: LayerGroup | BaseLayer): void => {
+  const layerGroup: LayerGroup | undefined = getLayerGroupByMrMapLayerId(map, id);
+  if(layerGroup) {
+    const layerArray = layerGroup.getLayers().getArray();
+    layerArray.push(layerToAdd);
+    layerGroup.setLayers(new Collection(layerArray));
+  } else {
+    console.warn(`No layer group with the id ${id}, was found on the map`);
   }
 };
 
@@ -156,16 +179,6 @@ export const OlLayerToTreeNode = (layer: BaseLayer): TreeNodeType => {
   return node;
 };
 
-export const getLayerWMSDetailsById = async(layerId: string) => {
-  try {
-  const response = await new LayerRepo().autocompleteInitialValue(layerId);
-  return response;
-  } catch (error) {
-    //@ts-ignore
-    throw new Error(error);
-  }
-};
-
 const layerTreeLayerGroup = new LayerGroup({
   opacity: 1,
   visible: true,
@@ -183,6 +196,7 @@ export const LayerTree = ({
   removeLayerDispatchAction = () => undefined,
   editLayerDispatchAction = () => undefined,
   dragLayerDispatchAction = () => undefined,
+  selectLayerDispatchAction = () => undefined,
   layerAttributeForm,
 }: LayerTreeProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
@@ -191,7 +205,7 @@ export const LayerTree = ({
   // Only change it if you detect aa bug thaat could be traced baack deep to the tree form field
 
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
-
+  
   useEffect(() => {
     const onLayerGroupChange = (e:any) => {
         setTreeData(OlLayerGroupToTreeNodeList(layerGroup));
@@ -234,7 +248,7 @@ export const LayerTree = ({
   const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const { checked } = info;
     const eventKey = info.node.key;
-    const layer = getLayerByMrMapLayerIdName(map, eventKey);
+    const layer = getLayerByMrMapLayerId(map, eventKey);
     setLayerVisibility(layer, checked);
   };
 
@@ -274,6 +288,11 @@ export const LayerTree = ({
     });
   };
 
+  // const onAddNewLayer = (nodeAttributes: any, newNodeParent?: string | number | null | undefined, layer: any) =>  {
+  //   addLayerDispatchAction(nodeAttributes, newNodeParent);
+  //   addLayerToGroup(map, layerGroup.getProperties().name, layer);
+  // };
+
   return (
     <TreeFormField
       title='Layers'
@@ -284,12 +303,12 @@ export const LayerTree = ({
       editNodeDispatchAction={editLayerDispatchAction}
       dragNodeDispatchAction={dragLayerDispatchAction}
       checkNodeDispacthAction={onCheckLayer}
+      selectNodeDispatchAction={selectLayerDispatchAction}
       draggable
       nodeAttributeForm={layerAttributeForm}
       attributeContainer='drawer'
       contextMenuOnNode
       checkableNodes
-      createRootNode
     />
   );
 };

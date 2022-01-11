@@ -1,4 +1,5 @@
 
+import Polygon from 'ol/geom/Polygon';
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 const getServiceType = (url:string): string => {
@@ -67,6 +68,19 @@ class LayerRepo extends JsonApiRepo {
       }
     );
     
+    let styles;
+    let included;
+    let extent = null;
+    if(res.data.data?.attributes?.bbox_lat_lon?.coordinates) {
+      extent = new Polygon(res.data.data.attributes.bbox_lat_lon.coordinates).getExtent();
+    }
+    if(res.data.data?.relationships.styles.data?.length > 0) {
+      styles = res.data.data?.relationships.styles.data.map((s:any) => s.id);
+    }
+    if(res.data.included) {
+      included = res.data.included.find((inc:any) => inc.attributes.operation === 'GetLegendGraphic');
+    }
+
     return {
       value: res.data.data.id,
       text: res.data.data.attributes.title,
@@ -75,14 +89,15 @@ class LayerRepo extends JsonApiRepo {
         id: res.data.data.id,
         scaleMin: res.data.data.attributes.scale_min,
         scaleMax: res.data.data.attributes.scale_max,
-        style: '',
+        style: styles,
         WMSParams: {
-          bbox: res.data.data.attributes.bbox_lat_lon.coordinates,
+          bbox: extent,
           layer: res.data.data.attributes.identifier,
           url: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.service_url,
           version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
           serviceType: res.data.included && res.data.included.length > 0 && 
-            getServiceType(res.data.included[0].attributes.service_url)
+            getServiceType(res.data.included[0].attributes.service_url),
+          legendUrl: included ? included.attributes.url : ''
         },
       },
       pagination: {

@@ -2,10 +2,13 @@ import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrest
 import { Button, notification, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
-import { default as OlLayerGroup } from 'ol/layer/Group';
+import LayerGroup, { default as OlLayerGroup } from 'ol/layer/Group';
+import ImageLayer from 'ol/layer/Image';
+import Layer from 'ol/layer/Layer';
 import OlLayerTile from 'ol/layer/Tile';
 import OlMap from 'ol/Map';
 import { transformExtent } from 'ol/proj';
+import ImageWMS from 'ol/source/ImageWMS';
 import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
 import React, { ReactElement, useEffect, useState } from 'react';
@@ -14,7 +17,7 @@ import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
-import { addLayerToGroup, createMrMapOlWMSLayer, LayerTree } from '../LayerTree/LayerTree';
+import { addLayerToGroupByMrMapLayerId, createMrMapOlWMSLayer, getAllMapLayers, LayerTree } from '../LayerTree/LayerTree';
 import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
 import { MPTTListToOLLayerGroup } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import './MapContext.css';
@@ -69,6 +72,15 @@ const mapContextLayersGroup = new OlLayerGroup({
   layers: []
 });
 
+const mapContextLayersPreviewGroup = new OlLayerGroup({
+  opacity: 1,
+  visible: true,
+  properties: {
+    name: 'mrMapMapContextLayersPreview'
+  },
+  layers: []
+});
+
 export const MapContext = (): ReactElement => {
   const navigate = useNavigate();
   const [form] = useForm();
@@ -81,9 +93,11 @@ export const MapContext = (): ReactElement => {
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
+  const [currentSelectedLayerId, setCurrentSelectedLayerId] = useState<string | number>('');
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
+    // olMap.addLayer(mapContextLayersPreviewGroup);
     if (id) {
       const fetchMapContext = async () => {
         try {
@@ -119,11 +133,11 @@ export const MapContext = (): ReactElement => {
     setCurrent(current - 1);
   };
 
+  const onSelectLayerInTree = (selectedKeys: any, info: any) => {
+    setCurrentSelectedLayerId(info.node.key);
+  };
+
   const onPreviewDatasetOnMapAction = async(dataset:any) => {
-    const layerToRemove = olMap.getLayers().getArray().find(l => l.getProperties().name === 'previewMapContextLayer');
-    if(layerToRemove) {
-      olMap.removeLayer(layerToRemove);
-    }
     dataset.layers.forEach(async (layer: string) => {
       try {
         // get the layer details with the id and create an OL Layer
@@ -145,11 +159,17 @@ export const MapContext = (): ReactElement => {
 
         const layerExtent = renderingLayerPreview.getExtent();
         if(layerExtent) {
+          // the default map projection is in 3857. The extent is coming from the server in 4326.
+          // It needs to be transformed in order to show the location correctly.
+          // However, the origin SRS shoul be given with the response. Still TODO
           const transformedExtent = transformExtent(layerExtent, 'EPSG:4326', 'EPSG:3857');
-          // TODO
           olMap.getView().fit(transformedExtent);
         }
-        olMap.addLayer(renderingLayerPreview);
+        //@ts-ignore
+        // const previewLayerGroup: OlLayerGroup = olMap.getLayers().getArray()
+        //   .find(l => l instanceof OlLayerGroup && l.getProperties().name === 'mrMapMapContextLayersPreview');
+        olMap.addLayer(mapContextLayersPreviewGroup);
+        // previewLayerGroup.setLayers(new Collection(renderingLayerPreview));
     } catch (error) {
       //@ts-ignore
       throw new Error(error);
@@ -192,7 +212,7 @@ export const MapContext = (): ReactElement => {
           properties: createdLayer?.data?.data?.attributes
         });
 
-        addLayerToGroup(olMap, 'mrMapMapContextLayers', renderingLayer);
+        addLayerToGroupByMrMapLayerId(olMap, currentSelectedLayerId, renderingLayer);
         notification.info({
           message: `Add dataset '${dataset.title}'`
         });
@@ -263,45 +283,87 @@ export const MapContext = (): ReactElement => {
                 map={olMap}
                 layerGroup={mapContextLayersGroup}
                 asyncTree
+                selectLayerDispatchAction={onSelectLayerInTree}
                 addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
+                  let layerToAdd: OlLayerGroup | ImageLayer<ImageWMS> = new Layer({});
                   try {
+                    // create the layer in the DB
                     const createdLayer = await mapContextLayerRepo.create({
                       ...nodeAttributes,
                       parentLayerId: newNodeParent || '',
                       mapContextId: createdMapContextId
                     });
-                    
-                    //@ts-ignore
-                    // const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
-                    // if(renderingLayerId) {
-                    //   try {
-                    //     const rl = await layerRepo.autocompleteInitialValue(renderingLayerId);
-                    //     const renderingLayer = createMrMapOlWMSLayer({
-                    //       //eslint-disable-next-line
-                    //       url: rl.attributes.WMSParams.url,
-                    //       version: rl.attributes.WMSParams.version,
-                    //       format: 'image/png',
-                    //       layers: rl.attributes.WMSParams.layer,
-                    //       visible: true,
-                    //       serverType: rl.attributes.WMSParams.serviceType,
-                    //       //@ts-ignore
-                    //       mrMapLayerId: createdLayer.data.data.id,
-                    //       legendUrl: 'string',
-                    //       //@ts-ignore
-                    //       title: createdLayer.data.data.attributes.title,
-                    //       //@ts-ignore
-                    //       name: createdLayer.data.data.attributes.name,
-                    //       properties: {
-                    //         //@ts-ignore
-                    //         parent: null
-                    //       }
-                    //     });
-                    //     addLayerToGroup(olMap, 'mrMapLayerTreeLayerGroup', renderingLayer);
-                    //   } catch (error) {
-                    //     //@ts-ignore
-                    //     throw new Error(error);
+
+                    // if the created layer has a parent, it means its not being created in the root
+                    // and its a child of a already exiting group. Else it should be added to the root group
+                    // let layerGroupToAdd = 'mrMapMapContextLayers';
+                    // if(newNodeParent) {
+                    //   const layerGroupObj = getLayerByMrMapLayerId(olMap, newNodeParent);
+                    //   if (layerGroupObj && layerGroupObj instanceof OlLayerGroup) {
+                    //     layerGroupToAdd = layerGroupObj.getProperties().name;
                     //   }
                     // }
+                    //@ts-ignore
+                    if(createdLayer.data?.data?.attributes.is_leaf) {
+                      //@ts-ignore
+                      const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
+                      if(renderingLayerId) {
+                        const rl = await layerRepo.autocompleteInitialValue(renderingLayerId);
+                        layerToAdd = createMrMapOlWMSLayer({
+                          url: rl.attributes.WMSParams.url,
+                          version: rl.attributes.WMSParams.version,
+                          format: 'image/png',
+                          layers: rl.attributes.WMSParams.layer,
+                          visible: false,
+                          serverType: rl.attributes.WMSParams.serviceType,
+                          //@ts-ignore
+                          mrMapLayerId: createdLayer.data.data.id,
+                          legendUrl: 'string',
+                          //@ts-ignore
+                          title: createdLayer.data.data.attributes.title,
+                          //@ts-ignore
+                          name: createdLayer.data.data.attributes.name,
+                          properties: {
+                            //@ts-ignore
+                            parent: createdLayer?.data?.data?.relationships?.parent?.data?.id
+                          }
+                        });
+                      } else {
+                        // add a layer without the definitions coming from rl
+                        layerToAdd = createMrMapOlWMSLayer({
+                          url: '',
+                          version: '1.1.0',
+                          format: 'image/png',
+                          layers: '',
+                          visible: false,
+                          serverType: 'MAPSERVER',
+                          //@ts-ignore
+                          mrMapLayerId: createdLayer.data.data.id,
+                          legendUrl: 'string',
+                          //@ts-ignore
+                          title: createdLayer.data.data.attributes.title,
+                          //@ts-ignore
+                          name: createdLayer.data.data.attributes.name,
+                          properties: {
+                            //@ts-ignore
+                            parent: createdLayer?.data?.data?.relationships?.parent?.data?.id
+                          }
+                        });
+                      }
+                    } else {
+                      layerToAdd = new OlLayerGroup({
+                        opacity: 1,
+                        visible: false,
+                        properties: {
+                          //@ts-ignore
+                          name: createdLayer?.data?.data?.attributes.name,
+                          //@ts-ignore
+                          mrMapLayerId: createdLayer?.data?.data?.id,
+                        },
+                        layers: []
+                      }); 
+                    }
+                    addLayerToGroupByMrMapLayerId(olMap, newNodeParent as string, layerToAdd);
                     
                     return createdLayer;
                   } catch (error) {
@@ -309,9 +371,32 @@ export const MapContext = (): ReactElement => {
                     throw new Error(error);
                   }
                 }}
-                removeLayerDispatchAction={async (nodeToRemove) => (
-                  await mapContextLayerRepo?.delete(String(nodeToRemove.key))
-                )}
+                removeLayerDispatchAction={async (nodeToRemove) => {
+                  let layersToKeep;
+                  try {
+                    // get the parent of the layer to remove
+                    const layerToRemoveParent = getAllMapLayers(mapContextLayersGroup)
+                      .find((l: any) => l.getProperties().mrMapLayerId === nodeToRemove.parent);
+                    if(layerToRemoveParent && layerToRemoveParent instanceof LayerGroup) {
+                      layersToKeep = layerToRemoveParent
+                        .getLayers()
+                        .getArray()
+                        .filter((l:any) => l.getProperties().mrMapLayerId !== nodeToRemove.key);
+                      layerToRemoveParent.setLayers(new Collection(layersToKeep));
+                    } else {
+                      // if there is no parent, its root.Remove itself from the layer group
+                      layersToKeep = mapContextLayersGroup
+                        .getLayers()
+                        .getArray()
+                        .filter((l:any) => l.getProperties().mrMapLayerId !== nodeToRemove.key);
+                      mapContextLayersGroup.setLayers(new Collection(layersToKeep));
+                    }
+                    return await mapContextLayerRepo?.delete(String(nodeToRemove.key));
+                  } catch (error) {
+                    //@ts-ignore
+                    throw new Error(error);
+                  }
+                }}
                 editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
                   await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
                 )}

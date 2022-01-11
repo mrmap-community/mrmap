@@ -104,6 +104,7 @@ services:
     depends_on:
       - postgis
       - redis
+      - mapserver
 
   backend:
     build:

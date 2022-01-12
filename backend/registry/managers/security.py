@@ -1,20 +1,15 @@
 from typing import Any
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
-from django.contrib.gis.db.models.functions import AsGeoJSON, AsSVG
-from django.contrib.gis.geos.geometry import GEOSGeometry
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import models, reset_queries
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
-                              OuterRef, Q, QuerySet)
+                              OuterRef, QuerySet)
 from django.db.models import Value as V
-from django.db.models.expressions import Subquery, Value
+from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
-from django.db.models.query import Prefetch
-from django.http import HttpRequest, request
-from ows_client.request_builder import WebService, WfsService, WmsService
+from django.http import HttpRequest
+from ows_client.request_builder import WebService
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
@@ -198,9 +193,12 @@ class WebMapServiceSecurityManager(models.Manager):
                     is_spatial_secured_and_intersects=self.get_allowed_operation_qs().is_spatial_secured_and_intersects(
                         service_pk=OuterRef("pk"), request=self.request
                     ),
-                    allowed_area_=self.get_allowed_operation_qs().get_allowed_areas(
+                    allowed_area_union=self.get_allowed_operation_qs().get_allowed_areas(
                         service_pk=OuterRef("pk"), request=self.request
-                    ).values('secured_service').annotate(geom=Union('allowed_area')).values('geom'),
+                    ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom'),
+                    allowed_area_pks=self.get_allowed_operation_qs().get_allowed_areas(
+                        service_pk=OuterRef("pk"), request=self.request
+                    ).values('secured_service__pk').annotate(pks=ArrayAgg('pk')).values('pks'),
                     base_operation_url=self.get_operation_url_qs().get_base_url(
                         service_pk=OuterRef("pk"), request=self.request
                     ),
@@ -216,31 +214,6 @@ class WebMapServiceSecurityManager(models.Manager):
         self.dummy_remote_service = WebService.manufacture_service(
             self.request.get_full_path()
         )
-        service_qs = self.prepare_with_security_info()
-        if (
-            self.request.query_parameters.get("request").lower()
-            in SECURE_ABLE_OPERATIONS_LOWER
-        ):
-            from registry.models.security import \
-                AllowedWebMapServiceOperation  # to avoid circular import
+        service = self.prepare_with_security_info().get(*args, **kwargs)
 
-            # FIXME: incorect prefetch... the filter on AllowedWebMapServiceOperation is not restrictive to user, secured_service...
-            layer_identifiers = self.dummy_remote_service.get_requested_layers(
-                query_params=self.request.query_parameters
-            )
-            query = Q(
-                secured_layers__identifier__iregex=r"%s"
-                % f"({'|'.join(layer_identifiers) })"
-            )
-            prefetch = Prefetch(
-                "allowed_operations",
-                queryset=AllowedWebMapServiceOperation.objects.filter(query)
-                .distinct("pk")
-                .only("pk", "allowed_area"),
-                to_attr="allowed_areas",
-            )
-            service = service_qs.prefetch_related(
-                prefetch).get(*args, **kwargs)
-        else:
-            service = service_qs.get(*args, **kwargs)
         return service

@@ -12,6 +12,7 @@ import { SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocomp
 interface MapContextLayerFormProps {
   form?: FormInstance<any>;
   onSubmit?: (values?:any) => void;
+  showBasicForm?: boolean;
 }
 
 const fetchData = async (
@@ -41,7 +42,8 @@ const featureTypesRepo = new FeatureTypeRepo();
 
 export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   form = undefined,
-  onSubmit = () => undefined
+  onSubmit = () => undefined,
+  showBasicForm = false
 
 }) => {
   const [isDatasetMetadataOptionsLoading, setIsDatasetMetadataOptionsLoading] = useState<boolean>(false);
@@ -83,7 +85,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   // }, [selectedDatasetMetadata]);
 
   /**
-   * @description: Hook  to run on component mount, if daataset metadata already has a value (on edit form)
+   * @description: Hook  to run on component mount, if dataset metadata already has a value (on edit form)
    */
   useEffect(() => {
     if (form?.getFieldValue('datasetMetadata')) {
@@ -147,7 +149,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   useEffect(() => {
     if (form?.getFieldValue('featureSelectionLayer')) {
       fetchData(
-        () => layerRepo.autocompleteInitialValue(form?.getFieldValue('featureSelectionLayer')),
+        () => featureTypesRepo.autocompleteInitialValue(form?.getFieldValue('featureSelectionLayer')),
         (values) => {
           setRenderingLayerOptions([values]);
           setSelectedRenderingLayer(values);
@@ -193,138 +195,142 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
             hasFeedback: true
           }}
         />
-        <Divider
-          plain
-          orientation='left'
-        >
-          <h3> Associated metadata record </h3>
-        </Divider>
+        {!showBasicForm && (
+          <> 
+            <Divider
+              plain
+              orientation='left'
+            >
+              <h3> Associated metadata record </h3>
+            </Divider>
 
-        <SelectAutocompleteFormField
-          loading={isDatasetMetadataOptionsLoading}
-          label='Dataset Metadata'
-          name='datasetMetadata'
-          placeholder='Select Metadata'
-          searchData={datasetMetadataOptions}
-          tooltip={{
-            title: 'You can use this field to pre filter possible Layer selection.',
-            icon: <InfoCircleOutlined />
-          }}
-          // validation={{
-          //   rules: [{ required: true, message: 'Please select metadata!' }],
-          //   hasFeedback: true
-          // }}
-          onSelect={(value, option) => {
-            setSelectedDatasetMetadata(option);
-          }}
-          onClear={() => {
-            setSelectedDatasetMetadata(undefined);
-          }}
-          onSearch={(value: string) => {
-            fetchData(
-              () => datasetMetadataRepo.autocomplete(value),
-              (values) => setDatasetMetadataOptions(values),
-              (boolean) => setIsDatasetMetadataOptionsLoading(boolean)
-            );
-          }}
-          pagination
-        />
-        <Divider
-          plain
-          orientation='left'
-        >
-          <h3> Rendering options </h3>
-        </Divider>
+            <SelectAutocompleteFormField
+              loading={isDatasetMetadataOptionsLoading}
+              label='Dataset Metadata'
+              name='datasetMetadata'
+              placeholder='Select Metadata'
+              searchData={datasetMetadataOptions}
+              tooltip={{
+                title: 'You can use this field to pre filter possible Layer selection.',
+                icon: <InfoCircleOutlined />
+              }}
+              // validation={{
+              //   rules: [{ required: true, message: 'Please select metadata!' }],
+              //   hasFeedback: true
+              // }}
+              onSelect={(value, option) => {
+                setSelectedDatasetMetadata(option);
+              }}
+              onClear={() => {
+                setSelectedDatasetMetadata(undefined);
+              }}
+              onSearch={(value: string) => {
+                fetchData(
+                  () => datasetMetadataRepo.autocomplete(value),
+                  (values) => setDatasetMetadataOptions(values),
+                  (boolean) => setIsDatasetMetadataOptionsLoading(boolean)
+                );
+              }}
+              pagination
+            />
+            <Divider
+              plain
+              orientation='left'
+            >
+              <h3> Rendering options </h3>
+            </Divider>
 
-        <SelectAutocompleteFormField
-          loading={isRenderingLayerOptionsLoading}
-          label='Rendering Layer'
-          name='renderingLayer'
-          placeholder='Select a rendering layer'
-          searchData={renderingLayerOptions}
-          tooltip={{ title: 'Select a layer for rendering.', icon: <InfoCircleOutlined /> }}
-          // validation={{
-          //   rules: [{ required: true, message: 'Please input a rendering layer!' }],
-          //   hasFeedback: true
-          // }}
-          onSelect={(value, option) => {
-            setSelectedRenderingLayer(option);
-          }}
-          onClear={() => {
-            setSelectedRenderingLayer(undefined);
-          }}
-          onSearch={(value: string) => {
-            fetchData(
-              () => layerRepo.autocomplete(value),
-              (values) => setRenderingLayerOptions(values),
-              (boolean) => setIsRenderingLayerOptionsLoading(boolean)
-            );
-          }}
-          pagination
-        />
+            <SelectAutocompleteFormField
+              loading={isRenderingLayerOptionsLoading}
+              label='Rendering Layer'
+              name='renderingLayer'
+              placeholder='Select a rendering layer'
+              searchData={renderingLayerOptions}
+              tooltip={{ title: 'Select a layer for rendering.', icon: <InfoCircleOutlined /> }}
+              // validation={{
+              //   rules: [{ required: true, message: 'Please input a rendering layer!' }],
+              //   hasFeedback: true
+              // }}
+              onSelect={(value, option) => {
+                setSelectedRenderingLayer(option);
+              }}
+              onClear={() => {
+                setSelectedRenderingLayer(undefined);
+              }}
+              onSearch={(value: string) => {
+                fetchData(
+                  () => layerRepo.autocomplete(value),
+                  (values) => setRenderingLayerOptions(values),
+                  (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+                );
+              }}
+              pagination
+            />
 
-        <InputFormField
-          disabled={!form?.getFieldValue('scaleMin')}
-          label='Scale minimum value'
-          name='scaleMin'
-          tooltip={{
-            title: 'minimum scale for a possible request to this layer. If the request is out of the given' +
-            'scope, the service will response with empty transparentimages. None value means no restriction.',
-            icon: <InfoCircleOutlined />
-          }}
-          placeholder='Scale minimum value'
-          type='number'
-        />
+            <InputFormField
+              disabled={!form?.getFieldValue('scaleMin')}
+              label='Scale minimum value'
+              name='scaleMin'
+              tooltip={{
+                title: 'minimum scale for a possible request to this layer. If the request is out of the given' +
+                'scope, the service will response with empty transparentimages. None value means no restriction.',
+                icon: <InfoCircleOutlined />
+              }}
+              placeholder='Scale minimum value'
+              type='number'
+            />
 
-        <InputFormField
-          disabled={!form?.getFieldValue('scaleMax')}
-          label='Scale maximum value'
-          name='scaleMax'
-          tooltip={{
-            title: 'maximum scale for a possible request to this layer. If the request is out of the given' +
-            'scope, the service will response with empty transparentimages. None value means no restriction.',
-            icon: <InfoCircleOutlined />
-          }}
-          placeholder='Scale maximum value'
-          type='number'
-        />
+            <InputFormField
+              disabled={!form?.getFieldValue('scaleMax')}
+              label='Scale maximum value'
+              name='scaleMax'
+              tooltip={{
+                title: 'maximum scale for a possible request to this layer. If the request is out of the given' +
+                'scope, the service will response with empty transparentimages. None value means no restriction.',
+                icon: <InfoCircleOutlined />
+              }}
+              placeholder='Scale maximum value'
+              type='number'
+            />
 
-        <InputFormField
-          disabled={!form?.getFieldValue('style')}
-          label='Style'
-          name='style'
-          tooltip={{ title: 'Select a style for rendering.', icon: <InfoCircleOutlined /> }}
-          placeholder='Style'
-        />
-        <Divider
-          plain
-          orientation='left'
-        >
-          <h3> Feature selection options </h3>
-        </Divider>
+            <InputFormField
+              disabled={!form?.getFieldValue('style')}
+              label='Style'
+              name='style'
+              tooltip={{ title: 'Select a style for rendering.', icon: <InfoCircleOutlined /> }}
+              placeholder='Style'
+            />
+            <Divider
+              plain
+              orientation='left'
+            >
+              <h3> Feature selection options </h3>
+            </Divider>
 
-        <SelectAutocompleteFormField
-          loading={isFeatureSelectionLayerOptionsLoading}
-          label='Selection Layer'
-          name='featureSelectionLayer'
-          placeholder='Select a feature type'
-          searchData={featureSelectionLayerOptions}
-          tooltip={{ title: ' Select a layer for feature selection.', icon: <InfoCircleOutlined /> }}
-          onSelect={(value, option) => {
-            setSelectedFeatureSelectionLayer(option);
-          }}
-          onClear={() => {
-            setSelectedFeatureSelectionLayer(undefined);
-          }}
-          onSearch={(value: string) => {
-            fetchData(
-              () => featureTypesRepo.autocomplete(value),
-              (values) => setFeatureSelectionLayerOptions(values),
-              (boolean) => setIsFeatureSelectionLayerOptionsLoading(boolean)
-            );
-          }}
-          pagination
-        />
+            <SelectAutocompleteFormField
+              loading={isFeatureSelectionLayerOptionsLoading}
+              label='Selection Layer'
+              name='featureSelectionLayer'
+              placeholder='Select a feature type'
+              searchData={featureSelectionLayerOptions}
+              tooltip={{ title: ' Select a layer for feature selection.', icon: <InfoCircleOutlined /> }}
+              onSelect={(value, option) => {
+                setSelectedFeatureSelectionLayer(option);
+              }}
+              onClear={() => {
+                setSelectedFeatureSelectionLayer(undefined);
+              }}
+              onSearch={(value: string) => {
+                fetchData(
+                  () => featureTypesRepo.autocomplete(value),
+                  (values) => setFeatureSelectionLayerOptions(values),
+                  (boolean) => setIsFeatureSelectionLayerOptionsLoading(boolean)
+                );
+              }}
+              pagination
+            />
+          </>
+        )}
       </Form>
   );
 };

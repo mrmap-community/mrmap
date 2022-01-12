@@ -1,23 +1,26 @@
 import { PlusCircleOutlined } from '@ant-design/icons';
-import { Button, Drawer, notification } from "antd";
+import { Button, Drawer } from "antd";
 import React, { ReactElement, useRef, useState } from 'react';
 import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
 import RepoTable, { RepoTableColumnType } from '../Shared/Table/RepoTable';
 import { buildSearchTransformText } from '../Shared/Table/TableHelper';
 import './SearchDrawer.css';
 
+
 const repo = new DatasetMetadataRepo();
 
-export const SearchDrawer = (): ReactElement => {
+export const SearchDrawer = ({
+  addDatasetToMapAction = () => undefined,
+}:{
+  addDatasetToMapAction?: (dataset: any) => void;
+}): ReactElement => {
 
-    const [visible, setVisible] = useState<boolean>(true);
+    const [visible, setVisible] = useState<boolean>(false);
 
     const buttonRef = useRef<HTMLButtonElement>(null);
 
-    const addDatasetToMap = (dataset: any) => {
-        notification.info({
-          message: `Add dataset '${dataset.title}'`
-        });
+    const onAddDatasetToMap = (dataset: any) => {
+      addDatasetToMapAction(dataset); 
     };
 
     const columns: RepoTableColumnType[] = [{
@@ -122,9 +125,10 @@ export const SearchDrawer = (): ReactElement => {
           return (
             <>
                 <Button
+                  disabled={record.layers.length === 0 || !record.layers}
                   size='small'
                   type='primary'
-                  onClick={ () => { addDatasetToMap(record); }}
+                  onClick={ () => { onAddDatasetToMap(record); }}
                 >
                   Zur Karte hinzufügen
                 </Button>
@@ -140,6 +144,10 @@ export const SearchDrawer = (): ReactElement => {
         search : {
           transform : buildSearchTransformText('search')
         }
+      },
+      {
+        dataIndex: 'is_accessible',
+        hideInTable: true
       }
     ];
 

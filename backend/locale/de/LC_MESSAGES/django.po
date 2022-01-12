@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-01-07 11:46+0100\n"
+"POT-Creation-Date: 2022-01-12 16:15+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -406,6 +406,18 @@ msgstr "Selektionsebene"
 #: registry/models/mapcontext.py:106
 msgid "Select a layer for feature selection."
 msgstr "Wählen Sie einen Stil für die Darstellung."
+
+#: registry/models/mapcontext.py:107
+msgid "Is tree leaf"
+msgstr "Ist Baumblatt"
+
+#: registry/models/mapcontext.py:109
+msgid ""
+"Set if this map context layer is a layer withattributes (leaf) or it defines "
+"a group of layers like a folder (not leaf)."
+msgstr ""
+"Legt fest, ob diese MapContextLayer eine Ebene mit Attributen (Blatt) ist "
+"oder eine Gruppe von Ebenen wie einen Ordner definiert (kein Blatt)."
 
 #: registry/models/metadata.py:29
 #, fuzzy

@@ -10,6 +10,7 @@ export interface JsonApiDocument {
     errors?: JsonApiErrorObject;
     meta?: any;
     links?: any;
+    included?: any;
 }
 
 export interface JsonApiErrorObject {
@@ -161,7 +162,7 @@ class JsonApiRepo {
           }
         }
       }, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
       });
     }
 

@@ -1,6 +1,23 @@
 
+import Polygon from 'ol/geom/Polygon';
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
+const getServiceType = (url:string): string => {
+  const rightUrl = new URL(url);
+  if (rightUrl.pathname.includes('mapserv')) {
+    return 'MAPSERVER';
+  }
+  if (rightUrl.pathname.includes('geoserver')) {
+    return 'GEOSERVER';
+  }
+  if (rightUrl.pathname.includes('qgis')) {
+    return 'QGIS';
+  }
+  if (rightUrl.pathname.includes('esri')) {
+    return 'ESRI';
+  }
+  return '';
+};
 class LayerRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/layers/', 'WMS-Ebenen');
@@ -10,7 +27,8 @@ class LayerRepo extends JsonApiRepo {
     const client = await JsonApiRepo.getClientInstance();
     const jsonApiParams: any = {
       'filter[title.icontains]': searchText,
-      sort: 'title'
+      sort: 'title',
+      include: 'service.operation_urls'
       // 'fields[Layer]': 'scale_max, scale_min, title'  // TODO: not working. Grab all for now
     };
     if (!searchText) {
@@ -22,7 +40,16 @@ class LayerRepo extends JsonApiRepo {
     return res.data.data.map((o: any) => ({
       value: o.id,
       text: o.attributes.title,
-      attributes: o.attributes,
+      attributes: {
+        ...o.attributes,
+        WMSParams: {
+          layer: o.attributes.identifier,
+          url: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.service_url,
+          version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
+          serviceType: res.data.included && res.data.included.length > 0 && 
+            getServiceType(res.data.included[0].attributes.service_url)
+        },
+      },
       pagination: {
         next: res.data.links.next
       }
@@ -36,40 +63,48 @@ class LayerRepo extends JsonApiRepo {
       id,
       {},
       {
-        headers: { 'Content-Type': JsonApiMimeType }
+        headers: { 'Content-Type': JsonApiMimeType },
+        params: { include: 'service.operation_urls' }
       }
     );
+    
+    let styles;
+    let included;
+    let extent = null;
+    if(res.data.data?.attributes?.bbox_lat_lon?.coordinates) {
+      extent = new Polygon(res.data.data.attributes.bbox_lat_lon.coordinates).getExtent();
+    }
+    if(res.data.data?.relationships.styles.data?.length > 0) {
+      styles = res.data.data?.relationships.styles.data.map((s:any) => s.id);
+    }
+    if(res.data.included) {
+      included = res.data.included.find((inc:any) => inc.attributes.operation === 'GetLegendGraphic');
+    }
+
     return {
       value: res.data.data.id,
       text: res.data.data.attributes.title,
-      attributes: res.data.data.attributes,
+      attributes: {
+        ...res.data.data.attributes,
+        id: res.data.data.id,
+        scaleMin: res.data.data.attributes.scale_min,
+        scaleMax: res.data.data.attributes.scale_max,
+        style: styles,
+        WMSParams: {
+          bbox: extent,
+          layer: res.data.data.attributes.identifier,
+          url: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.service_url,
+          version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
+          serviceType: res.data.included && res.data.included.length > 0 && 
+            getServiceType(res.data.included[0].attributes.service_url),
+          legendUrl: included ? included.attributes.url : ''
+        },
+      },
       pagination: {
         next: undefined
       }
     };
   }
-
-  // async getFromIdArray (idList: string[]): Promise<JsonApiResponse[]> {
-  //   const client = await JsonApiRepo.getClientInstance();
-  //   const layerResponses: JsonApiResponse[] = [];
-  //   idList.forEach(async (id:string) => {
-  //     const res = await client['retrieve' + this.resourcePath + '{id}/'](id, {}, {
-  //       headers: { 'Content-Type': JsonApiMimeType }
-  //     });
-  //     const dataToAdd = {
-  //       value: res.data.data.id,
-  //       text: res.data.data.attributes.title,
-  //       attributes: {
-  //         scaleMin: res.data.data.attributes.scale_min,
-  //         scaleMax: res.data.data.attributes.scale_max,
-  //         style: res.data.data.attributes.style
-  //       }
-  //     };
-  //     // @ts-ignore
-  //     layerResponses.push(dataToAdd);
-  //   });
-  //   return layerResponses;
-  // }
 }
 
 export default LayerRepo;

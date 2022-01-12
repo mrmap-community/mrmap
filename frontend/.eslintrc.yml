@@ -53,6 +53,7 @@ rules:
   no-unused-vars: 0
   no-debugger: 0
   no-prototype-builtins: 1
+  no-shadow: 1
   camelcase:
     - error
     - allow:
@@ -81,3 +82,4 @@ overrides:
       "@typescript-eslint/no-unused-vars": 2
       "@typescript-eslint/no-explicit-any": 0
       "@typescript-eslint/ban-ts-comment": 0
+      "@typescript-eslint/no-shadow": 1

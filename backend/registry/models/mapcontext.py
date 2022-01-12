@@ -104,10 +104,10 @@ class MapContextLayer(MPTTModel):
                                         related_name="mapcontextlayers_selection",
                                         verbose_name=_("Selection layer"),
                                         help_text=_("Select a layer for feature selection."))
-    is_leaf = models.BooleanField(verbose_name=_("Is tree leaf"), 
+    is_leaf = models.BooleanField(verbose_name=_("Is tree leaf"),
                                   help_text=_(
-                                      "Set if this map context layer is a layer with" 
-                                      "attributes (leaf) or it defines a group of layers like a folder (not leaf)."), 
+                                      "Set if this map context layer is a layer with"
+                                      "attributes (leaf) or it defines a group of layers like a folder (not leaf)."),
                                   default=False)
 
     def __str__(self):

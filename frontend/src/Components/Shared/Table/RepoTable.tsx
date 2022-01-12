@@ -114,9 +114,9 @@ const RepoTable = ({
     async function buildColumns () {
       const resourceSchema = await repo.getResourceSchema();
       const queryParams = await repo.getQueryParams();
-      const augmentedColumns = augmentColumns(resourceSchema, queryParams, columns);
-      if (!augmentedColumns.some(column => column.key === 'actions')) {
-        augmentedColumns.push({
+      const _augmentedColumns = augmentColumns(resourceSchema, queryParams, columns);
+      if (!_augmentedColumns.some(column => column.key === 'actions')) {
+        _augmentedColumns.push({
           key: 'actions',
           title: 'Aktionen',
           valueType: 'option',
@@ -145,7 +145,7 @@ const RepoTable = ({
           }
         });
       }
-      setAugmentedColumns(augmentedColumns);
+      setAugmentedColumns(_augmentedColumns);
     }
     buildColumns();
   }, [columns, onEditRecord, repo]);

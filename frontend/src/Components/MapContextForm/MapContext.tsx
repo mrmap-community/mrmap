@@ -7,7 +7,6 @@ import ImageLayer from 'ol/layer/Image';
 import Layer from 'ol/layer/Layer';
 import OlLayerTile from 'ol/layer/Tile';
 import OlMap from 'ol/Map';
-import { transformExtent } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
@@ -19,7 +18,7 @@ import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { addLayerToGroupByMrMapLayerId, createMrMapOlWMSLayer, getAllMapLayers, LayerTree } from '../LayerTree/LayerTree';
 import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
-import { MPTTListToOLLayerGroup } from '../Shared/FormFields/TreeFormField/TreeFormField';
+import { MPTTListToOLLayerGroup, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
@@ -72,15 +71,6 @@ const mapContextLayersGroup = new OlLayerGroup({
   layers: []
 });
 
-const mapContextLayersPreviewGroup = new OlLayerGroup({
-  opacity: 1,
-  visible: true,
-  properties: {
-    name: 'mrMapMapContextLayersPreview'
-  },
-  layers: []
-});
-
 export const MapContext = (): ReactElement => {
   const navigate = useNavigate();
   const [form] = useForm();
@@ -93,7 +83,7 @@ export const MapContext = (): ReactElement => {
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
-  const [currentSelectedLayerId, setCurrentSelectedLayerId] = useState<string | number>('');
+  const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>();
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
@@ -134,51 +124,40 @@ export const MapContext = (): ReactElement => {
   };
 
   const onSelectLayerInTree = (selectedKeys: any, info: any) => {
-    setCurrentSelectedLayerId(info.node.key);
+    setCurrentSelectedTreeLayerNode(info.node);
   };
-
-  const onPreviewDatasetOnMapAction = async(dataset:any) => {
-    dataset.layers.forEach(async (layer: string) => {
-      try {
-        // get the layer details with the id and create an OL Layer
-        const renderingLayerDetails = await layerRepo.autocompleteInitialValue(layer);
-        const renderingLayerPreview = createMrMapOlWMSLayer({
-          extent: renderingLayerDetails.attributes.WMSParams.bbox,
-          url: renderingLayerDetails.attributes.WMSParams.url,
-          version: renderingLayerDetails.attributes.WMSParams.version,
-          format: 'image/png',
-          layers: renderingLayerDetails.attributes.WMSParams.layer,
-          mrMapLayerId: '',
-          visible: true,
-          serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
-          legendUrl: 'string',
-          name: 'previewMapContextLayer',
-          title: renderingLayerDetails.attributes.title,
-          properties: {}
-        });
-
-        const layerExtent = renderingLayerPreview.getExtent();
-        if(layerExtent) {
-          // the default map projection is in 3857. The extent is coming from the server in 4326.
-          // It needs to be transformed in order to show the location correctly.
-          // However, the origin SRS shoul be given with the response. Still TODO
-          const transformedExtent = transformExtent(layerExtent, 'EPSG:4326', 'EPSG:3857');
-          olMap.getView().fit(transformedExtent);
-        }
-        //@ts-ignore
-        // const previewLayerGroup: OlLayerGroup = olMap.getLayers().getArray()
-        //   .find(l => l instanceof OlLayerGroup && l.getProperties().name === 'mrMapMapContextLayersPreview');
-        olMap.addLayer(mapContextLayersPreviewGroup);
-        // previewLayerGroup.setLayers(new Collection(renderingLayerPreview));
-    } catch (error) {
-      //@ts-ignore
-      throw new Error(error);
-    }
-  });
-};
 
   const onAddDatasetToMapAction = async(dataset:any) => {
     dataset.layers.forEach(async (layer: string) => {
+      const getParentId = (): string => {
+        const currentSelectedIsNodeOnRoot = currentSelectedTreeLayerNode &&
+          !currentSelectedTreeLayerNode?.parent && 
+          !currentSelectedTreeLayerNode?.isLeaf;
+        const currentSelectedIsLeafOnRoot = currentSelectedTreeLayerNode &&
+          !currentSelectedTreeLayerNode?.parent &&
+          currentSelectedTreeLayerNode?.isLeaf;
+        const currentSelectedIsNodeWithParent = currentSelectedTreeLayerNode &&
+          currentSelectedTreeLayerNode?.parent &&
+          !currentSelectedTreeLayerNode?.isLeaf;
+        const currentSelectedIsLeafWithParent = currentSelectedTreeLayerNode && currentSelectedTreeLayerNode?.parent &&
+          currentSelectedTreeLayerNode?.isLeaf;
+        
+        if(currentSelectedIsNodeOnRoot) {
+          return String(currentSelectedTreeLayerNode?.key);
+        }
+        if(currentSelectedIsLeafOnRoot) {
+          return '';
+        }
+        if(currentSelectedIsNodeWithParent) {
+          return String(currentSelectedTreeLayerNode?.key);
+        }
+        if(currentSelectedIsLeafWithParent) {
+          return String(currentSelectedTreeLayerNode?.parent);
+        }
+
+        return '';
+      };
+
       // make call
       try {
         // get the layer details with the id and create an OL Layer
@@ -191,7 +170,7 @@ export const MapContext = (): ReactElement => {
           layerScaleMin:renderingLayerDetails.attributes.scaleMin,
           isLeaf: true,
           renderingLayer: renderingLayerDetails.attributes.id,
-          parentLayerId: '', // here must be the current selected node
+          parentLayerId: getParentId(),
           mapContextId: createdMapContextId
         });
         
@@ -204,15 +183,18 @@ export const MapContext = (): ReactElement => {
           mrMapLayerId: createdLayer.data?.data?.id,
           visible: false,
           serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
-          legendUrl: 'string',
+          legendUrl: renderingLayerDetails.attributes.WMSParams.legendUrl,
           //@ts-ignore
           name: createdLayer?.data?.data?.attributes?.name,
           title: renderingLayerDetails.attributes.title,
           //@ts-ignore
           properties: createdLayer?.data?.data?.attributes
         });
-
-        addLayerToGroupByMrMapLayerId(olMap, currentSelectedLayerId, renderingLayer);
+        addLayerToGroupByMrMapLayerId(
+          mapContextLayersGroup, 
+          currentSelectedTreeLayerNode?.key as string, 
+          renderingLayer
+        );
         notification.info({
           message: `Add dataset '${dataset.title}'`
         });
@@ -363,7 +345,8 @@ export const MapContext = (): ReactElement => {
                         layers: []
                       }); 
                     }
-                    addLayerToGroupByMrMapLayerId(olMap, newNodeParent as string, layerToAdd);
+                    // add the layer to the parent, where the layer or group is being created
+                    addLayerToGroupByMrMapLayerId(mapContextLayersGroup, newNodeParent as string, layerToAdd);
                     
                     return createdLayer;
                   } catch (error) {
@@ -416,10 +399,7 @@ export const MapContext = (): ReactElement => {
             </div>
           </div>
 
-          <SearchDrawer 
-            addDatasetToMapAction={onAddDatasetToMapAction}
-            previewDatasetOnMapAction={onPreviewDatasetOnMapAction}
-          />
+          <SearchDrawer addDatasetToMapAction={onAddDatasetToMapAction}/>
 
           <div className='steps-action'>
             <Button

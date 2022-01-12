@@ -11,10 +11,8 @@ const repo = new DatasetMetadataRepo();
 
 export const SearchDrawer = ({
   addDatasetToMapAction = () => undefined,
-  previewDatasetOnMapAction = () => undefined
 }:{
   addDatasetToMapAction?: (dataset: any) => void;
-  previewDatasetOnMapAction?: (dataset: any) => void;
 }): ReactElement => {
 
     const [visible, setVisible] = useState<boolean>(false);
@@ -23,10 +21,6 @@ export const SearchDrawer = ({
 
     const onAddDatasetToMap = (dataset: any) => {
       addDatasetToMapAction(dataset); 
-    };
-
-    const onPreviewDatasetOnMap = (dataset: any) => {
-      previewDatasetOnMapAction(dataset);
     };
 
     const columns: RepoTableColumnType[] = [{
@@ -137,15 +131,6 @@ export const SearchDrawer = ({
                   onClick={ () => { onAddDatasetToMap(record); }}
                 >
                   Zur Karte hinzufügen
-                </Button>
-
-                <Button
-                  disabled={record.layers.length === 0 || !record.layers}
-                  size='small'
-                  type='primary'
-                  onClick={ () => { onPreviewDatasetOnMap(record); }}
-                >
-                  Layer vorschau
                 </Button>
             </>
           );

@@ -49,7 +49,7 @@ interface LayerTreeProps {
 //   source.serverType:
 // }
 
-export const getAllMapLayers = (collection:OlMap | LayerGroup ) => {
+export const getAllMapLayers = (collection: OlMap | LayerGroup): (LayerGroup | BaseLayer | ImageLayer<ImageWMS>)[] => {
   if (!(collection instanceof OlMap) && !(collection instanceof LayerGroup)) {
     console.error('Input parameter collection must be from type `ol.Map` or `ol.layer.Group`.');
     return [];
@@ -97,36 +97,67 @@ export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWM
   return olWMSLayer;
 };
 
-export const getLayerByMrMapLayerId= (map: OlMap, id: string | number): LayerGroup | BaseLayer => {
-  const layersToSearch = getAllMapLayers(map);
-  return layersToSearch.find((layer:any) => {
-    return String(layer.getProperties().mrMapLayerId) === String(id);
-  });
+export const getLayerByMrMapLayerId= (
+  collection: OlMap | LayerGroup, 
+  id: string | number
+): LayerGroup | BaseLayer | ImageLayer<ImageWMS> | undefined => {
+  const layersToSearch = getAllMapLayers(collection);
+  return layersToSearch.find((layer:any) => String(layer.getProperties().mrMapLayerId) === String(id));
 };
 
-export const removeLayerByMrMapLayerId= (map: OlMap, id: string | number): LayerGroup | BaseLayer => {
-  const layersToSearch = getAllMapLayers(map);
-  return layersToSearch.map((layer:any) => id !== layer.getProperties().mrMapLayerId);
-};
-
-export const getLayerGroupByName = (map: OlMap, layerGroupName: string): LayerGroup | undefined=> {
-  const requiredLayerGroup =  getAllMapLayers(map)
+export const getLayerGroupByName = (
+  collection: OlMap | LayerGroup, 
+  layerGroupName: string
+): LayerGroup | undefined => {
+  const requiredLayerGroup = getAllMapLayers(collection)
     .find((layer:any) => layer.getProperties().name === layerGroupName);
   if(requiredLayerGroup instanceof LayerGroup){
     return requiredLayerGroup;
   }
 };
 
-export const getLayerGroupByMrMapLayerId = (map: OlMap, id: string|number): LayerGroup | undefined=> {
-  const requiredLayerGroup =  getAllMapLayers(map)
+export const getLayerGroupByMrMapLayerId = (
+  collection: OlMap | LayerGroup, 
+  id: string|number
+): LayerGroup | undefined => {
+  const allMapLayers = getAllMapLayers(collection);
+  const requiredLayerGroup = allMapLayers
     .find((layer:any) => layer.getProperties().mrMapLayerId === id);
-  if(requiredLayerGroup instanceof LayerGroup){
-    return requiredLayerGroup;
+  if(requiredLayerGroup) {
+    if(requiredLayerGroup instanceof LayerGroup) {
+      return requiredLayerGroup;
+    } else {
+      if(requiredLayerGroup.getProperties().parent) {
+        const parentLayer = allMapLayers
+          .find((layer:any) => layer.getProperties().mrMapLayerId === requiredLayerGroup.getProperties().parent);
+        if(parentLayer && parentLayer instanceof LayerGroup) {
+          return parentLayer;
+        }
+      } else {
+        if (collection instanceof LayerGroup) {
+          return collection;
+        }
+        if (collection instanceof OlMap) {
+          collection.getLayerGroup();
+        }
+      }
+    }
+  } else {
+    if (collection instanceof LayerGroup) {
+      return collection;
+    }
+    if (collection instanceof OlMap) {
+      collection.getLayerGroup();
+    }
   }
 };
 
-export const addLayerToGroupByName = (map:OlMap, layerGroupName: string, layerToAdd: LayerGroup | BaseLayer): void => {
-  const layerGroup: LayerGroup | undefined = getLayerGroupByName(map, layerGroupName);
+export const addLayerToGroupByName = (
+  collection: OlMap | LayerGroup, 
+  layerGroupName: string, 
+  layerToAdd: LayerGroup | BaseLayer
+): void => {
+  const layerGroup: LayerGroup | undefined = getLayerGroupByName(collection, layerGroupName);
   if(layerGroup) {
     const layerArray = layerGroup.getLayers().getArray();
     layerArray.push(layerToAdd);
@@ -136,8 +167,12 @@ export const addLayerToGroupByName = (map:OlMap, layerGroupName: string, layerTo
   }
 };
 
-export const addLayerToGroupByMrMapLayerId = (map:OlMap, id: string | number, layerToAdd: LayerGroup | BaseLayer): void => {
-  const layerGroup: LayerGroup | undefined = getLayerGroupByMrMapLayerId(map, id);
+export const addLayerToGroupByMrMapLayerId = (
+  collection: OlMap | LayerGroup, 
+  id: string | number, 
+  layerToAdd: LayerGroup | BaseLayer
+): void => {
+  const layerGroup: LayerGroup | undefined = getLayerGroupByMrMapLayerId(collection, id);
   if(layerGroup) {
     const layerArray = layerGroup.getLayers().getArray();
     layerArray.push(layerToAdd);
@@ -252,26 +287,29 @@ export const LayerTree = ({
     setLayerVisibility(layer, checked);
   };
 
-  const setLayerVisibility = (layer: BaseLayer | LayerGroup, visibility: boolean) => {
+  const setLayerVisibility = (
+    layer: BaseLayer | LayerGroup | ImageLayer<ImageWMS> | undefined, 
+    visibility: boolean
+  ) => {
     // if (!(layer instanceof BaseLayer) || !(layer instanceof LayerGroup)) {
     //   console.error('setLayerVisibility called without layer or layer group.');
     //   return;
     // }
     if(layer) {
-    if (layer instanceof LayerGroup) {
-      layer.setVisible(visibility);
-      layer.getLayers().forEach((subLayer) => {
-        setLayerVisibility(subLayer, visibility);
-      });
-    } else {
-      layer.setVisible(visibility);
-      // if layer has a parent folder, make it visible too
-      if (visibility) {
-        const group = layerGroup ? layerGroup : map.getLayerGroup();
-        setParentFoldersVisible(group, getUid(layer), group);
+      if (layer instanceof LayerGroup) {
+        layer.setVisible(visibility);
+        layer.getLayers().forEach((subLayer) => {
+          setLayerVisibility(subLayer, visibility);
+        });
+      } else {
+        layer.setVisible(visibility);
+        // if layer has a parent folder, make it visible too
+        if (visibility) {
+          const group = layerGroup ? layerGroup : map.getLayerGroup();
+          setParentFoldersVisible(group, getUid(layer), group);
+        }
       }
     }
-  }
   };
 
   const setParentFoldersVisible = (currentGroup: LayerGroup, olUid: string, masterGroup: LayerGroup) => {

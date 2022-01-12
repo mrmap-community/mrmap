@@ -44,8 +44,8 @@ export default function App (): JSX.Element {
 
   const [collapsed, setCollapsed] = useState(false);
 
-  const onCollapse = (collapsed: boolean) => {
-    setCollapsed(collapsed);
+  const onCollapse = (_collapsed: boolean) => {
+    setCollapsed(_collapsed);
   };
 
   return (

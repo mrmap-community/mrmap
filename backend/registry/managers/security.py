@@ -3,6 +3,7 @@ from typing import Any
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db import models
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
                               OuterRef, QuerySet)
 from django.db.models import Value as V

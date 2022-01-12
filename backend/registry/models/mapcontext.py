@@ -48,15 +48,15 @@ class MapContextLayer(MPTTModel):
                                     on_delete=models.CASCADE,
                                     related_name='map_context_layers',
                                     related_query_name='map_context_layer')
-    title = models.CharField(max_length=1000,
+    name = models.CharField(max_length=1000,
                             null=False,
                             blank=False,
-                            verbose_name=_("title"),
+                            verbose_name=_("name"),
                             help_text=_("an identifying name for this map context layer"))
-    description = models.CharField(max_length=1000,
+    title = models.CharField(max_length=1000,
                              null=True,
                              blank=True,
-                             verbose_name=_("description"),
+                             verbose_name=_("title"),
                              help_text=_("a short description for this map context layer"))
     dataset_metadata = models.ForeignKey(to=DatasetMetadata,
                                          on_delete=models.PROTECT,
@@ -104,10 +104,10 @@ class MapContextLayer(MPTTModel):
                                         related_name="mapcontextlayers_selection",
                                         verbose_name=_("Selection layer"),
                                         help_text=_("Select a layer for feature selection."))
-    is_leaf = models.BooleanField(verbose_name=_("Is tree leaf"), 
+    is_leaf = models.BooleanField(verbose_name=_("Is tree leaf"),
                                   help_text=_(
-                                      "Set if this map context layer is a layer with" 
-                                      "attributes (leaf) or it defines a group of layers like a folder (not leaf)."), 
+                                      "Set if this map context layer is a layer with"
+                                      "attributes (leaf) or it defines a group of layers like a folder (not leaf)."),
                                   default=False)
 
     def __str__(self):

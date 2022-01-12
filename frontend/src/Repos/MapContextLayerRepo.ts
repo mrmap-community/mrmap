@@ -3,8 +3,8 @@ import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 
 export interface MapContextLayerCreate {
-    name: string;
-    title?: string;
+    description?: string;
+    title: string;
     lft?: string;
     rght?: string;
     tree?: string;
@@ -21,8 +21,8 @@ export interface MapContextLayerCreate {
 }
 
 type MapContextLayerAttributesUpdate = {
-  name: string;
-  title?: string;
+  description: string;
+  title: string;
   lft?: string;
   rght?: string;
   tree?: string;
@@ -61,7 +61,7 @@ class MapContextLayerRepo extends JsonApiRepo {
 
   async create (create: MapContextLayerCreate): Promise<JsonApiResponse> {
     const attributes:any = {
-      name: create.name,
+      description: create.description,
       title: create.title,
       layer_scale_max: create.layerScaleMax, //eslint-disable-line
       layer_scale_min: create.layerScaleMin, //eslint-disable-line
@@ -113,7 +113,7 @@ class MapContextLayerRepo extends JsonApiRepo {
 
   async update (id:string, attributesToUpdate: MapContextLayerAttributesUpdate): Promise<JsonApiResponse> {
     const attributes:any = {
-      name: attributesToUpdate.name,
+      description: attributesToUpdate.description,
       title: attributesToUpdate.title,
       layer_scale_max: attributesToUpdate.layerScaleMax, //eslint-disable-line
       layer_scale_min: attributesToUpdate.layerScaleMin, //eslint-disable-line

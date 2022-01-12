@@ -48,16 +48,16 @@ class MapContextLayer(MPTTModel):
                                     on_delete=models.CASCADE,
                                     related_name='map_context_layers',
                                     related_query_name='map_context_layer')
-    name = models.CharField(max_length=1000,
+    title = models.CharField(max_length=1000,
                             null=False,
                             blank=False,
-                            verbose_name=_("name"),
+                            verbose_name=_("title"),
                             help_text=_("an identifying name for this map context layer"))
-    title = models.CharField(max_length=1000,
+    description = models.CharField(max_length=1000,
                              null=True,
                              blank=True,
-                             verbose_name=_("title"),
-                             help_text=_("a short descriptive title for this map context layer"))
+                             verbose_name=_("description"),
+                             help_text=_("a short description for this map context layer"))
     dataset_metadata = models.ForeignKey(to=DatasetMetadata,
                                          on_delete=models.PROTECT,
                                          null=True,

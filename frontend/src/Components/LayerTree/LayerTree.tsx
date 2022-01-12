@@ -23,7 +23,7 @@ export interface CreateLayerOpts {
   mrMapLayerId?: string | number;
   legendUrl: string;
   title: string;
-  name?: string;
+  description?: string;
   properties: Record<string, string>;
   extent?: any[]
 }
@@ -89,7 +89,7 @@ export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWM
     mrMapLayerId: opts.mrMapLayerId,
     legendUrl: opts.legendUrl,
     title: opts.title,
-    name: opts.name,
+    description: opts.description,
     extent: opts.extent,
     ...opts.properties
   });

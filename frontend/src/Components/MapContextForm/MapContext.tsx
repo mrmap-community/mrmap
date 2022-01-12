@@ -164,8 +164,8 @@ export const MapContext = (): ReactElement => {
         const renderingLayerDetails = await layerRepo.autocompleteInitialValue(layer);
         // this layer needs to be persisted in the DB. Create this layer in the DB
         const createdLayer = await mapContextLayerRepo.create({
-          name:renderingLayerDetails.attributes.title,
-          title:renderingLayerDetails.attributes.abstract,
+          title:renderingLayerDetails.attributes.title,
+          description:renderingLayerDetails.attributes.abstract,
           layerScaleMax:renderingLayerDetails.attributes.scaleMax,
           layerScaleMin:renderingLayerDetails.attributes.scaleMin,
           isLeaf: true,
@@ -185,8 +185,8 @@ export const MapContext = (): ReactElement => {
           serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
           legendUrl: renderingLayerDetails.attributes.WMSParams.legendUrl,
           //@ts-ignore
-          name: createdLayer?.data?.data?.attributes?.name,
-          title: renderingLayerDetails.attributes.title,
+          title: createdLayer?.data?.data?.attributes?.title,
+          description: renderingLayerDetails.attributes.description,
           //@ts-ignore
           properties: createdLayer?.data?.data?.attributes
         });
@@ -304,7 +304,7 @@ export const MapContext = (): ReactElement => {
                           //@ts-ignore
                           title: createdLayer.data.data.attributes.title,
                           //@ts-ignore
-                          name: createdLayer.data.data.attributes.name,
+                          description: createdLayer.data.data.attributes.description,
                           properties: {
                             //@ts-ignore
                             parent: createdLayer?.data?.data?.relationships?.parent?.data?.id
@@ -325,7 +325,7 @@ export const MapContext = (): ReactElement => {
                           //@ts-ignore
                           title: createdLayer.data.data.attributes.title,
                           //@ts-ignore
-                          name: createdLayer.data.data.attributes.name,
+                          description: createdLayer.data.data.attributes.description,
                           properties: {
                             //@ts-ignore
                             parent: createdLayer?.data?.data?.relationships?.parent?.data?.id

@@ -16,7 +16,7 @@ import './TreeFormField.css';
 
 
 interface MPTTJsonApiAttributeType {
-  name: string;
+  description: string;
   title: string;
   layer_scale_min?: string; // eslint-disable-line
   layer_scale_max?: string; // eslint-disable-line
@@ -110,7 +110,7 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
       children: element.children || [],
       isLeaf: element.attributes.is_leaf,
       properties: {
-        name: element.attributes.name,
+        description: element.attributes.description,
         datasetMetadata: element.relationships.dataset_metadata.data?.id,
         renderingLayer: element.relationships.rendering_layer.data?.id,
         scaleMin: element.attributes.layer_scale_min,
@@ -141,7 +141,7 @@ export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<Lay
         visible: false,
         properties: {
           title: node.properties.title,
-          name: node.properties.name,
+          description: node.properties.description,
           parent: node.parent,
           key: node.key,
           mrMapLayerId: node.key
@@ -162,7 +162,7 @@ export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<Lay
         mrMapLayerId: '',
         legendUrl: '',
         title: node.properties.title,
-        name: node.properties.name,
+        description: node.properties.description,
         properties: {
           ...node.properties,
           parent: node.parent,

@@ -1,10 +1,16 @@
-import hashlib
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
+from accounts.models.users import User
 from axis_order_cache.models import Origin, SpatialReference
 from axis_order_cache.registry import Registry
+from django.core.management import call_command
+from django.db.models.query_utils import Q
 from django.test import Client, TestCase
+from PIL import Image, ImageChops
+from registry.models.security import AllowedWebMapServiceOperation
+from registry.models.service import WebMapService
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from rest_framework import status
 
@@ -47,16 +53,40 @@ REMOTE_RESPONSE = MockResponse(
 
 
 class WebMapServiceProxyTest(TestCase):
-    # def setUpClass():
-    #     management.call_command("loaddata", "test_users.json", verbosity=1)
-    #     management.call_command("loaddata", "test_wms.json", verbosity=1)
-    #     management.call_command("loaddata", "test_allowedoperation.json", verbosity=1)
 
-    # def tearDownClass():
-    #     pass
+    @classmethod
+    def setUpClass(cls):
+        call_command("loaddata", "test_users.json", verbosity=1)
+        call_command("loaddata", "test_wms.json", verbosity=1)
+        call_command("loaddata", "test_allowedoperation.json", verbosity=1)
+
+    @classmethod
+    def tearDownClass(cls):
+        User.objects.filter(~Q(username='mrmap')).delete()
+        WebMapService.objects.all().delete()
+        AllowedWebMapServiceOperation.objects.all().delete()
 
     def setUp(self):
         self.client = Client()
+
+    def are_images_equal(self, img1, img2):
+        equal_size = img1.height == img2.height and img1.width == img2.width
+
+        if img1.mode == img2.mode == "RGBA":
+            img1_alphas = [pixel[3] for pixel in img1.getdata()]
+            img2_alphas = [pixel[3] for pixel in img2.getdata()]
+            equal_alphas = img1_alphas == img2_alphas
+        else:
+            equal_alphas = True
+
+        equal_content = not ImageChops.difference(
+            img1.convert("RGB"), img2.convert("RGB")
+        ).getbbox()
+        print(equal_size)
+        print(equal_alphas)
+        print(equal_content)
+
+        return equal_size and equal_alphas and equal_content
 
     @patch.object(
         target=WebMapServiceProxy,
@@ -69,28 +99,19 @@ class WebMapServiceProxyTest(TestCase):
         side_effect=[EPSG_API_25832_RESPONSE],
     )
     def test_success(self, mocked_proxy, mocked_registry):
-        from django.db import connection
-
         expected_png_path = Path(
             Path.joinpath(
                 Path(__file__).parent.resolve(),
                 "../../test_data/expected_karte_rp.fcgi.png",
             )
         )
-        in_file = open(expected_png_path, "rb")
-        expected_png = in_file.read()
-        in_file.close()
 
         response = self.client.get(
             "/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3?map=/etc/mapserver/security_mask_test_db.map&VERSION=1.3.0&REQUEST=GetMap&SERVICE=WMS&LAYERS=node1&STYLES=&CRS=EPSG:25832&BBOX=393340,5574710,405660,5581190&WIDTH=1563&HEIGHT=920&FORMAT=image/png&BGCOLOR=0xffffff&TRANSPARENT=TRUE"
         )
-
-        f = open("response.png", "wb")
-        f.write(response.content)
-        f.close()
-
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            hashlib.md5(expected_png).hexdigest(),
-            hashlib.md5(response.content).hexdigest(),
-        )
+
+        received_image = Image.open(BytesIO(response.content))
+        expected_image = Image.open(fp=expected_png_path)
+
+        self.assertTrue(self.are_images_equal(received_image, expected_image))

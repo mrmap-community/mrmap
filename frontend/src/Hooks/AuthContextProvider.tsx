@@ -48,9 +48,9 @@ export function AuthProvider ({ children }: { children: React.ReactNode }): Reac
     }
   }, [userId, setUserId]);
 
-  async function login (user: string, password: string): Promise<boolean> {
+  async function login (_user: string, password: string): Promise<boolean> {
     try {
-      const res = await loginRepo.login({ username: user, password: password });
+      const res = await loginRepo.login({ username: _user, password: password });
       if (res.status === 200 &&
       res.data &&
       res.data.data &&

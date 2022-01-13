@@ -1,10 +1,16 @@
-import { EditFilled, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
+import { EditFilled, FolderAddFilled, MinusCircleFilled, PlusCircleFilled } from '@ant-design/icons';
 import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
-import { DataNode } from 'antd/lib/tree';
+import { DataNode, EventDataNode } from 'antd/lib/tree';
+import Collection from 'ol/Collection';
+import BaseLayer from 'ol/layer/Base';
+import LayerGroup from 'ol/layer/Group';
+import ImageLayer from 'ol/layer/Image';
+import ImageWMS from 'ol/source/ImageWMS';
 import React, { cloneElement, createRef, FC, ReactNode, useEffect, useState } from 'react';
 import { JsonApiPrimaryData, JsonApiResponse } from '../../../../Repos/JsonApiRepo';
+import { CreateLayerOpts, createMrMapOlWMSLayer } from '../../../LayerTree/LayerTree';
 import './TreeFormField.css';
 
 
@@ -19,6 +25,7 @@ interface MPTTJsonApiAttributeType {
   rght: number;
   tree_id: number; // eslint-disable-line
   level: number;
+  is_leaf: boolean; // eslint-disable-line
 }
 
 interface MPTTJsonApiRelashionshipDataType {
@@ -64,8 +71,11 @@ export interface TreeProps {
   removeNodeDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editNodeDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
   dragNodeDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
+  checkNodeDispacthAction?: (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => void;
+  selectNodeDispatchAction?: (selectedKeys: Key[], info: any) => void;
   draggable?: boolean;
   nodeAttributeForm?: ReactNode;
+  addNodeGroupActionIcon?: ReactNode;
   addNodeActionIcon?: ReactNode;
   removeNodeActionIcon?: ReactNode;
   editNodeActionIcon?: ReactNode;
@@ -77,7 +87,7 @@ export interface TreeProps {
 }
 
 // TODO: create helper files with several tree methods inside. This file is too big.
-// Maybe separate it into helper functions for specific aactions on the tree and aanother with rendering
+// Maybe separate it into helper functions for specific actions on the tree and another with rendering
 // of subcomponents
 
 /**
@@ -98,6 +108,7 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
       title: element.attributes.title,
       parent: element.relationships.parent.data?.id,
       children: element.children || [],
+      isLeaf: element.attributes.is_leaf,
       properties: {
         name: element.attributes.name,
         datasetMetadata: element.relationships.dataset_metadata.data?.id,
@@ -105,7 +116,7 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
         scaleMin: element.attributes.layer_scale_min,
         scaleMax: element.attributes.layer_scale_max,
         style: element.relationships.layer_style.data?.id,
-        featureSelectionLayer: element.relationships.selection_layer.data?.id
+        featureSelectionLayer: element.relationships.selection_layer.data?.id,
       },
       expanded: true
     };
@@ -122,6 +133,59 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
   return roots;
 };
 
+export const TreeNodeListToOlLayerGroup = (list: TreeNodeType[]): Collection<LayerGroup | ImageLayer<ImageWMS>> => {
+  const layerList = list.map(node => {
+    if (node.children.length >= 0 && !node.isLeaf) {
+      const layerGroupOpts = {
+        opacity: 1,
+        visible: false,
+        properties: {
+          title: node.properties.title,
+          name: node.properties.name,
+          parent: node.parent,
+          key: node.key,
+          mrMapLayerId: node.key
+        },
+        layers: TreeNodeListToOlLayerGroup(node.children)
+      };
+      return new LayerGroup(layerGroupOpts);
+    } 
+
+    if(node.children.length === 0 && node.isLeaf) {
+      const layerOpts: CreateLayerOpts = {
+        url: '',
+        version: '1.1.0',
+        format: 'image/png',
+        layers: '',
+        serverType: 'MAPSERVER',
+        visible: false,
+        mrMapLayerId: '',
+        legendUrl: '',
+        title: node.properties.title,
+        name: node.properties.name,
+        properties: {
+          ...node.properties,
+          parent: node.parent,
+          key: node.key,
+          mrMapLayerId: node.key
+        }
+      };
+      return createMrMapOlWMSLayer(layerOpts);
+    }
+    return new LayerGroup();
+  });
+  return new Collection(layerList);
+};
+
+export const MPTTListToOLLayerGroup = (list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> => {
+  if(list) {
+    const treeNodeList = MPTTListToTreeNodeList(list);
+    const layerGroupList = TreeNodeListToOlLayerGroup(treeNodeList);
+    return layerGroupList;
+  }
+  return new Collection();
+};
+
 export const TreeFormField: FC<TreeProps> = ({
   treeData = [],
   asyncTree = false,
@@ -129,8 +193,11 @@ export const TreeFormField: FC<TreeProps> = ({
   removeNodeDispatchAction = () => undefined,
   editNodeDispatchAction = () => undefined,
   dragNodeDispatchAction = () => undefined,
+  checkNodeDispacthAction = () => undefined,
+  selectNodeDispatchAction = () => undefined,
   draggable = false,
   nodeAttributeForm = (<></>),
+  addNodeGroupActionIcon = (<FolderAddFilled/>),
   addNodeActionIcon = (<PlusCircleFilled />),
   removeNodeActionIcon = (<MinusCircleFilled />),
   editNodeActionIcon = (<EditFilled />),
@@ -153,10 +220,12 @@ export const TreeFormField: FC<TreeProps> = ({
   // eslint-disable-next-line
   const [isDraggingNode, setIsDraggingNode] = useState<boolean>(false); // TODO
   const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
+  const [checkedKeys, setCheckedKeys] = useState<(Key[] | {checked: Key[]; halfChecked: Key[];})>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNodeType | undefined>(undefined);
   const [newNodeName, setNewNodeName] = useState<string>('');
   const [isEditingNodeName, setIsEditingNewNodeName] = useState<boolean>(false);
-
+  const [isCreatingGroupNode, setIsCreatingGroupNode] = useState<boolean>(true);
+  const [newNodeGroupIncrementValue, setNewNodeGroupIncrementValue] = useState<number>(1);
 
   /**
    * @description: Toggles the modal showing the form with the node properties
@@ -200,22 +269,25 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param children
    * @returns TreeNodeType[]
    */
-  const updateTreeData = (list: TreeNodeType[], key: React.Key, children: TreeNodeType[]): TreeNodeType[] => {
+  const updateTreeData = (list: TreeNodeType[], key?: React.Key, children?: TreeNodeType[]): TreeNodeType[] => {
     return list.map(node => {
-      if (node.key === key) {
-        return {
-          ...node,
-          children
-        };
+      if(key && children){
+        if (node.key === key) {
+          return {
+            ...node,
+            children
+          };
+        }
+        if (node.children) {
+          return {
+            ...node,
+            children: updateTreeData(node.children, key, children)
+          };
+        }
+        return node;
+      } else {
+        return node;
       }
-      if (node.children) {
-        return {
-          ...node,
-          children: updateTreeData(node.children, key, children)
-        };
-      }
-
-      return node;
     });
   };
 
@@ -238,13 +310,13 @@ export const TreeFormField: FC<TreeProps> = ({
   };
 
   /**
-   * @description Method to updaate the tree data when user adds a node
+   * @description Method to update the tree data when user adds a node
    * @param node
    * @param newNode
    */
   const setTreeDataOnAdd = (node: TreeNodeType, newNode: TreeNodeType) => {
     if (!newNode.parent) {
-      setTreeData([newNode]);
+      setTreeData([..._treeData, newNode]);
     } else {
       setTreeData(updateTreeData(_treeData, node.key, [...node.children, newNode]));
     }
@@ -253,21 +325,30 @@ export const TreeFormField: FC<TreeProps> = ({
     if (isNodeAttributeFormVisible) {
       toggleNodeAttributeForm();
     }
+    // reset to the default value
+    setIsCreatingGroupNode(true);
   };
 
   /**
-   * @description Method to updaate the tree data when user edits a node
+   * @description Method to update the tree data when user edits a node
    * @param node
    */
   const setTreeDataOnRemove = (node: TreeNodeType) => {
     const parentNode = getNodeParent(_treeData, node);
-    if (parentNode) {
+    if (parentNode.length > 0) {
       const indexToRemove = parentNode[0].children.indexOf(node);
       parentNode[0].children.splice(indexToRemove, 1);
       const expandedNodeIndexToRemove = expandedKeys.indexOf(node.key);
       expandedKeys.splice(expandedNodeIndexToRemove, 1);
       setExpandedKeys(expandedKeys);
       setTreeData(updateTreeData(_treeData, parentNode[0].key, parentNode[0].children));
+    } else {
+      const rootToRemove = _treeData.find(n => node.key === n.key);
+      if(rootToRemove) {
+        _treeData.splice(_treeData.indexOf(rootToRemove),1);
+        setTreeData(updateTreeData(_treeData));
+      }
+      
     }
   };
 
@@ -279,7 +360,7 @@ export const TreeFormField: FC<TreeProps> = ({
   };
 
   /**
-   * @description Method to updaate the tree data when user moves a node
+   * @description Method to update the tree data when user moves a node
    * @param info
    */
   const setTreeDataOnMove = (info: any) => {
@@ -302,7 +383,7 @@ export const TreeFormField: FC<TreeProps> = ({
 
     const data = [..._treeData];
 
-    // Find dragObject and remove it from paarent
+    // Find dragObject and remove it from parent
     // @ts-ignore
     let dragObj;
     // @ts-ignore
@@ -361,20 +442,25 @@ export const TreeFormField: FC<TreeProps> = ({
    * If using an asyncronous tree, a JsonApiReponse is expected
    * @param node
    */
-  const onAddNode = async (node: TreeNodeType | undefined, values: any) => {
+  const onAddNode = async (node: TreeNodeType | undefined, values: any, isRoot = false) => {
     if (node) {
       const newNode: TreeNodeType = {
         title: values.title || `${node.key}-${node.children.length}`,
         key: `${node.key}-${node.children.length}`, // this will be the id of the created node on async
         children: [],
-        parent: node.key === '0' ? null : node.key,
+        parent: isRoot ? null : node.key,
         properties: values || null,
-        expanded: true
+        expanded: true,
+        isLeaf: isCreatingGroupNode ? false : true,
       };
       if (asyncTree) {
         setIsAddingNode(true);
         try {
-          const response = await addNodeDispatchAction(values, newNode.parent);
+          const response = await addNodeDispatchAction({
+            ...values, 
+            isLeaf: newNode.isLeaf
+          }, 
+          newNode.parent);
           // update new node key
           if (response && response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
             newNode.key = (response.data.data as JsonApiPrimaryData).id;
@@ -426,7 +512,6 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param node
    */
   const onEditNode = async (node: TreeNodeType | undefined, values: any) => {
-    console.log(node, values);
     if (node) {
       if (values && node) {
         node.title = values.title;
@@ -458,7 +543,7 @@ export const TreeFormField: FC<TreeProps> = ({
   };
 
   /**
-   * @description Method to define the action to happen when the user moves aand drops a node.
+   * @description Method to define the action to happen when the user moves and drops a node.
    * If using an asyncronous tree, a JsonApiReponse is expected
    * @param info
    * @returns
@@ -483,48 +568,65 @@ export const TreeFormField: FC<TreeProps> = ({
   };
 
   /**
-   * @description Method to define the action to happen when the user clicks to expaand or retract a node
+   * @description Method to define the action to happen when the user clicks to expand or retract a node
    * @param expandedKeys
    * @param info
    */
-  const onExpand = (expandedKeys:any, info:any) => {
+  const onExpand = (
+    _expandedKeys:Key[], 
+    info: { node: EventDataNode; expanded: boolean; nativeEvent: MouseEvent; }
+  ) => {
     const node = info.node;
-    node.expanded = info.expanded;
-    if (node.expanded) {
-      expandedKeys.push(node.key);
+    if (info.expanded) {
+      _expandedKeys.push(node.key);
     } else {
-      expandedKeys.splice(expandedKeys.indexOf(node.key), 1);
+      _expandedKeys.splice(_expandedKeys.indexOf(node.key), 1);
     }
-    setExpandedKeys(expandedKeys);
+    setExpandedKeys(_expandedKeys);
+  };
+  
+  /**
+   * @description Method to define the action to happen when the user clicks on the checkbox
+   * @param checkedKeys
+   * @param info
+   */
+  const onCheck = (_checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
+    const node = info.node;
+    if (info.checked) {
+      //@ts-ignore
+      checkedKeys.push(info.node.props.key);
+    } else {
+      //@ts-ignore
+      checkedKeys.splice(_checkedKeys.indexOf(node.key), 1);
+    }
+    setCheckedKeys(_checkedKeys);
+    checkNodeDispacthAction(_checkedKeys, info);
   };
 
-  // /**
-  //  * @description: Method to render a load icon when tree node is loading data
-  //  * @param node
-  //  */
-  // const onLoadData = async (node: EventDataNode): Promise<void> => {
-
-  //   if (isAddingNode || isDraggingNode || isRemovingNode) {
-  //     node.icon = (<PlusCircleFilled spin/>);
-  //   }
-  // };
-
+  const onSelect = (_selectedKeys: Key[], info: any) => {
+    selectNodeDispatchAction(_selectedKeys, info);
+  };
   /**
    * @description Method to create a root node
    */
-  const createRootNode = () => {
+  const onCreateNewNodeGroup = (isRoot: boolean) => {
     const nodeToCreate = {
-      key: '0',
+      title: `Group node (${newNodeGroupIncrementValue})`,
+      key: String(newNodeGroupIncrementValue),
       children: [],
-      parent: null
+      parent: null,
     };
     const nodeToCreateAttributes = {
-      title: 'Root Node',
-      name: 'Root Node'
+      name: `Group node (${newNodeGroupIncrementValue})`,
     };
-    onAddNode(nodeToCreate, nodeToCreateAttributes);
+    onAddNode(nodeToCreate, nodeToCreateAttributes, isRoot);
   };
 
+  /**
+   * @ description: Method to clone the node attribute form
+   * @param node
+   * @returns
+   */
   const clonedNodeAttributeForm = (node: TreeNodeType| undefined) => {
     // @ts-ignore
     return cloneElement(nodeAttributeForm, {
@@ -535,21 +637,23 @@ export const TreeFormField: FC<TreeProps> = ({
         } else {
           onEditNode(node, values);
         }
-      }
+      },
+      showBasicForm: isCreatingGroupNode
     });
   };
 
+  /**
+   * @description Method to be called when user changes the node name directly on the node title
+   * @param nodeData
+   * @param newName
+   */
   const onNodeNameEditing = (nodeData: TreeNodeType | undefined, newName: string) => {
-    console.log(nodeData);
     if (nodeData) {
       onEditNode(
         nodeData,
         {
           ...nodeData.properties,
-          properties: {
-            ...nodeData.properties,
-            name: newName
-          }
+          name: newName
         }
       );
     }
@@ -560,37 +664,51 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param nodeData
    * @returns
    */
-  const nodeContextMenu = (nodeData: TreeNodeType) => (
+  const nodeContextMenu = (nodeData?: TreeNodeType) => (
     <Menu>
+      {!nodeData?.isLeaf && (
+        <>
+          <Menu.Item
+            onClick={() => {
+              nodeData && setSelectedNode(nodeData);
+              setIsNodeAttributeFormVisible(true);
+              setIsCreatingGroupNode(true);
+            }}
+            icon={addNodeGroupActionIcon}
+            key='add-group'
+          >
+            Add new layer group
+          </Menu.Item>
+          <Menu.Item
+            onClick={() => {
+              nodeData && setSelectedNode(nodeData);
+              setIsNodeAttributeFormVisible(true);
+              setIsCreatingGroupNode(false);
+            }}
+            icon={addNodeActionIcon}
+            key='add-node'
+          >
+            Add new layer
+          </Menu.Item>
+        </>
+      )}
       <Menu.Item
         onClick={() => {
-          setSelectedNode(nodeData);
-          setIsNodeAttributeFormVisible(true);
+          Modal.warning({
+            title: 'Remove Node',
+            content: 'The selected node will be removed, Are you sure?',
+            onOk: () => onRemoveNode(nodeData),
+            okButtonProps: {
+              disabled: isRemovingNode,
+              loading: isRemovingNode
+            }
+          });
         }}
-        icon={addNodeActionIcon}
-        key='add-node'
+        icon={removeNodeActionIcon}
+        key='remove-node'
       >
-        Add new layer
+        Delete
       </Menu.Item>
-      {nodeData.parent && (
-        <Menu.Item
-          onClick={() => {
-            Modal.warning({
-              title: 'Remove Node',
-              content: 'The selected node will be removed, Are you sure?',
-              onOk: () => onRemoveNode(nodeData),
-              okButtonProps: {
-                disabled: isRemovingNode,
-                loading: isRemovingNode
-              }
-            });
-          }}
-          icon={removeNodeActionIcon}
-          key='remove-node'
-        >
-          Delete
-        </Menu.Item>
-      )}
       <Menu.Item
         onClick={() => {
           setSelectedNode(nodeData);
@@ -709,16 +827,6 @@ export const TreeFormField: FC<TreeProps> = ({
   }, [treeData]);
 
   /**
-   * @description: Hook to run on component mount. Creates a root node in case the tree is empty
-   */
-  useEffect(() => {
-    if (_treeData.length === 0) {
-      createRootNode();
-    }
-    // eslint-disable-next-line
-  }, []);
-
-  /**
    * @description: Hook to detect a click anywhere on the document. This will reset the isEditingNameOnNode value.
    * Event  will be removed when editingNodeName.id is not present
    */
@@ -730,7 +838,7 @@ export const TreeFormField: FC<TreeProps> = ({
       }
     };
     if (isEditingNodeName) {
-      // TODO: shouldthe name  be changed here  aas  well?
+      // TODO: shouldthe name  be changed here as well?
       document.addEventListener('click', setNodeNameOnClick, false);
     }
     // cleanup. Removes event and changes the node name
@@ -767,8 +875,25 @@ export const TreeFormField: FC<TreeProps> = ({
 
   return (
     <>
-      <h1>{title}</h1>
+      <div 
+        className='tree-form-field-title'
+      >
+        {title}
+        <Tooltip title='Create new node folder'>
+          <Button 
+            icon={<PlusCircleFilled />} 
+            size='small' 
+            block
+            type='link'
+            onClick={() => {
+              setNewNodeGroupIncrementValue(newNodeGroupIncrementValue + 1);
+              onCreateNewNodeGroup(true);
+            }}
+          />
+        </Tooltip>
+      </div>
       <Tree
+        checkedKeys={checkedKeys}
         checkable={checkableNodes}
         className='tree-form-field'
         draggable={draggable}
@@ -776,19 +901,19 @@ export const TreeFormField: FC<TreeProps> = ({
         defaultExpandAll
         onExpand={onExpand}
         onDrop={onDropNode}
+        onCheck={onCheck}
         treeData={_treeData}
-        // loadData={onLoadData}
         showLine
         multiple={false}
         expandedKeys={expandedKeys}
+        onSelect={onSelect}
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>
             {nodeTitle(nodeData)}
             {!contextMenuOnNode && nodeActions(nodeData)}
           </div>
-
-        )}
+        )}       
       />
       {attributeContainer === 'modal' && (
         <Modal

@@ -3,22 +3,28 @@ from typing import OrderedDict
 from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import (HistoryInformationViewSetMixin,
-                             ObjectPermissionCheckerViewSetMixin)
+from extras.viewsets import (
+    HistoryInformationViewSetMixin,
+    ObjectPermissionCheckerViewSetMixin,
+)
 from notify.serializers import TaskResultSerializer
-from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
-                                      WebFeatureServiceFilterSet,
-                                      WebMapServiceFilterSet)
-from registry.models import (FeatureType, Layer, WebFeatureService,
-                             WebMapService)
+from registry.filters.service import (
+    FeatureTypeFilterSet,
+    LayerFilterSet,
+    WebFeatureServiceFilterSet,
+    WebMapServiceFilterSet,
+)
+from registry.models import FeatureType, Layer, WebFeatureService, WebMapService
 from registry.models.metadata import Keyword, ReferenceSystem, Style
 from registry.models.service import WebMapServiceOperationUrl
-from registry.serializers.service import (FeatureTypeSerializer,
-                                          LayerSerializer,
-                                          WebFeatureServiceCreateSerializer,
-                                          WebFeatureServiceSerializer,
-                                          WebMapServiceCreateSerializer,
-                                          WebMapServiceSerializer)
+from registry.serializers.service import (
+    FeatureTypeSerializer,
+    LayerSerializer,
+    WebFeatureServiceCreateSerializer,
+    WebFeatureServiceSerializer,
+    WebMapServiceCreateSerializer,
+    WebMapServiceSerializer,
+)
 from registry.tasks.service import build_ogc_service
 from rest_framework import status
 from rest_framework.response import Response
@@ -31,7 +37,6 @@ from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 
 class OgcServiceCreateMixin:
-
     def get_serializer_class(self):
         return self.serializer_classes.get(
             self.action, self.serializer_classes["default"]
@@ -43,15 +48,27 @@ class OgcServiceCreateMixin:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        task = build_ogc_service.delay(get_capabilities_url=serializer.validated_data['get_capabilities_url'],
-                                       collect_metadata_records=serializer.validated_data[
-                                           'collect_metadata_records'],
-                                       service_auth_pk=serializer.service_auth.id if hasattr(
-                                           serializer, 'service_auth') else None,
-                                       **{'request': {'path': request.path, 'method': request.method, 'content_type': request.content_type, 'data': request.GET, 'user_pk': request.user.pk}})
+        task = build_ogc_service.delay(
+            get_capabilities_url=serializer.validated_data["get_capabilities_url"],
+            collect_metadata_records=serializer.validated_data[
+                "collect_metadata_records"
+            ],
+            service_auth_pk=serializer.service_auth.id
+            if hasattr(serializer, "service_auth")
+            else None,
+            **{
+                "request": {
+                    "path": request.path,
+                    "method": request.method,
+                    "content_type": request.content_type,
+                    "data": request.GET,
+                    "user_pk": request.user.pk,
+                }
+            },
+        )
         task_result, created = TaskResult.objects.get_or_create(
-            task_id=task.id,
-            task_name='registry.tasks.service.build_ogc_service')
+            task_id=task.id, task_name="registry.tasks.service.build_ogc_service"
+        )
 
         # TODO: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(
@@ -94,43 +111,82 @@ class WebMapServiceRelationshipView(RelationshipView):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
-class WebMapServiceViewSet(ObjectPermissionCheckerViewSetMixin, HistoryInformationViewSetMixin, NestedViewSetMixin, OgcServiceCreateMixin, ModelViewSet):
+class WebMapServiceViewSet(
+    ObjectPermissionCheckerViewSetMixin,
+    HistoryInformationViewSetMixin,
+    NestedViewSetMixin,
+    OgcServiceCreateMixin,
+    ModelViewSet,
+):
     schema = AutoSchema(
         tags=["WebMapService"],
     )
     queryset = WebMapService.objects.all()
     serializer_classes = {
         "default": WebMapServiceSerializer,
-        "create": WebMapServiceCreateSerializer
+        "create": WebMapServiceCreateSerializer,
     }
     select_for_includes = {
         "service_contact": ["service_contact"],
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "layers": [Prefetch("layers", queryset=Layer.objects.select_related("parent").prefetch_related("keywords", "styles", "reference_systems")), ],
+        "layers": [
+            Prefetch(
+                "layers",
+                queryset=Layer.objects.select_related("parent").prefetch_related(
+                    "keywords",
+                    "styles",
+                    "reference_systems",
+                ),
+            ),
+        ],
         "keywords": ["keywords"],
-        "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
+        "operation_urls": [
+            Prefetch(
+                "operation_urls",
+                queryset=WebMapServiceOperationUrl.objects.select_related(
+                    "service"
+                ).prefetch_related("mime_types"),
+            )
+        ],
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
     def dispatch(self, request, *args, **kwargs):
-        if 'layer_pk' in self.kwargs:
-            self.lookup_field = 'layer'
-            self.lookup_url_kwarg = 'layer_pk'
+        if "layer_pk" in self.kwargs:
+            self.lookup_field = "layer"
+            self.lookup_url_kwarg = "layer_pk"
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = super().get_queryset()
-        include = self.request.GET.get('include', None)
-        if not include or 'layers' not in include:
-            qs = qs.prefetch_related(Prefetch('layers', queryset=Layer.objects.only(
-                'id', 'service_id', 'tree_id', 'lft', )))
-        if not include or 'keywords' not in include:
+        include = self.request.GET.get("include", None)
+        if not include or "layers" not in include:
             qs = qs.prefetch_related(
-                Prefetch('keywords', queryset=Keyword.objects.only('id')))
+                Prefetch(
+                    "layers",
+                    queryset=Layer.objects.only(
+                        "id",
+                        "service_id",
+                        "tree_id",
+                        "lft",
+                    ),
+                )
+            )
+        if not include or "keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "operation_urls" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "operation_urls",
+                    queryset=WebMapServiceOperationUrl.objects.only("id", "service_id"),
+                )
+            )
         return qs
 
 
@@ -142,7 +198,12 @@ class LayerRelationshipView(RelationshipView):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
-class LayerViewSet(NestedViewSetMixin, ObjectPermissionCheckerViewSetMixin, HistoryInformationViewSetMixin, ModelViewSet):
+class LayerViewSet(
+    NestedViewSetMixin,
+    ObjectPermissionCheckerViewSetMixin,
+    HistoryInformationViewSetMixin,
+    ModelViewSet,
+):
     schema = AutoSchema(
         tags=["WebMapService"],
     )
@@ -155,7 +216,14 @@ class LayerViewSet(NestedViewSetMixin, ObjectPermissionCheckerViewSetMixin, Hist
     }
     prefetch_for_includes = {
         "service": ["service__keywords", "service__layers"],
-        "service.operation_urls": [Prefetch("service__operation_urls", queryset=WebMapServiceOperationUrl.objects.prefetch_related("mime_types"))],
+        "service.operation_urls": [
+            Prefetch(
+                "service__operation_urls",
+                queryset=WebMapServiceOperationUrl.objects.prefetch_related(
+                    "mime_types"
+                ),
+            )
+        ],
         "styles": ["styles"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],
@@ -164,23 +232,31 @@ class LayerViewSet(NestedViewSetMixin, ObjectPermissionCheckerViewSetMixin, Hist
 
     def get_queryset(self):
         qs = super().get_queryset()
-        include = self.request.GET.get('include', None)
-        if not include or 'service' not in include:
-            defer = [f'service__{field.name}' for field in WebMapService._meta.get_fields(
-            ) if field.name not in ['id', 'pk']]
-            qs = qs.select_related('service').defer(*defer)
-        if not include or 'parent' not in include:
+        include = self.request.GET.get("include", None)
+        if not include or "service" not in include:
+            defer = [
+                f"service__{field.name}"
+                for field in WebMapService._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("service").defer(*defer)
+        if not include or "parent" not in include:
             # TODO optimize queryset with defer
-            qs = qs.select_related('parent')
-        if not include or 'styles' not in include:
+            qs = qs.select_related("parent")
+        if not include or "styles" not in include:
             qs = qs.prefetch_related(
-                Prefetch('styles', queryset=Style.objects.only('id', 'layer_id')))
-        if not include or 'keywords' not in include:
+                Prefetch("styles", queryset=Style.objects.only("id", "layer_id"))
+            )
+        if not include or "keywords" not in include:
             qs = qs.prefetch_related(
-                Prefetch('keywords', queryset=Keyword.objects.only('id')))
-        if not include or 'reference_systems' not in include:
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "reference_systems" not in include:
             qs = qs.prefetch_related(
-                Prefetch('reference_systems', queryset=ReferenceSystem.objects.only('id')))
+                Prefetch(
+                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
+                )
+            )
 
         return qs
 
@@ -193,7 +269,12 @@ class WebFeatureServiceRelationshipView(RelationshipView):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
-class WebFeatureServiceViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, OgcServiceCreateMixin, ModelViewSet):
+class WebFeatureServiceViewSet(
+    ObjectPermissionCheckerViewSetMixin,
+    NestedViewSetMixin,
+    OgcServiceCreateMixin,
+    ModelViewSet,
+):
     schema = AutoSchema(
         tags=["WebFeatureService"],
     )

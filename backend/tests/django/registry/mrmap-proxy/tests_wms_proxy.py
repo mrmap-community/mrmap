@@ -5,7 +5,6 @@ from unittest.mock import patch
 from axis_order_cache.models import Origin, SpatialReference
 from axis_order_cache.registry import Registry
 from django.test import Client, TestCase
-from registry.models.security import AllowedWebMapServiceOperation
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from rest_framework import status
 
@@ -72,10 +71,6 @@ class WebMapServiceProxyTest(TestCase):
     def test_success(self, mocked_proxy, mocked_registry):
         from django.db import connection
 
-        db_name = connection.settings_dict["NAME"]
-        print(db_name)
-        print(AllowedWebMapServiceOperation.objects.all())
-
         expected_png_path = Path(
             Path.joinpath(
                 Path(__file__).parent.resolve(),
@@ -85,12 +80,10 @@ class WebMapServiceProxyTest(TestCase):
         in_file = open(expected_png_path, "rb")
         expected_png = in_file.read()
         in_file.close()
-        print(AllowedWebMapServiceOperation.objects.all())
 
         response = self.client.get(
             "/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3?map=/etc/mapserver/security_mask_test_db.map&VERSION=1.3.0&REQUEST=GetMap&SERVICE=WMS&LAYERS=node1&STYLES=&CRS=EPSG:25832&BBOX=393340,5574710,405660,5581190&WIDTH=1563&HEIGHT=920&FORMAT=image/png&BGCOLOR=0xffffff&TRANSPARENT=TRUE"
         )
-        print(AllowedWebMapServiceOperation.objects.all())
 
         f = open("response.png", "wb")
         f.write(response.content)

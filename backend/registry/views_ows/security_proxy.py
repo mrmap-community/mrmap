@@ -191,12 +191,8 @@ class WebMapServiceProxy(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
         # todo: handle different service versions
-        capabilities = self.service.document.xml
-        if self.service.camouflage:
-            capabilities = self.service.document.xml_secured(
-                request=self.request)
         return HttpResponse(
-            status=200, content=capabilities, content_type="application/xml"
+            status=200, content=self.service.get_xml(self.request), content_type="application/xml"
         )
 
     def _create_secured_service_mask(self):
@@ -390,14 +386,22 @@ class WebMapServiceProxy(View):
                      the bbox doesn't intersects any allowed area.
             :rtype: dict
         """
-        if not self.service.is_spatial_secured_and_intersects:
-            # TODO: return transparent image
-            return self.return_http_response(
-                {
-                    "status_code": 403,
-                    "content": "User has no permissions to access the requested area.",
-                }
-            )
+        # if not self.service.is_spatial_secured_and_intersects:
+        #     # TODO: return transparent image
+        #     get_params = self.remote_service.get_get_params(
+        #         query_params=self.request.query_parameters
+        #     )
+        #     width = int(get_params.get(self.remote_service.WIDTH_QP))
+        #     height = int(get_params.get(self.remote_service.HEIGHT_QP))
+        #     image = Image.new("RGBA", (width, height), (0, 0, 0))
+        #     image.format = 'png'
+        #     return self.return_http_response(
+        #         {
+        #             "status_code": 200,
+        #             "content": self._image_to_bytes(image=image),
+        #             "content-type": "image/png"
+        #         }
+        #     )
         # we fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the
         # mask are generated at the same time. This speed up the process by ~30%!

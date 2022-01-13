@@ -212,9 +212,6 @@ class WebMapServiceSecurityManager(models.Manager):
     def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
         service = None
         self.request = request
-        self.dummy_remote_service = WebService.manufacture_service(
-            self.request.get_full_path()
-        )
         service = self.prepare_with_security_info().get(*args, **kwargs)
 
         return service

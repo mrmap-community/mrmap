@@ -99,7 +99,7 @@ class LegendUrl(DBModelConverterMixin, xmlmap.XmlObject):
         xpath="OnlineResource[@xlink:type='simple']/@xlink:href")
     height = xmlmap.IntegerField(xpath="@height")
     width = xmlmap.IntegerField(xpath="@width")
-    mime_type = xmlmap.NodeField(xpath="Format", node_class=MimeType)
+    mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
 
 
 class Style(DBModelConverterMixin, xmlmap.XmlObject):

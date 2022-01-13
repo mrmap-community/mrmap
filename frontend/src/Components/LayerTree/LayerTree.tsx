@@ -1,9 +1,14 @@
 import { Key } from 'antd/lib/table/interface';
 import Collection from 'ol/Collection';
+import { EventsKey as OlEventsKey } from 'ol/events';
+import GML2 from 'ol/format/GML2';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import OlMap from 'ol/Map';
+import OlMapBrowserEvent from 'ol/MapBrowserEvent';
+import { unByKey } from 'ol/Observable';
+import * as olProj from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
 import React, { ReactNode, useEffect, useState } from 'react';
@@ -43,11 +48,100 @@ interface LayerTreeProps {
   layerAttributeForm?: ReactNode;
 }
 
-// export const setLayerSourceWMSParams = (layer: ImageLayer<ImageWMS>) => {
-//   const source = layer.getSource();
-//   source.setUrl('');
-//   source.serverType:
-// }
+ export const getWMSFeatureInfoUrl = (olMap: OlMap, layerSource: ImageWMS, coordinates: [number, number])
+ : (string | undefined) => {
+ // all getFeatureInfo operation will be handled in EPSG:3857
+ const featureInfoUrl: string | undefined = layerSource
+     .getFeatureInfoUrl(
+         coordinates,
+         //@ts-ignore
+         olMap.getView().getResolution(),
+         'EPSG:3857',
+         {
+             'INFO_FORMAT': 'application/vnd.ogc.gml'
+         }
+     );
+ return featureInfoUrl;
+};
+
+// const onFetchingAttributesStart = () => {
+//   setIsLoading(true);
+//   map.getTargetElement().style.cursor = 'wait';
+// };
+
+const getFeatureAttributes = (olMap: OlMap, event: OlMapBrowserEvent<any>) => {
+  // setDidClickOnMap(true);
+  // setLayerFeatures({});
+  console.log(event);
+  const promises = [];
+  const clickedPixel = olMap.getEventPixel(event.originalEvent);
+  const clickedCoordinate = olMap.getCoordinateFromPixel(clickedPixel);
+
+  // WARNING: The coordinates are directly transformed from the canvas pixel. This means that when the user
+  // clicks on the center representation of the map in the canvas, the coordinates are correct according to the
+  // current projection. HOWEVER... if the user zooms out, and zooms in again to another representation area of
+  // the map within the canvas, the coordinates are not correct according to real world coordinates, rather they
+  // are referenced according to the canvas axis. To fix this, we need to convert the derived coordinates from
+  // the pixel using the OL method toLonLat().
+  const realCoordinates = olProj.toLonLat(clickedCoordinate);
+  // Altought it is said in the OL documentation that this coordinates are given by default in the map projection,
+  // they are actually given in EPSG:4326 (even if specified). This might be a bug that will be investigated and
+  // reported. Since we need the coordinates in EPSG:3857, we need to also get the proper transformation.
+
+  // get the coordinates in EPSG:3857 (our default map projection)
+  const transformedClickedCoordinate = olProj
+      .transform(realCoordinates, 'EPSG:4326', olMap.getView().getProjection());
+
+  const coords = transformedClickedCoordinate as [number, number];
+
+  olMap.forEachLayerAtPixel(
+      clickedPixel,
+      (layer: ImageLayer<ImageWMS>) => {
+          // gets the layer source
+          const layerSource: ImageWMS = layer.getSource();
+          layerSource.set('crossOrigin', 'gis.mffjiv.rlp.de');
+          // TODO: add support for vector source
+
+          if (layerSource instanceof ImageWMS) {
+            const featureInfoUrl = getWMSFeatureInfoUrl(olMap, layerSource, coords);
+            if (featureInfoUrl) {
+              resolveWMSPromise(featureInfoUrl);
+            }
+          }
+
+          return false;
+      },
+      { hitTolerance: 5 }
+  );
+};
+
+const resolveWMSPromise = async(url: string) => {
+    try {
+      const response = await fetch(url,
+        { 
+          method: 'GET', 
+          mode: 'cors',
+          //@ts-ignore
+          headers: { 
+            'Content-Type': 'application/vnd.ogc.gml',
+          }
+        } 
+      );
+      const textRes = await response.text();
+      const format = new GML2();
+      const fc = format.readFeatures(textRes);
+      fc.forEach((feature: any) => {
+        if (Object.getOwnPropertyNames(feature).length > 0) {
+          // TODO where to render the properties?
+          console.log(feature.getProperties());
+        }
+      });
+    } catch (error) {
+      //@ts-ignore
+      throw new Error(error);
+    }
+
+};
 
 export const getAllMapLayers = (collection: OlMap | LayerGroup): (LayerGroup | BaseLayer | ImageLayer<ImageWMS>)[] => {
   if (!(collection instanceof OlMap) && !(collection instanceof LayerGroup)) {
@@ -77,7 +171,9 @@ export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWM
       'FORMAT': opts.format,
       'TRANSPARENT': true
     },
-    serverType: opts.serverType
+    serverType: opts.serverType,
+    // crossOrigin: 'anonymous',
+    // //crossOrigin: 'Anonymous',
   });
 
   const olWMSLayer = new ImageLayer({
@@ -239,12 +335,17 @@ export const LayerTree = ({
   // The tree form field component handles generic logic for a tree, not for the layers or interaction with map.
   // Only change it if you detect aa bug thaat could be traced baack deep to the tree form field
 
+  const olListenerKeys: (OlEventsKey[]) = [];
+
+  
+
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
   
   useEffect(() => {
     const onLayerGroupChange = (e:any) => {
         setTreeData(OlLayerGroupToTreeNodeList(layerGroup));
     };
+
     const setWMSParams = async(theLayer: ImageLayer<ImageWMS>) => {
       try {
         const source = theLayer.getSource();
@@ -279,6 +380,22 @@ export const LayerTree = ({
     };
 
   }, [layerGroup, map]);
+
+  const registerMapClickListener = (olMap: OlMap) => {
+    const mapClickEventKey = olMap.on('singleclick', (event) => getFeatureAttributes(map, event));
+    olListenerKeys.push(mapClickEventKey);
+};
+
+  useEffect(() => {
+    
+    registerMapClickListener(map);
+    return () => {
+      // unregister the listener
+      unByKey(olListenerKeys);
+    };
+  }, [olListenerKeys]);
+
+   
 
   const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const { checked } = info;

@@ -18,6 +18,14 @@ const getServiceType = (url:string): string => {
   }
   return '';
 };
+
+const getServiceUrl = (includedServices: any[]) => {
+  const getMapService = includedServices.find(service => service.attributes.operation === 'GetMap');
+  if(getMapService) {
+    console.log(getMapService);
+    return getMapService.attributes.url;
+  }
+};
 class LayerRepo extends JsonApiRepo {
   constructor () {
     super('/api/v1/registry/layers/', 'WMS-Ebenen');
@@ -35,7 +43,7 @@ class LayerRepo extends JsonApiRepo {
       // to avoid error when string is empty
       delete jsonApiParams['filter[title.icontains]'];
     }
-
+    
     const res = await client['List' + this.resourcePath](jsonApiParams);
     return res.data.data.map((o: any) => ({
       value: o.id,
@@ -93,7 +101,7 @@ class LayerRepo extends JsonApiRepo {
         WMSParams: {
           bbox: extent,
           layer: res.data.data.attributes.identifier,
-          url: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.service_url,
+          url: res.data.included && res.data.included.length > 0 && getServiceUrl(res.data.included),
           version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
           serviceType: res.data.included && res.data.included.length > 0 && 
             getServiceType(res.data.included[0].attributes.service_url),

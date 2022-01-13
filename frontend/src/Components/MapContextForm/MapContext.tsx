@@ -268,6 +268,7 @@ export const MapContext = (): ReactElement => {
                 selectLayerDispatchAction={onSelectLayerInTree}
                 addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
                   let layerToAdd: OlLayerGroup | ImageLayer<ImageWMS> = new Layer({});
+                  console.log(nodeAttributes);
                   try {
                     // create the layer in the DB
                     const createdLayer = await mapContextLayerRepo.create({
@@ -275,16 +276,7 @@ export const MapContext = (): ReactElement => {
                       parentLayerId: newNodeParent || '',
                       mapContextId: createdMapContextId
                     });
-
-                    // if the created layer has a parent, it means its not being created in the root
-                    // and its a child of a already exiting group. Else it should be added to the root group
-                    // let layerGroupToAdd = 'mrMapMapContextLayers';
-                    // if(newNodeParent) {
-                    //   const layerGroupObj = getLayerByMrMapLayerId(olMap, newNodeParent);
-                    //   if (layerGroupObj && layerGroupObj instanceof OlLayerGroup) {
-                    //     layerGroupToAdd = layerGroupObj.getProperties().name;
-                    //   }
-                    // }
+                    console.log(createdLayer);
                     //@ts-ignore
                     if(createdLayer.data?.data?.attributes.is_leaf) {
                       //@ts-ignore

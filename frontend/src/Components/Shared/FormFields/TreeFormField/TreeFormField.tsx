@@ -227,6 +227,9 @@ export const TreeFormField: FC<TreeProps> = ({
   const [isCreatingGroupNode, setIsCreatingGroupNode] = useState<boolean>(true);
   const [newNodeGroupIncrementValue, setNewNodeGroupIncrementValue] = useState<number>(1);
 
+  useEffect(()=>{
+    console.log(selectedNode);
+  },[isNodeAttributeFormVisible]);
   /**
    * @description: Toggles the modal showing the form with the node properties
    */
@@ -445,7 +448,7 @@ export const TreeFormField: FC<TreeProps> = ({
   const onAddNode = async (node: TreeNodeType | undefined, values: any, isRoot = false) => {
     if (node) {
       const newNode: TreeNodeType = {
-        title: values.title || `${node.key}-${node.children.length}`,
+        title: node.title || `${node.key}-${node.children.length}`,
         key: `${node.key}-${node.children.length}`, // this will be the id of the created node on async
         children: [],
         parent: isRoot ? null : node.key,
@@ -458,6 +461,7 @@ export const TreeFormField: FC<TreeProps> = ({
         try {
           const response = await addNodeDispatchAction({
             ...values, 
+            title: newNode.title,
             isLeaf: newNode.isLeaf
           }, 
           newNode.parent);
@@ -512,6 +516,7 @@ export const TreeFormField: FC<TreeProps> = ({
    * @param node
    */
   const onEditNode = async (node: TreeNodeType | undefined, values: any) => {
+    console.log(node, values);
     if (node) {
       if (values && node) {
         node.title = values.title;

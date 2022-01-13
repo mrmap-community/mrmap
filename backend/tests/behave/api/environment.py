@@ -16,9 +16,11 @@ def before_scenario(context, scenario):
     if 'MapContext' in scenario.feature.name:
         context.fixtures.extend(['test_keywords.json', 'test_mapcontext.json'])
     elif 'DatasetMetadata' in scenario.feature.name:
-        context.fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
+        context.fixtures.extend(
+            ['test_keywords.json', 'test_datasetmetadata.json'])
     elif 'AllowedWebMapServiceOperation' in scenario.feature.name:
         context.fixtures.extend(['test_wms.json'])
+
 
 def after_scenario(context, scenario):
     for patcher in context.patchers:

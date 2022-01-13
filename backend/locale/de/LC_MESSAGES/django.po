@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-01-07 11:46+0100\n"
+"POT-Creation-Date: 2022-01-13 11:53+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:165
+#: MrMap/settings.py:164
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:166
+#: MrMap/settings.py:165
 msgid "German"
 msgstr "Deutsch"
 
@@ -104,8 +104,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:91 registry/models/security.py:191
-#: registry/models/security.py:264
+#: accounts/models/groups.py:91 registry/models/security.py:244
 #, fuzzy
 #| msgid "Description"
 msgid "description"
@@ -186,57 +185,6 @@ msgstr "Nutzer"
 msgid "Users"
 msgstr "Nutzer"
 
-#: accounts/models/users.py:95 registry/models/metadata.py:277
-#: registry/models/metadata.py:287 registry/models/security.py:133
-#: registry/models/service.py:131
-#, fuzzy
-#| msgid "Your registered Web Map Services"
-msgid "web map service"
-msgstr "Ihre registrierten Web Map Services"
-
-#: accounts/models/users.py:96 accounts/models/users.py:104
-msgid ""
-"Select the service you want to subscribe. When you edit an existing "
-"subscription, you can not change this selection."
-msgstr ""
-"Wählen Sie den Dienst aus, den Sie abonnieren wollen. Falls Sie ein "
-"bestehendes Abonnemment bearbeiten, kann diese Auswahl nicht geändert werden."
-
-#: accounts/models/users.py:103 registry/models/security.py:145
-#: registry/models/security.py:157 registry/models/service.py:144
-#, fuzzy
-#| msgid "Your registered Web Feature Services"
-msgid "web feature service"
-msgstr "Ihre registrierten Web Feature Services"
-
-#: accounts/models/users.py:109
-msgid "Notify on update"
-msgstr "Bei Update informieren"
-
-#: accounts/models/users.py:110
-msgid "Sends an e-mai if the service has been updated."
-msgstr "Schickt eine E-Mail, falls der Dienst aktualisiert wird."
-
-#: accounts/models/users.py:113
-#, fuzzy
-#| msgid "Notify on metadata changes"
-msgid "Notify on metadata edit"
-msgstr "Bei Metadatenänderungen informieren"
-
-#: accounts/models/users.py:114
-msgid "Sends an e-mai if the service's metadata has been changed."
-msgstr "Schickt eine E-Mail, falls die Metadaten des Dienstes geändert wurden."
-
-#: accounts/models/users.py:118
-#, fuzzy
-#| msgid "Notify on access changes"
-msgid "Notify on access edit"
-msgstr "Bei Zugangsänderungen informieren"
-
-#: accounts/models/users.py:119
-msgid "Sends an e-mai if the service's access has been changed."
-msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
-
 #: notify/apps.py:9
 msgid "Notify"
 msgstr "Benachrichtigung"
@@ -249,8 +197,8 @@ msgstr "Registrierung"
 msgid "Explanations: <br>"
 msgstr "Erklärungen: <br>"
 
-#: registry/models/conformity.py:140 registry/models/service.py:338
-#: registry/models/service.py:571
+#: registry/models/conformity.py:140 registry/models/service.py:345
+#: registry/models/service.py:578
 #, fuzzy
 #| msgid "Service"
 msgid "service"
@@ -261,7 +209,7 @@ msgid "the service targeted by this check"
 msgstr "Der Dienst der von dieser Überprüfung betroffen ist."
 
 #: registry/models/conformity.py:151 registry/models/metadata.py:761
-#: registry/models/service.py:407
+#: registry/models/service.py:414
 #, fuzzy
 #| msgid "Layer:"
 msgid "layer"
@@ -272,7 +220,7 @@ msgid "the layer targeted by this check"
 msgstr "Die Ebene die von dieser Überprüfung betroffen ist."
 
 #: registry/models/conformity.py:163 registry/models/metadata.py:769
-#: registry/models/service.py:599 registry/models/service.py:688
+#: registry/models/service.py:606 registry/models/service.py:695
 #, fuzzy
 #| msgid "Featuretype:"
 msgid "feature type"
@@ -295,11 +243,11 @@ msgstr "Datensatz Metadaten"
 msgid "the dataset metadata targeted by this check"
 msgstr "Datensatz Metadaten bearbeitet"
 
-#: registry/models/document.py:22
+#: registry/models/document.py:24
 msgid "xml backup"
 msgstr "XML Sicherung"
 
-#: registry/models/document.py:23
+#: registry/models/document.py:26
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
@@ -355,11 +303,11 @@ msgstr "Darstellungsebene"
 msgid "Select a layer for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:76 registry/models/service.py:382
+#: registry/models/mapcontext.py:76 registry/models/service.py:389
 msgid "scale minimum value"
 msgstr "minimaler Maßstabswert"
 
-#: registry/models/mapcontext.py:78 registry/models/service.py:384
+#: registry/models/mapcontext.py:78 registry/models/service.py:391
 msgid ""
 "minimum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -369,11 +317,11 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:83 registry/models/service.py:393
+#: registry/models/mapcontext.py:83 registry/models/service.py:400
 msgid "scale maximum value"
 msgstr "maximaler Maßstabswert"
 
-#: registry/models/mapcontext.py:85 registry/models/service.py:395
+#: registry/models/mapcontext.py:85 registry/models/service.py:402
 msgid ""
 "maximum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -509,6 +457,13 @@ msgstr "Neue Ressource"
 #: registry/models/metadata.py:222
 msgid "the uuid of the described service, layer or feature type"
 msgstr "Die UUID des beschriebenen Dienstes, Ebene oder Merkmaltypen."
+
+#: registry/models/metadata.py:277 registry/models/metadata.py:287
+#: registry/models/security.py:153 registry/models/service.py:131
+#, fuzzy
+#| msgid "Your registered Web Map Services"
+msgid "web map service"
+msgstr "Ihre registrierten Web Map Services"
 
 #: registry/models/metadata.py:278 registry/models/metadata.py:288
 msgid ""
@@ -714,7 +669,7 @@ msgstr "Bodenauflösung"
 msgid "The value depending on the selected resolution type."
 msgstr "Dieser Wert hängt von dem ausgewählten Auflösungstypen ab."
 
-#: registry/models/metadata.py:622 registry/models/service.py:299
+#: registry/models/metadata.py:622 registry/models/service.py:306
 #, fuzzy
 #| msgid "Coordinate reference system"
 msgid "reference systems"
@@ -758,7 +713,7 @@ msgstr "Namensraum für den Indenifkator"
 msgid "flag to signal if this "
 msgstr "Bit um dies zu signalisieren "
 
-#: registry/models/metadata.py:663 registry/models/service.py:408
+#: registry/models/metadata.py:663 registry/models/service.py:415
 #, fuzzy
 #| msgid "Layers"
 msgid "layers"
@@ -771,7 +726,7 @@ msgstr ""
 "Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
 "sind."
 
-#: registry/models/metadata.py:673 registry/models/service.py:600
+#: registry/models/metadata.py:673 registry/models/service.py:607
 #, fuzzy
 #| msgid "Featuretypes"
 msgid "feature types"
@@ -843,65 +798,72 @@ msgstr "verknüpfter Dimensionseintrag"
 msgid "the related dimension where this interval was found."
 msgstr "Die vernüpfte Dimension des Intervals."
 
-#: registry/models/security.py:33
+#: registry/models/security.py:42
 #, fuzzy
 #| msgid "Username"
 msgid "username"
 msgstr "Nutzername"
 
-#: registry/models/security.py:34
+#: registry/models/security.py:43
 #, fuzzy
 #| msgid "Service needs authentication"
 msgid "the username used for the authentication."
 msgstr "Dienst benötigt Authentifizierung"
 
-#: registry/models/security.py:36
+#: registry/models/security.py:47
 #, fuzzy
 #| msgid "Password"
 msgid "password"
 msgstr "Passwort"
 
-#: registry/models/security.py:37
+#: registry/models/security.py:48
 msgid "the password used for the authentication."
 msgstr ""
 "Das Passwort, welches für die Authentifizierung des Dienstes genutzt werden "
 "soll."
 
-#: registry/models/security.py:40
+#: registry/models/security.py:53
 #, fuzzy
 #| msgid "Authentication type"
 msgid "authentication type"
 msgstr "Authentifizierungstyp"
 
-#: registry/models/security.py:41
+#: registry/models/security.py:54
 msgid "kind of authentication mechanism shall used."
 msgstr "Authentifizierungsmechanismus."
 
-#: registry/models/security.py:135 registry/models/security.py:147
-#: registry/models/security.py:159
+#: registry/models/security.py:155 registry/models/security.py:170
+#: registry/models/security.py:185
 msgid ""
 "the optional authentication type and credentials to request the service."
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
-#: registry/models/security.py:192
-msgid "a short description what this group is for."
-msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
+#: registry/models/security.py:168 registry/models/security.py:183
+#: registry/models/service.py:144
+#, fuzzy
+#| msgid "Your registered Web Feature Services"
+msgid "web feature service"
+msgstr "Ihre registrierten Web Feature Services"
 
-#: registry/models/security.py:241 registry/models/security.py:249
+#: registry/models/security.py:245
+msgid "a short description what this allowed operation controls."
+msgstr "Eine Kurzbeschreibung für was diese erlaubte Funktion steht."
+
+#: registry/models/security.py:276 registry/models/security.py:332
 #, fuzzy
 #| msgid "Subscribed services"
 msgid "secured service"
 msgstr "Abonnierte Dienste"
 
-#: registry/models/security.py:242 registry/models/security.py:250
+#: registry/models/security.py:277 registry/models/security.py:333
 msgid "the service where some layers or feature types are secured of."
 msgstr "Der Dienst welcher Ebenen und Medientypen absichert."
 
-#: registry/models/security.py:254
+#: registry/models/security.py:283
 msgid "secured layers"
 msgstr "abgesicherte Ebene"
 
-#: registry/models/security.py:255
+#: registry/models/security.py:285
 msgid ""
 "Select one or more layers. Note that all sub layers of a selected layer will "
 "also be secured."
@@ -909,25 +871,21 @@ msgstr ""
 "Wählen Sie eine oder mehere Ebenen. Hinweis: Alle Unterebenen einer "
 "gewähltenEbene sind ebenfals abgesichert."
 
-#: registry/models/security.py:261
+#: registry/models/security.py:339
 #, fuzzy
 #| msgid "Edit featuretype"
 msgid "secured feature types"
 msgstr "Featuretyp bearbeiten"
 
-#: registry/models/security.py:262
+#: registry/models/security.py:340
 msgid "Select one or more feature types."
 msgstr "Wählen Sie einen oder mehere Medientypen."
 
-#: registry/models/security.py:265
-msgid "a short description what this allowed operation controls."
-msgstr "Eine Kurzbeschreibung für was diese erlaubte Funktion steht."
-
-#: registry/models/security.py:299
+#: registry/models/security.py:366
 msgid "camouflage"
 msgstr "tarnen"
 
-#: registry/models/security.py:300
+#: registry/models/security.py:368
 msgid ""
 "if true, all related xml documents are secured, by replace all hostname/"
 "internet addresses of the related service by the hostname of the current mr. "
@@ -937,32 +895,20 @@ msgstr ""
 "alleInternetadressen von verwiesenen Diensten durch den von MrMap ersetzt "
 "werden."
 
-#: registry/models/security.py:304
+#: registry/models/security.py:376
 msgid "log response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/security.py:305
+#: registry/models/security.py:378
 msgid "if true, all responses of the related service will be logged."
 msgstr ""
 "Wenn 'Wahr', werden alle Antworten des vernüpften Dienstes protokolliert."
 
-#: registry/models/security.py:310 registry/models/security.py:316
-#, fuzzy
-#| msgid "General settings"
-msgid "proxy settings"
-msgstr "Allgemeine Einstellungen"
-
-#: registry/models/security.py:311 registry/models/security.py:317
-#, fuzzy
-#| msgid "the base url of the service"
-msgid "the security proxy settings for this service."
-msgstr "Die Basis-URL des Dienstes."
-
-#: registry/models/security.py:331
+#: registry/models/security.py:397
 msgid "log response without active camouflage is not supported."
 msgstr "Antwort prokollieren ohne die Tarnung zu aktivieren ist nicht erlaubt."
 
-#: registry/models/security.py:340
+#: registry/models/security.py:414
 #, python-format
 msgid ""
 "There are configured allowed operation objects. Camouflage can not be "
@@ -971,6 +917,18 @@ msgstr ""
 "Es existieren konfigurierte erlaubte Operationen. Die Tarnungsfunktion kann "
 "nicht deaktiviert werden. Sehen Sie alle erlaubten Operationen <a href="
 "%(url)s>hier</a>"
+
+#: registry/models/security.py:429 registry/models/security.py:440
+#, fuzzy
+#| msgid "General settings"
+msgid "proxy settings"
+msgstr "Allgemeine Einstellungen"
+
+#: registry/models/security.py:430 registry/models/security.py:441
+#, fuzzy
+#| msgid "the base url of the service"
+msgid "the security proxy settings for this service."
+msgstr "Die Basis-URL des Dienstes."
 
 #: registry/models/service.py:52
 #, fuzzy
@@ -1066,59 +1024,59 @@ msgstr "Die Operation die mit dieser URL genutzt werden kann."
 msgid "all available mime types of the remote url"
 msgstr "Alle verfügbaren Medientypen für diese URL"
 
-#: registry/models/service.py:222
+#: registry/models/service.py:221
 #, fuzzy
 #| msgid "Parent service"
 msgid "related web map service"
 msgstr "Übergeordneter Dienst"
 
-#: registry/models/service.py:223
+#: registry/models/service.py:222
 #, fuzzy
 #| msgid "the service for that this url can be used for."
 msgid "the web map service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
-#: registry/models/service.py:242
+#: registry/models/service.py:241
 #, fuzzy
 #| msgid "Parent service"
 msgid "related web feature service"
 msgstr "Übergeordneter Dienst"
 
-#: registry/models/service.py:243
+#: registry/models/service.py:242
 #, fuzzy
 #| msgid "the service for that this url can be used for."
 msgid "the web feature service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
-#: registry/models/service.py:262
+#: registry/models/service.py:261
 #, fuzzy
 #| msgid "Parent Service"
 msgid "related catalouge service"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/service.py:263
+#: registry/models/service.py:262
 #, fuzzy
 #| msgid "the service for that this url can be used for."
 msgid "the catalouge service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
-#: registry/models/service.py:275
+#: registry/models/service.py:282
 msgid "identifier"
 msgstr "Identifikator"
 
-#: registry/models/service.py:277
+#: registry/models/service.py:284
 msgid "this is a string which identifies the element on the remote service."
 msgstr ""
 "Dies ist eine Zeichenkette, welche das Element auf der Gegenseite "
 "identifiziert."
 
-#: registry/models/service.py:284
+#: registry/models/service.py:291
 #, fuzzy
 #| msgid "Bounding box"
 msgid "bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: registry/models/service.py:286
+#: registry/models/service.py:293
 msgid ""
 "bounding box shall be supplied regardless of what CRS the map server may "
 "support, but it may be approximate if the data are not natively in "
@@ -1132,33 +1090,33 @@ msgstr ""
 "Begrenzungsbox ist die Erleichterung geografische Suchen, ohne dass "
 "Koordinatentransformationen durch die Suchmaschine erforderlich sind."
 
-#: registry/models/service.py:300
+#: registry/models/service.py:307
 msgid "all reference systems which this element supports"
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
-#: registry/models/service.py:339 registry/models/service.py:572
+#: registry/models/service.py:346 registry/models/service.py:579
 msgid "the extras service where this element is part of"
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
-#: registry/models/service.py:348
+#: registry/models/service.py:355
 #, fuzzy
 #| msgid "Parent Layer"
 msgid "parent layer"
 msgstr "Gehört zu Ebene"
 
-#: registry/models/service.py:349
+#: registry/models/service.py:356
 #, fuzzy
 #| msgid "Interfaces of the layer for "
 msgid "the ancestor of this layer."
 msgstr "Schnittstellen des Layers für "
 
-#: registry/models/service.py:354
+#: registry/models/service.py:361
 #, fuzzy
 #| msgid "is Queryable"
 msgid "is queryable"
 msgstr "Abfragbar"
 
-#: registry/models/service.py:356
+#: registry/models/service.py:363
 msgid ""
 "flag to signal if this layer provides factual information or not. Parsed "
 "from capabilities."
@@ -1166,13 +1124,13 @@ msgstr ""
 "Bit um zu signalisieren, ob die Ebene Sachinformationen liefert oder nicht. "
 "Aus dem Capabilities-XML übernommen."
 
-#: registry/models/service.py:363
+#: registry/models/service.py:370
 #, fuzzy
 #| msgid "Is opaque"
 msgid "is opaque"
 msgstr "Durchsichtig"
 
-#: registry/models/service.py:365
+#: registry/models/service.py:372
 msgid ""
 "flag to signal if this layer support transparency content or not. Parsed "
 "from capabilities."
@@ -1180,24 +1138,24 @@ msgstr ""
 "Bit um zu signalisieren, ob die Ebene transparent geschaltet werden kann "
 "oder nicht. Aus dem Capabilities-XML übernommen."
 
-#: registry/models/service.py:372
+#: registry/models/service.py:379
 #, fuzzy
 #| msgid "Is cascaded"
 msgid "is cascaded"
 msgstr "Kaskadiert"
 
-#: registry/models/service.py:374
+#: registry/models/service.py:381
 msgid ""
 "WMS cascading allows to expose layers coming from other WMS servers as if "
 "they were local layers"
 msgstr ""
 "WMS kaskadieren erlaubt es, Ebenen aus anderen WMS diensten zu beziehen."
 
-#: registry/models/service.py:580
+#: registry/models/service.py:587
 msgid "output formats"
 msgstr "Ausgabeformate"
 
-#: registry/models/service.py:582
+#: registry/models/service.py:589
 msgid ""
 "This is a list of MIME types indicating the output formats that may be "
 "generated for a feature type.  If this optional element is not specified, "
@@ -1209,27 +1167,27 @@ msgstr ""
 "angegeben ist, dann werden alle für die GetFeature-Operation aufgelisteten "
 "Ergebnisformate angenommen die unterstützt werden."
 
-#: registry/models/service.py:591
+#: registry/models/service.py:598
 #, fuzzy
 #| msgid "Edit featuretype"
 msgid "describe feature type"
 msgstr "Featuretyp bearbeiten"
 
-#: registry/models/service.py:593
+#: registry/models/service.py:600
 msgid "the fetched content of the download describe feature type document."
 msgstr "Der geladene Inhalt des heruntergeladenen Merkmaltypen."
 
-#: registry/models/service.py:689
+#: registry/models/service.py:696
 msgid "related feature type of this element"
 msgstr "Verknüpfte Merkmaltypen des Element"
 
-#: registry/models/service.py:695
+#: registry/models/service.py:702
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type element"
 msgstr "Featuretype Titel enthält"
 
-#: registry/models/service.py:696
+#: registry/models/service.py:703
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type elements"
@@ -1257,6 +1215,40 @@ msgstr "Diese Ressource ist aktiviert."
 #| msgid "This resource is deactivated."
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
+
+#~ msgid ""
+#~ "Select the service you want to subscribe. When you edit an existing "
+#~ "subscription, you can not change this selection."
+#~ msgstr ""
+#~ "Wählen Sie den Dienst aus, den Sie abonnieren wollen. Falls Sie ein "
+#~ "bestehendes Abonnemment bearbeiten, kann diese Auswahl nicht geändert "
+#~ "werden."
+
+#~ msgid "Notify on update"
+#~ msgstr "Bei Update informieren"
+
+#~ msgid "Sends an e-mai if the service has been updated."
+#~ msgstr "Schickt eine E-Mail, falls der Dienst aktualisiert wird."
+
+#, fuzzy
+#~| msgid "Notify on metadata changes"
+#~ msgid "Notify on metadata edit"
+#~ msgstr "Bei Metadatenänderungen informieren"
+
+#~ msgid "Sends an e-mai if the service's metadata has been changed."
+#~ msgstr ""
+#~ "Schickt eine E-Mail, falls die Metadaten des Dienstes geändert wurden."
+
+#, fuzzy
+#~| msgid "Notify on access changes"
+#~ msgid "Notify on access edit"
+#~ msgstr "Bei Zugangsänderungen informieren"
+
+#~ msgid "Sends an e-mai if the service's access has been changed."
+#~ msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
+
+#~ msgid "a short description what this group is for."
+#~ msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
 #, fuzzy
 #~| msgid "Created on"

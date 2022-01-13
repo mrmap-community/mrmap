@@ -12,7 +12,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
 from django.db import connection, transaction
 from django.db.models.functions import datetime
-from django.http import HttpResponse, StreamingHttpResponse, request
+from django.http import HttpResponse, StreamingHttpResponse
 from django.http.response import Http404
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
@@ -21,23 +21,19 @@ from django.views.generic.base import View
 from eulxml import xmlmap
 from extras.utils import execute_threads
 from MrMap.settings import PROXIES
-from ows_client.exception_reports import (MULTIPLE_FEATURE_TYPES,
-                                          NO_FEATURE_TYPES)
 from ows_client.exceptions import (MissingBboxParam, MissingServiceParam,
                                    MissingVersionParam)
 from ows_client.request_builder import WebService, WmsService
 from PIL import Image, ImageDraw, ImageFont
-from registry.enums.service import OGCOperationEnum, OGCServiceEnum
+from registry.enums.service import OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
-from registry.models.service import WebFeatureService, WebMapService
+from registry.models.service import WebMapService
 from registry.proxy.ogc_exceptions import (DisabledException,
                                            ForbiddenException,
                                            MissingRequestParameterException,
                                            MissingVersionParameterException)
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
-from registry.xmlmapper.ogc.wfs_get_feature import GetFeature
-from registry.xmlmapper.ogc.wfs_transaction import Transaction
 from requests import Request, Session
 from requests.exceptions import ConnectionError as ConnectionErrorException
 from requests.exceptions import ConnectTimeout as ConnectTimeoutException

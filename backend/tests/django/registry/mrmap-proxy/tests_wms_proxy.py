@@ -4,10 +4,9 @@ from unittest.mock import patch
 
 from axis_order_cache.models import Origin, SpatialReference
 from axis_order_cache.registry import Registry
-from django.core import management
 from django.test import Client, TestCase
 from registry.models.security import AllowedWebMapServiceOperation
-from registry.views_ows.security_proxy import WebMapServiceProxy
+from registry.proxy.wms_proxy import WebMapServiceProxy
 from rest_framework import status
 
 

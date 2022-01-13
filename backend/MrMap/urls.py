@@ -18,7 +18,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
-from registry.views_ows import security_proxy as security_proxy_views
+from registry.proxy import wms_proxy as security_proxy_views
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
@@ -61,4 +61,5 @@ if settings.DEBUG:
 
     urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
     # to enable possibility to open media files during development (images, documents, etc)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

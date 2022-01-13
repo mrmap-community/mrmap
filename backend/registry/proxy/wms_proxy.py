@@ -4,7 +4,7 @@ import re
 from io import BytesIO
 from queue import Queue
 from threading import Thread
-from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -12,7 +12,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.base import ContentFile
 from django.db import connection, transaction
 from django.db.models.functions import datetime
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse, request
 from django.http.response import Http404
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
@@ -30,6 +30,10 @@ from PIL import Image, ImageDraw, ImageFont
 from registry.enums.service import OGCOperationEnum, OGCServiceEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import WebFeatureService, WebMapService
+from registry.proxy.ogc_exceptions import (DisabledException,
+                                           ForbiddenException,
+                                           MissingRequestParameterException,
+                                           MissingVersionParameterException)
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
 from registry.xmlmapper.ogc.wfs_get_feature import GetFeature
@@ -58,22 +62,35 @@ class WebMapServiceProxy(View):
     bbox = None
     start_time = None
 
-    def setup(self, request, *args, **kwargs):
-        """Setup all basically needed attributes of this class."""
-        super().setup(request=request, *args, **kwargs)
+    def dispatch(self, request, *args, **kwargs):
         self.start_time = datetime.datetime.now()
-        request.query_parameters = {
+        self.adjust_query_params()
+
+        exception = self.check_request()
+        if exception:
+            return exception
+
+        self.get_bbox_from_request()
+        self.get_service()
+        self.setup_remote_service()
+        return self.get_and_post(request=request, *args, **kwargs)
+
+    def check_request(self):
+        if 'request' not in self.request.query_parameters:
+            return MissingRequestParameterException()
+
+    def adjust_query_params(self):
+        self.request.query_parameters = {
             k.lower(): v for k, v in self.request.GET.items()}
+
+    def get_bbox_from_request(self):
         try:
-            request.bbox = WmsService.construct_polygon_from_bbox_query_param(
-                get_dict=request.query_parameters
+            self.request.bbox = WmsService.construct_polygon_from_bbox_query_param(
+                get_dict=self.request.query_parameters
             )
         except (MissingBboxParam, MissingServiceParam):
             # only to avoid error while handling sql in get_service()
-            request.bbox = GEOSGeometry("POLYGON EMPTY")
-
-        self.get_service()
-        self.setup_remote_service()
+            self.request.bbox = GEOSGeometry("POLYGON EMPTY")
 
     def get_service(self):
         try:
@@ -133,31 +150,15 @@ class WebMapServiceProxy(View):
         :return: the computed response based on some principle decisions.
         :rtype: dict or :class:`requests.models.Request`
         """
-        if not self.service:
-            return self.return_http_response(
-                {"status_code": 404, "content": "SERVICE_NOT_FOUND"}
-            )
-        elif not self.request.query_parameters.get("request", None):
-            return self.return_http_response(
-                {"status_code": 400, "content": "REQUEST parameter is required"}
-            )
-        elif not self.request.query_parameters.get("service", None):
-            return self.return_http_response(
-                {"status_code": 400, "content": "SERVICE parameter is required"}
-            )
-        elif (
+        if (
             self.request.query_parameters.get("request").lower()
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
         ):
             return self.get_capabilities()
         elif not self.request.query_parameters.get("version", None):
-            return self.return_http_response(
-                {"status_code": 400, "content": "VERSION parameter is required"}
-            )
+            return MissingVersionParameterException()
         elif not self.service.is_active:
-            return self.return_http_response(
-                {"status_code": 423, "content": "Service is temporaly disabled"}
-            )
+            return DisabledException()
         elif (
             not self.request.query_parameters.get("request").lower()
             in SECURE_ABLE_OPERATIONS_LOWER
@@ -176,12 +177,7 @@ class WebMapServiceProxy(View):
         ):
             return self.handle_secured_wms()
         else:
-            return self.return_http_response(
-                {
-                    "status_code": 403,
-                    "content": "User has no permissions to request this service.",
-                }
-            )
+            return ForbiddenException()
 
     def get_capabilities(self):
         """Return the camouflaged capabilities document of the founded service.
@@ -240,7 +236,6 @@ class WebMapServiceProxy(View):
             response = session.send(request.prepare())
 
             mask = Image.open(io.BytesIO(response.content))
-            mask.save("mask.png")
 
             # Put combined mask on white background
             background = Image.new("RGB", (width, height), (255, 255, 255))
@@ -557,195 +552,6 @@ class WebMapServiceProxy(View):
         ):
             return self.handle_secured_get_feature_info()
 
-    def handle_secured_get_feature(self):
-        """Compute the secured get feature request based on the given request.
-        **HTTP GET**:
-        If the client does request with http get method, the bbox will be parsed and converted to a instance of type
-        :class:`django.contrib.gis.geos.polygon.Polygon`. The converted bbox parameter will then intersects with the
-        configured allowed areas. The resulting secured bbox will then send via HTTP Post to the remote server as a
-        xml filter query.
-        **HTTP POST**:
-        If the client does request with http post method AND the request body is not empty, the filter xml will be
-        parsed and extended by the allowed area polygon. The resulting secured filter xml will then send via HTTP post
-        to the remote server as a xml filter query.
-        :return: the remote response
-        :rtype: func
-        """
-        if (
-            self.request.method == "GET"
-            or self.request.method == "POST"
-            and not self.request.body
-        ):
-            # there where no filter xml we can parse and secure, so we try to handle the request in any case like a get
-            if not self.request.bbox.empty:
-                if self.request.bbox.srid != self.service.allowed_area_united.srid:
-                    self.request.bbox.transform(
-                        ct=self.service.allowed_area_united.srid
-                    )
-                allowed_area = self.request.bbox.intersection(
-                    self.service.allowed_area_united
-                )
-                if allowed_area.empty:
-                    # todo: return empty FeatureCollection
-                    return self.return_http_response(
-                        response={
-                            "status_code": 403,
-                            "content": "user has no permissions to access the requested area.",
-                        }
-                    )
-            else:
-                allowed_area = self.service.allowed_area_united
-                # todo: FILTER query param is also possible.
-
-            if hasattr(allowed_area, "ogr"):
-                allowed_area = allowed_area.ogr
-            type_names = self.request.query_parameters.get(
-                self.remote_service.TYPE_NAME_QP.lower(), None
-            )
-            if not type_names:
-                return self.return_http_response(response=NO_FEATURE_TYPES)
-            elif len(type_names.split(" ")) > 1:
-                return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
-            value_reference = (
-                self.service.featuretypes.get(identifier=type_names)
-                .elements.values_list("name", flat=True)
-                .get(
-                    data_type__in=[
-                        "gml:GeometryPropertyType",
-                        "gml:MultiSurfacePropertyType",
-                    ]
-                )
-            )
-            filter_xml = self.remote_service.construct_filter_xml(
-                type_names=type_names,
-                value_reference=value_reference,
-                polygon=allowed_area,
-            )
-            response = self.get_remote_response(
-                self.remote_service.construct_request(
-                    data=filter_xml,
-                    query_params=self.request.query_parameters,
-                )
-            )
-            return self.return_http_response(response=response)
-
-        elif self.request.method == "POST" and self.request.body:
-            # there is a filter xml we can parse and secure.
-            get_feature_xml = xmlmap.load_xmlobject_from_string(
-                string=self.request.body.decode("utf-8"), xmlclass=GetFeature
-            )
-            if not get_feature_xml.type_names:
-                return self.return_http_response(response=NO_FEATURE_TYPES)
-            elif len(get_feature_xml.type_names.split(" ")) > 1:
-                return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
-            value_reference = (
-                self.service.featuretypes.get(
-                    identifier=get_feature_xml.get_type_names()
-                )
-                .elements.values_list("name", flat=True)
-                .get(
-                    data_type__in=[
-                        "gml:GeometryPropertyType",
-                        "gml:MultiSurfacePropertyType",
-                    ]
-                )
-            )
-            get_feature_xml.filter.secure_spatial(
-                value_reference=value_reference,
-                polygon=self.service.allowed_area_united,
-            )
-            response = self.get_remote_response(
-                self.remote_service.construct_request(
-                    data=get_feature_xml.serializeDocument(),
-                    query_params=self.request.query_parameters,
-                )
-            )
-            return self.return_http_response(response=response)
-
-    def handle_secured_transaction(self):
-        transaction_xml = xmlmap.load_xmlobject_from_string(
-            string=self.request.body, xmlclass=Transaction
-        )
-        axis_order_correction = (
-            True if transaction_xml.get_major_service_version() >= 2 else False
-        )
-
-        if not transaction_xml.operation.get_type_names():
-            return self.return_http_response(response=NO_FEATURE_TYPES)
-        elif len(transaction_xml.operation.get_type_names().split(" ")) > 1:
-            return self.return_http_response(response=MULTIPLE_FEATURE_TYPES)
-
-        if "insert" in transaction_xml.operation.action.lower():
-            # fes filter is not possible on insert transactions... we need to check any gml if these are covered
-            # by the allowed area..
-            # todo: implement configurable threshold instead of fix number
-            if len(transaction_xml.operation.feature_types) >= 20:
-                return self.return_http_response(
-                    response={
-                        "status_code": 400,
-                        "content": "To many feature types at once.",
-                    }
-                )
-            for feature_type in transaction_xml.operation.feature_types:
-                if feature_type.element.geom:
-                    geometry = feature_type.element.geom.get_geometry(
-                        axis_order_correction=axis_order_correction
-                    )
-                    if geometry.srid != self.service.allowed_area_united.srid:
-                        geometry.transform(
-                            ct=self.service.allowed_area_united.srid)
-                    if not self.service.allowed_area_united.covers(geometry):
-                        return self.return_http_response(
-                            response={
-                                "status_code": 403,
-                                "content": "Some geometries are outside the allowed area.",
-                            }
-                        )
-        else:
-            value_reference = (
-                self.service.featuretypes.get(
-                    identifier=transaction_xml.operation.get_type_names()
-                )
-                .elements.values_list("name", flat=True)
-                .get(
-                    data_type__in=[
-                        "gml:GeometryPropertyType",
-                        "gml:MultiGeometryPropertyType",
-                        "gml:SurfacePropertyType",
-                        "gml:MultiSurfacePropertyType",
-                    ]
-                )
-            )
-            transaction_xml.operation.secure_spatial(
-                value_reference=value_reference,
-                polygon=self.service.allowed_area_united,
-                axis_order_correction=axis_order_correction,
-            )
-
-        request = self.remote_service.construct_request(
-            data=transaction_xml.serializeDocument(),
-            query_params=self.request.query_parameters,
-        )
-
-        response = self.get_remote_response(request=request)
-        return self.return_http_response(response=response)
-
-    def handle_secured_wfs(self):
-        """Handler to decide which subroutine for the given request param shall run.
-        :return: the correct handler function for the given request param.
-        :rtype: function
-        """
-        if (
-            self.request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_FEATURE.value.lower()
-        ):
-            return self.handle_secured_get_feature()
-        elif (
-            self.request.query_parameters.get("request").lower()
-            == OGCOperationEnum.TRANSACTION.value.lower()
-        ):
-            return self.handle_secured_transaction()
-
     def get_secured_response(self):
         """Return a filtered response based on the requested bbox
         .. note::
@@ -754,12 +560,7 @@ class WebMapServiceProxy(View):
         :return: the correct handler function for the given service type.
         :rtype: function
         """
-
-        if self.service.service_type_name == OGCServiceEnum.WMS.value:
-            return self.handle_secured_wms()
-
-        elif self.service.service_type_name == OGCServiceEnum.WFS.value:
-            return self.handle_secured_wfs()
+        return self.handle_secured_wms()
 
     def get_remote_response(self, request: Request = None):
         """Perform a request to the :attr:`~GenericOwsServiceOperationFacade.remote_service` with the given

@@ -467,7 +467,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='WebFeatureServiceOperation',
             fields=[
-                ('operation', models.CharField(choices=[(None, '---'), ('GetCapabilities', 'GetCapabilities'), ('GetFeature', 'GetFeature')], max_length=30, primary_key=True, serialize=False)),
+                ('operation', models.CharField(choices=[('GetFeature', 'GetFeature')], max_length=30, primary_key=True, serialize=False)),
             ],
         ),
         migrations.CreateModel(
@@ -528,7 +528,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='WebMapServiceOperation',
             fields=[
-                ('operation', models.CharField(choices=[(None, '---'), ('GetCapabilities', 'GetCapabilities'), ('GetMap', 'GetMap'), ('GetFeatureInfo', 'GetFeatureInfo')], max_length=30, primary_key=True, serialize=False)),
+                ('operation', models.CharField(choices=[('GetMap', 'GetMap'), ('GetFeatureInfo', 'GetFeatureInfo')], max_length=30, primary_key=True, serialize=False)),
             ],
         ),
         migrations.CreateModel(
@@ -1273,7 +1273,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='allowedwebmapserviceoperation',
             name='allowed_groups',
-            field=models.ManyToManyField(related_name='allowedwebmapserviceoperation_allowed_operations', related_query_name='allowedwebmapserviceoperation_allowed_operation', to='auth.Group'),
+            field=models.ManyToManyField(blank=True, related_name='allowedwebmapserviceoperation_allowed_operations', related_query_name='allowedwebmapserviceoperation_allowed_operation', to='auth.Group'),
         ),
         migrations.AddField(
             model_name='allowedwebmapserviceoperation',
@@ -1293,7 +1293,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='allowedwebfeatureserviceoperation',
             name='allowed_groups',
-            field=models.ManyToManyField(related_name='allowedwebfeatureserviceoperation_allowed_operations', related_query_name='allowedwebfeatureserviceoperation_allowed_operation', to='auth.Group'),
+            field=models.ManyToManyField(blank=True, related_name='allowedwebfeatureserviceoperation_allowed_operations', related_query_name='allowedwebfeatureserviceoperation_allowed_operation', to='auth.Group'),
         ),
         migrations.AddField(
             model_name='allowedwebfeatureserviceoperation',
@@ -1311,12 +1311,20 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(help_text='the service where some layers or feature types are secured of.', on_delete=django.db.models.deletion.CASCADE, related_name='allowed_operations', related_query_name='allowed_operation', to='registry.webfeatureservice', verbose_name='secured service'),
         ),
         migrations.AddConstraint(
+            model_name='allowedwebmapserviceoperation',
+            constraint=models.CheckConstraint(check=django.db.models.expressions.Func(django.db.models.expressions.F('allowed_area'), function='NOT st_isempty', output_field=models.BooleanField()), name='registry_allowedwebmapserviceoperation_allowed_area_not_empty'),
+        ),
+        migrations.AddConstraint(
+            model_name='allowedwebfeatureserviceoperation',
+            constraint=models.CheckConstraint(check=django.db.models.expressions.Func(django.db.models.expressions.F('allowed_area'), function='NOT st_isempty', output_field=models.BooleanField()), name='registry_allowedwebfeatureserviceoperation_allowed_area_not_empty'),
+        ),
+        migrations.AddConstraint(
             model_name='webmapserviceproxysetting',
             constraint=models.CheckConstraint(check=models.Q(models.Q(('camouflage', True), ('log_response', True)), models.Q(('camouflage', True), ('log_response', False)), models.Q(('camouflage', False), ('log_response', False)), _connector='OR'), name='registry_webmapserviceproxysetting_log_response_without_camouflage'),
         ),
         migrations.AddConstraint(
             model_name='webmapserviceoperationurl',
-            constraint=models.UniqueConstraint(fields=('method', 'operation'), name='registry_webmapserviceoperationurl_unique_together_method_id_operation'),
+            constraint=models.UniqueConstraint(fields=('method', 'operation', 'service'), name='registry_webmapserviceoperationurl_unique_together_method_id_operation_service'),
         ),
         migrations.AddField(
             model_name='webmapserviceanalyzedresponselog',
@@ -1329,7 +1337,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='webfeatureserviceoperationurl',
-            constraint=models.UniqueConstraint(fields=('method', 'operation'), name='registry_webfeatureserviceoperationurl_unique_together_method_id_operation'),
+            constraint=models.UniqueConstraint(fields=('method', 'operation', 'service'), name='registry_webfeatureserviceoperationurl_unique_together_method_id_operation_service'),
         ),
         migrations.AddField(
             model_name='webfeatureserviceanalyzedresponselog',
@@ -1356,6 +1364,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='catalougeserviceoperationurl',
-            constraint=models.UniqueConstraint(fields=('method', 'operation'), name='registry_catalougeserviceoperationurl_unique_together_method_id_operation'),
+            constraint=models.UniqueConstraint(fields=('method', 'operation', 'service'), name='registry_catalougeserviceoperationurl_unique_together_method_id_operation_service'),
         ),
     ]

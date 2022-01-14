@@ -56,12 +56,16 @@ class WebMapServiceProxyTest(TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # we can't setup test data in db inside the normal test setup routines, cause django wraps it with a transaction...
+        # Cause this is a system test which depends on other system (mapserver) the test_db setup must be done before the normal transaction routine.
+        # Otherwise the objects are not present in the database if the mapserver instance is connecting.
         call_command("loaddata", "test_users.json", verbosity=0)
         call_command("loaddata", "test_wms.json", verbosity=0)
         call_command("loaddata", "test_allowedoperation.json", verbosity=0)
 
     @classmethod
     def tearDownClass(cls):
+        # Custom clean up... see setUpClass method above for explanations
         User.objects.filter(~Q(username='mrmap')).delete()
         WebMapService.objects.all().delete()
         AllowedWebMapServiceOperation.objects.all().delete()

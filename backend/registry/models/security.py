@@ -15,18 +15,10 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from MrMap.validators import geometry_is_empty
 from PIL import Image
-from registry.enums.service import (
-    AuthTypeEnum,
-    SecureableWFSOperationEnum,
-    SecureableWMSOperationEnum,
-)
-from registry.models.service import (
-    CatalougeService,
-    FeatureType,
-    Layer,
-    WebFeatureService,
-    WebMapService,
-)
+from registry.enums.service import (AuthTypeEnum, SecureableWFSOperationEnum,
+                                    SecureableWMSOperationEnum)
+from registry.models.service import (CatalougeService, FeatureType, Layer,
+                                     WebFeatureService, WebMapService)
 from registry.tasks.security import async_analyze_log
 from requests.auth import HTTPDigestAuth
 
@@ -194,13 +186,13 @@ class CatalougeServiceAuthentication(ServiceAuthentication):
 
 class WebMapServiceOperation(models.Model):
     operation = models.CharField(
-        primary_key=True, max_length=30, choices=SecureableWMSOperationEnum.as_choices()
+        primary_key=True, max_length=30, choices=SecureableWMSOperationEnum.as_choices(drop_empty_choice=True)
     )
 
 
 class WebFeatureServiceOperation(models.Model):
     operation = models.CharField(
-        primary_key=True, max_length=30, choices=SecureableWFSOperationEnum.as_choices()
+        primary_key=True, max_length=30, choices=SecureableWFSOperationEnum.as_choices(drop_empty_choice=True)
     )
 
 
@@ -242,7 +234,8 @@ class AllowedOperation(models.Model):
         max_length=512,
         default="",
         verbose_name=_("description"),
-        help_text=_("a short description what this allowed operation controls."),
+        help_text=_(
+            "a short description what this allowed operation controls."),
     )
 
     class Meta:
@@ -274,7 +267,8 @@ class AllowedWebMapServiceOperation(AllowedOperation):
         related_name="allowed_operations",
         related_query_name="allowed_operation",
         verbose_name=_("secured service"),
-        help_text=_("the service where some layers or feature types are secured of."),
+        help_text=_(
+            "the service where some layers or feature types are secured of."),
     )
     secured_layers = models.ManyToManyField(
         to=Layer,
@@ -287,16 +281,16 @@ class AllowedWebMapServiceOperation(AllowedOperation):
         ),
     )
 
-    class Meta:
+    class Meta(AllowedOperation.Meta):
         pass
-        # TODO: only complete subtrees shall be part of the m2m secured_layers field
-        # constraints = {
-        #     models.CheckConstraint(
-        #         name="%(app_label)s_%(class)s_log_response_without_camouflage",
-        #         check=Q(camouflage=True, log_response=True) | Q(
-        #             camouflage=True, log_response=False) | Q(camouflage=False, log_response=False)
-        #     ),
-        # }
+    # TODO: only complete subtrees shall be part of the m2m secured_layers field
+    # constraints = {
+    #     models.CheckConstraint(
+    #         name="%(app_label)s_%(class)s_log_response_without_camouflage",
+    #         check=Q(camouflage=True, log_response=True) | Q(
+    #             camouflage=True, log_response=False) | Q(camouflage=False, log_response=False)
+    #     ),
+    # }
 
     def save(self, *args, **kwargs):
         """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.
@@ -330,7 +324,8 @@ class AllowedWebFeatureServiceOperation(AllowedOperation):
         related_name="allowed_operations",
         related_query_name="allowed_operation",
         verbose_name=_("secured service"),
-        help_text=_("the service where some layers or feature types are secured of."),
+        help_text=_(
+            "the service where some layers or feature types are secured of."),
     )
     secured_feature_types = models.ManyToManyField(
         to=FeatureType,
@@ -339,6 +334,9 @@ class AllowedWebFeatureServiceOperation(AllowedOperation):
         verbose_name=_("secured feature types"),
         help_text=_("Select one or more feature types."),
     )
+
+    class Meta(AllowedOperation.Meta):
+        pass
 
     def save(self, *args, **kwargs):
         """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.
@@ -375,7 +373,8 @@ class ProxySetting(models.Model):
         verbose_name=_(
             "log response",
         ),
-        help_text=_("if true, all responses of the related service will be logged."),
+        help_text=_(
+            "if true, all responses of the related service will be logged."),
     )
 
     class Meta:
@@ -503,7 +502,8 @@ class HttpResponseLog(models.Model):
     elapsed = models.DurationField()
     headers = models.JSONField(default=dict)
     url = models.URLField(max_length=4096)
-    content = models.FileField(upload_to=response_content_path, max_length=1024)
+    content = models.FileField(
+        upload_to=response_content_path, max_length=1024)
 
     class Meta:
         abstract = True
@@ -586,7 +586,8 @@ class WebMapServiceAnalyzedResponseLog(AnalyzedResponseLog):
         num_alpha_pixels = all_pixel_vals.count(0)
 
         # Compute data pixels
-        self.entity_count = round((len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
+        self.entity_count = round(
+            (len(all_pixel_vals) - num_alpha_pixels) / 1000000, 4)
         # Compute full image pixel count (including transparent pixels)
         self.entity_total_count = round((img.height * img.width) / 1000000, 4)
 

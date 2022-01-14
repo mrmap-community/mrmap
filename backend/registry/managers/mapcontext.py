@@ -1,6 +1,5 @@
 from django.db import models
 from django.db.models.functions import Coalesce
-from django.db.models.query_utils import Q
 
 
 class MapContextManager(models.Manager):

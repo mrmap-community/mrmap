@@ -56,9 +56,9 @@ class WebMapServiceProxyTest(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        call_command("loaddata", "test_users.json", verbosity=1)
-        call_command("loaddata", "test_wms.json", verbosity=1)
-        call_command("loaddata", "test_allowedoperation.json", verbosity=1)
+        call_command("loaddata", "test_users.json", verbosity=0)
+        call_command("loaddata", "test_wms.json", verbosity=0)
+        call_command("loaddata", "test_allowedoperation.json", verbosity=0)
 
     @classmethod
     def tearDownClass(cls):
@@ -79,12 +79,11 @@ class WebMapServiceProxyTest(TestCase):
         else:
             equal_alphas = True
 
-        equal_content = not ImageChops.difference(
+        diff = ImageChops.difference(
             img1.convert("RGB"), img2.convert("RGB")
-        ).getbbox()
-        print(equal_size)
-        print(equal_alphas)
-        print(equal_content)
+        )
+
+        equal_content = not diff.getbbox()
 
         return equal_size and equal_alphas and equal_content
 
@@ -109,6 +108,7 @@ class WebMapServiceProxyTest(TestCase):
         response = self.client.get(
             "/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3?map=/etc/mapserver/security_mask_test_db.map&VERSION=1.3.0&REQUEST=GetMap&SERVICE=WMS&LAYERS=node1&STYLES=&CRS=EPSG:25832&BBOX=393340,5574710,405660,5581190&WIDTH=1563&HEIGHT=920&FORMAT=image/png&BGCOLOR=0xffffff&TRANSPARENT=TRUE"
         )
+
         self.assertEqual(200, response.status_code)
 
         received_image = Image.open(BytesIO(response.content))

@@ -10,4 +10,18 @@
   padding: 10px 60px 10px 10px;
   overflow: auto;
   background: rgb(255, 255, 255);
+  min-height: 50px; /*Add to layer tree*/
+  max-height: 500px; /*Add to layer tree*/
+  min-width: 250px; /*Add to layer tree*/
+}
+
+.tree-form-field-title {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  color:rgba(255, 255, 255, 0.65);
+  line-height: 25px;
+  display: flex;
+  flex-direction: row;
+  padding: 10px;
+  justify-content: space-between;
 }

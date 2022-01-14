@@ -11,6 +11,10 @@ services:
     ports:
       - 5556:6379
 
+  frontend:
+    ports:
+      - 3000:3000
+
   inspire-validator:
     build:
       context: ./docker/inspire-validator

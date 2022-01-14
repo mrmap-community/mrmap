@@ -22,7 +22,7 @@ const getServiceType = (url:string): string => {
 const getServiceUrl = (includedServices: any[]) => {
   const getMapService = includedServices.find(service => service.attributes.operation === 'GetMap');
   if(getMapService) {
-    console.log(getMapService);
+    
     return getMapService.attributes.url;
   }
 };
@@ -88,7 +88,7 @@ class LayerRepo extends JsonApiRepo {
     if(res.data.included) {
       included = res.data.included.find((inc:any) => inc.attributes.operation === 'GetLegendGraphic');
     }
-
+    
     return {
       value: res.data.data.id,
       text: res.data.data.attributes.title,

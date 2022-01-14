@@ -1,7 +1,7 @@
 import { Key } from 'antd/lib/table/interface';
 import Collection from 'ol/Collection';
 import { EventsKey as OlEventsKey } from 'ol/events';
-import GML2 from 'ol/format/GML2';
+// import GML2 from 'ol/format/GML2';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
@@ -99,8 +99,7 @@ const getFeatureAttributes = (olMap: OlMap, event: OlMapBrowserEvent<any>) => {
       (layer: ImageLayer<ImageWMS>) => {
           // gets the layer source
           const layerSource: ImageWMS = layer.getSource();
-          layerSource.set('crossOrigin', 'gis.mffjiv.rlp.de');
-          // TODO: add support for vector source
+
 
           if (layerSource instanceof ImageWMS) {
             const featureInfoUrl = getWMSFeatureInfoUrl(olMap, layerSource, coords);
@@ -111,7 +110,7 @@ const getFeatureAttributes = (olMap: OlMap, event: OlMapBrowserEvent<any>) => {
 
           return false;
       },
-      { hitTolerance: 5 }
+      { hitTolerance: 1 }
   );
 };
 
@@ -120,22 +119,24 @@ const resolveWMSPromise = async(url: string) => {
       const response = await fetch(url,
         { 
           method: 'GET', 
-          mode: 'cors',
           //@ts-ignore
           headers: { 
             'Content-Type': 'application/vnd.ogc.gml',
+            'Referer': 'http://localhost:3000'
           }
         } 
       );
+      console.log(response);
       const textRes = await response.text();
-      const format = new GML2();
-      const fc = format.readFeatures(textRes);
-      fc.forEach((feature: any) => {
-        if (Object.getOwnPropertyNames(feature).length > 0) {
-          // TODO where to render the properties?
-          console.log(feature.getProperties());
-        }
-      });
+      console.log(textRes);
+      // const format = new GML2();
+      // const fc = format.readFeatures(textRes);
+      // fc.forEach((feature: any) => {
+      //   if (Object.getOwnPropertyNames(feature).length > 0) {
+      //     // TODO where to render the properties?
+      //     console.log(feature.getProperties());
+      //   }
+      // });
     } catch (error) {
       //@ts-ignore
       throw new Error(error);
@@ -169,11 +170,10 @@ export const createMrMapOlWMSLayer = (opts: CreateLayerOpts): ImageLayer<ImageWM
       'LAYERS': opts.layers,
       'VERSION': opts.version,
       'FORMAT': opts.format,
-      'TRANSPARENT': true
+      'TRANSPARENT': true,
     },
     serverType: opts.serverType,
-    // crossOrigin: 'anonymous',
-    // //crossOrigin: 'Anonymous',
+    crossOrigin: 'anonymous',
   });
 
   const olWMSLayer = new ImageLayer({

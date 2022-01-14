@@ -2,11 +2,14 @@ import { MapComponent, MapContext as ReactGeoMapContext, useMap } from '@terrest
 import { Button, notification, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
+import { toStringHDMS } from 'ol/coordinate';
 import LayerGroup, { default as OlLayerGroup } from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import Layer from 'ol/layer/Layer';
 import OlLayerTile from 'ol/layer/Tile';
 import OlMap from 'ol/Map';
+import Overlay from 'ol/Overlay';
+import { toLonLat } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
@@ -22,6 +25,7 @@ import { MPTTListToOLLayerGroup, TreeNodeType } from '../Shared/FormFields/TreeF
 import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
+import './popupStyle.css';
 
 
 const mapContextRepo = new MapContextRepo();
@@ -55,10 +59,56 @@ const olMap = new OlMap({
 function Map () {
   const map = useMap();
 
+  
+  useEffect(() => {
+    const container = document.getElementById('popup');
+    const content = document.getElementById('popup-content');
+    const closer = document.getElementById('popup-closer');
+
+    const overlay = new Overlay({
+      //@ts-ignore
+      element: container,
+      autoPan: {
+        animation: {
+          duration: 250,
+        },
+      },
+    });
+
+    //@ts-ignore
+    if(closer) {
+      closer.onclick = function () {
+        overlay.setPosition(undefined);
+        //@ts-ignore
+        closer.blur();
+        return false;
+      };
+    }
+    
+    map.on('singleclick', function (evt) {
+      const coordinate = evt.coordinate;
+      const hdms = toStringHDMS(toLonLat(coordinate));
+      
+      if(content) {
+        content.innerHTML = '<p>You clicked here:</p><code>' + hdms + '</code>';
+      }
+      overlay.setPosition(coordinate);
+    });
+    
+    
+    map.addOverlay(overlay);
+  }, [map]);
+  
   return (
+    <>
     <MapComponent
       map={map}
     />
+    <div id='popup' className='ol-popup'>
+      <a href='#' id='popup-closer' className='ol-popup-closer'></a>
+      <div id='popup-content'></div>
+    </div>
+    </>
   );
 }
 

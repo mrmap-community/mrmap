@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         WebMapServiceOperation = apps.get_model(
             "registry", "WebMapServiceOperation")
         objs = []
-        for key, value in SecureableWMSOperationEnum.as_choices():
+        for key, value in SecureableWMSOperationEnum.as_choices(drop_empty_choice=True):
             objs.append(WebMapServiceOperation(operation=value))
         WebMapServiceOperation.objects.bulk_create(objs=objs)
 
@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
         WebFeatureServiceOperation = apps.get_model(
             "registry", "WebFeatureServiceOperation")
         objs = []
-        for key, value in SecureableWFSOperationEnum.as_choices():
+        for key, value in SecureableWFSOperationEnum.as_choices(drop_empty_choice=True):
             objs.append(WebFeatureServiceOperation(operation=value))
         WebFeatureServiceOperation.objects.bulk_create(objs=objs)
 

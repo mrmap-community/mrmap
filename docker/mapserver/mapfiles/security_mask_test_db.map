@@ -30,7 +30,7 @@ MAP
         END
 
         CONNECTIONTYPE POSTGIS
-        CONNECTION "host=172.17.0.1 dbname=mrmap user=mrmap password=mrmap port=5555"
+        CONNECTION "host=172.17.0.1 dbname=test_mrmap user=mrmap password=mrmap port=5555"
 
        DATA "geom FROM (
                 SELECT %key_column%, ST_UnaryUnion(%geom_column%) geom 

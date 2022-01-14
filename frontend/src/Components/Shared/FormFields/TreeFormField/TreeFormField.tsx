@@ -25,7 +25,6 @@ interface MPTTJsonApiAttributeType {
   rght: number;
   tree_id: number; // eslint-disable-line
   level: number;
-  is_leaf: boolean; // eslint-disable-line
 }
 
 interface MPTTJsonApiRelashionshipDataType {
@@ -108,7 +107,6 @@ export const MPTTListToTreeNodeList = (list:MPTTJsonApiTreeNodeType[]):TreeNodeT
       title: element.attributes.title,
       parent: element.relationships.parent.data?.id,
       children: element.children || [],
-      isLeaf: element.attributes.is_leaf,
       properties: {
         name: element.attributes.name,
         datasetMetadata: element.relationships.dataset_metadata.data?.id,
@@ -224,7 +222,6 @@ export const TreeFormField: FC<TreeProps> = ({
   const [selectedNode, setSelectedNode] = useState<TreeNodeType | undefined>(undefined);
   const [newNodeName, setNewNodeName] = useState<string>('');
   const [isEditingNodeName, setIsEditingNewNodeName] = useState<boolean>(false);
-  const [isCreatingGroupNode, setIsCreatingGroupNode] = useState<boolean>(true);
   const [newNodeGroupIncrementValue, setNewNodeGroupIncrementValue] = useState<number>(1);
 
   /**
@@ -325,8 +322,7 @@ export const TreeFormField: FC<TreeProps> = ({
     if (isNodeAttributeFormVisible) {
       toggleNodeAttributeForm();
     }
-    // reset to the default value
-    setIsCreatingGroupNode(true);
+
   };
 
   /**
@@ -451,14 +447,12 @@ export const TreeFormField: FC<TreeProps> = ({
         parent: isRoot ? null : node.key,
         properties: values || null,
         expanded: true,
-        isLeaf: isCreatingGroupNode ? false : true,
       };
       if (asyncTree) {
         setIsAddingNode(true);
         try {
           const response = await addNodeDispatchAction({
             ...values, 
-            isLeaf: newNode.isLeaf
           }, 
           newNode.parent);
           // update new node key
@@ -638,7 +632,6 @@ export const TreeFormField: FC<TreeProps> = ({
           onEditNode(node, values);
         }
       },
-      showBasicForm: isCreatingGroupNode
     });
   };
 
@@ -666,32 +659,18 @@ export const TreeFormField: FC<TreeProps> = ({
    */
   const nodeContextMenu = (nodeData?: TreeNodeType) => (
     <Menu>
-      {!nodeData?.isLeaf && (
-        <>
-          <Menu.Item
-            onClick={() => {
-              nodeData && setSelectedNode(nodeData);
-              setIsNodeAttributeFormVisible(true);
-              setIsCreatingGroupNode(true);
-            }}
-            icon={addNodeGroupActionIcon}
-            key='add-group'
-          >
-            Add new layer group
-          </Menu.Item>
-          <Menu.Item
-            onClick={() => {
-              nodeData && setSelectedNode(nodeData);
-              setIsNodeAttributeFormVisible(true);
-              setIsCreatingGroupNode(false);
-            }}
-            icon={addNodeActionIcon}
-            key='add-node'
-          >
-            Add new layer
-          </Menu.Item>
-        </>
-      )}
+      <Menu.Item
+        onClick={() => {
+          nodeData && setSelectedNode(nodeData);
+          setIsNodeAttributeFormVisible(true);
+        }}
+        icon={addNodeActionIcon}
+        key='add-node'
+      >
+        Add new layer
+      </Menu.Item>
+        
+      
       <Menu.Item
         onClick={() => {
           Modal.warning({

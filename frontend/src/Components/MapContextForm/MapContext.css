@@ -1,14 +1,3 @@
-.Map {
-  position: relative;
-  height: 100%;
-  width: 100%;
-}
-
-.Map #map {
-  height: 100%;
-  width: 100%;
-}
-
 .layer-section {
   position: absolute;
   top: 0.5em;
@@ -20,9 +9,4 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-}
-
-.ol-zoom {
-  top: unset;
-  bottom: 0.5em;
 }

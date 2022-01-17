@@ -48,9 +48,13 @@ class AllowedWebMapServiceOperationSerializer(ModelSerializer):
         data = super().validate(attrs)
         secured_layers = attrs.get('secured_layers', None)
         if secured_layers:
+            secured_layers_pk = set(
+                [secured_layer.pk for secured_layer in secured_layers])
             # TODO: let the database evaluate this...
             for secured_layer in secured_layers:
-                if secured_layer.get_descendants() not in secured_layers:
+                descendant_pks = set(
+                    secured_layer.get_descendants().values_list('id', flat=True))
+                if not descendant_pks.issubset(secured_layers_pk):
                     raise ValidationError(
                         'Incomplete subtree selection is not allowed.')
 

@@ -46,11 +46,13 @@ export class LayerUtils {
       
     olWMSLayer.setProperties({
       ...opts.properties,
+      key: opts.layerId,
       layerId: opts.layerId,
       legendUrl: opts.legendUrl,
       title: opts.title,
       name: opts.name,
       extent: opts.extent
+      // parent: opts.parent,
     });
       
     return olWMSLayer;

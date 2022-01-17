@@ -15,6 +15,7 @@ import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { LayerTree } from '../LayerTree/LayerTree';
+import { CreateLayerOpts } from '../LayerTree/LayerTreeTypes';
 import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
 import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
@@ -67,7 +68,6 @@ export const MapContext = (): ReactElement => {
           });
           //  Convert the mapContext layers coming from the server to a compatible tree node list
           const _initLayerTreeData = treeUtils.MPTTListToOLLayerGroup(response.mapContextLayers);
-          console.log(_initLayerTreeData);
           setInitLayerTreeData(_initLayerTreeData);
         } catch (error) {
           // @ts-ignore
@@ -125,7 +125,6 @@ export const MapContext = (): ReactElement => {
 
         return '';
       };
-
       // make call
       try {
         // get the layer details with the id and create an OL Layer
@@ -141,22 +140,48 @@ export const MapContext = (): ReactElement => {
           parentLayerId: getParentId(),
           mapContextId: createdMapContextId
         });
-        
+        //@ts-ignore
+        const layerOpts: CreateLayerOpts = {
+          url: '',
+          version: '1.1.0',
+          format: 'image/png',
+          layers: '',
+          serverType: 'MAPSERVER',
+          legendUrl: 'string',
+          visible: false,
+          //@ts-ignore
+          title: createdLayer.data.data.attributes.title,
+          //@ts-ignore
+          name: createdLayer.data.data.attributes.name,
+          //@ts-ignore
+          layerId: createdLayer.data.data.id,
+          properties: {
+            //@ts-ignore
+            datasetMetadata: createdLayer.data.data.relationships.dataset_metadata.data?.id,
+            //@ts-ignore
+            renderingLayer: createdLayer.data.data.relationships.rendering_layer.data?.id,
+            //@ts-ignore
+            scaleMin: createdLayer.data.data.attributes.layer_scale_min,
+            //@ts-ignore
+            scaleMax: createdLayer.data.data.attributes.layer_scale_max,
+            //@ts-ignore
+            style: createdLayer.data.data.relationships.layer_style.data?.id,
+            //@ts-ignore
+            featureSelectionLayer: createdLayer.data.data.relationships.selection_layer.data?.id,
+            //@ts-ignore
+            parent: createdLayer?.data?.data?.relationships?.parent?.data?.id,
+            //@ts-ignore
+            key: createdLayer.data.data.id,
+          }
+        };
         const renderingLayer = layerUtils.createMrMapOlWMSLayer({
+          ...layerOpts,
           url: renderingLayerDetails.attributes.WMSParams.url,
           version: renderingLayerDetails.attributes.WMSParams.version,
           format: 'image/png',
           layers: renderingLayerDetails.attributes.WMSParams.layer,
-          //@ts-ignore
-          layerId: createdLayer.data?.data?.id,
-          visible: false,
           serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
           legendUrl: renderingLayerDetails.attributes.WMSParams.legendUrl,
-          //@ts-ignore
-          name: createdLayer?.data?.data?.attributes?.name,
-          title: renderingLayerDetails.attributes.title,
-          //@ts-ignore
-          properties: createdLayer?.data?.data?.attributes
         });
         layerUtils.addLayerToGroupByMrMapLayerId(
           mapContextLayersGroup, 
@@ -243,64 +268,60 @@ export const MapContext = (): ReactElement => {
                       parentLayerId: newNodeParent || '',
                       mapContextId: createdMapContextId
                     });
-                    
                     // NEXT CODE SHOULD BE HANDLED AUTOMATICALLY BY THE LAYER TREE
-
-                    // if the created layer has a parent, it means its not being created in the root
-                    // and its a child of a already exiting group. Else it should be added to the root group
-                    // let layerGroupToAdd = 'mrMapMapContextLayers';
-                    // if(newNodeParent) {
-                    //   const layerGroupObj = layerUtils.getLayerByMrMapLayerId(olMap, newNodeParent);
-                    //   if (layerGroupObj && layerGroupObj instanceof OlLayerGroup) {
-                    //     layerGroupToAdd = layerGroupObj.getProperties().name;
-                    //   }
-                    // }
                     // @ts-ignore
-                    if(createdLayer.data?.data?.attributes.is_leaf) {
+                    if(createdLayer.data?.data?.relationships?.rendering_layer?.data?.id) {
+                      const layerOpts: CreateLayerOpts = {
+                        url: '',
+                        version: '1.1.0',
+                        format: 'image/png',
+                        layers: '',
+                        serverType: 'MAPSERVER',
+                        legendUrl: 'string',
+                        visible: false,
+                        //@ts-ignore
+                        title: createdLayer.data.data.attributes.title,
+                        //@ts-ignore
+                        name: createdLayer.data.data.attributes.name,
+                        //@ts-ignore
+                        layerId: createdLayer.data.data.id,
+                        properties: {
+                          //@ts-ignore
+                          ...createdLayer.data.data.attributes,
+                          //@ts-ignore
+                          datasetMetadata: createdLayer.data.data.relationships.dataset_metadata.data?.id,
+                          //@ts-ignore
+                          renderingLayer: createdLayer.data.data.relationships.rendering_layer.data?.id,
+                          //@ts-ignore
+                          scaleMin: createdLayer.data.data.attributes.layer_scale_min,
+                          //@ts-ignore
+                          scaleMax: createdLayer.data.data.attributes.layer_scale_max,
+                          //@ts-ignore
+                          style: createdLayer.data.data.relationships.layer_style.data?.id,
+                          //@ts-ignore
+                          featureSelectionLayer: createdLayer.data.data.relationships.selection_layer.data?.id,
+                          //@ts-ignore
+                          parent: createdLayer?.data?.data?.relationships?.parent?.data?.id,
+                          //@ts-ignore
+                          key: createdLayer.data.data.id
+                        }
+                      };
                       //@ts-ignore
                       const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
                       if(renderingLayerId) {
                         const rl = await layerRepo.autocompleteInitialValue(renderingLayerId);
                         layerToAdd = layerUtils.createMrMapOlWMSLayer({
+                          ...layerOpts,
                           url: rl.attributes.WMSParams.url,
                           version: rl.attributes.WMSParams.version,
                           format: 'image/png',
                           layers: rl.attributes.WMSParams.layer,
-                          visible: false,
                           serverType: rl.attributes.WMSParams.serviceType,
-                          //@ts-ignore
-                          layerId: createdLayer.data.data.id,
-                          legendUrl: 'string',
-                          //@ts-ignore
-                          title: createdLayer.data.data.attributes.title,
-                          //@ts-ignore
-                          name: createdLayer.data.data.attributes.name,
-                          properties: {
-                            //@ts-ignore
-                            parent: createdLayer?.data?.data?.relationships?.parent?.data?.id
-                          }
+                          legendUrl: rl.attributes.WMSParams.legendUrl,
                         });
                       } else {
                         // add a layer without the definitions coming from rl
-                        layerToAdd = layerUtils.createMrMapOlWMSLayer({
-                          url: '',
-                          version: '1.1.0',
-                          format: 'image/png',
-                          layers: '',
-                          visible: false,
-                          serverType: 'MAPSERVER',
-                          //@ts-ignore
-                          layerId: createdLayer.data.data.id,
-                          legendUrl: 'string',
-                          //@ts-ignore
-                          title: createdLayer.data.data.attributes.title,
-                          //@ts-ignore
-                          name: createdLayer.data.data.attributes.name,
-                          properties: {
-                            //@ts-ignore
-                            parent: createdLayer?.data?.data?.relationships?.parent?.data?.id
-                          }
-                        });
+                        layerToAdd = layerUtils.createMrMapOlWMSLayer(layerOpts);
                       }
                     } else {
                       layerToAdd = new OlLayerGroup({
@@ -308,9 +329,13 @@ export const MapContext = (): ReactElement => {
                         visible: false,
                         properties: {
                           //@ts-ignore
+                          title: createdLayer.data.data.attributes.title,
+                          //@ts-ignore
                           name: createdLayer?.data?.data?.attributes.name,
                           //@ts-ignore
                           layerId: createdLayer?.data?.data?.id,
+                          //@ts-ignore
+                          parent: createdLayer?.data?.data?.relationships?.parent?.data?.id
                         },
                         layers: []
                       }); 
@@ -348,6 +373,7 @@ export const MapContext = (): ReactElement => {
                         .filter((l:any) => l.getProperties().layerId !== nodeToRemove.key);
                       mapContextLayersGroup.setLayers(new Collection(layersToKeep));
                     }
+                    setCurrentSelectedTreeLayerNode(undefined);
                     return await mapContextLayerRepo?.delete(String(nodeToRemove.key));
                   } catch (error) {
                     //@ts-ignore

@@ -82,7 +82,7 @@ export class TreeUtils {
   
   private TreeNodeListToOlLayerGroup(list: TreeNodeType[]): Collection<LayerGroup | ImageLayer<ImageWMS>> {
     const layerList = list.map((node: TreeNodeType) => {
-      if (node.children.length >= 0 && !node.isLeaf) {
+      if (node.children.length > 0) {
         const layerGroupOpts = {
           opacity: 1,
           visible: false,
@@ -98,7 +98,7 @@ export class TreeUtils {
         return new LayerGroup(layerGroupOpts);
       } 
   
-      if(node.children.length === 0 && node.isLeaf) {
+      if(node.children.length === 0) {
         const layerOpts: CreateLayerOpts = {
           url: '',
           version: '1.1.0',
@@ -120,16 +120,13 @@ export class TreeUtils {
       }
       return new LayerGroup();
     });
-    console.log(layerList);
     return new Collection(layerList);
   }
   
   public MPTTListToOLLayerGroup(list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> {
     if(list) {
       const treeNodeList = this.MPTTListToTreeNodeList(list);
-      console.log(treeNodeList);
       const layerGroupList = this.TreeNodeListToOlLayerGroup(treeNodeList);
-      console.log(layerGroupList);
       return layerGroupList;
     }
     return new Collection();

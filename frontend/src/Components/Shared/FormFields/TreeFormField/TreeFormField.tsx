@@ -270,15 +270,10 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
       if (asyncTree) {
         setIsAddingNode(true);
         try {
-          const createdNode = await addNodeDispatchAction({
-            ...values, 
-            isLeaf: newNode.isLeaf
-          }, 
-          newNode.parent);
+          const createdNode = await addNodeDispatchAction(values, newNode.parent);
           // update new node key
           if (createdNode && createdNode.data?.data && (createdNode.data.data as JsonApiPrimaryData).id) {
             newNode.key = (createdNode.data.data as JsonApiPrimaryData).id;
-            console.log(newNode);
           }
         } catch (error) {
           setIsAddingNode(false);

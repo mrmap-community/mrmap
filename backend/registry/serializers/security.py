@@ -1,10 +1,32 @@
 from django.contrib.auth.models import Group
 from registry.models.security import (AllowedWebFeatureServiceOperation,
-                                      AllowedWebMapServiceOperation)
+                                      AllowedWebMapServiceOperation,
+                                      WebFeatureServiceOperation,
+                                      WebMapServiceOperation)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
+
+
+class WebMapServiceOperationSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:wmsoperation-detail',
+    )
+
+    class Meta:
+        model = WebMapServiceOperation
+        fields = '__all__'
+
+
+class WebFeatureServiceOperationSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:wfsoperation-detail',
+    )
+
+    class Meta:
+        model = WebFeatureServiceOperation
+        fields = '__all__'
 
 
 class AllowedWebMapServiceOperationSerializer(ModelSerializer):

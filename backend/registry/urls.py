@@ -50,7 +50,9 @@ router = ExtendedSimpleRouter()
 
     # security
     router.register(r'security/allowed-wms-operations',
-                    security_views.AllowedWebMapServiceOperationViewSet, basename='allowedoperation')
+                    security_views.AllowedWebMapServiceOperationViewSet, basename='allowedwmsoperation'),
+    router.register(r'security/allowed-wfs-operations',
+                    security_views.AllowedWebFeatureServiceOperationViewSet, basename='allowedwfsoperation'),
 
 )
 

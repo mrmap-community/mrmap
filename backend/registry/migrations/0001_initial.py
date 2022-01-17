@@ -467,7 +467,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='WebFeatureServiceOperation',
             fields=[
-                ('operation', models.CharField(choices=[('GetFeature', 'GetFeature')], max_length=30, primary_key=True, serialize=False)),
+                ('operation', models.CharField(choices=[('GetFeature', 'GetFeature'), ('Transaction', 'Transaction')], max_length=30, primary_key=True, serialize=False)),
             ],
         ),
         migrations.CreateModel(

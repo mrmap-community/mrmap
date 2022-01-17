@@ -20,6 +20,8 @@ def before_feature(context, feature):
         fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
     elif 'AllowedWebMapServiceOperation' in feature.name:
         fixtures.extend(['test_wms.json'])
+    elif 'AllowedWebFeatureServiceOperation' in feature.name:
+        fixtures.extend(['test_wfs.json'])
     if fixtures:
         call_command("loaddata", *fixtures, verbosity=0)
 

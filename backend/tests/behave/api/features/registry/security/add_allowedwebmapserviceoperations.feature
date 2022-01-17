@@ -150,3 +150,103 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
             """
         When I send the request with POST method
         Then I expect the response status is 403
+
+    Scenario: Can't add incomplete subtrees of secured layers
+        Given I am logged in as User1 with password User1
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "AllowedWebMapServiceOperation",
+                    "attributes": {
+                        "description": "no spatial restriction"
+                    },
+                    "relationships": {
+                        "operations": {
+                            "data": [
+                                {
+                                    "id": "GetMap",
+                                    "type": "WebMapServiceOperation"
+                                },
+                                {
+                                    "id": "GetFeatureInfo",
+                                    "type": "WebMapServiceOperation"
+                                }
+                            ]
+                        },
+                        "secured_service": {
+                            "data": {
+                                "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+                                "type": "WebMapService"
+                            }
+                        },
+                        "secured_layers": {
+                            "data": [
+                                {
+                                    "id": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+                                    "type": "Layer"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 400
+
+    Scenario: Can add subtrees of secured layers
+        Given I am logged in as User1 with password User1
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "AllowedWebMapServiceOperation",
+                    "attributes": {
+                        "description": "no spatial restriction"
+                    },
+                    "relationships": {
+                        "operations": {
+                            "data": [
+                                {
+                                    "id": "GetMap",
+                                    "type": "WebMapServiceOperation"
+                                },
+                                {
+                                    "id": "GetFeatureInfo",
+                                    "type": "WebMapServiceOperation"
+                                }
+                            ]
+                        },
+                        "secured_service": {
+                            "data": {
+                                "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+                                "type": "WebMapService"
+                            }
+                        },
+                        "secured_layers": {
+                            "data": [
+                                {
+                                    "id": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+                                    "type": "Layer"
+                                },
+                                {
+                                    "id": "c4ecdb87-31f4-4f30-8559-f577c8c59d08",
+                                    "type": "Layer"
+                                },
+                                {
+                                    "id": "ab645130-241d-4d6b-84c0-ab49c4bc6e4c",
+                                    "type": "Layer"
+                                },
+                                {
+                                    "id": "89fa6202-d252-4fb4-a772-22e2a441b312",
+                                    "type": "Layer"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            """
+        When I send the request with POST method
+        Then I expect the response status is 201

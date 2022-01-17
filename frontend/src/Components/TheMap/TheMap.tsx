@@ -21,12 +21,12 @@ const layerGroup = new LayerGroup({
   ]
 });
 
-const center = [788453.4890155146, 6573085.729161344];
+const center = [788453.4890155146, 6573085.729161344]; //BONN
 
 export const olMap = new OlMap({
   view: new OlView({
     center: center,
-    zoom: 16
+    zoom: 1 // to show the whole world
   }),
   layers: [layerGroup]
 });

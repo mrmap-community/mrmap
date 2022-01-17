@@ -152,13 +152,8 @@ export const LayerTree = ({
           // fit to layer extent
           const theLayer = layerUtils.getAllMapLayers(layerGroup)
             .find(l => { 
-              console.log(l.getProperties().key === nodeData?.key);
-              console.log(l.getProperties().key, nodeData?.key);
-              console.log(l.getProperties().key.constructor(), nodeData?.key.constructor());
               return l.getProperties().key === nodeData?.key;
             });
-          console.log(theLayer);
-          console.log(layerUtils.getAllMapLayers(layerGroup));
           if(theLayer && theLayer.get('renderingLayer')) {
             onFitToLayerExtent(theLayer.get('renderingLayer'));
           } else {

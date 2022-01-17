@@ -5,6 +5,7 @@ import Collection from 'ol/Collection';
 import LayerGroup, { default as OlLayerGroup } from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import Layer from 'ol/layer/Layer';
+import { transformExtent } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -183,6 +184,14 @@ export const MapContext = (): ReactElement => {
           serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
           legendUrl: renderingLayerDetails.attributes.WMSParams.legendUrl,
         });
+
+        // TODO: This code is repeated in the layer tree.
+        // Make this action more centralized or automatic when users adds it to the tree
+        const res = await new LayerRepo().autocompleteInitialValue(renderingLayer.getProperties().renderingLayer);
+        if(res.attributes.WMSParams.bbox) {
+          olMap.getView().fit(transformExtent(res.attributes.WMSParams.bbox, 'EPSG:4326', 'EPSG:3857'));
+        }
+        
         layerUtils.addLayerToGroupByMrMapLayerId(
           mapContextLayersGroup, 
           currentSelectedTreeLayerNode?.key as string, 

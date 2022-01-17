@@ -31,7 +31,7 @@ export const olMap = new OlMap({
   layers: [layerGroup]
 });
 
-export const TheMap = () => {
+export const TheMap = (): JSX.Element => {
   const map = useMap();
 
   useEffect(() => {

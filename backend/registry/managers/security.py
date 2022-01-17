@@ -122,7 +122,6 @@ class WebMapServiceOperationUrlQuerySet(models.QuerySet):
 
 
 class WebMapServiceSecurityManager(models.Manager):
-    request = None
 
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
         from registry.models.security import \
@@ -142,7 +141,7 @@ class WebMapServiceSecurityManager(models.Manager):
             using=self._db,
         )
 
-    def prepare_with_security_info(self):
+    def prepare_with_security_info(self, request: HttpRequest):
         if (
             self.request.query_parameters.get("request").lower()
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
@@ -150,7 +149,7 @@ class WebMapServiceSecurityManager(models.Manager):
             return self.get_queryset().annotate(
                 camouflage=Coalesce(F("proxy_setting__camouflage"), V(False)),
                 base_operation_url=self.get_operation_url_qs().get_base_url(
-                    service_pk=OuterRef("pk"), request=self.request
+                    service_pk=OuterRef("pk"), request=request
                 ),
                 unknown_operation_url=self.get_operation_url_qs().get_fallback_url(
                     service_pk=OuterRef("pk")
@@ -164,7 +163,7 @@ class WebMapServiceSecurityManager(models.Manager):
                 log_response=Coalesce(
                     F("proxy_setting__log_response"), V(False)),
                 base_operation_url=self.get_operation_url_qs().get_base_url(
-                    service_pk=OuterRef("pk"), request=self.request
+                    service_pk=OuterRef("pk"), request=request
                 ),
                 unknown_operation_url=self.get_operation_url_qs().get_fallback_url(
                     service_pk=OuterRef("pk")
@@ -180,28 +179,28 @@ class WebMapServiceSecurityManager(models.Manager):
                     log_response=Coalesce(
                         F("proxy_setting__log_response"), V(False)),
                     is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
-                        service_pk=OuterRef("pk"), request=self.request
+                        service_pk=OuterRef("pk"), request=request
                     ),
                     is_secured=self.get_allowed_operation_qs().is_service_secured(
                         service_pk=OuterRef("pk")
                     ),
                     is_user_principle_entitled=self.get_allowed_operation_qs().is_user_entitled(
-                        service_pk=OuterRef("pk"), request=self.request
+                        service_pk=OuterRef("pk"), request=request
                     ),
                     is_spatial_secured_and_covers=self.get_allowed_operation_qs().is_spatial_secured_and_covers(
-                        service_pk=OuterRef("pk"), request=self.request
+                        service_pk=OuterRef("pk"), request=request
                     ),
                     is_spatial_secured_and_intersects=self.get_allowed_operation_qs().is_spatial_secured_and_intersects(
-                        service_pk=OuterRef("pk"), request=self.request
+                        service_pk=OuterRef("pk"), request=request
                     ),
                     allowed_area_union=self.get_allowed_operation_qs().get_allowed_areas(
-                        service_pk=OuterRef("pk"), request=self.request
+                        service_pk=OuterRef("pk"), request=request
                     ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom'),
                     allowed_area_pks=self.get_allowed_operation_qs().get_allowed_areas(
-                        service_pk=OuterRef("pk"), request=self.request
+                        service_pk=OuterRef("pk"), request=request
                     ).values('secured_service__pk').annotate(pks=ArrayAgg('pk')).values('pks'),
                     base_operation_url=self.get_operation_url_qs().get_base_url(
-                        service_pk=OuterRef("pk"), request=self.request
+                        service_pk=OuterRef("pk"), request=request
                     ),
                     unknown_operation_url=self.get_operation_url_qs().get_fallback_url(
                         service_pk=OuterRef("pk")
@@ -210,8 +209,4 @@ class WebMapServiceSecurityManager(models.Manager):
             )
 
     def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
-        service = None
-        self.request = request
-        service = self.prepare_with_security_info().get(*args, **kwargs)
-
-        return service
+        return self.prepare_with_security_info().get(request=request, *args, **kwargs)

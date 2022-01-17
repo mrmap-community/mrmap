@@ -34,6 +34,7 @@ class SecureableWMSOperationEnum(EnumChoice):
 
 class SecureableWFSOperationEnum(EnumChoice):
     GET_FEATURE = "GetFeature"
+    TRANSACTION = "Transaction"
 
 
 class OGCOperationEnum(EnumChoice):

@@ -1,0 +1,80 @@
+[
+    {
+        "model": "registry.metadatacontact",
+        "pk": "1",
+        "fields": {}
+    },
+    {
+        "model": "registry.WebFeatureServiceOperationUrl",
+        "pk": "1",
+        "fields": {
+            "method": "Get",
+            "url": "http://example.com/wms?",
+            "operation": "GetFeature",
+            "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+        }
+    },
+    {
+        "model": "registry.webfeatureservice",
+        "pk": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+        "fields": {
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "title": "WMS",
+            "service_url": "",
+            "get_capabilities_url": "https://example.com?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "service_contact": "1",
+            "metadata_contact": "1"
+        }
+    },
+    {
+        "model": "registry.featuretype",
+        "pk": "efba476a-d3ff-44f8-a0db-7f2c811f7247",
+        "fields": {
+            "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "origin": "capabilities",
+            "title": "node1"
+        }
+    },
+    {
+        "model": "registry.featuretype",
+        "pk": "fa8713a6-875f-48b4-95f2-f9bb7cf47001",
+        "fields": {
+            "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node2",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "origin": "capabilities",
+            "title": "node2"
+        }
+    },
+    {
+        "model": "registry.featuretype",
+        "pk": "b9f6c9d4-0acf-49c0-923f-dced0eeed5da",
+        "fields": {
+            "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node3",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "origin": "capabilities",
+            "title": "node3"
+        }
+    },
+    {
+        "model": "registry.featuretype",
+        "pk": "f278f616-739f-4a88-8885-1cfed5e9076c",
+        "fields": {
+            "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node4",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "origin": "capabilities",
+            "title": "node4"
+        }
+    }
+]

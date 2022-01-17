@@ -1,11 +1,34 @@
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
-from registry.models.security import AllowedWebMapServiceOperation
-from registry.serializers.security import \
-    AllowedWebMapServiceOperationSerializer
+from registry.models.security import (AllowedWebFeatureServiceOperation,
+                                      AllowedWebMapServiceOperation,
+                                      WebFeatureServiceOperation,
+                                      WebMapServiceOperation)
+from registry.serializers.security import (
+    AllowedWebFeatureServiceOperationSerializer,
+    AllowedWebMapServiceOperationSerializer,
+    WebFeatureServiceOperationSerializer, WebMapServiceOperationSerializer)
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.schemas.openapi import AutoSchema
-from rest_framework_json_api.views import ModelViewSet
+from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
+
+
+class WebMapServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
+    schema = AutoSchema(
+        tags=["SecurityProxy"],
+    )
+    queryset = WebMapServiceOperation.objects.all()
+    serializer_class = WebMapServiceOperationSerializer
+    search_fields = ('operation', )
+
+
+class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
+    schema = AutoSchema(
+        tags=["SecurityProxy"],
+    )
+    queryset = WebFeatureServiceOperation.objects.all()
+    serializer_class = WebFeatureServiceOperationSerializer
+    search_fields = ('operation', )
 
 
 class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
@@ -14,4 +37,13 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
     )
     queryset = AllowedWebMapServiceOperation.objects.all()
     serializer_class = AllowedWebMapServiceOperationSerializer
+    permission_classes = [DjangoObjectPermissions]
+
+
+class AllowedWebFeatureServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
+    schema = AutoSchema(
+        tags=["SecurityProxy"],
+    )
+    queryset = AllowedWebFeatureServiceOperation.objects.all()
+    serializer_class = AllowedWebFeatureServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]

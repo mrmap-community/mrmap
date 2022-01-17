@@ -80,6 +80,21 @@
                     "delete_allowedwebmapserviceoperation",
                     "registry",
                     "allowedwebmapserviceoperation"
+                ],
+                [
+                    "add_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
+                ],
+                [
+                    "change_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
+                ],
+                [
+                    "delete_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
                 ]
             ]
         }

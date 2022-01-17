@@ -6,7 +6,8 @@ from registry.models.security import (AllowedWebFeatureServiceOperation,
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 ModelSerializer)
+                                                 ModelSerializer,
+                                                 ValidationError)
 
 
 class WebMapServiceOperationSerializer(ModelSerializer):
@@ -42,6 +43,18 @@ class AllowedWebMapServiceOperationSerializer(ModelSerializer):
     class Meta:
         model = AllowedWebMapServiceOperation
         fields = '__all__'
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        secured_layers = attrs.get('secured_layers', None)
+        if secured_layers:
+            # TODO: let the database evaluate this...
+            for secured_layer in secured_layers:
+                if secured_layer.get_descendants() not in secured_layers:
+                    raise ValidationError(
+                        'Incomplete subtree selection is not allowed.')
+
+        return data
 
 
 class AllowedWebFeatureServiceOperationSerializer(ModelSerializer):

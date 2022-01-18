@@ -53,7 +53,7 @@ export class LayerUtils {
       layerId: opts.layerId,
       legendUrl: opts.legendUrl,
       title: opts.title,
-      name: opts.name,
+      description: opts.description,
       extent: opts.extent
       // parent: opts.parent,
     });
@@ -69,12 +69,12 @@ export class LayerUtils {
     return layersToSearch.find((layer:any) => String(layer.getProperties().layerId) === String(id));
   }
 
-  private getLayerGroupByName = (
+  private getLayerGroupByGroupTitle = (
     collection: OlMap | LayerGroup, 
-    layerGroupName: string
+    layerGroupTitle: string
   ): LayerGroup | undefined => {
     const requiredLayerGroup = this.getAllMapLayers(collection)
-      .find((layer:any) => layer.getProperties().name === layerGroupName);
+      .find((layer:any) => layer.getProperties().title === layerGroupTitle);
     if(requiredLayerGroup instanceof LayerGroup){
       return requiredLayerGroup;
     }
@@ -116,18 +116,18 @@ export class LayerUtils {
     }
   }
       
-  public addLayerToGroupByName(
+  public addLayerToGroupByGroupTitle(
     collection: OlMap | LayerGroup, 
-    layerGroupName: string, 
+    layerGroupTitle: string, 
     layerToAdd: LayerGroup | BaseLayer
   ): void {
-    const layerGroup: LayerGroup | undefined = this.getLayerGroupByName(collection, layerGroupName);
+    const layerGroup: LayerGroup | undefined = this.getLayerGroupByGroupTitle(collection, layerGroupTitle);
     if(layerGroup) {
       const layerArray = layerGroup.getLayers().getArray();
       layerArray.push(layerToAdd);
       layerGroup.setLayers(new Collection(layerArray));
     } else {
-      console.warn(`No layer group with the name ${layerGroupName}, was found on the map`);
+      console.warn(`No layer group with the title ${layerGroupTitle}, was found on the map`);
     }
   }
       
@@ -185,7 +185,6 @@ export class LayerUtils {
     fc.forEach((feature: any) => {
       if (Object.getOwnPropertyNames(feature).length > 0) {
         // TODO where to render the properties?
-        console.log(feature.getProperties());
         result = feature.getProperties();
       } else{
         result = 'not found';

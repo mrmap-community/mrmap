@@ -16,7 +16,7 @@ export interface CreateLayerOpts {
   layerId?: string | number;
   legendUrl: string;
   title: string;
-  name?: string;
+  description?: string;
   properties: Record<string, string>;
   extent?: any[]
 }

@@ -19,12 +19,12 @@ const layerUtils = new LayerUtils();
 // TODO: Should be in a separate component or helper
 const layerGroup = new LayerGroup({
   // @ts-ignore
-  name: 'Layergroup',
+  title: 'Layergroup',
   layers: [
     new OlLayerTile({
       source: new OlSourceOsm(),
       // @ts-ignore
-      name: 'OSM'
+      title: 'OSM'
     })
   ]
 });

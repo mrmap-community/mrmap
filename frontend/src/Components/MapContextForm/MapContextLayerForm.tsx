@@ -163,7 +163,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
         layout='vertical'
         initialValues={{
           title: '',
-          name: ''
+          description: ''
         }}
         onFinish={(values) => onSubmit(values)}
       >
@@ -184,12 +184,12 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
           }}
         />
         <InputFormField
-          label='Name'
-          name='name'
+          label='Description'
+          name='description'
           tooltip={{ title: 'a short description for this map context layer', icon: <InfoCircleOutlined /> }}
-          placeholder='Map Context Layer Name'
+          placeholder='Map Context Layer Description'
           validation={{
-            rules: [{ required: true, message: 'Please input a name!' }],
+            rules: [{ required: true, message: 'Please input a description!' }],
             hasFeedback: true
           }}
         />

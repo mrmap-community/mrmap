@@ -245,8 +245,8 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
       parent: null,
     };
     const nodeToCreateAttributes = {
-      name: `Group node (${newNodeGroupIncrementValue})`,
       title: `Group node (${newNodeGroupIncrementValue})`,
+      description: 'A group node',
     };
     onAddNode(nodeToCreate, nodeToCreateAttributes, isRoot);
   };
@@ -618,7 +618,7 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
       if (isEditingNodeAttributes && selectedNode) {
         form.setFieldsValue({
           ...selectedNode.properties,
-          title: selectedNode.title
+          title: selectedNode.properties.title
         });
       }
     }

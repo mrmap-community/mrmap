@@ -23,7 +23,7 @@ const layerTreeLayerGroup = new LayerGroup({
   opacity: 1,
   visible: true,
   properties: {
-    name: 'mrMapLayerTreeLayerGroup'
+    title: 'mrMapLayerTreeLayerGroup'
   },
   layers: []
 });

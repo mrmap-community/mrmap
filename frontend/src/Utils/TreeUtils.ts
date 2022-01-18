@@ -15,7 +15,7 @@ export class TreeUtils {
     return layerGroup.getLayers().getArray().map((layer: LayerGroup | BaseLayer) => {
       const node: any = {
         key: layer.getProperties().layerId,
-        title: layer.getProperties().title,
+        title: layer.getProperties().description,
         parent: layer.getProperties().parent,
         properties: layer.getProperties(),
         isLeaf: true,
@@ -50,13 +50,13 @@ export class TreeUtils {
       // then, it's because the node is a group, otherwise, is a leaf
       const node: TreeNodeType = {
         key: element.id,
-        title: element.id, // TODO here should later come the description
+        title: element.attributes.description,
         parent: element.relationships.parent.data?.id,
         children: element.children || [],
         isLeaf: element.children && element.children.length === 0,
         properties: {
           title: element.attributes.title, // yes, title is repeated
-          name: element.attributes.name,
+          description: element.attributes.description,
           datasetMetadata: element.relationships.dataset_metadata.data?.id,
           renderingLayer: element.relationships.rendering_layer.data?.id,
           scaleMin: element.attributes.layer_scale_min,
@@ -88,7 +88,7 @@ export class TreeUtils {
           visible: false,
           properties: {
             title: node.properties.title,
-            name: node.properties.name,
+            description: node.properties.description,
             parent: node.parent,
             key: node.key,
             layerId: node.key
@@ -108,7 +108,7 @@ export class TreeUtils {
           visible: false,
           legendUrl: '',
           title: node.properties.title,
-          name: node.properties.name,
+          description: node.properties.description,
           layerId: node.key,
           properties: {
             ...node.properties,

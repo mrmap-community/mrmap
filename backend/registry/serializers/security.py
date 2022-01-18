@@ -49,7 +49,8 @@ class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer,
 
     def validate(self, attrs):
         data = super().validate(attrs)
-        secured_layers = attrs.get('secured_layers', None)
+        secured_service = attrs['secured_service']
+        secured_layers = attrs['secured_layers']
         if secured_layers:
             secured_layer_pks = [
                 secured_layer.pk for secured_layer in secured_layers]
@@ -69,11 +70,14 @@ class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer,
             secured_layers_pk = set(
                 [secured_layer.pk for secured_layer in _secured_layers])
             for secured_layer in _secured_layers:
+                if secured_layer.service_id != secured_service.pk:
+                    raise ValidationError(
+                        {"secured_layers": "Missmatching layer for selected service."})
                 descendant_pks = set(
                     [descendant.pk for descendant in secured_layer.descendant_pks])
                 if not descendant_pks.issubset(secured_layers_pk):
                     raise ValidationError(
-                        {'secured_layers': 'Incomplete subtree selection is not allowed.'})
+                        {"secured_layers": "Incomplete subtree selection is not allowed."})
 
         return data
 

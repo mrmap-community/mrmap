@@ -143,7 +143,7 @@ class WebMapServiceSecurityManager(models.Manager):
 
     def prepare_with_security_info(self, request: HttpRequest):
         if (
-            self.request.query_parameters.get("request").lower()
+            request.query_parameters.get("request").lower()
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
         ):
             return self.get_queryset().annotate(
@@ -156,7 +156,7 @@ class WebMapServiceSecurityManager(models.Manager):
                 ),
             )
         elif (
-            self.request.query_parameters.get("request").lower()
+            request.query_parameters.get("request").lower()
             not in SECURE_ABLE_OPERATIONS_LOWER
         ):
             return self.get_queryset().annotate(
@@ -209,4 +209,4 @@ class WebMapServiceSecurityManager(models.Manager):
             )
 
     def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
-        return self.prepare_with_security_info().get(request=request, *args, **kwargs)
+        return self.prepare_with_security_info(request=request).get(*args, **kwargs)

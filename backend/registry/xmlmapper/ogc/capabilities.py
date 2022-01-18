@@ -13,10 +13,7 @@ from registry.enums.service import OGCServiceEnum, OGCServiceVersionEnum
 from registry.xmlmapper.consts import NS_WC
 from registry.xmlmapper.exceptions import SemanticError
 from registry.xmlmapper.mixins import DBModelConverterMixin
-
-
-class XlinkHref(xmlmap.XmlObject):
-    url = xmlmap.StringField(xpath="@xlink:href")
+from registry.xmlmapper.namespaces import XLINK_NAMESPACE
 
 
 class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
@@ -26,7 +23,7 @@ class MimeType(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class OperationUrl(DBModelConverterMixin, xmlmap.XmlObject):
-
+    ROOT_NAMESPACES = dict([("xlink", XLINK_NAMESPACE)])
     url = xmlmap.StringField(xpath="@xlink:href")
 
     def get_field_dict(self):
@@ -95,12 +92,13 @@ class ServiceMetadataContact(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class LegendUrl(DBModelConverterMixin, xmlmap.XmlObject):
+    ROOT_NAMESPACES = dict([("xlink", XLINK_NAMESPACE)])
     model = 'registry.LegendUrl'
 
-    legend_url = xmlmap.NodeField(
-        xpath=f"{NS_WC}OnlineResource']", node_class=XlinkHref)
-    height = xmlmap.IntegerField(xpath=f"@{NS_WC}height']")
-    width = xmlmap.IntegerField(xpath=f"@{NS_WC}width']")
+    legend_url = xmlmap.StringField(
+        xpath="OnlineResource[@xlink:type='simple']/@xlink:href")
+    height = xmlmap.IntegerField(xpath="@height")
+    width = xmlmap.IntegerField(xpath="@width")
     mime_type = xmlmap.NodeField(xpath=f"{NS_WC}Format']", node_class=MimeType)
 
 
@@ -440,17 +438,12 @@ class ServiceType(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class Service(DBModelConverterMixin, xmlmap.XmlObject):
+    ROOT_NAMESPACES = dict([("xlink", XLINK_NAMESPACE)])
     # todo: new field with node_class RemoteMetadata for wms and wfs
     remote_metadata = None
-    service_url = xmlmap.NodeField(
-        xpath=f"//{NS_WC}Service']/{NS_WC}OnlineResource']", node_class=XlinkHref)
+    service_url = xmlmap.StringField(
+        xpath=f"{NS_WC}Service']/OnlineResource[@xlink:type='simple']/@xlink:href")
     version = xmlmap.StringField(xpath=f"@{NS_WC}version']")
-
-    def get_field_dict(self):
-        field_dict = super().get_field_dict()
-        if self.service_url:
-            field_dict.update({"service_url": self.service_url.url})
-        return field_dict
 
 
 class WmsService(Service):

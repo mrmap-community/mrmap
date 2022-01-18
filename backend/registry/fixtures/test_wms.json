@@ -1,0 +1,214 @@
+[
+    {
+        "model": "registry.metadatacontact",
+        "pk": "1",
+        "fields": {
+            "name": "qwertz"
+        }
+    },
+    {
+        "model": "registry.metadatacontact",
+        "pk": "2",
+        "fields": {
+            "name": "qwertz2"
+        }
+    },
+    {
+        "model": "registry.WebMapServiceOperationUrl",
+        "pk": "1",
+        "fields": {
+            "method": "Get",
+            "url": "http://example.com/wms?",
+            "operation": "GetMap",
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+        }
+    },
+    {
+        "model": "registry.webmapservice",
+        "pk": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+        "fields": {
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+            "title": "WMS",
+            "service_url": "",
+            "get_capabilities_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+            "service_contact": "1",
+            "metadata_contact": "1"
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "scale_min": 1,
+            "scale_max": 1000,
+            "origin": "capabilities",
+            "title": "node1",
+            "tree_id": 1,
+            "level": 0,
+            "lft": 1,
+            "rght": 15
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "parent": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1.1",
+            "origin": "capabilities",
+            "title": "node1.1",
+            "tree_id": 1,
+            "level": 1,
+            "lft": 2,
+            "rght": 9
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "c4ecdb87-31f4-4f30-8559-f577c8c59d08",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "parent": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1.1.1",
+            "origin": "capabilities",
+            "title": "node1.1.1",
+            "tree_id": 1,
+            "level": 2,
+            "lft": 3,
+            "rght": 4
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "ab645130-241d-4d6b-84c0-ab49c4bc6e4c",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "parent": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1.1.2",
+            "origin": "capabilities",
+            "title": "node1.1.2",
+            "tree_id": 1,
+            "level": 2,
+            "lft": 5,
+            "rght": 6
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "89fa6202-d252-4fb4-a772-22e2a441b312",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "parent": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1.1.3",
+            "origin": "capabilities",
+            "title": "node1.1.3",
+            "tree_id": 1,
+            "level": 2,
+            "lft": 7,
+            "rght": 8
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "d6e47039-b08a-4183-ae51-667083b8a803",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "parent": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1.2",
+            "origin": "capabilities",
+            "title": "node1.2",
+            "tree_id": 1,
+            "level": 1,
+            "lft": 10,
+            "rght": 11
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "4fdda4c4-c7bb-4525-a14d-f555ce0a9217",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "parent": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1.3",
+            "origin": "capabilities",
+            "title": "node1.3",
+            "tree_id": 1,
+            "level": 1,
+            "lft": 12,
+            "rght": 15
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "e95c2af1-9713-45fa-b6d4-7bb7e9813fdf",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "parent": "4fdda4c4-c7bb-4525-a14d-f555ce0a9217",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1.3.1",
+            "origin": "capabilities",
+            "title": "node1.3.1",
+            "tree_id": 1,
+            "level": 2,
+            "lft": 13,
+            "rght": 14
+        }
+    },
+    {
+        "model": "registry.WebMapServiceOperationUrl",
+        "pk": "2",
+        "fields": {
+            "method": "Get",
+            "url": "http://example.com/wms?",
+            "operation": "GetMap",
+            "service": "1b195589-dcfa-403f-9e66-e7e1c0a67024"
+        }
+    },
+    {
+        "model": "registry.webmapservice",
+        "pk": "1b195589-dcfa-403f-9e66-e7e1c0a67024",
+        "fields": {
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+            "title": "WMS",
+            "service_url": "",
+            "get_capabilities_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+            "service_contact": "2",
+            "metadata_contact": "2"
+        }
+    },
+    {
+        "model": "registry.layer",
+        "pk": "05977f90-3bd9-4017-95e1-5252735d213f",
+        "fields": {
+            "service": "1b195589-dcfa-403f-9e66-e7e1c0a67024",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "scale_min": 1,
+            "scale_max": 1000,
+            "origin": "capabilities",
+            "title": "node1",
+            "tree_id": 1,
+            "level": 0,
+            "lft": 1,
+            "rght": 15
+        }
+    }
+]

@@ -1,4 +1,5 @@
-NS_WC = "*[local-name()='"  # Namespace wildcard. Example usage: f'{NS_WC}MD_Metadata']'
+# Namespace wildcard. Example usage: f'{NS_WC}MD_Metadata']'
+NS_WC = "*[local-name()='"
 
 GMD_NAMESPACE = "http://www.isotc211.org/2005/gmd"
 GCO_NAMESPACE = "http://www.isotc211.org/2005/gco"

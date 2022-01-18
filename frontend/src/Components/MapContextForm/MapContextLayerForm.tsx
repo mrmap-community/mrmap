@@ -12,7 +12,6 @@ import { SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocomp
 interface MapContextLayerFormProps {
   form?: FormInstance<any>;
   onSubmit?: (values?:any) => void;
-  showBasicForm?: boolean;
 }
 
 const fetchData = async (
@@ -43,7 +42,6 @@ const featureTypesRepo = new FeatureTypeRepo();
 export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   form = undefined,
   onSubmit = () => undefined,
-  showBasicForm = false
 
 }) => {
   const [isDatasetMetadataOptionsLoading, setIsDatasetMetadataOptionsLoading] = useState<boolean>(false);
@@ -195,8 +193,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
             hasFeedback: true
           }}
         />
-        {!showBasicForm && (
-          <> 
+        
             <Divider
               plain
               orientation='left'
@@ -329,8 +326,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
               }}
               pagination
             />
-          </>
-        )}
+          
       </Form>
   );
 };

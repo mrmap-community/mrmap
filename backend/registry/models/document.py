@@ -1,4 +1,5 @@
 from abc import abstractmethod
+
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.http import HttpRequest
@@ -6,6 +7,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
+from registry.xmlmapper.ogc.capabilities import get_parsed_service
 
 
 def xml_backup_file_path(instance, filename):
@@ -20,7 +22,8 @@ class DocumentModelMixin(models.Model):
     """
     xml_mapper_cls = None
     xml_backup_file = models.FileField(verbose_name=_("xml backup"),
-                                       help_text=_("the original xml as backup to restore the xml field."),
+                                       help_text=_(
+                                           "the original xml as backup to restore the xml field."),
                                        upload_to=xml_backup_file_path,
                                        editable=False)
 
@@ -81,9 +84,12 @@ class DocumentModelMixin(models.Model):
         """
         if self.xml_backup_string:
             xml_object = self.xml_backup
-            xml_object.update_fields(obj=self.get_field_dict())
+            fields = self.get_field_dict()
+            fields.pop('version')
+            xml_object.update_fields(obj=fields)
         else:
-            xml_object = self.get_xml_mapper_cls().from_field_dict(initial=self.get_field_dict())
+            xml_object = self.get_xml_mapper_cls().from_field_dict(
+                initial=self.get_field_dict())
         return xml_object
 
     @abstractmethod
@@ -103,22 +109,32 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
     class Meta:
         abstract = True
 
+    @property
+    def xml_backup(self) -> XmlObject:
+        return get_parsed_service(self.xml_backup_string)
+
     def xml_secured(self, request: HttpRequest) -> XmlObject:
-        path = reverse("registry:service_operation_view", args=[self.pk])
+        path = reverse("wms-operation", args=[self.pk])
         new_url = f"{request.scheme}://{request.get_host()}{path}?"
 
         capabilities_xml = self.xml
-        # todo: camouflage metadata urls also
+        # TODO: camouflage metadata urls also
         for operation_url in capabilities_xml.operation_urls:
             operation_url.url = new_url
-        if capabilities_xml.url:
-            capabilities_xml.url.url = new_url
+        if capabilities_xml.service_url:
+            capabilities_xml.service_url = new_url
         if hasattr(capabilities_xml, "get_all_layers"):
             for layer in capabilities_xml.get_all_layers():
                 for style in layer.styles:
                     style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
         # todo: only support xml Exception format --> remove all others
         return capabilities_xml.serializeDocument()
+
+    def get_xml(self, request: HttpRequest) -> XmlObject:
+        if self.camouflage:
+            return self.xml_secured(request=request)
+        else:
+            return self.xml_backup_string
 
 
 class MetadataDocumentModelMixin(DocumentModelMixin):

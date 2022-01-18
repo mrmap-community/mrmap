@@ -3,6 +3,7 @@ from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
+from registry.views import security as security_views
 from registry.views import service as service_views
 
 app_name = 'registry'
@@ -25,13 +26,13 @@ router = ExtendedSimpleRouter()
           .register(r'keywords', metadata_views.KeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
     # web feature service
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-          .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
+    .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
     router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
-          .register(r'keywords', metadata_views.KeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
+    .register(r'keywords', metadata_views.KeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
 
     # map context
     router.register(r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')
-          .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontext-mapcontextlayers', parents_query_lookups=['map_context']),
+    .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontext-mapcontextlayers', parents_query_lookups=['map_context']),
     router.register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
 
     # metadata
@@ -39,6 +40,13 @@ router = ExtendedSimpleRouter()
     router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata'),
     router.register(r'metadata-contacts', metadata_views.MetadataContactViewSet, basename='metadatacontact'),
+
+    # security
+    router.register(r'security/wms-operations', security_views.WebMapServiceOperationViewSet, basename='wmsoperation'),
+    router.register(r'security/wfs-operations', security_views.WebFeatureServiceOperationViewSet, basename='wfsoperation'),
+
+    router.register(r'security/allowed-wms-operations', security_views.AllowedWebMapServiceOperationViewSet, basename='allowedwmsoperation'),
+    router.register(r'security/allowed-wfs-operations', security_views.AllowedWebFeatureServiceOperationViewSet, basename='allowedwfsoperation'),
 
 )
 

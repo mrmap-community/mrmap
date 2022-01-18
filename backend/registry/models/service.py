@@ -16,25 +16,19 @@ from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from MrMap.validators import validate_get_capablities_uri
 from ows_client.request_builder import OgcService as OgcServiceClient
-from registry.enums.service import (
-    AuthTypeEnum,
-    HttpMethodEnum,
-    OGCOperationEnum,
-    OGCServiceVersionEnum,
-)
-from registry.managers.security import OperationUrlManager, ServiceSecurityManager
-from registry.managers.service import (
-    CatalougeServiceCapabilitiesManager,
-    FeatureTypeElementXmlManager,
-    LayerManager,
-    WebFeatureServiceCapabilitiesManager,
-    WebMapServiceCapabilitiesManager,
-)
+from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
+                                    OGCOperationEnum, OGCServiceVersionEnum)
+from registry.managers.security import WebMapServiceSecurityManager
+from registry.managers.service import (CatalougeServiceCapabilitiesManager,
+                                       FeatureTypeElementXmlManager,
+                                       LayerManager,
+                                       WebFeatureServiceCapabilitiesManager,
+                                       WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.models.metadata import FeatureTypeMetadata, LayerMetadata, ServiceMetadata
-from registry.xmlmapper.ogc.wfs_describe_feature_type import (
-    DescribedFeatureType as XmlDescribedFeatureType,
-)
+from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
+                                      ServiceMetadata)
+from registry.xmlmapper.ogc.wfs_describe_feature_type import \
+    DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from requests.auth import HTTPDigestAuth
 from simple_history.models import HistoricalRecords
@@ -84,7 +78,6 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     )
 
     objects = DefaultHistoryManager()
-    security = ServiceSecurityManager()
 
     class Meta:
         abstract = True
@@ -101,9 +94,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         if not adding and old and old.is_active != self.is_active:
             # the active sate of this and all descendant elements shall be changed to the new value. Bulk update
             # is the most efficient way to do it.
-            if isinstance(WebMapService):
+            if isinstance(self, WebMapService):
                 self.layers.update(is_active=self.is_active)
-            elif isinstance(WebFeatureService):
+            elif isinstance(self, WebFeatureService):
                 self.featuretypes.update(is_active=self.is_active)
 
     def major_version(self) -> int:
@@ -126,6 +119,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
     capabilities = WebMapServiceCapabilitiesManager()
+    security = WebMapServiceSecurityManager()
 
     class Meta:
         verbose_name = _("web map service")
@@ -190,7 +184,6 @@ class OperationUrl(models.Model):
         help_text=_("all available mime types of the remote url"),
     )
     objects = models.Manager()
-    security_objects = OperationUrlManager()
 
     class Meta:
         abstract = True
@@ -240,7 +233,8 @@ class WebFeatureServiceOperationUrl(OperationUrl):
         related_name="operation_urls",
         related_query_name="operation_url",
         verbose_name=_("related web feature service"),
-        help_text=_("the web feature service for that this url can be used for."),
+        help_text=_(
+            "the web feature service for that this url can be used for."),
     )
 
     class Meta:
@@ -262,6 +256,14 @@ class CatalougeServiceOperationUrl(OperationUrl):
         verbose_name=_("related catalouge service"),
         help_text=_("the catalouge service for that this url can be used for."),
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["method", "operation", "service"],
+                name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
+            )
+        ]
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
@@ -519,7 +521,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         """
         if self.reference_systems.exists():
             return self.reference_systems.all()
-        from registry.models import ReferenceSystem  # to avoid circular import errors
+        from registry.models import \
+            ReferenceSystem  # to avoid circular import errors
 
         return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct(
             "code", "prefix"
@@ -549,7 +552,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         """
         if self.layer_dimensions.exists():
             return self.layer_dimensions.all()
-        from registry.models import Dimension  # to avoid circular import errors
+        from registry.models import \
+            Dimension  # to avoid circular import errors
 
         return Dimension.objects.filter(
             layer__in=self.get_ancestors(ascending=True)
@@ -635,7 +639,8 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
                 self.service.external_authentication.auth_type
                 == AuthTypeEnum.DIGEST.value
             ):
-                request.auth = HTTPDigestAuth(username=username, password=password)
+                request.auth = HTTPDigestAuth(
+                    username=username, password=password)
         session = Session()
         response = session.send(request=request.prepare())
         if response.status_code <= 202 and "xml" in response.headers["content-type"]:

@@ -65,6 +65,36 @@
                     "delete_mapcontext",
                     "registry",
                     "mapcontext"
+                ],
+                [
+                    "add_allowedwebmapserviceoperation",
+                    "registry",
+                    "allowedwebmapserviceoperation"
+                ],
+                [
+                    "change_allowedwebmapserviceoperation",
+                    "registry",
+                    "allowedwebmapserviceoperation"
+                ],
+                [
+                    "delete_allowedwebmapserviceoperation",
+                    "registry",
+                    "allowedwebmapserviceoperation"
+                ],
+                [
+                    "add_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
+                ],
+                [
+                    "change_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
+                ],
+                [
+                    "delete_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
                 ]
             ]
         }

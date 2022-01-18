@@ -3,20 +3,26 @@ import Polygon from 'ol/geom/Polygon';
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 const getServiceType = (url:string): string => {
-  const rightUrl = new URL(url);
-  if (rightUrl.pathname.includes('mapserv')) {
-    return 'MAPSERVER';
+  if(url) {
+    const rightUrl = new URL(url);
+    if (rightUrl.pathname.includes('mapserv')) {
+      return 'MAPSERVER';
+    }
+    if (rightUrl.pathname.includes('geoserver')) {
+      return 'GEOSERVER';
+    }
+    if (rightUrl.pathname.includes('qgis')) {
+      return 'QGIS';
+    }
+    if (rightUrl.pathname.includes('esri')) {
+      return 'ESRI';
+    } else {
+      return '';
+    }
+
+  } else {
+    return '';
   }
-  if (rightUrl.pathname.includes('geoserver')) {
-    return 'GEOSERVER';
-  }
-  if (rightUrl.pathname.includes('qgis')) {
-    return 'QGIS';
-  }
-  if (rightUrl.pathname.includes('esri')) {
-    return 'ESRI';
-  }
-  return '';
 };
 
 const getServiceUrl = (includedServices: any[], operation:string) => {
@@ -45,9 +51,10 @@ class LayerRepo extends JsonApiRepo {
     }
 
     const res = await client['List' + this.resourcePath](jsonApiParams);
-    return res.data.data.map((o: any) => ({
-      value: o.id,
-      text: o.attributes.title,
+    return res.data.data.map((o: any) => { 
+      return ({
+        value: o.id,
+        text: o.attributes.title,
       attributes: {
         ...o.attributes,
         WMSParams: {
@@ -55,13 +62,14 @@ class LayerRepo extends JsonApiRepo {
           url: res.data.included && res.data.included.length > 0 && getServiceUrl(res.data.included, 'GetMap'),
           version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
           serviceType: res.data.included && res.data.included.length > 0 && 
-            getServiceType(res.data.included[0].attributes.service_url)
+             getServiceType(getServiceUrl(res.data.included, 'GetMap'))
         },
       },
-      pagination: {
-        next: res.data.links.next
-      }
-    }));
+        pagination: {
+          next: res.data.links.next
+        }
+      });
+  });
   }
 
   async autocompleteInitialValue (id:string): Promise<any> {
@@ -104,7 +112,7 @@ class LayerRepo extends JsonApiRepo {
           url: res.data.included && res.data.included.length > 0  && getServiceUrl(res.data.included, 'GetMap'),
           version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
           serviceType: res.data.included && res.data.included.length > 0 && 
-            getServiceType(res.data.included[0].attributes.service_url),
+            getServiceType(getServiceUrl(res.data.included, 'GetMap')),
           legendUrl: included ? included.attributes.url : ''
         },
       },

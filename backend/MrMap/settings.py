@@ -65,7 +65,7 @@ MIDDLEWARE = [
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    'django.contrib.messages.middleware.MessageMiddleware',  # for django admin pages
+    "django.contrib.messages.middleware.MessageMiddleware",  # for django admin pages
     "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
@@ -94,20 +94,20 @@ if DEBUG:
     # Disable all panels by default
     DEBUG_TOOLBAR_CONFIG = {
         "DISABLE_PANELS": {
-            'debug_toolbar.panels.history.HistoryPanel',
-            'debug_toolbar.panels.versions.VersionsPanel',
-            'debug_toolbar.panels.timer.TimerPanel',
-            'debug_toolbar.panels.settings.SettingsPanel',
-            'debug_toolbar.panels.headers.HeadersPanel',
-            'debug_toolbar.panels.request.RequestPanel',
-            'debug_toolbar.panels.sql.SQLPanel',
-            'debug_toolbar.panels.staticfiles.StaticFilesPanel',
-            'debug_toolbar.panels.templates.TemplatesPanel',
-            'debug_toolbar.panels.cache.CachePanel',
-            'debug_toolbar.panels.signals.SignalsPanel',
-            'debug_toolbar.panels.logging.LoggingPanel',
-            'debug_toolbar.panels.redirects.RedirectsPanel',
-            'debug_toolbar.panels.profiling.ProfilingPanel',
+            "debug_toolbar.panels.history.HistoryPanel",
+            "debug_toolbar.panels.versions.VersionsPanel",
+            "debug_toolbar.panels.timer.TimerPanel",
+            "debug_toolbar.panels.settings.SettingsPanel",
+            "debug_toolbar.panels.headers.HeadersPanel",
+            "debug_toolbar.panels.request.RequestPanel",
+            "debug_toolbar.panels.sql.SQLPanel",
+            "debug_toolbar.panels.staticfiles.StaticFilesPanel",
+            "debug_toolbar.panels.templates.TemplatesPanel",
+            "debug_toolbar.panels.cache.CachePanel",
+            "debug_toolbar.panels.signals.SignalsPanel",
+            "debug_toolbar.panels.logging.LoggingPanel",
+            "debug_toolbar.panels.redirects.RedirectsPanel",
+            "debug_toolbar.panels.profiling.ProfilingPanel",
         },
         # "RENDER_PANELS": True,
         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
@@ -148,8 +148,7 @@ ALLOWED_HOSTS = os.environ.get(
 ).split(";")
 
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
-    CORS_ALLOWED_ORIGINS = os.environ.get(
-        "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+    CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(";")
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -375,7 +374,7 @@ MAPSERVER_URL = os.environ.get("MAPSERVER_URL")
 MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get(
     "MAPSERVER_SECURITY_MASK_FILE_PATH"
 )  # path on the machine which provides the mapserver service
-MAPSERVER_SECURITY_MASK_TABLE = "registry_allowedoperation"
+MAPSERVER_SECURITY_MASK_TABLE = "registry_allowedwebmapserviceoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
@@ -393,8 +392,7 @@ ERROR_MASK_TXT = (
 ################################################################
 ROOT_LOGGER = logging.getLogger("MrMap.root")
 
-LOG_DIR = os.environ.get(
-    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
+LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
@@ -453,8 +451,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework_json_api.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework_json_api.parsers.JSONParser",
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser'
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
     ),
     "DEFAULT_RENDERER_CLASSES": (
         "rest_framework_json_api.renderers.JSONRenderer",

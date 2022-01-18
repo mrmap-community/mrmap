@@ -21,6 +21,10 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+  mapserver:
+    ports:
+      - "8090:80"
+
   pre-commit-check:
     build:
       context: ./backend
@@ -53,7 +57,7 @@ services:
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
       /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap'
-      /opt/mrmap/manage.py behave --noinput --tags=-skip --no-skipped
+      /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped
       tests/behave/api/features && python -m coverage xml -i -o
       acceptance-tests-coverage-report.xml"
     hostname: "mrmap-behave"
@@ -100,6 +104,7 @@ services:
     depends_on:
       - postgis
       - redis
+      - mapserver
 
   backend:
     build:

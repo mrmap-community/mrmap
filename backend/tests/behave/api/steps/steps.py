@@ -1,13 +1,17 @@
 import json
 from unittest.mock import Mock, patch
 
+from accounts.models.users import User
 from behave import given, step, then
 from rest_framework.authtoken.models import Token
 
 
 @step('I am logged in as {username} with password {password}')
 def step_impl(context, username, password):
-    context.client.login(username=username, password=password)
+    success = context.client.login(username=username, password=password)
+    if not success:
+        raise Exception(
+            f"can't log in user {username} with password {password}")
 
 
 @step('I logout the current user')
@@ -48,7 +52,6 @@ def step_impl(context, content_type):
 
 @step('I send the request with GET method')
 def step_impl(context):
-    print(context.query_params)
     context.response = context.client.get(
         path=context.endpoint,
         data=context.query_params or None)

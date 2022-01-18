@@ -1,9 +1,11 @@
 from django.contrib.auth.models import Group
+from django.db.models.query import Prefetch
 from extras.serializers import ObjectPermissionCheckerSerializer
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
                                       WebMapServiceOperation)
+from registry.models.service import Layer
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
@@ -49,15 +51,29 @@ class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer,
         data = super().validate(attrs)
         secured_layers = attrs.get('secured_layers', None)
         if secured_layers:
+            secured_layer_pks = [
+                secured_layer.pk for secured_layer in secured_layers]
+            prefetch_children = Prefetch(
+                "children",
+                queryset=Layer.objects.only(
+                    "id",
+                    "service_id",
+                    "parent_id",
+                    "tree_id",
+                    "lft"),
+                to_attr="descendant_pks"
+            )
+            _secured_layers = Layer.objects.filter(
+                pk__in=secured_layer_pks).prefetch_related(prefetch_children)
+
             secured_layers_pk = set(
-                [secured_layer.pk for secured_layer in secured_layers])
-            # TODO: let the database evaluate this...
-            for secured_layer in secured_layers:
+                [secured_layer.pk for secured_layer in _secured_layers])
+            for secured_layer in _secured_layers:
                 descendant_pks = set(
-                    secured_layer.get_descendants().values_list('id', flat=True))
+                    [descendant.pk for descendant in secured_layer.descendant_pks])
                 if not descendant_pks.issubset(secured_layers_pk):
                     raise ValidationError(
-                        'Incomplete subtree selection is not allowed.')
+                        {'secured_layers': 'Incomplete subtree selection is not allowed.'})
 
         return data
 

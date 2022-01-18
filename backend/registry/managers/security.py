@@ -16,7 +16,7 @@ from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
 class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
-    def filter_qs_by_secured_element(self, request):
+    def filter_by_layers(self, request):
         dummy_service = WebService.manufacture_service(request.get_full_path())
         layer_identifiers = dummy_service.get_requested_layers(
             query_params=request.query_parameters
@@ -26,19 +26,19 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             % f"({'|'.join(layer_identifiers)})"
         )
 
-    def find_all_allowed_areas_by_request(self, service_pk, request: HttpRequest):
+    def get_allowed_areas(self, service_pk, request: HttpRequest):
         return (
             self.filter(secured_service__pk=service_pk,
                         allowed_area__isnull=False)
-            .filter_qs_by_secured_element(request=request)
+            .filter_by_layers(request=request)
             .for_user(service_pk=service_pk, request=request)
         )
 
-    def find_all_empty_allowed_areas_by_request(self, service_pk, request: HttpRequest):
+    def get_empty_allowed_areas(self, service_pk, request: HttpRequest):
         return (
             self.filter(secured_service__pk=service_pk,
                         allowed_area__isnull=True)
-            .filter_qs_by_secured_element(request=request)
+            .filter_by_layers(request=request)
             .for_user(service_pk=service_pk, request=request)
         )
 
@@ -48,12 +48,12 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
     def is_spatial_secured(self, service_pk, request: HttpRequest) -> ExpressionWrapper:
         return ExpressionWrapper(
             Exists(
-                self.find_all_allowed_areas_by_request(
+                self.get_allowed_areas(
                     service_pk=service_pk, request=request
                 )
             )
             and ~Exists(
-                self.find_all_empty_allowed_areas_by_request(
+                self.get_empty_allowed_areas(
                     service_pk=service_pk, request=request
                 )
             ),
@@ -100,10 +100,6 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
         if request.user.is_superuser:
             return Value(True)
         return Exists(self.for_user(service_pk=service_pk, request=request))
-
-    def get_allowed_areas(self, service_pk, request: HttpRequest) -> QuerySet:
-        return self.find_all_allowed_areas_by_request(
-            service_pk=service_pk, request=request)
 
 
 class WebMapServiceOperationUrlQuerySet(models.QuerySet):
@@ -208,6 +204,9 @@ class WebMapServiceSecurityManager(models.Manager):
                     allowed_area_pks=self.get_allowed_operation_qs().get_allowed_areas(
                         service_pk=OuterRef("pk"), request=request
                     ).values('secured_service__pk').annotate(pks=ArrayAgg('pk')).values('pks'),
+                    allowed_layers=self.get_allowed_operation_qs().get_allowed_areas(
+                        service_pk=OuterRef("pk"), request=request
+                    ).values('secured_service__pk').annotate(layer_identifiers=ArrayAgg('secured_layers__identifier')).values('layer_identifiers'),
                     base_operation_url=self.get_operation_url_qs().get_base_url(
                         service_pk=OuterRef("pk"), request=request
                     ),

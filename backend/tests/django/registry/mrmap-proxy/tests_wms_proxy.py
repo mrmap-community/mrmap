@@ -129,11 +129,7 @@ class WebMapServiceProxyTest(TestCase):
             self.wms_url,
             self.query_params
         )
-        f = open("response.png", "wb")
 
-        f.write(response.content)
-
-        f.close()
         self.assertEqual(200, response.status_code)
 
         received_image = Image.open(BytesIO(response.content))
@@ -179,3 +175,23 @@ class WebMapServiceProxyTest(TestCase):
                                             b'</ServiceExceptionReport>')
         self.assertEqual(etree.tostring(response_xml),
                          etree.tostring(expected_xml))
+
+    @patch.object(
+        target=WebMapServiceProxy,
+        attribute="get_remote_response",
+        side_effect=[REMOTE_RESPONSE],
+    )
+    @patch.object(
+        target=Registry,
+        attribute="coord_ref_system_export",
+        side_effect=[EPSG_API_25832_RESPONSE],
+    )
+    def test_successfully_request_as_anonymous_a_subtree(self, mocked_proxy, mocked_registry):
+        self.query_params.update({"LAYERS": "node1.1.1,node1.1.2,node1.1.3"})
+        response = self.client.get(
+            self.wms_url,
+            self.query_params
+        )
+
+        self.assertEqual(200, response.status_code)
+        # TODO: check the response picture

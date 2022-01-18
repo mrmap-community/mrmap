@@ -72,7 +72,8 @@ class WebMapServiceProxy(View):
         return self.get_and_post(request=request, *args, **kwargs)
 
     def check_request(self):
-        if 'request' not in self.request.query_parameters:
+        request_operation = self.request.query_parameters.get("request", None)
+        if not request_operation:
             return MissingRequestParameterException()
 
     def adjust_query_params(self):
@@ -396,6 +397,12 @@ class WebMapServiceProxy(View):
 
         if self.service.is_unknown_layer:
             return LayerNotDefined()
+        layer_identifiers = set(self.remote_service.get_requested_layers(
+            query_params=self.request.query_parameters
+        ))
+        allowed_layers = set(self.service.allowed_layers)
+        if not layer_identifiers.issubset(allowed_layers):
+            return ForbiddenException()
 
         # we fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the

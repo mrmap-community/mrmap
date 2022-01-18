@@ -1,4 +1,5 @@
 from django.contrib.auth.models import Group
+from extras.serializers import ObjectPermissionCheckerSerializer
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
@@ -30,7 +31,7 @@ class WebFeatureServiceOperationSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class AllowedWebMapServiceOperationSerializer(ModelSerializer):
+class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer, ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:allowedwmsoperation-detail',
     )
@@ -61,7 +62,7 @@ class AllowedWebMapServiceOperationSerializer(ModelSerializer):
         return data
 
 
-class AllowedWebFeatureServiceOperationSerializer(ModelSerializer):
+class AllowedWebFeatureServiceOperationSerializer(ObjectPermissionCheckerSerializer, ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:allowedwfsoperation-detail',
     )

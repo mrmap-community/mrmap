@@ -29,7 +29,7 @@ from registry.enums.service import OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import WebMapService
 from registry.proxy.ogc_exceptions import (DisabledException,
-                                           ForbiddenException,
+                                           ForbiddenException, LayerNotDefined,
                                            MissingRequestParameterException,
                                            MissingVersionParameterException)
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
@@ -393,6 +393,10 @@ class WebMapServiceProxy(View):
         #             "content-type": "image/png"
         #         }
         #     )
+
+        if self.service.is_unknown_layer:
+            return LayerNotDefined()
+
         # we fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the
         # mask are generated at the same time. This speed up the process by ~30%!

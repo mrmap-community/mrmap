@@ -123,6 +123,13 @@ class WebMapServiceOperationUrlQuerySet(models.QuerySet):
 
 class WebMapServiceSecurityManager(models.Manager):
 
+    def is_unknown_layer(self, service_pk, request: HttpRequest) -> QuerySet:
+        dummy_service = WebService.manufacture_service(request.get_full_path())
+        layer_identifiers = dummy_service.get_requested_layers(
+            query_params=request.query_parameters
+        )
+        return ~Exists(self.filter(pk=service_pk, layer__identifier__in=layer_identifiers))
+
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
         from registry.models.security import \
             AllowedWebMapServiceOperation  # to avoid circular import
@@ -178,6 +185,8 @@ class WebMapServiceSecurityManager(models.Manager):
                         F("proxy_setting__camouflage"), V(False)),
                     log_response=Coalesce(
                         F("proxy_setting__log_response"), V(False)),
+                    is_unknown_layer=self.is_unknown_layer(
+                        service_pk=OuterRef("pk"), request=request),
                     is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
                         service_pk=OuterRef("pk"), request=request
                     ),

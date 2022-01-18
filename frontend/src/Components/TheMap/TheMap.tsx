@@ -12,11 +12,9 @@ import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
 import React, { useEffect, useState } from 'react';
 import { LayerUtils } from '../../Utils/LayerUtils';
-import { MapUtils } from '../../Utils/MapUtils';
 import './TheMap.css';
 
 const layerUtils = new LayerUtils();
-const mapUtils = new MapUtils();
 
 // TODO: Should be in a separate component or helper
 const layerGroup = new LayerGroup({

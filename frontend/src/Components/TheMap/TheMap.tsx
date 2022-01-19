@@ -46,7 +46,6 @@ const olListenerKeys: (OlEventsKey[]) = [];
 export const TheMap = (): JSX.Element => {
   const map = useMap();
 
-  //eslint-disable-next-line
   const [coordinates, setCoordinates] = useState<any>();
   
   const registerMapClickListener = (_olMap: OlMap, _overlay?: Overlay) => {
@@ -55,15 +54,15 @@ export const TheMap = (): JSX.Element => {
     if(_overlay) {
       const onShowInfoPopUpOnCoordinateClickListener = _olMap
         .on('singleclick', async (event) => {
+          setCoordinates('');
           const coordinate = event.coordinate;
           const featureInfo = layerUtils.getFeatureAttributes(_olMap, event);
           _overlay.setPosition(coordinate);
           try {
             const result = await featureInfo;
             if(result) {
-              // Object.keys(result).forEach(((key:any) => {
-
-              // })
+              const cena = Object.keys(result).map((key:any) => (`${key}: ${result[key]}`));
+              setCoordinates(cena.join('\n'));
             }
           } catch(error) {
             //@ts-ignore

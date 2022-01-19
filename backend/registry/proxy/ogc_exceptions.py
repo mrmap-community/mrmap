@@ -65,3 +65,14 @@ class OperationNotSupportedException(OGCServiceException):
 
     def get_message(self):
         return f"No such operation: {self.get_locator()}"
+
+
+class LayerNotDefined(OGCServiceException):
+    code = "LayerNotDefined"
+    message = "unknown layer"
+    locator = "LAYERS"
+
+
+class RuntimeError(OGCServiceException):
+    code = "RuntimeError"
+    message = "Something unexpected did occur. Please contact the service provider."

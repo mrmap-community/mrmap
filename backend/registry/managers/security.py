@@ -9,6 +9,7 @@ from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
 from django.db.models import Value as V
 from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
+from django.db.models.query_utils import Q
 from django.http import HttpRequest
 from ows_client.request_builder import WebService
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
@@ -16,29 +17,33 @@ from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
 class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
-    def filter_qs_by_secured_element(self, request):
+    def filter_by_layers(self, request):
         dummy_service = WebService.manufacture_service(request.get_full_path())
         layer_identifiers = dummy_service.get_requested_layers(
             query_params=request.query_parameters
         )
-        return self.filter(
-            secured_layers__identifier__iregex=r"%s"
-            % f"({'|'.join(layer_identifiers)})"
-        )
+        query = None
+        for identifier in layer_identifiers:
+            _query = Q(secured_layers__identifier__iexact=identifier)
+            if query:
+                query &= _query
+            else:
+                query = _query
+        return self.filter(query)
 
-    def find_all_allowed_areas_by_request(self, service_pk, request: HttpRequest):
+    def get_allowed_areas(self, service_pk, request: HttpRequest):
         return (
             self.filter(secured_service__pk=service_pk,
                         allowed_area__isnull=False)
-            .filter_qs_by_secured_element(request=request)
+            .filter_by_layers(request=request)
             .for_user(service_pk=service_pk, request=request)
         )
 
-    def find_all_empty_allowed_areas_by_request(self, service_pk, request: HttpRequest):
+    def get_empty_allowed_areas(self, service_pk, request: HttpRequest):
         return (
             self.filter(secured_service__pk=service_pk,
                         allowed_area__isnull=True)
-            .filter_qs_by_secured_element(request=request)
+            .filter_by_layers(request=request)
             .for_user(service_pk=service_pk, request=request)
         )
 
@@ -48,12 +53,12 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
     def is_spatial_secured(self, service_pk, request: HttpRequest) -> ExpressionWrapper:
         return ExpressionWrapper(
             Exists(
-                self.find_all_allowed_areas_by_request(
+                self.get_allowed_areas(
                     service_pk=service_pk, request=request
                 )
             )
             and ~Exists(
-                self.find_all_empty_allowed_areas_by_request(
+                self.get_empty_allowed_areas(
                     service_pk=service_pk, request=request
                 )
             ),
@@ -84,7 +89,7 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             allowed_groups=None,
             operations__operation__iexact=request.query_parameters.get(
                 "request"),
-        ) | self.filter(
+        ).filter_by_layers(request=request) | self.filter(
             secured_service__pk=service_pk,
             allowed_groups__pk__in=Group.objects.filter(
                 user__username="AnonymouseUser"
@@ -93,17 +98,13 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             else request.user.groups.values_list("pk", flat=True),
             operations__operation__iexact=request.query_parameters.get(
                 "request"),
-        )
+        ).filter_by_layers(request=request)
 
     def is_user_entitled(self, service_pk, request: HttpRequest) -> Exists:
         """checks if the user of the request is member of any AllowedOperation object"""
         if request.user.is_superuser:
             return Value(True)
         return Exists(self.for_user(service_pk=service_pk, request=request))
-
-    def get_allowed_areas(self, service_pk, request: HttpRequest) -> QuerySet:
-        return self.find_all_allowed_areas_by_request(
-            service_pk=service_pk, request=request)
 
 
 class WebMapServiceOperationUrlQuerySet(models.QuerySet):
@@ -122,6 +123,13 @@ class WebMapServiceOperationUrlQuerySet(models.QuerySet):
 
 
 class WebMapServiceSecurityManager(models.Manager):
+
+    def is_unknown_layer(self, service_pk, request: HttpRequest) -> QuerySet:
+        dummy_service = WebService.manufacture_service(request.get_full_path())
+        layer_identifiers = dummy_service.get_requested_layers(
+            query_params=request.query_parameters
+        )
+        return ~Exists(self.filter(pk=service_pk, layer__identifier__in=layer_identifiers))
 
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
         from registry.models.security import \
@@ -178,6 +186,8 @@ class WebMapServiceSecurityManager(models.Manager):
                         F("proxy_setting__camouflage"), V(False)),
                     log_response=Coalesce(
                         F("proxy_setting__log_response"), V(False)),
+                    is_unknown_layer=self.is_unknown_layer(
+                        service_pk=OuterRef("pk"), request=request),
                     is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
                         service_pk=OuterRef("pk"), request=request
                     ),

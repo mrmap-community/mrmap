@@ -12,6 +12,7 @@ import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
 import React, { useEffect, useState } from 'react';
 import { LayerUtils } from '../../Utils/LayerUtils';
+import { LayerManager } from '../LayerManager/LayerManager';
 import './TheMap.css';
 
 const layerUtils = new LayerUtils();
@@ -39,7 +40,20 @@ export const olMap = new OlMap({
   layers: [layerGroup]
 });
 
-
+const FeatureInfoPopUp = ({ info }: {info: any}): JSX.Element => (
+  <div id='popup' className='ol-popup'>
+    <Button
+      id='popup-close'
+      type='link'
+      icon={<CloseOutlined />}
+      size='small'
+    />
+  
+    <div id='popup-content'>
+      {info}
+    </div>
+  </div>
+);
 
 const olListenerKeys: (OlEventsKey[]) = [];
 
@@ -47,8 +61,11 @@ export const TheMap = (): JSX.Element => {
   const map = useMap();
 
   const [coordinates, setCoordinates] = useState<any>();
+  const [isLayerManagerVisible, setIsLayerManagerVisible] = useState<any>(false);
   
   const registerMapClickListener = (_olMap: OlMap, _overlay?: Overlay) => {
+    const mapSizeChange = _olMap
+      .on('change:size', (event) => console.log(event));
     const getFeatureAttributesClickEventKey = _olMap
       .on('singleclick', (event) => layerUtils.getFeatureAttributes(_olMap, event));
     if(_overlay) {
@@ -73,6 +90,7 @@ export const TheMap = (): JSX.Element => {
       olListenerKeys.push(onShowInfoPopUpOnCoordinateClickListener);
     }
     olListenerKeys.push(getFeatureAttributesClickEventKey);
+    olListenerKeys.push(mapSizeChange);
   };
 
   useEffect(() => {    
@@ -109,23 +127,13 @@ export const TheMap = (): JSX.Element => {
   }, [map]);
 
   return (
-    <>
+    <div className='the-map-container'>
+      <LayerManager/>
       <MapComponent
         id='the-map'
         map={map}
-      />
-      <div id='popup' className='ol-popup'>
-        <Button
-          id='popup-close'
-          type='link'
-          icon={<CloseOutlined />}
-          size='small'
-        />
-  
-        <div id='popup-content'>
-          {coordinates}
-        </div>
-      </div>
-    </>
+      />  
+      <FeatureInfoPopUp info={coordinates} />
+    </div>
   );
 };

@@ -1,18 +1,19 @@
-.Map {
-  position: relative;
+.the-map-container {
+  display:flex;
   height: 100%;
   width: 100%;
+  position: relative;
 }
   
-.Map #the-map {
+#the-map {
   height: 100%;
   width: 100%;
 }
 
-.ol-zoom {
+/* .ol-zoom {
   top: unset;
   bottom: 0.5em;
-}
+} */
 
 .ol-popup {
   position: absolute;

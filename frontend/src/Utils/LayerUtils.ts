@@ -7,7 +7,7 @@ import OlMap from 'ol/Map';
 import OlMapBrowserEvent from 'ol/MapBrowserEvent';
 import * as olProj from 'ol/proj';
 import ImageWMS from "ol/source/ImageWMS";
-import { CreateLayerOpts } from "../Components/LayerTree/LayerTreeTypes";
+import { CreateLayerOpts } from "../Components/LayerManager/LayerManagerTypes";
 
 export class LayerUtils {
     

@@ -21,7 +21,7 @@ export interface CreateLayerOpts {
   extent?: any[]
 }
 
-export interface LayerTreeProps {
+export interface LayerManagerProps {
   // map: OlMap
   layerGroup?: LayerGroup;
   asyncTree?: boolean;

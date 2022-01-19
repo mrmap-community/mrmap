@@ -635,7 +635,7 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
   }, [nodeNameTextInput, isEditingNodeName]);
 
   return (
-    <>
+    <div className='tree-form-field'>
       <div 
         className='tree-form-field-title'
       >
@@ -656,7 +656,7 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
       <Tree
         checkedKeys={checkedKeys}
         checkable={checkableNodes}
-        className='tree-form-field'
+        className='tree-form-field-tree'
         draggable={draggable}
         showIcon
         defaultExpandAll
@@ -716,6 +716,6 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
         {clonedNodeAttributeForm(selectedNode)}
       </Drawer>
       )}
-    </>
+    </div>
   );
 };

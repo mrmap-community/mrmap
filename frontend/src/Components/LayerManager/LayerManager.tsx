@@ -1,6 +1,7 @@
 import { ExpandOutlined } from '@ant-design/icons/lib/icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMap } from '@terrestris/react-geo';
-import { Menu } from 'antd';
+import { Button, Menu, Tooltip } from 'antd';
 import { Key } from 'antd/lib/table/interface';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
@@ -14,7 +15,9 @@ import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { TreeFormField } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
-import { LayerTreeProps } from './LayerTreeTypes';
+import './LayerManager.css';
+import { LayerManagerProps } from './LayerManagerTypes';
+
 
 const treeUtils =  new TreeUtils();
 const layerUtils =  new LayerUtils();
@@ -28,8 +31,7 @@ const layerTreeLayerGroup = new LayerGroup({
   layers: []
 });
 
-export const LayerTree = ({
-  // map,
+export const LayerManager = ({
   layerGroup = layerTreeLayerGroup,
   asyncTree = false,
   addLayerDispatchAction = () => undefined,
@@ -38,13 +40,18 @@ export const LayerTree = ({
   dragLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   layerAttributeForm,
-}: LayerTreeProps): JSX.Element => {
+}: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
   // The tree form field component handles generic logic for a tree, not for the layers or interaction with map.
   // Only change it if you detect aa bug thaat could be traced baack deep to the tree form field
   const map = useMap();
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
+  const [isTreeContainerVisible, setIsTreeContainerVisible] = useState<boolean>(true); 
+
+  useEffect(() => {
+    map.updateSize();  
+  },[isTreeContainerVisible, map]);
   
   useEffect(() => {
     const onLayerGroupChange = (e:any) => {
@@ -170,22 +177,41 @@ export const LayerTree = ({
   };
 
   return (
-    <TreeFormField
-      title='Layers'
-      treeData={treeData}
-      asyncTree={asyncTree}
-      addNodeDispatchAction={addLayerDispatchAction}
-      removeNodeDispatchAction={removeLayerDispatchAction}
-      editNodeDispatchAction={editLayerDispatchAction}
-      dragNodeDispatchAction={dragLayerDispatchAction}
-      checkNodeDispacthAction={onCheckLayer}
-      selectNodeDispatchAction={selectLayerDispatchAction}
-      draggable
-      nodeAttributeForm={layerAttributeForm}
-      attributeContainer='drawer'
-      contextMenuOnNode
-      checkableNodes
-      extendedNodeActions={layerActions}
-    />
+    <div className='layer-manager'>
+      <Tooltip
+        title={isTreeContainerVisible ? 'Hide layer manager' : 'Show layer manager'}
+      >
+      <Button
+          className={`layer-manager-toggle${isTreeContainerVisible ? '-expanded' : '-collapsed'}`}
+          type='primary' 
+          icon={(
+            <FontAwesomeIcon 
+              icon={['fas', isTreeContainerVisible ? 'angle-double-left' : 'angle-double-right']} 
+            />
+          )} 
+          // size='large'
+          onClick={() => setIsTreeContainerVisible(!isTreeContainerVisible)}
+        />
+      </Tooltip>
+      {isTreeContainerVisible && (
+        <TreeFormField
+          title='Layers'
+          treeData={treeData}
+          asyncTree={asyncTree}
+          addNodeDispatchAction={addLayerDispatchAction}
+          removeNodeDispatchAction={removeLayerDispatchAction}
+          editNodeDispatchAction={editLayerDispatchAction}
+          dragNodeDispatchAction={dragLayerDispatchAction}
+          checkNodeDispacthAction={onCheckLayer}
+          selectNodeDispatchAction={selectLayerDispatchAction}
+          draggable
+          nodeAttributeForm={layerAttributeForm}
+          attributeContainer='drawer'
+          contextMenuOnNode
+          checkableNodes
+          extendedNodeActions={layerActions}
+        />
+      )}
+    </div>
   );
 };

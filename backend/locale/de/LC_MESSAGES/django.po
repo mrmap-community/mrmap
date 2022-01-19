@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-01-18 16:05+0100\n"
+"POT-Creation-Date: 2022-01-19 13:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -104,7 +104,8 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:91 registry/models/security.py:236
+#: accounts/models/groups.py:91 registry/models/mapcontext.py:59
+#: registry/models/security.py:236
 #, fuzzy
 #| msgid "Description"
 msgid "description"
@@ -251,8 +252,8 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/mapcontext.py:18 registry/models/mapcontext.py:59
-#: registry/models/metadata.py:52 registry/models/metadata.py:352
+#: registry/models/mapcontext.py:18 registry/models/metadata.py:52
+#: registry/models/metadata.py:352
 #, fuzzy
 #| msgid "Title"
 msgid "title"
@@ -284,7 +285,9 @@ msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
 #: registry/models/mapcontext.py:60
-msgid "a short descriptive title for this map context layer"
+#, fuzzy
+#| msgid "a short descriptive title for this map context layer"
+msgid "a short description for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
 #: registry/models/mapcontext.py:65

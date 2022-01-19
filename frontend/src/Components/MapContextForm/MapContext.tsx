@@ -2,11 +2,8 @@ import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
 import { Button, notification, Steps } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
-import LayerGroup, { default as OlLayerGroup } from 'ol/layer/Group';
-import ImageLayer from 'ol/layer/Image';
-import Layer from 'ol/layer/Layer';
+import { default as OlLayerGroup } from 'ol/layer/Group';
 import { transformExtent } from 'ol/proj';
-import ImageWMS from 'ol/source/ImageWMS';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
@@ -15,14 +12,12 @@ import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
-import { LayerTree } from '../LayerTree/LayerTree';
-import { CreateLayerOpts } from '../LayerTree/LayerTreeTypes';
+import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
 import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
 import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
 import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
-import { MapContextLayerForm } from './MapContextLayerForm';
 
 
 const mapContextRepo = new MapContextRepo();
@@ -258,12 +253,11 @@ export const MapContext = (): ReactElement => {
       title: 'Map Context Layers',
       content: (
         <>
-        <ReactGeoMapContext.Provider value={olMap}></ReactGeoMapContext.Provider>
-          <div className='Map'>
+          {/* <div className='Map'> */}
             <ReactGeoMapContext.Provider value={olMap}>
               <TheMap />
-            <div className='layer-section'>
-              <LayerTree
+            {/* <div className='layer-section'> */}
+              {/* <LayerManager
                 // map={olMap}
                 layerGroup={mapContextLayersGroup}
                 asyncTree
@@ -404,10 +398,10 @@ export const MapContext = (): ReactElement => {
                   return await mapContextLayerRepo?.move(dragKey, dropKey, position);
                 }}
                 layerAttributeForm={(<MapContextLayerForm form={form}/>)}
-              />
-            </div>
+              /> */}
+            {/* </div> */}
             </ReactGeoMapContext.Provider>
-          </div>
+          {/* </div> */}
 
           <SearchDrawer addDatasetToMapAction={onAddDatasetToMapAction}/>
 

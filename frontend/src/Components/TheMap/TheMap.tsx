@@ -46,6 +46,7 @@ const olListenerKeys: (OlEventsKey[]) = [];
 export const TheMap = (): JSX.Element => {
   const map = useMap();
 
+  // eslint-disable-next-line
   const [coordinates, setCoordinates] = useState<any>();
   
   const registerMapClickListener = (_olMap: OlMap, _overlay?: Overlay) => {

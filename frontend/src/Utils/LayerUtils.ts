@@ -185,7 +185,6 @@ export class LayerUtils {
     fc.forEach((feature: any) => {
       if (Object.getOwnPropertyNames(feature).length > 0) {
         // TODO where to render the properties?
-        console.log(feature.getProperties());
         result = feature.getProperties();
       } else{
         result = 'not found';

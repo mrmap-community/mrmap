@@ -14,7 +14,8 @@ from registry.models.service import WebMapService
 @shared_task(bind=True,
              base=CurrentUserTaskMixin)
 def run_web_map_service_monitoring(self, service_pk, check_layers: bool = True, *args, **kwargs):
-
+    print('inside task')
+    print(self.request.id)
     wms = WebMapService.objects.get(pk=service_pk)
     monitoring_run: WebMapServiceMonitoringRun = WebMapServiceMonitoringRun.objects.create(
         task_result=TaskResult.objects.get(task_id=self.request.id),

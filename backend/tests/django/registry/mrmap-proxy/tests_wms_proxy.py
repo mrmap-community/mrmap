@@ -8,6 +8,7 @@ from axis_order_cache.registry import Registry
 from django.core.management import call_command
 from django.db.models.query_utils import Q
 from django.test import Client, TestCase
+from lxml import etree, objectify
 from PIL import Image, ImageChops
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import WebMapService
@@ -72,6 +73,20 @@ class WebMapServiceProxyTest(TestCase):
 
     def setUp(self):
         self.client = Client()
+        self.wms_url = "/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+        self.query_params = {
+            "VERSION": "1.3.0",
+            "REQUEST": "GetMap",
+            "SERVICE": "WMS",
+            "STYLES": "",
+            "CRS": "EPSG:25832",
+            "BBOX": "393340,5574710,405660,5581190",
+            "WIDTH": "1563",
+            "HEIGHT": "920",
+            "FORMAT": "image/png",
+            "BGCOLOR": "0xffffff",
+            "TRANSPARENT": "TRUE"
+        }
 
     def are_images_equal(self, img1, img2):
         equal_size = img1.height == img2.height and img1.width == img2.width
@@ -101,16 +116,18 @@ class WebMapServiceProxyTest(TestCase):
         attribute="coord_ref_system_export",
         side_effect=[EPSG_API_25832_RESPONSE],
     )
-    def test_success(self, mocked_proxy, mocked_registry):
+    def test_matching_secured_map(self, mocked_proxy, mocked_registry):
         expected_png_path = Path(
             Path.joinpath(
                 Path(__file__).parent.resolve(),
                 "../../test_data/expected_karte_rp.fcgi.png",
             )
         )
-
+        self.client.login(username="User1", password="User1")
+        self.query_params.update({"LAYERS": "node1"})
         response = self.client.get(
-            "/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3?map=/etc/mapserver/security_mask_test_db.map&VERSION=1.3.0&REQUEST=GetMap&SERVICE=WMS&LAYERS=node1&STYLES=&CRS=EPSG:25832&BBOX=393340,5574710,405660,5581190&WIDTH=1563&HEIGHT=920&FORMAT=image/png&BGCOLOR=0xffffff&TRANSPARENT=TRUE"
+            self.wms_url,
+            self.query_params
         )
 
         self.assertEqual(200, response.status_code)
@@ -119,3 +136,62 @@ class WebMapServiceProxyTest(TestCase):
         expected_image = Image.open(fp=expected_png_path)
 
         self.assertTrue(self.are_images_equal(received_image, expected_image))
+
+    def test_unknown_layer_exception(self):
+        self.client.login(username="User1", password="User1")
+        self.query_params.update({"LAYERS": "qwertz"})
+        response = self.client.get(
+            self.wms_url,
+            self.query_params
+        )
+
+        self.assertEqual(200, response.status_code)
+
+        response_xml = objectify.fromstring(response.content)
+        expected_xml = objectify.fromstring(b'<?xml version="1.0" encoding="UTF-8"?>'
+                                            b'<ServiceExceptionReport version="1.3.0" xmlns="http://www.opengis.net/ogc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ogc">'
+                                            b'<ServiceException code="LayerNotDefined" locator="LAYERS">'
+                                            b'unknown layer'
+                                            b'</ServiceException>'
+                                            b'</ServiceExceptionReport>')
+        self.assertEqual(etree.tostring(response_xml),
+                         etree.tostring(expected_xml))
+
+    def test_forbidden_exception_if_one_requested_layer_is_not_enabled(self):
+        self.query_params.update({"LAYERS": "node1"})
+        response = self.client.get(
+            self.wms_url,
+            self.query_params
+        )
+
+        self.assertEqual(200, response.status_code)
+
+        response_xml = objectify.fromstring(response.content)
+        expected_xml = objectify.fromstring(b'<?xml version="1.0" encoding="UTF-8"?>'
+                                            b'<ServiceExceptionReport version="1.3.0" xmlns="http://www.opengis.net/ogc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ogc">'
+                                            b'<ServiceException code="Forbidden">'
+                                            b'The requesting user has no permissions to access the service.'
+                                            b'</ServiceException>'
+                                            b'</ServiceExceptionReport>')
+        self.assertEqual(etree.tostring(response_xml),
+                         etree.tostring(expected_xml))
+
+    @patch.object(
+        target=WebMapServiceProxy,
+        attribute="get_remote_response",
+        side_effect=[REMOTE_RESPONSE],
+    )
+    @patch.object(
+        target=Registry,
+        attribute="coord_ref_system_export",
+        side_effect=[EPSG_API_25832_RESPONSE],
+    )
+    def test_successfully_request_as_anonymous_a_subtree(self, mocked_proxy, mocked_registry):
+        self.query_params.update({"LAYERS": "node1.1.1,node1.1.2,node1.1.3"})
+        response = self.client.get(
+            self.wms_url,
+            self.query_params
+        )
+
+        self.assertEqual(200, response.status_code)
+        # TODO: check the response picture

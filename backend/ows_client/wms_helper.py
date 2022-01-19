@@ -7,13 +7,12 @@ Created on: 26.02.2020
 """
 from registry.enums.service import (OGCOperationEnum, OGCServiceEnum,
                                     OGCServiceVersionEnum)
-from registry.models import Service
 
 from .url_helper import UrlHelper
 
 
 class WmsHelper:
-    def __init__(self, service: Service):
+    def __init__(self, service):
         self.service = service
         self.parent_service = service
 

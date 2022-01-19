@@ -1,414 +1,442 @@
-# """
-# Author: Jan Suleiman
-# Organization: terrestris GmbH & Co. KG, Bonn, Germany
-# Contact: suleiman@terrestris.de
-# Created on: 26.02.2020
+import difflib
+import hashlib
+from io import BytesIO
 
-# """
-# from itertools import chain
-
-# from django.conf import settings
-# from django.contrib.gis.db import models
-# from django.core.exceptions import ValidationError
-# from django.core.validators import MaxValueValidator, MinValueValidator
-# from django.db import transaction
-# from django.utils import timezone
-# from django.utils.translation import gettext_lazy as _
-# from django_celery_beat.models import PeriodicTask, CrontabSchedule
-
-# from MrMap.settings import TIME_ZONE
-# from extras.models import CommonInfo, GenericModelMixin
-# from extras.polymorphic_fk import PolymorphicForeignKey
-# # TODO is this class effectively used for any functionality? Can it be removed?
-# from registry.enums.monitoring import HealthStateEnum
-# from registry.settings import MONITORING_DEFAULT_UNKNOWN_MESSAGE, CRITICAL_RESPONSE_TIME, WARNING_RESPONSE_TIME
+from django.contrib.gis.db import models
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django_celery_results.models import TaskResult
+from lxml import etree
+from lxml.etree import XMLSyntaxError
+from ows_client.wfs_helper import WfsHelper
+from ows_client.wms_helper import WmsHelper
+from PIL import Image, UnidentifiedImageError
+from registry.enums.service import OGCServiceVersionEnum
+from registry.models.metadata import DatasetMetadata
+from registry.models.service import WebFeatureService, WebMapService
+from registry.settings import MONITORING_REQUEST_TIMEOUT
+from requests.models import Request
+from requests.sessions import Session
 
 
-# class MonitoringSetting(models.Model):
-#     # TODO other resource types
-#     metadatas = models.ManyToManyField('registry.Service',
-#                                        related_name='monitoring_setting')
-#     check_time = models.TimeField()
-#     timeout = models.IntegerField()
-#     periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
+class MonitoringRun(models.Model):
+    task_result: TaskResult = models.OneToOneField(
+        to=TaskResult,
+        on_delete=models.CASCADE)
 
-#     def update_periodic_tasks(self):
-#         """ Updates related PeriodicTask record based on the current MonitoringSetting
-
-#         Returns:
-
-#         """
-#         time = self.check_time
-#         schedule = CrontabSchedule.objects.get_or_create(
-#             minute=time.minute,
-#             hour=time.hour,
-#             timezone=TIME_ZONE,
-#         )[0]
-
-#         if self.periodic_task is not None:
-#             # Update interval to latest setting
-#             self.periodic_task.crontab = schedule
-#             self.periodic_task.save()
-#         else:
-#             # Create new PeriodicTask
-#             try:
-#                 task = PeriodicTask.objects.get_or_create(
-#                     task='run_service_monitoring',
-#                     name=f'monitoring_setting_{self.id}',
-#                     args=f'[{self.id}]'
-#                 )[0]
-#                 task.crontab = schedule
-#                 task.save()
-#                 self.periodic_task = task
-#             except ValidationError:
-#                 pass
-
-#     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-#         """ Overwrites default save method.
-
-#         Updates related PeriodicTask to match the current state of MonitoringSetting.
-
-#         Args:
-#             force_insert:
-#             force_update:
-#             using:
-#             update_fields:
-#         Returns:
-
-#         """
-#         self.update_periodic_tasks()
-#         super().save(force_insert, force_update, using, update_fields)
+    class Meta:
+        abstract = True
+        verbose_name = _('Monitoring result')
+        verbose_name_plural = _('Monitoring results')
 
 
-# class MonitoringRun(CommonInfo, GenericModelMixin):
-#     start = models.DateTimeField(null=True, blank=True)
-#     end = models.DateTimeField(null=True, blank=True)
-#     duration = models.DurationField(null=True, blank=True)
-#     services = models.ManyToManyField('registry.Service',
-#                                       related_name='monitoring_runs', blank=True,
-#                                       verbose_name=_('Checked services'))
-#     layers = models.ManyToManyField('registry.Layer',
-#                                     related_name='monitoring_runs', blank=True,
-#                                     verbose_name=_('Checked layers'))
-#     feature_types = models.ManyToManyField('registry.FeatureType',
-#                                            related_name='monitoring_runs', blank=True,
-#                                            verbose_name=_('Checked feature types'))
-#     dataset_metadatas = models.ManyToManyField('registry.DatasetMetadata',
-#                                                related_name='monitoring_runs', blank=True,
-#                                                verbose_name=_('Checked dataset metadatas'))
+class OGCServiceMonitoringRun(MonitoringRun):
+    needs_update: bool = models.BooleanField(default=False)
 
-#     class Meta:
-#         ordering = ["-end"]
-#         verbose_name = _('Monitoring run')
-#         verbose_name_plural = _('Monitoring runs')
+    class ServiceStatus:
+        """ Holds all required information about the service status.
 
-#     def __str__(self):
-#         return str(self.id)
+        Attributes:
+            monitored_uri (str): The used uri.
+            success (bool): Success of the status. Holds True if service received a success status, False otherwise.
+            status (int): The actual response status of the service.
+            message (str): The response text of the request.
+            duration (timedelta): The duration of the request.
+        """
 
-#     @property
-#     def resources_all(self):
-#         return list(
-#             chain(self.services.all(), self.layers.all(), self.feature_types.all(), self.dataset_metadatas.all()))
+        def __init__(self, uri: str, success: bool, message: str, status: int = None,
+                     duration: timezone.timedelta = None):
+            self.monitored_uri = uri
+            self.success = success
+            self.status = status
+            self.message = message
+            self.duration = duration
 
-#     @property
-#     def result_view_uri(self):
-#         return f"{MonitoringResult.get_table_url()}?monitoring_run={self.id}"
+    def check_service(self, url: str, *args, **kwargs):
+        """ Checks the status of a service and calls the appropriate handlers.
 
-#     @property
-#     def health_state_view_uri(self):
-#         return f"{HealthState.get_table_url()}?monitoring_run={self.id}"
+        Args:
+            url (str): URL of the service to check.
+        Returns:
+            nothing
+        """
+        service_status = self.check_status(url, *args, **kwargs)
+        if service_status.success is True:
+            self.handle_service_success(service_status)
+        else:
+            self.handle_service_error(service_status)
 
-#     def save(self, *args, **kwargs):
-#         adding = False
-#         if self._state.adding:
-#             adding = True
-#         super().save(*args, **kwargs)
-#         if adding:
-#             from registry.tasks.monitoring import run_manual_service_monitoring
-#             transaction.on_commit(lambda: run_manual_service_monitoring.apply_async(
-#                 args=(self.owner.pk if self.owner else None,
-#                       self.pk,),
-#                 kwargs={'created_by_user_pk': self.created_by_user.pk},
-#                 countdown=settings.CELERY_DEFAULT_COUNTDOWN))
+    def _get_session_for_request(self) -> Session:
+        raise NotImplementedError("Subclass needs to implement this method")
 
+    def check_get_capabilities(self, url: str):
+        """Handles the GetCapabilities checks.
 
-# class MonitoringResult(CommonInfo, GenericModelMixin):
-#     # polymorphic fk (either service, layer, feature type or dataset metadata)
-#     service = models.ForeignKey('registry.Service', on_delete=models.CASCADE, null=True, blank=True,
-#                                 verbose_name=_('Service'))
-#     layer = models.ForeignKey('registry.Layer', on_delete=models.CASCADE, null=True, blank=True,
-#                               verbose_name=_('Layer'))
-#     feature_type = models.ForeignKey('registry.FeatureType', on_delete=models.CASCADE, null=True, blank=True,
-#                                      verbose_name=_('Feature Type'))
-#     dataset_metadata = models.ForeignKey('registry.DatasetMetadata', on_delete=models.CASCADE, null=True, blank=True,
-#                                          verbose_name=_('Dataset Metadata'))
-#     _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
+        Handles the monitoring process of the GetCapabilities operation as the workflow differs from other operations.
+        If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
+        values depend on possible differences in the retrieved capabilities document.
+        If the service is not available, a Monitoring model instance will be created as no information on
+        differences between capabilities documents is given.
 
-#     timestamp = models.DateTimeField(auto_now_add=True)
-#     duration = models.DurationField(null=True, blank=True)
-#     status_code = models.IntegerField(null=True, blank=True)
-#     error_msg = models.TextField(null=True, blank=True)
-#     available = models.BooleanField(null=True)
-#     monitored_uri = models.CharField(max_length=2000)
-#     monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='monitoring_results')
+        Args:
+            url (str): The url for the GetCapabilities request.
+        Returns:
+            nothing
+        """
+        original_document = self.resource.xml_backup_string
+        self.check_document(url, original_document)
 
-#     class Meta:
-#         ordering = ["-timestamp"]
-#         verbose_name = _('Monitoring result')
-#         verbose_name_plural = _('Monitoring results')
+    def check_document(self, url, original_document):
+        service_status = self.check_status(url)
+        if service_status.success:
+            diff_obj = self.get_document_diff(
+                service_status.message, original_document)
+            self.needs_update = True if diff_obj is not None else False
+            self.save()
+        else:
+            self.handle_service_error(service_status)
 
-#     # TODO consider integrating this into PolymorphicForeignKey
-#     @property
-#     def resource(self):
-#         return self._resource.get_target(self)
+    def get_document_diff(self, new_document: str, original_document: bytes):
+        """Computes the diff between two documents.
 
-#     # TODO consider integrating this into PolymorphicForeignKey
-#     @resource.setter
-#     def resource(self, value):
-#         self._resource.set_target(self, value)
+        Compares the currently stored document and compares its hash to the one
+        in the response of the latest check.
 
+        Args:
+            new_document (str): Document of last request.
+            original_document (bytes): Original document.
+        Returns:
+            str: The diff of the two documents, if hashes have differences
+            None: If the hashes have no differences
+        """
+        try:
+            # check if new_capabilities is bytestring and decode it if so
+            new_document = new_document.decode('UTF-8')
+        except AttributeError:
+            pass
+        new_capabilities_hash = hashlib.sha256(
+            new_document.encode("UTF-8")).hexdigest()
+        original_document_hash = hashlib.sha256(original_document).hexdigest()
+        if new_capabilities_hash == original_document_hash:
+            return
+        else:
+            original_lines = original_document.decode(
+                'UTF-8').splitlines(keepends=True)
+            new_lines = new_document.splitlines(keepends=True)
+            # info on the created diff on https://docs.python.org/3.6/library/difflib.html#difflib.unified_diff
+            diff = difflib.unified_diff(original_lines, new_lines)
+            return diff
 
-# class MonitoringResultDocument(MonitoringResult):
-#     """Model used to signal if a given document differs from the remote document and needs an update"""
-#     needs_update = models.BooleanField(null=True, blank=True)
-#     diff = models.TextField(null=True, blank=True)
+    def handle_service_error(self, service_status: ServiceStatus):
+        raise NotImplementedError()
 
+    def handle_service_success(self, service_status: ServiceStatus):
+        raise NotImplementedError()
 
-# class HealthState(CommonInfo, GenericModelMixin):
-#     monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE, related_name='health_states',
-#                                        verbose_name=_('Monitoring Runs'))
+    def parse_xml(self, xml: str, encoding=None):
+        """ Returns the xml as iterable object
+        Args:
+            xml(str): The xml as string
+        Returns:
+            nothing
+        """
+        if not isinstance(xml, str) and not isinstance(xml, bytes):
+            raise ValueError
+        default_encoding = "UTF-8"
+        if not isinstance(xml, bytes):
+            if encoding is None:
+                xml_b = xml.encode(default_encoding)
+            else:
+                xml_b = xml.encode(encoding)
+        else:
+            xml_b = xml
+        try:
+            parser = etree.XMLParser(huge_tree=len(xml_b) > 10000000)
+            xml_obj = etree.ElementTree(
+                etree.fromstring(text=xml_b, parser=parser))
+            if encoding != xml_obj.docinfo.encoding:
+                # there might be problems e.g. with german Umlaute ä,ö,ü, ...
+                # try to parse again but with the correct encoding
+                return self.parse_xml(xml, xml_obj.docinfo.encoding)
+        except XMLSyntaxError:
+            xml_obj = None
+        return xml_obj
 
-#     # polymorphic fk (either service, layer, feature type or dataset metadata)
-#     service = models.ForeignKey('registry.Service', on_delete=models.CASCADE, related_name='health_states',
-#                                 related_query_name='health_states', null=True, blank=True, verbose_name=_('Service'))
-#     layer = models.ForeignKey('registry.Layer', on_delete=models.CASCADE, related_name='health_states',
-#                               related_query_name='health_states', null=True, blank=True, verbose_name=_('Layer'))
-#     feature_type = models.ForeignKey('registry.FeatureType', on_delete=models.CASCADE, related_name='health_states',
-#                                      related_query_name='health_states', null=True, blank=True,
-#                                      verbose_name=_('Feature Type'))
-#     dataset_metadata = models.ForeignKey('registry.DatasetMetadata', on_delete=models.CASCADE,
-#                                          related_name='health_states',
-#                                          related_query_name='health_states', null=True, blank=True,
-#                                          verbose_name=_('Dataset Metadata'))
-#     _resource = PolymorphicForeignKey('service', 'layer', 'feature_type', 'dataset_metadata')
+    def check_status(self, url: str):
+        """ Check status of ogc service.
 
-#     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
-#                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
-#                                          max_length=12, verbose_name=_('Health state code'))
-#     health_message = models.CharField(default=MONITORING_DEFAULT_UNKNOWN_MESSAGE,
-#                                       max_length=512, )  # this is the teaser for tooltips
-#     reliability_1w = models.FloatField(default=0,
-#                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
-#     reliability_1m = models.FloatField(default=0,
-#                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
-#     reliability_3m = models.FloatField(default=0,
-#                                        validators=[MaxValueValidator(100), MinValueValidator(1)])
-#     average_response_time = models.DurationField(null=True, blank=True)
-#     average_response_time_1w = models.DurationField(null=True, blank=True)
-#     average_response_time_1m = models.DurationField(null=True, blank=True)
-#     average_response_time_3m = models.DurationField(null=True, blank=True)
+        Args:
+            url (str): URL to the service that should be checked.
+        Returns:
+            ServiceStatus: Status info of service.
+        """
+        success = False
+        session = self._get_session_for_request()
+        timeout = MONITORING_REQUEST_TIMEOUT if self.monitoring_settings is None else self.monitoring_settings.timeout
+        request = Request(method="GET",
+                          url=url)
+        response = session.send(request.prepare(), timeout=timeout)
+        duration = response.elapsed
 
-#     class Meta:
-#         ordering = ['-monitoring_run__start']
-#         verbose_name = _('Health state')
-#         verbose_name_plural = _('Health states')
+        if response.status_code != 200:
+            response_text = f"Unexpected HTTP response code: {response.status_code}"
+            return self.__class__.ServiceStatus(url, success, response_text, response.status_code, duration)
+        return response
 
-#     # TODO consider integrating this into the PolymorphicForeignKey
-#     @property
-#     def resource(self):
-#         return self._resource.get_target(self)
-
-#     # TODO consider integrating this into the PolymorphicForeignKey
-#     @resource.setter
-#     def resource(self, value):
-#         self._resource.set_target(self, value)
-
-#     @property
-#     def result_view_uri(self):
-#         return f"{MonitoringResult.get_table_url()}?monitoring_run={self.monitoring_run_id}&resource={self.resource.id}"
-
-#     @staticmethod
-#     def _get_last_check_runs_on_msg(monitoring_result):
-#         return 'Last check runs on <span class="font-italic text-info">' + \
-#                f'{timezone.localtime(monitoring_result.monitoring_run.end).strftime("%Y-%m-%d %H:%M:%S")}</span>.<br>' + \
-#                'Click on this icon to see details.'
-
-#     def run_health_state(self):
-#         resource_field = self._resource.get_target_field(self)
-#         resource_value = self._resource.get_target(self)
-
-#         # Monitoring objects that are related to this run and given metadata
-#         monitoring_objects = MonitoringResult.objects.filter(monitoring_run=self.monitoring_run,
-#                                                              **{resource_field: resource_value})
-#         # Get health states of the last 3 months, for statistic calculating
-#         now = timezone.now()
-#         health_states_3m = HealthState.objects.filter(
-#             monitoring_run__end__gte=now - timezone.timedelta(days=(3 * 365 / 12)),
-#             **{resource_field: resource_value}) \
-#             .order_by('-monitoring_run__end')
-
-#         # get only health states for 1m and 1w calculation to prevent from sql statements
-#         health_states_1m = list(
-#             filter(lambda _health_state: _health_state.monitoring_run.end > now - timezone.timedelta(days=(365 / 12)),
-#                    list(health_states_3m)))
-#         health_states_1w = list(
-#             filter(lambda _health_state: _health_state.monitoring_run.end > now - timezone.timedelta(days=7),
-#                    list(health_states_3m)))
-#         health_states_3m = list(health_states_3m)
-#         # append self, cause transaction is atomic in parent function,
-#         # so self would'nt be part of any calculation
-#         health_states_1w.append(self)
-#         health_states_1m.append(self)
-#         health_states_3m.append(self)
-
-#         self._calculate_average_response_times(monitoring_objects=monitoring_objects,
-#                                                health_states_1w=health_states_1w,
-#                                                health_states_1m=health_states_1m,
-#                                                health_states_3m=health_states_3m)
-#         self._calculate_health_state(monitoring_objects=monitoring_objects)
-#         self._calculate_reliability(health_states_1w=health_states_1w,
-#                                     health_states_1m=health_states_1m,
-#                                     health_states_3m=health_states_3m)
-
-#     def _calculate_average_response_times(self, monitoring_objects, health_states_1w, health_states_1m,
-#                                           health_states_3m):
-#         if monitoring_objects:
-#             average_response_time = None
-#             for monitoring_result in monitoring_objects:
-#                 if not average_response_time:
-#                     average_response_time = monitoring_result.duration
-#                 else:
-#                     average_response_time += monitoring_result.duration
-#             self.average_response_time = average_response_time / len(monitoring_objects)
-#             self.save()
-
-#             average_response_time_1w = None
-#             for health_state in health_states_1w:
-#                 if average_response_time_1w:
-#                     average_response_time_1w += health_state.average_response_time
-#                 else:
-#                     average_response_time_1w = health_state.average_response_time
-#             self.average_response_time_1w = average_response_time_1w / len(health_states_1w)
-
-#             average_response_time_1m = None
-#             for health_state in health_states_1m:
-#                 if average_response_time_1m:
-#                     average_response_time_1m += health_state.average_response_time
-#                 else:
-#                     average_response_time_1m = health_state.average_response_time
-#             self.average_response_time_1m = average_response_time_1m / len(health_states_1m)
-
-#             average_response_time_3m = None
-#             for health_state in health_states_3m:
-#                 if average_response_time_3m:
-#                     average_response_time_3m += health_state.average_response_time
-#                 else:
-#                     average_response_time_3m = health_state.average_response_time
-#             self.average_response_time_3m = average_response_time_3m / len(health_states_3m)
-
-#             self.save()
-
-#     def _calculate_reliability(self, health_states_1w, health_states_1m, health_states_3m):
-#         reliability_1w = 0
-#         for health_state in health_states_1w:
-#             if health_state.health_state_code == HealthStateEnum.OK.value or health_state.health_state_code == HealthStateEnum.WARNING.value:
-#                 reliability_1w += 1
-
-#         reliability_1m = 0
-#         for health_state in health_states_1m:
-#             if health_state.health_state_code == HealthStateEnum.OK.value or health_state.health_state_code == HealthStateEnum.WARNING.value:
-#                 reliability_1m += 1
-
-#         reliability_3m = 0
-#         for health_state in health_states_3m:
-#             if health_state.health_state_code == HealthStateEnum.OK.value or health_state.health_state_code == HealthStateEnum.WARNING.value:
-#                 reliability_3m += 1
-
-#         if health_states_1w:
-#             self.reliability_1w = reliability_1w * 100 / len(health_states_1w)
-#         if health_states_1m:
-#             self.reliability_1m = reliability_1m * 100 / len(health_states_1m)
-#         if health_states_3m:
-#             self.reliability_3m = reliability_3m * 100 / len(health_states_3m)
-#         self.save()
-
-#     def _calculate_health_state(self, monitoring_objects):
-#         if monitoring_objects:
-#             warning = False
-#             critical = False
-
-#             for monitoring_result in monitoring_objects:
-#                 # evaluate availability
-#                 if not monitoring_result.available:
-#                     if monitoring_result.status_code == 401:
-#                         HealthStateReason(health_state=self,
-#                                           health_state_code=HealthStateEnum.UNAUTHORIZED.value,
-#                                           reason=_(
-#                                               f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did response an exception.<br> '
-#                                               f'The http status code was <strong class="text-success">{monitoring_result.status_code}</strong>.'),
-#                                           monitoring_result=monitoring_result
-#                                           ).save()
-#                     else:
-#                         critical = True
-#                         if 200 <= monitoring_result.status_code <= 208:
-#                             HealthStateReason(health_state=self,
-#                                               health_state_code=HealthStateEnum.CRITICAL.value,
-#                                               reason=_(
-#                                                   f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did response an exception.<br> '
-#                                                   f'The http status code was <strong class="text-success">{monitoring_result.status_code}</strong>.'),
-#                                               monitoring_result=monitoring_result,
-#                                               ).save()
-#                         else:
-#                             HealthStateReason(health_state=self,
-#                                               health_state_code=HealthStateEnum.CRITICAL.value,
-#                                               reason=_(
-#                                                   f'The resource <span class="font-italic text-info">\'{monitoring_result.monitored_uri}\'</span> did not response.<br> '
-#                                                   f'The http status code was <strong class="text-danger">{monitoring_result.status_code}</strong>.'),
-#                                               monitoring_result=monitoring_result,
-#                                               ).save()
-
-#             # evaluate response time
-#             if self.average_response_time_1w >= timezone.timedelta(milliseconds=CRITICAL_RESPONSE_TIME):
-#                 critical = True
-#                 HealthStateReason(health_state=self,
-#                                   health_state_code=HealthStateEnum.CRITICAL.value,
-#                                   reason=_(
-#                                       f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{CRITICAL_RESPONSE_TIME} ms</strong>.'),
-#                                   monitoring_result=monitoring_result,
-#                                   ).save()
-#             elif self.average_response_time_1w >= timezone.timedelta(milliseconds=WARNING_RESPONSE_TIME):
-#                 warning = True
-#                 HealthStateReason(health_state=self,
-#                                   health_state_code=HealthStateEnum.WARNING.value,
-#                                   reason=_(
-#                                       f'The average response time for 1 week statistic is too high.<br> <strong class="text-danger">{self.average_response_time_1w.total_seconds() * 1000} ms</strong> is greater than threshold <strong class="text-danger">{WARNING_RESPONSE_TIME} ms</strong>.'),
-#                                   monitoring_result=monitoring_result,
-#                                   ).save()
-
-#             if critical:
-#                 self.health_state_code = HealthStateEnum.CRITICAL.value
-#                 self.health_message = _(
-#                     'The state of this resource is <strong class="text-danger">critical</strong>.<br>' +
-#                     self._get_last_check_runs_on_msg(monitoring_result))
-#             elif warning:
-#                 self.health_state_code = HealthStateEnum.WARNING.value
-#                 self.health_message = _('This resource has some <strong class="text-warning">warnings</strong>.<br>' +
-#                                         self._get_last_check_runs_on_msg(monitoring_result))
-#             else:
-#                 # We can't found any errors. Health state is ok
-#                 self.health_state_code = HealthStateEnum.OK.value
-#                 self.health_message = _('Everthing is <strong class="text-success">OK</strong>.<br>' +
-#                                         self._get_last_check_runs_on_msg(monitoring_result))
-#             self.save()
+    class Meta:
+        abstract = True
 
 
-# class HealthStateReason(models.Model):
-#     health_state = models.ForeignKey(HealthState,
-#                                      on_delete=models.CASCADE,
-#                                      related_name='reasons', )
-#     reason = models.TextField(verbose_name=_('Reason'), )
-#     health_state_code = models.CharField(default=HealthStateEnum.UNKNOWN.value,
-#                                          choices=HealthStateEnum.as_choices(drop_empty_choice=True),
-#                                          max_length=12, )
-#     monitoring_result = models.ForeignKey(MonitoringResult, on_delete=models.CASCADE,
-#                                           related_name='health_state_reasons', )
+class WebMapServiceMonitoringRun(OGCServiceMonitoringRun):
+    service: WebMapService = models.OneToOneField(
+        to=WebMapService,
+        on_delete=models.CASCADE)
+
+    def _get_session_for_request(self):
+        return self.service.get_session_for_request()
+
+    def handle_service_error(self, service_status: OGCServiceMonitoringRun.ServiceStatus):
+        """ Handles service responses with error statuses.
+
+        Args:
+            service_status (ServiceStatus): Response of the status check.
+        Returns:
+            nothing
+        """
+        WebMapServiceMonitoringResult.objects.create(
+            run=self,
+            available=service_status.success,
+            status_code=service_status.status,
+            error_msg=service_status.message,
+            monitored_uri=service_status.monitored_uri
+        )
+
+    def handle_service_success(self, service_status: OGCServiceMonitoringRun.ServiceStatus):
+        """ Handles service responses with success statuses.
+
+        Args:
+            service_status (ServiceStatus): Response of the status check.
+        Returns:
+            nothing
+        """
+        WebMapServiceMonitoringResult.objects.create(
+            run=self,
+            available=service_status.success,
+            status_code=service_status.status,
+            monitored_uri=service_status.monitored_uri
+        )
+
+    def check_wms(self, capabilities_only: bool = False):
+        """ Check the availability of wms operations.
+
+        Checks for each wms operation if that operation is active. Either only the getCapabilities operation will be
+        checked or all other operations. This should reduce the number of requests as the availability of the
+        getCapabilities is not specific for every given layer.
+
+        Args:
+            service (Service): The service metadata which will be used for building the operation specific uris.
+            capabilities_only (bool): Flag if only getCapabilities or all other operations should be checked.
+        Returns:
+            nothing
+        """
+        wms_helper = WmsHelper(service=self.service)
+
+        if wms_helper.get_capabilities_url is not None:
+            self.check_get_capabilities(wms_helper.get_capabilities_url)
+        if not capabilities_only:
+            wms_helper.set_operation_urls()
+            if wms_helper.get_map_url is not None:
+                self.check_service(wms_helper.get_map_url)
+
+            if wms_helper.get_feature_info_url is not None:
+                self.check_service(wms_helper.get_feature_info_url)
+
+            if wms_helper.describe_layer_url is not None:
+                self.check_service(wms_helper.describe_layer_url)
+
+            if wms_helper.get_legend_graphic_url is not None:
+                self.check_service(wms_helper.get_legend_graphic_url)
+
+            if wms_helper.get_styles_url is not None:
+                self.check_service(wms_helper.get_styles_url)
+
+    def check_layer(self, layer):
+        """" Checks the status of a layer.
+
+        Args:
+            layer (Layer): The service to check.
+        Returns:
+            nothing
+        """
+        wms_helper = WmsHelper(service=layer.service)
+        urls_to_check = [
+            (wms_helper.get_get_map_url(), True),
+            (wms_helper.get_get_styles_url(), False),
+            (wms_helper.get_get_feature_info_url(), False),
+            (wms_helper.get_describe_layer_url(), False),
+        ]
+        for url in urls_to_check:
+            if url[0] is None:
+                continue
+            self.check_service(url[0], check_image=url[1])
+
+    def check_status(self, url: str, check_image: bool = False):
+        """ Check status of ogc service.
+
+        Args:
+            url (str): URL to the service that should be checked.
+            check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
+            check_image (bool): True, if the returned content should be checked as image.
+        Returns:
+            ServiceStatus: Status info of service.
+        """
+        response_or_status = super().check_status(url=url)
+        if isinstance(response_or_status, self.__class__.ServiceStatus):
+            return response_or_status
+
+        success = True
+        if check_image:
+            try:
+                Image.open(BytesIO(response_or_status.content))
+                success = True
+            except UnidentifiedImageError:
+                success = False
+        service_status = self.__class__.ServiceStatus(
+            url, success, response_or_status.content, response_or_status.status_code, response_or_status.elapsed)
+        return service_status
+
+
+class WebFeatureServiceMonitoringRun(OGCServiceMonitoringRun):
+    service: WebFeatureService = models.OneToOneField(
+        to=WebFeatureService,
+        on_delete=models.CASCADE)
+
+    def check_wfs(self):
+        """ Check the availability of wfs operations.
+
+        Checks for each read-only wfs operation if that operation is active. Version specific operations will
+        be distinguished. As no featureTypes are stored in the metadata relation, only operations that do not
+        require information about a specific featureType will be checked.
+
+        Args:
+            service (Service): The service metadata which will be used for building the operation specific uris.
+        Returns:
+            nothing
+        """
+        wfs_helper = WfsHelper(self.service)
+        version = self.service.version
+
+        if wfs_helper.get_capabilities_url is not None:
+            self.check_get_capabilities(wfs_helper.get_capabilities_url)
+
+            if version == OGCServiceVersionEnum.V_2_0_0.value:
+                wfs_helper.set_2_0_0_urls()
+                if wfs_helper.list_stored_queries is not None:
+                    self.check_service(wfs_helper.list_stored_queries)
+
+            if version == OGCServiceVersionEnum.V_2_0_2.value:
+                wfs_helper.set_2_0_2_urls()
+                if wfs_helper.list_stored_queries is not None:
+                    self.check_service(wfs_helper.list_stored_queries)
+
+    def check_featuretype(self, feature_type):
+        """ Checks the status of a featuretype.
+
+        Args:
+            feature_type (FeatureType): The featuretype to check.
+        Returns:
+            nothing
+        """
+        wfs_helper = WfsHelper(feature_type.service)
+        urls_to_check = [
+            (wfs_helper.get_describe_featuretype_url(
+                feature_type.identifier), True),
+            (wfs_helper.get_get_feature_url(feature_type.identifier), True),
+        ]
+        for url in urls_to_check:
+            if url[0] is None:
+                continue
+            self.check_service(url[0], check_wfs_member=url[1])
+
+    def has_wfs_member(self, xml):
+        """Checks the existence of a (feature)Member for a wfs feature.
+
+        Args:
+            xml (object): Xml object
+        Returns:
+            bool: true, if xml has member, false otherwise
+        """
+        service = self.resource
+        version = service.service_type.version
+        if version == OGCServiceVersionEnum.V_1_0_0.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
+        if version == OGCServiceVersionEnum.V_1_1_0.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
+        if version == OGCServiceVersionEnum.V_2_0_0.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('member')]) != 1
+        if version == OGCServiceVersionEnum.V_2_0_2.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('member')]) != 1
+
+    def check_status(self, url: str, check_wfs_member: bool = False):
+        """ Check status of ogc service.
+
+        Args:
+            url (str): URL to the service that should be checked.
+            check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
+            check_image (bool): True, if the returned content should be checked as image.
+        Returns:
+            ServiceStatus: Status info of service.
+        """
+        response_or_status = super().check_status(url=url)
+        if isinstance(response_or_status, self.__class__.ServiceStatus):
+            return response_or_status
+
+        success = True
+        try:
+            xml = self.parse_xml(response_or_status.content)
+            if 'Exception' in xml.getroot().tag:
+                success = False
+            if check_wfs_member and not self.has_wfs_member(xml):
+                success = False
+        except AttributeError:
+            # handle successful responses that do not return xml
+            response_text = None
+        service_status = self.__class__.ServiceStatus(
+            url, success, response_text, response_or_status.status_code, response_or_status.elapsed)
+        return service_status
+
+
+class DatasetMetadataMonitoringRun(MonitoringRun):
+    dataset_metadata: DatasetMetadata = models.OneToOneField(
+        to=DatasetMetadata,
+        on_delete=models.CASCADE)
+
+    def check_dataset(self):
+        """Handles the dataset checks.
+
+        Handles the monitoring process of the datasets as the workflow differs from other operations.
+        If the dataset originated from a URL, a MonitoringResultDocument instance will be created and stored in the db.
+        Contents depends on possible differences in the retrieved dataset document.
+        If the dataset was created manually, no checks are performed.
+
+        Args:
+            none
+        Returns:
+            nothing
+        """
+        url = self.dataset_metadata.origin_url
+        if url:
+            original_document = self.dataset_metadata.xml_backup_string
+            self.check_document(url, original_document)
+
+
+class MonitoringResult(models.Model):
+    status_code: int = models.IntegerField(null=True, blank=True)
+    error_msg: str = models.TextField(null=True, blank=True)
+    available: bool = models.BooleanField(null=True)
+    monitored_uri: str = models.CharField(max_length=2000)
+
+
+class WebMapServiceMonitoringResult(MonitoringResult):
+    run = models.ForeignKey(to=WebMapServiceMonitoringRun,
+                            on_delete=models.CASCADE)

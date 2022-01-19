@@ -1,108 +1,40 @@
-# """
-# Author: Jan Suleiman
-# Organization: terrestris GmbH & Co. KG, Bonn, Germany
-# Contact: suleiman@terrestris.de
-# Created on: 26.02.2020
-
-# """
-# from celery import shared_task, current_task, states
-# from celery.signals import beat_init
-# from django.conf import settings
-# from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-# from django.db import transaction
-# from django.utils import timezone
-# from django.utils.translation import gettext_lazy as _
-
-# from extras.tasks import default_task_handler
-# from registry.models import MonitoringSetting, MonitoringRun
-# from registry.monitoring import Monitor
+from celery import current_task, shared_task, states
+from django.conf import settings
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+from django.db import transaction
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django_celery_results.models import TaskResult
+from extras.tasks import CurrentUserTaskMixin
+from registry.models import MonitoringRun
+from registry.models.monitoring import WebMapServiceMonitoringRun
+from registry.models.service import WebMapService
 
 
-# @beat_init.connect
-# def init_periodic_tasks(sender, **kwargs):
-#     """ Load MonitoringSettings and create/update PeriodicTask records
+@shared_task(bind=True,
+             base=CurrentUserTaskMixin)
+def run_web_map_service_monitoring(self, service_pk, check_layers: bool = True, *args, **kwargs):
 
-#     Args:
-#         sender:
-#         kwargs:
-#     Returns:
+    wms = WebMapService.objects.get(pk=service_pk)
+    monitoring_run: WebMapServiceMonitoringRun = WebMapServiceMonitoringRun.objects.create(
+        task_result=TaskResult.objects.get(task_id=self.request.id),
+        service=wms)
 
-#     """
-#     monitoring_settings = MonitoringSetting.objects.all()
-#     for setting in monitoring_settings:
-#         setting.update_periodic_tasks()
+    current_task.update_state(
+        state=states.STARTED,
+        meta={
+            'current': 0,
+            'total': 100,
+            'phase': f'start monitoring checks for {wms}',
+        }
+    )
+    monitoring_run.check_wms()
+    if check_layers:
+        for layer in wms.layers:
+            monitoring_run.check_layer(layer=layer)
 
+    monitoring_run.save()
 
-# @shared_task(name='run_service_monitoring')
-# @transaction.atomic
-# def run_monitoring(setting_id, *args, **kwargs):
-#     try:
-#         setting = MonitoringSetting.objects.get(pk=setting_id)
-#     except (ObjectDoesNotExist, MultipleObjectsReturned):
-#         print(f'Could not retrieve setting with id {setting_id}')
-#         return
-#     metadatas = setting.services.all()
-#     monitoring_run = MonitoringRun.objects.create()
-#     for metadata in metadatas:
-#         if current_task:
-#             current_task.update_state(
-#                 state=states.STARTED,
-#                 meta={
-#                     'current': 0,
-#                     'total': 100,
-#                     'phase': f'start monitoring checks for {metadata}',
-#                 }
-#             )
-#         try:
-#             monitor = Monitor(metadata=metadata, monitoring_run=monitoring_run, )
-#             monitor.run_checks()
-#             settings.ROOT_LOGGER.debug(f'Health checks completed for {metadata}')
-#         except Exception as e:
-#             settings.ROOT_LOGGER.exception(e, exc_info=True, stack_info=True)
-
-#     end_time = timezone.now()
-#     duration = end_time - monitoring_run.start
-#     monitoring_run.end = end_time
-#     monitoring_run.duration = duration
-#     monitoring_run.save()
-
-#     return {'msg': 'Done. Service(s) successfully monitored.',
-#             'id': str(monitoring_run.pk),
-#             'absolute_url': monitoring_run.get_absolute_url(),
-#             'absolute_url_html': f'<a href={monitoring_run.get_absolute_url()}>{monitoring_run.__str__()}</a>'}
-
-
-# @shared_task(name='run_manual_service_monitoring')
-# def run_manual_service_monitoring(owner: str, monitoring_run, *args, **kwargs):
-#     default_task_handler(**kwargs)
-
-#     monitoring_run = MonitoringRun.objects.get(pk=monitoring_run)
-#     monitoring_run.start = timezone.now()
-#     for resource in monitoring_run.resources_all:
-#         if current_task:
-#             current_task.update_state(
-#                 state=states.STARTED,
-#                 meta={
-#                     'current': 0,
-#                     'total': 100,
-#                     'phase': f'start monitoring checks for {resource}',
-#                 }
-#             )
-#         try:
-#             monitor = Monitor(resource=resource, monitoring_run=monitoring_run, )
-#             monitor.run_checks()
-#             settings.ROOT_LOGGER.debug(f'Health checks completed for {resource}')
-#         except Exception as e:
-#             settings.ROOT_LOGGER.error(msg=_(f'Something went wrong while monitoring {resource}'))
-#             settings.ROOT_LOGGER.exception(e, exc_info=True, stack_info=True, )
-
-#     end_time = timezone.now()
-#     duration = end_time - monitoring_run.start
-#     monitoring_run.end = end_time
-#     monitoring_run.duration = duration
-#     monitoring_run.save()
-
-#     return {'msg': 'Done. Service(s) successfully monitored.',
-#             'id': str(monitoring_run.pk),
-#             'absolute_url': monitoring_run.get_absolute_url(),
-#             'absolute_url_html': f'<a href={monitoring_run.get_absolute_url()}>{monitoring_run.__str__()}</a>'}
+    # TODO: return with jsonapi document
+    return {'msg': 'Done. Service(s) successfully monitored.',
+            'id': str(monitoring_run.pk)}

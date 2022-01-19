@@ -156,6 +156,8 @@ class WebMapServiceProxy(View):
             return MissingVersionParameterException()
         elif not self.service.is_active:
             return DisabledException()
+        elif self.service.is_unknown_layer:
+            return LayerNotDefined()
         elif (
             not self.request.query_parameters.get("request").lower()
             in SECURE_ABLE_OPERATIONS_LOWER
@@ -272,7 +274,7 @@ class WebMapServiceProxy(View):
         font_size = int(h * settings.FONT_IMG_RATIO)
 
         font = ImageFont.truetype(
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size
         )
         draw.text((0, 0), txt, (0, 0, 0), font=font)
 
@@ -286,39 +288,31 @@ class WebMapServiceProxy(View):
         Returns:
              img (Image): The masked image
         """
-        try:
-            # Transform byte-image to PIL-image object
-            img = Image.open(io.BytesIO(img))
-        except OSError:
-            raise Exception(
-                "Could not create image! Content was:\n {}".format(img))
-        try:
-            # Create an alpha layer, which is needed for the compositing of image and mask
-            alpha_layer = Image.new("RGBA", img.size, (255, 0, 0, 0))
+        # Transform byte-image to PIL-image object
+        img = Image.open(io.BytesIO(img))
 
-            # Make sure we have any kind of mask
-            if mask is None:
-                # No bounding geometry for masking exist, so we just create a mask that does not mask anything
-                mask = Image.new("RGB", img.size, (0, 0, 0))
-            else:
-                # There is a mask ...
-                if isinstance(mask, bytes):
-                    # ... but it is in bytes, so we need to transform it to a PIL-image object as well
-                    mask = Image.open(io.BytesIO(mask))
+        # Create an alpha layer, which is needed for the compositing of image and mask
+        alpha_layer = Image.new("RGBA", img.size, (255, 0, 0, 0))
 
-                # Check if the mask is fine or indicates an error
-                is_error_mask = mask.getpixel(
-                    (0, 0))[0] == settings.ERROR_MASK_VAL
-                if is_error_mask:
-                    # Create full-masking mask and create an access_denied_img
-                    mask = Image.new("RGB", img.size, (255, 255, 255))
-                    self.access_denied_img = self._create_image_with_text(
-                        img.width, img.height, settings.ERROR_MASK_TXT
-                    )
+        # Make sure we have any kind of mask
+        if mask is None:
+            # No bounding geometry for masking exist, so we just create a mask that does not mask anything
+            mask = Image.new("RGB", img.size, (0, 0, 0))
+        else:
+            # There is a mask ...
+            if isinstance(mask, bytes):
+                # ... but it is in bytes, so we need to transform it to a PIL-image object as well
+                mask = Image.open(io.BytesIO(mask))
 
-        except OSError:
-            raise Exception(
-                "Could not create image! Content was:\n {}".format(mask))
+            # Check if the mask is fine or indicates an error
+            is_error_mask = mask.getpixel(
+                (0, 0))[0] == settings.ERROR_MASK_VAL
+            if is_error_mask:
+                # Create full-masking mask and create an access_denied_img
+                mask = Image.new("RGB", img.size, (255, 255, 255))
+                self.access_denied_img = self._create_image_with_text(
+                    img.width, img.height, settings.ERROR_MASK_TXT
+                )
 
         # Make sure mask is in grayscale and has the exact same size as the requested image
         mask = mask.convert("L").resize(img.size)
@@ -395,15 +389,6 @@ class WebMapServiceProxy(View):
         #         }
         #     )
 
-        if self.service.is_unknown_layer:
-            return LayerNotDefined()
-        layer_identifiers = set(self.remote_service.get_requested_layers(
-            query_params=self.request.query_parameters
-        ))
-        allowed_layers = set(self.service.allowed_layers)
-        if not layer_identifiers.issubset(allowed_layers):
-            return ForbiddenException()
-
         # we fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the
         # mask are generated at the same time. This speed up the process by ~30%!
@@ -440,8 +425,11 @@ class WebMapServiceProxy(View):
                 mask = result
         if isinstance(remote_response, dict):
             return self.return_http_response(response=remote_response)
-        secured_image = self._create_masked_image(
-            remote_response.content, mask)
+        try:
+            secured_image = self._create_masked_image(
+                remote_response.content, mask)
+        except OSError:
+            return RuntimeError()
         return self.return_http_response(
             response={
                 "status_code": 200,
@@ -536,12 +524,7 @@ class WebMapServiceProxy(View):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
-        return self.return_http_response(
-            response={
-                "status_code": 403,
-                "content": "user has no permissions to access the requested area.",
-            }
-        )
+        return ForbiddenException()
 
     def handle_secured_wms(self):
         """Handler to decide which subroutine for the given request param shall run.

@@ -9,6 +9,7 @@ from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
 from django.db.models import Value as V
 from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
+from django.db.models.query_utils import Q
 from django.http import HttpRequest
 from ows_client.request_builder import WebService
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
@@ -21,10 +22,14 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
         layer_identifiers = dummy_service.get_requested_layers(
             query_params=request.query_parameters
         )
-        return self.filter(
-            secured_layers__identifier__iregex=r"%s"
-            % f"({'|'.join(layer_identifiers)})"
-        )
+        query = None
+        for identifier in layer_identifiers:
+            _query = Q(secured_layers__identifier__iexact=identifier)
+            if query:
+                query &= _query
+            else:
+                query = _query
+        return self.filter(query)
 
     def get_allowed_areas(self, service_pk, request: HttpRequest):
         return (
@@ -84,7 +89,7 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             allowed_groups=None,
             operations__operation__iexact=request.query_parameters.get(
                 "request"),
-        ) | self.filter(
+        ).filter_by_layers(request=request) | self.filter(
             secured_service__pk=service_pk,
             allowed_groups__pk__in=Group.objects.filter(
                 user__username="AnonymouseUser"
@@ -93,7 +98,7 @@ class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
             else request.user.groups.values_list("pk", flat=True),
             operations__operation__iexact=request.query_parameters.get(
                 "request"),
-        )
+        ).filter_by_layers(request=request)
 
     def is_user_entitled(self, service_pk, request: HttpRequest) -> Exists:
         """checks if the user of the request is member of any AllowedOperation object"""
@@ -204,9 +209,6 @@ class WebMapServiceSecurityManager(models.Manager):
                     allowed_area_pks=self.get_allowed_operation_qs().get_allowed_areas(
                         service_pk=OuterRef("pk"), request=request
                     ).values('secured_service__pk').annotate(pks=ArrayAgg('pk')).values('pks'),
-                    allowed_layers=self.get_allowed_operation_qs().get_allowed_areas(
-                        service_pk=OuterRef("pk"), request=request
-                    ).values('secured_service__pk').annotate(layer_identifiers=ArrayAgg('secured_layers__identifier')).values('layer_identifiers'),
                     base_operation_url=self.get_operation_url_qs().get_base_url(
                         service_pk=OuterRef("pk"), request=request
                     ),

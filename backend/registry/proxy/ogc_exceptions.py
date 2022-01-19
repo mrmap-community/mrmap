@@ -71,3 +71,8 @@ class LayerNotDefined(OGCServiceException):
     code = "LayerNotDefined"
     message = "unknown layer"
     locator = "LAYERS"
+
+
+class RuntimeError(OGCServiceException):
+    code = "RuntimeError"
+    message = "Something unexpected did occur. Please contact the service provider."

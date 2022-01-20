@@ -49,10 +49,10 @@ class MapContextLayer(MPTTModel):
                                     related_name='map_context_layers',
                                     related_query_name='map_context_layer')
     title = models.CharField(max_length=1000,
-                            null=False,
-                            blank=False,
-                            verbose_name=_("name"),
-                            help_text=_("an identifying name for this map context layer"))
+                             null=False,
+                             blank=False,
+                             verbose_name=_("name"),
+                             help_text=_("an identifying name for this map context layer"))
     description = models.CharField(max_length=1000,
                                    null=True,
                                    blank=True,

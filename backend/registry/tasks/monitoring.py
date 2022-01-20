@@ -24,7 +24,7 @@ def check_web_map_service(self, service_pk, *args, **kwargs):
     wms_monitoring_result: WebMapServiceMonitoringResult = WebMapServiceMonitoringResult(
         task_result=TaskResult.objects.get(task_id=self.request.id),
         service=wms)
-    wms_monitoring_result.check()
+    wms_monitoring_result.run_checks()
     wms_monitoring_result.save()
 
     # TODO: return with jsonapi document
@@ -48,7 +48,7 @@ def check_get_map_layer(self, layer_pk, *args, **kwargs):
     layer_get_map_monitoring_result: LayerGetMapMonitoringResult = LayerGetMapMonitoringResult(
         task_result=TaskResult.objects.get(task_id=self.request.id),
         layer=layer)
-    layer_get_map_monitoring_result.check()
+    layer_get_map_monitoring_result.run_checks()
     layer_get_map_monitoring_result.save()
 
     # TODO: return with jsonapi document

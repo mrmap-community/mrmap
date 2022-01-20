@@ -14,8 +14,8 @@ from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 class MonitoringResult(models.Model):
     task_result = models.OneToOneField(to=TaskResult,
                                        on_delete=models.CASCADE,
-                                       related_name="monitoring_results",
-                                       related_query_name="monitoring_result")
+                                       related_name="%(class)s_monitoring_results",
+                                       related_query_name="%(class)s_monitoring_result")
     status_code: int = models.IntegerField()
     error_msg: str = models.TextField(null=True, blank=True)
     monitored_uri: str = models.URLField(max_length=4096)
@@ -81,7 +81,7 @@ class OgcServiceGetCapabilitiesResult(MonitoringResult):
             diff = difflib.unified_diff(original_lines, new_lines)
             return diff
 
-    def check(self):
+    def run_checks(self):
         self.check_url(service=self.service,
                        url=self.service.get_capabilities_url)
         if self.status_code == 200:
@@ -119,7 +119,7 @@ class LayerGetMapMonitoringResult(MonitoringResult):
         except UnidentifiedImageError:
             self.error_msg = "Could not create image from response."
 
-    def check(self):
+    def run_checks(self):
         self.check_url(service=self.layer.service,
                        url=self.layer.get_map_url())
         if self.status_code == 200:

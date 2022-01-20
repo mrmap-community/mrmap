@@ -355,7 +355,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name=_("service"),
         help_text=_("the extras service where this element is part of"),
     )
-    parent: Layer = TreeForeignKey(
+    parent = TreeForeignKey(
         to="self",
         on_delete=models.CASCADE,
         null=True,

@@ -1,5 +1,5 @@
 import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
-import { Button, notification, Steps } from 'antd';
+import { notification } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
@@ -16,7 +16,6 @@ import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
 import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
 import './MapContext.css';
-import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
 
 
@@ -33,7 +32,7 @@ export const MapContext = (): ReactElement => {
   // get the ID parameter from the url
   const { id } = useParams();
 
-  const [current, setCurrent] = useState(0);
+  // const [current, setCurrent] = useState(0);
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
@@ -65,13 +64,13 @@ export const MapContext = (): ReactElement => {
     }
   }, [id, form]);
   
-  const nextStep = () => {
-    setCurrent(current + 1);
-  };
+  // const nextStep = () => {
+  //   setCurrent(current + 1);
+  // };
 
-  const prevStep = () => {
-    setCurrent(current - 1);
-  };
+  // const prevStep = () => {
+  //   setCurrent(current - 1);
+  // };
 
   // const onSelectLayerInTree = (selectedKeys: any, info: any) => {
   //   setCurrentSelectedTreeLayerNode(info.node);
@@ -193,13 +192,10 @@ export const MapContext = (): ReactElement => {
   });
 };
 
-  const steps = [
-    {
-      title: 'Map Context',
-      content: (
-        <>
-          <div className='mapcontextform-map-area'>
-            <MapContextForm
+return(
+
+        <div className='map-context'>
+            {/* <MapContextForm
               onSubmit={async (values) => {
                 if (!id) {
                   setIsSubmittingMapContext(true);
@@ -215,34 +211,16 @@ export const MapContext = (): ReactElement => {
                     throw new Error(error);
                   } finally {
                     setIsSubmittingMapContext(false);
-                    nextStep();
+                    // nextStep();
                   }
                 } else {
                   // TODO add action to edit
                   setCreatedMapContextId(id);
-                  nextStep();
+                  // nextStep();
                 }
               }}
               form={form}
-            />
-          </div>
-          <div className='steps-action'>
-            <Button
-              type='primary'
-              onClick={() => form.submit()}
-              disabled={isSubmittingMapContext}
-              loading={isSubmittingMapContext}
-            >
-              Next Step
-            </Button>
-          </div>
-        </>
-      )
-    },
-    {
-      title: 'Map Context Layers',
-      content: (
-        <>
+            /> */}
           <ReactGeoMapContext.Provider value={olMap}>
             <TheMap 
               createdMapContextId={createdMapContextId}
@@ -327,54 +305,7 @@ export const MapContext = (): ReactElement => {
           
           <SearchDrawer addDatasetToMapAction={onAddDatasetToMapAction}/>
 
-          <div className='steps-action'>
-            <Button
-              type='primary'
-              onClick={async () => {
-                if (!id) {
-                  setIsRemovingMapContext(true);
-                  try {
-                    return await mapContextRepo.delete(createdMapContextId);
-                  } catch (error) {
-                    setIsRemovingMapContext(false);
-                    // @ts-ignore
-                    throw new Error(error);
-                  } finally {
-                    setIsRemovingMapContext(false);
-                    prevStep();
-                  }
-                } else {
-                  prevStep();
-                }
-              }}
-              disabled={isRemovingMapContext}
-              loading={isRemovingMapContext}
-            >
-              Previous
-            </Button>
-            <Button
-              type='primary'
-              htmlType='submit'
-              onClick={() => {
-                navigate('/registry/mapcontexts/');
-              }}
-            >
-              Finish
-            </Button>
-          </div>
-        </>
-      )
-    }
-  ];
-
-  return (
-    <>
-      <Steps current={current}>
-      {steps.map(item => (
-          <Steps.Step key={item.title} title={item.title} />
-      ))}
-      </Steps>
-      <div className='steps-content'>{steps[current].content}</div>
-    </>
-  );
+          
+        </div>
+);
 };

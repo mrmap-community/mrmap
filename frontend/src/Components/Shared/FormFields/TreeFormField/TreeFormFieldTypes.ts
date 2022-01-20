@@ -4,8 +4,8 @@ import { ReactNode } from "react";
 import { JsonApiResponse } from "../../../../Repos/JsonApiRepo";
 
 interface MPTTJsonApiAttributeType {
-    name: string;
     title: string;
+    description: string;
     layer_scale_min?: string; // eslint-disable-line
     layer_scale_max?: string; // eslint-disable-line
     preview_image?: string; // eslint-disable-line

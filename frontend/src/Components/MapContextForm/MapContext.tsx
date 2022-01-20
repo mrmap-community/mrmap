@@ -35,7 +35,7 @@ const mapContextLayersGroup = new OlLayerGroup({
   opacity: 1,
   visible: true,
   properties: {
-    name: 'mrMapMapContextLayers'
+    title: 'mrMapMapContextLayers'
   },
   layers: []
 });
@@ -132,8 +132,8 @@ export const MapContext = (): ReactElement => {
         const renderingLayerDetails = await layerRepo.autocompleteInitialValue(layer);
         // this layer needs to be persisted in the DB. Create this layer in the DB
         const createdLayer = await mapContextLayerRepo.create({
-          name:renderingLayerDetails.attributes.title,
-          title:renderingLayerDetails.attributes.abstract,
+          title:renderingLayerDetails.attributes.title,
+          description:renderingLayerDetails.attributes.abstract,
           layerScaleMax:renderingLayerDetails.attributes.scaleMax,
           layerScaleMin:renderingLayerDetails.attributes.scaleMin,
           // isLeaf: true,
@@ -153,7 +153,7 @@ export const MapContext = (): ReactElement => {
           //@ts-ignore
           title: createdLayer.data.data.attributes.title,
           //@ts-ignore
-          name: createdLayer.data.data.attributes.name,
+          description: createdLayer.data.data.attributes.description,
           //@ts-ignore
           layerId: createdLayer.data.data.id,
           properties: {
@@ -291,7 +291,7 @@ export const MapContext = (): ReactElement => {
                         //@ts-ignore
                         title: createdLayer.data.data.attributes.title,
                         //@ts-ignore
-                        name: createdLayer.data.data.attributes.name,
+                        description: createdLayer.data.data.attributes.description,
                         //@ts-ignore
                         layerId: createdLayer.data.data.id,
                         properties: {
@@ -340,7 +340,7 @@ export const MapContext = (): ReactElement => {
                           //@ts-ignore
                           title: createdLayer.data.data.attributes.title,
                           //@ts-ignore
-                          name: createdLayer?.data?.data?.attributes.name,
+                          description: createdLayer?.data?.data?.attributes.description,
                           //@ts-ignore
                           layerId: createdLayer?.data?.data?.id,
                           //@ts-ignore

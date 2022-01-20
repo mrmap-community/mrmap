@@ -2,18 +2,18 @@ import urllib.parse as urlparse
 from abc import ABC
 from urllib.parse import parse_qs
 
+from axis_order_cache.registry import Registry
+from axis_order_cache.utils import adjust_axis_order, get_epsg_srid
 from django.contrib.gis.gdal import SpatialReference
-from django.contrib.gis.geos import Polygon, GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.template.loader import render_to_string
 from eulxml import xmlmap
-from requests import Request
-
-from axis_order_cache.registry import Registry
-from axis_order_cache.utils import get_epsg_srid, adjust_axis_order
 from registry.xmlmapper.ogc.wfs_get_feature import GetFeature
 from registry.xmlmapper.ogc.wfs_transaction import Transaction
-from .exceptions import MissingServiceParam, MissingBboxParam, MissingCrsParam, \
-    MissingVersionParam
+from requests import Request
+
+from .exceptions import (MissingBboxParam, MissingCrsParam,
+                         MissingServiceParam, MissingVersionParam)
 
 
 class WebService(ABC):
@@ -28,7 +28,8 @@ class WebService(ABC):
         self.version = version
         version_split = version.split(".")
         if len(version_split) != 3:
-            raise ValueError("the given version is not in sem version format like x.y.z")
+            raise ValueError(
+                "the given version is not in sem version format like x.y.z")
         self.major_version = int(version_split[0])
         self.minor_version = int(version_split[1])
         self.path_version = int(version_split[2])
@@ -108,7 +109,8 @@ class WebMapAndFeatureService(WebService):
         :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
         """
         try:
-            major_version, minor_version, fix_version = get_dict["version"].split(".")
+            major_version, minor_version, fix_version = get_dict["version"].split(
+                ".")
             major_version = int(major_version)
             minor_version = int(minor_version)
             bbox = get_dict["bbox"]
@@ -135,7 +137,8 @@ class WebMapAndFeatureService(WebService):
                     authority, srid = get_epsg_srid(bbox_values[4])
                     epsg_sr = registry.get(srid=srid)
                 else:
-                    raise NotImplementedError("multiple dimension crs is not implemented.")
+                    raise NotImplementedError(
+                        "multiple dimension crs is not implemented.")
                 min_x = float(bbox_values[0])
                 min_y = float(bbox_values[1])
                 max_x = float(bbox_values[2])
@@ -180,7 +183,8 @@ class WebMapAndFeatureService(WebService):
         :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
         """
         try:
-            major_version, minor_version, fix_version = get_dict["version"].split(".")
+            major_version, minor_version, fix_version = get_dict["version"].split(
+                ".")
             minor_version = int(minor_version)
             srid = get_dict.get("srs", None)
             if not srid:
@@ -292,7 +296,8 @@ class CatalogueServiceWeb(WebService):
         return self.get_get_records_request(**kwargs)
 
     def get_get_records_request(self, **kwargs):
-        query_params = self.get_get_records_kwargs(**self.convert_kwargs_for_get_records(**kwargs))
+        query_params = self.get_get_records_kwargs(
+            **self.convert_kwargs_for_get_records(**kwargs))
         query_params.update({self.REQUEST_QP: self.GET_RECORDS_QV})
         query_params.update(self.get_default_query_params())
         req = Request(method="GET", url=self.base_url, params=query_params)
@@ -340,44 +345,45 @@ class WmsService(WebMapAndFeatureService):
         _query_params = {}
         for key, val in query_params.items():
             key = key.upper()
-            if key == "SERVICE":
-                _query_params.update({self.SERVICE_QP: val})
-            if key == "REQUEST":
-                _query_params.update({self.REQUEST_QP: val})
-            elif key == "LAYERS":
-                _query_params.update({self.LAYERS_QP: val})
-            elif key == "BBOX":
-                _query_params.update({self.BBOX_QP: val})
-            elif key == "VERSION":
-                _query_params.update({self.VERSION_QP: val})
-            elif key == "FORMAT" or key == "OUTPUTFORMAT":
-                _query_params.update({self.FORMAT_QP: val})
-            elif key == "SRS" or key == "CRS" or key == "SRSNAME":
-                _query_params.update({self.CRS_QP: val})
-            elif key == "WIDTH":
-                _query_params.update({self.WIDTH_QP: val})
-            elif key == "HEIGHT":
-                _query_params.update({self.HEIGHT_QP: val})
-            elif key == "TRANSPARENT":
-                _query_params.update({self.TRANSPARENT_QP: val})
-            elif key == "EXCEPTIONS":
-                _query_params.update({self.EXCEPTIONS_QP: val})
-            elif key == "BGCOLOR":
-                _query_params.update({self.BG_COLOR_QP: val})
-            elif key == "TIME":
-                _query_params.update({self.TIME_QP: val})
-            elif key == "ELEVATION":
-                _query_params.update({self.ELEVATION_QP: val})
-            elif key == "QUERY_LAYERS":
-                _query_params.update({self.QUERY_LAYERS_QP: val})
-            elif key == "INFO_FORMAT":
-                _query_params.update({self.INFO_FORMAT_QP: val})
-            elif key == "FEATURE_COUNT":
-                _query_params.update({self.FEATURE_COUNT_QP: val})
-            elif key == "I":
-                _query_params.update({self.I_QP: val})
-            elif key == "J":
-                _query_params.update({self.J_QP: val})
+            match key.upper():
+                case "SERVICE":
+                    _query_params.update({self.SERVICE_QP: val})
+                case "REQUEST":
+                    _query_params.update({self.REQUEST_QP: val})
+                case "LAYERS":
+                    _query_params.update({self.LAYERS_QP: val})
+                case "BBOX":
+                    _query_params.update({self.BBOX_QP: val})
+                case "VERSION":
+                    _query_params.update({self.VERSION_QP: val})
+                case ("FORMAT" | "OUTPUTFORMAT"):
+                    _query_params.update({self.FORMAT_QP: val})
+                case ("SRS" | "CRS" | "SRSNAME"):
+                    _query_params.update({self.CRS_QP: val})
+                case ("WIDTH"):
+                    _query_params.update({self.WIDTH_QP: val})
+                case "HEIGHT":
+                    _query_params.update({self.HEIGHT_QP: val})
+                case "TRANSPARENT":
+                    _query_params.update({self.TRANSPARENT_QP: val})
+                case "EXCEPTIONS":
+                    _query_params.update({self.EXCEPTIONS_QP: val})
+                case "BGCOLOR":
+                    _query_params.update({self.BG_COLOR_QP: val})
+                case "TIME":
+                    _query_params.update({self.TIME_QP: val})
+                case "ELEVATION":
+                    _query_params.update({self.ELEVATION_QP: val})
+                case "QUERY_LAYERS":
+                    _query_params.update({self.QUERY_LAYERS_QP: val})
+                case "INFO_FORMAT":
+                    _query_params.update({self.INFO_FORMAT_QP: val})
+                case "FEATURE_COUNT":
+                    _query_params.update({self.FEATURE_COUNT_QP: val})
+                case "I":
+                    _query_params.update({self.I_QP: val})
+                case "J":
+                    _query_params.update({self.J_QP: val})
         return _query_params
 
     def get_requested_layers(self, query_params: dict):
@@ -429,7 +435,8 @@ class WmsService(WebMapAndFeatureService):
         if isinstance(layer_list, str):
             layer_list = [layer_list]
         if not style_list:
-            style_list = [""]  # A client may request the default Style using a null value (as in “STYLES=”)
+            # A client may request the default Style using a null value (as in “STYLES=”)
+            style_list = [""]
         if isinstance(style_list, str):
             style_list = [style_list]
 
@@ -491,8 +498,10 @@ class WmsService(WebMapAndFeatureService):
         return self.get_get_feature_info_request(**kwargs)
 
     def get_get_feature_info_request(self, **kwargs):
-        query_params = self.get_get_map_kwargs(**self.convert_kwargs_for_get_map(**kwargs))
-        query_params.update(self.get_get_feature_info_kwargs(**self.convert_kwargs_for_get_feature_info(**kwargs)))
+        query_params = self.get_get_map_kwargs(
+            **self.convert_kwargs_for_get_map(**kwargs))
+        query_params.update(self.get_get_feature_info_kwargs(
+            **self.convert_kwargs_for_get_feature_info(**kwargs)))
         query_params.update({self.REQUEST_QP: self.GET_FEATURE_INFO_QV})
         query_params.update(self.get_default_query_params())
         req = Request(method="GET", url=self.base_url, params=query_params)
@@ -582,7 +591,8 @@ class WfsService(WebMapAndFeatureService):
         if property_name and isinstance(property_name, str):
             property_name = [property_name]
 
-        query_params = {self.TYPE_NAME_QP: ",".join(type_names) if len(type_names) > 1 else type_names[0]}
+        query_params = {self.TYPE_NAME_QP: ",".join(
+            type_names) if len(type_names) > 1 else type_names[0]}
         if property_name:
             query_params.update(
                 {self.PROPERTY_NAME_QP: ",".join(property_name) if len(property_name) > 1 else property_name[0]})
@@ -636,7 +646,8 @@ class WfsService(WebMapAndFeatureService):
         return self.get_get_feature_request(**kwargs)
 
     def get_get_feature_request(self, data: str = None, **kwargs):
-        query_params = self.get_get_feature_kwargs(**self.convert_kwargs_for_get_feature(**kwargs))
+        query_params = self.get_get_feature_kwargs(
+            **self.convert_kwargs_for_get_feature(**kwargs))
         query_params.update({self.REQUEST_QP: self.GET_FEATURE_QV})
         query_params.update(self.get_default_query_params())
         if data:
@@ -661,7 +672,8 @@ class WfsService(WebMapAndFeatureService):
         return self.get_transaction_request(**kwargs)
 
     def get_transaction_request(self, data: str, **kwargs):
-        query_params = self.get_transaction_kwargs(**self.convert_kwargs_for_transaction(**kwargs))
+        query_params = self.get_transaction_kwargs(
+            **self.convert_kwargs_for_transaction(**kwargs))
         query_params.update({self.REQUEST_QP: self.TRANSACTION_QV})
         query_params.update(self.get_default_query_params())
 

@@ -12,9 +12,9 @@ from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
+from extras.utils import update_url_query_params
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
-from MrMap.validators import validate_get_capablities_uri
 from ows_client.request_builder import OgcService as OgcServiceClient
 from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
                                     OGCOperationEnum, OGCServiceVersionEnum)
@@ -31,6 +31,7 @@ from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from requests.auth import HTTPDigestAuth
+from requests.models import Request, Response
 from simple_history.models import HistoricalRecords
 
 
@@ -57,24 +58,18 @@ class CommonServiceInfo(models.Model):
 class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo):
     """Abstract Service model to store OGC service."""
 
-    version = models.CharField(
+    version: str = models.CharField(
         max_length=10,
         choices=OGCServiceVersionEnum.as_choices(),
         editable=False,
         verbose_name=_("version"),
         help_text=_("the version of the service type as sem version"),
     )
-    service_url = models.URLField(
+    service_url: str = models.URLField(
         max_length=4096,
         editable=False,
         verbose_name=_("url"),
         help_text=_("the base url of the service"),
-    )
-    get_capabilities_url = models.URLField(
-        max_length=4096,
-        verbose_name=_("get capabilities url"),
-        help_text=_("the capabilities url of the ogc service"),
-        validators=[validate_get_capablities_uri],
     )
 
     objects = DefaultHistoryManager()
@@ -115,6 +110,23 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
             session.auth = self.auth.get_auth_for_request()
         return session
 
+    @property
+    def get_capabilities_url(self) -> str:
+        """ Returns the url for the GetCapabilities operation, to use with http get method. """
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_CAPABILITIES.value,
+            method="Get"
+        )['url']
+        # TODO: handle different versions here... version 1.0.0 has other query parameters
+        query_params = {
+            "VERSION": self.version,
+            "SERVICE": "WMS",
+            "REQUEST": "GetCapabilities"}
+        return update_url_query_params(url=url, params=query_params)
+
+    def get_remote_capabilities(self) -> Response:
+        return self.get_session_for_request().send(Request(method="GET", url=self.get_capabilities_url))
+
 
 class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
@@ -154,20 +166,20 @@ class OperationUrl(models.Model):
     With that urls we can perform all needed request to a given service.
     """
 
-    method = models.CharField(
+    method: str = models.CharField(
         max_length=10,
         choices=HttpMethodEnum.as_choices(),
         verbose_name=_("http method"),
         help_text=_("the http method you can perform for this url"),
     )
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
-    url = models.URLField(
+    url: str = models.URLField(
         max_length=4096,
         editable=False,
         verbose_name=_("url"),
         help_text=_("the url for this operation"),
     )
-    operation = models.CharField(
+    operation: str = models.CharField(
         max_length=30,
         choices=OGCOperationEnum.as_choices(),
         editable=False,
@@ -189,7 +201,7 @@ class OperationUrl(models.Model):
         abstract = True
 
     def __str__(self):
-        return f"{self.pk} | {self.url} ({self.method})"
+        return f"{self.operation} | {self.url} ({self.method})"
 
     def get_url(self, request):
         url_parsed = urlparse(self.url)
@@ -331,7 +343,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
     """
 
-    service = models.ForeignKey(
+    service: WebMapService = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,
         editable=False,
@@ -340,7 +352,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name=_("service"),
         help_text=_("the extras service where this element is part of"),
     )
-    parent = TreeForeignKey(
+    parent: Layer = TreeForeignKey(
         to="self",
         on_delete=models.CASCADE,
         null=True,
@@ -350,7 +362,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name=_("parent layer"),
         help_text=_("the ancestor of this layer."),
     )
-    is_queryable = models.BooleanField(
+    is_queryable: bool = models.BooleanField(
         default=False,
         editable=False,
         verbose_name=_("is queryable"),
@@ -359,7 +371,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             " Parsed from capabilities."
         ),
     )
-    is_opaque = models.BooleanField(
+    is_opaque: bool = models.BooleanField(
         default=False,
         editable=False,
         verbose_name=_("is opaque"),
@@ -368,7 +380,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             "Parsed from capabilities."
         ),
     )
-    is_cascaded = models.BooleanField(
+    is_cascaded: bool = models.BooleanField(
         default=False,
         editable=False,
         verbose_name=_("is cascaded"),
@@ -377,7 +389,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             "as if they were local layers"
         ),
     )
-    scale_min = models.FloatField(
+    scale_min: float = models.FloatField(
         null=True,
         blank=True,
         editable=False,
@@ -388,7 +400,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             "images. None value means no restriction."
         ),
     )
-    scale_max = models.FloatField(
+    scale_max: float = models.FloatField(
         null=True,
         blank=True,
         editable=False,
@@ -558,6 +570,27 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         return Dimension.objects.filter(
             layer__in=self.get_ancestors(ascending=True)
         ).distinct("name")
+
+    def get_map_url(self, styles, crs, bbox, width, height, format, time, elevation, transparent=False, bgcolor="=0xFFFFFF", exceptions="XML") -> str:
+        """ Returns the url for the GetMap operation, to use with http get method to request this specific layer. """
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_MAP.value,
+            method="Get"
+        )['url']
+        # TODO: handle different versions here... version 1.0.0 has other query parameters
+        query_params = {
+            "VERSION": self.service.version,                            # M
+            "REQUEST": "GetMap",                                        # M
+            "LAYERS": self.identifier,                                  # M
+            "STYLES": "",                                               # M
+            "CRS" if self.service.minor_version == 3 else "SRS": crs,   # M
+            "BBOX": "",                                                 # M
+            "WIDTH": "",                                                # M
+            "HEIGHT": "",                                               # M
+            "FORMAT": "",                                               # M
+        }
+
+        return update_url_query_params(url=url, params=query_params)
 
 
 class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):

@@ -4,8 +4,7 @@ services:
 
   backend:
     # entrypoint: >
-    #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
-    #   /opt/mrmap/manage.py makemigrations accounts registry"
+    #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py makemigrations accounts registry"
     # entrypoint: >
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
     #   /opt/mrmap/manage.py squashmigrations registry 0002"
@@ -20,17 +19,14 @@ services:
     #   /opt/mrmap/manage.py dumpdata --natural-foreign --natural-primary registry
     #   > fixture.json"
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
-      /opt/mrmap/manage.py runserver 0.0.0.0:8001"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py runserver 0.0.0.0:8001"
 
     ports:
       - "0.0.0.0:3001:5678"
 
   celery-default-worker:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
-      /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py
-      --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
@@ -40,10 +36,7 @@ services:
 
   celery-download-worker:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
-      /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py
-      --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q
-      download_iso_metadata,download_described_elements,harvest"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
@@ -53,18 +46,17 @@ services:
 
   behave:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage
-      run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave  --noinput
-      --tags=-skip --no-skipped tests/behave/api/features --simple && python -m
-      coverage xml -i -o /opt/mrmap/acceptance-tests-coverage-report.xml"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave  --noinput --tags=-skip --no-skipped tests/behave/api/features --simple && python -m coverage xml -i -o /opt/mrmap/acceptance-tests-coverage-report.xml"
     ports:
       - "0.0.0.0:3004:5678"
 
   django-tests:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage
-      run --branch --source='/opt/mrmap' /opt/mrmap/manage.py test
-      /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o
-      /opt/mrmap/unit-tests-coverage-report.xml"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test tests/django/registry/models/ --noinput"
+    # command: >
+    #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage
+    #   run --branch --source='/opt/mrmap' /opt/mrmap/manage.py test
+    #   /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o
+    #   /opt/mrmap/unit-tests-coverage-report.xml"
     ports:
       - "0.0.0.0:3005:5678"

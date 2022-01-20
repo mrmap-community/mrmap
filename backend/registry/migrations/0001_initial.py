@@ -480,10 +480,10 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True,
                  primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(
-                    help_text='an identifying name for this map context layer', max_length=1000, verbose_name='title')),
-                ('description', models.CharField(blank=True, help_text='a short descriptionfor this map context layer',
-                 max_length=1000, null=True, verbose_name='name')),
+                ('title', models.CharField(max_length=1000, null=False, blank=False,
+                 verbose_name="title", help_text="an identifying name for this map context layer")),
+                ('description', models.CharField(max_length=1000, null=True, blank=True,
+                 verbose_name="description", help_text="a short description for this map context layer")),
                 ('layer_scale_min', models.FloatField(blank=True, help_text='minimum scale for a possible request to this layer. If the request is out of the given scope, the service will response with empty transparentimages. None value means no restriction.', null=True, verbose_name='scale minimum value')),
                 ('layer_scale_max', models.FloatField(blank=True, help_text='maximum scale for a possible request to this layer. If the request is out of the given scope, the service will response with empty transparentimages. None value means no restriction.', null=True, verbose_name='scale maximum value')),
                 ('preview_image', models.ImageField(blank=True, help_text='A preview image for the Map Context Layer',

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-01-20 15:28+0100\n"
+"POT-Creation-Date: 2022-01-20 18:43+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -252,8 +252,8 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/mapcontext.py:18 registry/models/metadata.py:52
-#: registry/models/metadata.py:352
+#: registry/models/mapcontext.py:18 registry/models/mapcontext.py:54
+#: registry/models/metadata.py:52 registry/models/metadata.py:352
 #, fuzzy
 #| msgid "Title"
 msgid "title"
@@ -272,13 +272,6 @@ msgstr "Beschreibung"
 #: registry/models/mapcontext.py:22
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
-
-#: registry/models/mapcontext.py:54 registry/models/metadata.py:47
-#: registry/models/metadata.py:747
-#, fuzzy
-#| msgid "Username"
-msgid "name"
-msgstr "Nutzername"
 
 #: registry/models/mapcontext.py:55
 msgid "an identifying name for this map context layer"
@@ -377,6 +370,12 @@ msgstr "Erstellt am"
 #: registry/models/metadata.py:42
 msgid "the layer for that this style is for."
 msgstr "Die Ebene für diesen Stil"
+
+#: registry/models/metadata.py:47 registry/models/metadata.py:747
+#, fuzzy
+#| msgid "Username"
+msgid "name"
+msgstr "Nutzername"
 
 #: registry/models/metadata.py:48
 msgid ""

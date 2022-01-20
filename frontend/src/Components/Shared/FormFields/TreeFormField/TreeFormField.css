@@ -3,6 +3,7 @@
   grid-template-columns: auto;
   grid-template-rows: 50px auto;
   width: 500px;
+  height: 100%;
 }
 
 .tree-form-field-node {

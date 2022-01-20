@@ -69,7 +69,7 @@ export class LayerUtils {
     return layersToSearch.find((layer:any) => String(layer.getProperties().layerId) === String(id));
   }
 
-  private getLayerGroupByGroupTitle = (
+  public getLayerGroupByGroupTitle = (
     collection: OlMap | LayerGroup, 
     layerGroupTitle: string
   ): LayerGroup | undefined => {

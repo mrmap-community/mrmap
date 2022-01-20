@@ -33,6 +33,7 @@ export const TreeFormField = ({
   showMaskOnNodeAttributeForm = false,
   checkableNodes = false,
   extendedNodeActions= () => undefined,
+  style,
 }: TreeProps): JSX.Element => {
   const [form] = useForm();
 
@@ -198,7 +199,7 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
         onDoubleClick={() => {
           setSelectedNode(nodeData);
           setIsEditingNewNodeName(true);
-          setNewNodeName(nodeData.properties.name);
+          setNewNodeName(nodeData.properties.title);
         }}
       >
         {isEditingNodeName && nodeData.key === selectedNode?.key
@@ -635,7 +636,10 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
   }, [nodeNameTextInput, isEditingNodeName]);
 
   return (
-    <div className='tree-form-field'>
+    <div 
+      className='tree-form-field'
+      style={style}
+    >
       <div 
         className='tree-form-field-title'
       >

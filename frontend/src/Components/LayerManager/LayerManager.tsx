@@ -3,9 +3,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMap } from '@terrestris/react-geo';
 import { Button, Menu, Tooltip } from 'antd';
 import { Key } from 'antd/lib/table/interface';
+import Collection from 'ol/Collection';
+import BaseEvent from 'ol/events/Event';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
+import Layer from 'ol/layer/Layer';
 import { transformExtent } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
@@ -16,23 +19,20 @@ import { TreeUtils } from '../../Utils/TreeUtils';
 import { TreeFormField } from '../Shared/FormFields/TreeFormField/TreeFormField';
 import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import './LayerManager.css';
-import { LayerManagerProps } from './LayerManagerTypes';
+import { CreateLayerOpts, LayerManagerProps } from './LayerManagerTypes';
 
 
 const treeUtils =  new TreeUtils();
 const layerUtils =  new LayerUtils();
 
-const layerTreeLayerGroup = new LayerGroup({
+const layerManagerLayerGroup = new LayerGroup({
   opacity: 1,
   visible: true,
-  properties: {
-    title: 'mrMapLayerTreeLayerGroup'
-  },
   layers: []
 });
 
 export const LayerManager = ({
-  layerGroup = layerTreeLayerGroup,
+  layerManagerLayerGroupName = 'mrMapLayerTreeLayerGroup',
   asyncTree = false,
   addLayerDispatchAction = () => undefined,
   removeLayerDispatchAction = () => undefined,
@@ -40,6 +40,7 @@ export const LayerManager = ({
   dragLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   layerAttributeForm,
+  initLayerTreeData
 }: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -48,14 +49,15 @@ export const LayerManager = ({
   const map = useMap();
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
   const [isTreeContainerVisible, setIsTreeContainerVisible] = useState<boolean>(true); 
+  // const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>(); // TODO
 
   useEffect(() => {
     map.updateSize();  
   },[isTreeContainerVisible, map]);
-  
+
   useEffect(() => {
-    const onLayerGroupChange = (e:any) => {
-        setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerGroup));
+    const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {        
+        setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
     };
     const setWMSParams = async(theLayer: ImageLayer<ImageWMS>) => {
       try {
@@ -70,9 +72,15 @@ export const LayerManager = ({
         throw new Error(error);
       }
     };
-    map.addLayer(layerGroup);
-    setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerGroup));
-    const allMapLayers = layerUtils.getAllMapLayers(layerGroup);
+    
+    layerManagerLayerGroup.set('title', layerManagerLayerGroupName);
+    layerManagerLayerGroup.setLayers(initLayerTreeData);
+
+    map.addLayer(layerManagerLayerGroup);
+    setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
+    
+    const allMapLayers = layerUtils.getAllMapLayers(layerManagerLayerGroup);
+    
     allMapLayers.forEach((mapLayer: any) => {
       if(mapLayer instanceof ImageLayer) {
         const src: ImageWMS = mapLayer.getSource();
@@ -84,13 +92,16 @@ export const LayerManager = ({
         }
       }
     });
-    layerGroup.on('change', onLayerGroupChange);
+    
+
+    layerManagerLayerGroup.on('change', onLayerGroupReceivedNewLayer);
+    
     return () => {
-      layerGroup.un('change', onLayerGroupChange);
-      map.removeLayer(layerGroup);
+      layerManagerLayerGroup.un('change', onLayerGroupReceivedNewLayer);
+      map.removeLayer(layerManagerLayerGroup);
     };
 
-  }, [layerGroup, map]);
+  }, [layerManagerLayerGroupName, map, initLayerTreeData]);
 
   const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const { checked } = info;
@@ -117,7 +128,7 @@ export const LayerManager = ({
         layer.setVisible(visibility);
         // if layer has a parent folder, make it visible too
         if (visibility) {
-          const group = layerGroup ? layerGroup : map.getLayerGroup();
+          const group = layerManagerLayerGroup ? layerManagerLayerGroup : map.getLayerGroup();
           setParentFoldersVisible(group, getUid(layer), group);
         }
       }
@@ -157,7 +168,7 @@ export const LayerManager = ({
       <Menu.Item
         onClick={async() => {
           // fit to layer extent
-          const theLayer = layerUtils.getAllMapLayers(layerGroup)
+          const theLayer = layerUtils.getAllMapLayers(layerManagerLayerGroup)
             .find(l => { 
               return l.getProperties().key === nodeData?.key;
             });
@@ -174,6 +185,145 @@ export const LayerManager = ({
       </Menu.Item>
       </>
     );
+  }; 
+
+  const onCreateLayer = async(nodeAttributes:any, newNodeParent:any) => {
+    // NOTE it is assumed that the object returned by the addDispatchLayerAction, is of type CreateLayerOpts
+    let layerToAdd: LayerGroup | ImageLayer<ImageWMS> = new Layer({});
+    // if method is asnyc, we need to get the result by resolving the promise
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    if(addLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor){
+      try {
+        const response: CreateLayerOpts | void = await addLayerDispatchAction(nodeAttributes, newNodeParent);
+        
+        if(response?.properties.rendering_layer) {
+          layerToAdd = layerUtils.createMrMapOlWMSLayer(response);
+        } else {
+          layerToAdd = new LayerGroup({
+            opacity: 1,
+            visible: false,
+            properties: {
+              title: response?.title,
+              description: response?.description,
+              layerId: response?.layerId,
+              parent: response?.properties.parent
+            },
+            layers: []
+          });
+        }
+        // add the layer to the parent, where the layer or group is being created
+        layerUtils.addLayerToGroupByMrMapLayerId(
+          layerManagerLayerGroup, 
+          newNodeParent as string, 
+          layerToAdd
+        );
+        return response;
+      } catch(error) {
+        //@ts-ignore
+        throw new Error(error);
+      }
+    // Non Async version
+    } else {
+      const layerOpts = addLayerDispatchAction(nodeAttributes, newNodeParent);
+      if(layerOpts) {
+        //@ts-ignore
+        layerToAdd = layerUtils.createMrMapOlWMSLayer(layerOpts);
+      }
+      // add the layer to the parent, where the layer or group is being created
+      layerUtils.addLayerToGroupByMrMapLayerId(
+        layerManagerLayerGroup, 
+        newNodeParent as string, 
+        layerToAdd
+      );
+    }
+  };
+
+  const onDeleteLayer = async(nodeToRemove: TreeNodeType) => {
+    let layersToKeep;
+    // if method is asnyc, we need to get the result by resolving the promise
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
+      try {
+        return await removeLayerDispatchAction(nodeToRemove);
+      } catch (error) {
+        // @ts-ignore
+        throw new Error(error);
+      } finally {
+        const layerToRemoveParent = layerUtils.getAllMapLayers(layerManagerLayerGroup)
+          .find((l: any) => l.getProperties().layerId === nodeToRemove.parent);
+        if(layerToRemoveParent && layerToRemoveParent instanceof LayerGroup) {
+          layersToKeep = layerToRemoveParent
+            .getLayers()
+            .getArray()
+            .filter((l:any) => l.getProperties().layerId !== nodeToRemove.key);
+          layerToRemoveParent.setLayers(new Collection(layersToKeep));
+        } else {
+          // if there is no parent, its root.Remove itself from the layer group
+          layersToKeep = layerManagerLayerGroup
+            .getLayers()
+            .getArray()
+            .filter((l:any) => l.getProperties().layerId !== nodeToRemove.key);
+          layerManagerLayerGroup.setLayers(new Collection(layersToKeep));
+        }
+      } 
+    // Non Async version
+    } else {
+      removeLayerDispatchAction(nodeToRemove);
+      const layerToRemoveParent = layerUtils.getAllMapLayers(layerManagerLayerGroup)
+        .find((l: any) => l.getProperties().layerId === nodeToRemove.parent);
+      if(layerToRemoveParent && layerToRemoveParent instanceof LayerGroup) {
+        layersToKeep = layerToRemoveParent
+          .getLayers()
+          .getArray()
+          .filter((l:any) => l.getProperties().layerId !== nodeToRemove.key);
+        layerToRemoveParent.setLayers(new Collection(layersToKeep));
+      } else {
+        // if there is no parent, its root.Remove itself from the layer group
+        layersToKeep = layerManagerLayerGroup
+          .getLayers()
+          .getArray()
+          .filter((l:any) => l.getProperties().layerId !== nodeToRemove.key);
+        layerManagerLayerGroup.setLayers(new Collection(layersToKeep));
+      }
+    }
+    // setCurrentSelectedTreeLayerNode(undefined);
+  };
+
+  const onEditLayer = async(nodeId:number|string, nodeAttributesToUpdate: any) => {
+    // if method is asnyc, we need to get the result by resolving the promise
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
+      try {
+        return await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
+      } catch(error) {
+        // @ts-ignore
+        throw new Error(error);
+      }
+    // Non Async version
+    } else {
+      editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
+    }
+  };
+
+  const onDragLayer = async(nodeBeingDraggedInfo: any) => {
+    // if method is asnyc, we need to get the result by resolving the promise
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    if(dragLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
+      try {
+        return await dragLayerDispatchAction(nodeBeingDraggedInfo);
+      } catch (error) {
+        // @ts-ignore
+        throw new Error(error);
+      }
+    // Non Async version
+    } else {
+      dragLayerDispatchAction(nodeBeingDraggedInfo);
+    }
+  };
+
+  const onSelectLayer = (selectedKeys: React.Key[], info: any) => {
+    // setCurrentSelectedTreeLayerNode(info.node);
+    selectLayerDispatchAction(selectedKeys, info);
   };
 
   return (
@@ -181,35 +331,42 @@ export const LayerManager = ({
       <Tooltip
         title={isTreeContainerVisible ? 'Hide layer manager' : 'Show layer manager'}
       >
-      <Button
-          className={`layer-manager-toggle${isTreeContainerVisible ? '-expanded' : '-collapsed'}`}
-          type='primary' 
+        <Button
+          className={`layer-manager-toggle`}
+          type='primary'
+          style={{
+            left: isTreeContainerVisible ? '500px' : 0
+          }}
           icon={(
             <FontAwesomeIcon 
               icon={['fas', isTreeContainerVisible ? 'angle-double-left' : 'angle-double-right']} 
             />
           )} 
-          // size='large'
           onClick={() => setIsTreeContainerVisible(!isTreeContainerVisible)}
         />
       </Tooltip>
       {isTreeContainerVisible && (
         <TreeFormField
+          draggable
+          contextMenuOnNode
+          checkableNodes
+          attributeContainer='drawer'
+          className='layer-manager-tree'
           title='Layers'
           treeData={treeData}
           asyncTree={asyncTree}
-          addNodeDispatchAction={addLayerDispatchAction}
-          removeNodeDispatchAction={removeLayerDispatchAction}
-          editNodeDispatchAction={editLayerDispatchAction}
-          dragNodeDispatchAction={dragLayerDispatchAction}
-          checkNodeDispacthAction={onCheckLayer}
-          selectNodeDispatchAction={selectLayerDispatchAction}
-          draggable
-          nodeAttributeForm={layerAttributeForm}
-          attributeContainer='drawer'
-          contextMenuOnNode
-          checkableNodes
           extendedNodeActions={layerActions}
+          //@ts-ignore
+          addNodeDispatchAction={onCreateLayer}
+          //@ts-ignore
+          removeNodeDispatchAction={onDeleteLayer}
+          //@ts-ignore
+          editNodeDispatchAction={onEditLayer}
+          //@ts-ignore
+          dragNodeDispatchAction={onDragLayer}
+          checkNodeDispacthAction={onCheckLayer}
+          selectNodeDispatchAction={onSelectLayer}
+          nodeAttributeForm={layerAttributeForm}
         />
       )}
     </div>

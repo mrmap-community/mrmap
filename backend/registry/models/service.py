@@ -1,3 +1,4 @@
+from types import FunctionType
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
@@ -5,7 +6,8 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.db.models import QuerySet
+from django.db.models import OuterRef, QuerySet
+from django.db.models.query import Prefetch
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -26,7 +28,8 @@ from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
-                                      ServiceMetadata)
+                                      MimeType, ReferenceSystem,
+                                      ServiceMetadata, Style)
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
@@ -103,12 +106,15 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     def fix_version(self) -> int:
         return int(self.version.split(".")[2])
 
-    def get_session_for_request(self) -> Session:
-        session = Session()
+    def get_session_for_request(self, timeout: int = 10) -> Session:
+        session = Session(timeout=timeout)
         session.proxies = PROXIES
         if hasattr(self, "auth"):
             session.auth = self.auth.get_auth_for_request()
         return session
+
+    def send_get_request(self, url: str, timeout: int = 10) -> Response:
+        return self.get_session_for_request(timeout=timeout).send(Request(method="GET", url=url))
 
     @property
     def get_capabilities_url(self) -> str:
@@ -123,9 +129,6 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
             "SERVICE": "WMS",
             "REQUEST": "GetCapabilities"}
         return update_url_query_params(url=url, params=query_params)
-
-    def get_remote_capabilities(self) -> Response:
-        return self.get_session_for_request().send(Request(method="GET", url=self.get_capabilities_url))
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
@@ -571,24 +574,39 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             layer__in=self.get_ancestors(ascending=True)
         ).distinct("name")
 
-    def get_map_url(self, styles, crs, bbox, width, height, format, time, elevation, transparent=False, bgcolor="=0xFFFFFF", exceptions="XML") -> str:
+    def get_map_url(self, bbox: Polygon = None, format: str = None, style: Style = None, width: int = 1, height: int = 1, transparent: bool = False, bgcolor="=0xFFFFFF", exceptions="XML") -> str:
         """ Returns the url for the GetMap operation, to use with http get method to request this specific layer. """
-        url: str = self.operation_urls.values('url').get(
-            operation=OGCOperationEnum.GET_MAP.value,
-            method="Get"
-        )['url']
+        if not format:
+            image_format = MimeType.objects.filter(webmapservice__operation_urls=OuterRef(
+                'pk'), mime_type__istartswith="image/").exclude(mime_type__icontains="svg").values('mime_type')
+            url_and_format: dict = self.service.operation_urls.annotate(image_format=image_format.first()).values('url', 'image_format').get(
+                operation=OGCOperationEnum.GET_MAP.value,
+                method="Get"
+            )
+            url: str = url_and_format["url"]
+            image_format: str = ["image_format"]
+        else:
+            url: str = self.service.operation_urls.values('url').get(
+                operation=OGCOperationEnum.GET_MAP.value,
+                method="Get"
+            )["url"]
+            # TODO: check if this format is supported by the layer...
+            image_format = format
+        _bbox: Polygon = bbox if bbox else self.get_bbox
         # TODO: handle different versions here... version 1.0.0 has other query parameters
         query_params = {
-            "VERSION": self.service.version,                            # M
-            "REQUEST": "GetMap",                                        # M
-            "LAYERS": self.identifier,                                  # M
-            "STYLES": "",                                               # M
-            "CRS" if self.service.minor_version == 3 else "SRS": crs,   # M
-            "BBOX": "",                                                 # M
-            "WIDTH": "",                                                # M
-            "HEIGHT": "",                                               # M
-            "FORMAT": "",                                               # M
+            "VERSION": self.service.version,
+            "REQUEST": "GetMap",
+            "LAYERS": self.identifier,
+            "STYLES": style.name if style else "",
+            "CRS" if self.service.minor_version == 3 else "SRS": f"EPSG:{_bbox.crs.srid}",
+            "BBOX": ",".join(map(str, _bbox.extent)),
+            "WIDTH": width,
+            "HEIGHT": height,
+            "FORMAT": image_format,
         }
+        if transparent:
+            query_params.update({"TRANSPARENT": "True"})
 
         return update_url_query_params(url=url, params=query_params)
 

@@ -207,7 +207,7 @@ class WebFeatureServiceSerializer(ModelSerializer):
 
 
 class WebFeatureServiceCreateSerializer(ModelSerializer):
-
+    get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
     )

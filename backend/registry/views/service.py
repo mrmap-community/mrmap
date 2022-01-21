@@ -31,8 +31,8 @@ class WebMapServiceRelationshipView(RelationshipView):
 
 
 class WebMapServiceViewSet(
-    AsyncCreateMixin,
     SerializerClassesMixin,
+    AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
     NestedViewSetMixin,
@@ -206,9 +206,11 @@ class WebFeatureServiceRelationshipView(RelationshipView):
 
 
 class WebFeatureServiceViewSet(
+    SerializerClassesMixin,
+    AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
+    HistoryInformationViewSetMixin,
     NestedViewSetMixin,
-    OgcServiceCreateMixin,
     ModelViewSet,
 ):
     schema = AutoSchema(
@@ -223,6 +225,21 @@ class WebFeatureServiceViewSet(
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    task_function = build_ogc_service
+
+    def get_task_kwargs(self, request, serializer):
+        return {
+            "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
+            "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
+            "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
+            "request": {
+                "path": request.path,
+                "method": request.method,
+                "content_type": request.content_type,
+                "data": request.GET,
+                "user_pk": request.user.pk,
+            }
+        }
 
 
 class FeatureTypeRelationshipView(RelationshipView):

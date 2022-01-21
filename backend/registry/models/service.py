@@ -1,14 +1,11 @@
-import math
-from types import FunctionType
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
+from django.contrib.gis.geos import Polygon
 from django.db.models import OuterRef, QuerySet
-from django.db.models.query import Prefetch
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _

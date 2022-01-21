@@ -43,10 +43,13 @@ class HistoryInformationViewSetMixin:
 
 class SerializerClassesMixin:
     def get_serializer_class(self):
-        return self.serializer_classes.get(
+        serializer = self.serializer_classes.get(
             self.action, self.serializer_classes.get(
-                "default", super().get_serializer_class())
+                "default", None)
         )
+        if not serializer:
+            serializer = super().get_serializer_class()
+        return serializer
 
 
 class AsyncCreateMixin:
@@ -66,7 +69,7 @@ class AsyncCreateMixin:
 
         task_function = self.get_task_function()
         task = self.get_task_function().delay(
-            **self.get_task_kwargs(serializer=serializer))
+            **self.get_task_kwargs(request=request, serializer=serializer))
         task_result, created = TaskResult.objects.get_or_create(
             task_id=task.id, task_name=f"{task_function.__class__.__module__}.{task_function.__class__.__name__}"
         )

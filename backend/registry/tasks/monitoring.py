@@ -1,8 +1,8 @@
-from backend.registry.exceptions.service import OperationNotSupported
 from celery import current_task, shared_task, states
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from extras.tasks import CurrentUserTaskMixin
+from registry.exceptions.service import OperationNotSupported
 from registry.models.monitoring import (LayerGetFeatureInfoResult,
                                         LayerGetMapResult,
                                         WMSGetCapabilitiesResult)

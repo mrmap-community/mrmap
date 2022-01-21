@@ -14,12 +14,13 @@ from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
-from extras.utils import update_url_query_params
+from extras.utils import update_url_base, update_url_query_params
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from ows_client.request_builder import OgcService as OgcServiceClient
 from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
                                     OGCOperationEnum, OGCServiceVersionEnum)
+from registry.exceptions.service import LayerNotQueryable
 from registry.managers.security import WebMapServiceSecurityManager
 from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        FeatureTypeElementXmlManager,
@@ -584,14 +585,14 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 method="Get"
             )
             url: str = url_and_format["url"]
-            image_format: str = ["image_format"]
+            image_format: str = url_and_format["image_format"]
         else:
             url: str = self.service.operation_urls.values('url').get(
                 operation=OGCOperationEnum.GET_MAP.value,
                 method="Get"
             )["url"]
             # TODO: check if this format is supported by the layer...
-            image_format = format
+            image_format: str = format
         _bbox: Polygon = bbox if bbox else self.get_bbox
         # TODO: handle different versions here... version 1.0.0 has other query parameters
         query_params = {
@@ -608,6 +609,39 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if transparent:
             query_params.update({"TRANSPARENT": "True"})
 
+        return update_url_query_params(url=url, params=query_params)
+
+    def get_feature_info_url(self, column: int = None, row: int = None, info_format: str = None, *args, **kwargs):
+        if not self.is_queryable:
+            raise LayerNotQueryable(
+                f"Layer '{self.identifier}' is not queryable.")
+        if not info_format:
+            info_format_qs = MimeType.objects.filter(webmapservice__operation_urls=OuterRef(
+                'pk'), mime_type__istartswith="text/").values('mime_type')
+            url_and_format: dict = self.service.operation_urls.annotate(info_format=info_format_qs.first()).values('url', 'info_format').get(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                method="Get"
+            )
+            url: str = url_and_format["url"]
+            _info_format: str = url_and_format["info_format"]
+        else:
+            url: str = self.service.operation_urls.values('url').get(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                method="Get"
+            )["url"]
+            # TODO: check if this format is supported by the layer...
+            _info_format: str = "text/plain"
+
+        query_params = {
+            "VERSION": self.service.version,
+            "REQUEST": "GetFeatureInfo",
+            "QUERY_LAYERS": self.identifier,
+            "INFO_FORMAT": _info_format,
+            "I" if self.service.minor_version == 3 else "X": column if column else kwargs['width'],
+            "J" if self.service.minor_version == 3 else "Y": row if row else kwargs['row']
+
+        }
+        url = update_url_base(url=self.get_map_url(*args, **kwargs), base=url)
         return update_url_query_params(url=url, params=query_params)
 
 

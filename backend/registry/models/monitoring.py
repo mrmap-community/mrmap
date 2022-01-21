@@ -2,9 +2,12 @@ import difflib
 import hashlib
 from io import BytesIO
 
+from attr import has
 from django.contrib.gis.db import models
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
+from lxml import objectify
+from lxml.etree import ParseError
 from PIL import Image, UnidentifiedImageError
 from registry.models.service import Layer, WebMapService
 from registry.settings import MONITORING_REQUEST_TIMEOUT
@@ -48,6 +51,17 @@ class MonitoringResult(models.Model):
         finally:
             self.request_duration = self.response.elapsed
 
+    def check_service_exception(self):
+        try:
+            xml = objectify.fromstring(f=self.response.text)
+            if hasattr(xml, "ServiceExceptionReport") or hasattr(xml, "ServiceException"):
+                self.error_msg = self.response.text
+                return True
+            else:
+                return False
+        except ParseError:
+            return False
+
 
 class OgcServiceGetCapabilitiesResult(MonitoringResult):
     needs_update: bool = models.BooleanField(default=False)
@@ -84,6 +98,8 @@ class OgcServiceGetCapabilitiesResult(MonitoringResult):
     def run_checks(self):
         self.check_url(service=self.service,
                        url=self.service.get_capabilities_url)
+        if self.check_service_exception():
+            return
         if self.status_code == 200:
             diff_obj = self.get_document_diff(
                 self.response.text,
@@ -92,7 +108,7 @@ class OgcServiceGetCapabilitiesResult(MonitoringResult):
                 self.needs_update = True
 
 
-class WebMapServiceMonitoringResult(OgcServiceGetCapabilitiesResult):
+class WMSGetCapabilitiesResult(OgcServiceGetCapabilitiesResult):
     service: WebMapService = models.ForeignKey(to=WebMapService,
                                                on_delete=models.CASCADE,
                                                related_name="monitoring_results",
@@ -103,13 +119,13 @@ class WebMapServiceMonitoringResult(OgcServiceGetCapabilitiesResult):
         pass
 
 
-class LayerGetMapMonitoringResult(MonitoringResult):
+class LayerGetMapResult(MonitoringResult):
     layer: Layer = models.ForeignKey(to=Layer,
                                      on_delete=models.CASCADE,
                                      related_name="get_map_monitoring_results",
                                      related_query_name="get_map_monitoring_result")
 
-    class Meta(OgcServiceGetCapabilitiesResult.Meta):
+    class Meta(MonitoringResult.Meta):
         # Inheritate meta
         pass
 
@@ -122,5 +138,24 @@ class LayerGetMapMonitoringResult(MonitoringResult):
     def run_checks(self):
         self.check_url(service=self.layer.service,
                        url=self.layer.get_map_url())
+        if self.check_service_exception():
+            return
         if self.status_code == 200:
             self.check_image()
+
+
+class LayerGetFeatureInfoResult(MonitoringResult):
+    layer: Layer = models.ForeignKey(to=Layer,
+                                     on_delete=models.CASCADE,
+                                     related_name="get_feature_info_monitoring_results",
+                                     related_query_name="get_feature_info_monitoring_result")
+
+    class Meta(MonitoringResult.Meta):
+        # Inheritate meta
+        pass
+
+    def run_checks(self):
+        self.check_url(service=self.layer.service,
+                       url=self.layer.get_feature_info_url())
+        if self.check_service_exception():
+            return

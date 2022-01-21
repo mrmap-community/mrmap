@@ -597,16 +597,16 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             image_format: str = format
         _bbox: Polygon = bbox if bbox else self.get_bbox
 
-        if self.get_scale_max:
-            # 1/100000
-            upper_left = Point(_bbox.extend[0], _bbox.extend[1])
-            lower_right = Point(_bbox.extend[2], _bbox.extend[3])
-            distance = upper_left.distance(lower_right)
-            scale_bbox = distance / \
-                math.sqrt(pow(width, 2) + pow(height, 2)) / 0.00028
-            if scale_bbox > self.get_scale_max:
-                # TODO: scale the bbox
-                pass
+        # if self.get_scale_max:
+        #     # 1/100000
+        #     upper_left = Point(_bbox.extend[0], _bbox.extend[1])
+        #     lower_right = Point(_bbox.extend[2], _bbox.extend[3])
+        #     distance = upper_left.distance(lower_right)
+        #     scale_bbox = distance / \
+        #         math.sqrt(pow(width, 2) + pow(height, 2)) / 0.00028
+        #     if scale_bbox > self.get_scale_max:
+        #         # TODO: scale the bbox
+        #         pass
 
         # TODO: handle different versions here... version 1.0.0 has other query parameters
         query_params = {

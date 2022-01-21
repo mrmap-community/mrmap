@@ -39,6 +39,7 @@ export const LayerManager = ({
   editLayerDispatchAction = () => undefined,
   dragLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
+  customLayerManagerTitleAction = () => undefined,
   layerAttributeForm,
   initLayerTreeData
 }: LayerManagerProps): JSX.Element => {
@@ -164,7 +165,6 @@ export const LayerManager = ({
   const layerActions = (nodeData: TreeNodeType|undefined): any => {
     return (
       <>
-      {/* <Divider orientation='right' plain /> */}
       <Menu.Item
         onClick={async() => {
           // fit to layer extent
@@ -322,7 +322,6 @@ export const LayerManager = ({
   };
 
   const onSelectLayer = (selectedKeys: React.Key[], info: any) => {
-    // setCurrentSelectedTreeLayerNode(info.node);
     selectLayerDispatchAction(selectedKeys, info);
   };
 
@@ -330,6 +329,7 @@ export const LayerManager = ({
     <div className='layer-manager'>
       <Tooltip
         title={isTreeContainerVisible ? 'Hide layer manager' : 'Show layer manager'}
+        placement='right'
       >
         <Button
           className={`layer-manager-toggle`}
@@ -366,6 +366,7 @@ export const LayerManager = ({
           dragNodeDispatchAction={onDragLayer}
           checkNodeDispacthAction={onCheckLayer}
           selectNodeDispatchAction={onSelectLayer}
+          customTreeTitleAction={customLayerManagerTitleAction}
           nodeAttributeForm={layerAttributeForm}
         />
       )}

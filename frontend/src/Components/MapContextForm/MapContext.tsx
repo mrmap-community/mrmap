@@ -1,10 +1,11 @@
+import { SyncOutlined } from '@ant-design/icons';
 import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
-import { notification } from 'antd';
+import { Button, notification } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
 import React, { ReactElement, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { JsonApiPrimaryData, JsonApiResponse } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
@@ -12,11 +13,12 @@ import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
-import { SearchDrawer } from '../SearchDrawer/SearchDrawer';
 import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
 import './MapContext.css';
+import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
+import { MapContextSearchDrawer } from './MapContextSearchDrawer';
 
 
 const mapContextRepo = new MapContextRepo();
@@ -26,16 +28,14 @@ const layerUtils = new LayerUtils();
 const treeUtils = new TreeUtils();
 
 export const MapContext = (): ReactElement => {
-  const navigate = useNavigate();
   const [form] = useForm();
 
   // get the ID parameter from the url
   const { id } = useParams();
 
-  // const [current, setCurrent] = useState(0);
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
+  const [isLoadingMapContextInfo, setIsLoadingMapContextInfo] = useState<boolean>(false);
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
-  const [isRemovingMapContext, setIsRemovingMapContext] = useState<boolean>(false);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
   const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>();
 
@@ -43,6 +43,8 @@ export const MapContext = (): ReactElement => {
     // TODO: need to add some sort of loading until the values are fetched
     // olMap.addLayer(mapContextLayersPreviewGroup);
     if (id) {
+      setIsLoadingMapContextInfo(true);
+      setCreatedMapContextId(id);
       const fetchMapContext = async () => {
         try {
           const response = await mapContextRepo.getMapContextWithLayers(String(id));
@@ -58,23 +60,14 @@ export const MapContext = (): ReactElement => {
         } catch (error) {
           // @ts-ignore
           throw new Error(error);
+        } finally {
+          setIsLoadingMapContextInfo(false);
         }
       };
       fetchMapContext();
     }
   }, [id, form]);
   
-  // const nextStep = () => {
-  //   setCurrent(current + 1);
-  // };
-
-  // const prevStep = () => {
-  //   setCurrent(current - 1);
-  // };
-
-  // const onSelectLayerInTree = (selectedKeys: any, info: any) => {
-  //   setCurrentSelectedTreeLayerNode(info.node);
-  // };
 
   const onAddDatasetToMapAction = async(dataset:any) => {
     dataset.layers.forEach(async (layer: string) => {
@@ -189,18 +182,110 @@ export const MapContext = (): ReactElement => {
         //@ts-ignore
         throw new Error(error);
       }
-  });
-};
+    });
+  };
+  
+  // TODO: rplace for a decent loading screen
+  if(isLoadingMapContextInfo) {
+    return (<SyncOutlined spin />);
+  }
 
-return(
+  return (
+    <>
+      <div className='map-context'>
+        <ReactGeoMapContext.Provider value={olMap}>
+          <TheMap 
+            selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}
+            addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
+              let renderingLayerInfo = null;
+              try {
+                // create the layer in the DB
+                const createdLayer: JsonApiResponse = await mapContextLayerRepo.create({
+                  ...nodeAttributes,
+                  parentLayerId: newNodeParent || '',
+                  mapContextId: createdMapContextId
+                });
 
-        <div className='map-context'>
-            {/* <MapContextForm
+                //@ts-ignore
+                const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
+                if(renderingLayerId) {
+                  renderingLayerInfo = await layerRepo.autocompleteInitialValue(renderingLayerId);
+                }
+
+                return {
+                  url: renderingLayerInfo?.attributes.WMSParams.url,
+                  version: renderingLayerInfo?.attributes.WMSParams.version,
+                  format: 'image/png',
+                  layers: renderingLayerInfo?.attributes.WMSParams.layer,
+                  serverType: renderingLayerInfo?.attributes.WMSParams.serviceType,
+                  legendUrl: renderingLayerInfo?.attributes.WMSParams.legendUrl,
+                  visible: false,
+                  layerId: (createdLayer?.data?.data as JsonApiPrimaryData).id,
+                  title: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.title,
+                  description: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.description,
+                  properties: {
+                    ...(createdLayer?.data?.data as JsonApiPrimaryData).attributes,
+                    datasetMetadata: (createdLayer?.data?.data as JsonApiPrimaryData)
+                      .relationships.dataset_metadata.data?.id,
+                    renderingLayer: (createdLayer?.data?.data as JsonApiPrimaryData).relationships
+                      .rendering_layer.data?.id,
+                    scaleMin: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layer_scale_min,
+                    scaleMax: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layer_scale_max,
+                    style: (createdLayer?.data?.data as JsonApiPrimaryData).relationships.layer_style.data?.id,
+                    featureSelectionLayer: (createdLayer?.data?.data as JsonApiPrimaryData)
+                      .relationships.selection_layer.data?.id,
+                    parent: (createdLayer?.data?.data as JsonApiPrimaryData).relationships?.parent?.data?.id,
+                    key: (createdLayer?.data?.data as JsonApiPrimaryData).id
+                  }
+                };
+              } catch (error) {
+                //@ts-ignore
+                throw new Error(error);
+              }      
+            }}
+            removeLayerDispatchAction={async (nodeToRemove) => {
+              try {
+                // setCurrentSelectedTreeLayerNode(undefined);
+                return await mapContextLayerRepo?.delete(String(nodeToRemove.key));
+              } catch (error) {
+                //@ts-ignore
+                throw new Error(error);
+              } finally {
+                // setCurrentSelectedTreeLayerNode(undefined);
+              }
+            }}
+            editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
+              await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
+            )}
+            dragLayerDispatchAction={async (nodeBeingDraggedInfo) => {
+              const dropKey = nodeBeingDraggedInfo.node.key;
+              const dragKey = nodeBeingDraggedInfo.dragNode.key;
+              let position:string;
+              if (nodeBeingDraggedInfo.node.parent === nodeBeingDraggedInfo.dragNode.parent) {
+                position = 'right';
+              } else {
+                position = 'first-child';
+              }
+              return await mapContextLayerRepo?.move(dragKey, dropKey, position);
+            }}
+            layerGroupName='mrMapMapContextLayers'
+            initLayerTreeData={initLayerTreeData}
+            layerAttributeForm={(<MapContextLayerForm form={form}/>)}
+          />
+        </ReactGeoMapContext.Provider>
+      </div>
+      <MapContextSearchDrawer
+        isOpenByDefault={!id}
+        addDatasetToMapAction={onAddDatasetToMapAction}
+        mapContextForm={(
+          <>
+            <MapContextForm
               onSubmit={async (values) => {
+                let response;
                 if (!id) {
                   setIsSubmittingMapContext(true);
                   try {
-                    const response = await mapContextRepo.create(values);
+                    response = await mapContextRepo.create(values);
                     if (response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
                       setCreatedMapContextId((response.data.data as JsonApiPrimaryData).id);
                     }
@@ -211,101 +296,26 @@ return(
                     throw new Error(error);
                   } finally {
                     setIsSubmittingMapContext(false);
-                    // nextStep();
                   }
                 } else {
                   // TODO add action to edit
+                  response = await mapContextRepo.update(id, values);
                   setCreatedMapContextId(id);
-                  // nextStep();
                 }
               }}
               form={form}
-            /> */}
-          <ReactGeoMapContext.Provider value={olMap}>
-            <TheMap 
-              createdMapContextId={createdMapContextId}
-              selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}
-              addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
-                let renderingLayerInfo = null;
-                try {
-                  // create the layer in the DB
-                  const createdLayer: JsonApiResponse = await mapContextLayerRepo.create({
-                    ...nodeAttributes,
-                    parentLayerId: newNodeParent || '',
-                    mapContextId: createdMapContextId
-                  });
-                  
-                  //@ts-ignore
-                  const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
-                  if(renderingLayerId) {
-                    renderingLayerInfo = await layerRepo.autocompleteInitialValue(renderingLayerId);
-                  }
-                  
-                  return {
-                    url: renderingLayerInfo?.attributes.WMSParams.url,
-                    version: renderingLayerInfo?.attributes.WMSParams.version,
-                    format: 'image/png',
-                    layers: renderingLayerInfo?.attributes.WMSParams.layer,
-                    serverType: renderingLayerInfo?.attributes.WMSParams.serviceType,
-                    legendUrl: renderingLayerInfo?.attributes.WMSParams.legendUrl,
-                    visible: false,
-                    layerId: (createdLayer?.data?.data as JsonApiPrimaryData).id,
-                    title: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.title,
-                    description: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.description,
-                    properties: {
-                      ...(createdLayer?.data?.data as JsonApiPrimaryData).attributes,
-                      datasetMetadata: (createdLayer?.data?.data as JsonApiPrimaryData)
-                        .relationships.dataset_metadata.data?.id,
-                      renderingLayer: (createdLayer?.data?.data as JsonApiPrimaryData).relationships
-                        .rendering_layer.data?.id,
-                      scaleMin: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layer_scale_min,
-                      scaleMax: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layer_scale_max,
-                      style: (createdLayer?.data?.data as JsonApiPrimaryData).relationships.layer_style.data?.id,
-                      featureSelectionLayer: (createdLayer?.data?.data as JsonApiPrimaryData)
-                        .relationships.selection_layer.data?.id,
-                      parent: (createdLayer?.data?.data as JsonApiPrimaryData).relationships?.parent?.data?.id,
-                      key: (createdLayer?.data?.data as JsonApiPrimaryData).id
-                    }
-                  };
-                } catch (error) {
-                  //@ts-ignore
-                  throw new Error(error);
-                }      
-              }}
-              removeLayerDispatchAction={async (nodeToRemove) => {
-                try {
-                  // setCurrentSelectedTreeLayerNode(undefined);
-                  return await mapContextLayerRepo?.delete(String(nodeToRemove.key));
-                } catch (error) {
-                  //@ts-ignore
-                  throw new Error(error);
-                } finally {
-                  // setCurrentSelectedTreeLayerNode(undefined);
-                }
-              }}
-              editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
-                await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
-              )}
-              dragLayerDispatchAction={async (nodeBeingDraggedInfo) => {
-                const dropKey = nodeBeingDraggedInfo.node.key;
-                const dragKey = nodeBeingDraggedInfo.dragNode.key;
-                let position:string;
-                if (nodeBeingDraggedInfo.node.parent === nodeBeingDraggedInfo.dragNode.parent) {
-                  position = 'right';
-                } else {
-                  position = 'first-child';
-                }
-                return await mapContextLayerRepo?.move(dragKey, dropKey, position);
-              }}
-              layerGroupName='mrMapMapContextLayers'
-              initLayerTreeData={initLayerTreeData}
-              layerAttributeForm={(<MapContextLayerForm form={form}/>)}
             />
-          </ReactGeoMapContext.Provider>
-          
-          <SearchDrawer addDatasetToMapAction={onAddDatasetToMapAction}/>
-
-          
-        </div>
-);
+            <Button
+              type='primary'
+              onClick={() => form.submit()}
+              disabled={isSubmittingMapContext}
+              loading={isSubmittingMapContext}
+            >
+              {!createdMapContextId ? 'Submit' : 'Change' }
+            </Button>
+          </>
+        )}
+      />
+    </>
+  );
 };

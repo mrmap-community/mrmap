@@ -74,5 +74,5 @@ interface MPTTJsonApiAttributeType {
     showMaskOnNodeAttributeForm?: boolean;
     checkableNodes?: boolean;
     extendedNodeActions?: (nodeData?: TreeNodeType) => any;
-    style?:any;
+    customTreeTitleAction?: () => void | undefined;
   }

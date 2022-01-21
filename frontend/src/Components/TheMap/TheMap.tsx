@@ -63,17 +63,16 @@ const FeatureInfoPopUp = ({ info }: {info: any}): JSX.Element => (
 const olListenerKeys: (OlEventsKey[]) = [];
 
 export const TheMap = ({ 
-  createdMapContextId,
   addLayerDispatchAction = () => undefined,
   removeLayerDispatchAction = () => undefined,
   editLayerDispatchAction = () => undefined,
   dragLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
+  customLayerManagerTitleAction = () => undefined,
   layerGroupName,
   initLayerTreeData,
   layerAttributeForm
 }: {
-  createdMapContextId: string | number;
   addLayerDispatchAction?:(
     nodeAttributes: any,
     newNodeParent?: string | number | null | undefined) =>
@@ -82,6 +81,7 @@ export const TheMap = ({
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
   dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
+  customLayerManagerTitleAction?: () => void | undefined;
   layerGroupName: string;
   initLayerTreeData: any;
   layerAttributeForm: ReactNode;
@@ -115,7 +115,6 @@ export const TheMap = ({
       olListenerKeys.push(onShowInfoPopUpOnCoordinateClickListener);
     }
     olListenerKeys.push(getFeatureAttributesClickEventKey);
-    // olListenerKeys.push(mapSizeChange);
   };
 
   useEffect(() => {    
@@ -139,7 +138,7 @@ export const TheMap = ({
       };
     }
     
-    // const overlay = infoPopUpBubble(container);
+    //map.render();  
     map.setTarget('the-map');
     registerMapClickListener(map, infoPopUpBubble);
     map.addOverlay(infoPopUpBubble);
@@ -162,6 +161,7 @@ export const TheMap = ({
         removeLayerDispatchAction={removeLayerDispatchAction}
         editLayerDispatchAction={editLayerDispatchAction}
         dragLayerDispatchAction={dragLayerDispatchAction}
+        customLayerManagerTitleAction={customLayerManagerTitleAction}
         layerAttributeForm={layerAttributeForm}
       />
       <MapComponent

@@ -1,23 +1,40 @@
 import { PlusCircleOutlined } from '@ant-design/icons';
-import { Button, Drawer } from "antd";
-import React, { ReactElement, useRef, useState } from 'react';
+import { Button, Drawer, Tooltip } from "antd";
+import React, { cloneElement, ReactElement, useEffect, useRef, useState } from 'react';
 import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
 import RepoTable, { RepoTableColumnType } from '../Shared/Table/RepoTable';
 import { buildSearchTransformText } from '../Shared/Table/TableHelper';
 import './SearchDrawer.css';
 
+export interface CustomContentType {
+  title: string; 
+  icon: ReactElement, 
+  isVisible: boolean; 
+  content: ReactElement, 
+  onTabCickAction: () => void;
+}
 
 const repo = new DatasetMetadataRepo();
 
 export const SearchDrawer = ({
   addDatasetToMapAction = () => undefined,
+  customContent=[],
+  isOpenByDefault=false
 }:{
   addDatasetToMapAction?: (dataset: any) => void;
+  customContent?: CustomContentType[] | never[];
+  isOpenByDefault?: boolean
 }): ReactElement => {
 
-    const [visible, setVisible] = useState<boolean>(false);
-
+    const [activeTab,setActiveTab] = useState<string>('');
+    const [isDrawerVisible, setIsDrawerVisible] = useState<boolean>(isOpenByDefault);
     const buttonRef = useRef<HTMLButtonElement>(null);
+    
+    useEffect(() => {
+      if(!isDrawerVisible) {
+        setActiveTab('');
+      }
+    }, [isDrawerVisible]);
 
     const onAddDatasetToMap = (dataset: any) => {
       addDatasetToMapAction(dataset); 
@@ -153,31 +170,79 @@ export const SearchDrawer = ({
 
     return (
       <>
-        <Button
-          ref={buttonRef}
-          size='large'
-          className={`drawer-toggle-btn ${visible ? 'expanded' : 'collapsed'}`}
-          onClick={(ev) => { setVisible(!visible); buttonRef.current?.blur(); }}
-        >
-          <PlusCircleOutlined />
-        </Button>
+        <div className={`drawer-toggle-tabs ${isDrawerVisible ? 'expanded' : 'collapsed'}`}>
+          {customContent.length > 0 && (
+            customContent.map((content:CustomContentType, index: number) => (
+              <Tooltip 
+                title={content.title}
+                placement='left'
+                key={index}
+              >
+                <Button
+                  ref={buttonRef}
+                  size='large'
+                  className={`drawer-toggle-btn ${activeTab === String(index) && 'drawer-toggle-btn--active'}`}
+                  onClick={(ev) => { 
+                    content.onTabCickAction();
+                    if(activeTab === String(index)) setIsDrawerVisible(false);
+                    if(!isDrawerVisible && !activeTab) setIsDrawerVisible(true);
+                    setActiveTab(String(index));
+                    buttonRef.current?.blur(); 
+                  }}
+                >
+                  {content.icon}
+                </Button>
+              </Tooltip>
+            ))
+          )}
+          
+          <Tooltip 
+            title='Metadata Datasets' 
+            placement='left'
+          >
+            <Button
+              ref={buttonRef}
+              size='large'
+              className={`drawer-toggle-btn ${activeTab === String('metadatadataset') && 'drawer-toggle-btn--active'}`}
+              onClick={(ev) => { 
+                if(activeTab === 'metadatadataset') setIsDrawerVisible(false);
+                if(!isDrawerVisible && !activeTab) setIsDrawerVisible(true);
+                setActiveTab('metadatadataset');
+                buttonRef.current?.blur(); 
+              }}
+            >
+              <PlusCircleOutlined />
+          </Button>
+        </Tooltip>
+        </div>
         <Drawer
           className='search-drawer'
           placement='right'
           width={1000}
-          visible={visible}
+          visible={isDrawerVisible}
           closable={false}
           mask={false}
         >
-          <RepoTable
-            repo={repo}
-            columns={columns}
-            pagination={{
-              defaultPageSize: 13,
-              showSizeChanger: true,
-              pageSizeOptions: ['10', '13', '20', '50', '100']
-            }}
-          />
+          {customContent.length > 0 && (
+            customContent.map((content: CustomContentType,index: number) => {
+              if(activeTab === String(index)){
+                return cloneElement(content.content, { key: index });
+              }
+              return null;
+            })
+          )}
+
+          {activeTab === String('metadatadataset') && (
+            <RepoTable
+              repo={repo}
+              columns={columns}
+              pagination={{
+                defaultPageSize: 13,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '13', '20', '50', '100']
+              }}
+            />
+          )}
         </Drawer>
       </>
     );

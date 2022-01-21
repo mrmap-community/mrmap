@@ -33,7 +33,7 @@ export const TreeFormField = ({
   showMaskOnNodeAttributeForm = false,
   checkableNodes = false,
   extendedNodeActions= () => undefined,
-  style,
+  customTreeTitleAction = () => undefined
 }: TreeProps): JSX.Element => {
   const [form] = useForm();
 
@@ -636,10 +636,7 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
   }, [nodeNameTextInput, isEditingNodeName]);
 
   return (
-    <div 
-      className='tree-form-field'
-      style={style}
-    >
+    <div className='tree-form-field' >
       <div 
         className='tree-form-field-title'
       >
@@ -651,8 +648,10 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
             block
             type='link'
             onClick={() => {
-              setNewNodeGroupIncrementValue(newNodeGroupIncrementValue + 1);
-              onCreateNewNodeGroup(true);
+              // if(!customTreeTitleAction()) {
+                setNewNodeGroupIncrementValue(newNodeGroupIncrementValue + 1);
+                onCreateNewNodeGroup(true);
+              // }
             }}
           />
         </Tooltip>

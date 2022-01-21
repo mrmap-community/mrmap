@@ -23,9 +23,7 @@ class MapContextRepo extends JsonApiRepo {
       title: create.title,
       abstract: create.abstract
     };
-    if (create.abstract) {
-      attributes.abstract = create.abstract;
-    }
+    
     const relationships = {
       owner: { // eslint-disable-line
         data: {
@@ -52,6 +50,27 @@ class MapContextRepo extends JsonApiRepo {
       mapContextLayers: res.data.included
     };
   }
+
+  async update (mapContextId:string, attributesToUpdate: MapContextCreate): Promise<JsonApiResponse> {
+    const attributes:any = {
+      title: attributesToUpdate.title,
+      abstract: attributesToUpdate.abstract
+    };
+
+    const relationships:any = {};
+
+    if (attributesToUpdate.ownerOrganizationId) {
+      relationships.owner = {
+        data: {
+          type: 'MapContext',
+          id: attributesToUpdate.ownerOrganizationId
+        }
+      };
+    }
+    
+    return this.partialUpdate(mapContextId, 'MapContext', attributes, relationships);
+  }
+
 }
 
 export default MapContextRepo;

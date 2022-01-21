@@ -3,7 +3,7 @@ import BaseLayer from "ol/layer/Base";
 import LayerGroup from "ol/layer/Group";
 import ImageLayer from "ol/layer/Image";
 import ImageWMS from "ol/source/ImageWMS";
-import { CreateLayerOpts } from "../Components/LayerTree/LayerTreeTypes";
+import { CreateLayerOpts } from "../Components/LayerManager/LayerManagerTypes";
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from "../Components/Shared/FormFields/TreeFormField/TreeFormFieldTypes";
 import { LayerUtils } from "./LayerUtils";
 

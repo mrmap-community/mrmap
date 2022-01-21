@@ -1,5 +1,4 @@
 import { Key } from "antd/lib/table/interface";
-import LayerGroup from "ol/layer/Group";
 import { ReactNode } from "react";
 import { JsonApiResponse } from "../../Repos/JsonApiRepo";
 import { TreeNodeType } from "../Shared/FormFields/TreeFormField/TreeFormFieldTypes";
@@ -21,14 +20,14 @@ export interface CreateLayerOpts {
   extent?: any[]
 }
 
-export interface LayerTreeProps {
-  // map: OlMap
-  layerGroup?: LayerGroup;
+export interface LayerManagerProps {
+  initLayerTreeData:any
+  layerManagerLayerGroupName?: string;
   asyncTree?: boolean;
   addLayerDispatchAction?:(
     nodeAttributes: any,
     newNodeParent?: string | number | null | undefined) =>
-    Promise<JsonApiResponse> | void;
+    Promise<CreateLayerOpts> | CreateLayerOpts | void;
   removeLayerDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
   dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;

@@ -3,6 +3,7 @@ import hashlib
 from io import BytesIO
 
 from attr import has
+from click import edit
 from django.contrib.gis.db import models
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
@@ -18,11 +19,12 @@ class MonitoringResult(models.Model):
     task_result = models.OneToOneField(to=TaskResult,
                                        on_delete=models.CASCADE,
                                        related_name="%(class)s_monitoring_results",
-                                       related_query_name="%(class)s_monitoring_result")
-    status_code: int = models.IntegerField()
-    error_msg: str = models.TextField(null=True, blank=True)
-    monitored_uri: str = models.URLField(max_length=4096)
-    request_duration = models.DurationField()
+                                       related_query_name="%(class)s_monitoring_result",
+                                       editable=False)
+    status_code: int = models.IntegerField(editable=False)
+    error_msg: str = models.TextField(null=True, blank=True, editable=False)
+    monitored_uri: str = models.URLField(max_length=4096, editable=False)
+    request_duration = models.DurationField(editable=False)
 
     response = None
 
@@ -64,7 +66,7 @@ class MonitoringResult(models.Model):
 
 
 class OgcServiceGetCapabilitiesResult(MonitoringResult):
-    needs_update: bool = models.BooleanField(default=False)
+    needs_update: bool = models.BooleanField(default=False, editable=False)
 
     class Meta(MonitoringResult.Meta):
         abstract = True

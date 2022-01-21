@@ -1,38 +1,25 @@
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
-from extras.serializers import (
-    HistoryInformationSerializer,
-    ObjectPermissionCheckerSerializer,
-)
-from registry.models.metadata import Keyword, MetadataContact, ReferenceSystem, Style
-from registry.models.security import (
-    WebFeatureServiceAuthentication,
-    WebMapServiceAuthentication,
-)
-from registry.models.service import (
-    FeatureType,
-    Layer,
-    WebFeatureService,
-    WebMapService,
-    WebMapServiceOperationUrl,
-)
-from registry.serializers.metadata import (
-    KeywordSerializer,
-    MetadataContactSerializer,
-    StyleSerializer,
-)
-from rest_framework.fields import BooleanField, IntegerField
+from extras.serializers import (HistoryInformationSerializer,
+                                ObjectPermissionCheckerSerializer)
+from MrMap.validators import validate_get_capablities_uri
+from registry.models.metadata import (Keyword, MetadataContact,
+                                      ReferenceSystem, Style)
+from registry.models.security import (WebFeatureServiceAuthentication,
+                                      WebMapServiceAuthentication)
+from registry.models.service import (FeatureType, Layer, WebFeatureService,
+                                     WebMapService, WebMapServiceOperationUrl)
+from registry.serializers.metadata import (KeywordSerializer,
+                                           MetadataContactSerializer,
+                                           StyleSerializer)
+from rest_framework.fields import BooleanField, IntegerField, URLField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
-    HyperlinkedRelatedField,
-    ResourceRelatedField,
-    SerializerMethodResourceRelatedField,
-)
-from rest_framework_json_api.serializers import (
-    HyperlinkedIdentityField,
-    ModelSerializer,
-    SerializerMethodField,
-)
+    HyperlinkedRelatedField, ResourceRelatedField,
+    SerializerMethodResourceRelatedField)
+from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
+                                                 ModelSerializer,
+                                                 SerializerMethodField)
 
 
 class WebMapServiceOperationUrlSerializer(ModelSerializer):
@@ -159,6 +146,7 @@ class WebMapServiceSerializer(
 
 class WebMapServiceCreateSerializer(ModelSerializer):
 
+    get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebMapServiceAuthentication.objects, required=False
     )

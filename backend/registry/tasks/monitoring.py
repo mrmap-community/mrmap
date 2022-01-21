@@ -1,3 +1,4 @@
+from backend.registry.exceptions.service import OperationNotSupported
 from celery import current_task, shared_task, states
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
@@ -74,7 +75,6 @@ def check_get_map_operation(self, layer_pk, *args, **kwargs):
 @shared_task(bind=True,
              base=CurrentUserTaskMixin)
 def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
-
     layer: Layer = Layer.objects.get(pk=layer_pk)
 
     current_task.update_state(
@@ -88,10 +88,16 @@ def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
     monitoring_result: LayerGetFeatureInfoResult = LayerGetFeatureInfoResult(
         task_result=TaskResult.objects.get(task_id=self.request.id),
         layer=layer)
-
-    monitoring_result.run_checks()
-    monitoring_result.save()
-
+    try:
+        monitoring_result.run_checks()
+        monitoring_result.save()
+    except OperationNotSupported as exception:
+        return {
+            "data": {
+                "type": "OperationNotSupported",
+                "id": f"{exception.__str__}",
+            }
+        }
     return {
         "data": {
             "type": "LayerGetFeatureInfoResult",

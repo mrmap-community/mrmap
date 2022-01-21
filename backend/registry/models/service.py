@@ -1,3 +1,4 @@
+import math
 from types import FunctionType
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
@@ -5,7 +6,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 from django.db.models import OuterRef, QuerySet
 from django.db.models.query import Prefetch
 from django.urls import NoReverseMatch, reverse
@@ -20,7 +21,8 @@ from MrMap.settings import PROXIES
 from ows_client.request_builder import OgcService as OgcServiceClient
 from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
                                     OGCOperationEnum, OGCServiceVersionEnum)
-from registry.exceptions.service import LayerNotQueryable
+from registry.exceptions.service import (LayerNotQueryable,
+                                         OperationNotSupported)
 from registry.managers.security import WebMapServiceSecurityManager
 from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        FeatureTypeElementXmlManager,
@@ -594,10 +596,23 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             # TODO: check if this format is supported by the layer...
             image_format: str = format
         _bbox: Polygon = bbox if bbox else self.get_bbox
+
+        if self.get_scale_max:
+            # 1/100000
+            upper_left = Point(_bbox.extend[0], _bbox.extend[1])
+            lower_right = Point(_bbox.extend[2], _bbox.extend[3])
+            distance = upper_left.distance(lower_right)
+            scale_bbox = distance / \
+                math.sqrt(pow(width, 2) + pow(height, 2)) / 0.00028
+            if scale_bbox > self.get_scale_max:
+                # TODO: scale the bbox
+                pass
+
         # TODO: handle different versions here... version 1.0.0 has other query parameters
         query_params = {
             "VERSION": self.service.version,
             "REQUEST": "GetMap",
+            "SERVICE": "WMS",
             "LAYERS": self.identifier,
             "STYLES": style.name if style else "",
             "CRS" if self.service.minor_version == 3 else "SRS": f"EPSG:{_bbox.crs.srid}",
@@ -615,23 +630,26 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if not self.is_queryable:
             raise LayerNotQueryable(
                 f"Layer '{self.identifier}' is not queryable.")
-        if not info_format:
-            info_format_qs = MimeType.objects.filter(webmapservice__operation_urls=OuterRef(
-                'pk'), mime_type__istartswith="text/").values('mime_type')
-            url_and_format: dict = self.service.operation_urls.annotate(info_format=info_format_qs.first()).values('url', 'info_format').get(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                method="Get"
-            )
-            url: str = url_and_format["url"]
-            _info_format: str = url_and_format["info_format"]
-        else:
-            url: str = self.service.operation_urls.values('url').get(
-                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                method="Get"
-            )["url"]
-            # TODO: check if this format is supported by the layer...
-            _info_format: str = "text/plain"
-
+        try:
+            if not info_format:
+                info_format_qs = MimeType.objects.filter(webmapservice__operation_urls=OuterRef(
+                    'pk'), mime_type__istartswith="text/").values('mime_type')
+                url_and_format: dict = self.service.operation_urls.annotate(info_format=info_format_qs.first()).values('url', 'info_format').get(
+                    operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                    method="Get"
+                )
+                url: str = url_and_format["url"]
+                _info_format: str = url_and_format["info_format"]
+            else:
+                url: str = self.service.operation_urls.values('url').get(
+                    operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                    method="Get"
+                )["url"]
+                # TODO: check if this format is supported by the layer...
+                _info_format: str = "text/plain"
+        except WebMapServiceOperationUrl.DoesNotExist:
+            raise OperationNotSupported(
+                f"Service {self.service.title} does not suppoert operation GetFeatureInfo")
         query_params = {
             "VERSION": self.service.version,
             "REQUEST": "GetFeatureInfo",

@@ -10,9 +10,7 @@ class WMSGetCapabilitiesResultCreateSerializer(ModelSerializer):
 
     class Meta:
         model = WMSGetCapabilitiesResult
-        fields = (
-            "service"
-        )
+        fields = ("service",)
 
 
 class WMSGetCapabilitiesResultSerializer(ModelSerializer):
@@ -26,9 +24,7 @@ class LayerGetMapResultCreateSerializer(ModelSerializer):
 
     class Meta:
         model = LayerGetMapResult
-        fields = (
-            "layer"
-        )
+        fields = ("layer", )
 
 
 class LayerGetMapResultSerializer(ModelSerializer):
@@ -42,9 +38,7 @@ class LayerGetFeatureInfoResultCreateSerializer(ModelSerializer):
 
     class Meta:
         model = LayerGetFeatureInfoResult
-        fields = (
-            "layer"
-        )
+        fields = ("layer",)
 
 
 class LayerGetFeatureInfoResultSerializer(ModelSerializer):

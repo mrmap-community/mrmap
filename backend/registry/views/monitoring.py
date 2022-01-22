@@ -11,7 +11,8 @@ from registry.serializers.monitoring import (
     LayerGetFeatureInfoResultSerializer, LayerGetMapResultCreateSerializer,
     LayerGetMapResultSerializer, WMSGetCapabilitiesResultCreateSerializer,
     WMSGetCapabilitiesResultSerializer)
-from registry.tasks.monitoring import (check_get_map_operation,
+from registry.tasks.monitoring import (check_get_feature_info_operation,
+                                       check_get_map_operation,
                                        check_wms_get_capabilities_operation)
 from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.schemas.openapi import AutoSchema
@@ -37,8 +38,9 @@ class WMSGetCapabilitiesResultViewSet(
     task_function = check_wms_get_capabilities_operation
 
     def get_task_kwargs(self, request, serializer):
+        print(serializer.data)
         return {
-            "service_pk": serializer.data["service"].pk
+            "service_pk": serializer.data["service"]["id"]
         }
 
 
@@ -62,7 +64,7 @@ class LayerGetMapResultViewSet(
 
     def get_task_kwargs(self, request, serializer):
         return {
-            "layer_pk": serializer.data["layer"].pk
+            "layer_pk": serializer.data["layer"]["id"]
         }
 
 
@@ -82,9 +84,9 @@ class LayerGetFeatureInfoResultViewSet(
         "create": LayerGetFeatureInfoResultCreateSerializer
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    task_function = check_get_map_operation
+    task_function = check_get_feature_info_operation
 
     def get_task_kwargs(self, request, serializer):
         return {
-            "layer_pk": serializer.data["layer"].pk
+            "layer_pk": serializer.data["layer"]["id"]
         }

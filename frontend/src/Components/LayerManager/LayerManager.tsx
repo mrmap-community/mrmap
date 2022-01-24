@@ -39,6 +39,11 @@ export const LayerManager = ({
   editLayerDispatchAction = () => undefined,
   dragLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
+  customLayerManagerTitleAction = () => undefined,
+  layerCreateErrorDispatchAction = () => undefined,
+  layerRemoveErrorDispatchAction = () => undefined,
+  layerEditErrorDispatchAction = () => undefined,
+  layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
   initLayerTreeData
 }: LayerManagerProps): JSX.Element => {
@@ -164,7 +169,6 @@ export const LayerManager = ({
   const layerActions = (nodeData: TreeNodeType|undefined): any => {
     return (
       <>
-      {/* <Divider orientation='right' plain /> */}
       <Menu.Item
         onClick={async() => {
           // fit to layer extent
@@ -218,9 +222,8 @@ export const LayerManager = ({
           layerToAdd
         );
         return response;
-      } catch(error) {
-        //@ts-ignore
-        throw new Error(error);
+      } catch(error: any) {
+        return layerCreateErrorDispatchAction(error);
       }
     // Non Async version
     } else {
@@ -245,9 +248,8 @@ export const LayerManager = ({
     if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
       try {
         return await removeLayerDispatchAction(nodeToRemove);
-      } catch (error) {
-        // @ts-ignore
-        throw new Error(error);
+      } catch (error: any) {
+        layerRemoveErrorDispatchAction(error);
       } finally {
         const layerToRemoveParent = layerUtils.getAllMapLayers(layerManagerLayerGroup)
           .find((l: any) => l.getProperties().layerId === nodeToRemove.parent);
@@ -295,9 +297,8 @@ export const LayerManager = ({
     if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
       try {
         return await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
-      } catch(error) {
-        // @ts-ignore
-        throw new Error(error);
+      } catch(error: any) {
+        layerEditErrorDispatchAction(error);
       }
     // Non Async version
     } else {
@@ -322,7 +323,6 @@ export const LayerManager = ({
   };
 
   const onSelectLayer = (selectedKeys: React.Key[], info: any) => {
-    // setCurrentSelectedTreeLayerNode(info.node);
     selectLayerDispatchAction(selectedKeys, info);
   };
 
@@ -330,6 +330,7 @@ export const LayerManager = ({
     <div className='layer-manager'>
       <Tooltip
         title={isTreeContainerVisible ? 'Hide layer manager' : 'Show layer manager'}
+        placement='right'
       >
         <Button
           className={`layer-manager-toggle`}
@@ -366,7 +367,9 @@ export const LayerManager = ({
           dragNodeDispatchAction={onDragLayer}
           checkNodeDispacthAction={onCheckLayer}
           selectNodeDispatchAction={onSelectLayer}
+          customTreeTitleAction={customLayerManagerTitleAction}
           nodeAttributeForm={layerAttributeForm}
+          treeNodeTitlePreIcons={layerAttributeInfoIcons}
         />
       )}
     </div>

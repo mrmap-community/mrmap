@@ -1,12 +1,7 @@
-.layer-section {
-  position: absolute;
-  top: 0.5em;
-  left: 0.5em;
-}
-
-.steps-content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+.map-context {
+  width:calc(100% + 48px); /* to overlap parent's padding defined in site-layout class */
+  height:calc(100% + 48px); /* to overlap parent's padding defined in site-layout class */
+  position: relative;
+  margin-left: -24px; /* to overlap parent's padding defined in site-layout class */
+  margin-top: -24px; /* to overlap parent's padding defined in site-layout class */
 }

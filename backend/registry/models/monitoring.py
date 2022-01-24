@@ -42,13 +42,13 @@ class MonitoringResult(models.Model):
             if self.status_code != 200:
                 self.error_msg = self.response.text
         except ConnectTimeout:
-            self.status_code = 0
+            self.status_code = 900
             self.error_msg = "The request timed out in {MONITORING_REQUEST_TIMEOUT} seconds while trying to connect to the remote server."
         except ReadTimeout:
-            self.status_code = 0
+            self.status_code = 901
             self.error_msg = f"The server did not send any data in the allotted amount of time ({MONITORING_REQUEST_TIMEOUT} seconds)."
         except RequestException as exception:
-            self.status_code = 0
+            self.status_code = self.response.status_code if self.response.status_code else 902
             self.error_msg = str(exception)
         finally:
             self.request_duration = self.response.elapsed

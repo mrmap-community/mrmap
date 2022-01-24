@@ -1,4 +1,4 @@
-from celery import current_task, shared_task, states
+from celery import Task, current_task, shared_task, states
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from extras.tasks import CurrentUserTaskMixin
@@ -13,7 +13,9 @@ from rest_framework.reverse import reverse
 @shared_task(bind=True,
              base=CurrentUserTaskMixin)
 def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
-
+    print(current_task)
+    print(self.request)
+    print(self.request.id)
     wms: WebMapService = WebMapService.objects.get(pk=service_pk)
 
     current_task.update_state(
@@ -24,8 +26,11 @@ def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
             'phase': f'start monitoring checks for {wms}',
         }
     )
+    task_result, created = TaskResult.objects.get_or_create(
+        task_id=self.request.id,
+        task_name=current_task.name)
     wms_monitoring_result: WMSGetCapabilitiesResult = WMSGetCapabilitiesResult(
-        task_result=TaskResult.objects.get(task_id=self.request.id),
+        task_result=task_result,
         service=wms)
     wms_monitoring_result.run_checks()
     wms_monitoring_result.save()
@@ -35,7 +40,7 @@ def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
             "type": "WMSGetCapabilitiesResult",
             "id": f"{wms_monitoring_result.pk}",
             "links": {
-                    "self": f"{reverse(viewname='registry:datasetmetadata-detail', args=[wms_monitoring_result.pk])}"
+                    "self": f"{reverse(viewname='registry:wmsgetcapabilitiesresult-detail', args=[wms_monitoring_result.pk])}"
             }
         }
     }
@@ -55,18 +60,21 @@ def check_get_map_operation(self, layer_pk, *args, **kwargs):
             'phase': f'start monitoring checks for {layer}',
         }
     )
-    layer_get_map_monitoring_result: LayerGetMapResult = LayerGetMapResult(
-        task_result=TaskResult.objects.get(task_id=self.request.id),
+    task_result, created = TaskResult.objects.get_or_create(
+        task_id=self.request.id,
+        task_name=current_task.name)
+    monitoring_result: LayerGetMapResult = LayerGetMapResult(
+        task_result=task_result,
         layer=layer)
-    layer_get_map_monitoring_result.run_checks()
-    layer_get_map_monitoring_result.save()
+    monitoring_result.run_checks()
+    monitoring_result.save()
 
     return {
         "data": {
             "type": "LayerGetMapResult",
-            "id": f"{layer_get_map_monitoring_result.pk}",
+            "id": f"{monitoring_result.pk}",
             "links": {
-                    "self": f"{reverse(viewname='registry:datasetmetadata-detail', args=[layer_get_map_monitoring_result.pk])}"
+                    "self": f"{reverse(viewname='registry:layergetmapresult-detail', args=[monitoring_result.pk])}"
             }
         }
     }
@@ -85,8 +93,11 @@ def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
             'phase': f'start monitoring checks for {layer}',
         }
     )
+    task_result, created = TaskResult.objects.get_or_create(
+        task_id=self.request.id,
+        task_name=current_task.name)
     monitoring_result: LayerGetFeatureInfoResult = LayerGetFeatureInfoResult(
-        task_result=TaskResult.objects.get(task_id=self.request.id),
+        task_result=task_result,
         layer=layer)
     try:
         monitoring_result.run_checks()
@@ -103,7 +114,7 @@ def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
             "type": "LayerGetFeatureInfoResult",
             "id": f"{monitoring_result.pk}",
             "links": {
-                    "self": f"{reverse(viewname='registry:datasetmetadata-detail', args=[monitoring_result.pk])}"
+                    "self": f"{reverse(viewname='registry:layergetfeatureinforesult-detail', args=[monitoring_result.pk])}"
             }
         }
     }

@@ -38,6 +38,7 @@ export const MapContext = (): ReactElement => {
   const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
   const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>();
+  const [isMapContextSearchDrawerVisible, setIsMapContextSearchDrawerVisible] = useState<boolean>(false);
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
@@ -65,6 +66,8 @@ export const MapContext = (): ReactElement => {
         }
       };
       fetchMapContext();
+    } else {
+      setIsMapContextSearchDrawerVisible(true);
     }
   }, [id, form]);
   
@@ -179,13 +182,23 @@ export const MapContext = (): ReactElement => {
           message: `Add dataset '${dataset.title}'`
         });
       } catch (error) {
-        //@ts-ignore
-        throw new Error(error);
+        if(!createdMapContextId) {
+          // TODO: Why is this not working?
+          setIsMapContextSearchDrawerVisible(true);
+          notification.warn({
+            message: 'No MapContext was created. Please create a valid Map '+
+              'Context before adding Map Context Layers'
+          });
+        } else {
+          notification.error({
+            message: 'Something went wrong while trying to create the layer'
+          });
+        }
       }
     });
   };
   
-  // TODO: rplace for a decent loading screen
+  // TODO: replace for a decent loading screen
   if(isLoadingMapContextInfo) {
     return (<SyncOutlined spin />);
   }
@@ -271,11 +284,35 @@ export const MapContext = (): ReactElement => {
             layerGroupName='mrMapMapContextLayers'
             initLayerTreeData={initLayerTreeData}
             layerAttributeForm={(<MapContextLayerForm form={form}/>)}
+            layerCreateErrorDispatchAction={(error: any) => {
+              if(!createdMapContextId) {
+                notification.warn({
+                  message: 'No MapContext was created. Please create a valid Map '+
+                    'Context before adding Map Context Layers'
+                });
+                
+              } else {
+                notification.error({
+                  message: 'Something went wrong while trying to create the layer'
+                });
+              }
+            }}
+            layerRemoveErrorDispatchAction={(error: any) => {
+              notification.error({
+                message: 'Something went wrong while trying to remove the layer'
+              });
+            }}
+            layerEditErrorDispatchAction={(error: any) => {
+              notification.error({
+                message: 'Something went wrong while trying to edit the layer'
+              });
+            }}
           />
         </ReactGeoMapContext.Provider>
       </div>
       <MapContextSearchDrawer
-        isOpenByDefault={!id}
+        isVisible={isMapContextSearchDrawerVisible}
+        defaultOpenTab={!createdMapContextId ? '0' : ''}
         addDatasetToMapAction={onAddDatasetToMapAction}
         mapContextForm={(
           <>

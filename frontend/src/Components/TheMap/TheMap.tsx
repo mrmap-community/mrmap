@@ -69,6 +69,9 @@ export const TheMap = ({
   dragLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   customLayerManagerTitleAction = () => undefined,
+  layerCreateErrorDispatchAction = () => undefined,
+  layerRemoveErrorDispatchAction = () => undefined,
+  layerEditErrorDispatchAction = () => undefined,
   layerGroupName,
   initLayerTreeData,
   layerAttributeForm
@@ -82,6 +85,9 @@ export const TheMap = ({
   dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
   customLayerManagerTitleAction?: () => void | undefined;
+  layerCreateErrorDispatchAction?: (error: any) => undefined | void;
+  layerRemoveErrorDispatchAction?: (error: any) => undefined | void;
+  layerEditErrorDispatchAction?: (error: any) => undefined | void;
   layerGroupName: string;
   initLayerTreeData: any;
   layerAttributeForm: ReactNode;
@@ -163,6 +169,9 @@ export const TheMap = ({
         dragLayerDispatchAction={dragLayerDispatchAction}
         customLayerManagerTitleAction={customLayerManagerTitleAction}
         layerAttributeForm={layerAttributeForm}
+        layerCreateErrorDispatchAction={layerCreateErrorDispatchAction}
+        layerRemoveErrorDispatchAction={layerCreateErrorDispatchAction}
+        layerEditErrorDispatchAction={layerCreateErrorDispatchAction}
       />
       <MapComponent
         id='the-map'

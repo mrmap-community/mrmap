@@ -40,6 +40,9 @@ export const LayerManager = ({
   dragLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   customLayerManagerTitleAction = () => undefined,
+  layerCreateErrorDispatchAction = () => undefined,
+  layerRemoveErrorDispatchAction = () => undefined,
+  layerEditErrorDispatchAction = () => undefined,
   layerAttributeForm,
   initLayerTreeData
 }: LayerManagerProps): JSX.Element => {
@@ -218,9 +221,8 @@ export const LayerManager = ({
           layerToAdd
         );
         return response;
-      } catch(error) {
-        //@ts-ignore
-        throw new Error(error);
+      } catch(error: any) {
+        return layerCreateErrorDispatchAction(error);
       }
     // Non Async version
     } else {
@@ -245,9 +247,9 @@ export const LayerManager = ({
     if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
       try {
         return await removeLayerDispatchAction(nodeToRemove);
-      } catch (error) {
-        // @ts-ignore
-        throw new Error(error);
+      } catch (error: any) {
+        console.log(error.constructor);
+        layerRemoveErrorDispatchAction(error);
       } finally {
         const layerToRemoveParent = layerUtils.getAllMapLayers(layerManagerLayerGroup)
           .find((l: any) => l.getProperties().layerId === nodeToRemove.parent);
@@ -295,9 +297,9 @@ export const LayerManager = ({
     if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
       try {
         return await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
-      } catch(error) {
-        // @ts-ignore
-        throw new Error(error);
+      } catch(error: any) {
+        console.log(error.constructor);
+        layerEditErrorDispatchAction(error);
       }
     // Non Async version
     } else {

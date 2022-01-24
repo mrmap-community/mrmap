@@ -1,33 +1,81 @@
+import { PlusCircleOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Button } from "antd";
 import React, { ReactElement, useState } from "react";
-import { CustomContentType, SearchDrawer } from "../SearchDrawer/SearchDrawer";
+import DatasetMetadataRepo from "../../Repos/DatasetMetadataRepo";
+import { DrawerContentType, SearchDrawer } from "../Shared/SearchDrawer/SearchDrawer";
+import RepoTable from "../Shared/Table/RepoTable";
+import { getDatasetMetadataColumns } from "./helper";
+
+const datasetMetadataRepo = new DatasetMetadataRepo();
 
 export const MapContextSearchDrawer = ({
   addDatasetToMapAction = () => undefined,
   mapContextForm=(<></>),
-  isOpenByDefault=false
+  isVisible=false,
+  defaultOpenTab=''
 }:{
   addDatasetToMapAction?: (dataset: any) => void;
   mapContextForm?: ReactElement;
-  isOpenByDefault?: boolean;
+  isVisible?: boolean;
+  defaultOpenTab?: string;
 }):JSX.Element => {
   
-  const [isDrawerVisible, setIsDrawerVisible] = useState<boolean>(isOpenByDefault);
+  const [isDrawerVisible, setIsDrawerVisible] = useState<boolean>(isVisible);
+  
+  const onAddDatasetToMap = (dataset: any) => {
+    addDatasetToMapAction(dataset); 
+  };
 
-  const drawerContent: CustomContentType = {
+  const getDatasetMetadataColumnActions = (text: any, record:any) => {
+    return (
+      <>
+        <Button
+          disabled={record.layers.length === 0 || !record.layers}
+          size='small'
+          type='primary'
+          onClick={ () => { onAddDatasetToMap(record); }}
+        >
+          Zur Karte hinzufügen
+        </Button>
+      </>
+    );
+  };
+
+  const datasetMetadataColumns = getDatasetMetadataColumns(getDatasetMetadataColumnActions);
+
+  const mapContextDrawerContent: DrawerContentType = {
     title: 'Map Context',
     icon: <FontAwesomeIcon icon={['fas', 'box']} />,
     isVisible: isDrawerVisible,
     onTabCickAction: () => setIsDrawerVisible(!isDrawerVisible),
-    content: mapContextForm
-
-
+    content: mapContextForm,
+    key: 'mapContextForm'
   };
+
+  const datasetMetadataDrawerContent: DrawerContentType = {
+    title: 'Metadata Datasets',
+    icon: <PlusCircleOutlined />,
+    isVisible: isDrawerVisible,
+    onTabCickAction: () => setIsDrawerVisible(!isDrawerVisible),
+    content: (
+      <RepoTable
+        repo={datasetMetadataRepo}
+        columns={datasetMetadataColumns}
+        pagination={{
+          defaultPageSize: 13,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '13', '20', '50', '100']
+        }}
+      />
+    ),
+    key: 'datasetMetadataTable'
+  };
+
   return (
     <SearchDrawer 
-      addDatasetToMapAction={addDatasetToMapAction}
-      customContent={[drawerContent]}
-      isOpenByDefault={isOpenByDefault}
+      drawerContent={[mapContextDrawerContent, datasetMetadataDrawerContent]}
+      defaultOpenTab={defaultOpenTab}
     />
   );
 };

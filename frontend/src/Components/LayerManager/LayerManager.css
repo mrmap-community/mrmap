@@ -1,7 +1,7 @@
 .layer-manager-toggle {
   top:50%;
   position: absolute;
-  z-index: 1001;
+  z-index: 1000;
   height: 60px;
   width: 30px;
   padding: 0;

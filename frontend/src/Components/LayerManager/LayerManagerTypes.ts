@@ -33,5 +33,8 @@ export interface LayerManagerProps {
   dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
   customLayerManagerTitleAction?: () => undefined | void;
+  layerCreateErrorDispatchAction?: (error: any) => undefined | void;
+  layerRemoveErrorDispatchAction?: (error: any) => undefined | void;
+  layerEditErrorDispatchAction?: (error: any) => undefined | void;
   layerAttributeForm?: ReactNode;
 }

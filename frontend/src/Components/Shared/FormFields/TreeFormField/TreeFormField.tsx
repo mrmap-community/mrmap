@@ -1,4 +1,5 @@
 import { EditFilled, FolderAddFilled, MinusCircleFilled, PlusCircleFilled, SettingFilled } from '@ant-design/icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
@@ -33,7 +34,8 @@ export const TreeFormField = ({
   showMaskOnNodeAttributeForm = false,
   checkableNodes = false,
   extendedNodeActions= () => undefined,
-  customTreeTitleAction = () => undefined
+  customTreeTitleAction = () => undefined,
+  treeNodeTitleIcons = (<></>)
 }: TreeProps): JSX.Element => {
   const [form] = useForm();
 
@@ -190,45 +192,53 @@ const getNodeContextMenu = (nodeData?: TreeNodeType) => (
 */
 const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
   return (
-    <Dropdown
-      overlay={getNodeContextMenu(nodeData)}
-      trigger={contextMenuOnNode ? ['contextMenu'] : []}
-    >
-      <div
-        className='tree-form-field-node-title'
-        onDoubleClick={() => {
-          setSelectedNode(nodeData);
-          setIsEditingNewNodeName(true);
-          setNewNodeName(nodeData.properties.title);
-        }}
-      >
-        {isEditingNodeName && nodeData.key === selectedNode?.key
-          ? (
-            <Input
-              id='nodeNameInput'
-              ref={nodeNameTextInput}
-              name='nodeName'
-              value={newNodeName}
-              onChange={(e) => {
-                setNewNodeName(e.target.value);
-              }}
-              onKeyUp={(e) => {
-                if (newNodeName !== '' && e.key === 'Enter') {
-                  onNodeNameEditing(selectedNode, newNodeName);
-                  setNewNodeName('');
-                  setIsEditingNewNodeName(false);
-                }
-                if (e.key === 'Escape') {
-                  setNewNodeName('');
-                  setIsEditingNewNodeName(false);
-                }
-              }}
-            />
-          )
-          : nodeData.properties.title 
-        }
+    <div className='tree-node-title'>
+      <div className='tree-node-title-symbols'>
+        {}
+        <FontAwesomeIcon icon={['fas','eye']} />
+        <FontAwesomeIcon icon={['fas','eye-slash']} />
+        <FontAwesomeIcon icon={['fas','check-circle']} />
       </div>
-    </Dropdown>
+      <Dropdown
+        overlay={getNodeContextMenu(nodeData)}
+        trigger={contextMenuOnNode ? ['contextMenu'] : []}
+      >
+        <div
+          className='tree-form-field-node-title'
+          onDoubleClick={() => {
+            setSelectedNode(nodeData);
+            setIsEditingNewNodeName(true);
+            setNewNodeName(nodeData.properties.title);
+          }}
+        >
+          {isEditingNodeName && nodeData.key === selectedNode?.key
+            ? (
+              <Input
+                id='nodeNameInput'
+                ref={nodeNameTextInput}
+                name='nodeName'
+                value={newNodeName}
+                onChange={(e) => {
+                  setNewNodeName(e.target.value);
+                }}
+                onKeyUp={(e) => {
+                  if (newNodeName !== '' && e.key === 'Enter') {
+                    onNodeNameEditing(selectedNode, newNodeName);
+                    setNewNodeName('');
+                    setIsEditingNewNodeName(false);
+                  }
+                  if (e.key === 'Escape') {
+                    setNewNodeName('');
+                    setIsEditingNewNodeName(false);
+                  }
+                }}
+              />
+            )
+            : nodeData.properties.title 
+          }
+        </div>
+      </Dropdown>
+    </div>
   );
 };
   
@@ -275,15 +285,13 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
           // update new node key
           if (createdNode && createdNode.data?.data && (createdNode.data.data as JsonApiPrimaryData).id) {
             newNode.key = (createdNode.data.data as JsonApiPrimaryData).id;
+            setTreeDataOnAdd(node, newNode);
           }
         } catch (error) {
           setIsAddingNode(false);
           // @ts-ignore
           throw new Error(error);
-        } finally {
-        // update node structure
-          setTreeDataOnAdd(node, newNode);
-        }
+        } 
       } else {
         addNodeDispatchAction(values);
         setTreeDataOnAdd(node, newNode);

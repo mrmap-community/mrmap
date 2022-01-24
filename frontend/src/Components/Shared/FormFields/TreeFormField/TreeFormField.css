@@ -27,3 +27,12 @@
   padding: 10px;
   justify-content: space-between;
 }
+
+.tree-node-title{
+  display: flex;
+  flex-direction: row;
+}
+
+.tree-node-title-symbols svg{
+  margin: 0 5px 0 5px;
+}

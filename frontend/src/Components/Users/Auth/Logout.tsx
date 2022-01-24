@@ -1,7 +1,6 @@
 import { notification, Row, Spin } from 'antd';
 import React, { ReactElement, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-
 import { useAuth } from '../../../Hooks/AuthContextProvider';
 
 export const Logout = (): ReactElement => {

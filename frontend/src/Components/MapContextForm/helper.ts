@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { RepoTableColumnType } from "../Shared/Table/RepoTable";
+import { RepoTableColumnType } from '../Shared/Table/RepoTable';
 import { buildSearchTransformText } from '../Shared/Table/TableHelper';
 
 export const getDatasetMetadataColumns = 

@@ -1,13 +1,13 @@
-import Collection from "ol/Collection";
+import Collection from 'ol/Collection';
 import GML2 from 'ol/format/GML2';
-import BaseLayer from "ol/layer/Base";
-import LayerGroup from "ol/layer/Group";
-import ImageLayer from "ol/layer/Image";
+import BaseLayer from 'ol/layer/Base';
+import LayerGroup from 'ol/layer/Group';
+import ImageLayer from 'ol/layer/Image';
 import OlMap from 'ol/Map';
 import OlMapBrowserEvent from 'ol/MapBrowserEvent';
 import * as olProj from 'ol/proj';
-import ImageWMS from "ol/source/ImageWMS";
-import { CreateLayerOpts } from "../Components/LayerManager/LayerManagerTypes";
+import ImageWMS from 'ol/source/ImageWMS';
+import { CreateLayerOpts } from '../Components/LayerManager/LayerManagerTypes';
 
 export class LayerUtils {
     

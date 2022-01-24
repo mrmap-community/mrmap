@@ -1,6 +1,5 @@
 import { Form, Input } from 'antd';
 import React, { FC, ReactNode } from 'react';
-
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
 interface InputFormFieldProps {

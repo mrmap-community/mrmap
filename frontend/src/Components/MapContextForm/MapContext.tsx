@@ -74,6 +74,7 @@ export const MapContext = (): ReactElement => {
   
 
   const onAddDatasetToMapAction = async(dataset:any) => {
+    console.log(dataset.layers);
     dataset.layers.forEach(async (layer: string) => {
       const getParentId = (): string => {
         const currentSelectedIsNodeOnRoot = currentSelectedTreeLayerNode &&
@@ -113,7 +114,6 @@ export const MapContext = (): ReactElement => {
           description:renderingLayerDetails.attributes.abstract,
           layerScaleMax:renderingLayerDetails.attributes.scaleMax,
           layerScaleMin:renderingLayerDetails.attributes.scaleMin,
-          // isLeaf: true,
           renderingLayer: renderingLayerDetails.attributes.id,
           parentLayerId: getParentId(),
           mapContextId: createdMapContextId

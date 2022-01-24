@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import useWebSocket from 'react-use-websocket';
-
 import { store } from '../ReduxStore/Store';
 
 export default function WebSockets (): JSX.Element {

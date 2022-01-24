@@ -2,7 +2,6 @@ import { SettingFilled } from '@ant-design/icons';
 import { Form, Select } from 'antd';
 import { LabeledValue } from 'antd/lib/select';
 import React, { FC, ReactNode, useEffect, useState } from 'react';
-
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
 export interface SearchFieldData {

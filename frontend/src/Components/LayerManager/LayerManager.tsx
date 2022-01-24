@@ -333,7 +333,7 @@ export const LayerManager = ({
         placement='right'
       >
         <Button
-          className={`layer-manager-toggle`}
+          className='layer-manager-toggle'
           type='primary'
           style={{
             left: isTreeContainerVisible ? '500px' : 0

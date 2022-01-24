@@ -1,7 +1,7 @@
-import { Key } from "antd/lib/table/interface";
-import { DataNode } from "antd/lib/tree";
-import { ReactNode } from "react";
-import { JsonApiResponse } from "../../../../Repos/JsonApiRepo";
+import { Key } from 'antd/lib/table/interface';
+import { DataNode } from 'antd/lib/tree';
+import { ReactNode } from 'react';
+import { JsonApiResponse } from '../../../../Repos/JsonApiRepo';
 
 interface MPTTJsonApiAttributeType {
     title: string;

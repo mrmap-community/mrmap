@@ -2,7 +2,6 @@ import { PauseCircleTwoTone } from '@ant-design/icons';
 import { List, Progress } from 'antd';
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import { TaskResult } from '../../Repos/TaskResultRepo';
 import { fetchTaskResults, taskResultsSelectors } from '../../Services/ReduxStore/Reducers/TaskResult';

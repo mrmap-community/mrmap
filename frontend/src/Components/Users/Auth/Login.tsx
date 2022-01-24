@@ -2,7 +2,6 @@ import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Alert, Button, Form, Input, notification, Row } from 'antd';
 import React, { ReactElement, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
 import { useAuth } from '../../../Hooks/AuthContextProvider';
 
 export const Login = (): ReactElement => {

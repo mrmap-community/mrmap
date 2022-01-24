@@ -69,19 +69,6 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
     }
   }, [selectedDatasetMetadata]);
 
-  // /**
-  //  * @description: Hook to run on when value of dataset metadata changes
-  //  */
-  // useEffect(() => {
-  //   if (selectedDatasetMetadata) {
-  //     fetchData(
-  //       () => layerRepo.getFromIdArray(selectedDatasetMetadata.attributes.associatedLayers),
-  //       (values) => setRenderingLayerOptions(values),
-  //       (boolean) => setIsRenderingLayerOptionsLoading(boolean)
-  //     );
-  //   }
-  // }, [selectedDatasetMetadata]);
-
   /**
    * @description: Hook  to run on component mount, if dataset metadata already has a value (on edit form)
    */
@@ -193,7 +180,6 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
             hasFeedback: true
           }}
         />
-        
             <Divider
               plain
               orientation='left'
@@ -211,10 +197,6 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
                 title: 'You can use this field to pre filter possible Layer selection.',
                 icon: <InfoCircleOutlined />
               }}
-              // validation={{
-              //   rules: [{ required: true, message: 'Please select metadata!' }],
-              //   hasFeedback: true
-              // }}
               onSelect={(value, option) => {
                 setSelectedDatasetMetadata(option);
               }}
@@ -244,10 +226,6 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
               placeholder='Select a rendering layer'
               searchData={renderingLayerOptions}
               tooltip={{ title: 'Select a layer for rendering.', icon: <InfoCircleOutlined /> }}
-              // validation={{
-              //   rules: [{ required: true, message: 'Please input a rendering layer!' }],
-              //   hasFeedback: true
-              // }}
               onSelect={(value, option) => {
                 setSelectedRenderingLayer(option);
               }}

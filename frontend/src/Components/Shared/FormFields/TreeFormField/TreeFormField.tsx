@@ -191,9 +191,6 @@ export const TreeFormField = ({
   const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
     return (
       <div className='tree-node-title'>
-        <div className='tree-node-title-symbols'>
-          {treeNodeTitlePreIcons(nodeData)}
-        </div>
         <Dropdown
           overlay={getNodeContextMenu(nodeData)}
           trigger={contextMenuOnNode ? ['contextMenu'] : []}
@@ -245,7 +242,7 @@ export const TreeFormField = ({
       // this is the node object title.
       // Is basically used to identify the node by a name and it is rendered as the node's tooltip.
       // It has nothing to do with our title property.
-      title: `A group node`, 
+      title: 'A group node', 
       key: String(newNodeGroupIncrementValue),
       children: [],
       parent: null,
@@ -676,6 +673,9 @@ export const TreeFormField = ({
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>
+            <div className='tree-node-title-symbols'>
+              {treeNodeTitlePreIcons(nodeData)}
+            </div>
             <div>
               {getNodeTitle(nodeData)}
             </div>

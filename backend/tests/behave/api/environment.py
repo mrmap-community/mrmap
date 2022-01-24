@@ -1,7 +1,6 @@
 from behave.model_core import Status
 from behave_django.testcase import BehaviorDrivenTestCase
 from django.core.management import call_command
-from registry.models.security import AllowedWebMapServiceOperation
 from rest_framework.test import APIClient
 
 

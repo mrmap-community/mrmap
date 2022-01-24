@@ -249,7 +249,6 @@ export const LayerManager = ({
       try {
         return await removeLayerDispatchAction(nodeToRemove);
       } catch (error: any) {
-        console.log(error.constructor);
         layerRemoveErrorDispatchAction(error);
       } finally {
         const layerToRemoveParent = layerUtils.getAllMapLayers(layerManagerLayerGroup)

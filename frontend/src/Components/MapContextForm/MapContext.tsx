@@ -1,4 +1,5 @@
 import { SyncOutlined } from '@ant-design/icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
 import { Button, notification } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
@@ -307,6 +308,24 @@ export const MapContext = (): ReactElement => {
                 message: 'Something went wrong while trying to edit the layer'
               });
             }}
+            layerAttributeInfoIcons={(nodeData:TreeNodeType) => {
+              if(!nodeData.isLeaf) {
+                return (<></>);
+              }
+              return (
+                <>
+                  {nodeData.properties.datasetMetadata && (
+                    <FontAwesomeIcon icon={['fas','eye']} />
+                  )}
+                  <FontAwesomeIcon 
+                    icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]} 
+                  />
+                  <FontAwesomeIcon 
+                    icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']} 
+                  />
+                  </>
+            );
+          }}
           />
         </ReactGeoMapContext.Provider>
       </div>

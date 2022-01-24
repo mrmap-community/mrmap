@@ -43,6 +43,7 @@ export const LayerManager = ({
   layerCreateErrorDispatchAction = () => undefined,
   layerRemoveErrorDispatchAction = () => undefined,
   layerEditErrorDispatchAction = () => undefined,
+  layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
   initLayerTreeData
 }: LayerManagerProps): JSX.Element => {
@@ -298,7 +299,6 @@ export const LayerManager = ({
       try {
         return await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
       } catch(error: any) {
-        console.log(error.constructor);
         layerEditErrorDispatchAction(error);
       }
     // Non Async version
@@ -370,6 +370,7 @@ export const LayerManager = ({
           selectNodeDispatchAction={onSelectLayer}
           customTreeTitleAction={customLayerManagerTitleAction}
           nodeAttributeForm={layerAttributeForm}
+          treeNodeTitlePreIcons={layerAttributeInfoIcons}
         />
       )}
     </div>

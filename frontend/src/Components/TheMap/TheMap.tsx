@@ -74,7 +74,8 @@ export const TheMap = ({
   layerEditErrorDispatchAction = () => undefined,
   layerGroupName,
   initLayerTreeData,
-  layerAttributeForm
+  layerAttributeForm,
+  layerAttributeInfoIcons = () => (<></>)
 }: {
   addLayerDispatchAction?:(
     nodeAttributes: any,
@@ -91,6 +92,7 @@ export const TheMap = ({
   layerGroupName: string;
   initLayerTreeData: any;
   layerAttributeForm: ReactNode;
+  layerAttributeInfoIcons?: (nodeData: TreeNodeType) => ReactNode;
 }): JSX.Element => {
   const map = useMap();
 
@@ -172,6 +174,7 @@ export const TheMap = ({
         layerCreateErrorDispatchAction={layerCreateErrorDispatchAction}
         layerRemoveErrorDispatchAction={layerCreateErrorDispatchAction}
         layerEditErrorDispatchAction={layerCreateErrorDispatchAction}
+        layerAttributeInfoIcons={layerAttributeInfoIcons}
       />
       <MapComponent
         id='the-map'

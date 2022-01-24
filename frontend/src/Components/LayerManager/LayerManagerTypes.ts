@@ -36,5 +36,6 @@ export interface LayerManagerProps {
   layerCreateErrorDispatchAction?: (error: any) => undefined | void;
   layerRemoveErrorDispatchAction?: (error: any) => undefined | void;
   layerEditErrorDispatchAction?: (error: any) => undefined | void;
+  layerAttributeInfoIcons?: (nodeData: TreeNodeType) => ReactNode;
   layerAttributeForm?: ReactNode;
 }

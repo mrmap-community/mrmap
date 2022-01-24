@@ -1,5 +1,4 @@
 import { EditFilled, FolderAddFilled, MinusCircleFilled, PlusCircleFilled, SettingFilled } from '@ant-design/icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
@@ -34,8 +33,7 @@ export const TreeFormField = ({
   showMaskOnNodeAttributeForm = false,
   checkableNodes = false,
   extendedNodeActions= () => undefined,
-  customTreeTitleAction = () => undefined,
-  treeNodeTitleIcons = (<></>)
+  treeNodeTitlePreIcons = () => (<></>)
 }: TreeProps): JSX.Element => {
   const [form] = useForm();
 
@@ -93,154 +91,151 @@ export const TreeFormField = ({
   };
 
   /**
-   * @description TSX element to show node action
-   * @param nodeData
-   * @returns
-   */
- const getNodeActions = (nodeData: TreeNodeType): JSX.Element => (
-  <div className='tree-form-field-node-actions'>
-    <Dropdown
-      overlay={getNodeContextMenu(nodeData)}
-      trigger={['click']}
-    >
-    <Tooltip title='Node options'>
-      <Button
-        onClick={() => {
-          setSelectedNode(nodeData);
-        }}
-        type='text'
-        icon={nodeOptionsIcon}
-      />
-    </Tooltip>
-    </Dropdown>
-  </div>
-);
-
-/**
-* @description TSX element to show context menu
-* @param nodeData
-* @returns
-*/
-const getNodeContextMenu = (nodeData?: TreeNodeType) => (
-  <Menu>
-    {!nodeData?.isLeaf && (
-      <>
-        <Menu.Item
-          onClick={() => {
-            nodeData && setSelectedNode(nodeData);
-            setIsNodeAttributeFormVisible(true);
-            setIsCreatingGroupNode(true);
-          }}
-          icon={addNodeGroupActionIcon}
-          key='add-group'
-        >
-          Add new layer group
-        </Menu.Item>
-        <Menu.Item
-          onClick={() => {
-            nodeData && setSelectedNode(nodeData);
-            setIsNodeAttributeFormVisible(true);
-            setIsCreatingGroupNode(false);
-          }}
-          icon={addNodeActionIcon}
-          key='add-node'
-        >
-          Add new layer
-        </Menu.Item>
-      </>
-    )}
-    <Menu.Item
-      onClick={() => {
-        Modal.warning({
-          title: 'Remove Node',
-          content: 'The selected node will be removed, Are you sure?',
-          onOk: () => onRemoveNode(nodeData),
-          okButtonProps: {
-            disabled: isRemovingNode,
-            loading: isRemovingNode
-          }
-        });
-      }}
-      icon={removeNodeActionIcon}
-      key='remove-node'
-    >
-      Delete
-    </Menu.Item>
-    <Menu.Item
-      onClick={() => {
-        setSelectedNode(nodeData);
-        setIsNodeAttributeFormVisible(true);
-        setIsEditingNodeAttributes(true);
-        if(nodeData?.isLeaf) {
-          setIsCreatingGroupNode(false);
-        }
-      }}
-      icon={editNodeActionIcon}
-      key='edit-node'
-    >
-      Properties
-    </Menu.Item>
-    {/* <Divider orientation='right' plain /> */}
-    {extendedNodeActions(nodeData)}
-  </Menu>
-);
-
-/**
-* @description TSX element to show node title
-* @param nodeData
-* @returns
-*/
-const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
-  return (
-    <div className='tree-node-title'>
-      <div className='tree-node-title-symbols'>
-        {}
-        <FontAwesomeIcon icon={['fas','eye']} />
-        <FontAwesomeIcon icon={['fas','eye-slash']} />
-        <FontAwesomeIcon icon={['fas','check-circle']} />
-      </div>
+  * @description TSX element to show node action
+  * @param nodeData
+  * @returns
+  */
+  const getNodeActions = (nodeData: TreeNodeType): JSX.Element => (
+    <div className='tree-form-field-node-actions'>
       <Dropdown
         overlay={getNodeContextMenu(nodeData)}
-        trigger={contextMenuOnNode ? ['contextMenu'] : []}
+        trigger={['click']}
       >
-        <div
-          className='tree-form-field-node-title'
-          onDoubleClick={() => {
-            setSelectedNode(nodeData);
-            setIsEditingNewNodeName(true);
-            setNewNodeName(nodeData.properties.title);
-          }}
-        >
-          {isEditingNodeName && nodeData.key === selectedNode?.key
-            ? (
-              <Input
-                id='nodeNameInput'
-                ref={nodeNameTextInput}
-                name='nodeName'
-                value={newNodeName}
-                onChange={(e) => {
-                  setNewNodeName(e.target.value);
-                }}
-                onKeyUp={(e) => {
-                  if (newNodeName !== '' && e.key === 'Enter') {
-                    onNodeNameEditing(selectedNode, newNodeName);
-                    setNewNodeName('');
-                    setIsEditingNewNodeName(false);
-                  }
-                  if (e.key === 'Escape') {
-                    setNewNodeName('');
-                    setIsEditingNewNodeName(false);
-                  }
-                }}
-              />
-            )
-            : nodeData.properties.title 
-          }
-        </div>
+        <Tooltip title='Node options'>
+          <Button
+            onClick={() => {
+              setSelectedNode(nodeData);
+            }}
+            type='text'
+            icon={nodeOptionsIcon}
+          />
+        </Tooltip>
       </Dropdown>
     </div>
   );
-};
+
+  /**
+  * @description TSX element to show context menu
+  * @param nodeData
+  * @returns
+  */
+  const getNodeContextMenu = (nodeData?: TreeNodeType) => (
+    <Menu>
+      {!nodeData?.isLeaf && (
+        <>
+          <Menu.Item
+            onClick={() => {
+              nodeData && setSelectedNode(nodeData);
+              setIsNodeAttributeFormVisible(true);
+              setIsCreatingGroupNode(true);
+            }}
+            icon={addNodeGroupActionIcon}
+            key='add-group'
+          >
+            Add new layer group
+          </Menu.Item>
+          <Menu.Item
+            onClick={() => {
+              nodeData && setSelectedNode(nodeData);
+              setIsNodeAttributeFormVisible(true);
+              setIsCreatingGroupNode(false);
+            }}
+            icon={addNodeActionIcon}
+            key='add-node'
+          >
+            Add new layer
+          </Menu.Item>
+        </>
+      )}
+      <Menu.Item
+        onClick={() => {
+          Modal.warning({
+            title: 'Remove Node',
+            content: 'The selected node will be removed, Are you sure?',
+            onOk: () => onRemoveNode(nodeData),
+            okButtonProps: {
+              disabled: isRemovingNode,
+              loading: isRemovingNode
+            }
+          });
+        }}
+        icon={removeNodeActionIcon}
+        key='remove-node'
+      >
+        Delete
+      </Menu.Item>
+      <Menu.Item
+        onClick={() => {
+          setSelectedNode(nodeData);
+          setIsNodeAttributeFormVisible(true);
+          setIsEditingNodeAttributes(true);
+          if(nodeData?.isLeaf) {
+            setIsCreatingGroupNode(false);
+          }
+        }}
+        icon={editNodeActionIcon}
+        key='edit-node'
+      >
+        Properties
+      </Menu.Item>
+      {/* <Divider orientation='right' plain /> */}
+      {extendedNodeActions(nodeData)}
+    </Menu>
+  );
+
+  /**
+  * @description TSX element to show node title
+  * @param nodeData
+  * @returns
+  */
+  const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
+    return (
+      <div className='tree-node-title'>
+        <div className='tree-node-title-symbols'>
+          {treeNodeTitlePreIcons(nodeData)}
+        </div>
+        <Dropdown
+          overlay={getNodeContextMenu(nodeData)}
+          trigger={contextMenuOnNode ? ['contextMenu'] : []}
+        >
+          <div
+            className='tree-form-field-node-title'
+            onDoubleClick={() => {
+              setSelectedNode(nodeData);
+              setIsEditingNewNodeName(true);
+              setNewNodeName(nodeData.properties.title);
+            }}
+          >
+            {isEditingNodeName && nodeData.key === selectedNode?.key
+              ? (
+                <Input
+                  id='nodeNameInput'
+                  ref={nodeNameTextInput}
+                  name='nodeName'
+                  value={newNodeName}
+                  onChange={(e) => {
+                    setNewNodeName(e.target.value);
+                  }}
+                  onKeyUp={(e) => {
+                    if (newNodeName !== '' && e.key === 'Enter') {
+                      onNodeNameEditing(selectedNode, newNodeName);
+                      setNewNodeName('');
+                      setIsEditingNewNodeName(false);
+                    }
+                    if (e.key === 'Escape') {
+                      setNewNodeName('');
+                      setIsEditingNewNodeName(false);
+                    }
+                  }}
+                />
+              )
+              : nodeData.properties.title 
+            }
+          </div>
+        </Dropdown>
+      </div>
+    );
+  };
   
   /**
    * @description Method to create a root node
@@ -549,6 +544,7 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
   };
 
   const onSelect = (_selectedKeys: Key[], info: any) => {
+    setSelectedNode(info.node);
     selectNodeDispatchAction(_selectedKeys, info);
   };
 
@@ -656,10 +652,8 @@ const getNodeTitle = (nodeData: TreeNodeType): JSX.Element => {
             block
             type='link'
             onClick={() => {
-              // if(!customTreeTitleAction()) {
-                setNewNodeGroupIncrementValue(newNodeGroupIncrementValue + 1);
-                onCreateNewNodeGroup(true);
-              // }
+              setNewNodeGroupIncrementValue(newNodeGroupIncrementValue + 1);
+              onCreateNewNodeGroup(true);
             }}
           />
         </Tooltip>

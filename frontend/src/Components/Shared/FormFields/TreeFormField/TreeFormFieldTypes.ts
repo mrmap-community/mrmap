@@ -75,5 +75,5 @@ interface MPTTJsonApiAttributeType {
     checkableNodes?: boolean;
     extendedNodeActions?: (nodeData?: TreeNodeType) => any;
     customTreeTitleAction?: () => void | undefined;
-    treeNodeTitleIcons?: ReactNode;
+    treeNodeTitlePreIcons?: (nodeData:TreeNodeType) => ReactNode;
   }

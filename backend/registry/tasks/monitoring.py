@@ -13,9 +13,9 @@ from rest_framework.reverse import reverse
 @shared_task(bind=True,
              base=CurrentUserTaskMixin)
 def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
-    print(current_task)
-    print(self.request)
-    print(self.request.id)
+    print('current_task: ' + str(current_task))
+    print('request: ' + str(self.request))
+    print('id: ' + str(self.request.id))
     wms: WebMapService = WebMapService.objects.get(pk=service_pk)
 
     current_task.update_state(

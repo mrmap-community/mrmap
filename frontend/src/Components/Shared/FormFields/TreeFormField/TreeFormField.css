@@ -1,18 +1,20 @@
+.tree-form-field{
+  display: grid;
+  grid-template-columns: auto;
+  grid-template-rows: 50px auto;
+  width: 500px;
+  height: 100%;
+}
+
 .tree-form-field-node {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
 
-.tree-form-field {
-  height: 100%;
-  max-height: 100%;
-  padding: 10px 60px 10px 10px;
+.tree-form-field-tree {
   overflow: auto;
   background: rgb(255, 255, 255);
-  min-height: 50px; /*Add to layer tree*/
-  max-height: 500px; /*Add to layer tree*/
-  min-width: 250px; /*Add to layer tree*/
 }
 
 .tree-form-field-title {
@@ -24,4 +26,13 @@
   flex-direction: row;
   padding: 10px;
   justify-content: space-between;
+}
+
+.tree-node-title{
+  display: flex;
+  flex-direction: row;
+}
+
+.tree-node-title-symbols svg{
+  margin: 0 5px 0 5px;
 }

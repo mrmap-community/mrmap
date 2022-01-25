@@ -1,8 +1,8 @@
 import json
 from unittest.mock import Mock, patch
 
-from accounts.models.users import User
 from behave import given, step, then
+from registry.models.security import AllowedWebMapServiceOperation
 from rest_framework.authtoken.models import Token
 
 

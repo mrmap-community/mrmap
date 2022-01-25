@@ -25,6 +25,10 @@ router = ExtendedSimpleRouter()
             .register(r'styles', metadata_views.StyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
       router.register(r'layers', service_views.LayerViewSet, basename='layer')
             .register(r'keywords', metadata_views.KeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
+      router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
+            .register(r'allowed-wms-operations', security_views.AllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
+
+      
       # web feature service
       router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
             .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
@@ -59,14 +63,21 @@ urlpatterns = router.urls
 
 urlpatterns.extend([
     # path('wms/<created_by_pk>/created_by', service_views.WebMapServiceViewSet.as_view(actions={'get': 'retrieve'}), name='layer-wms-detail'),
-    path('layers/<layer_pk>/service', service_views.WebMapServiceViewSet.as_view(actions={'get': 'retrieve'}), name='layer-wms-detail'),
+    path('layers/<layer_pk>/service', service_views.WebMapServiceViewSet.as_view(
+        actions={'get': 'retrieve'}), name='layer-wms-detail'),
 ])
 
 urlpatterns.extend([
-    path('wms/<pk>/relationships/<related_field>', service_views.WebMapServiceRelationshipView.as_view(), name='wms-relationships'),
-    path('layers/<pk>/relationships/<related_field>', service_views.LayerRelationshipView.as_view(), name='layer-relationships'),
-    path('wfs/<pk>/relationships/<related_field>', service_views.WebFeatureServiceRelationshipView.as_view(), name='wfs-relationships'),
-    path('featuretypes/<pk>/relationships/<related_field>', service_views.FeatureTypeRelationshipView.as_view(), name='featuretype-relationships'),
-    path('mapcontexts/<pk>relationships/<related_field>', mapcontext_views.MapContextRelationshipView.as_view(), name='mapcontext-relationships'),
-    path('mapcontextlayers/<pk>relationships/<related_field>', mapcontext_views.MapContextLayerRelationshipView.as_view(), name='mapcontextlayer-relationships')
+    path('wms/<pk>/relationships/<related_field>',
+         service_views.WebMapServiceRelationshipView.as_view(), name='wms-relationships'),
+    path('layers/<pk>/relationships/<related_field>',
+         service_views.LayerRelationshipView.as_view(), name='layer-relationships'),
+    path('wfs/<pk>/relationships/<related_field>',
+         service_views.WebFeatureServiceRelationshipView.as_view(), name='wfs-relationships'),
+    path('featuretypes/<pk>/relationships/<related_field>',
+         service_views.FeatureTypeRelationshipView.as_view(), name='featuretype-relationships'),
+    path('mapcontexts/<pk>relationships/<related_field>',
+         mapcontext_views.MapContextRelationshipView.as_view(), name='mapcontext-relationships'),
+    path('mapcontextlayers/<pk>relationships/<related_field>',
+         mapcontext_views.MapContextLayerRelationshipView.as_view(), name='mapcontextlayer-relationships')
 ])

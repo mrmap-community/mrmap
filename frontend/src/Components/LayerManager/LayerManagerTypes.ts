@@ -1,5 +1,4 @@
 import { Key } from "antd/lib/table/interface";
-import LayerGroup from "ol/layer/Group";
 import { ReactNode } from "react";
 import { JsonApiResponse } from "../../Repos/JsonApiRepo";
 import { TreeNodeType } from "../Shared/FormFields/TreeFormField/TreeFormFieldTypes";
@@ -16,22 +15,27 @@ export interface CreateLayerOpts {
   layerId?: string | number;
   legendUrl: string;
   title: string;
-  name?: string;
+  description?: string;
   properties: Record<string, string>;
   extent?: any[]
 }
 
-export interface LayerTreeProps {
-  // map: OlMap
-  layerGroup?: LayerGroup;
+export interface LayerManagerProps {
+  initLayerTreeData:any
+  layerManagerLayerGroupName?: string;
   asyncTree?: boolean;
   addLayerDispatchAction?:(
     nodeAttributes: any,
     newNodeParent?: string | number | null | undefined) =>
-    Promise<JsonApiResponse> | void;
+    Promise<CreateLayerOpts> | CreateLayerOpts | void;
   removeLayerDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
   dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
+  customLayerManagerTitleAction?: () => undefined | void;
+  layerCreateErrorDispatchAction?: (error: any) => undefined | void;
+  layerRemoveErrorDispatchAction?: (error: any) => undefined | void;
+  layerEditErrorDispatchAction?: (error: any) => undefined | void;
+  layerAttributeInfoIcons?: (nodeData: TreeNodeType) => ReactNode;
   layerAttributeForm?: ReactNode;
 }

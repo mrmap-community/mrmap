@@ -282,7 +282,7 @@ class AllowedWebMapServiceOperation(AllowedOperation):
     )
 
     class Meta(AllowedOperation.Meta):
-        pass
+        ordering = ['-secured_service']
     # TODO: only complete subtrees shall be part of the m2m secured_layers field
     # constraints = {
     #     models.CheckConstraint(
@@ -336,7 +336,7 @@ class AllowedWebFeatureServiceOperation(AllowedOperation):
     )
 
     class Meta(AllowedOperation.Meta):
-        pass
+        ordering = ['-secured_service']
 
     def save(self, *args, **kwargs):
         """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.

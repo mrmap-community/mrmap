@@ -6,6 +6,11 @@
     "@ant-design/icons": "^4.7.0",
     "@ant-design/pro-layout": "^6.31.3",
     "@ant-design/pro-table": "^2.59.0",
+    "@fortawesome/fontawesome-svg-core": "^1.2.36",
+    "@fortawesome/free-brands-svg-icons": "^5.15.4",
+    "@fortawesome/free-regular-svg-icons": "^5.15.4",
+    "@fortawesome/free-solid-svg-icons": "^5.15.4",
+    "@fortawesome/react-fontawesome": "^0.1.16",
     "@reduxjs/toolkit": "1.7.1",
     "@rjsf/antd": "^3.2.0",
     "@rjsf/core": "^3.2.0",
@@ -94,8 +99,8 @@
       "default",
       "jest-junit"
     ],
-    "transformIgnorePatterns" : [
-      "node_modules/(?!(ol|antd|(rc-[a-z-]*)|@ant-design\/css-animation|@ant-design\/pro-[a-z]+|(@ant-design\/icons)(-[a-z]+)*|@babel\/runtime)/)"
+    "transformIgnorePatterns": [
+      "node_modules/(?!(ol|antd|(rc-[a-z-]*)|@ant-design/css-animation|@ant-design/pro-[a-z]+|(@ant-design/icons)(-[a-z]+)*|@babel/runtime)/)"
     ]
   },
   "proxy": "http://localhost:8001/"

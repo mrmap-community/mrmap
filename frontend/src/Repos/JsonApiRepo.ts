@@ -7,6 +7,7 @@ export type JsonApiResponse = AxiosResponse<JsonApiDocument | null>
 
 export interface JsonApiDocument {
     data?: JsonApiPrimaryData[] | JsonApiPrimaryData;
+    // data?: JsonApiDocumentData; TODO: replace by this one
     errors?: JsonApiErrorObject;
     meta?: any;
     links?: any;
@@ -23,6 +24,10 @@ export interface JsonApiErrorObject {
   source: string;
 }
 
+// TODO: add and complete this one.
+// export interface JsonApiDocumentData {
+//   data: JsonApiPrimaryData[] | JsonApiPrimaryData;
+// }
 export interface JsonApiPrimaryData {
     type: string;
     id: string;

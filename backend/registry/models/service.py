@@ -161,6 +161,22 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
         verbose_name = _("catalouge service")
         verbose_name_plural = _("catalouge services")
 
+    def describe_record_url():
+        # TODO
+        pass
+
+    def get_domain_url():
+        # TODO
+        pass
+
+    def get_records_url():
+        # TODO
+        pass
+
+    def get_record_by_id_url():
+        # TODO
+        pass
+
 
 class OperationUrl(models.Model):
     """Concrete model class to store operation urls for registered services

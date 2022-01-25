@@ -130,6 +130,25 @@
             "problemMatcher": []
         },
         {
+            "label": "Docker-Compose: build-docs",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "build-docs",
+                "--abort-on-container-exit",
+                "build-docs"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "Docker-Compose: mrmap validator",
             "type": "shell",
             "command": "docker-compose",

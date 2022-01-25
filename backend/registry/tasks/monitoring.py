@@ -1,5 +1,4 @@
-from celery import Task, current_task, shared_task, states
-from django.utils.translation import gettext_lazy as _
+from celery import current_task, shared_task, states
 from django_celery_results.models import TaskResult
 from registry.exceptions.service import OperationNotSupported
 from registry.models.monitoring import (LayerGetFeatureInfoResult,

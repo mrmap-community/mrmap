@@ -4,7 +4,6 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.db.models import Subquery
 from django.contrib.gis.geos import Polygon
 from django.db.models import OuterRef, QuerySet
 from django.urls import NoReverseMatch, reverse
@@ -29,8 +28,7 @@ from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
-                                      MimeType, ReferenceSystem,
-                                      ServiceMetadata, Style)
+                                      MimeType, ServiceMetadata, Style)
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session

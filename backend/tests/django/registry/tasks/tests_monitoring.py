@@ -45,7 +45,7 @@ def side_effect(url, timeout):
                                        '../../test_data/karte_rp.fcgi.png')))
 
 
-class RunWmsMonitoringTaskTest(TestCase):
+class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
 
     fixtures = ['test_wms.json']
 
@@ -73,7 +73,7 @@ class RunWmsMonitoringTaskTest(TestCase):
                              msg="Task result does not match expection.")
 
 
-class RunWmsMonitoringTaskTest(TestCase):
+class LayerGetMapMonitoringTaskTest(TestCase):
 
     fixtures = ['test_wms.json']
 

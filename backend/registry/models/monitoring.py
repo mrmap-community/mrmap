@@ -15,16 +15,36 @@ from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 
 
 class MonitoringResult(models.Model):
-    task_result: TaskResult = models.OneToOneField(to=TaskResult,
-                                                   on_delete=models.CASCADE,
-                                                   related_name="%(class)s_monitoring_results",
-                                                   related_query_name="%(class)s_monitoring_result",
-                                                   editable=False)
-    status_code: int = models.IntegerField(editable=False, default=0)
-    error_msg: str = models.TextField(null=True, blank=True, editable=False)
-    monitored_uri: str = models.URLField(max_length=4096, editable=False)
+    task_result: TaskResult = models.OneToOneField(
+        to=TaskResult,
+        on_delete=models.CASCADE,
+        related_name="%(class)s_monitoring_results",
+        related_query_name="%(class)s_monitoring_result",
+        editable=False,
+        verbose_name=_("Task Result"),
+        help_text=_("The result of the celery task"))
+    status_code: int = models.IntegerField(
+        editable=False,
+        default=0,
+        verbose_name=_("HTTP status code"),
+        help_text=_("The http status code of the response"))
+    error_msg: str = models.TextField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("error message"),
+        help_text=_("The error message of the http response or other error description"))
+    monitored_uri: str = models.URLField(
+        max_length=4096,
+        editable=False,
+        verbose_name=_("monitored uri"),
+        help_text=_("This is the url which was monitored"))
     request_duration: timedelta = models.DurationField(
-        null=True, blank=True, editable=False)
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("request duration"),
+        help_text=_("elapsed time of the request"))
 
     response = None
 
@@ -66,7 +86,11 @@ class MonitoringResult(models.Model):
 
 
 class OgcServiceGetCapabilitiesResult(MonitoringResult):
-    needs_update: bool = models.BooleanField(default=False, editable=False)
+    needs_update: bool = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name=_("needs update"),
+        help_text=_("signals if the ogc capabilities document has any changes"))
 
     class Meta(MonitoringResult.Meta):
         abstract = True
@@ -111,10 +135,13 @@ class OgcServiceGetCapabilitiesResult(MonitoringResult):
 
 
 class WMSGetCapabilitiesResult(OgcServiceGetCapabilitiesResult):
-    service: WebMapService = models.ForeignKey(to=WebMapService,
-                                               on_delete=models.CASCADE,
-                                               related_name="monitoring_results",
-                                               related_query_name="monitoring_result")
+    service: WebMapService = models.ForeignKey(
+        to=WebMapService,
+        on_delete=models.CASCADE,
+        related_name="monitoring_results",
+        related_query_name="monitoring_result",
+        verbose_name=_("web map service"),
+        help_text=_("this is the service which shall be monitored"))
 
     class Meta(OgcServiceGetCapabilitiesResult.Meta):
         # Inheritate meta
@@ -122,10 +149,13 @@ class WMSGetCapabilitiesResult(OgcServiceGetCapabilitiesResult):
 
 
 class LayerGetMapResult(MonitoringResult):
-    layer: Layer = models.ForeignKey(to=Layer,
-                                     on_delete=models.CASCADE,
-                                     related_name="get_map_monitoring_results",
-                                     related_query_name="get_map_monitoring_result")
+    layer: Layer = models.ForeignKey(
+        to=Layer,
+        on_delete=models.CASCADE,
+        related_name="get_map_monitoring_results",
+        related_query_name="get_map_monitoring_result",
+        verbose_name=_("layer"),
+        help_text=_("this is the layer which shall be monitored"))
 
     class Meta(MonitoringResult.Meta):
         # Inheritate meta
@@ -147,10 +177,13 @@ class LayerGetMapResult(MonitoringResult):
 
 
 class LayerGetFeatureInfoResult(MonitoringResult):
-    layer: Layer = models.ForeignKey(to=Layer,
-                                     on_delete=models.CASCADE,
-                                     related_name="get_feature_info_monitoring_results",
-                                     related_query_name="get_feature_info_monitoring_result")
+    layer: Layer = models.ForeignKey(
+        to=Layer,
+        on_delete=models.CASCADE,
+        related_name="get_feature_info_monitoring_results",
+        related_query_name="get_feature_info_monitoring_result",
+        verbose_name=_("layer"),
+        help_text=_("this is the layer which shall be monitored"))
 
     class Meta(MonitoringResult.Meta):
         # Inheritate meta

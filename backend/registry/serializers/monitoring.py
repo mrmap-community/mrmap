@@ -2,8 +2,7 @@ from registry.models.monitoring import (LayerGetFeatureInfoResult,
                                         LayerGetMapResult,
                                         WMSGetCapabilitiesResult)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 ModelSerializer,
-                                                 SerializerMethodField)
+                                                 ModelSerializer)
 
 
 class WMSGetCapabilitiesResultCreateSerializer(ModelSerializer):
@@ -14,6 +13,9 @@ class WMSGetCapabilitiesResultCreateSerializer(ModelSerializer):
 
 
 class WMSGetCapabilitiesResultSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:wmsgetcapabilitiesresult-detail',
+    )
 
     class Meta:
         model = WMSGetCapabilitiesResult
@@ -28,6 +30,9 @@ class LayerGetMapResultCreateSerializer(ModelSerializer):
 
 
 class LayerGetMapResultSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:layergetmapresult-detail',
+    )
 
     class Meta:
         model = LayerGetMapResult
@@ -42,6 +47,10 @@ class LayerGetFeatureInfoResultCreateSerializer(ModelSerializer):
 
 
 class LayerGetFeatureInfoResultSerializer(ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='registry:layergetfeatureinforesult-detail',
+    )
 
     class Meta:
         model = LayerGetFeatureInfoResult

@@ -6,7 +6,6 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from eulxml import xmlmap
-from extras.tasks import CurrentUserTaskMixin
 from ows_client.request_builder import CatalogueServiceWeb
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models import DatasetMetadata, OperationUrl, Service
@@ -17,8 +16,7 @@ MAX_RECORDS_TEST_LIST = [50, 100, 200, 400]
 
 
 @shared_task(name="async_harvest_service",
-             bind=True,
-             base=CurrentUserTaskMixin)
+             bind=True)
 def harvest_service(self,
                     service,
                     **kwargs):
@@ -33,8 +31,7 @@ def harvest_service(self,
 
 
 @shared_task(name="async_schedule_get_records",
-             bind=True,
-             base=CurrentUserTaskMixin)
+             bind=True)
 def schedule_get_records(self,
                          step_size,
                          service_id,
@@ -93,8 +90,7 @@ def calibrate_step_size(test_results,
 
 
 @shared_task(name="async_get_response_elapse",
-             bind=True,
-             base=CurrentUserTaskMixin)
+             bind=True)
 def get_response_elapsed(self,
                          service_id,
                          test_max_records,
@@ -135,7 +131,6 @@ def get_response_elapsed(self,
 
 @shared_task(name="async_get_records",
              bind=True,
-             base=CurrentUserTaskMixin,
              queue="harvest")
 def get_records(self,
                 service_id,
@@ -191,7 +186,6 @@ def get_records(self,
 
 @shared_task(name="async_analyze_records",
              bind=True,
-             base=CurrentUserTaskMixin,
              queue="harvest")
 def analyze_results(self,
                     harvest_results,

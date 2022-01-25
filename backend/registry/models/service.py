@@ -4,6 +4,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
+from django.contrib.gis.db.models import Subquery
 from django.contrib.gis.geos import Polygon
 from django.db.models import OuterRef, QuerySet
 from django.urls import NoReverseMatch, reverse
@@ -577,14 +578,15 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     def get_map_url(self, bbox: Polygon = None, format: str = None, style: Style = None, width: int = 1, height: int = 1, transparent: bool = False, bgcolor="=0xFFFFFF", exceptions="XML") -> str:
         """ Returns the url for the GetMap operation, to use with http get method to request this specific layer. """
         if not format:
-            image_format = MimeType.objects.filter(webmapservice__operation_urls=OuterRef(
-                'pk'), mime_type__istartswith="image/").exclude(mime_type__icontains="svg").values('mime_type')
-            url_and_format: dict = self.service.operation_urls.annotate(image_format=image_format.first()).values('url', 'image_format').get(
+
+            operation_url: dict = self.service.operation_urls.values('id', 'url').get(
                 operation=OGCOperationEnum.GET_MAP.value,
                 method="Get"
             )
-            url: str = url_and_format["url"]
-            image_format: str = url_and_format["image_format"]
+            url: str = operation_url["url"]
+            image_format = MimeType.objects.filter(
+                webmapserviceoperationurl_operation_url__pk=operation_url['id'],
+                mime_type__istartswith="image/").exclude(mime_type__icontains="svg").values('mime_type').first()['mime_type']
         else:
             url: str = self.service.operation_urls.values('url').get(
                 operation=OGCOperationEnum.GET_MAP.value,
@@ -629,7 +631,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 f"Layer '{self.identifier}' is not queryable.")
         try:
             if not info_format:
-                info_format_qs = MimeType.objects.filter(webmapservice__operation_urls=OuterRef(
+                info_format_qs = MimeType.objects.filter(webmapserviceoperationurl_operation_url=OuterRef(
                     'pk'), mime_type__istartswith="text/").values('mime_type')
                 url_and_format: dict = self.service.operation_urls.annotate(info_format=info_format_qs.first()).values('url', 'info_format').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,

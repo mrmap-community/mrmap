@@ -1,7 +1,6 @@
 from celery import Task, current_task, shared_task, states
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
-from extras.tasks import CurrentUserTaskMixin
 from registry.exceptions.service import OperationNotSupported
 from registry.models.monitoring import (LayerGetFeatureInfoResult,
                                         LayerGetMapResult,
@@ -10,12 +9,8 @@ from registry.models.service import Layer, WebMapService
 from rest_framework.reverse import reverse
 
 
-@shared_task(bind=True,
-             base=CurrentUserTaskMixin)
+@shared_task(bind=True)
 def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
-    print('current_task: ' + str(current_task))
-    print('request: ' + str(self.request))
-    print('id: ' + str(self.request.id))
     wms: WebMapService = WebMapService.objects.get(pk=service_pk)
 
     current_task.update_state(
@@ -26,9 +21,9 @@ def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
             'phase': f'start monitoring checks for {wms}',
         }
     )
+    task_result: TaskResult
     task_result, created = TaskResult.objects.get_or_create(
-        task_id=self.request.id,
-        task_name=current_task.name)
+        task_id=self.request.id)
     wms_monitoring_result: WMSGetCapabilitiesResult = WMSGetCapabilitiesResult(
         task_result=task_result,
         service=wms)
@@ -46,8 +41,7 @@ def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
     }
 
 
-@shared_task(bind=True,
-             base=CurrentUserTaskMixin)
+@shared_task(bind=True)
 def check_get_map_operation(self, layer_pk, *args, **kwargs):
 
     layer: Layer = Layer.objects.get(pk=layer_pk)
@@ -61,8 +55,7 @@ def check_get_map_operation(self, layer_pk, *args, **kwargs):
         }
     )
     task_result, created = TaskResult.objects.get_or_create(
-        task_id=self.request.id,
-        task_name=current_task.name)
+        task_id=self.request.id)
     monitoring_result: LayerGetMapResult = LayerGetMapResult(
         task_result=task_result,
         layer=layer)
@@ -80,8 +73,7 @@ def check_get_map_operation(self, layer_pk, *args, **kwargs):
     }
 
 
-@shared_task(bind=True,
-             base=CurrentUserTaskMixin)
+@shared_task(bind=True)
 def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
     layer: Layer = Layer.objects.get(pk=layer_pk)
 
@@ -94,8 +86,7 @@ def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
         }
     )
     task_result, created = TaskResult.objects.get_or_create(
-        task_id=self.request.id,
-        task_name=current_task.name)
+        task_id=self.request.id)
     monitoring_result: LayerGetFeatureInfoResult = LayerGetFeatureInfoResult(
         task_result=task_result,
         layer=layer)

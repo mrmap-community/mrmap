@@ -1,9 +1,8 @@
 import difflib
 import hashlib
+from datetime import timedelta
 from io import BytesIO
 
-from attr import has
-from click import edit
 from django.contrib.gis.db import models
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
@@ -16,15 +15,16 @@ from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 
 
 class MonitoringResult(models.Model):
-    task_result = models.OneToOneField(to=TaskResult,
-                                       on_delete=models.CASCADE,
-                                       related_name="%(class)s_monitoring_results",
-                                       related_query_name="%(class)s_monitoring_result",
-                                       editable=False)
-    status_code: int = models.IntegerField(editable=False)
+    task_result: TaskResult = models.OneToOneField(to=TaskResult,
+                                                   on_delete=models.CASCADE,
+                                                   related_name="%(class)s_monitoring_results",
+                                                   related_query_name="%(class)s_monitoring_result",
+                                                   editable=False)
+    status_code: int = models.IntegerField(editable=False, default=0)
     error_msg: str = models.TextField(null=True, blank=True, editable=False)
     monitored_uri: str = models.URLField(max_length=4096, editable=False)
-    request_duration = models.DurationField(editable=False)
+    request_duration: timedelta = models.DurationField(
+        null=True, blank=True, editable=False)
 
     response = None
 
@@ -51,11 +51,11 @@ class MonitoringResult(models.Model):
             self.status_code = self.response.status_code if self.response.status_code else 902
             self.error_msg = str(exception)
         finally:
-            self.request_duration = self.response.elapsed
+            self.request_duration = self.response.elapsed if self.response else None
 
     def check_service_exception(self):
         try:
-            xml = objectify.fromstring(f=self.response.text)
+            xml = objectify.fromstring(xml=self.response.content)
             if hasattr(xml, "ServiceExceptionReport") or hasattr(xml, "ServiceException"):
                 self.error_msg = self.response.text
                 return True

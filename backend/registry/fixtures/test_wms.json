@@ -14,13 +14,38 @@
         }
     },
     {
+        "model": "registry.mimetype",
+        "pk": "1",
+        "fields": {
+            "mime_type": "image/png"
+        }
+    },
+    {
+        "model": "registry.mimetype",
+        "pk": "2",
+        "fields": {
+            "mime_type": "image/svg"
+        }
+    },
+    {
+        "model": "registry.mimetype",
+        "pk": "3",
+        "fields": {
+            "mime_type": "text/xml"
+        }
+    },
+    {
         "model": "registry.WebMapServiceOperationUrl",
         "pk": "1",
         "fields": {
             "method": "Get",
             "url": "http://example.com/wms?",
             "operation": "GetMap",
-            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "mime_types": [
+                1,
+                2
+            ]
         }
     },
     {
@@ -30,7 +55,10 @@
             "method": "Get",
             "url": "http://example.com/wms?SERVICE=WMS&",
             "operation": "GetFeatureInfo",
-            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "mime_types": [
+                3
+            ]
         }
     },
     {
@@ -40,7 +68,10 @@
             "method": "Get",
             "url": "http://example.com/wms?SERVICE=WMS&",
             "operation": "GetCapabilities",
-            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "mime_types": [
+                3
+            ]
         }
     },
     {

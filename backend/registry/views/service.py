@@ -232,7 +232,7 @@ class WebFeatureServiceViewSet(
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
-            "request": {
+            "http_request": {
                 "path": request.path,
                 "method": request.method,
                 "content_type": request.content_type,

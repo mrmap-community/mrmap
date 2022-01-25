@@ -344,8 +344,8 @@ class WmsService(WebMapAndFeatureService):
         """
         _query_params = {}
         for key, val in query_params.items():
-            key = key.upper()
-            match key.upper():
+            _key = key.upper()
+            match _key:
                 case "SERVICE":
                     _query_params.update({self.SERVICE_QP: val})
                 case "REQUEST":

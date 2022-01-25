@@ -54,10 +54,10 @@ class BuildOgcServiceTaskTest(TestCase):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
 
-        result = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
-                                         collect_metadata_records=False,
-                                         service_auth_pk=None,
-                                         **{'user_pk': 'somepk'})
+        task = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
+                                       collect_metadata_records=False,
+                                       service_auth_pk=None,
+                                       **{'user_pk': 'somepk'})
 
         db_service = WebMapService.objects.all()[:1][0]
 
@@ -70,7 +70,7 @@ class BuildOgcServiceTaskTest(TestCase):
                 }
             }
         }
-        self.assertDictEqual(d1=result.result, d2=expected_result,
+        self.assertDictEqual(d1=task.result, d2=expected_result,
                              msg="Task result does not match expection.")
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,

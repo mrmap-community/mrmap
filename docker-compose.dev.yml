@@ -56,10 +56,7 @@ services:
     tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap'
-      /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped
-      tests/behave/api/features && python -m coverage xml -i -o
-      acceptance-tests-coverage-report.xml"
+      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped tests/behave/api/features && python -m coverage xml -i -o acceptance-tests-coverage-report.xml"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -86,9 +83,7 @@ services:
     tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap'
-      ./manage.py test /opt/mrmap/tests/ --noinput && python -m coverage xml -i
-      -o unit-tests-coverage-report.xml"
+      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap' ./manage.py test /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o unit-tests-coverage-report.xml"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind
@@ -125,8 +120,7 @@ services:
       - ./docker/backend/.mrmap.env
       - ./docker/backend/.mrmap.dev.env
     command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py
-      --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n default -Q default"
 
   celery-download-worker:
     build:
@@ -136,9 +130,7 @@ services:
       - ./docker/backend/.mrmap.env
       - ./docker/backend/.mrmap.dev.env
     command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py
-      --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q
-      download_iso_metadata,download_described_elements,harvest"
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
 
   nginx:
     volumes:
@@ -178,6 +170,24 @@ services:
     networks:
       - sonar
     working_dir: /opt/mrmap
+
+  build-docs:
+    build:
+      context: ./
+      dockerfile: ./docker/docs/Dockerfile
+      args:
+        MRMAP_PRODUCTION: "False"
+    tty: true # To support colorized log output.
+    hostname: "mrmap-build-docs"
+    volumes:
+      - type: bind
+        source: ./
+        target: /opt/mrmap
+    networks:
+      - mrmap-internal
+    env_file:
+      - docker/backend/.mrmap.env
+      - docker/backend/.mrmap.dev.env
 
 networks:
   sonar:

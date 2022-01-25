@@ -24,7 +24,6 @@
             "origin_url": "https://example.com?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
             "title": "WMS",
             "service_url": "",
-            "get_capabilities_url": "https://example.com?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
             "service_contact": "1",
             "metadata_contact": "1"
         }

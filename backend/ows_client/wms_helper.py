@@ -1,32 +1,17 @@
-"""
-Author: Jan Suleiman
-Organization: terrestris GmbH & Co. KG, Bonn, Germany
-Contact: suleiman@terrestris.de
-Created on: 26.02.2020
-
-"""
 from registry.enums.service import (OGCOperationEnum, OGCServiceEnum,
                                     OGCServiceVersionEnum)
-from registry.models import Service
+from registry.models.service import Layer, WebMapService
 
 from .url_helper import UrlHelper
 
 
 class WmsHelper:
-    def __init__(self, service: Service):
+    def __init__(self, service: WebMapService):
         self.service = service
-        self.parent_service = service
-
-        self.layer = service.root_layer
         self.crs_srs_identifier = (
             "CRS"
-            if self.service.service_type.version == OGCServiceVersionEnum.V_1_3_0.value
+            if self.service.version == OGCServiceVersionEnum.V_1_3_0.value
             else "SRS"
-        )
-        self.bbox = (
-            self.layer.bbox_lat_lon
-            if self.layer.bbox_lat_lon.area > 0
-            else self.parent_service.metadata.find_max_bounding_box()
         )
 
         self.get_capabilities_url = self.get_get_capabilities_url()
@@ -48,7 +33,7 @@ class WmsHelper:
         self.get_feature_info_url = self.get_get_feature_info_url()
         self.get_map_url = self.get_get_map_url()
 
-    def get_get_styles_url(self):
+    def get_get_styles_url(self, layer: Layer):
         """Creates the url for the wms getStyles request.
 
         Returns:
@@ -61,16 +46,12 @@ class WmsHelper:
         if uri is None or uri.url is None:
             return
         uri = uri.url
-        service_version = OGCServiceVersionEnum.V_1_1_1.value
-        service_type = OGCServiceEnum.WMS.value
-        layers = self.layer.identifier
-        request_type = OGCOperationEnum.GET_STYLES.value
 
         queries = [
-            ("SERVICE", service_type),
-            ("REQUEST", request_type),
-            ("VERSION", service_version),
-            ("LAYERS", layers),
+            ("SERVICE", OGCServiceEnum.WMS.value),
+            ("REQUEST", OGCOperationEnum.GET_STYLES.value),
+            ("VERSION", self.service.version),
+            ("LAYERS", layer.identifier),
         ]
         url = UrlHelper.build(uri, queries)
         return url

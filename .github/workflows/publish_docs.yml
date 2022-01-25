@@ -16,34 +16,13 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
-      # Install all system dependencies for the MrMap project
-      # ===============================
-      - name: Install System Dependencies for MrMap project
+      
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull build-docs
+
+      - name: Run pre commit checks
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
-          libssl-dev \
-          libcurl4-openssl-dev \
-          gdal-bin
-      # Install sphinx local
-      # ===============================
-      - name: Install sphinx
-        run: |
-          sudo apt-get install python3-sphinx
-      # Upgrade pip, setuptools and wheel
-      # ===============================
-      - name: Upgrade pip, setuptools and wheel
-        run: python -m pip install --upgrade pip setuptools wheel
-      - name: Install pip dependencies
-        run: |
-            pip3 install -r ./backend/requirements.txt && pip3 install -r ./docs/requirements.txt
-      # ===============================
-      # Build documentation
-      # ===============================
-      - name: build documentation
-        run: |
-          export $(grep -v '^#' ./docs/.docs.env | xargs)
-          MRMAP_MEDIA_DIR=./tmp sphinx-multiversion docs/source docs/build/html -b linkcheck -D smv_branch_whitelist='${{ github.head_ref }}'
-          MRMAP_MEDIA_DIR=./tmp sphinx-multiversion docs/source docs/build/html -b html -E -D smv_branch_whitelist='${{ github.head_ref }}'
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from build-docs build-docs
 
       - name: upload build reports
         uses: actions/upload-artifact@v2
@@ -57,7 +36,7 @@ jobs:
     runs-on: ubuntu-20.04
     if: ${{ github.ref == 'refs/heads/master' && github.ref == 'refs/heads/master' && github.event_name != 'push' }}
     steps:
-      - name: download coverage reports
+      - name: download artifacts
         uses: actions/download-artifact@v2
         with: 
           name: docs

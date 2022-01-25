@@ -3,6 +3,7 @@ from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
+from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
 
@@ -11,34 +12,26 @@ app_name = 'registry'
 router = ExtendedSimpleRouter()
 (
     # web map service
-    router.register(
-        r'wms', service_views.WebMapServiceViewSet, basename='wms')
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
     .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
-    router.register(
-        r'wms', service_views.WebMapServiceViewSet, basename='wms')
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
     .register(r'service-contact', metadata_views.MetadataContactViewSet, basename='wms-service-contact', parents_query_lookups=['service_contact_webmapservice_metadata']),
-    router.register(
-        r'wms', service_views.WebMapServiceViewSet, basename='wms')
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
     .register(r'service-contact', metadata_views.MetadataContactViewSet, basename='wms-metadata-contact', parents_query_lookups=['metadata_contact_webmapservice_metadata']),
-    router.register(
-        r'wms', service_views.WebMapServiceViewSet, basename='wms')
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
     .register(r'keywords', metadata_views.KeywordViewSet, basename='wms-keywords', parents_query_lookups=['ogcservice_metadata']),
-    router.register(
-        r'wms', service_views.WebMapServiceViewSet, basename='wms')
-    .register(r'allowed-wms-operations', security_views.AllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
-
-    # layers
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
     .register(r'styles', metadata_views.StyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
     .register(r'keywords', metadata_views.KeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
+    .register(r'allowed-wms-operations', security_views.AllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
+
 
     # web feature service
     router.register(
         r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
     .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
-
-    # feature types
     router.register(r'featuretypes',
                     service_views.FeatureTypeViewSet, basename='featuretype')
     .register(r'keywords', metadata_views.KeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
@@ -70,6 +63,14 @@ router = ExtendedSimpleRouter()
                     security_views.AllowedWebMapServiceOperationViewSet, basename='allowedwmsoperation'),
     router.register(r'security/allowed-wfs-operations',
                     security_views.AllowedWebFeatureServiceOperationViewSet, basename='allowedwfsoperation'),
+
+    # monitoring
+    router.register(r'monitoring/wms-get-capabilities-result',
+                    monitoring_views.WMSGetCapabilitiesResultViewSet, basename='wmsgetcapabilitiesresult'),
+    router.register(r'monitoring/layer-get-map-result',
+                    monitoring_views.LayerGetMapResultViewSet, basename='layergetmapresult'),
+    router.register(r'monitoring/layer-get-feature-info-result',
+                    monitoring_views.LayerGetFeatureInfoResultViewSet, basename='layergetfeatureinforesult'),
 )
 
 urlpatterns = router.urls

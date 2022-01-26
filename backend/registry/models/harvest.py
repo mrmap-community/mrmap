@@ -1,32 +1,68 @@
+from datetime import datetime
+
+from celery import chord
 from django.contrib.gis.db import models
-from eulxml import xmlmap
+from django.db import transaction
+from django.utils.translation import gettext_lazy as _
 from registry.models.metadata import DatasetMetadata
 from registry.models.service import CatalougeService
-from registry.xmlmapper.ogc.csw_get_record_response import \
-    GetRecordsResponse as XmlGetRecordsResponse
 
 
-def result_file_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/harvest_results/service_<id>/<filename>
-    return "get_records_response/service_{0}/{1}".format(instance.service_id, filename)
+class HarvestingJob(models.Model):
+    """ helper model to visualize harvesting job workflow """
+    service: CatalougeService = models.ForeignKey(
+        to=CatalougeService,
+        on_delete=models.CASCADE,
+        verbose_name=_("service"),
+        help_text=_("the csw for that this job is running"))
+    total_records: int = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("total records"),
+        help_text=_("total count of records which will be harvested by this job"))
+    step_size: int = models.IntegerField(
+        default=1)
+    started_at: datetime = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("date started"),
+        help_text=_("timestamp of start"))
+    done_at: datetime = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("date done"),
+        help_text=_("timestamp of done"))
+    new_records = models.ManyToManyField(
+        to=DatasetMetadata,
+        related_name="harvested_by")
+    existing_records = models.ManyToManyField(
+        to=DatasetMetadata,
+        related_name="ignored_by")
+    updated_records = models.ManyToManyField(
+        to=DatasetMetadata,
+        related_name="updated_by")
 
+    # TODO: only one job per service allowed
+    # class Meta:
+    #     constraints = {
+    #         models.CheckConstraint()
+    #     }
 
-class GetRecordsResponse(models.Model):
-    service = models.ForeignKey(to=CatalougeService,
-                                on_delete=models.CASCADE,
-                                related_name="harvest_results",
-                                related_query_name="harvest_result")
-    result_file = models.FileField(upload_to=result_file_path,
-                                   editable=False,
-                                   max_length=1024)
-
-    def parse(self) -> XmlGetRecordsResponse:
-        return xmlmap.load_xmlobject_from_string(string=self.result_file.open().read(),
-                                                 xmlclass=XmlGetRecordsResponse)
-
-    def to_metadata_records(self):
-        xml: XmlGetRecordsResponse = self.parse()
-
-        for md_metadata in xml.records:
-            DatasetMetadata.iso_metadata.create_from_parsed_metadata(
-                parsed_metadata=md_metadata, related_object=self.service)
+    def save(self, *args, **kwargs) -> None:
+        from registry.tasks.harvest import (  # to avoid circular import errors
+            get_hits_task, get_records_task, set_done_at)
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            transaction.on_commit(
+                lambda: get_hits_task.delay(harvesting_job_id=self.pk))
+        elif self.total_records and not self.done_at:
+            round_trips = (self.total_records // self.step_size)
+            if self.total_records % self.step_size > 0:
+                round_trips += 1
+            tasks = []
+            for number in range(1, round_trips+1):
+                tasks.append(get_records_task.s(
+                    harvesting_job_id=self.pk, start_position=number*self.step_size))
+            transaction.on_commit(lambda: chord(tasks)(
+                set_done_at.s(harvesting_job_id=self.pk)))

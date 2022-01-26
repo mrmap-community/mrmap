@@ -203,6 +203,26 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
             "startPosition": start_position}
         return update_url_query_params(url=url, params=query_params)
 
+    def get_record_by_id_url(
+        self,
+        id: str,
+        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        element_set_name: str = "full",
+    ):
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_RECORDS.value,
+            method="Get"
+        )['url']
+        query_params = {
+            "VERSION": self.version,
+            "SERVICE": "CSW",
+            "REQUEST": "GetRecordById",
+            "outputSchema": output_schema,
+            "elementSetName": element_set_name,
+            "id": id,
+        }
+        return update_url_query_params(url=url, params=query_params)
+
 
 class OperationUrl(models.Model):
     """Concrete model class to store operation urls for registered services

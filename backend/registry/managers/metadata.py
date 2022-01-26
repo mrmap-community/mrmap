@@ -125,7 +125,7 @@ class IsoMetadataManager(models.Manager):
                                              **kwargs)
         return db_service_metadata
 
-    def create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url):
+    def update_or_create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url):
         self._reset_local_variables()
         with transaction.atomic():
             update = False
@@ -173,7 +173,7 @@ class IsoMetadataManager(models.Manager):
 
             # TODO: categories
 
-            return db_metadata
+            return db_metadata, update, exists
 
 
 class KeywordManager(models.Manager):

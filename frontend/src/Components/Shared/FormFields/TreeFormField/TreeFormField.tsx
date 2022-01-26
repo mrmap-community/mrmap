@@ -1,5 +1,5 @@
 import { EditFilled, FolderAddFilled, MinusCircleFilled, PlusCircleFilled, SettingFilled } from '@ant-design/icons';
-import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree } from 'antd';
+import { Button, Drawer, Dropdown, Input, Menu, Modal, Space, Tooltip, Tree, Typography } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { EventDataNode } from 'antd/lib/tree';
@@ -33,7 +33,8 @@ export const TreeFormField = ({
   showMaskOnNodeAttributeForm = false,
   checkableNodes = false,
   extendedNodeActions= () => undefined,
-  treeNodeTitlePreIcons = () => (<></>)
+  treeNodeTitlePreIcons = () => (<></>),
+  multipleSelection = false,
 }: TreeProps): JSX.Element => {
   const [form] = useForm();
 
@@ -137,11 +138,11 @@ export const TreeFormField = ({
           <Menu.Item
             onClick={() => {
               nodeData && setSelectedNode(nodeData);
-              setIsNodeAttributeFormVisible(true);
               setIsCreatingGroupNode(false);
+              setIsNodeAttributeFormVisible(true);
             }}
             icon={addNodeActionIcon}
-            key='add-node'
+            key={`add-node-${nodeData?.key}`}
           >
             Add new layer
           </Menu.Item>
@@ -226,7 +227,11 @@ export const TreeFormField = ({
                   }}
                 />
               )
-              : nodeData.properties.title 
+              : (
+                <Typography.Text style={{ maxWidth: '200px' }} ellipsis={true}>
+                  {nodeData.properties.title}
+                </Typography.Text>
+                ) 
             }
           </div>
         </Dropdown>
@@ -261,6 +266,7 @@ export const TreeFormField = ({
    */
   const onAddNode = async (node: TreeNodeType | undefined, values: any, isRoot = false) => {
     if (node) {
+
       const newNode: TreeNodeType = {
         title: node.title || `${node.key}-${node.children.length}`,
         key: `${node.key}-${node.children.length}`, // this will be the id of the created node on async
@@ -275,8 +281,10 @@ export const TreeFormField = ({
         try {
           const createdNode = await addNodeDispatchAction(values, newNode.parent);
           // update new node key
+          console.log(createdNode);
           if (createdNode && createdNode.data?.data && (createdNode.data.data as JsonApiPrimaryData).id) {
             newNode.key = (createdNode.data.data as JsonApiPrimaryData).id;
+            console.log(newNode);
             setTreeDataOnAdd(node, newNode);
           }
         } catch (error) {
@@ -368,9 +376,6 @@ export const TreeFormField = ({
    */
   const onEditNode = async (node: TreeNodeType | undefined, values: any) => {
     if (node) {
-      if (values && node) {
-        node.properties = values;
-      }
       if (asyncTree) {
         setIsEditingNode(true);
         try {
@@ -378,6 +383,7 @@ export const TreeFormField = ({
             node.key,
             {
               ...node.properties,
+              ...values,
               title: node.properties.title
             }
           );
@@ -411,7 +417,9 @@ export const TreeFormField = ({
     if (asyncTree) {
       setIsDraggingNode(true);
       try {
-        return await dragNodeDispatchAction(info);
+        const cena = await dragNodeDispatchAction(info);
+        console.log(cena);
+        return cena;
       } catch (error) {
         setIsDraggingNode(false);
         // @ts-ignore
@@ -435,7 +443,7 @@ export const TreeFormField = ({
     const dropPosition = info.node.children.length - Number(dropPos[dropPos.length - 1]);
     const dragKey = info.dragNode.key;
     const dropKey = info.node.key;
-
+    console.log(info.dragNode);
     // @ts-ignore
     const loop = (data, key, callback) => {
       for (let i = 0; i < data.length; i++) {
@@ -452,7 +460,7 @@ export const TreeFormField = ({
 
     // Find dragObject and remove it from parent
     // @ts-ignore
-    let dragObj;
+    let dragObj:any;
     // @ts-ignore
     loop(data, dragKey, (item, index, arr) => {
       arr.splice(index, 1);
@@ -461,28 +469,31 @@ export const TreeFormField = ({
 
     //  if inserting between nodes
     if (!info.dropToGap) {
-    // Drop on the content
-    // @ts-ignore
+      // Drop on the content
+      // @ts-ignore
       loop(data, dropKey, item => {
         item.children = item.children || [];
+        console.log(dragObj);
+        // dragObj.parent = item.key;
         // where to insert
         // @ts-ignore
         item.children.unshift(dragObj);
       });
     } else if (
-    //  if inserting on  first position
-      (info.node.props.children || []).length > 0 && // Has children
-    info.node.props.expanded && // Is expanded
-    dropPosition === 1 // On the bottom gap
-    ) {
-    // @ts-ignore
+      //  if inserting on  first position
+      (
+        info.node.props.children || []).length > 0 && // Has children
+        info.node.props.expanded && // Is expanded
+        dropPosition === 1 // On the bottom gap
+      ) {
+      // @ts-ignore
       loop(data, dropKey, item => {
         item.children = item.children || [];
         // where to insert
         // @ts-ignore
         item.children.unshift(dragObj);
-      // in previous version, we use item.children.push(dragObj) to insert the
-      // item to the tail of the children
+        // in previous version, we use item.children.push(dragObj) to insert the
+        // item to the tail of the children
       });
     } else {
       let ar;
@@ -493,15 +504,18 @@ export const TreeFormField = ({
         i = index;
       });
       if (dropPosition === -1) {
-      // @ts-ignore
+        // @ts-ignore
         ar.splice(i, 0, dragObj);
       } else {
-      // @ts-ignore
+        // @ts-ignore
         ar.splice(i + 1, 0, dragObj);
       }
     }
+    // update the parent id in case item was droped inside
     // @ts-ignore
-    setTreeData(data);
+    setTreeData(treeUtils.updateTreeData(data));
+    //setTreeData(treeUtils.updateTreeData(data));
+    // setTreeData(data);
   };
 
   /**
@@ -528,14 +542,6 @@ export const TreeFormField = ({
    * @param info
    */
   const onCheck = (_checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
-    const node = info.node;
-    if (info.checked) {
-      //@ts-ignore
-      checkedKeys.push(info.node.props.key);
-    } else {
-      //@ts-ignore
-      checkedKeys.splice(_checkedKeys.indexOf(node.key), 1);
-    }
     setCheckedKeys(_checkedKeys);
     checkNodeDispacthAction(_checkedKeys, info);
   };
@@ -561,7 +567,8 @@ export const TreeFormField = ({
           onEditNode(node, values);
         }
       },
-      showBasicForm: isCreatingGroupNode
+      nodeInfo: node,
+      showBasicInfo: isCreatingGroupNode
     });
   };
 
@@ -668,18 +675,18 @@ export const TreeFormField = ({
         onSelect={onSelect}
         treeData={_treeData}
         showLine
-        multiple={false}
+        multiple={multipleSelection}
         expandedKeys={expandedKeys}
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
           <div className='tree-form-field-node'>
-            <div className='tree-node-title-symbols'>
-              {treeNodeTitlePreIcons(nodeData)}
-            </div>
-            <div>
+            <div className='tree-node-title-group1'>
+              <div className='tree-node-title-symbols'>
+                {treeNodeTitlePreIcons(nodeData)}
+              </div>
               {getNodeTitle(nodeData)}
             </div>
-            <div>
+            <div className='tree-node-title-group2'>
               {getNodeActions(nodeData)}
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { SyncOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
-import { Button, notification } from 'antd';
+import { Button, notification, Tooltip } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
@@ -74,7 +74,6 @@ export const MapContext = (): ReactElement => {
   
 
   const onAddDatasetToMapAction = async(dataset:any) => {
-    console.log(dataset.layers);
     dataset.layers.forEach(async (layer: string) => {
       const getParentId = (): string => {
         const currentSelectedIsNodeOnRoot = currentSelectedTreeLayerNode &&
@@ -115,6 +114,7 @@ export const MapContext = (): ReactElement => {
           layerScaleMax:renderingLayerDetails.attributes.scaleMax,
           layerScaleMin:renderingLayerDetails.attributes.scaleMin,
           renderingLayer: renderingLayerDetails.attributes.id,
+          datasetMetadata: dataset.id,
           parentLayerId: getParentId(),
           mapContextId: createdMapContextId
         });
@@ -208,7 +208,8 @@ export const MapContext = (): ReactElement => {
     <>
       <div className='map-context'>
         <ReactGeoMapContext.Provider value={olMap}>
-          <TheMap 
+          <TheMap
+            showLayerManager={!!createdMapContextId}
             selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}
             addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
               let renderingLayerInfo = null;
@@ -220,6 +221,7 @@ export const MapContext = (): ReactElement => {
                   mapContextId: createdMapContextId
                 });
 
+                // return createdLayer;
                 //@ts-ignore
                 const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
                 if(renderingLayerId) {
@@ -268,23 +270,41 @@ export const MapContext = (): ReactElement => {
                 // setCurrentSelectedTreeLayerNode(undefined);
               }
             }}
-            editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
-              await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
-            )}
-            dragLayerDispatchAction={async (nodeBeingDraggedInfo) => {
-              const dropKey = nodeBeingDraggedInfo.node.key;
-              const dragKey = nodeBeingDraggedInfo.dragNode.key;
-              let position:string;
-              if (nodeBeingDraggedInfo.node.parent === nodeBeingDraggedInfo.dragNode.parent) {
-                position = 'right';
-              } else {
-                position = 'first-child';
+            editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => {
+              try {
+                return await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate);
+              } catch(error) {
+                //@ts-ignore
+                throw new Error(error);
               }
-              return await mapContextLayerRepo?.move(dragKey, dropKey, position);
+
+            }}
+            dragLayerDispatchAction={async (nodeBeingDraggedInfo) => {
+              const nodeBeingDraggedKey = nodeBeingDraggedInfo.dragNode.key;
+              const targetNodeParent = nodeBeingDraggedInfo.node.parent;
+              const targetNodeKey = nodeBeingDraggedInfo.node.key;
+
+              let position:string;
+              // if node is being dragged to a folder
+              if(!nodeBeingDraggedInfo.dropToGap) {
+                nodeBeingDraggedInfo.dragNode.parent = targetNodeKey;
+                position = 'first-child';
+              } else {
+                nodeBeingDraggedInfo.dragNode.parent = targetNodeParent;
+                position = 'right';
+              }
+
+              return await mapContextLayerRepo?.move(nodeBeingDraggedKey, targetNodeKey, position);
             }}
             layerGroupName='mrMapMapContextLayers'
             initLayerTreeData={initLayerTreeData}
-            layerAttributeForm={(<MapContextLayerForm form={form}/>)}
+            layerAttributeForm={(
+              <MapContextLayerForm
+                key={currentSelectedTreeLayerNode?.key}
+                form={form} 
+                // nodeInfo={currentSelectedTreeLayerNode}
+              />
+            )}
             layerCreateErrorDispatchAction={(error: any) => {
               if(!createdMapContextId) {
                 notification.warn({
@@ -315,14 +335,33 @@ export const MapContext = (): ReactElement => {
               return (
                 <>
                   {nodeData.properties.datasetMetadata && (
-                    <FontAwesomeIcon icon={['fas','eye']} />
+                    <Tooltip title='Dataset Metadata is set' >
+                      <FontAwesomeIcon icon={['fas','eye']} />
+                    </Tooltip>
                   )}
-                  <FontAwesomeIcon 
-                    icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]} 
-                  />
-                  <FontAwesomeIcon 
-                    icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']} 
-                  />
+                  <Tooltip 
+                    title={
+                      nodeData.properties.renderingLayer ? 
+                      'Rendering Layer is set' : 
+                      'Rendering Layer is not set'
+                    } 
+                  >
+                    <FontAwesomeIcon 
+                      icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]} 
+                    />
+                  </Tooltip>
+                  <Tooltip 
+                    title={
+                      nodeData.properties.featureSelectionLayer ?
+                      'Feature Selection Layer is set' : 
+                      'Feature Selection Layer is not set'
+                    } 
+                  >
+                    <FontAwesomeIcon
+                      style={{ color: nodeData.properties.featureSelectionLayer ? '' : 'lightgray' }} 
+                      icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']} 
+                    />
+                  </Tooltip>
                   </>
             );
           }}

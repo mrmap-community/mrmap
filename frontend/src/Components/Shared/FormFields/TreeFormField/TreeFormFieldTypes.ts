@@ -55,7 +55,7 @@ interface MPTTJsonApiAttributeType {
     addNodeDispatchAction?:(
       nodeAttributes: any,
       newNodeParent?: string | number | null | undefined) =>
-      Promise<JsonApiResponse> | void;
+      Promise<JsonApiResponse> | void | undefined;
     removeNodeDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
     editNodeDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
     dragNodeDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
@@ -76,4 +76,5 @@ interface MPTTJsonApiAttributeType {
     extendedNodeActions?: (nodeData?: TreeNodeType) => any;
     customTreeTitleAction?: () => void | undefined;
     treeNodeTitlePreIcons?: (nodeData:TreeNodeType) => ReactNode;
+    multipleSelection?: boolean;
   }

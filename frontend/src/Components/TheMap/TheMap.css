@@ -3,17 +3,13 @@
   height: 100%;
   width: 100%;
   position: relative;
+  max-height: calc(100vh - 96px); /* the 96px values comes from the current site layout padding ((top + bottom) * 2) . change this value if the site background layout changes*/
 }
   
 #the-map {
   height: 100%;
   width: 100%;
 }
-
-/* .ol-zoom {
-  top: unset;
-  bottom: 0.5em;
-} */
 
 .ol-popup {
   position: absolute;

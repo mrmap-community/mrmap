@@ -45,7 +45,8 @@ export const LayerManager = ({
   layerEditErrorDispatchAction = () => undefined,
   layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
-  initLayerTreeData
+  initLayerTreeData,
+  multipleSelection = false
 }: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -231,14 +232,14 @@ export const LayerManager = ({
       if(layerOpts) {
         //@ts-ignore
         layerToAdd = layerUtils.createMrMapOlWMSLayer(layerOpts);
-      }
-      // add the layer to the parent, where the layer or group is being created
-      layerUtils.addLayerToGroupByMrMapLayerId(
-        layerManagerLayerGroup, 
-        newNodeParent as string, 
-        layerToAdd
-      );
-    }
+      } 
+    } 
+    // add the layer to the parent, where the layer or group is being created
+    layerUtils.addLayerToGroupByMrMapLayerId(
+      layerManagerLayerGroup, 
+      newNodeParent as string, 
+      layerToAdd
+    );
   };
 
   const onDeleteLayer = async(nodeToRemove: TreeNodeType) => {
@@ -294,9 +295,19 @@ export const LayerManager = ({
   const onEditLayer = async(nodeId:number|string, nodeAttributesToUpdate: any) => {
     // if method is asnyc, we need to get the result by resolving the promise
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
+    if(editLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
       try {
-        return await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
+        const editedLayer = await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
+        // update the layer properties
+        const layerToUpdate = layerUtils.getAllMapLayers(layerManagerLayerGroup)
+          .find((l: any) => l.getProperties().layerId === nodeId);
+        if(layerToUpdate) {
+          layerToUpdate.setProperties({ 
+            ...layerToUpdate.getProperties(), 
+            ...nodeAttributesToUpdate 
+          });
+        }
+        return editedLayer;
       } catch(error: any) {
         layerEditErrorDispatchAction(error);
       }
@@ -370,6 +381,7 @@ export const LayerManager = ({
           customTreeTitleAction={customLayerManagerTitleAction}
           nodeAttributeForm={layerAttributeForm}
           treeNodeTitlePreIcons={layerAttributeInfoIcons}
+          multipleSelection={multipleSelection}
         />
       )}
     </div>

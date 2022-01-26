@@ -9,8 +9,10 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.models.metadata import Keyword, ReferenceSystem, Style
-from registry.models.service import WebMapServiceOperationUrl
-from registry.serializers.service import (FeatureTypeSerializer,
+from registry.models.service import CatalougeService, WebMapServiceOperationUrl
+from registry.serializers.service import (CatalougeServiceCreateSerializer,
+                                          CatalougeServiceSerializer,
+                                          FeatureTypeSerializer,
                                           LayerSerializer,
                                           WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
@@ -261,3 +263,40 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+
+class CatalougeServiceViewSet(
+    SerializerClassesMixin,
+    AsyncCreateMixin,
+    ObjectPermissionCheckerViewSetMixin,
+    HistoryInformationViewSetMixin,
+    NestedViewSetMixin,
+    ModelViewSet,
+):
+    schema = AutoSchema(
+        tags=["WebFeatureService"],
+    )
+    queryset = CatalougeService.objects.all()
+    serializer_classes = {
+        "default": CatalougeServiceSerializer,
+        "create": CatalougeServiceCreateSerializer,
+    }
+    #prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
+    #filterset_class = WebFeatureServiceFilterSet
+    search_fields = ("id", "title", "abstract", "keywords__keyword")
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    task_function = build_ogc_service
+
+    def get_task_kwargs(self, request, serializer):
+        return {
+            "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
+            "collect_metadata_records": False,  # CSW has no remote metadata records
+            "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
+            "http_request": {
+                "path": request.path,
+                "method": request.method,
+                "content_type": request.content_type,
+                "data": request.GET,
+                "user_pk": request.user.pk,
+            }
+        }

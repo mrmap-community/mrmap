@@ -36,6 +36,11 @@ router = ExtendedSimpleRouter()
                     service_views.FeatureTypeViewSet, basename='featuretype')
     .register(r'keywords', metadata_views.KeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
 
+    # catalouge service
+    router.register(
+        r'csw', service_views.CatalougeServiceViewSet, basename='csw'
+    ),
+
     # map context
     router.register(
         r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')

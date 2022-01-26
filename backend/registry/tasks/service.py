@@ -69,7 +69,6 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             db_service = CatalougeService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
             resource_name = "CatalougeService"
-            # FIXME: no csw modelviewset
             self_url = reverse(
                 viewname='registry:csw-detail', args=[db_service.pk])
         else:

@@ -1,6 +1,7 @@
 import random
 from time import sleep
 
+from backend.registry.models.service import CatalougeService
 from celery import chain, chord, shared_task, states
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -9,8 +10,9 @@ from eulxml import xmlmap
 from ows_client.request_builder import CatalogueServiceWeb
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models import DatasetMetadata, OperationUrl, Service
-from registry.models.harvest import HarvestResult
+from registry.models.harvest import GetRecordsResponse
 from registry.xmlmapper.ogc.csw_get_record_response import GetRecordsResponse
+from requests.models import Response
 
 MAX_RECORDS_TEST_LIST = [50, 100, 200, 400]
 
@@ -135,32 +137,20 @@ def get_response_elapsed(self,
 def get_records(self,
                 service_id,
                 max_records,
-                step_size,
                 start_position,
                 progress_step_size,
                 **kwargs):
-    sleep(random.uniform(0.1, 0.9))
-    db_service = Service.objects.get(pk=service_id)
-    get_records_url = OperationUrl.objects.values_list("url", flat=True).get(service__id=service_id,
-                                                                             operation=OGCOperationEnum.GET_RECORDS.value,
-                                                                             method=HttpMethodEnum.GET.value)
-    remote_service = CatalogueServiceWeb(base_url=get_records_url,
-                                         version=db_service.service_version)
-    request = remote_service.get_get_records_request(**{remote_service.TYPE_NAME_QP: "gmd:MD_Metadata",
-                                                        remote_service.OUTPUT_SCHEMA_QP: "http://www.isotc211.org/2005/gmd",
-                                                        remote_service.RESULT_TYPE_QP: "results",
-                                                        remote_service.MAX_RECORDS_QP: step_size,
-                                                        remote_service.START_POSITION_QP: start_position})
-    session = db_service.get_session_for_request()
-    response = session.send(request.prepare())
+    csw: CatalougeService = CatalougeService.objects.get(pk=service_id)
+    get_records_url: str = csw.get_records_url(
+        max_records=max_records, start_position=start_position)
+    response: Response = csw.send_get_request(url=get_records_url, timeout=60)
 
     content_type = response.headers.get("content-type")
     if "/" in content_type:
         content_type = content_type.split("/")[-1]
-    result = HarvestResult.objects.create(service=Service.objects.get(id=service_id),
-                                          job=self.task.job)
-    result.result_file.save(
-        name=f'{start_position}_to_{start_position + step_size - 1}_of_{max_records}.{content_type}',
+    get_records_response = GetRecordsResponse.objects.create(service=csw)
+    get_records_response.result_file.save(
+        name=f'{start_position}_to_{max_records-start_position}_of_{max_records}.{content_type}',
         content=ContentFile(response.text))
     if self.task:
         # CAREFULLY!!!: this is a race condition in parallel execution, cause all tasks will waiting for the task
@@ -197,7 +187,7 @@ def analyze_results(self,
         self.task.phase = f"Persisting downloaded records: 0 / {total_records}"
         self.task.save()
     service = Service.objects.get(pk=service_id)
-    results = HarvestResult.objects.filter(id__in=harvest_results)
+    results = GetRecordsResponse.objects.filter(id__in=harvest_results)
     dataset_list = []
     progress_step_size = 100 / total_records / 2
 

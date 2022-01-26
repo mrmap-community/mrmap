@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
+from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import monitoring as monitoring_views
@@ -39,6 +40,11 @@ router = ExtendedSimpleRouter()
     # catalouge service
     router.register(
         r'csw', service_views.CatalougeServiceViewSet, basename='csw'
+    ),
+
+    # harvesting
+    router.register(
+        r'harvesting/harvesting-jobs', harvesting_views.HarvestingJobViewSet, basename='harvestingjob'
     ),
 
     # map context

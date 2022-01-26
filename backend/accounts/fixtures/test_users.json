@@ -155,6 +155,21 @@
                     "delete_layergetfeatureinforesult",
                     "registry",
                     "layergetfeatureinforesult"
+                ],
+                [
+                    "add_harvestingjob",
+                    "registry",
+                    "harvestingjob"
+                ],
+                [
+                    "change_harvestingjob",
+                    "registry",
+                    "harvestingjob"
+                ],
+                [
+                    "delete_harvestingjob",
+                    "registry",
+                    "harvestingjob"
                 ]
             ]
         }

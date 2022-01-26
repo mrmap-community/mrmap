@@ -18,29 +18,36 @@ class HarvestingJob(models.Model):
     total_records: int = models.IntegerField(
         null=True,
         blank=True,
+        editable=False,
         verbose_name=_("total records"),
         help_text=_("total count of records which will be harvested by this job"))
     step_size: int = models.IntegerField(
-        default=1)
+        default=1,
+        blank=True)
     started_at: datetime = models.DateTimeField(
         null=True,
         blank=True,
+        editable=False,
         verbose_name=_("date started"),
         help_text=_("timestamp of start"))
     done_at: datetime = models.DateTimeField(
         null=True,
         blank=True,
+        editable=False,
         verbose_name=_("date done"),
         help_text=_("timestamp of done"))
     new_records = models.ManyToManyField(
         to=DatasetMetadata,
-        related_name="harvested_by")
+        related_name="harvested_by",
+        editable=False,)
     existing_records = models.ManyToManyField(
         to=DatasetMetadata,
-        related_name="ignored_by")
+        related_name="ignored_by",
+        editable=False,)
     updated_records = models.ManyToManyField(
         to=DatasetMetadata,
-        related_name="updated_by")
+        related_name="updated_by",
+        editable=False,)
 
     # TODO: only one job per service allowed
     # class Meta:

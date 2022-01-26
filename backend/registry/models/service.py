@@ -161,21 +161,47 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
         verbose_name = _("catalouge service")
         verbose_name_plural = _("catalouge services")
 
-    def describe_record_url():
-        # TODO
-        pass
+    def get_records_hits_url(
+        self,
+        type_names: str = "gmd:MD_Metadata",
+        result_type: str = "hits",
+    ):
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_RECORDS.value,
+            method="Get"
+        )['url']
+        query_params = {
+            "VERSION": self.version,
+            "SERVICE": "CSW",
+            "REQUEST": "GetRecords",
+            "typeNames": type_names,
+            "resultType": result_type}
+        return update_url_query_params(url=url, params=query_params)
 
-    def get_domain_url():
-        # TODO
-        pass
-
-    def get_records_url():
-        # TODO
-        pass
-
-    def get_record_by_id_url():
-        # TODO
-        pass
+    def get_records_url(
+        self,
+        type_names: str = "gmd:MD_Metadata",
+        result_type: str = "results",
+        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        element_set_name: str = "full",
+        max_records: int = 10,
+        start_position: int = 1
+    ):
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_RECORDS.value,
+            method="Get"
+        )['url']
+        query_params = {
+            "VERSION": self.version,
+            "SERVICE": "CSW",
+            "REQUEST": "GetRecords",
+            "typeNames": type_names,
+            "resultType": result_type,
+            "outputSchema": output_schema,
+            "elementSetName": element_set_name,
+            "maxRecords": max_records,
+            "startPosition": start_position}
+        return update_url_query_params(url=url, params=query_params)
 
 
 class OperationUrl(models.Model):

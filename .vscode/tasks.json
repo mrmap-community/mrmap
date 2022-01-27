@@ -210,6 +210,26 @@
             ]
         },
         {
+            "label": "Docker-Compose: mrmap celery-db-calc-worker",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "celery-db-calc-worker",
+                "--abort-on-container-exit",
+                "celery-db-calc-worker"
+            ]
+        },
+        {
             "label": "Docker-Compose: run pre commit checks",
             "type": "shell",
             "command": "docker-compose",

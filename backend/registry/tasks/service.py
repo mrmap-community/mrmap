@@ -18,7 +18,10 @@ from requests import Request, Session
 from rest_framework.reverse import reverse
 
 
-@shared_task(bind=True)
+@shared_task(
+    bind=True,
+    queue="default"
+)
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
@@ -117,7 +120,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
 
 @shared_task(bind=True,
-             queue="download_iso_metadata")
+             queue="download")
 def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})

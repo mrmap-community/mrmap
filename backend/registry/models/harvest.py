@@ -1,7 +1,7 @@
+import os
 from datetime import datetime
-from operator import mod
 
-from celery import chord, group
+from celery import group
 from django.contrib.gis.db import models
 from django.db import transaction
 from django.db.models.query_utils import Q
@@ -109,6 +109,12 @@ class TemporaryMdMetadataFile(models.Model):
         if adding:
             transaction.on_commit(
                 lambda: temporary_md_metadata_file_to_db.delay(md_metadata_file_id=self.pk))
+
+    def delete(self, *args, **kwargs):
+        if os.path.isfile(self.md_metadata_file.path):
+            os.remove(self.md_metadata_file.path)
+
+        super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self) -> DatasetMetadata:
         md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(

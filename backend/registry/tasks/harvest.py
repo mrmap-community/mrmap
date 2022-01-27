@@ -13,6 +13,7 @@ from registry.xmlmapper.ogc.csw_get_record_response import \
 from requests.models import Response
 
 
+@shared_task(queue="default")
 def get_hits_task(harvesting_job_id):
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
@@ -27,7 +28,7 @@ def get_hits_task(harvesting_job_id):
     return xml.total_records
 
 
-@shared_task(queue="harvest")
+@shared_task(queue="download")
 def get_records_task(harvesting_job_id,
                      start_position,
                      **kwargs):
@@ -62,10 +63,14 @@ def get_records_task(harvesting_job_id,
     return db_objs
 
 
-@shared_task(queue="harvest")
+@shared_task(queue="db-calc")
 def temporary_md_metadata_file_to_db(md_metadata_file_id):
     temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
         pk=md_metadata_file_id)
     dataset_metadata = temporary_md_metadata_file.md_metadata_file_to_db()
-    # TODO: delete temporary_md_metadata_file and check if there any existing temporary_md_metadata_file objects left.. if not set done_at
+    harvesting_job: HarvestingJob = temporary_md_metadata_file.job
+    temporary_md_metadata_file.delete()
+    if not TemporaryMdMetadataFile.objects.filter(job=harvesting_job).exists():
+        harvesting_job.done_at = now()
+        harvesting_job.save()
     return dataset_metadata.pk

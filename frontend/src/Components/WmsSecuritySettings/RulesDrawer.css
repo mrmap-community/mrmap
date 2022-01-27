@@ -1,0 +1,20 @@
+.rules-drawer-toggle-button {
+  position: absolute;
+  top: 50%;
+  z-index: 1001;
+  height: 60px;
+  width: 30px;
+  padding: 0;
+  border-radius: 5px 0 0 5px;
+  border: none;
+  /* same transition timing as drawer */
+  transition: right 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.rules-drawer-toggle-button.collapsed {
+  right: 0px;
+}
+
+.rules-drawer-toggle-button.expanded {
+  right: 500px;
+}

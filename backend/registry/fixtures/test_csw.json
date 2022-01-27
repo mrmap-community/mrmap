@@ -73,10 +73,39 @@
         }
     },
     {
+        "model": "registry.catalougeservice",
+        "pk": "57cf66c2-3bde-49ad-b76e-bae49da57516",
+        "fields": {
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
+            "title": "CSW",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1"
+        }
+    },
+    {
         "model": "registry.harvestingjob",
         "pk": "1",
         "fields": {
             "service": "3df586c6-b89b-4ce5-980a-12dc3ca23df2"
+        }
+    },
+    {
+        "model": "registry.harvestingjob",
+        "pk": "2",
+        "fields": {
+            "service": "57cf66c2-3bde-49ad-b76e-bae49da57516"
+        }
+    },
+    {
+        "model": "registry.temporarymdmetadatafile",
+        "pk": "2",
+        "fields": {
+            "job": "2",
+            "md_metadata_file": ""
         }
     }
 ]

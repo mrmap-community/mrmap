@@ -49,7 +49,7 @@ def get_records_task(harvesting_job_id,
         max_records=step_size, start_position=start_position)
     response: Response = harvesting_job.service.send_get_request(
         url=get_records_url, timeout=60)
-    xml: XmlGetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.text,
+    xml: XmlGetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
                                                                    xmlclass=XmlGetRecordsResponse)
 
     md_metadata: MdMetadata

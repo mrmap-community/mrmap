@@ -28,6 +28,6 @@ export default function WebSockets (): JSX.Element {
 
   // TODO: clairify if this is a common way to outsource global code
   return (
-      <div></div>
+    <div></div>
   );
 }

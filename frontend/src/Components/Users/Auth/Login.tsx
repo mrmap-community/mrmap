@@ -63,8 +63,8 @@ export const Login = (): ReactElement => {
         </Form.Item>
         {loginFailed
           ? (
-          <Form.Item><Alert message='Login failed. Hint: mrmap/mrmap' type='error' showIcon /></Form.Item>
-            )
+            <Form.Item><Alert message='Login failed. Hint: mrmap/mrmap' type='error' showIcon /></Form.Item>
+          )
           : (<></>)
         }
         <Form.Item>

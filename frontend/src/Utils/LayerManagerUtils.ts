@@ -1,5 +1,6 @@
 import LayerGroup from 'ol/layer/Group';
 import Layer from 'ol/layer/Layer';
+import { TreeFormFieldDropNodeEventType } from '../Components/Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { LayerUtils } from './LayerUtils';
 
 const layerUtils = new LayerUtils();
@@ -10,15 +11,18 @@ export class LayerManagerUtils {
   * @param nodeBeingDraggedInfo
   */
 
-  public updateLayerGroupOnDrop(nodeInfo:any, layerManagerLayerGroup: LayerGroup): void {
+  public updateLayerGroupOnDrop(dropEvent:TreeFormFieldDropNodeEventType, layerManagerLayerGroup: LayerGroup): void {
     let dragLayerGroup;
     let dropLayerGroup;
  
     // checks if the layer is being inserted between two nodes of the same level or as a new layer
     // of another node root level
-    const isDroppingToGap = nodeInfo.dropToGap;
+    const isDroppingToGap = dropEvent.dropToGap;
     // Information about the layer being dragged
-    const dragLayer = layerUtils.getLayerByMrMapLayerId(layerManagerLayerGroup, nodeInfo.dragNode.key);
+    const dragLayer = layerUtils.getLayerByMrMapLayerId(
+      layerManagerLayerGroup, 
+      dropEvent.dragNode.key
+    );
     dragLayerGroup = layerUtils.getLayerByMrMapLayerId(layerManagerLayerGroup, dragLayer?.getProperties().parent);
    
     // if parent is null, no layer will be found, meaning the group to drop is the defined root group
@@ -27,7 +31,10 @@ export class LayerManagerUtils {
     }
    
     // Information about the target layer/layer group
-    const dropLayer = layerUtils.getLayerByMrMapLayerId(layerManagerLayerGroup, nodeInfo.node.props.eventKey);
+    const dropLayer = layerUtils.getLayerByMrMapLayerId(
+      layerManagerLayerGroup, 
+      dropEvent.node.key
+    );
     if(isDroppingToGap) {
       dropLayerGroup = layerUtils.getLayerByMrMapLayerId(layerManagerLayerGroup, dropLayer?.getProperties().parent);
     } else {

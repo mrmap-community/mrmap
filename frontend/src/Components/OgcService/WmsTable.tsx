@@ -126,26 +126,26 @@ const WmsTable = (): JSX.Element => {
     render: (text: any, record:any) => {
       return (
         <>
-            <Button
-              danger
-              size='small'
-              onClick={ () => {
-                actionRef.current?.deleteRecord(record);
-              }}
-            >
+          <Button
+            danger
+            size='small'
+            onClick={ () => {
+              actionRef.current?.deleteRecord(record);
+            }}
+          >
               Löschen
-            </Button>
+          </Button>
         </>
       );
     }
   }];
 
   return <RepoTable
-            repo={repo}
-            columns={columns}
-            actionRef={actionRef as any}
-            onAddRecord='/registry/services/wms/add'
-          />;
+    repo={repo}
+    columns={columns}
+    actionRef={actionRef as any}
+    onAddRecord='/registry/services/wms/add'
+  />;
 };
 
 export default WmsTable;

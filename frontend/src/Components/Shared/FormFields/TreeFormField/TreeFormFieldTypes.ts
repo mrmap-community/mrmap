@@ -1,8 +1,16 @@
 import { Key } from 'antd/lib/table/interface';
-import { DataNode } from 'antd/lib/tree';
+import { DataNode, EventDataNode } from 'antd/lib/tree';
 import { ReactNode } from 'react';
 import { JsonApiResponse } from '../../../../Repos/JsonApiRepo';
 
+// copied from AntD definition
+export type TreeFormFieldDropNodeEventType = {
+    node: EventDataNode;
+    dragNode: EventDataNode;
+    dragNodesKeys: Key[];
+    dropPosition: number;
+    dropToGap: boolean;
+}
 interface MPTTJsonApiAttributeType {
     title: string;
     description: string;
@@ -22,7 +30,7 @@ interface MPTTJsonApiAttributeType {
     }
   }
   
-  export interface MPTTJsonApiRelashionshipType {
+export interface MPTTJsonApiRelashionshipType {
     parent: MPTTJsonApiRelashionshipDataType;
     map_context: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
     dataset_metadata: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
@@ -30,7 +38,7 @@ interface MPTTJsonApiAttributeType {
     layer_style: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
     selection_layer: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
   }
-  export interface MPTTJsonApiTreeNodeType{
+export interface MPTTJsonApiTreeNodeType{
     type: string;
     id: string;
     attributes: MPTTJsonApiAttributeType;
@@ -40,7 +48,7 @@ interface MPTTJsonApiAttributeType {
     }
     children?: TreeNodeType[];
   }
-  export interface TreeNodeType extends DataNode {
+export interface TreeNodeType extends DataNode {
     title: string;
     key: string | number;
     parent?: string | number | null;
@@ -49,7 +57,7 @@ interface MPTTJsonApiAttributeType {
     expanded?: boolean;
   }
   
-  export interface TreeProps {
+export interface TreeProps {
     treeData: TreeNodeType[];
     asyncTree?: boolean;
     addNodeDispatchAction?:(
@@ -58,7 +66,7 @@ interface MPTTJsonApiAttributeType {
       Promise<JsonApiResponse> | void | undefined;
     removeNodeDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
     editNodeDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
-    dragNodeDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
+    dropNodeDispatchAction?: (dropEvent:TreeFormFieldDropNodeEventType) => Promise<JsonApiResponse> | void;
     checkNodeDispacthAction?: (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => void;
     selectNodeDispatchAction?: (selectedKeys: Key[], info: any) => void;
     draggable?: boolean;

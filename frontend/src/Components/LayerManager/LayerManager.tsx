@@ -13,12 +13,13 @@ import { transformExtent } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
 import React, { useEffect, useState } from 'react';
+import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import { LayerManagerUtils } from '../../Utils/LayerManagerUtils';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { TreeFormField } from '../Shared/FormFields/TreeFormField/TreeFormField';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import './LayerManager.css';
 import { CreateLayerOpts, LayerManagerProps } from './LayerManagerTypes';
 
@@ -39,7 +40,7 @@ export const LayerManager = ({
   addLayerDispatchAction = () => undefined,
   removeLayerDispatchAction = () => undefined,
   editLayerDispatchAction = () => undefined,
-  dragLayerDispatchAction = () => undefined,
+  dropLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   customLayerManagerTitleAction = () => undefined,
   layerCreateErrorDispatchAction = () => undefined,
@@ -320,22 +321,26 @@ export const LayerManager = ({
     }
   };
 
-  const onDropLayer = async(nodeBeingDraggedInfo: any) => {
+  const asyncDropLayer = async(dropEvent:TreeFormFieldDropNodeEventType) : Promise<JsonApiResponse> => {
+    try {
+      layerManagerUtils.updateLayerGroupOnDrop(dropEvent, layerManagerLayerGroup);
+      return await dropLayerDispatchAction(dropEvent) as JsonApiResponse;
+    } catch (error) {
+      // @ts-ignore
+      throw new Error(error);
+    }
+  };
+
+  const onDropLayer = (dropEvent:TreeFormFieldDropNodeEventType): Promise<JsonApiResponse> | void => {
     // if method is asnyc, we need to get the result by resolving the promise
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    if(dragLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
-      try {
-        const movedLayer = await dragLayerDispatchAction(nodeBeingDraggedInfo);
-        layerManagerUtils.updateLayerGroupOnDrop(nodeBeingDraggedInfo, layerManagerLayerGroup);
-        return movedLayer;
-      } catch (error) {
-        // @ts-ignore
-        throw new Error(error);
-      }
-    // Non Async version
+    if(dropLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
+      layerManagerUtils.updateLayerGroupOnDrop(dropEvent, layerManagerLayerGroup);
+      return asyncDropLayer(dropEvent);
+      // Non Async version
     } else {
-      dragLayerDispatchAction(nodeBeingDraggedInfo);
-      layerManagerUtils.updateLayerGroupOnDrop(nodeBeingDraggedInfo, layerManagerLayerGroup);
+      dropLayerDispatchAction(dropEvent);
+      layerManagerUtils.updateLayerGroupOnDrop(dropEvent, layerManagerLayerGroup);
     }
   };
 
@@ -380,8 +385,7 @@ export const LayerManager = ({
           removeNodeDispatchAction={onDeleteLayer}
           //@ts-ignore
           editNodeDispatchAction={onEditLayer}
-          //@ts-ignore
-          dragNodeDispatchAction={onDropLayer}
+          dropNodeDispatchAction={onDropLayer}
           checkNodeDispacthAction={onCheckLayer}
           selectNodeDispatchAction={onSelectLayer}
           customTreeTitleAction={customLayerManagerTitleAction}

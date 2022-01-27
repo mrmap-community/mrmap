@@ -6,7 +6,7 @@ import { EventDataNode } from 'antd/lib/tree';
 import React, { cloneElement, createRef, useEffect, useState } from 'react';
 import { TreeUtils } from '../../../../Utils/TreeUtils';
 import './TreeFormField.css';
-import { TreeNodeType, TreeProps } from './TreeFormFieldTypes';
+import { TreeFormFieldDropNodeEventType, TreeNodeType, TreeProps } from './TreeFormFieldTypes';
 
 const treeUtils = new TreeUtils();
 
@@ -16,7 +16,7 @@ export const TreeFormField = ({
   addNodeDispatchAction = () => undefined,
   removeNodeDispatchAction = () => undefined,
   editNodeDispatchAction = () => undefined,
-  dragNodeDispatchAction = () => undefined,
+  dropNodeDispatchAction = () => undefined,
   checkNodeDispacthAction = () => undefined,
   selectNodeDispatchAction = () => undefined,
   draggable = false,
@@ -417,55 +417,38 @@ export const TreeFormField = ({
    * @param info
    * @returns
    */
-  const onDropNode = async (info:any) => {
+  const onDropNode = async (dropEvent:TreeFormFieldDropNodeEventType) => {
     //TODO: avoid droping nodes inside leaves
     if (asyncTree) {
       setIsDraggingNode(true);
       try {
-        return await dragNodeDispatchAction(info);
+        return await dropNodeDispatchAction(dropEvent);
       } catch (error) {
         setIsDraggingNode(false);
         // @ts-ignore
         throw new Error(error);
       } finally {
-        //setTreeDataOnMove(info);
+        setTreeDataOnMove(dropEvent);
         setIsDraggingNode(false);
       }
     } else {
-      dragNodeDispatchAction(info);
-      setTreeDataOnMove(info);
+      dropNodeDispatchAction(dropEvent);
+      setTreeDataOnMove(dropEvent);
     }
   };
 
+  // TODO: Refactor thos method in order to be more TS friendly and easier to read
   /**
    * @description Method to update the tree data when user moves a node
    * @param info
    */
-  const setTreeDataOnMove = (info: any) => {
-
-    //  // drop before node
-    //  if (location === -1) {
-    //   if (dropPosition === dropCollection.getLength() - 1) {
-    //     dropCollection.push(dragLayer);
-    //   } else {
-    //     dropCollection.insertAt(dropPosition + 1, dragLayer);
-    //   }
-    //   // drop on node
-    // } else if (location === 0) {
-    //   if (dropLayer instanceof OlLayerGroup) {
-    //     dropLayer.getLayers().push(dragLayer);
-    //   } else {
-    //     dropCollection.insertAt(dropPosition + 1, dragLayer);
-    //   }
-    //   // drop after node
-    // } else if (location === 1) {
-    //   dropCollection.insertAt(dropPosition, dragLayer);
-    // }
-
-    const dropPos = info.node.pos.split('-');
-    const dropPosition = info.node.children.length - Number(dropPos[dropPos.length - 1]);
-    const dragKey = info.dragNode.key;
-    const dropKey = info.node.key;
+  const setTreeDataOnMove = (dropEvent:TreeFormFieldDropNodeEventType) => {
+    //@ts-ignore
+    const dropPos = dropEvent.node.pos.split('-');
+    //@ts-ignore
+    const dropPosition = dropEvent.node.children.length - Number(dropPos[dropPos.length - 1]);
+    const dragKey = dropEvent.dragNode.key;
+    const dropKey = dropEvent.node.key;
     // @ts-ignore
     const loop = (data, key, callback) => {
       for (let i = 0; i < data.length; i++) {
@@ -490,13 +473,11 @@ export const TreeFormField = ({
     });
 
     //  if inserting between nodes
-    if (!info.dropToGap) {
+    if (!dropEvent.dropToGap) {
       // Drop on the content
       // @ts-ignore
       loop(data, dropKey, item => {
-        // console.log(dragObj, dropKey, item);
         item.children = item.children || [];
-        // dragObj.parent = item.key;
         // where to insert
         // @ts-ignore
         item.children.unshift(dragObj);
@@ -504,8 +485,10 @@ export const TreeFormField = ({
     } else if (
       //  if inserting on  first position
       (
-        info.node.props.children || []).length > 0 && // Has children
-        info.node.props.expanded && // Is expanded
+        //@ts-ignore
+        dropEvent.node.props.children || []).length > 0 && // Has children
+        //@ts-ignore
+        dropEvent.node.props.expanded && // Is expanded
         dropPosition === 1 // On the bottom gap
     ) {
       // @ts-ignore
@@ -691,6 +674,7 @@ export const TreeFormField = ({
         defaultExpandAll
         onExpand={onExpand}
         onDrop={onDropNode}
+        // TODO limit drop on leaves
         // onDragOver={({ event, node }) => {console.log(event);}}
         onCheck={onCheck}
         onSelect={onSelect}

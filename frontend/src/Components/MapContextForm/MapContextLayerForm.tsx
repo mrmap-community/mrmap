@@ -163,20 +163,20 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
   /**
    * @description: Hook  to run on component mount, if feature selection layer already has a value (on edit form)
    */
-   useEffect(() => {
-     if(form && featureSelectionLayerInitValue) {
-       const currentSelecteFeatureSelectionLayerId = featureSelectionLayerInitValue;
-       if(currentSelecteFeatureSelectionLayerId) {
-         fetchData(
-           () => featureTypesRepo.autocompleteInitialValue(currentSelecteFeatureSelectionLayerId),
-           (values) => {
-             setFeatureSelectionLayerOptions([values]);
-             setSelectedFeatureSelectionLayer(values);
-           },
-           (boolean) => setIsRenderingLayerOptionsLoading(boolean)
-         );
-       }
-     }
+  useEffect(() => {
+    if(form && featureSelectionLayerInitValue) {
+      const currentSelecteFeatureSelectionLayerId = featureSelectionLayerInitValue;
+      if(currentSelecteFeatureSelectionLayerId) {
+        fetchData(
+          () => featureTypesRepo.autocompleteInitialValue(currentSelecteFeatureSelectionLayerId),
+          (values) => {
+            setFeatureSelectionLayerOptions([values]);
+            setSelectedFeatureSelectionLayer(values);
+          },
+          (boolean) => setIsRenderingLayerOptionsLoading(boolean)
+        );
+      }
+    }
   }, [form, featureSelectionLayerInitValue]);
 
   if(!nodeInfo) {
@@ -193,7 +193,7 @@ export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
       onFinish={(values) => onSubmit(values)}
     >
       {(
-         !nodeInfo.isLeaf || (nodeInfo.isLeaf && !nodeInfo.properties.title && !nodeInfo.properties.description)
+        !nodeInfo.isLeaf || (nodeInfo.isLeaf && !nodeInfo.properties.title && !nodeInfo.properties.description)
       ) && (
         <>
           <Divider

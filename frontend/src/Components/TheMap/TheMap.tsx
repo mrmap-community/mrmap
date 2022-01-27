@@ -16,7 +16,7 @@ import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { LayerManager } from '../LayerManager/LayerManager';
 import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import './TheMap.css';
 
 const layerUtils = new LayerUtils();
@@ -66,7 +66,7 @@ export const TheMap = ({
   addLayerDispatchAction = () => undefined,
   removeLayerDispatchAction = () => undefined,
   editLayerDispatchAction = () => undefined,
-  dragLayerDispatchAction = () => undefined,
+  dropLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   customLayerManagerTitleAction = () => undefined,
   layerCreateErrorDispatchAction = () => undefined,
@@ -85,7 +85,7 @@ export const TheMap = ({
     Promise<CreateLayerOpts> | CreateLayerOpts | void;
   removeLayerDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
-  dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
+  dropLayerDispatchAction?: (dropEvent:TreeFormFieldDropNodeEventType) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
   customLayerManagerTitleAction?: () => void | undefined;
   layerCreateErrorDispatchAction?: (error: any) => undefined | void;
@@ -129,11 +129,6 @@ export const TheMap = ({
     olListenerKeys.push(getFeatureAttributesClickEventKey);
   };
 
-  const mapResolutionChangeListener = (_olMap: OlMap) => {
-    const cena = _olMap.on('change' , (e:any) => console.log(e));
-    olListenerKeys.push(cena);
-  } ;
-
   useEffect(() => {    
     const close = document.getElementById('popup-close');
   
@@ -158,7 +153,6 @@ export const TheMap = ({
     //map.render();  
     map.setTarget('the-map');
     registerMapClickListener(map, infoPopUpBubble);
-    mapResolutionChangeListener(map);
     map.addOverlay(infoPopUpBubble);
     return () => {
       // unregister the listener
@@ -179,7 +173,7 @@ export const TheMap = ({
           addLayerDispatchAction={addLayerDispatchAction}
           removeLayerDispatchAction={removeLayerDispatchAction}
           editLayerDispatchAction={editLayerDispatchAction}
-          dragLayerDispatchAction={dragLayerDispatchAction}
+          dropLayerDispatchAction={dropLayerDispatchAction}
           customLayerManagerTitleAction={customLayerManagerTitleAction}
           layerAttributeForm={layerAttributeForm}
           layerCreateErrorDispatchAction={layerCreateErrorDispatchAction}

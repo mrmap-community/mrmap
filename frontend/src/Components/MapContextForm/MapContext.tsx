@@ -14,7 +14,7 @@ import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
 import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
@@ -279,22 +279,26 @@ export const MapContext = (): ReactElement => {
               }
 
             }}
-            //@ts-ignore
-            dragLayerDispatchAction={async (dragEvent) => {
-              const isDroppingToGap = dragEvent.dropToGap;
-              const dragKey = dragEvent.dragNode.key;
-              const dropKey = dragEvent.node.key;
-              let position:string;
+            dropLayerDispatchAction={async (dropEvent:TreeFormFieldDropNodeEventType): Promise<JsonApiResponse> => {
+              try {
+                const isDroppingToGap = dropEvent.dropToGap;
+                const dragKey = dropEvent.dragNode.key;
+                const dropKey = dropEvent.node.key;
+                let position:string;
 
-              console.log(dragEvent.dragNode.properties.title, dragEvent.node.properties.title);
-              // if tree element is beeing dropped to a gap, it means
-              if(isDroppingToGap) {
-                position = 'right';
-              } else {
-                position = 'first-child';
-              }
-              console.log(position);
-              return await mapContextLayerRepo?.move(dragKey, dropKey, position);
+                // if tree element is beeing dropped to a gap, it means
+                if(isDroppingToGap) {
+                  position = 'right';
+                } else {
+                  position = 'first-child';
+                }
+               
+                return await mapContextLayerRepo?.move(String(dragKey), String(dropKey), position);
+
+              } catch(error) {
+                //@ts-ignore
+                throw new Error(error);
+              } 
             }}
             layerGroupName='mrMapMapContextLayers'
             initLayerTreeData={initLayerTreeData}

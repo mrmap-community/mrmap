@@ -21,80 +21,80 @@ export const SearchDrawer = ({
   defaultOpenTab?: string
 }): ReactElement => {
 
-    const [activeTab, setActiveTab] = useState<string>('');
-    const [isDrawerVisible, setIsDrawerVisible] = useState<boolean>(false);
-    const buttonRef = useRef<HTMLButtonElement>(null);
+  const [activeTab, setActiveTab] = useState<string>('');
+  const [isDrawerVisible, setIsDrawerVisible] = useState<boolean>(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
     
-    useEffect(() => {
-      if(!isDrawerVisible) {
-        setActiveTab('');
-      }
-    }, [isDrawerVisible]);
+  useEffect(() => {
+    if(!isDrawerVisible) {
+      setActiveTab('');
+    }
+  }, [isDrawerVisible]);
 
-    useEffect(() => {
-      if(isVisibleByDefault) {
-        setIsDrawerVisible(true);
-      }
-    }, [isVisibleByDefault]);
+  useEffect(() => {
+    if(isVisibleByDefault) {
+      setIsDrawerVisible(true);
+    }
+  }, [isVisibleByDefault]);
 
-    useEffect(() => {
-      if(defaultOpenTab) {
-        setActiveTab(defaultOpenTab);
-        setIsDrawerVisible(true);
-      }
-    }, [defaultOpenTab]);
+  useEffect(() => {
+    if(defaultOpenTab) {
+      setActiveTab(defaultOpenTab);
+      setIsDrawerVisible(true);
+    }
+  }, [defaultOpenTab]);
 
-    return (
-      <>
-        <div className={`drawer-toggle-tabs ${isDrawerVisible ? 'expanded' : 'collapsed'}`}>
-          {drawerContent.length > 0 && (
-            drawerContent.map((content:DrawerContentType, index: number) => (
-              <Tooltip 
-                title={content.title}
-                placement='left'
-                key={index}
+  return (
+    <>
+      <div className={`drawer-toggle-tabs ${isDrawerVisible ? 'expanded' : 'collapsed'}`}>
+        {drawerContent.length > 0 && (
+          drawerContent.map((content:DrawerContentType, index: number) => (
+            <Tooltip 
+              title={content.title}
+              placement='left'
+              key={index}
+            >
+              <Button
+                ref={buttonRef}
+                size='large'
+                className={`drawer-toggle-btn ${activeTab === String(index) && 'drawer-toggle-btn--active'}`}
+                onClick={(ev) => { 
+                  content.onTabCickAction();
+                  if(content.key) {
+                    setActiveTab(content.key);
+                  } else {
+                    setActiveTab(String(index));
+                  }
+                  if(activeTab === String(index) || activeTab === content.key){
+                    setIsDrawerVisible(false);
+                  }
+                  if(!isDrawerVisible && !activeTab) setIsDrawerVisible(true);
+                  buttonRef.current?.blur(); 
+                }}
               >
-                <Button
-                  ref={buttonRef}
-                  size='large'
-                  className={`drawer-toggle-btn ${activeTab === String(index) && 'drawer-toggle-btn--active'}`}
-                  onClick={(ev) => { 
-                    content.onTabCickAction();
-                    if(content.key) {
-                      setActiveTab(content.key);
-                    } else {
-                      setActiveTab(String(index));
-                    }
-                    if(activeTab === String(index) || activeTab === content.key){
-                      setIsDrawerVisible(false);
-                    }
-                    if(!isDrawerVisible && !activeTab) setIsDrawerVisible(true);
-                    buttonRef.current?.blur(); 
-                  }}
-                >
-                  {content.icon}
-                </Button>
-              </Tooltip>
-            ))
-          )}
-        </div>
-        <Drawer
-          className='search-drawer'
-          placement='right'
-          width={1000}
-          visible={isDrawerVisible}
-          closable={false}
-          mask={false}
-        >
-          {drawerContent.length > 0 && (
-            drawerContent.map((content: DrawerContentType,index: number) => {
-              if(activeTab === content.key || activeTab === String(index)){
-                return cloneElement(content.content, { key: content.content ? content.key : index });
-              }
-              return null;
-            })
-          )}
-        </Drawer>
-      </>
-    );
+                {content.icon}
+              </Button>
+            </Tooltip>
+          ))
+        )}
+      </div>
+      <Drawer
+        className='search-drawer'
+        placement='right'
+        width={1000}
+        visible={isDrawerVisible}
+        closable={false}
+        mask={false}
+      >
+        {drawerContent.length > 0 && (
+          drawerContent.map((content: DrawerContentType,index: number) => {
+            if(activeTab === content.key || activeTab === String(index)){
+              return cloneElement(content.content, { key: content.content ? content.key : index });
+            }
+            return null;
+          })
+        )}
+      </Drawer>
+    </>
+  );
 };

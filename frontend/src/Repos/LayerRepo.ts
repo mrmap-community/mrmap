@@ -55,21 +55,21 @@ class LayerRepo extends JsonApiRepo {
       return ({
         value: o.id,
         text: o.attributes.title,
-      attributes: {
-        ...o.attributes,
-        WMSParams: {
-          layer: o.attributes.identifier,
-          url: res.data.included && res.data.included.length > 0 && getServiceUrl(res.data.included, 'GetMap'),
-          version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
-          serviceType: res.data.included && res.data.included.length > 0 && 
+        attributes: {
+          ...o.attributes,
+          WMSParams: {
+            layer: o.attributes.identifier,
+            url: res.data.included && res.data.included.length > 0 && getServiceUrl(res.data.included, 'GetMap'),
+            version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
+            serviceType: res.data.included && res.data.included.length > 0 && 
              getServiceType(getServiceUrl(res.data.included, 'GetMap'))
+          },
         },
-      },
         pagination: {
           next: res.data.links.next
         }
       });
-  });
+    });
   }
 
   async autocompleteInitialValue (id:string): Promise<any> {

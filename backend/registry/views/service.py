@@ -281,8 +281,6 @@ class CatalougeServiceViewSet(
         "default": CatalougeServiceSerializer,
         "create": CatalougeServiceCreateSerializer,
     }
-    #prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
-    #filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service

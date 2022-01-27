@@ -74,8 +74,8 @@ class HarvestingJob(models.Model):
             if self.total_records % self.step_size > 0:
                 round_trips += 1
             tasks = []
-            for number in range(1, round_trips+1):
+            for number in range(1, round_trips + 1):
                 tasks.append(get_records_task.s(
-                    harvesting_job_id=self.pk, start_position=number*self.step_size))
+                    harvesting_job_id=self.pk, start_position=number * self.step_size))
             transaction.on_commit(lambda: chord(tasks)(
                 set_done_at.s(harvesting_job_id=self.pk)))

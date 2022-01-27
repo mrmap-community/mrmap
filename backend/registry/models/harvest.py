@@ -1,12 +1,16 @@
 from datetime import datetime
+from operator import mod
 
-from celery import chord
+from celery import chord, group
 from django.contrib.gis.db import models
 from django.db import transaction
 from django.db.models.query_utils import Q
 from django.utils.translation import gettext_lazy as _
+from eulxml import xmlmap
 from registry.models.metadata import DatasetMetadata
 from registry.models.service import CatalougeService
+from registry.xmlmapper.iso_metadata.iso_metadata import \
+    MdMetadata as XmlMdMetadata
 
 
 class HarvestingJob(models.Model):
@@ -23,7 +27,7 @@ class HarvestingJob(models.Model):
         verbose_name=_("total records"),
         help_text=_("total count of records which will be harvested by this job"))
     step_size: int = models.IntegerField(
-        default=1,
+        default=50,
         blank=True)
     started_at: datetime = models.DateTimeField(
         null=True,
@@ -63,7 +67,7 @@ class HarvestingJob(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         from registry.tasks.harvest import (  # to avoid circular import errors
-            get_hits_task, get_records_task, set_done_at)
+            get_hits_task, get_records_task)
         adding = self._state.adding
         super().save(*args, **kwargs)
         if adding:
@@ -77,5 +81,49 @@ class HarvestingJob(models.Model):
             for number in range(1, round_trips + 1):
                 tasks.append(get_records_task.s(
                     harvesting_job_id=self.pk, start_position=number * self.step_size))
-            transaction.on_commit(lambda: chord(tasks)(
-                set_done_at.s(harvesting_job_id=self.pk)))
+            transaction.on_commit(lambda: group(tasks).apply_async())
+
+
+def response_file_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/xml_documents/<id>/<filename>
+    return 'get_records_response/{0}/{1}'.format(instance.pk, filename)
+
+
+class TemporaryMdMetadataFile(models.Model):
+    job: HarvestingJob = models.ForeignKey(
+        to=HarvestingJob,
+        on_delete=models.CASCADE,
+        verbose_name=_("harvesting job"))
+    md_metadata_file: models.FileField = models.FileField(
+        verbose_name=_("response"),
+        help_text=_(
+            "the content of the http response"),
+        upload_to=response_file_path,
+        editable=False)
+
+    def save(self, *args, **kwargs) -> None:
+        from registry.tasks.harvest import \
+            temporary_md_metadata_file_to_db  # to avoid circular import errors
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            transaction.on_commit(
+                lambda: temporary_md_metadata_file_to_db.delay(md_metadata_file_id=self.pk))
+
+    def md_metadata_file_to_db(self) -> DatasetMetadata:
+        md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
+            string=self.md_metadata_file,
+            xmlclass=XmlMdMetadata)
+
+        dataset_metadata, update, exists = DatasetMetadata.iso_metadata.update_or_create_from_parsed_metadata(
+            parsed_metadata=md_metadata,
+            related_object=self.job.service,
+            origin_url=self.job.service.get_record_by_id_url(id=md_metadata.file_identifier))
+
+        if exists and update:
+            self.job.updated_records.add(dataset_metadata)
+        elif exists and not update:
+            self.job.existing_records.add(dataset_metadata)
+        elif not exists:
+            self.job.new_records.add(dataset_metadata)
+        return dataset_metadata

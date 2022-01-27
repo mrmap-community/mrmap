@@ -1,9 +1,12 @@
 
+from tracemalloc import start
+
 from celery import shared_task
+from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from eulxml import xmlmap
 from registry.models import DatasetMetadata
-from registry.models.harvest import HarvestingJob
+from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.xmlmapper.iso_metadata.iso_metadata import MdMetadata
 from registry.xmlmapper.ogc.csw_get_record_response import \
     GetRecordsResponse as XmlGetRecordsResponse
@@ -40,25 +43,29 @@ def get_records_task(harvesting_job_id,
                                                                    xmlclass=XmlGetRecordsResponse)
 
     md_metadata: MdMetadata
+    db_md_metadata_file_list = []
+    _counter = 0
     for md_metadata in xml.records:
-        dataset_metadata, update, exists = DatasetMetadata.iso_metadata.update_or_create_from_parsed_metadata(
-            parsed_metadata=md_metadata,
-            related_object=harvesting_job.service,
-            origin_url=harvesting_job.service.get_record_by_id_url(id=md_metadata.file_identifier))
+        db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
+            job=harvesting_job)
+        # save the file without saving the instance in db... this will be done with bulk_create
+        db_md_metadata_file.md_metadata_file.save(
+            name=f"record_nr_{_counter + start_position}",
+            content=ContentFile(content=md_metadata.serializeDocument()),
+            save=False)
+        db_md_metadata_file_list.append(db_md_metadata_file)
+        _counter += 1
 
-        if exists and update:
-            harvesting_job.updated_records.add(dataset_metadata)
-        elif exists and not update:
-            harvesting_job.existing_records.add(dataset_metadata)
-        elif not exists:
-            harvesting_job.new_records.add(dataset_metadata)
+    db_objs = TemporaryMdMetadataFile.objects.bulk_create(
+        objs=db_md_metadata_file_list)
 
-    return None
+    return db_objs
 
 
 @shared_task(queue="harvest")
-def set_done_at(list, harvesting_job_id):
-    harvesting_job: HarvestingJob = HarvestingJob.objects.get(
-        pk=harvesting_job_id)
-    harvesting_job.done_at = now()
-    harvesting_job.save()
+def temporary_md_metadata_file_to_db(md_metadata_file_id):
+    temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
+        pk=md_metadata_file_id)
+    dataset_metadata = temporary_md_metadata_file.md_metadata_file_to_db()
+    # TODO: delete temporary_md_metadata_file and check if there any existing temporary_md_metadata_file objects left.. if not set done_at
+    return dataset_metadata.pk

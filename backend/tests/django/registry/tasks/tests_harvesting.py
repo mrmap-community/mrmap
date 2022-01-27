@@ -38,7 +38,7 @@ class HarvestingGetHitsTaskTest(TestCase):
         self.assertEqual(harvesting_job.total_records, 447773)
 
 
-class HarvestingGetHitsTaskTest(TestCase):
+class HarvestingGetRecordsTaskTest(TestCase):
 
     fixtures = ['test_csw.json']
 

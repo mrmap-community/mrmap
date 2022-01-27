@@ -1,11 +1,8 @@
 
-from tracemalloc import start
-
 from celery import shared_task
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from eulxml import xmlmap
-from registry.models import DatasetMetadata
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.xmlmapper.iso_metadata.iso_metadata import MdMetadata
 from registry.xmlmapper.ogc.csw_get_record_response import \

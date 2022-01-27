@@ -153,51 +153,51 @@ export class LayerUtils {
   )
   : (string | undefined) {
   // all getFeatureInfo operation will be handled in EPSG:3857
-  const featureInfoUrl: string | undefined = layerSource
+    const featureInfoUrl: string | undefined = layerSource
       .getFeatureInfoUrl(
-          coordinates,
-          //@ts-ignore
-          olMap.getView().getResolution(),
-          'EPSG:3857',
-          {
-              'INFO_FORMAT': 'application/vnd.ogc.gml'
-          }
-      );
-  return featureInfoUrl;
- }
-
- private async resolveWMSPromise(url: string): Promise<any> {
-  try {
-    const response = await fetch(url,
-      { 
-        method: 'GET', 
+        coordinates,
         //@ts-ignore
-        headers: { 
-          'Content-Type': 'application/vnd.ogc.gml',
-          'Referer': 'http://localhost:3000'
+        olMap.getView().getResolution(),
+        'EPSG:3857',
+        {
+          'INFO_FORMAT': 'application/vnd.ogc.gml'
         }
-      } 
-    );
-    const textRes = await response.text();
-    const format = new GML2();
-    const fc = format.readFeatures(textRes);
-    let result;
-    fc.forEach((feature: any) => {
-      if (Object.getOwnPropertyNames(feature).length > 0) {
-        // TODO where to render the properties?
-        result = feature.getProperties();
-      } else{
-        result = 'not found';
-      }
-    });
-    return result;
-  } catch (error) {
-    //@ts-ignore
-    throw new Error(error);
+      );
+    return featureInfoUrl;
   }
-}
 
- public getFeatureAttributes(olMap: OlMap, event: OlMapBrowserEvent<any>): any {
+  private async resolveWMSPromise(url: string): Promise<any> {
+    try {
+      const response = await fetch(url,
+        { 
+          method: 'GET', 
+          //@ts-ignore
+          headers: { 
+            'Content-Type': 'application/vnd.ogc.gml',
+            'Referer': 'http://localhost:3000'
+          }
+        } 
+      );
+      const textRes = await response.text();
+      const format = new GML2();
+      const fc = format.readFeatures(textRes);
+      let result;
+      fc.forEach((feature: any) => {
+        if (Object.getOwnPropertyNames(feature).length > 0) {
+        // TODO where to render the properties?
+          result = feature.getProperties();
+        } else{
+          result = 'not found';
+        }
+      });
+      return result;
+    } catch (error) {
+    //@ts-ignore
+      throw new Error(error);
+    }
+  }
+
+  public getFeatureAttributes(olMap: OlMap, event: OlMapBrowserEvent<any>): any {
     const clickedPixel = olMap.getEventPixel(event.originalEvent);
     const clickedCoordinate = olMap.getCoordinateFromPixel(clickedPixel);
 

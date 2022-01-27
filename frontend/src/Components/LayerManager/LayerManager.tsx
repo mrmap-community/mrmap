@@ -14,6 +14,7 @@ import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
 import React, { useEffect, useState } from 'react';
 import LayerRepo from '../../Repos/LayerRepo';
+import { LayerManagerUtils } from '../../Utils/LayerManagerUtils';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { TreeFormField } from '../Shared/FormFields/TreeFormField/TreeFormField';
@@ -24,6 +25,7 @@ import { CreateLayerOpts, LayerManagerProps } from './LayerManagerTypes';
 
 const treeUtils =  new TreeUtils();
 const layerUtils =  new LayerUtils();
+const layerManagerUtils = new LayerManagerUtils();
 
 const layerManagerLayerGroup = new LayerGroup({
   opacity: 1,
@@ -62,8 +64,8 @@ export const LayerManager = ({
   },[isTreeContainerVisible, map]);
 
   useEffect(() => {
-    const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {        
-        setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
+    const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {       
+      setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
     };
     const setWMSParams = async(theLayer: ImageLayer<ImageWMS>) => {
       try {
@@ -113,6 +115,7 @@ export const LayerManager = ({
     const { checked } = info;
     const eventKey = info.node.key;
     const layer = layerUtils.getLayerByMrMapLayerId(map, eventKey);
+    //console.log(layer);
     setLayerVisibility(layer, checked);
   };
 
@@ -170,24 +173,24 @@ export const LayerManager = ({
   const layerActions = (nodeData: TreeNodeType|undefined): any => {
     return (
       <>
-      <Menu.Item
-        onClick={async() => {
+        <Menu.Item
+          onClick={async() => {
           // fit to layer extent
-          const theLayer = layerUtils.getAllMapLayers(layerManagerLayerGroup)
-            .find(l => { 
-              return l.getProperties().key === nodeData?.key;
-            });
-          if(theLayer && theLayer.get('renderingLayer')) {
-            onFitToLayerExtent(theLayer.get('renderingLayer'));
-          } else {
-            console.warn('Layer not found');
-          }
-        }}
-        icon={<ExpandOutlined/>}
-        key='zoom-to-extent'
-      >
+            const theLayer = layerUtils.getAllMapLayers(layerManagerLayerGroup)
+              .find(l => { 
+                return l.getProperties().key === nodeData?.key;
+              });
+            if(theLayer && theLayer.get('renderingLayer')) {
+              onFitToLayerExtent(theLayer.get('renderingLayer'));
+            } else {
+              console.warn('Layer not found');
+            }
+          }}
+          icon={<ExpandOutlined/>}
+          key='zoom-to-extent'
+        >
         Zoom to layer Extent
-      </Menu.Item>
+        </Menu.Item>
       </>
     );
   }; 
@@ -317,12 +320,14 @@ export const LayerManager = ({
     }
   };
 
-  const onDragLayer = async(nodeBeingDraggedInfo: any) => {
+  const onDropLayer = async(nodeBeingDraggedInfo: any) => {
     // if method is asnyc, we need to get the result by resolving the promise
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     if(dragLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
       try {
-        return await dragLayerDispatchAction(nodeBeingDraggedInfo);
+        const movedLayer = await dragLayerDispatchAction(nodeBeingDraggedInfo);
+        layerManagerUtils.updateLayerGroupOnDrop(nodeBeingDraggedInfo, layerManagerLayerGroup);
+        return movedLayer;
       } catch (error) {
         // @ts-ignore
         throw new Error(error);
@@ -330,6 +335,7 @@ export const LayerManager = ({
     // Non Async version
     } else {
       dragLayerDispatchAction(nodeBeingDraggedInfo);
+      layerManagerUtils.updateLayerGroupOnDrop(nodeBeingDraggedInfo, layerManagerLayerGroup);
     }
   };
 
@@ -375,7 +381,7 @@ export const LayerManager = ({
           //@ts-ignore
           editNodeDispatchAction={onEditLayer}
           //@ts-ignore
-          dragNodeDispatchAction={onDragLayer}
+          dragNodeDispatchAction={onDropLayer}
           checkNodeDispacthAction={onCheckLayer}
           selectNodeDispatchAction={onSelectLayer}
           customTreeTitleAction={customLayerManagerTitleAction}

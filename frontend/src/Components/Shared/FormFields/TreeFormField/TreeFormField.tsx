@@ -4,7 +4,6 @@ import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { EventDataNode } from 'antd/lib/tree';
 import React, { cloneElement, createRef, useEffect, useState } from 'react';
-import { JsonApiPrimaryData } from '../../../../Repos/JsonApiRepo';
 import { TreeUtils } from '../../../../Utils/TreeUtils';
 import './TreeFormField.css';
 import { TreeNodeType, TreeProps } from './TreeFormFieldTypes';
@@ -231,7 +230,7 @@ export const TreeFormField = ({
                 <Typography.Text style={{ maxWidth: '200px' }} ellipsis={true}>
                   {nodeData.properties.title}
                 </Typography.Text>
-                ) 
+              ) 
             }
           </div>
         </Dropdown>
@@ -242,7 +241,7 @@ export const TreeFormField = ({
   /**
    * @description Method to create a root node
    */
-   const onCreateNewNodeGroup = (isRoot: boolean) => {
+  const onCreateNewNodeGroup = (isRoot: boolean) => {
     const nodeToCreate = {
       // this is the node object title.
       // Is basically used to identify the node by a name and it is rendered as the node's tooltip.
@@ -280,11 +279,16 @@ export const TreeFormField = ({
         setIsAddingNode(true);
         try {
           const createdNode = await addNodeDispatchAction(values, newNode.parent);
+          // console.log(createdNode);
           // update new node key
-          console.log(createdNode);
-          if (createdNode && createdNode.data?.data && (createdNode.data.data as JsonApiPrimaryData).id) {
-            newNode.key = (createdNode.data.data as JsonApiPrimaryData).id;
-            console.log(newNode);
+          // if (createdNode && createdNode.data?.data && (createdNode.data.data as JsonApiPrimaryData).id) {
+          // @ts-ignore
+          if (createdNode && createdNode.key) {
+            //newNode.key = (createdNode.data.data as JsonApiPrimaryData).id;
+            // @ts-ignore
+            newNode.key = createdNode.key;
+            
+            // console.log(newNode);
             setTreeDataOnAdd(node, newNode);
           }
         } catch (error) {
@@ -304,7 +308,7 @@ export const TreeFormField = ({
    * @param node
    * @param newNode
    */
-   const setTreeDataOnAdd = (node: TreeNodeType, newNode: TreeNodeType) => {
+  const setTreeDataOnAdd = (node: TreeNodeType, newNode: TreeNodeType) => {
 
     if (!newNode.parent) {
       setTreeData([..._treeData, newNode]);
@@ -350,7 +354,7 @@ export const TreeFormField = ({
    * @description Method to update the tree data when user edits a node
    * @param node
    */
-   const setTreeDataOnRemove = (node: TreeNodeType) => {
+  const setTreeDataOnRemove = (node: TreeNodeType) => {
     const parentNode = treeUtils.getNodeParent(_treeData, node);
     if (parentNode.length > 0) {
       const indexToRemove = parentNode[0].children.indexOf(node);
@@ -414,19 +418,18 @@ export const TreeFormField = ({
    * @returns
    */
   const onDropNode = async (info:any) => {
+    //TODO: avoid droping nodes inside leaves
     if (asyncTree) {
       setIsDraggingNode(true);
       try {
-        const cena = await dragNodeDispatchAction(info);
-        console.log(cena);
-        return cena;
+        return await dragNodeDispatchAction(info);
       } catch (error) {
         setIsDraggingNode(false);
         // @ts-ignore
         throw new Error(error);
       } finally {
+        //setTreeDataOnMove(info);
         setIsDraggingNode(false);
-        setTreeDataOnMove(info);
       }
     } else {
       dragNodeDispatchAction(info);
@@ -439,11 +442,30 @@ export const TreeFormField = ({
    * @param info
    */
   const setTreeDataOnMove = (info: any) => {
+
+    //  // drop before node
+    //  if (location === -1) {
+    //   if (dropPosition === dropCollection.getLength() - 1) {
+    //     dropCollection.push(dragLayer);
+    //   } else {
+    //     dropCollection.insertAt(dropPosition + 1, dragLayer);
+    //   }
+    //   // drop on node
+    // } else if (location === 0) {
+    //   if (dropLayer instanceof OlLayerGroup) {
+    //     dropLayer.getLayers().push(dragLayer);
+    //   } else {
+    //     dropCollection.insertAt(dropPosition + 1, dragLayer);
+    //   }
+    //   // drop after node
+    // } else if (location === 1) {
+    //   dropCollection.insertAt(dropPosition, dragLayer);
+    // }
+
     const dropPos = info.node.pos.split('-');
     const dropPosition = info.node.children.length - Number(dropPos[dropPos.length - 1]);
     const dragKey = info.dragNode.key;
     const dropKey = info.node.key;
-    console.log(info.dragNode);
     // @ts-ignore
     const loop = (data, key, callback) => {
       for (let i = 0; i < data.length; i++) {
@@ -472,8 +494,8 @@ export const TreeFormField = ({
       // Drop on the content
       // @ts-ignore
       loop(data, dropKey, item => {
+        // console.log(dragObj, dropKey, item);
         item.children = item.children || [];
-        console.log(dragObj);
         // dragObj.parent = item.key;
         // where to insert
         // @ts-ignore
@@ -485,7 +507,7 @@ export const TreeFormField = ({
         info.node.props.children || []).length > 0 && // Has children
         info.node.props.expanded && // Is expanded
         dropPosition === 1 // On the bottom gap
-      ) {
+    ) {
       // @ts-ignore
       loop(data, dropKey, item => {
         item.children = item.children || [];
@@ -502,6 +524,7 @@ export const TreeFormField = ({
       loop(data, dropKey, (item, index, arr) => {
         ar = arr;
         i = index;
+        dragObj.parent = item.key;
       });
       if (dropPosition === -1) {
         // @ts-ignore
@@ -511,11 +534,8 @@ export const TreeFormField = ({
         ar.splice(i + 1, 0, dragObj);
       }
     }
-    // update the parent id in case item was droped inside
-    // @ts-ignore
+
     setTreeData(treeUtils.updateTreeData(data));
-    //setTreeData(treeUtils.updateTreeData(data));
-    // setTreeData(data);
   };
 
   /**
@@ -671,6 +691,7 @@ export const TreeFormField = ({
         defaultExpandAll
         onExpand={onExpand}
         onDrop={onDropNode}
+        // onDragOver={({ event, node }) => {console.log(event);}}
         onCheck={onCheck}
         onSelect={onSelect}
         treeData={_treeData}
@@ -725,8 +746,8 @@ export const TreeFormField = ({
             </Space>
           }
         >
-        {clonedNodeAttributeForm(selectedNode)}
-      </Drawer>
+          {clonedNodeAttributeForm(selectedNode)}
+        </Drawer>
       )}
     </div>
   );

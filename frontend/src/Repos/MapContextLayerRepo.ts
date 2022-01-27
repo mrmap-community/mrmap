@@ -45,6 +45,7 @@ class MapContextLayerRepo extends JsonApiRepo {
     target: number|string,
     position: number|string
   ) : Promise<JsonApiResponse> {
+    console.log(position);
     const client = await JsonApiRepo.getClientInstance();
     return await client['move_to' + this.resourcePath + '{id}/move_to/'](id, {
       data: {

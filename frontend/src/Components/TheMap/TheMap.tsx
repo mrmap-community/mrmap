@@ -129,6 +129,11 @@ export const TheMap = ({
     olListenerKeys.push(getFeatureAttributesClickEventKey);
   };
 
+  const mapResolutionChangeListener = (_olMap: OlMap) => {
+    const cena = _olMap.on('change' , (e:any) => console.log(e));
+    olListenerKeys.push(cena);
+  } ;
+
   useEffect(() => {    
     const close = document.getElementById('popup-close');
   
@@ -153,6 +158,7 @@ export const TheMap = ({
     //map.render();  
     map.setTarget('the-map');
     registerMapClickListener(map, infoPopUpBubble);
+    mapResolutionChangeListener(map);
     map.addOverlay(infoPopUpBubble);
     return () => {
       // unregister the listener

@@ -41,42 +41,47 @@ export class TreeUtils {
     // initialize children on the list element
     list = list.map((element: MPTTJsonApiTreeNodeType) => ({ ...element, children: [] }));
   
-    list.map((element:MPTTJsonApiTreeNodeType) => {
+    list
+      // sort elements on the correct order defined in the MPTT tree
+      .sort((a, b) => (
+        (a.attributes.tree_id - b.attributes.tree_id) || 
+      (a.attributes.lft - b.attributes.lft)
+      ))
+      .map((element:MPTTJsonApiTreeNodeType) => {
       // transform the list element into a TreeNodeType element
-
-      // NOTE: on the backend, we have no way to check if the layer is a leaf.
-      // Adding a flag is not desirable, since it will currupt the data structure of a MapContextLayer.
-      // So, we are checking only if the node has children or not. If it has children,
-      // then, it's because the node is a group, otherwise, is a leaf
-      const node: TreeNodeType = {
-        key: element.id,
-        title: element.attributes.description,
-        parent: element.relationships.parent.data?.id,
-        children: element.children || [],
-        isLeaf: element.children && element.children.length === 0,
-        properties: {
-          title: element.attributes.title, // yes, title is repeated
-          description: element.attributes.description,
-          datasetMetadata: element.relationships.dataset_metadata.data?.id,
-          renderingLayer: element.relationships.rendering_layer.data?.id,
-          scaleMin: element.attributes.layer_scale_min,
-          scaleMax: element.attributes.layer_scale_max,
-          style: element.relationships.layer_style.data?.id,
-          featureSelectionLayer: element.relationships.selection_layer.data?.id,
-        },
-        expanded: true
-      };
+        // NOTE: on the backend, we have no way to check if the layer is a leaf.
+        // Adding a flag is not desirable, since it will currupt the data structure of a MapContextLayer.
+        // So, we are checking only if the node has children or not. If it has children,
+        // then, it's because the node is a group, otherwise, is a leaf
+        const node: TreeNodeType = {
+          key: element.id,
+          title: element.attributes.description,
+          parent: element.relationships.parent.data?.id,
+          children: element.children || [],
+          isLeaf: element.children && element.children.length === 0,
+          properties: {
+            title: element.attributes.title, // yes, title is repeated
+            description: element.attributes.description,
+            datasetMetadata: element.relationships.dataset_metadata.data?.id,
+            renderingLayer: element.relationships.rendering_layer.data?.id,
+            scaleMin: element.attributes.layer_scale_min,
+            scaleMax: element.attributes.layer_scale_max,
+            style: element.relationships.layer_style.data?.id,
+            featureSelectionLayer: element.relationships.selection_layer.data?.id,
+          },
+          expanded: true
+        };
     
-      if (node.parent) {
-        const parentNode: MPTTJsonApiTreeNodeType | undefined = list.find((el:any) => el.id === node.parent);
-        if (parentNode) {
-          list[list.indexOf(parentNode)].children?.push(node);
+        if (node.parent) {
+          const parentNode: MPTTJsonApiTreeNodeType | undefined = list.find((el:any) => el.id === node.parent);
+          if (parentNode) {
+            list[list.indexOf(parentNode)].children?.push(node);
+          }
+        } else {
+          roots.push(node);
         }
-      } else {
-        roots.push(node);
-      }
-      return element;
-    });
+        return element;
+      });
     return roots;
   }
   
@@ -139,7 +144,7 @@ export class TreeUtils {
    * @param children
    * @returns TreeNodeType[]
    */
-   public updateTreeData(list: TreeNodeType[], key?: React.Key, children?: TreeNodeType[]): TreeNodeType[] {
+  public updateTreeData(list: TreeNodeType[], key?: React.Key, children?: TreeNodeType[]): TreeNodeType[] {
     return list.map(node => {
       if(key && children){
         if (node.key === key) {

@@ -279,22 +279,22 @@ export const MapContext = (): ReactElement => {
               }
 
             }}
-            dragLayerDispatchAction={async (nodeBeingDraggedInfo) => {
-              const nodeBeingDraggedKey = nodeBeingDraggedInfo.dragNode.key;
-              const targetNodeParent = nodeBeingDraggedInfo.node.parent;
-              const targetNodeKey = nodeBeingDraggedInfo.node.key;
-
+            //@ts-ignore
+            dragLayerDispatchAction={async (dragEvent) => {
+              const isDroppingToGap = dragEvent.dropToGap;
+              const dragKey = dragEvent.dragNode.key;
+              const dropKey = dragEvent.node.key;
               let position:string;
-              // if node is being dragged to a folder
-              if(!nodeBeingDraggedInfo.dropToGap) {
-                nodeBeingDraggedInfo.dragNode.parent = targetNodeKey;
-                position = 'first-child';
-              } else {
-                nodeBeingDraggedInfo.dragNode.parent = targetNodeParent;
-                position = 'right';
-              }
 
-              return await mapContextLayerRepo?.move(nodeBeingDraggedKey, targetNodeKey, position);
+              console.log(dragEvent.dragNode.properties.title, dragEvent.node.properties.title);
+              // if tree element is beeing dropped to a gap, it means
+              if(isDroppingToGap) {
+                position = 'right';
+              } else {
+                position = 'first-child';
+              }
+              console.log(position);
+              return await mapContextLayerRepo?.move(dragKey, dropKey, position);
             }}
             layerGroupName='mrMapMapContextLayers'
             initLayerTreeData={initLayerTreeData}
@@ -302,7 +302,6 @@ export const MapContext = (): ReactElement => {
               <MapContextLayerForm
                 key={currentSelectedTreeLayerNode?.key}
                 form={form} 
-                // nodeInfo={currentSelectedTreeLayerNode}
               />
             )}
             layerCreateErrorDispatchAction={(error: any) => {
@@ -342,8 +341,8 @@ export const MapContext = (): ReactElement => {
                   <Tooltip 
                     title={
                       nodeData.properties.renderingLayer ? 
-                      'Rendering Layer is set' : 
-                      'Rendering Layer is not set'
+                        'Rendering Layer is set' : 
+                        'Rendering Layer is not set'
                     } 
                   >
                     <FontAwesomeIcon 
@@ -353,8 +352,8 @@ export const MapContext = (): ReactElement => {
                   <Tooltip 
                     title={
                       nodeData.properties.featureSelectionLayer ?
-                      'Feature Selection Layer is set' : 
-                      'Feature Selection Layer is not set'
+                        'Feature Selection Layer is set' : 
+                        'Feature Selection Layer is not set'
                     } 
                   >
                     <FontAwesomeIcon
@@ -362,9 +361,9 @@ export const MapContext = (): ReactElement => {
                       icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']} 
                     />
                   </Tooltip>
-                  </>
-            );
-          }}
+                </>
+              );
+            }}
           />
         </ReactGeoMapContext.Provider>
       </div>

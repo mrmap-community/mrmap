@@ -1,6 +1,8 @@
+from django.utils.translation import gettext_lazy as _
 from registry.models.harvest import HarvestingJob
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 ModelSerializer)
+                                                 ModelSerializer,
+                                                 UniqueTogetherValidator)
 
 
 class HarvestingJobSerializer(ModelSerializer):
@@ -11,3 +13,11 @@ class HarvestingJobSerializer(ModelSerializer):
     class Meta:
         model = HarvestingJob
         fields = "__all__"
+        validators = [
+            UniqueTogetherValidator(
+                queryset=HarvestingJob.objects.filter(done_at__isnull=True),
+                fields=["service"],
+                message=_(
+                    "There is an existing harvesting job for this service.")
+            )
+        ]

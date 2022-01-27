@@ -3,6 +3,7 @@ from datetime import datetime
 from celery import chord
 from django.contrib.gis.db import models
 from django.db import transaction
+from django.db.models.query_utils import Q
 from django.utils.translation import gettext_lazy as _
 from registry.models.metadata import DatasetMetadata
 from registry.models.service import CatalougeService
@@ -49,11 +50,16 @@ class HarvestingJob(models.Model):
         related_name="updated_by",
         editable=False,)
 
-    # TODO: only one job per service allowed
-    # class Meta:
-    #     constraints = {
-    #         models.CheckConstraint()
-    #     }
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['service', 'done_at'],
+                                    name='%(app_label)s_%(class)s_service_done_at_uniq'),
+            models.UniqueConstraint(fields=['service'],
+                                    name='%(app_label)s_%(class)s_service_uniq',
+                                    condition=Q(done_at__isnull=True))
+        ]
+        ordering = ['-done_at']
+        get_latest_by = 'done_at'
 
     def save(self, *args, **kwargs) -> None:
         from registry.tasks.harvest import (  # to avoid circular import errors

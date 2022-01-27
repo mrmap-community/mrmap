@@ -10,10 +10,15 @@ from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.xmlmapper.iso_metadata.iso_metadata import MdMetadata
 from registry.xmlmapper.ogc.csw_get_record_response import \
     GetRecordsResponse as XmlGetRecordsResponse
+from requests.exceptions import Timeout
 from requests.models import Response
 
 
-@shared_task(queue="default")
+@shared_task(
+    queue="default",
+    autoretry_for=(Timeout,),
+    retry_kwargs={'max_retries': 5}
+)
 def get_hits_task(harvesting_job_id):
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
@@ -28,7 +33,11 @@ def get_hits_task(harvesting_job_id):
     return xml.total_records
 
 
-@shared_task(queue="download")
+@shared_task(
+    queue="download",
+    autoretry_for=(Timeout,),
+    retry_kwargs={'max_retries': 5}
+)
 def get_records_task(harvesting_job_id,
                      start_position,
                      **kwargs):

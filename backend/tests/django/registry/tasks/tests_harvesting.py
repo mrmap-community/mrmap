@@ -60,15 +60,15 @@ class TemporaryMdMetadataFileToDbTaskTest(TestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch("registry.models.harvest.TemporaryMdMetadataFile.md_metadata_file.read")
-    def test_success(self, mocked_read_func):
+    @patch("registry.models.harvest.TemporaryMdMetadataFile.md_metadata_file.open")
+    def test_success(self, mocked_open_func):
         md_metadata_file = Path(Path.joinpath(Path(__file__).parent.resolve(),
                                               '../../test_data/csw/md_metadata.xml'))
 
         in_file = open(md_metadata_file, "rb")
         content: bytes = in_file.read()
         in_file.close()
-        mocked_read_func.return_value = content
+        mocked_open_func.return_value = content
 
         temporary_md_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
             pk=1)

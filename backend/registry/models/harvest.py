@@ -117,9 +117,11 @@ class TemporaryMdMetadataFile(models.Model):
         super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self) -> DatasetMetadata:
+        file_content = self.md_metadata_file.open(mode='rb')
         md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
-            string=self.md_metadata_file.read(),
+            string=file_content,
             xmlclass=XmlMdMetadata)
+        file_content.close()
 
         dataset_metadata, update, exists = DatasetMetadata.iso_metadata.update_or_create_from_parsed_metadata(
             parsed_metadata=md_metadata,

@@ -1,5 +1,7 @@
-import { Button } from 'antd';
+import { UnlockOutlined } from '@ant-design/icons';
+import { Button, Space } from 'antd';
 import React, { useRef } from 'react';
+import { useNavigate } from 'react-router';
 import WmsRepo from '../../Repos/WmsRepo';
 import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/Table/RepoTable';
 import { buildSearchTransformDateRange } from '../Shared/Table/TableHelper';
@@ -9,6 +11,7 @@ const repo = new WmsRepo();
 
 const WmsTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
+  const navigate = useNavigate();
   const columns: RepoTableColumnType[] = [{
     dataIndex: 'id',
     title: 'ID'
@@ -126,6 +129,7 @@ const WmsTable = (): JSX.Element => {
     render: (text: any, record:any) => {
       return (
         <>
+          <Space size='middle'>
             <Button
               danger
               size='small'
@@ -135,6 +139,16 @@ const WmsTable = (): JSX.Element => {
             >
               Löschen
             </Button>
+            <Button
+              size='small'
+              icon={<UnlockOutlined/>}
+              onClick={ () => {
+                navigate(`/registry/services/wms/${record.id}/security`);
+              }}
+            >
+              Zugriff einschränken
+            </Button>
+          </Space>
         </>
       );
     }

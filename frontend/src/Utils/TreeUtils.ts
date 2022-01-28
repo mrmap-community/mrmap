@@ -35,7 +35,7 @@ export class TreeUtils {
     * @param list
     * @returns
     */
-  private MPTTListToTreeNodeList(list:MPTTJsonApiTreeNodeType[]):TreeNodeType[] {
+  private mapContextLayersToTreeNodeList(list:MPTTJsonApiTreeNodeType[]):TreeNodeType[] {
     const roots:TreeNodeType[] = [];
   
     // initialize children on the list element
@@ -79,7 +79,42 @@ export class TreeUtils {
     });
     return roots;
   }
-  
+
+  private wmsLayersToTreeNodeList(list:any[]):TreeNodeType[] {
+    const roots:TreeNodeType[] = [];
+
+    // initialize children on the list element
+    list = list.map((element: any) => ({ ...element, children: [] }));
+
+    list.map((element) => {
+      const node: TreeNodeType = {
+        key: element.id,
+        title: element.attributes.title,
+        parent: element.relationships.parent.data?.id,
+        children: element.children || [],
+        isLeaf: element.children && element.children.length === 0,
+        properties: {
+          title: element.attributes.title, // yes, title is repeated
+          scaleMin: element.attributes.scale_min,
+          scaleMax: element.attributes.scale_max,
+        },
+        expanded: true
+      };
+
+      if (node.parent) {
+        const parentNode: MPTTJsonApiTreeNodeType | undefined = list.find((el:any) => el.id === node.parent);
+        if (parentNode) {
+          list[list.indexOf(parentNode)].children?.push(node);
+        }
+      } else {
+        roots.push(node);
+      }
+      return element;
+    });
+
+    return roots;
+  }
+
   private TreeNodeListToOlLayerGroup(list: TreeNodeType[]): Collection<LayerGroup | ImageLayer<ImageWMS>> {
     const layerList = list.map((node: TreeNodeType) => {
       if (node.children.length > 0) {
@@ -123,9 +158,18 @@ export class TreeUtils {
     return new Collection(layerList);
   }
   
-  public MPTTListToOLLayerGroup(list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> {
+  public mapContextLayersToOlLayerGroup(list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> {
     if(list) {
-      const treeNodeList = this.MPTTListToTreeNodeList(list);
+      const treeNodeList = this.mapContextLayersToTreeNodeList(list);
+      const layerGroupList = this.TreeNodeListToOlLayerGroup(treeNodeList);
+      return layerGroupList;
+    }
+    return new Collection();
+  }
+
+  public wmsLayersToOlLayerGroup(list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> {
+    if(list) {
+      const treeNodeList = this.wmsLayersToTreeNodeList(list);
       const layerGroupList = this.TreeNodeListToOlLayerGroup(treeNodeList);
       return layerGroupList;
     }

@@ -55,7 +55,7 @@ export const WmsSecuritySettings = (): ReactElement => {
       <div className='map-context'>
         <ReactGeoMapContext.Provider value={olMap}>
           <TheMap
-            selectLayerDispatchAction={(selectedKeys, info) => console.log("selected", info.node)}
+            selectLayerDispatchAction={(selectedKeys, info) => console.log('selected', info.node)}
             layerGroupName='mrMapWmsSecurityLayers'
             initLayerTreeData={initLayerTreeData}
             layerAttributeForm={(<h1>Placeholder</h1>)}

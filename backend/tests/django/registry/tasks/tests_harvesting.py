@@ -1,7 +1,6 @@
 from pathlib import Path
 from unittest.mock import mock_open, patch
 
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.test.utils import override_settings
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile

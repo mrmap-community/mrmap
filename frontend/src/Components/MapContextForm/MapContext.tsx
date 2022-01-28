@@ -293,7 +293,7 @@ export const MapContext = (): ReactElement => {
                   position = 'first-child';
                 }
                
-                return await mapContextLayerRepo?.move(String(dragKey), String(dropKey), position);
+                return await mapContextLayerRepo?.move(dragKey, dropKey, position);
 
               } catch(error) {
                 //@ts-ignore

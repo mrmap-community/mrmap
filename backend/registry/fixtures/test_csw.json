@@ -122,7 +122,7 @@
     },
     {
         "model": "registry.temporarymdmetadatafile",
-        "pk": "2",
+        "pk": "9281a536-7fef-4773-b3ae-9a41aa103a4b",
         "fields": {
             "job": "2",
             "md_metadata_file": ""

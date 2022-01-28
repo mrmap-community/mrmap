@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-01-28 09:38+0100\n"
+"POT-Creation-Date: 2022-01-28 20:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -198,7 +198,7 @@ msgstr "Registrierung"
 msgid "Explanations: <br>"
 msgstr "Erklärungen: <br>"
 
-#: registry/models/conformity.py:140 registry/models/harvest.py:22
+#: registry/models/conformity.py:140 registry/models/harvest.py:24
 #: registry/models/service.py:416 registry/models/service.py:737
 #, fuzzy
 #| msgid "Service"
@@ -253,53 +253,53 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:23
+#: registry/models/harvest.py:25
 #, fuzzy
 #| msgid "the layer for that this style is for."
 msgid "the csw for that this job is running"
 msgstr "Die Ebene für diesen Stil"
 
-#: registry/models/harvest.py:28
+#: registry/models/harvest.py:30
 #, fuzzy
 #| msgid "Postal code"
 msgid "total records"
 msgstr "Postleitzahl"
 
-#: registry/models/harvest.py:29
+#: registry/models/harvest.py:31
 msgid "total count of records which will be harvested by this job"
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
-#: registry/models/harvest.py:37
+#: registry/models/harvest.py:39
 #, fuzzy
 #| msgid "Timestamp"
 msgid "date started"
 msgstr "Zeitpunkt"
 
-#: registry/models/harvest.py:38
+#: registry/models/harvest.py:40
 msgid "timestamp of start"
 msgstr "Zeitstempel des Startzeitpunktes"
 
-#: registry/models/harvest.py:43
+#: registry/models/harvest.py:45
 #, fuzzy
 #| msgid "Date Done"
 msgid "date done"
 msgstr "Beendet am"
 
-#: registry/models/harvest.py:44
+#: registry/models/harvest.py:46
 msgid "timestamp of done"
 msgstr "Zeitstempel des Endezeitpunktes"
 
-#: registry/models/harvest.py:97
+#: registry/models/harvest.py:103
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:99
+#: registry/models/harvest.py:105
 #, fuzzy
 #| msgid "log response"
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:101
+#: registry/models/harvest.py:107
 #, fuzzy
 #| msgid "Shows the health status of the resource."
 msgid "the content of the http response"

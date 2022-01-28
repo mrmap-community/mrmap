@@ -58,7 +58,7 @@ def get_records_task(harvesting_job_id,
         # save the file without saving the instance in db... this will be done with bulk_create
         db_md_metadata_file.md_metadata_file.save(
             name=f"record_nr_{_counter + start_position}",
-            content=ContentFile(content=md_metadata.serializeDocument()),
+            content=ContentFile(content=md_metadata.serialize()),
             save=False)
         db_md_metadata_file_list.append(db_md_metadata_file)
         _counter += 1
@@ -73,7 +73,14 @@ def get_records_task(harvesting_job_id,
 def temporary_md_metadata_file_to_db(md_metadata_file_id):
     temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
         pk=md_metadata_file_id)
-    dataset_metadata = temporary_md_metadata_file.md_metadata_file_to_db()
+    try:
+        dataset_metadata = temporary_md_metadata_file.md_metadata_file_to_db()
+    except Exception as exception:
+        return {
+            "id": exception.__class__.__name__,
+            "title": f"can't created MetadataRecord from xml. TemporaryMdMetadataFile id: {md_metadata_file_id}",
+            "detail": str(exception)
+        }
     harvesting_job: HarvestingJob = temporary_md_metadata_file.job
     temporary_md_metadata_file.delete()
     # TODO: if an error occurs above, this will not work...

@@ -1,5 +1,4 @@
 from django.db import models, transaction
-from django.db.models.functions import Coalesce
 
 
 class TemporaryMdMetadataFileManager(models.Manager):

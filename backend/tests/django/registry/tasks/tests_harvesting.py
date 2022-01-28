@@ -75,10 +75,11 @@ class TemporaryMdMetadataFileToDbTaskTest(TestCase):
 
         with patch("django.db.models.fields.files.FieldFile.open", mock_open(read_data=str_content)):
             temporary_md_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
-                pk=2)
+                pk="9281a536-7fef-4773-b3ae-9a41aa103a4b")
             harvesting_job: HarvestingJob = temporary_md_file.job
 
-            temporary_md_metadata_file_to_db.delay(md_metadata_file_id=2)
+            temporary_md_metadata_file_to_db.delay(
+                md_metadata_file_id="9281a536-7fef-4773-b3ae-9a41aa103a4b")
 
             # temporary object was deleted
             self.assertEqual(

@@ -22,7 +22,7 @@ def get_hits_task(harvesting_job_id):
     get_records_hits_url: str = harvesting_job.service.get_records_hits_url()
     response: Response = harvesting_job.service.send_get_request(
         url=get_records_hits_url, timeout=60)
-    xml: XmlGetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.text,
+    xml: XmlGetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
                                                                    xmlclass=XmlGetRecordsResponse)
     harvesting_job.started_at = now()
     harvesting_job.total_records = xml.total_records

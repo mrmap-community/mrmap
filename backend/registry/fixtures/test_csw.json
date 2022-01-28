@@ -45,6 +45,26 @@
         }
     },
     {
+        "model": "registry.CatalougeServiceOperationUrl",
+        "pk": 5,
+        "fields": {
+            "method": "Get",
+            "url": "http://example.com/wms?",
+            "operation": "GetCapabilities",
+            "service": "57cf66c2-3bde-49ad-b76e-bae49da57516"
+        }
+    },
+    {
+        "model": "registry.CatalougeServiceOperationUrl",
+        "pk": 6,
+        "fields": {
+            "method": "Get",
+            "url": "http://example.com/wms?",
+            "operation": "GetRecords",
+            "service": "57cf66c2-3bde-49ad-b76e-bae49da57516"
+        }
+    },
+    {
         "model": "registry.catalougeservice",
         "pk": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
         "fields": {

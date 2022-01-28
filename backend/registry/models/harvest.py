@@ -4,6 +4,7 @@ from datetime import datetime
 from celery import group
 from django.contrib.gis.db import models
 from django.db import transaction
+from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
@@ -94,7 +95,7 @@ class TemporaryMdMetadataFile(models.Model):
         to=HarvestingJob,
         on_delete=models.CASCADE,
         verbose_name=_("harvesting job"))
-    md_metadata_file: models.FileField = models.FileField(
+    md_metadata_file: FieldFile = models.FileField(
         verbose_name=_("response"),
         help_text=_(
             "the content of the http response"),
@@ -111,17 +112,20 @@ class TemporaryMdMetadataFile(models.Model):
                 lambda: temporary_md_metadata_file_to_db.delay(md_metadata_file_id=self.pk))
 
     def delete(self, *args, **kwargs):
-        if os.path.isfile(self.md_metadata_file.path):
-            os.remove(self.md_metadata_file.path)
-
+        try:
+            if os.path.isfile(self.md_metadata_file.path):
+                os.remove(self.md_metadata_file.path)
+        except (ValueError, FileNotFoundError):
+            # filepath is broken
+            pass
         super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self) -> DatasetMetadata:
-        file_content = self.md_metadata_file.open(mode='rb')
+        file: FieldFile = self.md_metadata_file.open()
         md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
-            string=file_content,
+            string=file.read(),
             xmlclass=XmlMdMetadata)
-        file_content.close()
+        file.close()
 
         dataset_metadata, update, exists = DatasetMetadata.iso_metadata.update_or_create_from_parsed_metadata(
             parsed_metadata=md_metadata,

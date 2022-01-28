@@ -4,7 +4,6 @@ from celery import shared_task, states
 from celery.canvas import group
 from django.conf import settings
 from django.db import transaction
-from extras.tasks import CurrentUserTaskMixin
 from registry.models import CatalougeService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
@@ -19,8 +18,7 @@ from requests import Request, Session
 from rest_framework.reverse import reverse
 
 
-@shared_task(bind=True,
-             base=CurrentUserTaskMixin)
+@shared_task(bind=True)
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
@@ -120,7 +118,6 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
 
 @shared_task(bind=True,
-             base=CurrentUserTaskMixin,
              queue="download_iso_metadata")
 def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={

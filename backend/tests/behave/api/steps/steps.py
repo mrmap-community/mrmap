@@ -1,8 +1,8 @@
 import json
 from unittest.mock import Mock, patch
 
-from accounts.models.users import User
 from behave import given, step, then
+from registry.models.security import AllowedWebMapServiceOperation
 from rest_framework.authtoken.models import Token
 
 
@@ -111,3 +111,7 @@ def step_impl(context, func_name, module_name):
     patcher = patch(module_name, mock)
     patcher.start()
     context.patchers.append(patcher)
+
+# @then('I expect that the function "{func_name}" of the module "{module_name}" was called with')
+# def step_impl(context, func_name, module_name, args, kwargs):
+#     callvalues = dict(context.text)

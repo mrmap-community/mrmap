@@ -47,7 +47,7 @@ def handle_protected_error(obj_list, request, e):
     messages.error(request, mark_safe(err_message))
 
 
-def update_url_query_params(url, params):
+def update_url_query_params(url: str, params: dict):
     url_parse = urlparse.urlparse(url)
     query = url_parse.query
     url_dict = dict(urlparse.parse_qsl(query))
@@ -55,6 +55,13 @@ def update_url_query_params(url, params):
     url_new_query = urlparse.urlencode(url_dict)
     url_parse = url_parse._replace(query=url_new_query)
     return urlparse.urlunparse(url_parse)
+
+
+def update_url_base(url: str, base: str):
+    old = urlparse.urlparse(url)
+    new = urlparse.urlparse(base)
+    old._replace(scheme=new.scheme, path=new.path)
+    return urlparse.urlunparse(old)
 
 
 def execute_threads(thread_list):

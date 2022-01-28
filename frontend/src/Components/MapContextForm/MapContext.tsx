@@ -56,8 +56,8 @@ export const MapContext = (): ReactElement => {
             // @ts-ignore
             abstract: response.mapContext.attributes.abstract || ''
           });
-          //  Convert the mapContext layers coming from the server to a compatible tree node list
-          const _initLayerTreeData = treeUtils.MPTTListToOLLayerGroup(response.mapContextLayers);
+          // Convert the mapContext layers coming from the server to a compatible tree node list
+          const _initLayerTreeData = treeUtils.mapContextLayersToOlLayerGroup(response.mapContextLayers);
           setInitLayerTreeData(_initLayerTreeData);
         } catch (error) {
           // @ts-ignore
@@ -77,7 +77,7 @@ export const MapContext = (): ReactElement => {
     dataset.layers.forEach(async (layer: string) => {
       const getParentId = (): string => {
         const currentSelectedIsNodeOnRoot = currentSelectedTreeLayerNode &&
-          !currentSelectedTreeLayerNode?.parent && 
+          !currentSelectedTreeLayerNode?.parent &&
           !currentSelectedTreeLayerNode?.isLeaf;
         const currentSelectedIsLeafOnRoot = currentSelectedTreeLayerNode &&
           !currentSelectedTreeLayerNode?.parent &&
@@ -87,7 +87,7 @@ export const MapContext = (): ReactElement => {
           !currentSelectedTreeLayerNode?.isLeaf;
         const currentSelectedIsLeafWithParent = currentSelectedTreeLayerNode && currentSelectedTreeLayerNode?.parent &&
           currentSelectedTreeLayerNode?.isLeaf;
-        
+
         if(currentSelectedIsNodeOnRoot) {
           return String(currentSelectedTreeLayerNode?.key);
         }
@@ -168,17 +168,17 @@ export const MapContext = (): ReactElement => {
         if(res.attributes.WMSParams.bbox) {
           olMap.getView().fit(transformExtent(res.attributes.WMSParams.bbox, 'EPSG:4326', 'EPSG:3857'));
         }
-        
+
         const mapContextLayersGroup = layerUtils.getLayerGroupByGroupTitle(olMap, 'mrMapMapContextLayers');
-        
+
         if(mapContextLayersGroup) {
           layerUtils.addLayerToGroupByMrMapLayerId(
-            mapContextLayersGroup, 
-            currentSelectedTreeLayerNode?.key as string, 
+            mapContextLayersGroup,
+            currentSelectedTreeLayerNode?.key as string,
             renderingLayer
           );
         }
-        
+
         notification.info({
           message: `Add dataset '${dataset.title}'`
         });
@@ -198,7 +198,7 @@ export const MapContext = (): ReactElement => {
       }
     });
   };
-  
+
   // TODO: replace for a decent loading screen
   if(isLoadingMapContextInfo) {
     return (<SyncOutlined spin />);
@@ -257,7 +257,7 @@ export const MapContext = (): ReactElement => {
               } catch (error) {
                 //@ts-ignore
                 throw new Error(error);
-              }      
+              }
             }}
             removeLayerDispatchAction={async (nodeToRemove) => {
               try {
@@ -292,20 +292,20 @@ export const MapContext = (): ReactElement => {
                 } else {
                   position = 'first-child';
                 }
-               
+
                 return await mapContextLayerRepo?.move(dragKey, dropKey, position);
 
               } catch(error) {
                 //@ts-ignore
                 throw new Error(error);
-              } 
+              }
             }}
             layerGroupName='mrMapMapContextLayers'
             initLayerTreeData={initLayerTreeData}
             layerAttributeForm={(
               <MapContextLayerForm
                 key={currentSelectedTreeLayerNode?.key}
-                form={form} 
+                form={form}
               />
             )}
             layerCreateErrorDispatchAction={(error: any) => {
@@ -314,7 +314,7 @@ export const MapContext = (): ReactElement => {
                   message: 'No MapContext was created. Please create a valid Map '+
                     'Context before adding Map Context Layers'
                 });
-                
+
               } else {
                 notification.error({
                   message: 'Something went wrong while trying to create the layer'
@@ -342,27 +342,27 @@ export const MapContext = (): ReactElement => {
                       <FontAwesomeIcon icon={['fas','eye']} />
                     </Tooltip>
                   )}
-                  <Tooltip 
+                  <Tooltip
                     title={
-                      nodeData.properties.renderingLayer ? 
-                        'Rendering Layer is set' : 
+                      nodeData.properties.renderingLayer ?
+                        'Rendering Layer is set' :
                         'Rendering Layer is not set'
-                    } 
-                  >
-                    <FontAwesomeIcon 
-                      icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]} 
-                    />
-                  </Tooltip>
-                  <Tooltip 
-                    title={
-                      nodeData.properties.featureSelectionLayer ?
-                        'Feature Selection Layer is set' : 
-                        'Feature Selection Layer is not set'
-                    } 
+                    }
                   >
                     <FontAwesomeIcon
-                      style={{ color: nodeData.properties.featureSelectionLayer ? '' : 'lightgray' }} 
-                      icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']} 
+                      icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]}
+                    />
+                  </Tooltip>
+                  <Tooltip
+                    title={
+                      nodeData.properties.featureSelectionLayer ?
+                        'Feature Selection Layer is set' :
+                        'Feature Selection Layer is not set'
+                    }
+                  >
+                    <FontAwesomeIcon
+                      style={{ color: nodeData.properties.featureSelectionLayer ? '' : 'lightgray' }}
+                      icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']}
                     />
                   </Tooltip>
                 </>

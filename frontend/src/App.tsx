@@ -15,16 +15,16 @@ import FeatureTypeTable from './Components/OgcService/FeatureTypeTable';
 import LayerTable from './Components/OgcService/LayerTable';
 import OgcServiceAdd from './Components/OgcService/OgcServiceAdd';
 import WfsTable from './Components/OgcService/WfsTable';
-import WmsTable from './Components/OgcService/WmsTable';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import { TaskProgressList } from './Components/Task/TaskProgress';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
+import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
+import WmsTable from './Components/WmsTable/WmsTable';
 import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
 import logo from './logo.png';
 import WebFeatureServiceRepo from './Repos/WfsRepo';
 import WebMapServiceRepo from './Repos/WmsRepo';
-
 
 
 const { Content, Footer, Sider } = Layout;
@@ -115,6 +115,10 @@ export default function App (): JSX.Element {
               <Route
                 path='/registry/services/wms/add'
                 element={<OgcServiceAdd repo={new WebMapServiceRepo()} />}
+              />
+              <Route
+                path='/registry/services/wms/:id/security'
+                element={<WmsSecuritySettings />}
               />
               <Route
                 path='/registry/services/wfs'

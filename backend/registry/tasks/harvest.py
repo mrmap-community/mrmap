@@ -63,10 +63,10 @@ def get_records_task(harvesting_job_id,
         db_md_metadata_file_list.append(db_md_metadata_file)
         _counter += 1
 
-    db_objs = TemporaryMdMetadataFile.objects.bulk_create(
+    db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
         objs=db_md_metadata_file_list)
 
-    return db_objs
+    return [db_obj.pk for db_obj in db_objs]
 
 
 @shared_task(queue="db-calc")
@@ -76,6 +76,7 @@ def temporary_md_metadata_file_to_db(md_metadata_file_id):
     dataset_metadata = temporary_md_metadata_file.md_metadata_file_to_db()
     harvesting_job: HarvestingJob = temporary_md_metadata_file.job
     temporary_md_metadata_file.delete()
+    # TODO: if an error occurs above, this will not work...
     if not TemporaryMdMetadataFile.objects.filter(job=harvesting_job).exists():
         harvesting_job.done_at = now()
         harvesting_job.save()

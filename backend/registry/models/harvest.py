@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime
 
 from celery import group
@@ -8,6 +9,7 @@ from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import DatasetMetadata
 from registry.models.service import CatalougeService
 from registry.xmlmapper.iso_metadata.iso_metadata import \
@@ -91,6 +93,10 @@ def response_file_path(instance, filename):
 
 
 class TemporaryMdMetadataFile(models.Model):
+    id: uuid = models.UUIDField(
+        primary_key=True,
+        editable=False,
+        default=uuid.uuid4)
     job: HarvestingJob = models.ForeignKey(
         to=HarvestingJob,
         on_delete=models.CASCADE,
@@ -101,6 +107,8 @@ class TemporaryMdMetadataFile(models.Model):
             "the content of the http response"),
         upload_to=response_file_path,
         editable=False)
+
+    objects: TemporaryMdMetadataFileManager = TemporaryMdMetadataFileManager()
 
     def save(self, *args, **kwargs) -> None:
         from registry.tasks.harvest import \

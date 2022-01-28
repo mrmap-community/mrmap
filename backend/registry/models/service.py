@@ -105,15 +105,15 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     def fix_version(self) -> int:
         return int(self.version.split(".")[2])
 
-    def get_session_for_request(self, timeout: int = 10) -> Session:
-        session = Session(timeout=timeout)
+    def get_session_for_request(self) -> Session:
+        session = Session()
         session.proxies = PROXIES
         if hasattr(self, "auth"):
             session.auth = self.auth.get_auth_for_request()
         return session
 
     def send_get_request(self, url: str, timeout: int = 10) -> Response:
-        return self.get_session_for_request(timeout=timeout).send(Request(method="GET", url=url))
+        return self.get_session_for_request().send(request=Request(method="GET", url=url).prepare(), timeout=timeout)
 
     @property
     def get_capabilities_url(self) -> str:

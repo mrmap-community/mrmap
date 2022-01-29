@@ -130,7 +130,17 @@ services:
       - ./docker/backend/.mrmap.env
       - ./docker/backend/.mrmap.dev.env
     command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download"
+
+  celery-db-calc-worker:
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    command: >
+      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n db-calc -Q db-calc"
 
   nginx:
     volumes:

@@ -345,15 +345,6 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='HarvestResult',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True,
-                 primary_key=True, serialize=False, verbose_name='ID')),
-                ('result_file', models.FileField(editable=False, max_length=1024,
-                 upload_to=registry.models.harvest.result_file_path)),
-            ],
-        ),
-        migrations.CreateModel(
             name='Keyword',
             fields=[
                 ('id', models.BigAutoField(auto_created=True,
@@ -1540,12 +1531,6 @@ class Migration(migrations.Migration):
             name='service_contact',
             field=models.ForeignKey(blank=True, db_constraint=False, help_text='This is the contact for the service provider.', null=True,
                                     on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='registry.metadatacontact', verbose_name='service contact'),
-        ),
-        migrations.AddField(
-            model_name='harvestresult',
-            name='service',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='harvest_results',
-                                    related_query_name='harvest_result', to='registry.catalougeservice'),
         ),
         migrations.AddField(
             model_name='featuretypeelement',

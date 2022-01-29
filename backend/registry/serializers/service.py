@@ -7,8 +7,9 @@ from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
 from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
-from registry.models.service import (FeatureType, Layer, WebFeatureService,
-                                     WebMapService, WebMapServiceOperationUrl)
+from registry.models.service import (CatalougeService, FeatureType, Layer,
+                                     WebFeatureService, WebMapService,
+                                     WebMapServiceOperationUrl)
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            StyleSerializer)
@@ -223,3 +224,29 @@ class WebFeatureServiceCreateSerializer(ModelSerializer):
             "service_auth",
             "collect_metadata_records",
         )
+
+
+class CatalougeServiceCreateSerializer(ModelSerializer):
+    get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
+    service_auth = ResourceRelatedField(
+        queryset=WebFeatureServiceAuthentication.objects, required=False
+    )
+    owner = ResourceRelatedField(queryset=Organization.objects)
+
+    class Meta:
+        model = CatalougeService
+        fields = (
+            "get_capabilities_url",
+            "owner",
+            "service_auth",
+        )
+
+
+class CatalougeServiceSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name="registry:wfs-detail",
+    )
+
+    class Meta:
+        model = CatalougeService
+        fields = "__all__"

@@ -1,4 +1,3 @@
-from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,26 +9,7 @@ from registry.models.monitoring import (LayerGetMapResult,
 from registry.tasks.monitoring import (check_get_map_operation,
                                        check_wms_get_capabilities_operation)
 from rest_framework import status
-
-
-class MockResponse:
-
-    def __init__(self, status_code, content, elapsed=timedelta(seconds=1)):
-        self.status_code = status_code
-        self.elapsed = elapsed
-
-        if isinstance(content, Path):
-            in_file = open(content, "rb")
-            self.content: bytes = in_file.read()
-            in_file.close()
-            try:
-                self.text: str = self.content.decode("UTF-8")
-            except UnicodeDecodeError:
-                self.text = ""
-
-        if isinstance(content, str):
-            self.text: str = content
-            self.content: bytes = content.encode("UTF-8")
+from tests.django.utils import MockResponse
 
 
 def side_effect(url, timeout):

@@ -4,26 +4,27 @@
 @sql_timing = off
 @username = mrmap
 @password = mrmap
-@session_id = nkg9trrp00a1dm1ectr7aajb4x8n88uf
-@csrf_token = IW89P72MOwSpNafI8W04xP7m06LS1hTEWgighJR4F5N4HsVFVjPetj1w8ogCh0Pq
+@session_id = y4ivbo4cmv8u5v4ixr82v2icukoz13l1
+@csrf_token = UUzFqz1CxDjxgFJSaXH6BM3Ha5md8KIhXYS2CHtZHXgVpC6EPB1vtlrgOWDNeoLH
 
 # @name postOgcService
-POST {{host}}api/v1/registry/ogcservices/ HTTP/1.1
+POST {{host}}api/v1/registry/csw/ HTTP/1.1
 content-type: application/vnd.api+json
-Referer: {{host}}api/v1/registry/ogcservices/
+Referer: {{host}}api/v1/registry/csw/
 X-CSRFToken: {{csrf_token}}
 
 {
   "data": {
-    "type": "OgcService",
+    "type": "CatalougeService",
     "attributes": {
-      "get_capabilities_url": "{{get_capabilities_url}}",
-      "collect_metadata_records": true
+      "get_capabilities_url": "https://www.geoportal-bw.de/geonetwork/srv/ger/csw?REQUEST=GetCapabilities&VERSION=2.0.2&SERVICE=CSW"
     },
     "relationships": {
       "owner": {
-        "data": {"id": "{{organization}}", "type": "Organization"}
+        "data": {"id": 1, "type": "Organization" }
       }
+      
+   
     }
   }
 }
@@ -93,9 +94,9 @@ Referer: {{host}}api/v1/registry/wms/
 ###
 
 # @name login
-POST {{host}}api/v1/users/login/ HTTP/1.1
+POST {{host}}api/v1/accounts/login/ HTTP/1.1
 Content-Type: application/vnd.api+json
-Referer: {{host}}api/v1/users/login/
+Referer: {{host}}api/v1/accounts/login/
 
 {
   "data": {
@@ -110,9 +111,9 @@ Referer: {{host}}api/v1/users/login/
 ### 
 
 # @name logout
-POST {{host}}api/v1/users/logout/ HTTP/1.1
+POST {{host}}api/v1/accounts/logout/ HTTP/1.1
 Content-Type: application/vnd.api+json
-Referer: {{host}}api/v1/users/logout/
+Referer: {{host}}api/v1/accounts/logout/
 X-CSRFToken: {{csrf_token}}
 
 {

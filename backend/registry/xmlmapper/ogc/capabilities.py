@@ -47,8 +47,17 @@ class WmsOperationUrl(OperationUrl):
         xpath=f"../../../../{NS_WC}Format']", node_class=MimeType)
 
 
-class WfsCswOperationUrl(OperationUrl):
+class WfsOperationUrl(OperationUrl):
     model = 'registry.WebFeatureServiceOperationUrl'
+    method = xmlmap.StringField(xpath="name(.)")
+    operation = xmlmap.StringField(xpath=f"../../../@{NS_WC}name']")
+    mime_types = xmlmap.NodeListField(
+        xpath=f"../../../{NS_WC}Parameter'][@name='AcceptFormats' or @name='outputFormat' or @name='inputFormat']/{NS_WC}AllowedValues']/{NS_WC}Value']",
+        node_class=MimeType)
+
+
+class CswOperationUrl(OperationUrl):
+    model = 'registry.CatalougeServiceOperationUrl'
     method = xmlmap.StringField(xpath="name(.)")
     operation = xmlmap.StringField(xpath=f"../../../@{NS_WC}name']")
     mime_types = xmlmap.NodeListField(
@@ -482,7 +491,7 @@ class Wfs200Service(Service):
     operation_urls = xmlmap.NodeListField(
         xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"
               f"{NS_WC}OperationsMetadata']/{NS_WC}Operation']//{NS_WC}DCP']/{NS_WC}HTTP']/*",
-        node_class=WfsCswOperationUrl)
+        node_class=WfsOperationUrl)
     feature_types = xmlmap.NodeListField(xpath=f"{NS_WC}FeatureTypeList']//{NS_WC}FeatureType']",
                                          node_class=FeatureType)
 
@@ -496,7 +505,7 @@ class CswService(Service):
     operation_urls = xmlmap.NodeListField(
         xpath=f"{NS_WC}Capability']/{NS_WC}Request']//{NS_WC}DCPType']/{NS_WC}HTTP'] //{NS_WC}OnlineResource'] |"
               f"{NS_WC}OperationsMetadata']/{NS_WC}Operation']//{NS_WC}DCP']/{NS_WC}HTTP']/*",
-        node_class=WfsCswOperationUrl)
+        node_class=CswOperationUrl)
 
 
 def get_parsed_service(xml):

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/cat/csw/2.0.2 http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd">
+    <csw:SearchStatus timestamp="2022-01-27T13:13:54" />
+    <csw:SearchResults numberOfRecordsMatched="447773" numberOfRecordsReturned="10" elementSet="summary" nextRecord="11" />
+</csw:GetRecordsResponse>

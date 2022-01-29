@@ -105,15 +105,15 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     def fix_version(self) -> int:
         return int(self.version.split(".")[2])
 
-    def get_session_for_request(self, timeout: int = 10) -> Session:
-        session = Session(timeout=timeout)
+    def get_session_for_request(self) -> Session:
+        session = Session()
         session.proxies = PROXIES
         if hasattr(self, "auth"):
             session.auth = self.auth.get_auth_for_request()
         return session
 
     def send_get_request(self, url: str, timeout: int = 10) -> Response:
-        return self.get_session_for_request(timeout=timeout).send(Request(method="GET", url=url))
+        return self.get_session_for_request().send(request=Request(method="GET", url=url).prepare(), timeout=timeout)
 
     @property
     def get_capabilities_url(self) -> str:
@@ -160,6 +160,68 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
     class Meta:
         verbose_name = _("catalouge service")
         verbose_name_plural = _("catalouge services")
+
+    def get_records_hits_url(
+        self,
+        type_names: str = "gmd:MD_Metadata",
+        result_type: str = "hits",
+    ):
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_RECORDS.value,
+            method="Get"
+        )['url']
+        query_params = {
+            "VERSION": self.version,
+            "SERVICE": "CSW",
+            "REQUEST": "GetRecords",
+            "typeNames": type_names,
+            "resultType": result_type}
+        return update_url_query_params(url=url, params=query_params)
+
+    def get_records_url(
+        self,
+        type_names: str = "gmd:MD_Metadata",
+        result_type: str = "results",
+        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        element_set_name: str = "full",
+        max_records: int = 10,
+        start_position: int = 1
+    ):
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_RECORDS.value,
+            method="Get"
+        )['url']
+        query_params = {
+            "VERSION": self.version,
+            "SERVICE": "CSW",
+            "REQUEST": "GetRecords",
+            "typeNames": type_names,
+            "resultType": result_type,
+            "outputSchema": output_schema,
+            "elementSetName": element_set_name,
+            "maxRecords": max_records,
+            "startPosition": start_position}
+        return update_url_query_params(url=url, params=query_params)
+
+    def get_record_by_id_url(
+        self,
+        id: str,
+        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        element_set_name: str = "full",
+    ):
+        url: str = self.operation_urls.values('url').get(
+            operation=OGCOperationEnum.GET_RECORDS.value,
+            method="Get"
+        )['url']
+        query_params = {
+            "VERSION": self.version,
+            "SERVICE": "CSW",
+            "REQUEST": "GetRecordById",
+            "outputSchema": output_schema,
+            "elementSetName": element_set_name,
+            "id": id,
+        }
+        return update_url_query_params(url=url, params=query_params)
 
 
 class OperationUrl(models.Model):

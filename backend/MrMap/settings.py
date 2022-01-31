@@ -148,7 +148,8 @@ ALLOWED_HOSTS = os.environ.get(
 ).split(";")
 
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
-    CORS_ALLOWED_ORIGINS = os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+    CORS_ALLOWED_ORIGINS = os.environ.get(
+        "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -249,18 +250,20 @@ CELERY_DEFAULT_QUEUE = "default"
 CELERY_DEFAULT_EXCHANGE = "default"
 
 CELERY_QUEUES = (
-    Queue("default", Exchange("default"), routing_key="default"),
     Queue(
-        "download_iso_metadata",
-        Exchange("download_iso_metadata"),
-        routing_key="download_iso_metadata",
+        name="default",
+        exchange=Exchange("default"),
+        routing_key="default"),
+    Queue(
+        name="download",
+        exchange=Exchange("download"),
+        routing_key="download",
     ),
     Queue(
-        "download_described_elements",
-        Exchange("download_described_elements"),
-        routing_key="download_described_elements",
+        name="db-calc",
+        exchange=Exchange("db-calc"),
+        routing_key="db-calc"
     ),
-    Queue("harvest", Exchange("harvest"), routing_key="harvest"),
 )
 
 ################################################################
@@ -392,7 +395,8 @@ ERROR_MASK_TXT = (
 ################################################################
 ROOT_LOGGER = logging.getLogger("MrMap.root")
 
-LOG_DIR = os.environ.get("MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
+LOG_DIR = os.environ.get(
+    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 

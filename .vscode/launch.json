@@ -10,12 +10,19 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "${workspaceRoot}/frontend/node_modules/.bin/react-scripts",
-            "args": ["test", "--runInBand", "--no-cache", "--watchAll=false"],
+            "args": [
+                "test",
+                "--runInBand",
+                "--no-cache",
+                "--watchAll=false"
+            ],
             "cwd": "${workspaceRoot}/frontend",
             "protocol": "inspector",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
-            "env": { "CI": "true" },
+            "env": {
+                "CI": "true"
+            },
             "disableOptimisticBPs": true
         },
         {
@@ -79,7 +86,7 @@
             "justMyCode": false
         },
         {
-            "name": "Debug: behave",
+            "name": "Debug: celery-db-calc-worker",
             "type": "python",
             "request": "attach",
             "connect": {
@@ -99,12 +106,32 @@
             "justMyCode": false
         },
         {
+            "name": "Debug: behave",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 3010
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/backend",
+                    "remoteRoot": "/opt/mrmap"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
+                }
+            ],
+            "justMyCode": false
+        },
+        {
             "name": "Debug: django-tests",
             "type": "python",
             "request": "attach",
             "connect": {
                 "host": "localhost",
-                "port": 3005
+                "port": 3011
             },
             "pathMappings": [
                 {

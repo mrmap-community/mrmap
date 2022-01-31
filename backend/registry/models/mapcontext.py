@@ -1,6 +1,7 @@
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ValidationError
+from django.db.models import F, Q
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
@@ -76,14 +77,14 @@ class MapContext(models.Model):
                 }
 
             },
-            "bbox": list(self.bbox.extent),
-            "features": [context_layer.as_ows_feature() for context_layer in self.child_layers.all()]
+            "bbox": list(self.bbox.extent) if self.bbox else None,
+            "features": [context_layer.as_ows_feature() for context_layer in self.map_context_layers.all()]
         }
         return ows_context
 
 
 class RenderingOffering(models.Model):
-    rendering_layer = models.ForeignKey(
+    rendering_layer: Layer = models.ForeignKey(
         to=Layer,
         on_delete=models.PROTECT,
         null=True,
@@ -91,7 +92,7 @@ class RenderingOffering(models.Model):
         related_name="mapcontextlayers_rendering",
         verbose_name=_("Rendering layer"),
         help_text=_("Select a layer for rendering."))
-    layer_scale_min = models.FloatField(
+    layer_scale_min: float = models.FloatField(
         null=True,
         blank=True,
         verbose_name=_("scale minimum value"),
@@ -99,7 +100,7 @@ class RenderingOffering(models.Model):
             "minimum scale for a possible request to this layer. If the request is "
             "out of the given scope, the service will response with empty transparent"
             "images. None value means no restriction."))
-    layer_scale_max = models.FloatField(
+    layer_scale_max: float = models.FloatField(
         null=True,
         blank=True,
         verbose_name=_("scale maximum value"),
@@ -107,7 +108,7 @@ class RenderingOffering(models.Model):
             "maximum scale for a possible request to this layer. If the request is "
             "out of the given scope, the service will response with empty transparent"
             "images. None value means no restriction."))
-    layer_style = models.ForeignKey(
+    layer_style: Style = models.ForeignKey(
         to=Style,
         on_delete=models.PROTECT,
         null=True,
@@ -121,7 +122,9 @@ class RenderingOffering(models.Model):
         upload_to=preview_image_file_path,
         null=True,
         blank=True)
-    active = models.BooleanField(
+    active: bool = models.BooleanField(
+        default=True,
+        blank=True,
         verbose_name=_("active"),
         help_text=_("should this offering be visible?"))
     # transparency = models.IntegerField(
@@ -136,30 +139,30 @@ class RenderingOffering(models.Model):
         if self.rendering_layer:
             # TODO: move this to checkContraints
             # Check scale min/max values against the possible configureable values.
-            if self.layer_scale_min and self.layer.inherit_scale_min:
-                if self.layer_scale_min < self.layer.inherit_scale_min:
+            if self.layer_scale_min and self.rendering_layer.get_scale_min:
+                if self.layer_scale_min < self.rendering_layer.get_scale_min:
                     errors.update({'layer_scale_min': ValidationError(
                         "configured layer minimum scale can't be smaller than the scale value of the layer.")})
-                if self.layer_scale_min > self.layer.inherit_scale_max:
+                if self.layer_scale_min > self.rendering_layer.get_scale_max:
                     errors.update({'layer_scale_min': ValidationError(
                         "configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
-            if self.layer_scale_max and self.layer.inherit_scale_max:
-                if self.layer_scale_max > self.layer.inherit_scale_max:
+            if self.layer_scale_max and self.rendering_layer.get_scale_max:
+                if self.layer_scale_max > self.rendering_layer.get_scale_max:
                     errors.update({'layer_scale_max': ValidationError(
                         "configured layer maximum scale can't be greater than the scale value of the layer.")})
-                if self.layer_scale_max < self.layer.inherit_scale_max:
+                if self.layer_scale_max < self.rendering_layer.get_scale_max:
                     errors.update({'layer_scale_max': ValidationError(
                         "configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
 
             # Check style configuration
-            if self.layer_style and not self.layer.styles.filter(pk=self.layer_style.pk).exists():
+            if self.layer_style and not self.rendering_layer.styles.filter(pk=self.layer_style.pk).exists():
                 errors.update({'layer_style': ValidationError(
                     "configured style is not a valid style for the selected layer.")})
 
         if errors:
             raise ValidationError(errors)
 
-    def as_ows_offering(self):
+    def rendering_offering(self):
         return {
             "code": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
             "operations": [
@@ -186,6 +189,9 @@ class SelectionOffering(models.Model):
         verbose_name=_("Selection layer"),
         help_text=_("Select a layer for feature selection."))
 
+    class Meta:
+        abstract = True
+
 
 class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
     parent = TreeForeignKey(
@@ -194,7 +200,7 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
         null=True,
         blank=True,
         related_name="child_layers",
-        releated_query_name="child_layer")
+        related_query_name="child_layer")
     map_context = models.ForeignKey(
         to=MapContext,
         on_delete=models.CASCADE,
@@ -230,10 +236,10 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
     def as_ows_feature(self) -> dict:
         ows_feature = {
             "type": "Feature",
-            "offerings": self._ows_offerings,
+            "offerings": self.rendering_offering(),
             "properties": {
                 "title": self.title,
-                "abstract": self.abstract,
+                "abstract": self.description,
                 "minScaleDenominator": self.layer_scale_min,
                 "maxScaleDenominator": self.layer_scale_max,
                 "updated": "TODO",

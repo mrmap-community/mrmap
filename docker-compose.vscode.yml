@@ -3,8 +3,8 @@ version: "3.8"
 services:
 
   backend:
-    # entrypoint: >
-    #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py makemigrations accounts registry"
+    entrypoint: >
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py makemigrations accounts registry"
     # entrypoint: >
     #   /bin/bash -c "python /opt/mrmap/manage.py graph_models -a -g -o models.png"
     # entrypoint: >

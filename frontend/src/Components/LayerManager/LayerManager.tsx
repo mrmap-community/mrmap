@@ -116,7 +116,6 @@ export const LayerManager = ({
     const { checked } = info;
     const eventKey = info.node.key;
     const layer = layerUtils.getLayerByMrMapLayerId(map, eventKey);
-    //console.log(layer);
     setLayerVisibility(layer, checked);
   };
 

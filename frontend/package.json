@@ -67,7 +67,6 @@
     "@testing-library/react": "^12.1.2",
     "@testing-library/react-hooks": "^7.0.2",
     "@testing-library/user-event": "^12.1.10",
-    "@types/enzyme": "^3.10.10",
     "@types/jest": "^27.0.2",
     "@types/js-cookie": "^3.0.1",
     "@types/lodash": "^4.14.177",
@@ -76,10 +75,7 @@
     "@types/testing-library__jest-dom": "^5.14.2",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
-    "@wojtekmaj/enzyme-adapter-react-17": "^0.6.6",
     "axios-mock-adapter": "^1.20.0",
-    "enzyme": "^3.11.0",
-    "enzyme-to-json": "^3.6.2",
     "eslint": "^7.32.0",
     "eslint-config-react-app": "^6.0.0",
     "eslint-plugin-import": "^2.25.3",
@@ -87,9 +83,6 @@
     "jest-fetch-mock": "^3.0.3"
   },
   "jest": {
-    "snapshotSerializers": [
-      "enzyme-to-json/serializer"
-    ],
     "collectCoverageFrom": [
       "src/**/*.ts",
       "src/**/*.tsx",

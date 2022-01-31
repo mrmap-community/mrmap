@@ -38,7 +38,7 @@ services:
 
   celery-download-worker:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download_iso_metadata,download_described_elements,harvest"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n download -Q download"
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
@@ -46,11 +46,21 @@ services:
     ports:
       - "0.0.0.0:3003:5678"
 
+  celery-db-calc-worker:
+    command: >
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n db-calc -Q db-calc"
+    environment:
+      PYDEVD_LOAD_VALUES_ASYNC: "True"
+      PYTHONUNBUFFERED: "1"
+      IPYTHONENABLE: "True"
+    ports:
+      - "0.0.0.0:3004:5678"
+
   behave:
     command: >
       /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave  --noinput --tags=-skip --no-skipped --stop tests/behave/api/features --simple && python -m coverage xml -i -o /opt/mrmap/acceptance-tests-coverage-report.xml"
     ports:
-      - "0.0.0.0:3004:5678"
+      - "0.0.0.0:3010:5678"
 
   django-tests:
     command: >
@@ -61,4 +71,4 @@ services:
     #   /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o
     #   /opt/mrmap/unit-tests-coverage-report.xml"
     ports:
-      - "0.0.0.0:3005:5678"
+      - "0.0.0.0:3011:5678"

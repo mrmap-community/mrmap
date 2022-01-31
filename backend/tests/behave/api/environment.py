@@ -25,6 +25,8 @@ def before_feature(context, feature):
         fixtures.extend(['test_wms.json'])
     elif 'AllowedWebFeatureServiceOperation' in feature.name:
         fixtures.extend(['test_wfs.json'])
+    elif 'HarvestingJob' in feature.name:
+        fixtures.extend(['test_csw.json'])
 
     if ('AllowedWebMapServiceOperation' in feature.name
             and 'Related' in feature.name):

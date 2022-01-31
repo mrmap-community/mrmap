@@ -13,17 +13,20 @@ import { transformExtent } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
 import React, { useEffect, useState } from 'react';
+import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
+import { LayerManagerUtils } from '../../Utils/LayerManagerUtils';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { TreeFormField } from '../Shared/FormFields/TreeFormField/TreeFormField';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import './LayerManager.css';
 import { CreateLayerOpts, LayerManagerProps } from './LayerManagerTypes';
 
 
 const treeUtils =  new TreeUtils();
 const layerUtils =  new LayerUtils();
+const layerManagerUtils = new LayerManagerUtils();
 
 const layerManagerLayerGroup = new LayerGroup({
   opacity: 1,
@@ -37,7 +40,7 @@ export const LayerManager = ({
   addLayerDispatchAction = () => undefined,
   removeLayerDispatchAction = () => undefined,
   editLayerDispatchAction = () => undefined,
-  dragLayerDispatchAction = () => undefined,
+  dropLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   customLayerManagerTitleAction = () => undefined,
   layerCreateErrorDispatchAction = () => undefined,
@@ -45,7 +48,8 @@ export const LayerManager = ({
   layerEditErrorDispatchAction = () => undefined,
   layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
-  initLayerTreeData
+  initLayerTreeData,
+  multipleSelection = false
 }: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -61,8 +65,8 @@ export const LayerManager = ({
   },[isTreeContainerVisible, map]);
 
   useEffect(() => {
-    const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {        
-        setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
+    const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {       
+      setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
     };
     const setWMSParams = async(theLayer: ImageLayer<ImageWMS>) => {
       try {
@@ -169,24 +173,24 @@ export const LayerManager = ({
   const layerActions = (nodeData: TreeNodeType|undefined): any => {
     return (
       <>
-      <Menu.Item
-        onClick={async() => {
+        <Menu.Item
+          onClick={async() => {
           // fit to layer extent
-          const theLayer = layerUtils.getAllMapLayers(layerManagerLayerGroup)
-            .find(l => { 
-              return l.getProperties().key === nodeData?.key;
-            });
-          if(theLayer && theLayer.get('renderingLayer')) {
-            onFitToLayerExtent(theLayer.get('renderingLayer'));
-          } else {
-            console.warn('Layer not found');
-          }
-        }}
-        icon={<ExpandOutlined/>}
-        key='zoom-to-extent'
-      >
+            const theLayer = layerUtils.getAllMapLayers(layerManagerLayerGroup)
+              .find(l => { 
+                return l.getProperties().key === nodeData?.key;
+              });
+            if(theLayer && theLayer.get('renderingLayer')) {
+              onFitToLayerExtent(theLayer.get('renderingLayer'));
+            } else {
+              console.warn('Layer not found');
+            }
+          }}
+          icon={<ExpandOutlined/>}
+          key='zoom-to-extent'
+        >
         Zoom to layer Extent
-      </Menu.Item>
+        </Menu.Item>
       </>
     );
   }; 
@@ -231,14 +235,14 @@ export const LayerManager = ({
       if(layerOpts) {
         //@ts-ignore
         layerToAdd = layerUtils.createMrMapOlWMSLayer(layerOpts);
-      }
-      // add the layer to the parent, where the layer or group is being created
-      layerUtils.addLayerToGroupByMrMapLayerId(
-        layerManagerLayerGroup, 
-        newNodeParent as string, 
-        layerToAdd
-      );
-    }
+      } 
+    } 
+    // add the layer to the parent, where the layer or group is being created
+    layerUtils.addLayerToGroupByMrMapLayerId(
+      layerManagerLayerGroup, 
+      newNodeParent as string, 
+      layerToAdd
+    );
   };
 
   const onDeleteLayer = async(nodeToRemove: TreeNodeType) => {
@@ -294,9 +298,19 @@ export const LayerManager = ({
   const onEditLayer = async(nodeId:number|string, nodeAttributesToUpdate: any) => {
     // if method is asnyc, we need to get the result by resolving the promise
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    if(removeLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
+    if(editLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
       try {
-        return await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
+        const editedLayer = await editLayerDispatchAction(nodeId, nodeAttributesToUpdate);
+        // update the layer properties
+        const layerToUpdate = layerUtils.getAllMapLayers(layerManagerLayerGroup)
+          .find((l: any) => l.getProperties().layerId === nodeId);
+        if(layerToUpdate) {
+          layerToUpdate.setProperties({ 
+            ...layerToUpdate.getProperties(), 
+            ...nodeAttributesToUpdate 
+          });
+        }
+        return editedLayer;
       } catch(error: any) {
         layerEditErrorDispatchAction(error);
       }
@@ -306,19 +320,26 @@ export const LayerManager = ({
     }
   };
 
-  const onDragLayer = async(nodeBeingDraggedInfo: any) => {
+  const asyncDropLayer = async(dropEvent:TreeFormFieldDropNodeEventType) : Promise<JsonApiResponse> => {
+    try {
+      layerManagerUtils.updateLayerGroupOnDrop(dropEvent, layerManagerLayerGroup);
+      return await dropLayerDispatchAction(dropEvent) as JsonApiResponse;
+    } catch (error) {
+      // @ts-ignore
+      throw new Error(error);
+    }
+  };
+
+  const onDropLayer = (dropEvent:TreeFormFieldDropNodeEventType): Promise<JsonApiResponse> | void => {
     // if method is asnyc, we need to get the result by resolving the promise
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    if(dragLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
-      try {
-        return await dragLayerDispatchAction(nodeBeingDraggedInfo);
-      } catch (error) {
-        // @ts-ignore
-        throw new Error(error);
-      }
-    // Non Async version
+    if(dropLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
+      layerManagerUtils.updateLayerGroupOnDrop(dropEvent, layerManagerLayerGroup);
+      return asyncDropLayer(dropEvent);
+      // Non Async version
     } else {
-      dragLayerDispatchAction(nodeBeingDraggedInfo);
+      dropLayerDispatchAction(dropEvent);
+      layerManagerUtils.updateLayerGroupOnDrop(dropEvent, layerManagerLayerGroup);
     }
   };
 
@@ -333,7 +354,7 @@ export const LayerManager = ({
         placement='right'
       >
         <Button
-          className={`layer-manager-toggle`}
+          className='layer-manager-toggle'
           type='primary'
           style={{
             left: isTreeContainerVisible ? '500px' : 0
@@ -363,13 +384,13 @@ export const LayerManager = ({
           removeNodeDispatchAction={onDeleteLayer}
           //@ts-ignore
           editNodeDispatchAction={onEditLayer}
-          //@ts-ignore
-          dragNodeDispatchAction={onDragLayer}
+          dropNodeDispatchAction={onDropLayer}
           checkNodeDispacthAction={onCheckLayer}
           selectNodeDispatchAction={onSelectLayer}
           customTreeTitleAction={customLayerManagerTitleAction}
           nodeAttributeForm={layerAttributeForm}
           treeNodeTitlePreIcons={layerAttributeInfoIcons}
+          multipleSelection={multipleSelection}
         />
       )}
     </div>

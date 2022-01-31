@@ -2,7 +2,6 @@ import { PauseCircleTwoTone } from '@ant-design/icons';
 import { List, Progress } from 'antd';
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
 import { TaskResult } from '../../Repos/TaskResultRepo';
 import { fetchTaskResults, taskResultsSelectors } from '../../Services/ReduxStore/Reducers/TaskResult';
@@ -49,35 +48,35 @@ export const TaskProgressList = (): JSX.Element => {
 
   const getStatus = (taskResult: TaskResult): any => {
     switch (taskResult.attributes.status) {
-      case 'STARTED':
-      case 'SUCCESS':
-      case 'FAILURE':
-        return <Progress
-                type='circle'
-                percent={calculatePercent(taskResult)}
-                width={60}
-                status={taskResult.attributes.status === 'FAILURE' ? 'exception' : undefined} />;
-      default:
-        return <PauseCircleTwoTone
-                twoToneColor='#f2f207'
-                style={{ width: 60, fontSize: '2vw' }}/>;
+    case 'STARTED':
+    case 'SUCCESS':
+    case 'FAILURE':
+      return <Progress
+        type='circle'
+        percent={calculatePercent(taskResult)}
+        width={60}
+        status={taskResult.attributes.status === 'FAILURE' ? 'exception' : undefined} />;
+    default:
+      return <PauseCircleTwoTone
+        twoToneColor='#f2f207'
+        style={{ width: 60, fontSize: '2vw' }}/>;
     }
   };
   return (
 
-        <List
-          dataSource={taskResults}
-          renderItem={item => (
-            <List.Item key={item.id}>
-              <List.Item.Meta
-                avatar={getStatus(item)}
-                title={item.attributes.task_name?.includes('build_ogc_service')
-                  ? 'Register new OGC Service' + item.id
-                  : item.attributes.task_name}
-                description={getDescription(item)}
-              />
-            </List.Item>
-          )}
-        />
+    <List
+      dataSource={taskResults}
+      renderItem={item => (
+        <List.Item key={item.id}>
+          <List.Item.Meta
+            avatar={getStatus(item)}
+            title={item.attributes.task_name?.includes('build_ogc_service')
+              ? 'Register new OGC Service' + item.id
+              : item.attributes.task_name}
+            description={getDescription(item)}
+          />
+        </List.Item>
+      )}
+    />
   );
 };

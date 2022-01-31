@@ -10,6 +10,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  width: 100%;
 }
 
 .tree-form-field-tree {
@@ -28,11 +29,21 @@
   justify-content: space-between;
 }
 
-.tree-node-title{
+.tree-node-title-group1,
+.tree-node-title-group2 {
   display: flex;
   flex-direction: row;
+  align-items: center;
 }
 
 .tree-node-title-symbols svg{
   margin: 0 5px 0 5px;
+}
+
+.tree-form-field .ant-tree .ant-tree-treenode {
+  width: 100%;
+}
+
+.tree-form-field .ant-tree .ant-tree-node-content-wrapper {
+  width: 100%;
 }

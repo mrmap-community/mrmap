@@ -263,10 +263,11 @@ class RemoteMetadata(models.Model):
             metadata_cls = ServiceMetadata
         else:
             metadata_cls = DatasetMetadata
-        return metadata_cls.iso_metadata.create_from_parsed_metadata(parsed_metadata=self.parse(),
-                                                                     related_object=self.describes,
-                                                                     origin_url=self.link,
-                                                                     **kwargs)
+        db_metadata, update, exists = metadata_cls.iso_metadata.update_or_create_from_parsed_metadata(parsed_metadata=self.parse(),
+                                                                                                      related_object=self.describes,
+                                                                                                      origin_url=self.link,
+                                                                                                      **kwargs)
+        return db_metadata
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):

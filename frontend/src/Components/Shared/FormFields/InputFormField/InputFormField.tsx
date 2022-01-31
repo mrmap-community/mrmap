@@ -1,6 +1,5 @@
 import { Form, Input } from 'antd';
 import React, { FC, ReactNode } from 'react';
-
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
 interface InputFormFieldProps {
@@ -35,20 +34,20 @@ export const InputFormField: FC<InputFormFieldProps> = ({
 }) => {
   return (
     <Form.Item
-        label={label}
-        name={name}
-        rules={validation.rules}
-        hasFeedback={validation.hasFeedback}
-        tooltip={tooltip}
-      >
-        <Input
-          allowClear={allowClear}
-          disabled={disabled}
-          onChange={onChange}
-          placeholder={placeholder}
-          type={type}
-          value={value}
-        />
-      </Form.Item>
+      label={label}
+      name={name}
+      rules={validation.rules}
+      hasFeedback={validation.hasFeedback}
+      tooltip={tooltip}
+    >
+      <Input
+        allowClear={allowClear}
+        disabled={disabled}
+        onChange={onChange}
+        placeholder={placeholder}
+        type={type}
+        value={value}
+      />
+    </Form.Item>
   );
 };

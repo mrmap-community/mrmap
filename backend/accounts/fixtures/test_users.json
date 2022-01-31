@@ -52,6 +52,21 @@
                     "webfeatureservice"
                 ],
                 [
+                    "add_catalougeservice",
+                    "registry",
+                    "catalougeservice"
+                ],
+                [
+                    "change_catalougeservice",
+                    "registry",
+                    "catalougeservice"
+                ],
+                [
+                    "delete_catalougeservice",
+                    "registry",
+                    "catalougeservice"
+                ],
+                [
                     "add_mapcontext",
                     "registry",
                     "mapcontext"
@@ -140,6 +155,21 @@
                     "delete_layergetfeatureinforesult",
                     "registry",
                     "layergetfeatureinforesult"
+                ],
+                [
+                    "add_harvestingjob",
+                    "registry",
+                    "harvestingjob"
+                ],
+                [
+                    "change_harvestingjob",
+                    "registry",
+                    "harvestingjob"
+                ],
+                [
+                    "delete_harvestingjob",
+                    "registry",
+                    "harvestingjob"
                 ]
             ]
         }

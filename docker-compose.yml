@@ -74,8 +74,7 @@ services:
         MRMAP_PRODUCTION: "True"
     tty: true # To support colorized log output.
     entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
-    command: /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker
-      --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
+    command: /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
     hostname: "mrmap-backend"
     volumes:
       - type: bind
@@ -132,8 +131,35 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     command: >
-      /bin/bash -c "celery -A MrMap worker -E -l INFO -n download -Q
-      download_iso_metadata,download_described_elements,harvest"
+      /bin/bash -c "celery -A MrMap worker -E -l INFO -n download -Q download"
+    tty: true # To support colorized log output.
+    hostname: "mrmap-celery-worker"
+    volumes:
+      - type: bind
+        source: ./backend
+        target: /opt/mrmap
+      - type: volume
+        source: mrmap-media
+        target: /var/mrmap/media
+      - type: volume
+        source: mrmap-log
+        target: /var/log/mrmap
+    networks:
+      - mrmap-internal
+    env_file:
+      - ./docker/backend/.mrmap.env
+    depends_on:
+      - postgis
+      - redis
+
+  celery-db-calc-worker:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile
+      args:
+        MRMAP_PRODUCTION: "True"
+    command: >
+      /bin/bash -c "celery -A MrMap worker -E -l INFO -n db-calc -Q db-calc"
     tty: true # To support colorized log output.
     hostname: "mrmap-celery-worker"
     volumes:

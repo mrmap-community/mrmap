@@ -1,7 +1,7 @@
 import { SyncOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
-import { Button, notification } from 'antd';
+import { Button, notification, Tooltip } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
@@ -14,7 +14,7 @@ import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
 import './MapContext.css';
 import { MapContextForm } from './MapContextForm';
@@ -56,8 +56,8 @@ export const MapContext = (): ReactElement => {
             // @ts-ignore
             abstract: response.mapContext.attributes.abstract || ''
           });
-          //  Convert the mapContext layers coming from the server to a compatible tree node list
-          const _initLayerTreeData = treeUtils.MPTTListToOLLayerGroup(response.mapContextLayers);
+          // Convert the mapContext layers coming from the server to a compatible tree node list
+          const _initLayerTreeData = treeUtils.mapContextLayersToOlLayerGroup(response.mapContextLayers);
           setInitLayerTreeData(_initLayerTreeData);
         } catch (error) {
           // @ts-ignore
@@ -77,7 +77,7 @@ export const MapContext = (): ReactElement => {
     dataset.layers.forEach(async (layer: string) => {
       const getParentId = (): string => {
         const currentSelectedIsNodeOnRoot = currentSelectedTreeLayerNode &&
-          !currentSelectedTreeLayerNode?.parent && 
+          !currentSelectedTreeLayerNode?.parent &&
           !currentSelectedTreeLayerNode?.isLeaf;
         const currentSelectedIsLeafOnRoot = currentSelectedTreeLayerNode &&
           !currentSelectedTreeLayerNode?.parent &&
@@ -87,7 +87,7 @@ export const MapContext = (): ReactElement => {
           !currentSelectedTreeLayerNode?.isLeaf;
         const currentSelectedIsLeafWithParent = currentSelectedTreeLayerNode && currentSelectedTreeLayerNode?.parent &&
           currentSelectedTreeLayerNode?.isLeaf;
-        
+
         if(currentSelectedIsNodeOnRoot) {
           return String(currentSelectedTreeLayerNode?.key);
         }
@@ -113,8 +113,8 @@ export const MapContext = (): ReactElement => {
           description:renderingLayerDetails.attributes.abstract,
           layerScaleMax:renderingLayerDetails.attributes.scaleMax,
           layerScaleMin:renderingLayerDetails.attributes.scaleMin,
-          // isLeaf: true,
           renderingLayer: renderingLayerDetails.attributes.id,
+          datasetMetadata: dataset.id,
           parentLayerId: getParentId(),
           mapContextId: createdMapContextId
         });
@@ -168,17 +168,17 @@ export const MapContext = (): ReactElement => {
         if(res.attributes.WMSParams.bbox) {
           olMap.getView().fit(transformExtent(res.attributes.WMSParams.bbox, 'EPSG:4326', 'EPSG:3857'));
         }
-        
+
         const mapContextLayersGroup = layerUtils.getLayerGroupByGroupTitle(olMap, 'mrMapMapContextLayers');
-        
+
         if(mapContextLayersGroup) {
           layerUtils.addLayerToGroupByMrMapLayerId(
-            mapContextLayersGroup, 
-            currentSelectedTreeLayerNode?.key as string, 
+            mapContextLayersGroup,
+            currentSelectedTreeLayerNode?.key as string,
             renderingLayer
           );
         }
-        
+
         notification.info({
           message: `Add dataset '${dataset.title}'`
         });
@@ -198,7 +198,7 @@ export const MapContext = (): ReactElement => {
       }
     });
   };
-  
+
   // TODO: replace for a decent loading screen
   if(isLoadingMapContextInfo) {
     return (<SyncOutlined spin />);
@@ -208,7 +208,8 @@ export const MapContext = (): ReactElement => {
     <>
       <div className='map-context'>
         <ReactGeoMapContext.Provider value={olMap}>
-          <TheMap 
+          <TheMap
+            showLayerManager={!!createdMapContextId}
             selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}
             addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
               let renderingLayerInfo = null;
@@ -220,6 +221,7 @@ export const MapContext = (): ReactElement => {
                   mapContextId: createdMapContextId
                 });
 
+                // return createdLayer;
                 //@ts-ignore
                 const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
                 if(renderingLayerId) {
@@ -255,7 +257,7 @@ export const MapContext = (): ReactElement => {
               } catch (error) {
                 //@ts-ignore
                 throw new Error(error);
-              }      
+              }
             }}
             removeLayerDispatchAction={async (nodeToRemove) => {
               try {
@@ -268,30 +270,51 @@ export const MapContext = (): ReactElement => {
                 // setCurrentSelectedTreeLayerNode(undefined);
               }
             }}
-            editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => (
-              await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate)
-            )}
-            dragLayerDispatchAction={async (nodeBeingDraggedInfo) => {
-              const dropKey = nodeBeingDraggedInfo.node.key;
-              const dragKey = nodeBeingDraggedInfo.dragNode.key;
-              let position:string;
-              if (nodeBeingDraggedInfo.node.parent === nodeBeingDraggedInfo.dragNode.parent) {
-                position = 'right';
-              } else {
-                position = 'first-child';
+            editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => {
+              try {
+                return await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate);
+              } catch(error) {
+                //@ts-ignore
+                throw new Error(error);
               }
-              return await mapContextLayerRepo?.move(dragKey, dropKey, position);
+
+            }}
+            dropLayerDispatchAction={async (dropEvent:TreeFormFieldDropNodeEventType): Promise<JsonApiResponse> => {
+              try {
+                const isDroppingToGap = dropEvent.dropToGap;
+                const dragKey = dropEvent.dragNode.key;
+                const dropKey = dropEvent.node.key;
+                let position:string;
+
+                // if tree element is beeing dropped to a gap, it means
+                if(isDroppingToGap) {
+                  position = 'right';
+                } else {
+                  position = 'first-child';
+                }
+
+                return await mapContextLayerRepo?.move(dragKey, dropKey, position);
+
+              } catch(error) {
+                //@ts-ignore
+                throw new Error(error);
+              }
             }}
             layerGroupName='mrMapMapContextLayers'
             initLayerTreeData={initLayerTreeData}
-            layerAttributeForm={(<MapContextLayerForm form={form}/>)}
+            layerAttributeForm={(
+              <MapContextLayerForm
+                key={currentSelectedTreeLayerNode?.key}
+                form={form}
+              />
+            )}
             layerCreateErrorDispatchAction={(error: any) => {
               if(!createdMapContextId) {
                 notification.warn({
                   message: 'No MapContext was created. Please create a valid Map '+
                     'Context before adding Map Context Layers'
                 });
-                
+
               } else {
                 notification.error({
                   message: 'Something went wrong while trying to create the layer'
@@ -315,17 +338,36 @@ export const MapContext = (): ReactElement => {
               return (
                 <>
                   {nodeData.properties.datasetMetadata && (
-                    <FontAwesomeIcon icon={['fas','eye']} />
+                    <Tooltip title='Dataset Metadata is set' >
+                      <FontAwesomeIcon icon={['fas','eye']} />
+                    </Tooltip>
                   )}
-                  <FontAwesomeIcon 
-                    icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]} 
-                  />
-                  <FontAwesomeIcon 
-                    icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']} 
-                  />
-                  </>
-            );
-          }}
+                  <Tooltip
+                    title={
+                      nodeData.properties.renderingLayer ?
+                        'Rendering Layer is set' :
+                        'Rendering Layer is not set'
+                    }
+                  >
+                    <FontAwesomeIcon
+                      icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]}
+                    />
+                  </Tooltip>
+                  <Tooltip
+                    title={
+                      nodeData.properties.featureSelectionLayer ?
+                        'Feature Selection Layer is set' :
+                        'Feature Selection Layer is not set'
+                    }
+                  >
+                    <FontAwesomeIcon
+                      style={{ color: nodeData.properties.featureSelectionLayer ? '' : 'lightgray' }}
+                      icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']}
+                    />
+                  </Tooltip>
+                </>
+              );
+            }}
           />
         </ReactGeoMapContext.Provider>
       </div>

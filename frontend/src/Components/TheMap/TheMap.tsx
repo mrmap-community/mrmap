@@ -16,7 +16,7 @@ import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { LayerManager } from '../LayerManager/LayerManager';
 import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import './TheMap.css';
 
 const layerUtils = new LayerUtils();
@@ -66,7 +66,7 @@ export const TheMap = ({
   addLayerDispatchAction = () => undefined,
   removeLayerDispatchAction = () => undefined,
   editLayerDispatchAction = () => undefined,
-  dragLayerDispatchAction = () => undefined,
+  dropLayerDispatchAction = () => undefined,
   selectLayerDispatchAction = () => undefined,
   customLayerManagerTitleAction = () => undefined,
   layerCreateErrorDispatchAction = () => undefined,
@@ -75,7 +75,9 @@ export const TheMap = ({
   layerGroupName,
   initLayerTreeData,
   layerAttributeForm,
-  layerAttributeInfoIcons = () => (<></>)
+  layerAttributeInfoIcons = () => (<></>),
+  allowMultipleLayerSelection = false,
+  showLayerManager = false
 }: {
   addLayerDispatchAction?:(
     nodeAttributes: any,
@@ -83,7 +85,7 @@ export const TheMap = ({
     Promise<CreateLayerOpts> | CreateLayerOpts | void;
   removeLayerDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
-  dragLayerDispatchAction?: (nodeBeingDraggedInfo: any) => Promise<JsonApiResponse> | void;
+  dropLayerDispatchAction?: (dropEvent:TreeFormFieldDropNodeEventType) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
   customLayerManagerTitleAction?: () => void | undefined;
   layerCreateErrorDispatchAction?: (error: any) => undefined | void;
@@ -93,6 +95,8 @@ export const TheMap = ({
   initLayerTreeData: any;
   layerAttributeForm: ReactNode;
   layerAttributeInfoIcons?: (nodeData: TreeNodeType) => ReactNode;
+  allowMultipleLayerSelection?: boolean;
+  showLayerManager?: boolean;
 }): JSX.Element => {
   const map = useMap();
 
@@ -160,22 +164,25 @@ export const TheMap = ({
 
   return (
     <div className='the-map-container'>
-      <LayerManager
-        initLayerTreeData={initLayerTreeData}
-        layerManagerLayerGroupName={layerGroupName}
-        asyncTree
-        selectLayerDispatchAction={selectLayerDispatchAction}
-        addLayerDispatchAction={addLayerDispatchAction}
-        removeLayerDispatchAction={removeLayerDispatchAction}
-        editLayerDispatchAction={editLayerDispatchAction}
-        dragLayerDispatchAction={dragLayerDispatchAction}
-        customLayerManagerTitleAction={customLayerManagerTitleAction}
-        layerAttributeForm={layerAttributeForm}
-        layerCreateErrorDispatchAction={layerCreateErrorDispatchAction}
-        layerRemoveErrorDispatchAction={layerCreateErrorDispatchAction}
-        layerEditErrorDispatchAction={layerCreateErrorDispatchAction}
-        layerAttributeInfoIcons={layerAttributeInfoIcons}
-      />
+      {showLayerManager && (
+        <LayerManager
+          initLayerTreeData={initLayerTreeData}
+          layerManagerLayerGroupName={layerGroupName}
+          asyncTree
+          selectLayerDispatchAction={selectLayerDispatchAction}
+          addLayerDispatchAction={addLayerDispatchAction}
+          removeLayerDispatchAction={removeLayerDispatchAction}
+          editLayerDispatchAction={editLayerDispatchAction}
+          dropLayerDispatchAction={dropLayerDispatchAction}
+          customLayerManagerTitleAction={customLayerManagerTitleAction}
+          layerAttributeForm={layerAttributeForm}
+          layerCreateErrorDispatchAction={layerCreateErrorDispatchAction}
+          layerRemoveErrorDispatchAction={layerRemoveErrorDispatchAction}
+          layerEditErrorDispatchAction={layerEditErrorDispatchAction}
+          layerAttributeInfoIcons={layerAttributeInfoIcons}
+          multipleSelection={allowMultipleLayerSelection}
+        />
+      )}
       <MapComponent
         id='the-map'
         map={map}

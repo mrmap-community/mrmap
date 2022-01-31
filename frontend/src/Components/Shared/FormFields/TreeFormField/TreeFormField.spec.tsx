@@ -1,9 +1,8 @@
 import '@testing-library/jest-dom';
-
 import { shallow } from 'enzyme';
 import React from 'react';
-
 import { TreeFormField } from './TreeFormField';
+
 
 describe('TreeFormField component', () => {
   const requiredProps = {};

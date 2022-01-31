@@ -1,9 +1,8 @@
 import '@testing-library/jest-dom';
-
 import { shallow } from 'enzyme';
 import React from 'react';
-
 import { MapContextForm } from './MapContextForm';
+
 
 describe('MapContextForm component', () => {
   const requiredProps = {};

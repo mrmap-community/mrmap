@@ -155,11 +155,11 @@ const WmsTable = (): JSX.Element => {
   }];
 
   return <RepoTable
-            repo={repo}
-            columns={columns}
-            actionRef={actionRef as any}
-            onAddRecord='/registry/services/wms/add'
-          />;
+    repo={repo}
+    columns={columns}
+    actionRef={actionRef as any}
+    onAddRecord='/registry/services/wms/add'
+  />;
 };
 
 export default WmsTable;

@@ -65,37 +65,37 @@ export default function App (): JSX.Element {
               path='/'
               element={
                 <RequireAuth>
-                <Layout style={{ minHeight: '100vh' }}>
-                  <Sider
-                    collapsible
-                    collapsed={collapsed}
-                    onCollapse={onCollapse}>
-                    <div className='logo'>
-                      <img
-                        src={logo}
-                        alt='Mr. Map Logo'
-                      >
-                      </img>
-                    </div>
-                    <NavBar />
-                  </Sider>
-                  <Layout className='site-layout'>
-                    <Content style={{ margin: '0 16px' }}>
-                      <div
-                        className='site-layout-background'
-                        style={{ padding: 24, minHeight: 360 }}
-                      >
-                        <Outlet />
+                  <Layout style={{ minHeight: '100vh' }}>
+                    <Sider
+                      collapsible
+                      collapsed={collapsed}
+                      onCollapse={onCollapse}>
+                      <div className='logo'>
+                        <img
+                          src={logo}
+                          alt='Mr. Map Logo'
+                        >
+                        </img>
                       </div>
-                    </Content>
-                    <Footer style={{ textAlign: 'center' }}>
-                      <Space>
-                        <a href={swaggerUiUrl}><ApiOutlined /> OpenAPI</a>
-                        <a href='https://github.com/mrmap-community/mrmap'><GithubOutlined /> GitHub</a>
-                      </Space>
-                    </Footer>
+                      <NavBar />
+                    </Sider>
+                    <Layout className='site-layout'>
+                      <Content style={{ margin: '0 16px' }}>
+                        <div
+                          className='site-layout-background'
+                          style={{ padding: 24, minHeight: 360 }}
+                        >
+                          <Outlet />
+                        </div>
+                      </Content>
+                      <Footer style={{ textAlign: 'center' }}>
+                        <Space>
+                          <a href={swaggerUiUrl}><ApiOutlined /> OpenAPI</a>
+                          <a href='https://github.com/mrmap-community/mrmap'><GithubOutlined /> GitHub</a>
+                        </Space>
+                      </Footer>
+                    </Layout>
                   </Layout>
-                </Layout>
 
                 </RequireAuth>
               }

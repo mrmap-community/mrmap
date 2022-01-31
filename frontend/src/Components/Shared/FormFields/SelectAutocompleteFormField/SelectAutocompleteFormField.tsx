@@ -2,7 +2,6 @@ import { SettingFilled } from '@ant-design/icons';
 import { Form, Select } from 'antd';
 import { LabeledValue } from 'antd/lib/select';
 import React, { FC, ReactNode, useEffect, useState } from 'react';
-
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
 export interface SearchFieldData {
@@ -128,43 +127,43 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
 
   return (
     <Form.Item
-        label={label}
-        name={name}
-        rules={validation.rules}
-        hasFeedback={validation.hasFeedback}
-        tooltip={tooltip}
+      label={label}
+      name={name}
+      rules={validation.rules}
+      hasFeedback={validation.hasFeedback}
+      tooltip={tooltip}
+    >
+      <Select
+        loading={loading}
+        showSearch
+        allowClear={allowClear}
+        placeholder={placeholder}
+        optionFilterProp='children'
+        onChange={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onSearch={onSearch}
+        onSelect={onSelect}
+        onClear={onClear}
+        onPopupScroll={onPopupScroll}
+        filterOption={filterOption}
+        dropdownRender={(menu) => (
+          <>
+            {menu}
+            {isLoadingPaginatedResults && (<p>Loading more results <SettingFilled spin/></p>)}
+          </>
+        )}
       >
-        <Select
-          loading={loading}
-          showSearch
-          allowClear={allowClear}
-          placeholder={placeholder}
-          optionFilterProp='children'
-          onChange={onChange}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          onSearch={onSearch}
-          onSelect={onSelect}
-          onClear={onClear}
-          onPopupScroll={onPopupScroll}
-          filterOption={filterOption}
-          dropdownRender={(menu) => (
-            <>
-              {menu}
-              {isLoadingPaginatedResults && (<p>Loading more results <SettingFilled spin/></p>)}
-            </>
-          )}
-        >
-          {searchOptions.map((data: SearchFieldData, index: number) => (
-            <Select.Option
-              key={index}
-              value={data.value}
-              attributes={data.attributes}
-            >
-              {data.text}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+        {searchOptions.map((data: SearchFieldData, index: number) => (
+          <Select.Option
+            key={index}
+            value={data.value}
+            attributes={data.attributes}
+          >
+            {data.text}
+          </Select.Option>
+        ))}
+      </Select>
+    </Form.Item>
   );
 };

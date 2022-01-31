@@ -1,5 +1,4 @@
 import { configureStore } from '@reduxjs/toolkit';
-
 import taskResultReducer from '../Reducers/TaskResult';
 
 export const store = configureStore({

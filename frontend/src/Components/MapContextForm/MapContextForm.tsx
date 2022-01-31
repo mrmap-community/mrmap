@@ -1,7 +1,6 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Form } from 'antd';
 import React, { FC } from 'react';
-
 import { InputFormField } from '../Shared/FormFields/InputFormField/InputFormField';
 
 interface MapContextFormProps {

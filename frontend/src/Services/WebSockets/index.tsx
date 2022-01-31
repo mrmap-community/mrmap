@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import useWebSocket from 'react-use-websocket';
-
 import { store } from '../ReduxStore/Store';
 
 export default function WebSockets (): JSX.Element {
@@ -29,6 +28,6 @@ export default function WebSockets (): JSX.Element {
 
   // TODO: clairify if this is a common way to outsource global code
   return (
-      <div></div>
+    <div></div>
   );
 }

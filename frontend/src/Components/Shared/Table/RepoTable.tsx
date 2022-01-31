@@ -122,25 +122,25 @@ const RepoTable = ({
           valueType: 'option',
           render: (text: any, record: any) => {
             return (
-            <>
-              <Space size='middle'>
-              {onEditRecord && (
-                  <Button
-                    size='small'
-                    onClick={() => onEditRecord(record.id)}
-                  >
+              <>
+                <Space size='middle'>
+                  {onEditRecord && (
+                    <Button
+                      size='small'
+                      onClick={() => onEditRecord(record.id)}
+                    >
                     Bearbeiten
-                  </Button>
-              )}
-                <Button
-                  danger
-                  size='small'
-                  onClick={() => actions.current?.deleteRecord(record)}
-                >
+                    </Button>
+                  )}
+                  <Button
+                    danger
+                    size='small'
+                    onClick={() => actions.current?.deleteRecord(record)}
+                  >
                   Löschen
-                </Button>
-              </Space>
-            </>
+                  </Button>
+                </Space>
+              </>
             );
           }
         });
@@ -212,23 +212,23 @@ const RepoTable = ({
         dateFormatter={false}
         toolBarRender={onAddRecord
           ? () => [
-          <Button
-            type='primary'
-            key='primary'
-            onClick={() => {
-              navigate(onAddRecord as string);
-            }}
-          >
-            <PlusOutlined />Neu
-          </Button>
-            ]
+            <Button
+              type='primary'
+              key='primary'
+              onClick={() => {
+                navigate(onAddRecord as string);
+              }}
+            >
+              <PlusOutlined />Neu
+            </Button>
+          ]
           : () => []}
         search={ augmentedColumns.some((column: RepoTableColumnType) => {
           return column.search && column.search.transform;
         })
           ? {
-              layout: 'vertical'
-            }
+            layout: 'vertical'
+          }
           : false}
         {...passThroughProps}
       />)}</>

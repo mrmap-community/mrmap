@@ -1,7 +1,7 @@
 import { Key } from 'antd/lib/table/interface';
 import { ReactNode } from 'react';
-import { JsonApiResponse } from '../../Repos/JsonApiRepo';
-import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
+import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 
 type OlWMSServerType = 'ESRI' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
 

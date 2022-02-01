@@ -14,9 +14,9 @@ import OlView from 'ol/View';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
-import { LayerManager } from '../LayerManager/LayerManager';
-import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
 import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { LayerManager } from './LayerManager/LayerManager';
+import { CreateLayerOpts } from './LayerManager/LayerManagerTypes';
 import './TheMap.css';
 
 const layerUtils = new LayerUtils();

@@ -9,7 +9,7 @@ const { SubMenu } = Menu;
 // submenu keys of first level
 const rootSubmenuKeys = ['users', 'registry', 'security'];
 
-export const NavBar = (): ReactElement => {
+export const NavMenu = (): ReactElement => {
   const location = useLocation();
   const auth = useAuth();
 

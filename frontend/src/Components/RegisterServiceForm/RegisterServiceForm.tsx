@@ -6,7 +6,7 @@ import JsonApiRepo from '../../Repos/JsonApiRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
 import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
 
-interface OgcServiceAddProps {
+interface RegisterServiceFormProps {
   repo: JsonApiRepo;
 }
 const layout = {
@@ -20,9 +20,9 @@ const tailLayout = {
 
 const organizationRepo = new OrganizationRepo();
 
-const OgcServiceAdd = ({
+const RegisterServiceForm = ({
   repo
-}: OgcServiceAddProps): ReactElement => {
+}: RegisterServiceFormProps): ReactElement => {
 
   const [form] = Form.useForm();
 
@@ -123,4 +123,4 @@ const OgcServiceAdd = ({
   );
 };
 
-export default OgcServiceAdd;
+export default RegisterServiceForm;

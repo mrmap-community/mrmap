@@ -5,17 +5,17 @@ import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation }
 import './App.css';
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import DatasetMetadataTable from './Components/DatasetMetadataTable/DatasetMetadataTable';
+import FeatureTypeTable from './Components/FeatureTypeTable/FeatureTypeTable';
+import LayerTable from './Components/LayerTable/LayerTable';
 import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import MapContextTable from './Components/MapContextTable/MapContextTable';
-import { NavBar } from './Components/NavBar/NavBar';
-import FeatureTypeTable from './Components/OgcService/FeatureTypeTable';
-import LayerTable from './Components/OgcService/LayerTable';
-import OgcServiceAdd from './Components/OgcService/OgcServiceAdd';
-import WfsTable from './Components/OgcService/WfsTable';
+import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
+import RegisterServiceForm from './Components/RegisterServiceForm/RegisterServiceForm';
 import { TaskProgressList } from './Components/Task/TaskProgress';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
+import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
 import { useAuth } from './Hooks/useAuth';
@@ -72,7 +72,7 @@ export default function App (): JSX.Element {
                     >
                     </img>
                   </div>
-                  <NavBar />
+                  <NavMenu />
                 </Sider>
                 <Layout className='site-layout'>
                   <Content style={{ margin: '0 16px' }}>
@@ -108,7 +108,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/services/wms/add'
-            element={<OgcServiceAdd repo={new WebMapServiceRepo()} />}
+            element={<RegisterServiceForm repo={new WebMapServiceRepo()} />}
           />
           <Route
             path='/registry/services/wms/:id/security'
@@ -120,7 +120,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/services/wfs/add'
-            element={<OgcServiceAdd repo={new WebFeatureServiceRepo()} />}
+            element={<RegisterServiceForm repo={new WebFeatureServiceRepo()} />}
           />
           <Route
             path='/registry/layers'

@@ -648,11 +648,14 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 webmapserviceoperationurl_operation_url__pk=operation_url['id'],
                 mime_type__istartswith="image/").exclude(mime_type__icontains="svg").values('mime_type').first()['mime_type']
         else:
-            url: str = self.service.operation_urls.values('url').get(
-                operation=OGCOperationEnum.GET_MAP.value,
-                method="Get"
-            )["url"]
-            # TODO: check if this format is supported by the layer...
+            if hasattr(self.service, "prefetched_get_map_operation_url"):
+                url: str = self.service.prefetched_get_map_operation_url[0].url
+            else:
+                url: str = self.service.operation_urls.values('url').get(
+                    operation=OGCOperationEnum.GET_MAP.value,
+                    method="Get"
+                )["url"]
+                # TODO: check if this format is supported by the layer...
             image_format: str = format
         _bbox: Polygon = bbox if bbox else self.get_bbox
 

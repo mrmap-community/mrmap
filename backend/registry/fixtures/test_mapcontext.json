@@ -1,10 +1,57 @@
 [
   {
+    "model": "registry.historicalmapcontext",
+    "pk": "a92bc333-1d8c-4ace-bd7a-fc2d22d415a2",
+    "fields": {
+      "id": 1,
+      "title": "MapContext1",
+      "language": "en",
+      "abstract": "MapContext1",
+      "pixel_width": 1024,
+      "pixel_height": 512,
+      "mm_per_pixel": 1.2,
+      "bbox": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+      "history_date": "2022-02-01T13:54:12.013Z",
+      "history_change_reason": null,
+      "history_type": "+",
+      "history_relation": 1,
+      "history_user": [
+        "mrmap"
+      ]
+    }
+  },
+  {
+    "model": "registry.historicalmapcontext",
+    "pk": "680e2998-1476-47c2-9aff-46639a748b5f",
+    "fields": {
+      "id": 2,
+      "title": "MapContext2",
+      "language": "en",
+      "abstract": "MapContext2",
+      "pixel_width": null,
+      "pixel_height": null,
+      "mm_per_pixel": null,
+      "bbox": null,
+      "history_date": "2022-02-01T13:54:12.013Z",
+      "history_change_reason": null,
+      "history_type": "+",
+      "history_relation": 2,
+      "history_user": [
+        "mrmap"
+      ]
+    }
+  },
+  {
     "model": "registry.mapcontext",
     "pk": 1,
     "fields": {
       "title": "MapContext1",
-      "abstract": "MapContext1"
+      "abstract": "MapContext1",
+      "language": "en",
+      "bbox": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+      "pixel_width": 1024,
+      "pixel_height": 512,
+      "mm_per_pixel": 1.2
     }
   },
   {
@@ -12,7 +59,143 @@
     "pk": 2,
     "fields": {
       "title": "MapContext2",
-      "abstract": "MapContext2"
+      "abstract": "MapContext2",
+      "language": "en"
+    }
+  },
+  {
+    "model": "registry.historicalmapcontextlayer",
+    "pk": "2b5a70e4-ce08-493b-b70e-7b842f89d21d",
+    "fields": {
+      "id": 1,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "preview_image": "",
+      "rendering_active": true,
+      "selection_active": true,
+      "title": "mc1_node1",
+      "description": "",
+      "rendering_layer": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
+      "layer_style": null,
+      "selection_layer": null,
+      "parent": 1,
+      "map_context": 1,
+      "dataset_metadata": null,
+      "history_date": "2022-02-01T13:54:31.098Z",
+      "history_change_reason": null,
+      "history_type": "+",
+      "history_relation": 1,
+      "history_user": [
+        "mrmap"
+      ]
+    }
+  },
+  {
+    "model": "registry.historicalmapcontextlayer",
+    "pk": "444247d8-83f8-4f19-8337-a8e5d660c840",
+    "fields": {
+      "id": 2,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "preview_image": "",
+      "rendering_active": true,
+      "selection_active": true,
+      "title": "mc1_node1.1",
+      "description": "",
+      "rendering_layer": null,
+      "layer_style": null,
+      "selection_layer": null,
+      "parent": 1,
+      "map_context": 1,
+      "dataset_metadata": null,
+      "history_date": "2022-02-01T13:54:31.098Z",
+      "history_change_reason": null,
+      "history_type": "+",
+      "history_relation": 2,
+      "history_user": [
+        "mrmap"
+      ]
+    }
+  },
+  {
+    "model": "registry.historicalmapcontextlayer",
+    "pk": "2db78fad-ccec-4423-8974-977b26be07c8",
+    "fields": {
+      "id": 3,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "preview_image": "",
+      "rendering_active": true,
+      "selection_active": true,
+      "title": "mc1_node1.1.1",
+      "description": "",
+      "rendering_layer": null,
+      "layer_style": null,
+      "selection_layer": null,
+      "parent": 2,
+      "map_context": 1,
+      "dataset_metadata": null,
+      "history_date": "2022-02-01T13:54:31.098Z",
+      "history_change_reason": null,
+      "history_type": "+",
+      "history_relation": 3,
+      "history_user": [
+        "mrmap"
+      ]
+    }
+  },
+  {
+    "model": "registry.historicalmapcontextlayer",
+    "pk": "1639a195-a127-4b97-9d4e-cb2e7b3f5489",
+    "fields": {
+      "id": 4,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "preview_image": "",
+      "rendering_active": true,
+      "selection_active": true,
+      "title": "mc1_node1.1.2",
+      "description": "",
+      "rendering_layer": null,
+      "layer_style": null,
+      "selection_layer": null,
+      "parent": 2,
+      "map_context": 1,
+      "dataset_metadata": null,
+      "history_date": "2022-02-01T13:54:31.098Z",
+      "history_change_reason": null,
+      "history_type": "+",
+      "history_relation": 4,
+      "history_user": [
+        "mrmap"
+      ]
+    }
+  },
+  {
+    "model": "registry.historicalmapcontextlayer",
+    "pk": "07ab6fda-0e22-489f-ba5d-9e21df5b7b48",
+    "fields": {
+      "id": 5,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "preview_image": "",
+      "rendering_active": true,
+      "selection_active": true,
+      "title": "mc1_node1.2",
+      "description": "",
+      "rendering_layer": null,
+      "layer_style": null,
+      "selection_layer": null,
+      "parent": 1,
+      "map_context": 1,
+      "dataset_metadata": null,
+      "history_date": "2022-02-01T13:54:31.098Z",
+      "history_change_reason": null,
+      "history_type": "+",
+      "history_relation": 5,
+      "history_user": [
+        "mrmap"
+      ]
     }
   },
   {
@@ -24,7 +207,7 @@
       "title": "mc1_node1",
       "description": null,
       "dataset_metadata": null,
-      "rendering_layer": null,
+      "rendering_layer": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
       "layer_scale_min": null,
       "layer_scale_max": null,
       "layer_style": null,

@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
 from registry.proxy import wms_proxy as security_proxy_views
+from registry.views_ows.mapcontext import OwsContextView
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
@@ -51,6 +52,11 @@ urlpatterns = [
         "mrmap-proxy/wms/<pk>",
         security_proxy_views.WebMapServiceProxy.as_view(),
         name="wms-operation",
+    ),
+    path(
+        "mrmap-proxy/ows/<pk>",
+        OwsContextView.as_view(),
+        name="ows-context-detail"
     ),
 ]
 

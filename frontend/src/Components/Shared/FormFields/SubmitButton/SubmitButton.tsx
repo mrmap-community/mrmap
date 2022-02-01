@@ -1,15 +1,15 @@
 import { Button, Form } from 'antd';
-import React, { FC } from 'react';
+import React, { ReactElement } from 'react';
 
-interface SubmitFormButtonProps {
+interface SubmitButtonProps {
   buttonText: string;
   disabled?: boolean;
 }
 
-export const SubmitFormButton: FC<SubmitFormButtonProps> = ({
+export const SubmitFormButton= ({
   buttonText = '',
   disabled = false
-}) => {
+}: SubmitButtonProps): ReactElement => {
   return (
     <Form.Item>
       <Button

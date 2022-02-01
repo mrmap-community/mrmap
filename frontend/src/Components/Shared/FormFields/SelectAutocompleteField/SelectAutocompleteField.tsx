@@ -2,7 +2,7 @@ import { SettingFilled } from '@ant-design/icons';
 import { Form, Select } from 'antd';
 import { LabeledValue } from 'antd/lib/select';
 import React, { ReactElement, ReactNode, useEffect, useState } from 'react';
-import { TooltipPropsType, ValidationPropsType } from '../types';
+import { TooltipPropsType, ValidationPropsType } from '../FormFieldsTypes';
 
 export interface SearchFieldData {
   value: string | number;

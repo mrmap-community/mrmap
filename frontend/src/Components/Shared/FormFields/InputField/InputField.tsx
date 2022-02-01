@@ -1,6 +1,6 @@
 import { Form, Input } from 'antd';
 import React, { ReactElement, ReactNode } from 'react';
-import { TooltipPropsType, ValidationPropsType } from '../types';
+import { TooltipPropsType, ValidationPropsType } from '../FormFieldsTypes';
 
 interface InputFieldProps {
   allowClear?: boolean;

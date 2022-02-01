@@ -56,7 +56,7 @@ export const NavBar = (): ReactElement => {
         <Menu.Item key='/registry/layers'><Link to='/registry/layers'>Layers</Link></Menu.Item>
         <Menu.Item key='/registry/featuretypes'><Link to='/registry/featuretypes'>Feature Types</Link></Menu.Item>
         <Menu.Item key='/registry/dataset-metadata'>
-          <Link to='/registry/dataset-metadata'>Metadata Records</Link>
+          <Link to='/registry/dataset-metadata'>Dataset Metadata</Link>
         </Menu.Item>
         <Menu.Item key='/registry/mapcontexts'><Link to='/registry/mapcontexts'>Map Contexts</Link></Menu.Item>
       </SubMenu>

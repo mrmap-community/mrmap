@@ -16,8 +16,8 @@ import { TreeUtils } from '../../Utils/TreeUtils';
 import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
+import { AttributesForm } from './AttributesForm/AttributesForm';
 import './MapContext.css';
-import { MapContextForm } from './MapContextForm';
 import { MapContextLayerForm } from './MapContextLayerForm';
 import { MapContextSearchDrawer } from './MapContextSearchDrawer';
 
@@ -377,7 +377,7 @@ export const MapContext = (): ReactElement => {
         addDatasetToMapAction={onAddDatasetToMapAction}
         mapContextForm={(
           <>
-            <MapContextForm
+            <AttributesForm
               onSubmit={async (values) => {
                 let response;
                 if (!id) {

@@ -1,7 +1,5 @@
 import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { Layout, Space } from 'antd';
-import 'moment/locale/de';
-import 'ol/ol.css';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';

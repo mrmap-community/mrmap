@@ -1,5 +1,7 @@
 import { ConfigProvider } from 'antd';
 import deDE from 'antd/lib/locale/de_DE';
+import 'moment/locale/de'; // needed for german date formats in antd date components
+import 'ol/ol.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
@@ -10,11 +12,12 @@ import reportWebVitals from './reportWebVitals';
 import { store } from './Services/ReduxStore/Store';
 import WebSockets from './Services/WebSockets';
 
+
 ReactDOM.render(
   <Provider store={store}>
     <WebSockets />
     <AuthProvider>
-      <ConfigProvider locale={deDE}>    
+      <ConfigProvider locale={deDE}>
         <App />
       </ConfigProvider>
     </AuthProvider>

@@ -1,9 +1,9 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Drawer } from 'antd';
-import React, { useRef, useState } from 'react';
+import React, { ReactElement, useRef, useState } from 'react';
 import './RulesDrawer.css';
 
-export const RulesDrawer: React.FC = () => {
+export const RulesDrawer = (): ReactElement => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
   const toggleVisible = () => {
@@ -34,5 +34,3 @@ export const RulesDrawer: React.FC = () => {
     </>
   );
 };
-
-export default RulesDrawer;

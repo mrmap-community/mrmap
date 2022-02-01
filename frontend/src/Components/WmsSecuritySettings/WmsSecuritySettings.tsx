@@ -8,7 +8,7 @@ import WmsRepo from '../../Repos/WmsRepo';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
-import { RulesDrawer } from './RulesDrawer';
+import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
 const wmsRepo = new WmsRepo();

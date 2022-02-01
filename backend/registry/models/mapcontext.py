@@ -3,7 +3,6 @@ from datetime import datetime
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ValidationError
-from django.db.models import F, Q
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
@@ -25,6 +24,13 @@ class MapContext(models.Model):
         max_length=1000,
         verbose_name=_("title"),
         help_text=_("a short descriptive title for this map context"))
+    language: str = models.CharField(
+        max_length=4,
+        choices=[("de", "de"), ("en", "en")],
+        default="en",
+        verbose_name=_("language"),
+        help_text=_("language of context document")
+    )
     abstract: str = models.TextField(
         null=True,
         blank=True,
@@ -72,15 +78,19 @@ class MapContext(models.Model):
         return self.last_history[0].history_date if hasattr(self, 'last_history') and self.last_history and len(self.last_history) == 1 else None
 
     def as_ows_context(self):
-        # TODO: specReference
-        # TODO: language
         # mandatory attributes
         ows_context = {
             "type": "FeatureCollection",
             "id": reverse("ows-context-detail", args=[self.pk]),
             "properties": {
                 "title": self.title,
+                "language": self.language,
                 "updated": self.updated.isoformat() if self.updated else "",
+                "links": {
+                    "profiles": [
+                        "http://www.opengis.net/spec/owc-geojson/1.0/req/core"
+                    ]
+                }
             },
 
             "features": [context_layer.as_ows_feature() for context_layer in self.map_context_layers.all()]
@@ -149,10 +159,10 @@ class RenderingOffering(models.Model):
         upload_to=preview_image_file_path,
         null=True,
         blank=True)
-    active: bool = models.BooleanField(
+    rendering_active: bool = models.BooleanField(
         default=True,
         blank=True,
-        verbose_name=_("active"),
+        verbose_name=_("rendering active"),
         help_text=_("should this offering be visible?"))
     # transparency = models.IntegerField(
     #     null=True,
@@ -190,24 +200,23 @@ class RenderingOffering(models.Model):
             raise ValidationError(errors)
 
     def rendering_offering(self):
-        return {
-            "code": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
-            "operations": [
-                {
-                    "code": "GetMap",
-                    "method": "GET",
-                    "type": "image/png",
-                    "href": "TODO",
-                    "extensions": {
-                        "active": self.active
+        if self.rendering_layer_id:
+            return {
+                "code": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
+                "operations": [
+                    {
+                        "code": "GetMap",
+                        "method": "GET",
+                        "type": "image/png",
+                        "href": self.rendering_layer.get_map_url(format="image/png"),
+                        "active": self.rendering_active
                     }
-                }
-            ]
-        }
+                ]
+            }
 
 
 class SelectionOffering(models.Model):
-    selection_layer = models.ForeignKey(
+    selection_layer: Layer = models.ForeignKey(
         to=Layer,
         on_delete=models.PROTECT,
         null=True,
@@ -216,8 +225,29 @@ class SelectionOffering(models.Model):
         verbose_name=_("Selection layer"),
         help_text=_("Select a layer for feature selection."))
 
+    selection_active: bool = models.BooleanField(
+        default=True,
+        blank=True,
+        verbose_name=_("rendering active"),
+        help_text=_("should this offering be visible?"))
+
     class Meta:
         abstract = True
+
+    def selection_offering(self):
+        if self.selection_layer_id:
+            return {
+                "code": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
+                "operations": [
+                    {
+                        "code": "GetFeatureInfo",
+                        "method": "GET",
+                        "type": "application/vnd.ogc.gml",
+                        "href": self.selection_layer.get_feature_info_url(),
+                        "active": self.selection_active
+                    }
+                ]
+            }
 
 
 class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
@@ -279,7 +309,6 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
         ows_feature = {
             "type": "Feature",
             "id": reverse("registry:mapcontextlayer-detail", args=[self.pk]),
-            "offerings": self.rendering_offering(),
             "properties": {
                 "title": self.title,
                 # TODO: else "" is not allowed
@@ -299,5 +328,18 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
                 {"maxScaleDenominator": self.layer_scale_max})
         if self.folder_name:
             ows_feature["properties"].update({"folder": self.folder_name})
+
+        offerings = []
+        rendering_offering = self.rendering_offering()
+        selection_offering = self.selection_offering()
+
+        if rendering_offering:
+            offerings.append(rendering_offering)
+
+        if selection_offering:
+            offerings.append(selection_offering)
+
+        if offerings:
+            ows_feature.update({"offerings": offerings})
 
         return ows_feature

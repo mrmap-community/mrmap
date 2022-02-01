@@ -3,7 +3,6 @@ from typing import OrderedDict
 
 from django.db.models.query import Prefetch
 from django.http import JsonResponse
-from django.shortcuts import render
 from django.views.generic.detail import BaseDetailView, DetailView
 from django_celery_results.models import TaskResult
 from guardian.core import ObjectPermissionChecker

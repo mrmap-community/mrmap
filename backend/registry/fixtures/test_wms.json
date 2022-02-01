@@ -226,7 +226,11 @@
             "method": "Get",
             "url": "http://example.com/wms?",
             "operation": "GetMap",
-            "service": "1b195589-dcfa-403f-9e66-e7e1c0a67024"
+            "service": "1b195589-dcfa-403f-9e66-e7e1c0a67024",
+            "mime_types": [
+                1,
+                2
+            ]
         }
     },
     {

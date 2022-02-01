@@ -16,7 +16,8 @@ def before_feature(context, feature):
     fixtures = []
     if ('MapContext' in feature.name
             or 'OwsContext' in feature.name):
-        fixtures.extend(['test_keywords.json', 'test_mapcontext.json'])
+        fixtures.extend(
+            ['test_keywords.json', 'test_mapcontext.json', 'test_wms.json'])
     elif 'DatasetMetadata' in feature.name:
         fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
     elif ('AllowedWebMapServiceOperation' in feature.name

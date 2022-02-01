@@ -1,17 +1,17 @@
 import '@testing-library/jest-dom/extend-expect';
 import { render } from '@testing-library/react';
 import React from 'react';
-import { SearchDrawer } from './SearchDrawer';
+import { RightDrawer } from './RightDrawer';
 
 jest.mock('../../../Repos/DatasetMetadataRepo');
 
-describe('SearchDrawer', () => {
+describe('RightDrawer', () => {
   it('is defined', () => {
-    expect(SearchDrawer).toBeDefined();
+    expect(RightDrawer).toBeDefined();
   });
 
   it('can be rendered', () => {
-    const { container } = render(<SearchDrawer />);
+    const { container } = render(<RightDrawer />);
     expect(container).toBeVisible();
   });
 });

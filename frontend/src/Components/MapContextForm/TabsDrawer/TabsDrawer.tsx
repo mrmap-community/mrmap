@@ -1,7 +1,7 @@
 import { PlusCircleOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import React, { ReactElement, useState } from 'react';
-import { DrawerContentType, SearchDrawer } from '../../Shared/SearchDrawer/SearchDrawer';
+import { DrawerContentType, RightDrawer } from '../../Shared/RightDrawer/RightDrawer';
 import { SearchTable } from './SearchTable/SearchTable';
 
 export const TabsDrawer = ({
@@ -39,7 +39,7 @@ export const TabsDrawer = ({
   };
 
   return (
-    <SearchDrawer 
+    <RightDrawer 
       drawerContent={[mapContextDrawerContent, datasetMetadataDrawerContent]}
       defaultOpenTab={defaultOpenTab}
     />

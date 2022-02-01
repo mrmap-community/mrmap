@@ -1,6 +1,6 @@
 import { Button, Drawer, Tooltip } from 'antd';
 import React, { cloneElement, ReactElement, useEffect, useRef, useState } from 'react';
-import './SearchDrawer.css';
+import './RightDrawer.css';
 
 export interface DrawerContentType {
   title: string; 
@@ -11,7 +11,7 @@ export interface DrawerContentType {
   key?: string;
 }
 
-export const SearchDrawer = ({
+export const RightDrawer = ({
   drawerContent=[],
   isVisibleByDefault=false,
   defaultOpenTab = '',

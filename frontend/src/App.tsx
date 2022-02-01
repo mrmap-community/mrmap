@@ -12,7 +12,7 @@ import MapContextTable from './Components/MapContextTable/MapContextTable';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import RegisterServiceForm from './Components/RegisterServiceForm/RegisterServiceForm';
-import { TaskProgressList } from './Components/Task/TaskProgress';
+import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList';
 import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import WfsTable from './Components/WfsTable/WfsTable';

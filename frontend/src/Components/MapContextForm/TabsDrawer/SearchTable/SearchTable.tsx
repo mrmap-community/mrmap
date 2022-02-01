@@ -1,8 +1,12 @@
-import { ReactNode } from 'react';
-import { RepoTableColumnType } from '../Shared/Table/RepoTable';
-import { buildSearchTransformText } from '../Shared/Table/TableHelper';
+import { Button } from 'antd';
+import React, { ReactElement, ReactNode } from 'react';
+import DatasetMetadataRepo from '../../../../Repos/DatasetMetadataRepo';
+import RepoTable, { RepoTableColumnType } from '../../../Shared/Table/RepoTable';
+import { buildSearchTransformText } from '../../../Shared/Table/TableHelper';
 
-export const getDatasetMetadataColumns = 
+const datasetMetadataRepo = new DatasetMetadataRepo();
+
+const getDatasetMetadataColumns = 
   (renderActions: (text: any, record:any) => ReactNode): RepoTableColumnType[] => [{
     dataIndex: 'title',
     title: 'Titel',
@@ -117,3 +121,39 @@ export const getDatasetMetadataColumns =
     hideInTable: true
   }
   ];
+
+export const SearchTable = ({
+  addDatasetToMapAction = () => undefined,
+}:{
+  addDatasetToMapAction?: (dataset: any) => void;
+}): ReactElement => {
+
+  const getDatasetMetadataColumnActions = (text: any, record:any) => {
+    return (
+      <>
+        <Button
+          disabled={record.layers.length === 0 || !record.layers}
+          size='small'
+          type='primary'
+          onClick={ () => { addDatasetToMapAction(record); } }
+        >
+            Zur Karte hinzufügen
+        </Button>
+      </>
+    );
+  };
+    
+  const datasetMetadataColumns = getDatasetMetadataColumns(getDatasetMetadataColumnActions);
+
+  return (
+    <RepoTable
+      repo={datasetMetadataRepo}
+      columns={datasetMetadataColumns}
+      pagination={{
+        defaultPageSize: 13,
+        showSizeChanger: true,
+        pageSizeOptions: ['10', '13', '20', '50', '100']
+      }}
+    />
+  );
+};

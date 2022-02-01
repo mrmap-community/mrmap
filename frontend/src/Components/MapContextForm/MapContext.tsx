@@ -19,7 +19,7 @@ import { olMap, TheMap } from '../TheMap/TheMap';
 import { AttributesForm } from './AttributesForm/AttributesForm';
 import './MapContext.css';
 import { MapContextLayerForm } from './MapContextLayerForm';
-import { MapContextSearchDrawer } from './MapContextSearchDrawer';
+import { TabsDrawer } from './TabsDrawer/TabsDrawer';
 
 
 const mapContextRepo = new MapContextRepo();
@@ -371,7 +371,7 @@ export const MapContext = (): ReactElement => {
           />
         </ReactGeoMapContext.Provider>
       </div>
-      <MapContextSearchDrawer
+      <TabsDrawer
         isVisible={isMapContextSearchDrawerVisible}
         defaultOpenTab={!createdMapContextId ? '0' : ''}
         addDatasetToMapAction={onAddDatasetToMapAction}

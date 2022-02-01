@@ -1,15 +1,10 @@
 import { PlusCircleOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Button } from 'antd';
 import React, { ReactElement, useState } from 'react';
-import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
-import { DrawerContentType, SearchDrawer } from '../Shared/SearchDrawer/SearchDrawer';
-import RepoTable from '../Shared/Table/RepoTable';
-import { getDatasetMetadataColumns } from './helper';
+import { DrawerContentType, SearchDrawer } from '../../Shared/SearchDrawer/SearchDrawer';
+import { SearchTable } from './SearchTable/SearchTable';
 
-const datasetMetadataRepo = new DatasetMetadataRepo();
-
-export const MapContextSearchDrawer = ({
+export const TabsDrawer = ({
   addDatasetToMapAction = () => undefined,
   mapContextForm=(<></>),
   isVisible=false,
@@ -23,27 +18,6 @@ export const MapContextSearchDrawer = ({
   
   const [isDrawerVisible, setIsDrawerVisible] = useState<boolean>(isVisible);
   
-  const onAddDatasetToMap = (dataset: any) => {
-    addDatasetToMapAction(dataset); 
-  };
-
-  const getDatasetMetadataColumnActions = (text: any, record:any) => {
-    return (
-      <>
-        <Button
-          disabled={record.layers.length === 0 || !record.layers}
-          size='small'
-          type='primary'
-          onClick={ () => { onAddDatasetToMap(record); }}
-        >
-          Zur Karte hinzufügen
-        </Button>
-      </>
-    );
-  };
-
-  const datasetMetadataColumns = getDatasetMetadataColumns(getDatasetMetadataColumnActions);
-
   const mapContextDrawerContent: DrawerContentType = {
     title: 'Map Context',
     icon: <FontAwesomeIcon icon={['fas', 'box']} />,
@@ -59,15 +33,7 @@ export const MapContextSearchDrawer = ({
     isVisible: isDrawerVisible,
     onTabCickAction: () => setIsDrawerVisible(!isDrawerVisible),
     content: (
-      <RepoTable
-        repo={datasetMetadataRepo}
-        columns={datasetMetadataColumns}
-        pagination={{
-          defaultPageSize: 13,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '13', '20', '50', '100']
-        }}
-      />
+      <SearchTable addDatasetToMapAction={addDatasetToMapAction} />
     ),
     key: 'datasetMetadataTable'
   };

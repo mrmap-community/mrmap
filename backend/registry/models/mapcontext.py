@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ValidationError
@@ -6,9 +8,11 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
-from registry.managers.mapcontext import MapContextManager
+from registry.managers.mapcontext import (MapContextLayerManager,
+                                          MapContextManager)
 from registry.models import DatasetMetadata, Layer
 from registry.models.metadata import Style
+from simple_history.models import HistoricalRecords
 
 
 def preview_image_file_path(instance, filename):
@@ -43,7 +47,6 @@ class MapContext(models.Model):
         null=True,
         blank=True,
     )
-
     # Additional possible parameters:
     # specReference
     # language
@@ -58,29 +61,53 @@ class MapContext(models.Model):
     # contextMetadata
     # extension
 
+    change_log = HistoricalRecords(related_name="change_logs")
     objects = MapContextManager()
 
     def __str__(self):
         return self.title
 
+    @property
+    def updated(self) -> datetime:
+        return self.last_history[0].history_date if hasattr(self, 'last_history') and self.last_history and len(self.last_history) == 1 else None
+
     def as_ows_context(self):
+        # TODO: specReference
+        # TODO: language
+        # mandatory attributes
         ows_context = {
             "type": "FeatureCollection",
             "id": reverse("ows-context-detail", args=[self.pk]),
             "properties": {
                 "title": self.title,
-                "subtilte": self.abstract,
-                "display": {
-                    "pixelWidth": self.pixel_width,
-                    "pixelHeight": self.pixel_height,
-                    "mmPerPixel": self.mm_per_pixel
-                }
-
+                "updated": self.updated.isoformat() if self.updated else "",
             },
-            "bbox": list(self.bbox.extent) if self.bbox else None,
+
             "features": [context_layer.as_ows_feature() for context_layer in self.map_context_layers.all()]
         }
+
+        # optional attributes
+        if self.abstract:
+            ows_context["properties"].update({"subtilte": self.abstract})
+        if self.bbox:
+            ows_context.update({"bbox": list(self.bbox.extent)})
+
+        display_prop = self.get_ows_context_display_prop()
+        if display_prop:
+            ows_context["properties"].update({"display": display_prop})
+
         return ows_context
+
+    def get_ows_context_display_prop(self):
+        display_prop = {}
+        if self.pixel_height or self.pixel_width or self.mm_per_pixel:
+            if self.pixel_width:
+                display_prop.update({"pixelWidth": self.pixel_width})
+            if self.pixel_height:
+                display_prop.update({"pixelHeight": self.pixel_height})
+            if self.mm_per_pixel:
+                display_prop.update({"mmPerPixel": self.mm_per_pixel})
+        return display_prop
 
 
 class RenderingOffering(models.Model):
@@ -208,8 +235,6 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
         related_query_name='map_context_layer')
     title = models.CharField(
         max_length=1000,
-        null=False,
-        blank=False,
         verbose_name=_("title"),
         help_text=_("an identifying name for this map context layer"))
     description = models.CharField(
@@ -226,24 +251,53 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
         verbose_name=_("Dataset Metadata"),
         help_text=_("You can use this field to pre filter possible Layer selection."))
 
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields=["lft", "rght", "tree_id", "level"])
+    objects = MapContextLayerManager()
+
     def __str__(self):
-        return f"{self.name}"
+        return f"{self.title}"
 
     def save(self, *args, **kwargs):
         self.full_clean()
         return super(MapContextLayer, self).save(*args, **kwargs)
 
+    @property
+    def folder_name(self) -> str:
+        if self.is_root_node():
+            return f"/{self.id}"
+        else:
+            return f"{self.parent.folder_name}/{self.id}"
+
+    @property
+    def updated(self) -> datetime:
+        return self.last_history[0].history_date if hasattr(self, 'last_history') and self.last_history and len(self.last_history) == 1 else None
+
     def as_ows_feature(self) -> dict:
+        # mandatory attributes of ows feature
         ows_feature = {
             "type": "Feature",
+            "id": reverse("registry:mapcontextlayer-detail", args=[self.pk]),
             "offerings": self.rendering_offering(),
             "properties": {
                 "title": self.title,
-                "abstract": self.description,
-                "minScaleDenominator": self.layer_scale_min,
-                "maxScaleDenominator": self.layer_scale_max,
-                "updated": "TODO",
-                "folder": "TODO"
+                # TODO: else "" is not allowed
+                "updated": self.updated.isoformat() if self.updated else "",
             }
         }
+
+        # optional attributes
+        if self.description:
+            ows_feature["properties"].update(
+                {"abstract": self.description})
+        if self.layer_scale_min:
+            ows_feature["properties"].update(
+                {"minScaleDenominator": self.layer_scale_min})
+        if self.layer_scale_max:
+            ows_feature["properties"].update(
+                {"maxScaleDenominator": self.layer_scale_max})
+        if self.folder_name:
+            ows_feature["properties"].update({"folder": self.folder_name})
+
         return ows_feature

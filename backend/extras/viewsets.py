@@ -1,8 +1,10 @@
+import json
 from typing import OrderedDict
 
 from django.db.models.query import Prefetch
 from django.http import JsonResponse
-from django.views.generic.detail import BaseDetailView
+from django.shortcuts import render
+from django.views.generic.detail import BaseDetailView, DetailView
 from django_celery_results.models import TaskResult
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import TaskResultSerializer
@@ -137,3 +139,13 @@ class JSONResponseMixin:
 class JSONDetailView(JSONResponseMixin, BaseDetailView):
     def render_to_response(self, context, **response_kwargs):
         return self.render_to_json_response(context, **response_kwargs)
+
+
+class EmbeddedJsonDetailView(JSONResponseMixin, DetailView):
+    template_name = "extras/embedded_json.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        _json = json.dumps(self.get_data(context=context), indent=3)
+        context.update({"json": _json})
+        return context

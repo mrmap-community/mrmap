@@ -6,9 +6,9 @@ import React, { ReactElement, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import WmsRepo from '../../Repos/WmsRepo';
 import { TreeUtils } from '../../Utils/TreeUtils';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
-import { RulesDrawer } from './RulesDrawer';
+import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
 const wmsRepo = new WmsRepo();
@@ -55,6 +55,7 @@ export const WmsSecuritySettings = (): ReactElement => {
       <div className='map-context'>
         <ReactGeoMapContext.Provider value={olMap}>
           <TheMap
+            showLayerManager
             selectLayerDispatchAction={(selectedKeys, info) => console.log('selected', info.node)}
             layerGroupName='mrMapWmsSecurityLayers'
             initLayerTreeData={initLayerTreeData}

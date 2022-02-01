@@ -1,6 +1,6 @@
-import React, { FC } from 'react';
+import React, { ReactElement } from 'react';
 
-export const PageNotFound: FC = () => {
+export const PageNotFound = (): ReactElement => {
   return (
     <div>
       <h1>404 Error</h1>

@@ -14,9 +14,9 @@ import OlView from 'ol/View';
 import React, { ReactNode, useEffect, useState } from 'react';
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
-import { LayerManager } from '../LayerManager/LayerManager';
-import { CreateLayerOpts } from '../LayerManager/LayerManagerTypes';
-import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { DropNodeEventType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
+import { LayerManager } from './LayerManager/LayerManager';
+import { CreateLayerOpts } from './LayerManager/LayerManagerTypes';
 import './TheMap.css';
 
 const layerUtils = new LayerUtils();
@@ -85,7 +85,7 @@ export const TheMap = ({
     Promise<CreateLayerOpts> | CreateLayerOpts | void;
   removeLayerDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
-  dropLayerDispatchAction?: (dropEvent:TreeFormFieldDropNodeEventType) => Promise<JsonApiResponse> | void;
+  dropLayerDispatchAction?: (dropEvent:DropNodeEventType) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
   customLayerManagerTitleAction?: () => void | undefined;
   layerCreateErrorDispatchAction?: (error: any) => undefined | void;

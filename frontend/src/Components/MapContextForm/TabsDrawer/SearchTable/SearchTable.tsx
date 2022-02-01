@@ -1,8 +1,8 @@
 import { Button } from 'antd';
 import React, { ReactElement, ReactNode } from 'react';
 import DatasetMetadataRepo from '../../../../Repos/DatasetMetadataRepo';
-import RepoTable, { RepoTableColumnType } from '../../../Shared/Table/RepoTable';
-import { buildSearchTransformText } from '../../../Shared/Table/TableHelper';
+import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/RepoTable';
+import { buildSearchTransformText } from '../../../Shared/RepoTable/TableHelper';
 
 const datasetMetadataRepo = new DatasetMetadataRepo();
 

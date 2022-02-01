@@ -1,6 +1,6 @@
 import React from 'react';
 import LayerRepo from '../../Repos/LayerRepo';
-import RepoTable from '../Shared/Table/RepoTable';
+import RepoTable from '../Shared/RepoTable/RepoTable';
 
 
 const repo = new LayerRepo();

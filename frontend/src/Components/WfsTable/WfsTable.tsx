@@ -1,6 +1,6 @@
 import React from 'react';
 import WfsRepo from '../../Repos/WfsRepo';
-import RepoTable from '../Shared/Table/RepoTable';
+import RepoTable from '../Shared/RepoTable/RepoTable';
 
 
 const repo = new WfsRepo();

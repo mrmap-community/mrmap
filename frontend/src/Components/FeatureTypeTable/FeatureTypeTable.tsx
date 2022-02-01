@@ -1,6 +1,6 @@
 import React from 'react';
 import FeatureTypeRepo from '../../Repos/FeatureTypeRepo';
-import RepoTable from '../Shared/Table/RepoTable';
+import RepoTable from '../Shared/RepoTable/RepoTable';
 
 
 const repo = new FeatureTypeRepo();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
 import MapContextRepo from '../../Repos/MapContextRepo';
-import RepoTable from '../Shared/Table/RepoTable';
+import RepoTable from '../Shared/RepoTable/RepoTable';
 
 
 const repo = new MapContextRepo();

@@ -2,7 +2,7 @@ import { DashboardOutlined, DatabaseOutlined, LogoutOutlined, SecurityScanOutlin
 import { Menu } from 'antd';
 import React, { ReactElement } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../Hooks/AuthContextProvider';
+import { useAuth } from '../../Hooks/useAuth';
 
 const { SubMenu } = Menu;
 
@@ -75,7 +75,7 @@ export const NavBar = (): ReactElement => {
         key='logout'
         icon={<LogoutOutlined />}
       >
-        <Link to='/logout'>Logout ({auth.user.username})</Link>
+        <Link to='/logout'>Logout ({auth?.user.username})</Link>
       </Menu.Item>
     </Menu>
   );

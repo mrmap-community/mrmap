@@ -1,19 +1,9 @@
 import React, { ReactElement, useEffect } from 'react';
+import { AuthContext } from '../Contexts/AuthContext/AuthContext';
 import LoginRepo from '../Repos/LoginRepo';
 import LogoutRepo from '../Repos/LogoutRepo';
 import UserRepo from '../Repos/UserRepo';
 import { useLocalStorage } from '../utils';
-
-
-export interface AuthContextType {
-  user: any;
-  userId: string;
-  login: (user: string, password: string) => Promise<boolean>;
-  logout: () => Promise<boolean>;
-}
-
-// eslint-disable-next-line
-const AuthContext = React.createContext<AuthContextType>(null!);
 
 const loginRepo = new LoginRepo();
 const logoutRepo = new LogoutRepo();
@@ -83,8 +73,4 @@ export function AuthProvider ({ children }: { children: React.ReactNode }): Reac
 
   const value = { user, userId, login, logout };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth (): AuthContextType {
-  return React.useContext(AuthContext);
 }

@@ -21,8 +21,9 @@ import { Login } from './Components/Users/Auth/Login';
 import { Logout } from './Components/Users/Auth/Logout';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
-import { AuthProvider, useAuth } from './Hooks/AuthContextProvider';
+import { useAuth } from './Hooks/useAuth';
 import logo from './logo.png';
+import { AuthProvider } from './Providers/AuthProvider';
 import WebFeatureServiceRepo from './Repos/WfsRepo';
 import WebMapServiceRepo from './Repos/WmsRepo';
 
@@ -32,7 +33,7 @@ const { Content, Footer, Sider } = Layout;
 function RequireAuth ({ children }:{ children: JSX.Element }) {
   const auth = useAuth();
   const location = useLocation();
-  if (!auth.userId) {
+  if (!auth || !auth.userId) {
     // store location so login page can forward to original page
     return <Navigate to='/login' state={{ from: location }} />;
   }

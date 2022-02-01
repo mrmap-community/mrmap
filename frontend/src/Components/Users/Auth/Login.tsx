@@ -2,7 +2,7 @@ import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Alert, Button, Form, Input, notification, Row } from 'antd';
 import React, { ReactElement, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../Hooks/AuthContextProvider';
+import { useAuth } from '../../../Hooks/useAuth';
 
 export const Login = (): ReactElement => {
   const auth = useAuth();
@@ -17,6 +17,7 @@ export const Login = (): ReactElement => {
 
   const onFinish = (values: any) => {
     async function login (username: string, password: string) {
+      if (!auth) return;
       setLoggingIn(true);
       const success = await auth.login(username, password);
       setLoggingIn(false);

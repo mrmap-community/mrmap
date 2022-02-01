@@ -1,14 +1,14 @@
 import '@testing-library/jest-dom';
 import { shallow } from 'enzyme';
 import React from 'react';
-import { MapContextForm } from './MapContextForm';
+import { LayerAttributesForm } from './LayerAttributesForm';
 
 
-describe('MapContextForm component', () => {
+describe('LayerAttributesForm component', () => {
   const requiredProps = {};
 
   const getComponent = (props?:any) => shallow((
-    <MapContextForm
+    <LayerAttributesForm
       {...requiredProps}
       {...props}
     />

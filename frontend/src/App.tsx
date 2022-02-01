@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 import { Dashboard } from './Components/Dashboard/Dashboard';
-import { MapContext } from './Components/MapContextForm/MapContext';
+import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import MapContextTable from './Components/MapContextTable/MapContextTable';
 import DatasetMetadataTable from './Components/Metadata/DatasetMetadataTable';
 import { NavBar } from './Components/NavBar/NavBar';
@@ -140,11 +140,11 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/mapcontexts/add'
-            element={<MapContext />}
+            element={<MapContextForm />}
           />
           <Route
             path='/registry/mapcontexts/:id/edit'
-            element={<MapContext />}
+            element={<MapContextForm />}
             // @ts-ignore
             exact
           />

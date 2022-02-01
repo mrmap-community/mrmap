@@ -1,16 +1,16 @@
 import { InfoCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { Divider, Form, FormInstance, notification } from 'antd';
 import React, { FC, useEffect, useState } from 'react';
-import DatasetMetadataRepo from '../../Repos/DatasetMetadataRepo';
-import FeatureTypeRepo from '../../Repos/FeatureTypeRepo';
-import { JsonApiResponse } from '../../Repos/JsonApiRepo';
-import LayerRepo from '../../Repos/LayerRepo';
-import { InputFormField } from '../Shared/FormFields/InputFormField/InputFormField';
-import { SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
-import { TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import DatasetMetadataRepo from '../../../Repos/DatasetMetadataRepo';
+import FeatureTypeRepo from '../../../Repos/FeatureTypeRepo';
+import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
+import LayerRepo from '../../../Repos/LayerRepo';
+import { InputFormField } from '../../Shared/FormFields/InputFormField/InputFormField';
+import { SelectAutocompleteFormField } from '../../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
+import { TreeNodeType } from '../../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
 
 
-interface MapContextLayerFormProps {
+interface LayerAttributesFormProps {
   form?: FormInstance<any>;
   onSubmit?: (values?:any) => void;
   nodeInfo?: TreeNodeType | undefined;
@@ -42,7 +42,7 @@ const layerRepo = new LayerRepo();
 const datasetMetadataRepo = new DatasetMetadataRepo();
 const featureTypesRepo = new FeatureTypeRepo();
 
-export const MapContextLayerForm: FC<MapContextLayerFormProps> = ({
+export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
   form = undefined,
   onSubmit = () => undefined,
   nodeInfo = undefined,

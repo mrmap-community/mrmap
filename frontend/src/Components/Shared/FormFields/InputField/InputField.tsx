@@ -1,8 +1,8 @@
 import { Form, Input } from 'antd';
-import React, { FC, ReactNode } from 'react';
+import React, { ReactElement, ReactNode } from 'react';
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
-interface InputFormFieldProps {
+interface InputFieldProps {
   allowClear?: boolean;
   disabled?: boolean;
   placeholder?: string,
@@ -15,7 +15,7 @@ interface InputFormFieldProps {
   type?: 'email' | 'number' | 'password' | 'text' | 'textarea';
 }
 
-export const InputFormField: FC<InputFormFieldProps> = ({
+export const InputField = ({
   allowClear = false,
   disabled = false,
   placeholder = '',
@@ -26,12 +26,10 @@ export const InputFormField: FC<InputFormFieldProps> = ({
   value = '',
   validation = {
     rules: [],
-    errorHelp: '',
-    hasFeedback: false,
-    feedbackStatus: ''
+    hasFeedback: false
   },
   type = 'text'
-}) => {
+}: InputFieldProps): ReactElement => {
   return (
     <Form.Item
       label={label}

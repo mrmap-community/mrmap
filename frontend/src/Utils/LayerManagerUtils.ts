@@ -1,6 +1,6 @@
 import LayerGroup from 'ol/layer/Group';
 import Layer from 'ol/layer/Layer';
-import { TreeFormFieldDropNodeEventType } from '../Components/Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { DropNodeEventType } from '../Components/Shared/TreeManager/TreeManagerTypes';
 import { LayerUtils } from './LayerUtils';
 
 const layerUtils = new LayerUtils();
@@ -11,7 +11,7 @@ export class LayerManagerUtils {
   * @param nodeBeingDraggedInfo
   */
 
-  public updateLayerGroupOnDrop(dropEvent:TreeFormFieldDropNodeEventType, layerManagerLayerGroup: LayerGroup): void {
+  public updateLayerGroupOnDrop(dropEvent:DropNodeEventType, layerManagerLayerGroup: LayerGroup): void {
     let dragLayerGroup;
     let dropLayerGroup;
  

@@ -18,8 +18,8 @@ import LayerRepo from '../../../Repos/LayerRepo';
 import { LayerManagerUtils } from '../../../Utils/LayerManagerUtils';
 import { LayerUtils } from '../../../Utils/LayerUtils';
 import { TreeUtils } from '../../../Utils/TreeUtils';
-import { TreeFormField } from '../../Shared/FormFields/TreeFormField/TreeFormField';
-import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { TreeManager } from '../../Shared/TreeManager/TreeManager';
+import { DropNodeEventType, TreeNodeType } from '../../Shared/TreeManager/TreeManagerTypes';
 import './LayerManager.css';
 import { CreateLayerOpts, LayerManagerProps } from './LayerManagerTypes';
 
@@ -320,7 +320,7 @@ export const LayerManager = ({
     }
   };
 
-  const asyncDropLayer = async(dropEvent:TreeFormFieldDropNodeEventType) : Promise<JsonApiResponse> => {
+  const asyncDropLayer = async(dropEvent:DropNodeEventType) : Promise<JsonApiResponse> => {
     try {
       layerManagerUtils.updateLayerGroupOnDrop(dropEvent, layerManagerLayerGroup);
       return await dropLayerDispatchAction(dropEvent) as JsonApiResponse;
@@ -330,7 +330,7 @@ export const LayerManager = ({
     }
   };
 
-  const onDropLayer = (dropEvent:TreeFormFieldDropNodeEventType): Promise<JsonApiResponse> | void => {
+  const onDropLayer = (dropEvent:DropNodeEventType): Promise<JsonApiResponse> | void => {
     // if method is asnyc, we need to get the result by resolving the promise
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     if(dropLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor) {
@@ -368,7 +368,7 @@ export const LayerManager = ({
         />
       </Tooltip>
       {isTreeContainerVisible && (
-        <TreeFormField
+        <TreeManager
           draggable
           contextMenuOnNode
           checkableNodes

@@ -1,7 +1,7 @@
 import { Key } from 'antd/lib/table/interface';
 import { ReactNode } from 'react';
 import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
-import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { DropNodeEventType, TreeNodeType } from '../../Shared/TreeManager/TreeManagerTypes';
 
 type OlWMSServerType = 'ESRI' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
 
@@ -29,7 +29,7 @@ export interface LayerManagerProps {
     newNodeParent?: string | number | null | undefined) => Promise<CreateLayerOpts> | CreateLayerOpts | void;
   removeLayerDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
   editLayerDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
-  dropLayerDispatchAction?: (dropEvent:TreeFormFieldDropNodeEventType) => Promise<JsonApiResponse> | void;
+  dropLayerDispatchAction?: (dropEvent:DropNodeEventType) => Promise<JsonApiResponse> | void;
   selectLayerDispatchAction?: (selectedKeys: Key[], info: any) => void;
   customLayerManagerTitleAction?: () => undefined | void;
   layerCreateErrorDispatchAction?: (error: any) => undefined | void;

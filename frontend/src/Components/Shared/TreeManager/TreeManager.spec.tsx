@@ -1,14 +1,14 @@
 import '@testing-library/jest-dom';
 import { shallow } from 'enzyme';
 import React from 'react';
-import { TreeFormField } from './TreeFormField';
+import { TreeManager } from './TreeManager';
 
 
 describe('TreeFormField component', () => {
   const requiredProps = {};
 
   const getComponent = (props?:any) => shallow((
-    <TreeFormField
+    <TreeManager
       {...requiredProps}
       {...props}
     />

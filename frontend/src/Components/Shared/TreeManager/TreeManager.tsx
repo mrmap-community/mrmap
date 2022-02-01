@@ -4,17 +4,16 @@ import { useForm } from 'antd/lib/form/Form';
 import { Key } from 'antd/lib/table/interface';
 import { EventDataNode } from 'antd/lib/tree';
 import React, { cloneElement, createRef, useEffect, useState } from 'react';
-import { TreeUtils } from '../../../../Utils/TreeUtils';
-import './TreeFormField.css';
-import { TreeFormFieldDropNodeEventType, TreeNodeType, TreeProps } from './TreeFormFieldTypes';
+import { TreeUtils } from '../../../Utils/TreeUtils';
+import './TreeManager.css';
+import { DropNodeEventType, TreeNodeType, TreeProps } from './TreeManagerTypes';
 
 const treeUtils = new TreeUtils();
 
-export const TreeFormField = ({
+export const TreeManager = ({
   treeData = [],
   asyncTree = false,
-  addNodeDispatchAction = () => undefined,
-  removeNodeDispatchAction = () => undefined,
+  addNodeDispatchAction = () => undefined,removeNodeDispatchAction = () => undefined,
   editNodeDispatchAction = () => undefined,
   dropNodeDispatchAction = () => undefined,
   checkNodeDispacthAction = () => undefined,
@@ -417,7 +416,7 @@ export const TreeFormField = ({
    * @param info
    * @returns
    */
-  const onDropNode = async (dropEvent:TreeFormFieldDropNodeEventType) => {
+  const onDropNode = async (dropEvent:DropNodeEventType) => {
     //TODO: avoid droping nodes inside leaves
     if (asyncTree) {
       setIsDraggingNode(true);
@@ -442,7 +441,7 @@ export const TreeFormField = ({
    * @description Method to update the tree data when user moves a node
    * @param info
    */
-  const setTreeDataOnMove = (dropEvent:TreeFormFieldDropNodeEventType) => {
+  const setTreeDataOnMove = (dropEvent:DropNodeEventType) => {
     //@ts-ignore
     const dropPos = dropEvent.node.pos.split('-');
     //@ts-ignore

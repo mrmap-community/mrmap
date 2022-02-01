@@ -4,7 +4,7 @@ import React, { ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JsonApiRepo from '../../Repos/JsonApiRepo';
 import OrganizationRepo from '../../Repos/OrganizationRepo';
-import { SearchFieldData, SelectAutocompleteFormField } from '../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
+import { SearchFieldData, SelectAutocompleteField } from '../Shared/FormFields/SelectAutocompleteField/SelectAutocompleteField';
 
 interface RegisterServiceFormProps {
   repo: JsonApiRepo;
@@ -78,7 +78,7 @@ const RegisterServiceForm = ({
           <Input />
         </Form.Item>
 
-        <SelectAutocompleteFormField
+        <SelectAutocompleteField
           loading={isLoading}
           label='Owner organization'
           name='owner'

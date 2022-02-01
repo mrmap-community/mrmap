@@ -1,5 +1,5 @@
 
-import { MPTTJsonApiTreeNodeType } from '../Components/Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { MPTTJsonApiTreeNodeType } from '../Components/Shared/TreeManager/TreeManagerTypes';
 import JsonApiRepo, { JsonApiMimeType, JsonApiPrimaryData, JsonApiResponse } from './JsonApiRepo';
 
 export interface MapContextCreate {

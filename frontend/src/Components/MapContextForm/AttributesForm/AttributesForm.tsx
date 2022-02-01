@@ -1,7 +1,7 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Form } from 'antd';
 import React, { FC } from 'react';
-import { InputFormField } from '../../Shared/FormFields/InputFormField/InputFormField';
+import { InputField } from '../../Shared/FormFields/InputField/InputField';
 
 interface AttributesFormProps {
   form?: any;
@@ -22,7 +22,7 @@ export const AttributesForm: FC<AttributesFormProps> = ({
       form={form}
       onFinish={onSubmit}
     >
-      <InputFormField
+      <InputField
         label='Title'
         name='title'
         tooltip={{ title: 'a short descriptive title for this map context', icon: <InfoCircleOutlined /> }}
@@ -32,7 +32,7 @@ export const AttributesForm: FC<AttributesFormProps> = ({
           hasFeedback: true
         }}
       />
-      <InputFormField
+      <InputField
         label='Abstract'
         name='abstract'
         tooltip={{ title: 'brief summary of the topic of this map context', icon: <InfoCircleOutlined /> }}

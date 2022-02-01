@@ -1,10 +1,10 @@
 import { Key } from 'antd/lib/table/interface';
 import { DataNode, EventDataNode } from 'antd/lib/tree';
 import { ReactNode } from 'react';
-import { JsonApiResponse } from '../../../../Repos/JsonApiRepo';
+import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
 
 // copied from AntD definition
-export type TreeFormFieldDropNodeEventType = {
+export type DropNodeEventType = {
     node: EventDataNode;
     dragNode: EventDataNode;
     dragNodesKeys: Key[];
@@ -66,7 +66,7 @@ export interface TreeProps {
       Promise<JsonApiResponse> | void | undefined;
     removeNodeDispatchAction?: (nodeToRemove: TreeNodeType) => Promise<JsonApiResponse> | void;
     editNodeDispatchAction?: (nodeId:number|string, nodeAttributesToUpdate: any) => Promise<JsonApiResponse> | void;
-    dropNodeDispatchAction?: (dropEvent:TreeFormFieldDropNodeEventType) => Promise<JsonApiResponse> | void;
+    dropNodeDispatchAction?: (dropEvent:DropNodeEventType) => Promise<JsonApiResponse> | void;
     checkNodeDispacthAction?: (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => void;
     selectNodeDispatchAction?: (selectedKeys: Key[], info: any) => void;
     draggable?: boolean;

@@ -13,7 +13,7 @@ import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
-import { TreeFormFieldDropNodeEventType, TreeNodeType } from '../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { DropNodeEventType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
 import { AttributesForm } from './AttributesForm/AttributesForm';
@@ -279,7 +279,7 @@ export const MapContextForm = (): ReactElement => {
               }
 
             }}
-            dropLayerDispatchAction={async (dropEvent:TreeFormFieldDropNodeEventType): Promise<JsonApiResponse> => {
+            dropLayerDispatchAction={async (dropEvent:DropNodeEventType): Promise<JsonApiResponse> => {
               try {
                 const isDroppingToGap = dropEvent.dropToGap;
                 const dragKey = dropEvent.dragNode.key;

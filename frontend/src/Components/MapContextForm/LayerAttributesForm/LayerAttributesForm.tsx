@@ -5,9 +5,9 @@ import DatasetMetadataRepo from '../../../Repos/DatasetMetadataRepo';
 import FeatureTypeRepo from '../../../Repos/FeatureTypeRepo';
 import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
 import LayerRepo from '../../../Repos/LayerRepo';
-import { InputFormField } from '../../Shared/FormFields/InputFormField/InputFormField';
-import { SelectAutocompleteFormField } from '../../Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
-import { TreeNodeType } from '../../Shared/FormFields/TreeFormField/TreeFormFieldTypes';
+import { InputField } from '../../Shared/FormFields/InputField/InputField';
+import { SelectAutocompleteField } from '../../Shared/FormFields/SelectAutocompleteField/SelectAutocompleteField';
+import { TreeNodeType } from '../../Shared/TreeManager/TreeManagerTypes';
 
 
 interface LayerAttributesFormProps {
@@ -203,7 +203,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             <h3> Metainformation of MapContextLayer </h3>
           </Divider>
 
-          <InputFormField
+          <InputField
             label='Title'
             name='title'
             tooltip={{ title: 'an identifying name for this map context layer', icon: <InfoCircleOutlined /> }}
@@ -214,7 +214,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             }}
           />
 
-          <InputFormField
+          <InputField
             label='Description'
             name='description'
             tooltip={{ title: 'a short description for this map context layer', icon: <InfoCircleOutlined /> }}
@@ -236,7 +236,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             <h3> Associated metadata record </h3>
           </Divider>
 
-          <SelectAutocompleteFormField
+          <SelectAutocompleteField
             loading={isDatasetMetadataOptionsLoading}
             label='Dataset Metadata'
             name='datasetMetadata'
@@ -269,7 +269,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             <h3> Rendering options </h3>
           </Divider>
 
-          <SelectAutocompleteFormField
+          <SelectAutocompleteField
             loading={isRenderingLayerOptionsLoading}
             label='Rendering Layer'
             name='renderingLayer'
@@ -292,7 +292,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             pagination
           />
 
-          <InputFormField
+          <InputField
             disabled={!form?.getFieldValue('scaleMin')}
             label='Scale minimum value'
             name='scaleMin'
@@ -305,7 +305,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             type='number'
           />
 
-          <InputFormField
+          <InputField
             disabled={!form?.getFieldValue('scaleMax')}
             label='Scale maximum value'
             name='scaleMax'
@@ -318,7 +318,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             type='number'
           />
 
-          <InputFormField
+          <InputField
             disabled={!form?.getFieldValue('style')}
             label='Style'
             name='style'
@@ -333,7 +333,7 @@ export const LayerAttributesForm: FC<LayerAttributesFormProps> = ({
             <h3> Feature selection options </h3>
           </Divider>
 
-          <SelectAutocompleteFormField
+          <SelectAutocompleteField
             loading={isFeatureSelectionLayerOptionsLoading}
             label='Selection Layer'
             name='featureSelectionLayer'

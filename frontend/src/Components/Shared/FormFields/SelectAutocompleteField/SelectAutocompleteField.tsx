@@ -1,7 +1,7 @@
 import { SettingFilled } from '@ant-design/icons';
 import { Form, Select } from 'antd';
 import { LabeledValue } from 'antd/lib/select';
-import React, { FC, ReactNode, useEffect, useState } from 'react';
+import React, { ReactElement, ReactNode, useEffect, useState } from 'react';
 import { TooltipPropsType, ValidationPropsType } from '../types';
 
 export interface SearchFieldData {
@@ -11,7 +11,7 @@ export interface SearchFieldData {
   pagination?: {next: string}
 }
 
-interface SelectAutocompleteFormFieldProps {
+interface SelectAutocompleteFieldProps {
   loading?: boolean;
   allowClear?: boolean
   placeholder: string,
@@ -30,7 +30,7 @@ interface SelectAutocompleteFormFieldProps {
   pagination?: boolean;
 }
 
-export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> = ({
+export const SelectAutocompleteField = ({
   loading = false,
   allowClear = true,
   placeholder = '',
@@ -52,7 +52,7 @@ export const SelectAutocompleteFormField: FC<SelectAutocompleteFormFieldProps> =
   tooltip = undefined,
   pagination = false
 
-}) => {
+}: SelectAutocompleteFieldProps): ReactElement => {
   const [searchOptions, setSearchOptions] = useState<SearchFieldData[]>([]);
   const [nextPageData, setNextPageData] = useState<any>(undefined);
   const [isLoadingPaginatedResults, setIsLoadingPaginatedResults] = useState<boolean>(false);

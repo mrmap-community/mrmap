@@ -1,5 +1,5 @@
-import { Button, Form, notification, Space } from 'antd';
-import { default as React, ReactElement } from 'react';
+import { Alert, Button, Form, notification, Space } from 'antd';
+import { default as React, ReactElement, useState } from 'react';
 import { useNavigate } from 'react-router';
 import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../Repos/WmsAllowedOperationRepo';
 import { InputField } from '../../Shared/FormFields/InputField/InputField';
@@ -18,7 +18,15 @@ export const RuleForm = ({
 
   const navigate = useNavigate();
 
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
   const onFinish = (values: any) => {
+
+    if (selectedLayerIds.length === 0) {
+      setValidationErrors(['At least one layer needs to be selected.']);
+      return;
+    }
+
     const create: WmsAllowedOperationCreate = {
       description: values.description,
       securedLayerIds: selectedLayerIds,
@@ -54,6 +62,16 @@ export const RuleForm = ({
             hasFeedback: true
           }}          
         />
+        {
+          validationErrors.map((error, i) => (
+            <Form.Item key={i}>
+              <Alert
+                description={error}
+                type='error'
+              />
+            </Form.Item>
+          ))
+        }
         <Form.Item>
           <Space>
             <Button

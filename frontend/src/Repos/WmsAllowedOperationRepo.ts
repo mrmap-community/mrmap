@@ -2,7 +2,7 @@ import Cookies from 'js-cookie';
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse, QueryParams } from './JsonApiRepo';
 
 export interface WmsAllowedOperationCreate {
-  title: string;
+  description: string;
   allowedGroupIds: Array<string>;
   allowedOperationIds: Array<string>;
   securedLayerIds: Array<string>;
@@ -13,7 +13,7 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
   readonly wmsId: string;
 
   constructor (wmsId: string) {
-    super('/api/v1/registry/wms/{parent_lookup_secured_service}/allowed-wms-operations/', 'Regeln');
+    super('/api/v1/registry/wms/{parent_lookup_secured_service}/allowed-wms-operations/', 'Zugriffsregeln');
     this.wmsId = wmsId;
   }
 
@@ -74,7 +74,7 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
 
   async create (create: WmsAllowedOperationCreate): Promise<JsonApiResponse> {
     const attributes = {
-      description: create.title
+      description: create.description
     };
     const relationships = {
       'secured_service': {

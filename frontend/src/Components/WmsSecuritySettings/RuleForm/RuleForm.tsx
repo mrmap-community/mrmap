@@ -20,7 +20,7 @@ export const RuleForm = ({
 
   const onFinish = (values: any) => {
     const create: WmsAllowedOperationCreate = {
-      title: values.title,
+      description: values.description,
       securedLayerIds: selectedLayerIds,
       allowedOperationIds: ['GetMap'], // TODO
       allowedGroupIds: [] // TODO

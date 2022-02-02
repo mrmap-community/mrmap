@@ -2,8 +2,16 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Drawer } from 'antd';
 import React, { ReactElement, useRef, useState } from 'react';
 import './RulesDrawer.css';
+import { RulesTable } from './RulesTable/RulesTable';
 
-export const RulesDrawer = (): ReactElement => {
+export interface RulesDrawerProps {
+  wmsId: string
+}
+
+export const RulesDrawer = ({
+  wmsId
+}: RulesDrawerProps): ReactElement => {
+
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
   const toggleVisible = () => {
@@ -29,7 +37,7 @@ export const RulesDrawer = (): ReactElement => {
         closable={false}
         mask={false}
       >
-          Rules
+        <RulesTable wmsId={wmsId} />
       </Drawer>
     </>
   );

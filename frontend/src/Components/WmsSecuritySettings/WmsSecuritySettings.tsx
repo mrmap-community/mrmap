@@ -76,7 +76,7 @@ export const WmsSecuritySettings = (): ReactElement => {
               );
             }}
           />
-          <RulesDrawer />
+          { id && <RulesDrawer wmsId={id}/> }
         </ReactGeoMapContext.Provider>
       </div>
     </>

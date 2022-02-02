@@ -1,6 +1,8 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Drawer } from 'antd';
 import React, { ReactElement, useRef, useState } from 'react';
+import { Route, Routes } from 'react-router-dom';
+import { RuleForm } from '../RuleForm/RuleForm';
 import './RulesDrawer.css';
 import { RulesTable } from './RulesTable/RulesTable';
 
@@ -37,7 +39,18 @@ export const RulesDrawer = ({
         closable={false}
         mask={false}
       >
-        <RulesTable wmsId={wmsId} />
+        <Routes>           
+          <Route
+            path='/'
+            element={<RulesTable 
+              wmsId={wmsId}
+            />}
+          />
+          <Route
+            path='rules/add'
+            element={<RuleForm wmsId={wmsId}/>}
+          />
+        </Routes>
       </Drawer>
     </>
   );

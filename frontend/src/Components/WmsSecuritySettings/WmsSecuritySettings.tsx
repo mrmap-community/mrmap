@@ -20,14 +20,15 @@ export const WmsSecuritySettings = (): ReactElement => {
   const { id } = useParams();
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
+  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
+  const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());  
 
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
     // olMap.addLayer(mapContextLayersPreviewGroup);
     if (id) {
       setIsLoading(true);
-      const fetchMapContext = async () => {
+      const fetchWmsLayers = async () => {
         try {
           // const response = await mapContextRepo.getMapContextWithLayers(String(id));
           const response = await wmsRepo.getAllLayers(String(id));
@@ -40,8 +41,8 @@ export const WmsSecuritySettings = (): ReactElement => {
         } finally {
           setIsLoading(false);
         }
-      };
-      fetchMapContext();
+      };      
+      fetchWmsLayers();
     }
   }, [id]);
 
@@ -56,7 +57,10 @@ export const WmsSecuritySettings = (): ReactElement => {
         <ReactGeoMapContext.Provider value={olMap}>
           <TheMap
             showLayerManager
-            selectLayerDispatchAction={(selectedKeys, info) => console.log('selected', info.node)}
+            allowMultipleLayerSelection
+            selectLayerDispatchAction={(selectedKeys, info) => { 
+              setSelectedLayerIds(selectedKeys as string[]);
+            }}
             layerGroupName='mrMapWmsSecurityLayers'
             initLayerTreeData={initLayerTreeData}
             layerAttributeForm={(<h1>Placeholder</h1>)}
@@ -75,8 +79,16 @@ export const WmsSecuritySettings = (): ReactElement => {
                 </>
               );
             }}
+            selectedLayerIds={selectedLayerIds}
           />
-          { id && <RulesDrawer wmsId={id}/> }
+          { 
+            id && 
+            <RulesDrawer 
+              wmsId={id}
+              selectedLayerIds={selectedLayerIds}
+              setSelectedLayerIds={ (ids:string[]) => { setSelectedLayerIds(ids); } }
+            /> 
+          }
         </ReactGeoMapContext.Provider>
       </div>
     </>

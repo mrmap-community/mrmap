@@ -7,11 +7,15 @@ import './RulesDrawer.css';
 import { RulesTable } from './RulesTable/RulesTable';
 
 export interface RulesDrawerProps {
-  wmsId: string
+  wmsId: string,
+  selectedLayerIds: string[],
+  setSelectedLayerIds: (ids: string[]) => void
 }
 
 export const RulesDrawer = ({
-  wmsId
+  wmsId,
+  selectedLayerIds,
+  setSelectedLayerIds
 }: RulesDrawerProps): ReactElement => {
 
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -42,13 +46,21 @@ export const RulesDrawer = ({
         <Routes>           
           <Route
             path='/'
-            element={<RulesTable 
-              wmsId={wmsId}
-            />}
+            element={(
+              <RulesTable 
+                wmsId={wmsId}
+                setSelectedLayerIds={setSelectedLayerIds}
+              />
+            )}
           />
           <Route
             path='rules/add'
-            element={<RuleForm wmsId={wmsId}/>}
+            element={(
+              <RuleForm 
+                wmsId={wmsId}
+                selectedLayerIds={selectedLayerIds}
+              />
+            )}
           />
         </Routes>
       </Drawer>

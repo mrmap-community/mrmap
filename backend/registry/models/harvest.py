@@ -23,6 +23,13 @@ class HarvestingJob(models.Model):
         on_delete=models.CASCADE,
         verbose_name=_("service"),
         help_text=_("the csw for that this job is running"))
+    record_type: str = models.CharField(
+        max_length=10,
+        default="dataset",
+        choices=[("dataset", "dataset"), ("service", "service"),
+                 ("tile", "tile"), ("series", "series")],
+        verbose_name=_("record type"),
+        help_text=_("the type of the record, which shall be harvested."))
     total_records: int = models.IntegerField(
         null=True,
         blank=True,

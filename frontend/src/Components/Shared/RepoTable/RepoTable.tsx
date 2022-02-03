@@ -110,7 +110,7 @@ const RepoTable = ({
 
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
-
+    let isMounted = true;
     async function buildColumns () {
       const resourceSchema = await repo.getResourceSchema();
       const queryParams = await repo.getQueryParams();
@@ -145,9 +145,10 @@ const RepoTable = ({
           }
         });
       }
-      setAugmentedColumns(_augmentedColumns);
+      isMounted && setAugmentedColumns(_augmentedColumns);
     }
     buildColumns();
+    return () => { isMounted = false; }; // componentWillUnmount handler
   }, [columns, onEditRecord, repo]);
 
   // fetches data in format expected by antd ProTable component

@@ -57,7 +57,7 @@ export interface TreeNodeType extends DataNode {
     expanded?: boolean;
   }
   
-export interface TreeProps {
+export interface TreeManagerProps {
     treeData: TreeNodeType[];
     asyncTree?: boolean;
     addNodeDispatchAction?:(
@@ -85,4 +85,6 @@ export interface TreeProps {
     customTreeTitleAction?: () => void | undefined;
     treeNodeTitlePreIcons?: (nodeData:TreeNodeType) => ReactNode;
     multipleSelection?: boolean;
+    /** (Controlled) Specifies the keys of the selected treeNodes, cf. https://ant.design/components/tree/#API */
+    selectedKeys?: string[];
   }

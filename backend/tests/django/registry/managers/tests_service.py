@@ -1,8 +1,9 @@
 from pathlib import Path
 
 from django.test import TestCase
-from registry.models.service import (CatalougeService, WebFeatureService,
-                                     WebMapService)
+from registry.models.service import (CatalougeService,
+                                     CswOperationUrlQueryable,
+                                     WebFeatureService, WebMapService)
 from registry.xmlmapper.ogc.capabilities import get_parsed_service
 
 
@@ -49,3 +50,6 @@ class CatalougeServiceCapabilitiesManagerTest(TestCase):
 
         db_service = CatalougeService.objects.count()
         self.assertEqual(1, db_service)
+
+        queryables = CswOperationUrlQueryable.objects.count()
+        self.assertEqual(67, queryables)

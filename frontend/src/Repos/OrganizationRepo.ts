@@ -1,4 +1,4 @@
-import { SearchFieldData } from '../Components/Shared/FormFields/SelectAutocompleteFormField/SelectAutocompleteFormField';
+import { SearchFieldData } from '../Components/Shared/FormFields/SelectAutocompleteField/SelectAutocompleteField';
 import JsonApiRepo from './JsonApiRepo';
 
 class OrganizationRepo extends JsonApiRepo {

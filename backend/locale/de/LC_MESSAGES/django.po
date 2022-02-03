@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-02-02 11:15+0100\n"
+"POT-Creation-Date: 2022-02-01 15:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:165
+#: MrMap/settings.py:166
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:166
+#: MrMap/settings.py:167
 msgid "German"
 msgstr "Deutsch"
 
@@ -104,7 +104,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:91 registry/models/mapcontext.py:59
+#: accounts/models/groups.py:91 registry/models/mapcontext.py:274
 #: registry/models/security.py:236
 #, fuzzy
 #| msgid "Description"
@@ -199,7 +199,7 @@ msgid "Explanations: <br>"
 msgstr "Erklärungen: <br>"
 
 #: registry/models/conformity.py:140 registry/models/harvest.py:24
-#: registry/models/service.py:416 registry/models/service.py:737
+#: registry/models/service.py:416 registry/models/service.py:740
 #, fuzzy
 #| msgid "Service"
 msgid "service"
@@ -222,7 +222,7 @@ msgid "the layer targeted by this check"
 msgstr "Die Ebene die von dieser Überprüfung betroffen ist."
 
 #: registry/models/conformity.py:163 registry/models/metadata.py:770
-#: registry/models/service.py:765 registry/models/service.py:855
+#: registry/models/service.py:768 registry/models/service.py:858
 #, fuzzy
 #| msgid "Featuretype:"
 msgid "feature type"
@@ -305,58 +305,54 @@ msgstr "Antworten protokollieren"
 msgid "the content of the http response"
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
-#: registry/models/mapcontext.py:18 registry/models/mapcontext.py:54
+#: registry/models/mapcontext.py:25 registry/models/mapcontext.py:268
 #: registry/models/metadata.py:52 registry/models/metadata.py:353
 #, fuzzy
 #| msgid "Title"
 msgid "title"
 msgstr "Titel"
 
-#: registry/models/mapcontext.py:19
+#: registry/models/mapcontext.py:26
 msgid "a short descriptive title for this map context"
 msgstr "Eine kurzer beschreibender Titel für diesen MapContext"
 
-#: registry/models/mapcontext.py:21 registry/models/metadata.py:356
+#: registry/models/mapcontext.py:31
+#, fuzzy
+#| msgid "Language"
+msgid "language"
+msgstr "Sprache"
+
+#: registry/models/mapcontext.py:32
+msgid "language of context document"
+msgstr "Sprache des Dokuments"
+
+#: registry/models/mapcontext.py:37 registry/models/metadata.py:356
 #, fuzzy
 #| msgid "Abstract"
 msgid "abstract"
 msgstr "Beschreibung"
 
-#: registry/models/mapcontext.py:22
+#: registry/models/mapcontext.py:38
 msgid "brief summary of the topic of this map context"
 msgstr "Kurzfassung des Themas dieses MapContext"
 
-#: registry/models/mapcontext.py:55
-msgid "an identifying name for this map context layer"
-msgstr "Ein identifizierender Name für diese MapContext Ebene"
+#: registry/models/mapcontext.py:42
+msgid "pixel width"
+msgstr "Pixel Breite"
 
-#: registry/models/mapcontext.py:60
-#, fuzzy
-#| msgid "a short descriptive title for this map context layer"
-msgid "a short description for this map context layer"
-msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
-
-#: registry/models/mapcontext.py:65
-msgid "Dataset Metadata"
-msgstr "Datensatz Metadaten"
-
-#: registry/models/mapcontext.py:66
-msgid "You can use this field to pre filter possible Layer selection."
-msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
-
-#: registry/models/mapcontext.py:72
+#: registry/models/mapcontext.py:130
 msgid "Rendering layer"
 msgstr "Darstellungsebene"
 
-#: registry/models/mapcontext.py:73
+#: registry/models/mapcontext.py:131
 msgid "Select a layer for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:76 registry/models/service.py:460
+#: registry/models/mapcontext.py:135 registry/models/service.py:460
 msgid "scale minimum value"
 msgstr "minimaler Maßstabswert"
 
-#: registry/models/mapcontext.py:78 registry/models/service.py:462
+#: registry/models/mapcontext.py:137 registry/models/service.py:462
 msgid ""
 "minimum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -366,11 +362,11 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:83 registry/models/service.py:471
+#: registry/models/mapcontext.py:143 registry/models/service.py:471
 msgid "scale maximum value"
 msgstr "maximaler Maßstabswert"
 
-#: registry/models/mapcontext.py:85 registry/models/service.py:473
+#: registry/models/mapcontext.py:145 registry/models/service.py:473
 msgid ""
 "maximum scale for a possible request to this layer. If the request is out of "
 "the given scope, the service will response with empty transparentimages. "
@@ -380,29 +376,57 @@ msgstr ""
 "nicht im angegebenen Bereich gestellt wird, antwortet der Dienst mit leeren "
 "transparenten Bildern.Kein Wert bedeutet keine Einschränkung."
 
-#: registry/models/mapcontext.py:92
+#: registry/models/mapcontext.py:153
 msgid "Style"
 msgstr "Style"
 
-#: registry/models/mapcontext.py:93
+#: registry/models/mapcontext.py:154
 msgid "Select a style for rendering."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:94
+#: registry/models/mapcontext.py:156
 msgid "preview image"
 msgstr "Vorschau"
 
-#: registry/models/mapcontext.py:96
+#: registry/models/mapcontext.py:158
 msgid "A preview image for the Map Context Layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
-#: registry/models/mapcontext.py:105
+#: registry/models/mapcontext.py:165 registry/models/mapcontext.py:231
+#, fuzzy
+#| msgid "Rendering layer"
+msgid "rendering active"
+msgstr "Darstellungsebene"
+
+#: registry/models/mapcontext.py:166 registry/models/mapcontext.py:232
+msgid "should this offering be visible?"
+msgstr "Soll dieses Datenangebot sichtbar sein?"
+
+#: registry/models/mapcontext.py:225
 msgid "Selection layer"
 msgstr "Selektionsebene"
 
-#: registry/models/mapcontext.py:106
+#: registry/models/mapcontext.py:226
 msgid "Select a layer for feature selection."
 msgstr "Wählen Sie einen Stil für die Darstellung."
+
+#: registry/models/mapcontext.py:269
+msgid "an identifying name for this map context layer"
+msgstr "Ein identifizierender Name für diese MapContext Ebene"
+
+#: registry/models/mapcontext.py:275
+#, fuzzy
+#| msgid "a short descriptive title for this map context layer"
+msgid "a short description for this map context layer"
+msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
+
+#: registry/models/mapcontext.py:281
+msgid "Dataset Metadata"
+msgstr "Datensatz Metadaten"
+
+#: registry/models/mapcontext.py:282
+msgid "You can use this field to pre filter possible Layer selection."
+msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
 #: registry/models/metadata.py:29
 #, fuzzy
@@ -782,7 +806,7 @@ msgstr ""
 "Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
 "sind."
 
-#: registry/models/metadata.py:674 registry/models/service.py:766
+#: registry/models/metadata.py:674 registry/models/service.py:769
 #, fuzzy
 #| msgid "Featuretypes"
 msgid "feature types"
@@ -1212,7 +1236,7 @@ msgstr ""
 msgid "all reference systems which this element supports"
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
-#: registry/models/service.py:417 registry/models/service.py:738
+#: registry/models/service.py:417 registry/models/service.py:741
 msgid "the extras service where this element is part of"
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
@@ -1269,11 +1293,11 @@ msgid ""
 msgstr ""
 "WMS kaskadieren erlaubt es, Ebenen aus anderen WMS diensten zu beziehen."
 
-#: registry/models/service.py:746
+#: registry/models/service.py:749
 msgid "output formats"
 msgstr "Ausgabeformate"
 
-#: registry/models/service.py:748
+#: registry/models/service.py:751
 msgid ""
 "This is a list of MIME types indicating the output formats that may be "
 "generated for a feature type.  If this optional element is not specified, "
@@ -1285,27 +1309,27 @@ msgstr ""
 "angegeben ist, dann werden alle für die GetFeature-Operation aufgelisteten "
 "Ergebnisformate angenommen die unterstützt werden."
 
-#: registry/models/service.py:757
+#: registry/models/service.py:760
 #, fuzzy
 #| msgid "Edit featuretype"
 msgid "describe feature type"
 msgstr "Featuretyp bearbeiten"
 
-#: registry/models/service.py:759
+#: registry/models/service.py:762
 msgid "the fetched content of the download describe feature type document."
 msgstr "Der geladene Inhalt des heruntergeladenen Merkmaltypen."
 
-#: registry/models/service.py:856
+#: registry/models/service.py:859
 msgid "related feature type of this element"
 msgstr "Verknüpfte Merkmaltypen des Element"
 
-#: registry/models/service.py:862
+#: registry/models/service.py:865
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type element"
 msgstr "Featuretype Titel enthält"
 
-#: registry/models/service.py:863
+#: registry/models/service.py:866
 #, fuzzy
 #| msgid "Featuretype tile contains"
 msgid "feature type elements"
@@ -3285,9 +3309,6 @@ msgstr "Diese Ressource ist deaktiviert."
 
 #~ msgid "Select categories for this resource."
 #~ msgstr "Kategorien auswählen"
-
-#~ msgid "Language"
-#~ msgstr "Sprache"
 
 #~ msgid "Character Encoding"
 #~ msgstr "Zeichenkodierung"

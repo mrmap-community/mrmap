@@ -3,8 +3,8 @@ import { Button, Space } from 'antd';
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router';
 import WmsRepo from '../../Repos/WmsRepo';
-import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/Table/RepoTable';
-import { buildSearchTransformDateRange } from '../Shared/Table/TableHelper';
+import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/RepoTable/RepoTable';
+import { buildSearchTransformDateRange } from '../Shared/RepoTable/TableHelper';
 
 
 const repo = new WmsRepo();

@@ -14,8 +14,10 @@ def before_all(context):
 def before_feature(context, feature):
     # see https://github.com/behave/behave-django/issues/114... fixure behaviour is broken with --simple
     fixtures = []
-    if 'MapContext' in feature.name:
-        fixtures.extend(['test_keywords.json', 'test_mapcontext.json'])
+    if ('MapContext' in feature.name
+            or 'OwsContext' in feature.name):
+        fixtures.extend(
+            ['test_keywords.json', 'test_mapcontext.json', 'test_wms.json'])
     elif 'DatasetMetadata' in feature.name:
         fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
     elif ('AllowedWebMapServiceOperation' in feature.name

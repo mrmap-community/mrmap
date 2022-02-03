@@ -8,6 +8,7 @@ from django.db.models import Max
 from extras.managers import DefaultHistoryManager
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
+from registry.enums.service import HttpMethodEnum
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 
@@ -101,6 +102,8 @@ class ServiceCapabilitiesManager(models.Manager):
 
         operation_urls = []
         operation_url_model_cls = None
+        db_queryables = []
+        queryable_model_cls = None
         for operation_url in parsed_service.operation_urls:
             if not operation_url_model_cls:
                 operation_url_model_cls = operation_url.get_model_class()
@@ -117,9 +120,19 @@ class ServiceCapabilitiesManager(models.Manager):
                     db_mime_type, created = self.mime_type_cls.objects.get_or_create(
                         **mime_type.get_field_dict())
                     db_operation_url.mime_type_list.append(db_mime_type)
+
+            if hasattr(operation_url, "queryables") and operation_url.queryables:
+                for queryable in operation_url.queryables:
+                    if not queryable_model_cls:
+                        queryable_model_cls = queryable.get_model_class()
+                    db_queryables.append(queryable_model_cls(
+                        operation_url=db_operation_url, **queryable.get_field_dict()))
+
             operation_urls.append(db_operation_url)
         db_operation_url_list = operation_url_model_cls.objects.bulk_create(
             objs=operation_urls)
+        if queryable_model_cls and db_queryables:
+            queryable_model_cls.objects.bulk_create(objs=db_queryables)
 
         for db_operation_url in db_operation_url_list:
             db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
@@ -450,3 +463,12 @@ class FeatureTypeElementXmlManager(models.Manager):
 class LayerManager(DefaultHistoryManager, TreeManager):
 
     pass
+
+
+class CswOperationUrlQueryableQuerySet(models.QuerySet):
+
+    def closest_matches(self, value: str, operation: str, service_id):
+        return self.filter(
+            value__iendswith=value,
+            operation_url__operation=operation,
+            operation_url__service__pk=service_id)

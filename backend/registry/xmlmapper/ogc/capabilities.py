@@ -56,6 +56,10 @@ class WfsOperationUrl(OperationUrl):
         node_class=MimeType)
 
 
+class CswOperationUrlQueryable(DBModelConverterMixin, xmlmap.XmlObject):
+    value = xmlmap.StringField(xpath=f"{NS_WC}value']")
+
+
 class CswOperationUrl(OperationUrl):
     model = 'registry.CatalougeServiceOperationUrl'
     method = xmlmap.StringField(xpath="name(.)")
@@ -63,6 +67,10 @@ class CswOperationUrl(OperationUrl):
     mime_types = xmlmap.NodeListField(
         xpath=f"../../../{NS_WC}Parameter'][@name='AcceptFormats' or @name='outputFormat' or @name='inputFormat']/{NS_WC}AllowedValues']/{NS_WC}Value']",
         node_class=MimeType)
+    queryables = xmlmap.NodeListField(
+        xpath=f"{NS_WC}value']",
+        node_class=CswOperationUrlQueryable
+    )
 
 
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):

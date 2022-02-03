@@ -57,7 +57,10 @@ class WfsOperationUrl(OperationUrl):
 
 
 class CswOperationUrlQueryable(DBModelConverterMixin, xmlmap.XmlObject):
-    value = xmlmap.StringField(xpath=f"{NS_WC}value']")
+    model = 'registry.CswOperationUrlQueryable'
+
+    ROOT_NAME = "value"
+    value = xmlmap.StringField(xpath=".")
 
 
 class CswOperationUrl(OperationUrl):
@@ -68,7 +71,7 @@ class CswOperationUrl(OperationUrl):
         xpath=f"../../../{NS_WC}Parameter'][@name='AcceptFormats' or @name='outputFormat' or @name='inputFormat']/{NS_WC}AllowedValues']/{NS_WC}Value']",
         node_class=MimeType)
     queryables = xmlmap.NodeListField(
-        xpath=f"../../{NS_WC}Constraint']//{NS_WC}Value']",
+        xpath=f"../../../{NS_WC}Constraint']/{NS_WC}Value']",
         node_class=CswOperationUrlQueryable
     )
 

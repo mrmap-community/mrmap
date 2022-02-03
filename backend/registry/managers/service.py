@@ -120,7 +120,6 @@ class ServiceCapabilitiesManager(models.Manager):
                 db_operation_url.mime_type_list.append(db_mime_type)
 
             if hasattr(operation_url, "queryables"):
-                print(operation_url.queryables)
                 for queryable in operation_url.queryables:
                     if not queryable_model_cls:
                         queryable_model_cls = queryable.get_model_class()
@@ -468,6 +467,6 @@ class CswOperationUrlQueryableQuerySet(models.QuerySet):
 
     def closest_matches(self, value: str, operation: str, service_id):
         return self.filter(
-            value__iendswith=value,
+            value__iregex=f"(\w+:{value}$)|(^{value}$)",
             operation_url__operation=operation,
             operation_url__service__pk=service_id)

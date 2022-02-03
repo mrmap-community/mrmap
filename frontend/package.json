@@ -62,11 +62,10 @@
     ]
   },
   "devDependencies": {
-    "@testing-library/dom": "^8.11.1",
+    "@react-mock/state": "^0.1.8",
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/react": "^12.1.2",
     "@testing-library/react-hooks": "^7.0.2",
-    "@testing-library/user-event": "^12.1.10",
     "@types/jest": "^27.0.2",
     "@types/js-cookie": "^3.0.1",
     "@types/lodash": "^4.14.177",

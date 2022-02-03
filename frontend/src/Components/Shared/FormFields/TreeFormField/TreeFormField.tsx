@@ -120,7 +120,8 @@ export const TreeFormField = ({
   * @returns
   */
   const getNodeContextMenu = (nodeData?: TreeNodeType) => (
-    <Menu>
+    <Menu 
+      className='tree-form-field-context-menu'>
       {!nodeData?.isLeaf && (
         <>
           <Menu.Item
@@ -699,6 +700,7 @@ export const TreeFormField = ({
       />
       {attributeContainer === 'modal' && (
         <Modal
+          className='tree-form-field-modal'
           mask={showMaskOnNodeAttributeForm}
           title={getNodeAttributeFormTitle()}
           visible={isNodeAttributeFormVisible}
@@ -715,6 +717,7 @@ export const TreeFormField = ({
       )}
       {attributeContainer === 'drawer' && (
         <Drawer
+          className='tree-form-field-drawer'
           mask={showMaskOnNodeAttributeForm}
           title={getNodeAttributeFormTitle()}
           placement='right'

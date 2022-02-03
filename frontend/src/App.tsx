@@ -111,7 +111,7 @@ export default function App (): JSX.Element {
             element={<RegisterServiceForm repo={new WebMapServiceRepo()} />}
           />
           <Route
-            path='/registry/services/wms/:id/security/*'
+            path='/registry/services/wms/:wmsId/security/*'
             element={<WmsSecuritySettings />}
           />
           <Route

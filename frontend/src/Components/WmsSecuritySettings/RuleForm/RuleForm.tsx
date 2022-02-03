@@ -1,6 +1,7 @@
 import { Alert, Button, Form, notification, Space } from 'antd';
-import { default as React, ReactElement, useState } from 'react';
+import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useParams } from 'react-router-dom';
 import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../Repos/WmsAllowedOperationRepo';
 import { InputField } from '../../Shared/FormFields/InputField/InputField';
 
@@ -17,23 +18,33 @@ export const RuleForm = ({
   const ruleRepo = new WmsAllowedOperationRepo(wmsId);
 
   const navigate = useNavigate();
-
+  const { ruleId } = useParams();  
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const onFinish = (values: any) => {
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchRule (id: string) {
+      const jsonApiResponse = await ruleRepo.get(id);
+      if (isMounted) {
+        return jsonApiResponse;
+      }
+    }
+    ruleId && fetchRule(ruleId);
+    return ( () => { isMounted = false; });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ruleId]);
 
+  const onFinish = (values: any) => {
     if (selectedLayerIds.length === 0) {
       setValidationErrors(['At least one layer needs to be selected.']);
       return;
     }
-
     const create: WmsAllowedOperationCreate = {
       description: values.description,
       securedLayerIds: selectedLayerIds,
       allowedOperationIds: ['GetMap'], // TODO
       allowedGroupIds: [] // TODO
     };
-
     async function postData () {
       const res = await ruleRepo.create(create);
       if (res.status === 201) {

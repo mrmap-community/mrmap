@@ -111,19 +111,17 @@ function wmsLayersToOlLayerGroup(list:MPTTJsonApiTreeNodeType[],
 
 export const WmsSecuritySettings = (): ReactElement => {
 
-  // get the ID parameter from the url
-  const { id } = useParams();
-
+  const { wmsId } = useParams();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());  
 
   useEffect(() => {
-    if (id) {
+    if (wmsId) {
       setIsLoading(true);
       const fetchWmsAndLayers = async () => {
         try {
-          const jsonApiWmsWithOpUrls = await wmsRepo.get(String(id)) as any;
+          const jsonApiWmsWithOpUrls = await wmsRepo.get(String(wmsId)) as any;
           const getMapUrl = jsonApiWmsWithOpUrls.data.included.filter((opUrl:any) => {
             return opUrl.attributes.method === 'Get' && opUrl.attributes.operation === 'GetMap';
           }).map ((opUrl:any) => {
@@ -133,7 +131,7 @@ export const WmsSecuritySettings = (): ReactElement => {
           );
           const wmsAttrs = jsonApiWmsWithOpUrls.data.data.attributes;
           const wmsVersion = wmsAttrs.version;
-          const response = await wmsRepo.getAllLayers(String(id));
+          const response = await wmsRepo.getAllLayers(String(wmsId));
           // convert the WMS layers coming from the server to a compatible tree node list
           const _initLayerTreeData = wmsLayersToOlLayerGroup((response as any).data?.data, getMapUrl, wmsVersion);
           setInitLayerTreeData(_initLayerTreeData);
@@ -146,7 +144,7 @@ export const WmsSecuritySettings = (): ReactElement => {
       };      
       fetchWmsAndLayers();
     }
-  }, [id]);
+  }, [wmsId]);
 
   if(isLoading) {
     return (<SyncOutlined spin />);
@@ -168,9 +166,9 @@ export const WmsSecuritySettings = (): ReactElement => {
             selectedLayerIds={selectedLayerIds}
           />
           { 
-            id && 
+            wmsId && 
             <RulesDrawer 
-              wmsId={id}
+              wmsId={wmsId}
               selectedLayerIds={selectedLayerIds}
               setSelectedLayerIds={ (ids:string[]) => { setSelectedLayerIds(ids); } }
             /> 

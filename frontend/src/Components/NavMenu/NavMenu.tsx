@@ -53,6 +53,7 @@ export const NavMenu = (): ReactElement => {
       >
         <Menu.Item key='/registry/services/wms'><Link to='/registry/services/wms'>WMS</Link></Menu.Item>
         <Menu.Item key='/registry/services/wfs'><Link to='/registry/services/wfs'>WFS</Link></Menu.Item>
+        <Menu.Item key='/registry/services/csw'><Link to='/registry/services/csw'>CSW</Link></Menu.Item>
         <Menu.Item key='/registry/layers'><Link to='/registry/layers'>Layers</Link></Menu.Item>
         <Menu.Item key='/registry/featuretypes'><Link to='/registry/featuretypes'>Feature Types</Link></Menu.Item>
         <Menu.Item key='/registry/dataset-metadata'>

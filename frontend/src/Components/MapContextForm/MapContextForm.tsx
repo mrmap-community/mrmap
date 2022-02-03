@@ -121,7 +121,7 @@ export const MapContextForm = (): ReactElement => {
         //@ts-ignore
         const layerOpts: CreateLayerOpts = {
           url: '',
-          version: '1.1.0',
+          version: '1.1.1',
           format: 'image/png',
           layers: '',
           serverType: 'MAPSERVER',

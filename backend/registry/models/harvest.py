@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import DatasetMetadata
-from registry.models.service import CatalougeService, CswOperationUrlQueryable
+from registry.models.service import CatalougeService
 from registry.xmlmapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 
@@ -26,7 +26,10 @@ class HarvestingJob(models.Model):
     record_type: str = models.CharField(
         max_length=10,
         default="dataset",
-        choices=[("dataset", "dataset"), ("service", "service"), ("tile", "tile"), ("series", "series")])
+        choices=[("dataset", "dataset"), ("service", "service"),
+                 ("tile", "tile"), ("series", "series")],
+        verbose_name=_("record type"),
+        help_text=_("the type of the record, which shall be harvested."))
     total_records: int = models.IntegerField(
         null=True,
         blank=True,

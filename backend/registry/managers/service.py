@@ -8,7 +8,6 @@ from django.db.models import Max
 from extras.managers import DefaultHistoryManager
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
-from registry.enums.service import HttpMethodEnum
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 

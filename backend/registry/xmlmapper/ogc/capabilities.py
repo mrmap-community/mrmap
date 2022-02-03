@@ -68,7 +68,7 @@ class CswOperationUrl(OperationUrl):
         xpath=f"../../../{NS_WC}Parameter'][@name='AcceptFormats' or @name='outputFormat' or @name='inputFormat']/{NS_WC}AllowedValues']/{NS_WC}Value']",
         node_class=MimeType)
     queryables = xmlmap.NodeListField(
-        xpath=f"{NS_WC}value']",
+        xpath=f"../../{NS_WC}Constraint']//{NS_WC}Value']",
         node_class=CswOperationUrlQueryable
     )
 

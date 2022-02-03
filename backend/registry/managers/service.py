@@ -111,16 +111,16 @@ class ServiceCapabilitiesManager(models.Manager):
                                                        **operation_url.get_field_dict())
             db_operation_url.mime_type_list = []
 
-            if operation_url.mime_types:
-                for mime_type in operation_url.mime_types:
-                    # todo: slow get_or_create solution - maybe there is a better way to do this
-                    if not self.mime_type_cls:
-                        self.mime_type_cls = mime_type.get_model_class()
-                    db_mime_type, created = self.mime_type_cls.objects.get_or_create(
-                        **mime_type.get_field_dict())
-                    db_operation_url.mime_type_list.append(db_mime_type)
+            for mime_type in operation_url.mime_types:
+                # todo: slow get_or_create solution - maybe there is a better way to do this
+                if not self.mime_type_cls:
+                    self.mime_type_cls = mime_type.get_model_class()
+                db_mime_type, created = self.mime_type_cls.objects.get_or_create(
+                    **mime_type.get_field_dict())
+                db_operation_url.mime_type_list.append(db_mime_type)
 
-            if hasattr(operation_url, "queryables") and operation_url.queryables:
+            if hasattr(operation_url, "queryables"):
+                print(operation_url.queryables)
                 for queryable in operation_url.queryables:
                     if not queryable_model_cls:
                         queryable_model_cls = queryable.get_model_class()

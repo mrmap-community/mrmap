@@ -467,6 +467,6 @@ class CswOperationUrlQueryableQuerySet(models.QuerySet):
 
     def closest_matches(self, value: str, operation: str, service_id):
         return self.filter(
-            value__iregex=f"(\w+:{value}$)|(^{value}$)",
+            value__iregex=fr"(\w+:{value}$)|(^{value}$)",
             operation_url__operation=operation,
             operation_url__service__pk=service_id)

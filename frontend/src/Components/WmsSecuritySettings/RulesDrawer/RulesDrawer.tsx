@@ -59,6 +59,7 @@ export const RulesDrawer = ({
               <RuleForm 
                 wmsId={wmsId}
                 selectedLayerIds={selectedLayerIds}
+                setSelectedLayerIds={setSelectedLayerIds}
               />
             )}
           />
@@ -68,6 +69,7 @@ export const RulesDrawer = ({
               <RuleForm 
                 wmsId={wmsId}
                 selectedLayerIds={selectedLayerIds}
+                setSelectedLayerIds={setSelectedLayerIds}
               />
             )}
           />          

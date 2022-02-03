@@ -50,6 +50,23 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
     });
   }
 
+  async get (id: string): Promise<JsonApiResponse> {
+    const client = await JsonApiRepo.getClientInstance();
+    const params = [
+      {
+        in: 'path',
+        name: 'parent_lookup_secured_service',
+        value: this.wmsId,
+      },
+      {
+        in: 'path',
+        name: 'id',
+        value: id,
+      }
+    ];    
+    return await client['retrieve' + this.resourcePath + '{id}/'](params);
+  }
+
   async delete (id: string): Promise<JsonApiResponse> {
     const client = await JsonApiRepo.getClientInstance();
     const params = [
@@ -109,6 +126,54 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
       }      
     };
     return this.add('AllowedWebMapServiceOperation', attributes, relationships);
+  }
+
+  async partialUpdate (
+    id: string,
+    type: string,
+    attributes: Record<string, unknown>,
+    relationships?: Record<string, unknown>
+  ): Promise<JsonApiResponse> {
+    const client = await JsonApiRepo.getClientInstance();
+
+    const params = [
+      {
+        in: 'path',
+        name: 'parent_lookup_secured_service',
+        value: this.wmsId,
+      },
+      {
+        in: 'path',
+        name: 'id',
+        value: id,
+      },      
+      {
+        in: 'header',
+        name: 'X-CSRFToken',
+        value: Cookies.get('csrftoken') || ''
+      }
+    ];  
+
+    return await client['partial_update' + this.resourcePath + '{id}/'](params, {
+      data: {
+        type: 'AllowedWebMapServiceOperation',
+        id: id,
+        attributes: {
+          ...attributes
+        },
+        relationships: {
+          ...relationships,
+          'secured_service': {
+            data: {
+              type: 'WebMapService',
+              id: this.wmsId
+            }
+          },
+        }
+      }
+    }, {
+      headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+    });
   }
 
 }

@@ -62,6 +62,15 @@ export const RulesDrawer = ({
               />
             )}
           />
+          <Route
+            path='rules/:ruleId/edit'
+            element={(
+              <RuleForm 
+                wmsId={wmsId}
+                selectedLayerIds={selectedLayerIds}
+              />
+            )}
+          />          
         </Routes>
       </Drawer>
     </>

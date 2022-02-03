@@ -83,7 +83,7 @@ class LayerRepo extends JsonApiRepo {
         params: { include: 'service.operation_urls' }
       }
     );
-    
+
     let styles;
     let included;
     let extent = null;

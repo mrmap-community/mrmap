@@ -49,7 +49,8 @@ export const LayerManager = ({
   layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
   initLayerTreeData,
-  multipleSelection = false
+  multipleSelection = false,
+  selectedLayerIds = undefined
 }: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -391,6 +392,8 @@ export const LayerManager = ({
           nodeAttributeForm={layerAttributeForm}
           treeNodeTitlePreIcons={layerAttributeInfoIcons}
           multipleSelection={multipleSelection}
+          selectedKeys={selectedLayerIds}
+
         />
       )}
     </div>

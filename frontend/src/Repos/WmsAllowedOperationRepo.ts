@@ -3,6 +3,7 @@ import JsonApiRepo, { JsonApiMimeType, JsonApiResponse, QueryParams } from './Js
 
 export interface WmsAllowedOperationCreate {
   description: string;
+  allowedArea?: string;
   allowedGroupIds: Array<string>;
   allowedOperationIds: Array<string>;
   securedLayerIds: Array<string>;
@@ -90,9 +91,12 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
   }
 
   async create (create: WmsAllowedOperationCreate): Promise<JsonApiResponse> {
-    const attributes = {
+    const attributes:any = {
       description: create.description
     };
+    if (create.allowedArea) {
+      attributes['allowed_area'] = create.allowedArea;
+    }
     const relationships = {
       'secured_service': {
         data: {

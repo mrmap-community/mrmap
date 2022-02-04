@@ -1,5 +1,6 @@
 import { Alert, Button, Form, notification, Select, Space } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
+import TextArea from 'antd/lib/input/TextArea';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
@@ -61,6 +62,9 @@ export const RuleForm = ({
       if (isMounted) {
         form.setFieldsValue({
           description: jsonApiResponse.data.data.attributes.description,
+          area: jsonApiResponse.data.data.attributes['allowed_area'] 
+            ? JSON.stringify(jsonApiResponse.data.data.attributes['allowed_area']) 
+            : null,
           operations: jsonApiResponse.data.data.relationships.operations.data.map((operation: any) => operation.id ),
           groups: jsonApiResponse.data.data.relationships['allowed_groups'].data.map((group: any) => group.id )
         });
@@ -85,6 +89,7 @@ export const RuleForm = ({
     async function create () {
       const createObj: WmsAllowedOperationCreate = {
         description: values.description,
+        allowedArea: values.area,
         securedLayerIds: selectedLayerIds,
         allowedOperationIds: values.operations,
         allowedGroupIds: values.groups
@@ -99,9 +104,16 @@ export const RuleForm = ({
       }
     }
     async function update (ruleId: string) {
-      const attributes = {
-        description: values.description
+      const attributes:any = {
+        description: values.description,
       };
+      if (values.area) {
+        attributes['allowed_area'] = values.area;
+      } else {
+        // TODO remove this workaround as soon as backend allows setting null values for deleting (optional) attributes
+        attributes['allowed_area'] = 
+          '{"type": "MultiPolygon", "coordinates": [[[[-180, -90], [-180, 90], [180, 90], [180, -90], [-180, -90]]]]}';
+      }
       const relationships = {
         'secured_layers': {
           'data': selectedLayerIds.map((id) => {
@@ -181,7 +193,13 @@ export const RuleForm = ({
           >
             {availableOps}
           </Select>
-        </Form.Item>        
+        </Form.Item>
+        <Form.Item 
+          label='Allowed area'
+          name='area'
+        >
+          <TextArea />
+        </Form.Item>                
         {
           validationErrors.map((error, i) => (
             <Form.Item key={i}>

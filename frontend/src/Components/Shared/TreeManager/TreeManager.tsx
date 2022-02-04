@@ -96,7 +96,7 @@ export const TreeManager = ({
   * @returns
   */
   const getNodeActions = (nodeData: TreeNodeType): JSX.Element => (
-    <div className='tree-form-field-node-actions'>
+    <div className='tree-manager-node-actions'>
       <Dropdown
         overlay={getNodeContextMenu(nodeData)}
         trigger={['click']}
@@ -121,7 +121,7 @@ export const TreeManager = ({
   */
   const getNodeContextMenu = (nodeData?: TreeNodeType) => (
     <Menu 
-      className='tree-form-field-context-menu'>
+      className='tree-manager-context-menu'>
       {!nodeData?.isLeaf && (
         <>
           <Menu.Item
@@ -197,7 +197,7 @@ export const TreeManager = ({
           trigger={contextMenuOnNode ? ['contextMenu'] : []}
         >
           <div
-            className='tree-form-field-node-title'
+            className='tree-manager-node-title'
             onDoubleClick={() => {
               setSelectedNode(nodeData);
               setIsEditingNewNodeName(true);
@@ -656,9 +656,9 @@ export const TreeManager = ({
   }
 
   return (
-    <div className='tree-form-field' >
+    <div className='tree-manager' >
       <div 
-        className='tree-form-field-title'
+        className='tree-manager-title'
       >
         {title}
         <Tooltip title='Create new node folder'>
@@ -678,7 +678,7 @@ export const TreeManager = ({
         {...selectedKeysAttr}
         checkedKeys={checkedKeys}
         checkable={checkableNodes}
-        className='tree-form-field-tree'
+        className='tree-manager-tree'
         draggable={draggable}
         showIcon
         defaultExpandAll
@@ -694,7 +694,7 @@ export const TreeManager = ({
         expandedKeys={expandedKeys}
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
-          <div className='tree-form-field-node'>
+          <div className='tree-manager-node'>
             <div className='tree-node-title-group1'>
               <div className='tree-node-title-symbols'>
                 {treeNodeTitlePreIcons(nodeData)}
@@ -709,7 +709,7 @@ export const TreeManager = ({
       />
       {attributeContainer === 'modal' && (
         <Modal
-          className='tree-form-field-modal'
+          className='tree-manager-modal'
           mask={showMaskOnNodeAttributeForm}
           title={getNodeAttributeFormTitle()}
           visible={isNodeAttributeFormVisible}
@@ -726,7 +726,7 @@ export const TreeManager = ({
       )}
       {attributeContainer === 'drawer' && (
         <Drawer
-          className='tree-form-field-drawer'
+          className='tree-manager-drawer'
           mask={showMaskOnNodeAttributeForm}
           title={getNodeAttributeFormTitle()}
           placement='right'

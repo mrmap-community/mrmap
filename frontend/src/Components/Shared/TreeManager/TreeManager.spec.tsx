@@ -94,18 +94,18 @@ describe('TreeFormField component', () => {
     });
   });
 
-  it('renders the tree-form-field-tree class', async() => {
+  it('renders the tree-manager-tree class', async() => {
     const { container } = getComponent();
     await waitFor(() =>{
-      expect(container.querySelectorAll('.tree-form-field-tree').length).toBe(1);
+      expect(container.querySelectorAll('.tree-manager-tree').length).toBe(1);
     });
   });
 
   it('does not render tree nodes when tree data does not contains information', async() => {
     const { container } = getComponent({ treeData: [] });
     await waitFor(() =>{
-      const treeFormFieldTree = container.querySelectorAll('.tree-form-field-tree');
-      const treeFormFieldNode = treeFormFieldTree.item(0)?.querySelectorAll('.tree-form-field-node');  
+      const treeFormFieldTree = container.querySelectorAll('.tree-manager-tree');
+      const treeFormFieldNode = treeFormFieldTree.item(0)?.querySelectorAll('.tree-manager-node');  
       expect(treeFormFieldNode?.length).toBe(0);
     });
   });
@@ -113,8 +113,8 @@ describe('TreeFormField component', () => {
   it('renders the tree when data contains information', async() => {
     const { container } = getComponent();
     await waitFor(() =>{
-      const treeFormFieldTree = container.querySelectorAll('.tree-form-field-tree');
-      const treeFormFieldNode = treeFormFieldTree.item(0)?.getElementsByClassName('tree-form-field-node');
+      const treeFormFieldTree = container.querySelectorAll('.tree-manager-tree');
+      const treeFormFieldNode = treeFormFieldTree.item(0)?.getElementsByClassName('tree-manager-node');
       expect(treeFormFieldNode?.length).toBe(2);
     });
   });
@@ -198,7 +198,7 @@ describe('TreeFormField component', () => {
   it('renders the node options icon', async() => {
     const { container } = getComponent();
     await waitFor(() => {
-      const nodeSettingsIcon = container.querySelectorAll('.tree-form-field-node-actions');
+      const nodeSettingsIcon = container.querySelectorAll('.tree-manager-node-actions');
       expect(nodeSettingsIcon.length).toBe(2);
       const iconSpanNode1 = nodeSettingsIcon.item(0)?.querySelector('span');
       const iconSpanNode2 = nodeSettingsIcon.item(1)?.querySelector('span');
@@ -209,7 +209,7 @@ describe('TreeFormField component', () => {
 
   it('renders the context menu when right clicking the node title if contextMenuOnNode prop is true', async() => {
     const { container } = getComponent({ ...requiredProps, contextMenuOnNode: true });
-    const nodeTitles = container.querySelectorAll('.tree-form-field-node-title');
+    const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const titleNode1 = nodeTitles.item(0);
     // right mouse click
     expect(screen.queryByText('Add new layer group')).toBeNull(); 
@@ -223,7 +223,7 @@ describe('TreeFormField component', () => {
   'contextMenuOnNode prop is false', async() => {
     // contextMenuOnNode is false by default
     const { container } = getComponent();
-    const nodeTitles = container.querySelectorAll('.tree-form-field-node-title');
+    const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     // right mouse click
     fireEvent.contextMenu(firstNodeTitle);
@@ -235,7 +235,7 @@ describe('TreeFormField component', () => {
 
   it('renders the context menu when clicking the options icon', async() => {
     const { container } = getComponent();
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const settingsNode1 = nodeSettings.item(0)?.querySelector('button');
     const settingsNode2 = nodeSettings.item(1)?.querySelector('button');
     expect(screen.queryByText('Add new layer group')).toBeNull(); 
@@ -250,7 +250,7 @@ describe('TreeFormField component', () => {
     'is set to modal', async() => {
     const { container } = getComponent({ ...requiredProps, attributeContainer: 'modal' });
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     await waitFor(async() => {
@@ -267,7 +267,7 @@ describe('TreeFormField component', () => {
   + 'not set', async() => {
     const { container } = getComponent();
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     await waitFor(async() => {
@@ -284,7 +284,7 @@ describe('TreeFormField component', () => {
     'is set to drawer', async() => {
     const { container } = getComponent({ ...requiredProps, attributeContainer: 'drawer' });
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     await waitFor(async() => {
@@ -299,7 +299,7 @@ describe('TreeFormField component', () => {
   it('renders an icon for the add group node option on the context menu', async() => {
     const { container } = getComponent();
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     await waitFor(() => {
@@ -314,7 +314,7 @@ describe('TreeFormField component', () => {
   it('renders an icon for the add node option on the context menu', async () => {
     const { container } = getComponent();
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     await waitFor(() => {
@@ -329,7 +329,7 @@ describe('TreeFormField component', () => {
   it('renders an icon for the remove node option on the context menu', async () => {
     const { container } = getComponent();
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     await waitFor(() => {
@@ -344,7 +344,7 @@ describe('TreeFormField component', () => {
   it('renders an icon for the edit node option on the context menu', async() => {
     const { container } = getComponent();
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     await waitFor(() => {
@@ -359,7 +359,7 @@ describe('TreeFormField component', () => {
   it('does not render  add new node group or add new node (leaf) if context menu is opened on a leaf', async() => {
     const { container } = getComponent();
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const leafNodeSettings = nodeSettings.item(1)?.querySelector('button');
     fireEvent.click(leafNodeSettings as Element);
     await waitFor(() => {
@@ -377,7 +377,7 @@ describe('TreeFormField component', () => {
 
   it('renders input on node title when double clicking on the title', async () => {
     const { container } = getComponent();
-    const nodeTitles = container.getElementsByClassName('tree-form-field-node-title');
+    const nodeTitles = container.getElementsByClassName('tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     fireEvent.doubleClick(firstNodeTitle as Element);
     await waitFor(() => {
@@ -388,7 +388,7 @@ describe('TreeFormField component', () => {
 
   it('changes the node title when submiting value on the title input field', async () => {
     const { container } = getComponent();
-    const nodeTitles = container.querySelectorAll('.tree-form-field-node-title');
+    const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     fireEvent.doubleClick(firstNodeTitle);
     const inputField = firstNodeTitle?.querySelector('input');
@@ -403,7 +403,7 @@ describe('TreeFormField component', () => {
   it('does not change the node title when submiting value on the title input field, when editing and clicking ' + 
     'Escape', async() => {
     const { container } = getComponent();
-    const nodeTitles = container.querySelectorAll('.tree-form-field-node-title');
+    const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     const titleText = firstNodeTitle.querySelector('span');
     expect(titleText).toBeDefined();
@@ -443,7 +443,7 @@ describe('TreeFormField component', () => {
     });
 
     // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-form-field-node-actions');
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
     fireEvent.click(firstNodeSettings as Element);
     const contextMenuFirstAction = screen.getByText('Add new layer group');

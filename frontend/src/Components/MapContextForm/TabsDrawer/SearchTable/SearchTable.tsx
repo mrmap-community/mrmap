@@ -24,52 +24,52 @@ const getDatasetMetadataColumns =
     dataIndex: 'id',
     hideInTable: true
   }, {
-    dataIndex: 'xml_backup_file',
+    dataIndex: 'xmlBackupFile',
     hideInTable: true
   }, {
-    dataIndex: 'access_constraints',
+    dataIndex: 'accessConstraints',
     hideInTable: true
   }, {
     dataIndex: 'fees',
     hideInTable: true
   }, {
-    dataIndex: 'use_limitation',
+    dataIndex: 'useLimitation',
     hideInTable: true
   }, {
-    dataIndex: 'file_identifier',
+    dataIndex: 'fileIdentifier',
     hideInTable: true
   }, {
-    dataIndex: 'license_source_note',
+    dataIndex: 'licenseSourceNote',
     hideInTable: true
   }, {
-    dataIndex: 'date_stamp',
+    dataIndex: 'dateStamp',
     hideInTable: true
   }, {
     dataIndex: 'origin',
     hideInTable: true
   }, {
-    dataIndex: 'origin_url',
+    dataIndex: 'originUrl',
     hideInTable: true
   }, {
-    dataIndex: 'is_broken',
+    dataIndex: 'isBroken',
     hideInTable: true
   }, {
-    dataIndex: 'is_customized',
+    dataIndex: 'isCustomized',
     hideInTable: true
   }, {
-    dataIndex: 'insufficient_quality',
+    dataIndex: 'insufficientQuality',
     hideInTable: true
   }, {
-    dataIndex: 'is_searchable',
+    dataIndex: 'isSearchable',
     hideInTable: true
   }, {
     dataIndex: 'hits',
     hideInTable: true
   }, {
-    dataIndex: 'spatial_res_type',
+    dataIndex: 'spatialResType',
     hideInTable: true
   }, {
-    dataIndex: 'spatial_res_value',
+    dataIndex: 'spatialResValue',
     hideInTable: true
   }, {
     dataIndex: 'format',
@@ -78,28 +78,28 @@ const getDatasetMetadataColumns =
     dataIndex: 'charset',
     hideInTable: true
   }, {
-    dataIndex: 'inspire_top_consistence',
+    dataIndex: 'inspireTopConsistence',
     hideInTable: true
   }, {
-    dataIndex: 'preview_image',
+    dataIndex: 'previewImage',
     hideInTable: true
   }, {
-    dataIndex: 'lineage_statement',
+    dataIndex: 'lineageStatement',
     hideInTable: true
   }, {
-    dataIndex: 'update_frequency_code',
+    dataIndex: 'updateFrequencyCode',
     hideInTable: true
   }, {
-    dataIndex: 'bounding_geometry',
+    dataIndex: 'boundingGeometry',
     hideInTable: true
   }, {
-    dataIndex: 'dataset_id',
+    dataIndex: 'datasetId',
     hideInTable: true
   }, {
-    dataIndex: 'dataset_id_code_space',
+    dataIndex: 'datasetIdCodeSpace',
     hideInTable: true
   }, {
-    dataIndex: 'inspire_interoperability',
+    dataIndex: 'inspireInteroperability',
     hideInTable: true
   }, {
     key: 'actions',
@@ -117,7 +117,7 @@ const getDatasetMetadataColumns =
     }
   },
   {
-    dataIndex: 'is_accessible',
+    dataIndex: 'isAccessible',
     hideInTable: true
   }
   ];

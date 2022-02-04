@@ -77,13 +77,13 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
       description: create.description
     };
     const relationships = {
-      'secured_service': {
+      'securedService': {
         data: {
           type: 'WebMapService',
           id: this.wmsId
         }
       },
-      'secured_layers': {
+      'securedLayers': {
         data: create.securedLayerIds.map((id) => {
           return {
             type: 'Layer',
@@ -99,7 +99,7 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
           };
         })
       },
-      'allowed_groups': {
+      'allowedGroups': {
         data: create.allowedGroupIds.map((id) => {
           return {
             type: 'Group',

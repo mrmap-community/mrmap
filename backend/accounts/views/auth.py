@@ -4,15 +4,15 @@ from accounts.serializers.auth import (LoginSerializer, LogoutSerializer,
 from accounts.serializers.users import UserSerializer
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Permission
+from extras.openapi import CustomAutoSchema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
 
 class LoginView(generics.GenericAPIView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['Auth'],
     )
     queryset = User.objects.all()
@@ -28,7 +28,7 @@ class LoginView(generics.GenericAPIView):
 
 
 class LogoutView(generics.GenericAPIView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['Auth'],
     )
     serializer_class = LogoutSerializer
@@ -42,7 +42,7 @@ class LogoutView(generics.GenericAPIView):
 
 
 class PermissionViewSet(ReadOnlyModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['Auth'],
     )
     queryset = Permission.objects.all()

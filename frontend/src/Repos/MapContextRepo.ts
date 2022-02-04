@@ -42,7 +42,7 @@ class MapContextRepo extends JsonApiRepo {
       {},
       {
         headers: { 'Content-Type': JsonApiMimeType },
-        params: { include: 'map_context_layers' }
+        params: { include: 'mapContextLayers' }
       }
     );
     return {

@@ -1,4 +1,5 @@
 from django.db.models.query import Prefetch
+from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              ObjectPermissionCheckerViewSetMixin,
@@ -20,12 +21,11 @@ from registry.serializers.service import (CatalougeServiceCreateSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 
 class WebMapServiceRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = WebMapService.objects
@@ -40,7 +40,7 @@ class WebMapServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = WebMapService.objects.all()
@@ -129,7 +129,7 @@ class WebMapServiceViewSet(
 
 
 class LayerRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = Layer.objects
@@ -142,7 +142,7 @@ class LayerViewSet(
     HistoryInformationViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = Layer.objects.all()
@@ -200,7 +200,7 @@ class LayerViewSet(
 
 
 class WebFeatureServiceRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = WebFeatureService.objects
@@ -215,7 +215,7 @@ class WebFeatureServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = WebFeatureService.objects.all()
@@ -245,7 +245,7 @@ class WebFeatureServiceViewSet(
 
 
 class FeatureTypeRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = FeatureType.objects
@@ -253,7 +253,7 @@ class FeatureTypeRelationshipView(RelationshipView):
 
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = FeatureType.objects.all()
@@ -273,7 +273,7 @@ class CatalougeServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = CatalougeService.objects.all()

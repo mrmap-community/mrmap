@@ -22,6 +22,7 @@ from registry.exceptions.service import (LayerNotQueryable,
                                          OperationNotSupported)
 from registry.managers.security import WebMapServiceSecurityManager
 from registry.managers.service import (CatalougeServiceCapabilitiesManager,
+                                       CswOperationUrlQueryableQuerySet,
                                        FeatureTypeElementXmlManager,
                                        LayerManager,
                                        WebFeatureServiceCapabilitiesManager,
@@ -165,6 +166,9 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
         self,
         type_names: str = "gmd:MD_Metadata",
         result_type: str = "hits",
+        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        element_set_name: str = "full",
+        xml_constraint: str = None
     ):
         url: str = self.operation_urls.values('url').get(
             operation=OGCOperationEnum.GET_RECORDS.value,
@@ -175,7 +179,17 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
             "SERVICE": "CSW",
             "REQUEST": "GetRecords",
             "typeNames": type_names,
-            "resultType": result_type}
+            "resultType": result_type,
+            "outputSchema": output_schema,
+            "elementSetName": element_set_name, }
+
+        if xml_constraint:
+            query_params.update({
+                "constraintLanguage": "FILTER",
+                "CONSTRAINT_LANGUAGE_VERSION": "1.1.0",
+                "Constraint": xml_constraint
+            })
+
         return update_url_query_params(url=url, params=query_params)
 
     def get_records_url(
@@ -185,7 +199,8 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
         output_schema: str = "http://www.isotc211.org/2005/gmd",
         element_set_name: str = "full",
         max_records: int = 10,
-        start_position: int = 1
+        start_position: int = 1,
+        xml_constraint: str = None
     ):
         url: str = self.operation_urls.values('url').get(
             operation=OGCOperationEnum.GET_RECORDS.value,
@@ -201,6 +216,13 @@ class CatalougeService(HistoricalRecordMixin, OgcService):
             "elementSetName": element_set_name,
             "maxRecords": max_records,
             "startPosition": start_position}
+        if xml_constraint:
+            query_params.update({
+                "constraintLanguage": "FILTER",
+                "CONSTRAINT_LANGUAGE_VERSION": "1.1.0",
+                "Constraint": xml_constraint
+            })
+
         return update_url_query_params(url=url, params=query_params)
 
     def get_record_by_id_url(
@@ -340,6 +362,23 @@ class CatalougeServiceOperationUrl(OperationUrl):
                 name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
             )
         ]
+
+
+class CswOperationUrlQueryable(models.Model):
+    operation_url = models.ForeignKey(
+        to=CatalougeServiceOperationUrl,
+        on_delete=models.CASCADE,
+        related_name="queryables",
+        related_query_name="queryable"
+    )
+    value = models.CharField(
+        max_length=64
+    )
+
+    objects: models.Manager = CswOperationUrlQueryableQuerySet.as_manager()
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):

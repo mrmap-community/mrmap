@@ -77,7 +77,8 @@ export const TheMap = ({
   layerAttributeForm,
   layerAttributeInfoIcons = () => (<></>),
   allowMultipleLayerSelection = false,
-  showLayerManager = false
+  showLayerManager = false,
+  selectedLayerIds = undefined
 }: {
   addLayerDispatchAction?:(
     nodeAttributes: any,
@@ -97,6 +98,7 @@ export const TheMap = ({
   layerAttributeInfoIcons?: (nodeData: TreeNodeType) => ReactNode;
   allowMultipleLayerSelection?: boolean;
   showLayerManager?: boolean;
+  selectedLayerIds?: string[];
 }): JSX.Element => {
   const map = useMap();
 
@@ -181,6 +183,7 @@ export const TheMap = ({
           layerEditErrorDispatchAction={layerEditErrorDispatchAction}
           layerAttributeInfoIcons={layerAttributeInfoIcons}
           multipleSelection={allowMultipleLayerSelection}
+          selectedLayerIds={selectedLayerIds}
         />
       )}
       <MapComponent

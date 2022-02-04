@@ -3,6 +3,7 @@ import { Layout, Space } from 'antd';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
+import CswTable from './Components/CswTable/CswTable';
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import DatasetMetadataTable from './Components/DatasetMetadataTable/DatasetMetadataTable';
 import FeatureTypeTable from './Components/FeatureTypeTable/FeatureTypeTable';
@@ -20,6 +21,7 @@ import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecurit
 import WmsTable from './Components/WmsTable/WmsTable';
 import { useAuth } from './Hooks/useAuth';
 import logo from './logo.png';
+import CatalogueServiceRepo from './Repos/CswRepo';
 import WebFeatureServiceRepo from './Repos/WfsRepo';
 import WebMapServiceRepo from './Repos/WmsRepo';
 
@@ -111,7 +113,7 @@ export default function App (): JSX.Element {
             element={<RegisterServiceForm repo={new WebMapServiceRepo()} />}
           />
           <Route
-            path='/registry/services/wms/:id/security'
+            path='/registry/services/wms/:id/security/*'
             element={<WmsSecuritySettings />}
           />
           <Route
@@ -121,6 +123,14 @@ export default function App (): JSX.Element {
           <Route
             path='/registry/services/wfs/add'
             element={<RegisterServiceForm repo={new WebFeatureServiceRepo()} />}
+          />
+          <Route
+            path='/registry/services/csw'
+            element={<CswTable />}
+          />
+          <Route
+            path='/registry/services/csw/add'
+            element={<RegisterServiceForm repo={new CatalogueServiceRepo()} />}
           />
           <Route
             path='/registry/layers'

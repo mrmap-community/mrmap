@@ -3,7 +3,9 @@ from celery import shared_task
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from eulxml import xmlmap
+from registry.enums.service import OGCOperationEnum
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.models.service import CswOperationUrlQueryable
 from registry.xmlmapper.iso_metadata.iso_metadata import MdMetadata
 from registry.xmlmapper.ogc.csw_get_record_response import \
     GetRecordsResponse as XmlGetRecordsResponse
@@ -19,7 +21,14 @@ from requests.models import Response
 def get_hits_task(harvesting_job_id):
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
-    get_records_hits_url: str = harvesting_job.service.get_records_hits_url()
+    type_queryable: str = CswOperationUrlQueryable.objects.closest_matches(
+        value="Type",
+        operation=OGCOperationEnum.GET_RECORDS.value,
+        service_id=harvesting_job.service.pk,
+    ).values("value").first()["value"]
+    xml_constraint = f'<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc"><ogc:PropertyIsEqualTo><ogc:PropertyName>{type_queryable}</ogc:PropertyName><ogc:Literal>{harvesting_job.record_type}</ogc:Literal></ogc:PropertyIsEqualTo></ogc:Filter>'
+    get_records_hits_url: str = harvesting_job.service.get_records_hits_url(
+        xml_constraint=xml_constraint)
     response: Response = harvesting_job.service.send_get_request(
         url=get_records_hits_url, timeout=60)
     xml: XmlGetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
@@ -40,10 +49,19 @@ def get_records_task(harvesting_job_id,
                      **kwargs):
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
+    type_queryable: str = CswOperationUrlQueryable.objects.closest_matches(
+        value="Type",
+        operation=OGCOperationEnum.GET_RECORDS.value,
+        service_id=harvesting_job.service.pk,
+    ).values("value").first()["value"]
+    xml_constraint = f'<ogc:Filter xmlns:ogc="http://www.opengis.net/ogc"><ogc:PropertyIsEqualTo><ogc:PropertyName>{type_queryable}</ogc:PropertyName><ogc:Literal>{harvesting_job.record_type}</ogc:Literal></ogc:PropertyIsEqualTo></ogc:Filter>'
+
     step_size: int = harvesting_job.step_size
 
     get_records_url: str = harvesting_job.service.get_records_url(
-        max_records=step_size, start_position=start_position)
+        max_records=step_size,
+        start_position=start_position,
+        xml_constraint=xml_constraint)
     response: Response = harvesting_job.service.send_get_request(
         url=get_records_url, timeout=60)
     xml: XmlGetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,

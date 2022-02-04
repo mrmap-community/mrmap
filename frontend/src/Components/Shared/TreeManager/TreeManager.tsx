@@ -6,7 +6,7 @@ import { EventDataNode } from 'antd/lib/tree';
 import React, { cloneElement, createRef, useEffect, useState } from 'react';
 import { TreeUtils } from '../../../Utils/TreeUtils';
 import './TreeManager.css';
-import { DropNodeEventType, TreeNodeType, TreeProps } from './TreeManagerTypes';
+import { DropNodeEventType, TreeManagerProps, TreeNodeType } from './TreeManagerTypes';
 
 const treeUtils = new TreeUtils();
 
@@ -33,7 +33,8 @@ export const TreeManager = ({
   extendedNodeActions= () => undefined,
   treeNodeTitlePreIcons = () => (<></>),
   multipleSelection = false,
-}: TreeProps): JSX.Element => {
+  selectedKeys = undefined
+}: TreeManagerProps): JSX.Element => {
   const [form] = useForm();
 
   const nodeNameTextInput:any = createRef();
@@ -646,6 +647,14 @@ export const TreeManager = ({
     }
   }, [nodeNameTextInput, isEditingNodeName]);
 
+  // workaround for omitting the selectedKeys attribute completely from the Tree element
+  // not sure why, but providing undefined as value of the attribute does not switch of the controlled keys behaviour
+  // of the component, while omitting it completely does...
+  const selectedKeysAttr = {} as any;
+  if (selectedKeys !== undefined) {
+    selectedKeysAttr.selectedKeys = selectedKeys;
+  }
+
   return (
     <div className='tree-form-field' >
       <div 
@@ -666,6 +675,7 @@ export const TreeManager = ({
         </Tooltip>
       </div>
       <Tree
+        {...selectedKeysAttr}
         checkedKeys={checkedKeys}
         checkable={checkableNodes}
         className='tree-form-field-tree'

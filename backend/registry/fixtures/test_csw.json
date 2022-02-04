@@ -65,6 +65,22 @@
         }
     },
     {
+        "model": "registry.CswOperationUrlQueryable",
+        "pk": 1,
+        "fields": {
+            "operation_url": 2,
+            "value": "apiso:Type"
+        }
+    },
+    {
+        "model": "registry.CswOperationUrlQueryable",
+        "pk": 2,
+        "fields": {
+            "operation_url": 4,
+            "value": "Type"
+        }
+    },
+    {
         "model": "registry.catalougeservice",
         "pk": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
         "fields": {

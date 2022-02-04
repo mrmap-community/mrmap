@@ -1,4 +1,3 @@
-from extras.serializers import ObjectPermissionCheckerSerializer
 from registry.models.metadata import (DatasetMetadata, Keyword,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import FeatureType, Layer

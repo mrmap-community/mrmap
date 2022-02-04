@@ -1,10 +1,15 @@
-import { Alert, Button, Form, notification, Space } from 'antd';
+import { Alert, Button, Form, notification, Select, Space } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
 import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../Repos/WmsAllowedOperationRepo';
+import WmsOperationRepo from '../../../Repos/WmsOperationRepo';
 import { InputField } from '../../Shared/FormFields/InputField/InputField';
+
+const { Option } = Select;
+
+const wmsOpRepo = new WmsOperationRepo();
 
 interface RuleFormProps {
     wmsId: string,
@@ -23,15 +28,26 @@ export const RuleForm = ({
   const navigate = useNavigate();
   const { ruleId } = useParams();
   const [form] = useForm();
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);  
 
   useEffect(() => {
     let isMounted = true;
-    async function fetchRule (id: string) {
+    async function initAvailableWmsOps () {
+      const jsonApiResponse = await wmsOpRepo.findAll() as any;
+      const wmsOps = jsonApiResponse.data.data.map((wmsOp: any) => 
+        (<Option value={wmsOp.id} key={wmsOp.id}>{wmsOp.id}</Option>)
+      );
+      isMounted && setAvailableOps(wmsOps);
+    }
+    async function fetchRuleAndInitForm (id: string) {
       const jsonApiResponse = await ruleRepo.get(id) as any;
       if (isMounted) {
         form.setFieldsValue({
-          description: jsonApiResponse.data.data.attributes.description
+          description: jsonApiResponse.data.data.attributes.description,
+          operations: jsonApiResponse.data.data.relationships.operations.data.map((operation: any) => 
+            operation.id
+          )
         });
         const securedLayerIds = jsonApiResponse.data.data.relationships.secured_layers.data.map((layer: any) => 
           layer.id
@@ -39,8 +55,9 @@ export const RuleForm = ({
         setSelectedLayerIds(securedLayerIds);
       }
     }
-    ruleId && fetchRule(ruleId);
-    return ( () => { isMounted = false; });
+    isMounted && initAvailableWmsOps();
+    isMounted && ruleId && fetchRuleAndInitForm(ruleId);
+    return (() => { isMounted = false; });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[ruleId]);
 
@@ -53,7 +70,7 @@ export const RuleForm = ({
       const createObj: WmsAllowedOperationCreate = {
         description: values.description,
         securedLayerIds: selectedLayerIds,
-        allowedOperationIds: ['GetMap'], // TODO
+        allowedOperationIds: values.operations,
         allowedGroupIds: [] // TODO
       };      
       const res = await ruleRepo.create(createObj);
@@ -74,6 +91,14 @@ export const RuleForm = ({
           'data': selectedLayerIds.map((id) => {
             return {
               type: 'Layer',
+              id: id
+            };
+          })
+        },
+        'operations': {
+          'data': values.operations.map((id: any) => {
+            return {
+              type: 'WebMapServiceOperation',
               id: id
             };
           })
@@ -104,9 +129,23 @@ export const RuleForm = ({
           placeholder='Short description of the security rule'
           validation={{
             rules: [{ required: true, message: 'Please input a description!' }],
-            hasFeedback: true
-          }}          
+            hasFeedback: false
+          }}
         />
+        <Form.Item 
+          label='Operations'
+          name='operations'
+          required={true}
+          rules={[{ required: true, message: 'At least one operation must be selected!' }]}
+        >
+          <Select
+            mode='multiple'
+            allowClear
+            placeholder='Allowed WMS operations'
+          >
+            {availableOps}
+          </Select>
+        </Form.Item>
         {
           validationErrors.map((error, i) => (
             <Form.Item key={i}>

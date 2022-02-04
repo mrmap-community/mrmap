@@ -3,6 +3,8 @@ import { useForm } from 'antd/lib/form/Form';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../../../Hooks/useAuth';
+import { operation } from '../../../Repos/JsonApi';
 import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../Repos/WmsAllowedOperationRepo';
 import WmsOperationRepo from '../../../Repos/WmsOperationRepo';
 import { InputField } from '../../Shared/FormFields/InputField/InputField';
@@ -28,6 +30,9 @@ export const RuleForm = ({
   const navigate = useNavigate();
   const { ruleId } = useParams();
   const [form] = useForm();
+  const auth = useAuth();
+
+  const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);  
 
@@ -40,14 +45,24 @@ export const RuleForm = ({
       );
       isMounted && setAvailableOps(wmsOps);
     }
-    async function fetchRuleAndInitForm (id: string) {
+    async function initAvailableGroups (userId: string) {
+      const jsonApiResponse = await operation(
+        // TODO fetch groups of user (not global groups)
+        // 'List/api/v1/accounts/users/{parent_lookup_user}/groups/',
+        'List/api/v1/accounts/groups/'
+      ) as any;
+      const groups = jsonApiResponse.data.data.map((group: any) => 
+        (<Option value={group.id} key={group.id}>{group.attributes.name}</Option>)
+      );
+      isMounted && setAvailableGroups(groups);
+    }
+    async function initFromExistingRule (id: string) {
       const jsonApiResponse = await ruleRepo.get(id) as any;
       if (isMounted) {
         form.setFieldsValue({
           description: jsonApiResponse.data.data.attributes.description,
-          operations: jsonApiResponse.data.data.relationships.operations.data.map((operation: any) => 
-            operation.id
-          )
+          operations: jsonApiResponse.data.data.relationships.operations.data.map((operation: any) => operation.id ),
+          groups: jsonApiResponse.data.data.relationships['allowed_groups'].data.map((group: any) => group.id )
         });
         const securedLayerIds = jsonApiResponse.data.data.relationships.secured_layers.data.map((layer: any) => 
           layer.id
@@ -56,10 +71,11 @@ export const RuleForm = ({
       }
     }
     isMounted && initAvailableWmsOps();
-    isMounted && ruleId && fetchRuleAndInitForm(ruleId);
+    isMounted && auth && initAvailableGroups(auth.userId);
+    isMounted && ruleId && initFromExistingRule(ruleId);
     return (() => { isMounted = false; });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[ruleId]);
+  },[auth, ruleId]);
 
   const onFinish = (values: any) => {
     if (selectedLayerIds.length === 0) {
@@ -71,7 +87,7 @@ export const RuleForm = ({
         description: values.description,
         securedLayerIds: selectedLayerIds,
         allowedOperationIds: values.operations,
-        allowedGroupIds: [] // TODO
+        allowedGroupIds: values.groups
       };      
       const res = await ruleRepo.create(createObj);
       if (res.status === 201) {
@@ -99,6 +115,14 @@ export const RuleForm = ({
           'data': values.operations.map((id: any) => {
             return {
               type: 'WebMapServiceOperation',
+              id: id
+            };
+          })
+        },
+        'allowed_groups': {
+          'data': values.groups.map((id: any) => {
+            return {
+              type: 'Group',
               id: id
             };
           })
@@ -133,6 +157,18 @@ export const RuleForm = ({
           }}
         />
         <Form.Item 
+          label='Groups'
+          name='groups'
+        >
+          <Select
+            mode='multiple'
+            allowClear
+            placeholder='Groups'
+          >
+            {availableGroups}
+          </Select>
+        </Form.Item>
+        <Form.Item 
           label='Operations'
           name='operations'
           required={true}
@@ -145,7 +181,7 @@ export const RuleForm = ({
           >
             {availableOps}
           </Select>
-        </Form.Item>
+        </Form.Item>        
         {
           validationErrors.map((error, i) => (
             <Form.Item key={i}>

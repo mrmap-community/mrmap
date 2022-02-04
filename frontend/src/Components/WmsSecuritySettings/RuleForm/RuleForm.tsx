@@ -1,6 +1,12 @@
+import { useMap } from '@terrestris/react-geo';
 import { Alert, Button, Form, notification, Select, Space } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import TextArea from 'antd/lib/input/TextArea';
+import { Feature } from 'ol';
+import GeoJSON from 'ol/format/GeoJSON';
+import MultiPolygon from 'ol/geom/MultiPolygon';
+import VectorLayer from 'ol/layer/Vector';
+import VectorSource from 'ol/source/Vector';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
@@ -32,9 +38,11 @@ export const RuleForm = ({
   const { ruleId } = useParams();
   const [form] = useForm();
   const auth = useAuth();
+  const map = useMap();
 
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
+  const [allowedArea, setAllowedArea] = useState<MultiPolygon>();
   const [validationErrors, setValidationErrors] = useState<string[]>([]);  
 
   useEffect(() => {
@@ -72,6 +80,15 @@ export const RuleForm = ({
           layer.id
         );
         setSelectedLayerIds(securedLayerIds);
+        if (jsonApiResponse.data.data.attributes['allowed_area']) {
+          const format = new GeoJSON();
+          const geom: any = format.readGeometry(
+            jsonApiResponse.data.data.attributes['allowed_area']
+          );
+          setAllowedArea(geom);
+          const nativeGeom = geom.clone().transform('EPSG:4326', 'EPSG:900913');
+          map.getView().fit(nativeGeom.getExtent());
+        }
       }
     }
     isMounted && initAvailableWmsOps();
@@ -79,7 +96,39 @@ export const RuleForm = ({
     isMounted && ruleId && initFromExistingRule(ruleId);
     return (() => { isMounted = false; });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[auth, ruleId]);
+  },[auth, ruleId, map]);
+
+  useEffect(() => {
+    let layer: any = null;
+    if (layer) {
+      map.removeLayer(layer);
+    }
+    if (allowedArea) {
+      const geom = allowedArea.clone();
+      geom.transform('EPSG:4326', 'EPSG:900913');
+      const feature = new Feature({
+        geometry: geom
+      });
+      const source = new VectorSource();
+      source.addFeature(feature);
+      layer = new VectorLayer({
+        source: source,
+      });
+      map.addLayer(layer);
+    }
+    return (() => { map.removeLayer(layer); });
+  }, [allowedArea, map]);
+
+  const onAreaChanged = (event: any) => {
+    console.log('A', event.target.value);
+    try {
+      const format = new GeoJSON();
+      const geom: any = format.readGeometry(event.target.value);    
+      setAllowedArea(geom);
+    } catch (err: any) {
+      setValidationErrors([err.message]);
+    }
+  };
 
   const onFinish = (values: any) => {
     if (selectedLayerIds.length === 0) {
@@ -198,7 +247,7 @@ export const RuleForm = ({
           label='Allowed area'
           name='area'
         >
-          <TextArea />
+          <TextArea onChange={onAreaChanged}/>
         </Form.Item>                
         {
           validationErrors.map((error, i) => (

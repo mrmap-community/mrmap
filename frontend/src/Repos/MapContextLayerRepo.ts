@@ -63,9 +63,9 @@ class MapContextLayerRepo extends JsonApiRepo {
     const attributes:any = {
       title: create.title,
       description: create.description,
-      layer_scale_max: create.layerScaleMax, //eslint-disable-line
-      layer_scale_min: create.layerScaleMin, //eslint-disable-line
-      layer_style_id: create.layerStyleId, //eslint-disable-line
+      layerScaleMax: create.layerScaleMax, 
+      layerScaleMin: create.layerScaleMin, 
+      layerStyleId: create.layerStyleId, 
     };
     const relationships:any = {
       map_context: { // eslint-disable-line
@@ -114,9 +114,9 @@ class MapContextLayerRepo extends JsonApiRepo {
     const attributes:any = {
       description: attributesToUpdate.description,
       title: attributesToUpdate.title,
-      layer_scale_max: attributesToUpdate.layerScaleMax, //eslint-disable-line
-      layer_scale_min: attributesToUpdate.layerScaleMin, //eslint-disable-line
-      layer_style_id: attributesToUpdate.layerStyleId, //eslint-disable-line
+      layerScaleMax: attributesToUpdate.layerScaleMax, 
+      layerScaleMin: attributesToUpdate.layerScaleMin, 
+      layerStyleId: attributesToUpdate.layerStyleId, 
     };
 
     const relationships:any = {};

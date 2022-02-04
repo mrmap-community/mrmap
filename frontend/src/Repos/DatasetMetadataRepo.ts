@@ -26,7 +26,7 @@ class DatasetMetadataRepo extends JsonApiRepo {
         next: res.data.links.next
       },
       attributes: {
-        associatedLayers: o.relationships.self_pointing_layers.data.map((dt:any) => dt.id)
+        associatedLayers: o.relationships.selfPointingLayers.data.map((dt:any) => dt.id)
       }
     }));
   }

@@ -1,11 +1,6 @@
 from extras.serializers import ObjectPermissionCheckerSerializer
-from registry.models.metadata import (
-    DatasetMetadata,
-    Keyword,
-    MetadataContact,
-    ReferenceSystem,
-    Style,
-)
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, ReferenceSystem, Style)
 from registry.models.service import FeatureType, Layer
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
@@ -43,7 +38,7 @@ class MetadataContactSerializer(ModelSerializer):
         fields = "__all__"
 
 
-class DatasetMetadataSerializer(ObjectPermissionCheckerSerializer, ModelSerializer):
+class DatasetMetadataSerializer(ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:datasetmetadata-detail")
 

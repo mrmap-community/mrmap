@@ -1,27 +1,19 @@
 from django.db.models.query import Prefetch
+from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import ObjectPermissionCheckerViewSetMixin
-from registry.models.metadata import (
-    DatasetMetadata,
-    Keyword,
-    MetadataContact,
-    ReferenceSystem,
-    Style,
-)
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalougeService, FeatureType, Layer
-from registry.serializers.metadata import (
-    DatasetMetadataSerializer,
-    KeywordSerializer,
-    MetadataContactSerializer,
-    StyleSerializer,
-)
+from registry.serializers.metadata import (DatasetMetadataSerializer,
+                                           KeywordSerializer,
+                                           MetadataContactSerializer,
+                                           StyleSerializer)
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet
 
 
 class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = Keyword.objects.all()
@@ -33,7 +25,7 @@ class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class StyleViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = Style.objects.all()
@@ -48,8 +40,8 @@ class StyleViewSet(NestedViewSetMixin, ModelViewSet):
     )
 
 
-class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+class DatasetMetadataViewSet(ModelViewSet):
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = DatasetMetadata.objects.all()
@@ -150,7 +142,7 @@ class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
 
 
 class MetadataContactViewSet(ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = MetadataContact.objects.all()

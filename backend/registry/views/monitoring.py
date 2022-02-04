@@ -1,4 +1,5 @@
 
+from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin,
                              ObjectPermissionCheckerViewSetMixin,
@@ -15,7 +16,6 @@ from registry.tasks.monitoring import (check_get_feature_info_operation,
                                        check_get_map_operation,
                                        check_wms_get_capabilities_operation)
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -26,7 +26,7 @@ class WMSGetCapabilitiesResultViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Monitoring"],
     )
     queryset = WMSGetCapabilitiesResult.objects.all()
@@ -51,7 +51,7 @@ class LayerGetMapResultViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Monitoring"],
     )
     queryset = LayerGetMapResult.objects.all()
@@ -75,7 +75,7 @@ class LayerGetFeatureInfoResultViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Monitoring"],
     )
     queryset = LayerGetFeatureInfoResult.objects.all()

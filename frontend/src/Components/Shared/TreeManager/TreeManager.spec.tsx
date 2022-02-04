@@ -51,7 +51,7 @@ describe('TreeFormField component', () => {
     cleanup();
   });
 
-  it('defines the component', async() => {
+  it('defines the component', async () => {
     const component =  getComponent();
     await waitFor(() => expect(component).toBeDefined()); 
   });
@@ -340,7 +340,7 @@ describe('TreeFormField component', () => {
 
   });
 
-  it.skip('adds a new node group when submitting the add new node group attribute form', async() => {
+  it.skip('adds a new node group when submitting the add new node group attribute form', () => {
     const mockSubmit = jest.fn();
 
     const mockForm = (

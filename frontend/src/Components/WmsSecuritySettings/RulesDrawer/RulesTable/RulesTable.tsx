@@ -24,10 +24,10 @@ export const RulesTable = ({
     dataIndex: 'id',
     hideInTable: true
   },{
-    dataIndex: 'is_accessible',
+    dataIndex: 'isAccessible',
     hideInTable: true
   },{
-    dataIndex: 'allowed_area',
+    dataIndex: 'allowedArea',
     hideInTable: true
   }];
 

@@ -2,12 +2,12 @@ from accounts.filters.groups import OrganizationFilterSet
 from accounts.models.groups import Organization
 from accounts.serializers.groups import GroupSerializer, OrganizationSerializer
 from django.contrib.auth.models import Group
-from rest_framework_json_api.schemas.openapi import AutoSchema
+from extras.openapi import CustomAutoSchema
 from rest_framework_json_api.views import ModelViewSet
 
 
 class GroupViewSet(ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['Users'],
     )
     queryset = Group.objects.all()
@@ -22,7 +22,7 @@ class GroupViewSet(ModelViewSet):
 
 
 class OrganizationViewSet(ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['Users'],
     )
     queryset = Organization.objects.all()

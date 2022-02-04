@@ -19,11 +19,11 @@ const CswTable = (): JSX.Element => {
     dataIndex: 'abstract',
     title: 'Zusammenfassung'
   }, {
-    dataIndex: 'created_at',
+    dataIndex: 'createdAt',
     title: 'Erstellt',
     hideInSearch: true
   }, {
-    dataIndex: 'created_between',
+    dataIndex: 'createdBetween',
     title: 'Erstellt',
     valueType: 'dateRange',
     fieldProps: {
@@ -31,15 +31,15 @@ const CswTable = (): JSX.Element => {
       allowEmpty: [true, true]
     },
     search: {
-      transform: buildSearchTransformDateRange('created_at')
+      transform: buildSearchTransformDateRange('createdAt')
     },
     hideInTable: true
   }, {
-    dataIndex: 'last_modified_at',
+    dataIndex: 'lastModifiedAt',
     title: 'Modifiziert',
     hideInSearch: true
   }, {
-    dataIndex: 'last_modified_between',
+    dataIndex: 'lastModifiedBetween',
     title: 'Modifiziert',
     valueType: 'dateRange',
     fieldProps: {
@@ -47,28 +47,28 @@ const CswTable = (): JSX.Element => {
       allowEmpty: [true, true]
     },
     search: {
-      transform: buildSearchTransformDateRange('last_modified_at')
+      transform: buildSearchTransformDateRange('lastModifiedAt')
     },
     hideInTable: true
   }, {
     dataIndex: 'version',
     title: 'Version'
   }, {
-    dataIndex: 'service_url',
+    dataIndex: 'serviceUrl',
     title: 'Service URL'
   }, {
-    dataIndex: 'get_capabilities_url',
+    dataIndex: 'getCapabilitiesUrl',
     title: 'Capabilities URL'
   }, {
-    dataIndex: 'xml_backup_file',
+    dataIndex: 'xmlBackupFile',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'file_identifier',
+    dataIndex: 'fileIdentifier',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'access_constraints',
+    dataIndex: 'accessConstraints',
     hideInTable: true,
     hideInSearch: true
   }, {
@@ -76,15 +76,15 @@ const CswTable = (): JSX.Element => {
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'use_limitation',
+    dataIndex: 'useLimitation',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'license_source_note',
+    dataIndex: 'licenseSourceNote',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'date_stamp',
+    dataIndex: 'dateStamp',
     hideInTable: true,
     hideInSearch: true
   }, {
@@ -92,23 +92,23 @@ const CswTable = (): JSX.Element => {
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'origin_url',
+    dataIndex: 'originUrl',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'is_broken',
+    dataIndex: 'isBroken',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'is_customized',
+    dataIndex: 'isCustomized',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'insufficient_quality',
+    dataIndex: 'insufficientQuality',
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'is_searchable',
+    dataIndex: 'isSearchable',
     hideInTable: true,
     hideInSearch: true
   }, {
@@ -116,7 +116,7 @@ const CswTable = (): JSX.Element => {
     hideInTable: true,
     hideInSearch: true
   }, {
-    dataIndex: 'is_active',
+    dataIndex: 'isActive',
     hideInTable: true,
     hideInSearch: true
   }, {

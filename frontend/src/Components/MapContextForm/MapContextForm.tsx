@@ -135,17 +135,17 @@ export const MapContextForm = (): ReactElement => {
           layerId: createdLayer.data.data.id,
           properties: {
             //@ts-ignore
-            datasetMetadata: createdLayer.data.data.relationships.dataset_metadata.data?.id,
+            datasetMetadata: createdLayer.data.data.relationships.datasetMetadata.data?.id,
             //@ts-ignore
-            renderingLayer: createdLayer.data.data.relationships.rendering_layer.data?.id,
+            renderingLayer: createdLayer.data.data.relationships.renderingLayer.data?.id,
             //@ts-ignore
-            scaleMin: createdLayer.data.data.attributes.layer_scale_min,
+            scaleMin: createdLayer.data.data.attributes.layerScaleMin,
             //@ts-ignore
-            scaleMax: createdLayer.data.data.attributes.layer_scale_max,
+            scaleMax: createdLayer.data.data.attributes.layerScaleMax,
             //@ts-ignore
-            style: createdLayer.data.data.relationships.layer_style.data?.id,
+            style: createdLayer.data.data.relationships.layerStyle.data?.id,
             //@ts-ignore
-            featureSelectionLayer: createdLayer.data.data.relationships.selection_layer.data?.id,
+            featureSelectionLayer: createdLayer.data.data.relationships.selectionLayer.data?.id,
             //@ts-ignore
             parent: createdLayer?.data?.data?.relationships?.parent?.data?.id,
             //@ts-ignore
@@ -223,7 +223,7 @@ export const MapContextForm = (): ReactElement => {
 
                 // return createdLayer;
                 //@ts-ignore
-                const renderingLayerId = createdLayer.data?.data?.relationships.rendering_layer?.data?.id;
+                const renderingLayerId = createdLayer.data?.data?.relationships.renderingLayer?.data?.id;
                 if(renderingLayerId) {
                   renderingLayerInfo = await layerRepo.autocompleteInitialValue(renderingLayerId);
                 }
@@ -242,14 +242,14 @@ export const MapContextForm = (): ReactElement => {
                   properties: {
                     ...(createdLayer?.data?.data as JsonApiPrimaryData).attributes,
                     datasetMetadata: (createdLayer?.data?.data as JsonApiPrimaryData)
-                      .relationships.dataset_metadata.data?.id,
+                      .relationships.datasetMetadata.data?.id,
                     renderingLayer: (createdLayer?.data?.data as JsonApiPrimaryData).relationships
-                      .rendering_layer.data?.id,
-                    scaleMin: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layer_scale_min,
-                    scaleMax: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layer_scale_max,
-                    style: (createdLayer?.data?.data as JsonApiPrimaryData).relationships.layer_style.data?.id,
+                      .renderingLayer.data?.id,
+                    scaleMin: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMin,
+                    scaleMax: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMax,
+                    style: (createdLayer?.data?.data as JsonApiPrimaryData).relationships.layerStyle.data?.id,
                     featureSelectionLayer: (createdLayer?.data?.data as JsonApiPrimaryData)
-                      .relationships.selection_layer.data?.id,
+                      .relationships.selectionLayer.data?.id,
                     parent: (createdLayer?.data?.data as JsonApiPrimaryData).relationships?.parent?.data?.id,
                     key: (createdLayer?.data?.data as JsonApiPrimaryData).id
                   }

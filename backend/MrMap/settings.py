@@ -446,6 +446,8 @@ LOGGING = {
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 
+JSON_API_FORMAT_FIELD_NAMES = "camelize"
+
 REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "MAX_PAGE_SIZE": 100,
@@ -469,11 +471,11 @@ REST_FRAMEWORK = {
         # "rest_framework_json_api.renderers.BrowsableAPIRenderer",
     ),
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
-    "DEFAULT_SCHEMA_CLASS": "rest_framework_json_api.schemas.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "extras.openapi.CustomAutoSchema",
     "DEFAULT_FILTER_BACKENDS": (
         "rest_framework_json_api.filters.QueryParameterValidationFilter",
         "rest_framework_json_api.filters.OrderingFilter",
-        "rest_framework_json_api.django_filters.DjangoFilterBackend",
+        "extras.filters.CustomDjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
     ),
     "SEARCH_PARAM": "filter[search]",

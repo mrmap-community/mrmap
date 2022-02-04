@@ -2,8 +2,8 @@ import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 
 export interface OgcServiceCreate {
-  get_capabilities_url: string;  // eslint-disable-line
-  owner: string; // eslint-disable-line
+  getCapabilitiesUrl: string;
+  owner: string;
 }
 
 class CatalogueServiceRepo extends JsonApiRepo {
@@ -13,7 +13,7 @@ class CatalogueServiceRepo extends JsonApiRepo {
 
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {
     const attributes = {
-      get_capabilities_url: create.get_capabilities_url, // eslint-disable-line
+      getCapabilitiesUrl: create.getCapabilitiesUrl,
     };
     const relationships = {
       owner: { // eslint-disable-line

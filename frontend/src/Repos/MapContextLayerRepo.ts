@@ -63,12 +63,12 @@ class MapContextLayerRepo extends JsonApiRepo {
     const attributes:any = {
       title: create.title,
       description: create.description,
-      layer_scale_max: create.layerScaleMax, //eslint-disable-line
-      layer_scale_min: create.layerScaleMin, //eslint-disable-line
-      layer_style_id: create.layerStyleId, //eslint-disable-line
+      layerScaleMax: create.layerScaleMax, 
+      layerScaleMin: create.layerScaleMin, 
+      layerStyleId: create.layerStyleId, 
     };
     const relationships:any = {
-      map_context: { // eslint-disable-line
+      mapContext: {
         data: {
           type: 'MapContext',
           id: create.mapContextId
@@ -84,7 +84,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (create.datasetMetadata) {
-      relationships.dataset_metadata = { // eslint-disable-line
+      relationships.datasetMetadata = {
         data: {
           type: 'DatasetMetadata',
           id: create.datasetMetadata
@@ -92,7 +92,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (create.renderingLayer) {
-      relationships.rendering_layer = { // eslint-disable-line
+      relationships.renderingLayer = {
         data: {
           type: 'Layer',
           id: create.renderingLayer
@@ -100,7 +100,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (create.selectionLayerId) {
-      relationships.selection_layer = { // eslint-disable-line
+      relationships.selectionLayer = {
         data: {
           type: 'FeatureType',
           id: create.selectionLayerId
@@ -114,15 +114,15 @@ class MapContextLayerRepo extends JsonApiRepo {
     const attributes:any = {
       description: attributesToUpdate.description,
       title: attributesToUpdate.title,
-      layer_scale_max: attributesToUpdate.layerScaleMax, //eslint-disable-line
-      layer_scale_min: attributesToUpdate.layerScaleMin, //eslint-disable-line
-      layer_style_id: attributesToUpdate.layerStyleId, //eslint-disable-line
+      layerScaleMax: attributesToUpdate.layerScaleMax, 
+      layerScaleMin: attributesToUpdate.layerScaleMin, 
+      layerStyleId: attributesToUpdate.layerStyleId, 
     };
 
     const relationships:any = {};
 
     if (attributesToUpdate.datasetMetadata) {
-      relationships.dataset_metadata = { // eslint-disable-line
+      relationships.datasetMetadata = {
         data: {
           type: 'DatasetMetadata',
           id: attributesToUpdate.datasetMetadata
@@ -130,7 +130,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (attributesToUpdate.renderingLayer) {
-      relationships.rendering_layer = { // eslint-disable-line
+      relationships.renderingLayer = {
         data: {
           type: 'Layer',
           id: attributesToUpdate.renderingLayer
@@ -138,7 +138,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (attributesToUpdate.selectionLayerId) {
-      relationships.selection_layer = { // eslint-disable-line
+      relationships.selectionLayer = {
         data: {
           type: 'FeatureType',
           id: attributesToUpdate.selectionLayerId

@@ -42,8 +42,8 @@ class LayerRepo extends JsonApiRepo {
     const jsonApiParams: any = {
       'filter[title.icontains]': searchText,
       sort: 'title',
-      include: 'service.operation_urls'
-      // 'fields[Layer]': 'scale_max, scale_min, title'  // TODO: not working. Grab all for now
+      include: 'service.operationUrls'
+      // 'fields[Layer]': 'scaleMax, scaleMin, title'  // TODO: not working. Grab all for now
     };
     if (!searchText) {
       // to avoid error when string is empty
@@ -80,15 +80,15 @@ class LayerRepo extends JsonApiRepo {
       {},
       {
         headers: { 'Content-Type': JsonApiMimeType },
-        params: { include: 'service.operation_urls' }
+        params: { include: 'service.operationUrls' }
       }
     );
 
     let styles;
     let included;
     let extent = null;
-    if(res.data.data?.attributes?.bbox_lat_lon?.coordinates) {
-      extent = new Polygon(res.data.data.attributes.bbox_lat_lon.coordinates).getExtent();
+    if(res.data.data?.attributes?.bboxLatLon?.coordinates) {
+      extent = new Polygon(res.data.data.attributes.bboxLatLon.coordinates).getExtent();
     }
     if(res.data.data?.relationships.styles.data?.length > 0) {
       styles = res.data.data?.relationships.styles.data.map((s:any) => s.id);
@@ -103,8 +103,8 @@ class LayerRepo extends JsonApiRepo {
       attributes: {
         ...res.data.data.attributes,
         id: res.data.data.id,
-        scaleMin: res.data.data.attributes.scale_min,
-        scaleMax: res.data.data.attributes.scale_max,
+        scaleMin: res.data.data.attributes.scaleMin,
+        scaleMax: res.data.data.attributes.scaleMax,
         style: styles,
         WMSParams: {
           bbox: extent,

@@ -42,8 +42,8 @@ class LayerRepo extends JsonApiRepo {
     const jsonApiParams: any = {
       'filter[title.icontains]': searchText,
       sort: 'title',
-      include: 'service.operation_urls'
-      // 'fields[Layer]': 'scale_max, scale_min, title'  // TODO: not working. Grab all for now
+      include: 'service.operationUrls'
+      // 'fields[Layer]': 'scaleMax, scaleMin, title'  // TODO: not working. Grab all for now
     };
     if (!searchText) {
       // to avoid error when string is empty
@@ -80,7 +80,7 @@ class LayerRepo extends JsonApiRepo {
       {},
       {
         headers: { 'Content-Type': JsonApiMimeType },
-        params: { include: 'service.operation_urls' }
+        params: { include: 'service.operationUrls' }
       }
     );
 

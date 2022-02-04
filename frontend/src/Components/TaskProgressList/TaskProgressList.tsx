@@ -70,9 +70,9 @@ export const TaskProgressList = (): JSX.Element => {
         <List.Item key={item.id}>
           <List.Item.Meta
             avatar={getStatus(item)}
-            title={item.attributes.task_name?.includes('build_ogc_service')
+            title={item.attributes.taskName?.includes('build_ogc_service')
               ? 'Register new OGC Service' + item.id
-              : item.attributes.task_name}
+              : item.attributes.taskName}
             description={getDescription(item)}
           />
         </List.Item>

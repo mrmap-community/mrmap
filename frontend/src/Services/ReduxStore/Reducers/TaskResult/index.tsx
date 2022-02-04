@@ -6,7 +6,7 @@ import { RootState } from '../../Store';
 
 const taskResultsAdapter = createEntityAdapter<TaskResult>({
   selectId: (taskResult) => taskResult.id,
-  sortComparer: (a, b) => b.attributes.date_created.localeCompare(a.attributes.date_created) // new entities first
+  sortComparer: (a, b) => b.attributes.dateCreated.localeCompare(a.attributes.dateCreated) // new entities first
 });
 
 export const taskResultsSelectors = taskResultsAdapter.getSelectors<RootState>(
@@ -36,7 +36,7 @@ export const fetchTaskResults = (): ThunkAction<void, RootState, unknown, AnyAct
   try {
     const taskResultRepo = new TaskResultRepo();
     const response = await taskResultRepo.findAll(
-      { page: 1, pageSize: 10, filters: { 'filter[task_name__icontains]': 'build_ogc_service' } }
+      { page: 1, pageSize: 10, filters: { 'filter[taskName.icontains]': 'build_ogc_service' } }
     );
     // TODO: move error/nulltype handling to Repo
     if (response.data && response.data.data) {

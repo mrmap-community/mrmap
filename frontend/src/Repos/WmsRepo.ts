@@ -44,7 +44,7 @@ class WebMapServiceRepo extends JsonApiRepo {
       {
         in: 'query',
         name: 'include',
-        value: 'operation_urls'
+        value: 'operationUrls'
       }
     ];    
     return await client['retrieve' + this.resourcePath + '{id}/'](params);

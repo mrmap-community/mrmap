@@ -68,7 +68,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       layerStyleId: create.layerStyleId, 
     };
     const relationships:any = {
-      map_context: { // eslint-disable-line
+      mapContext: {
         data: {
           type: 'MapContext',
           id: create.mapContextId
@@ -84,7 +84,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (create.datasetMetadata) {
-      relationships.dataset_metadata = { // eslint-disable-line
+      relationships.datasetMetadata = {
         data: {
           type: 'DatasetMetadata',
           id: create.datasetMetadata
@@ -92,7 +92,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (create.renderingLayer) {
-      relationships.rendering_layer = { // eslint-disable-line
+      relationships.renderingLayer = {
         data: {
           type: 'Layer',
           id: create.renderingLayer
@@ -100,7 +100,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (create.selectionLayerId) {
-      relationships.selection_layer = { // eslint-disable-line
+      relationships.selectionLayer = {
         data: {
           type: 'FeatureType',
           id: create.selectionLayerId
@@ -122,7 +122,7 @@ class MapContextLayerRepo extends JsonApiRepo {
     const relationships:any = {};
 
     if (attributesToUpdate.datasetMetadata) {
-      relationships.dataset_metadata = { // eslint-disable-line
+      relationships.datasetMetadata = {
         data: {
           type: 'DatasetMetadata',
           id: attributesToUpdate.datasetMetadata
@@ -130,7 +130,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (attributesToUpdate.renderingLayer) {
-      relationships.rendering_layer = { // eslint-disable-line
+      relationships.renderingLayer = {
         data: {
           type: 'Layer',
           id: attributesToUpdate.renderingLayer
@@ -138,7 +138,7 @@ class MapContextLayerRepo extends JsonApiRepo {
       };
     }
     if (attributesToUpdate.selectionLayerId) {
-      relationships.selection_layer = { // eslint-disable-line
+      relationships.selectionLayer = {
         data: {
           type: 'FeatureType',
           id: attributesToUpdate.selectionLayerId

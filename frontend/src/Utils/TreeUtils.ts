@@ -44,7 +44,7 @@ export class TreeUtils {
     list
       // sort elements on the correct order defined in the MPTT tree
       .sort((a, b) => (
-        (a.attributes.tree_id - b.attributes.tree_id) || 
+        (a.attributes.treeId - b.attributes.treeId) || 
       (a.attributes.lft - b.attributes.lft)
       ))
       .map((element:MPTTJsonApiTreeNodeType) => {
@@ -62,12 +62,12 @@ export class TreeUtils {
           properties: {
             title: element.attributes.title, // yes, title is repeated
             description: element.attributes.description,
-            datasetMetadata: element.relationships.dataset_metadata.data?.id,
-            renderingLayer: element.relationships.rendering_layer.data?.id,
-            scaleMin: element.attributes.layer_scale_min,
-            scaleMax: element.attributes.layer_scale_max,
-            style: element.relationships.layer_style.data?.id,
-            featureSelectionLayer: element.relationships.selection_layer.data?.id,
+            datasetMetadata: element.relationships.datasetMetadata.data?.id,
+            renderingLayer: element.relationships.renderingLayer.data?.id,
+            scaleMin: element.attributes.layerScaleMin,
+            scaleMax: element.attributes.layerScaleMax,
+            style: element.relationships.layerStyle.data?.id,
+            featureSelectionLayer: element.relationships.selectionLayer.data?.id,
           },
           expanded: true
         };

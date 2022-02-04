@@ -62,8 +62,8 @@ class DatasetMetadataRepo extends JsonApiRepo {
     let jsonApiParams: any;
     if (queryParams) {
       jsonApiParams = {
-        include: 'self_pointing_layers',
-        //'fields[DatasetMetadata]': 'title,abstract,self_pointing_layers',
+        include: 'selfPointingLayers',
+        //'fields[DatasetMetadata]': 'title,abstract,selfPointingLayers',
         //'fields[Layer]': 'title,name',
         'page[number]': queryParams.page,
         'page[size]': queryParams.pageSize,

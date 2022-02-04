@@ -184,8 +184,8 @@ const RepoTable = ({
           layers: [],
           ...record.attributes
         };
-        if(record.relationships?.self_pointing_layers?.data.length > 0){
-          const layerIds = record.relationships.self_pointing_layers.data.map((d:any) => d.id);
+        if(record.relationships?.selfPointingLayers?.data.length > 0){
+          const layerIds = record.relationships.selfPointingLayers.data.map((d:any) => d.id);
           row.layers = layerIds;
         }
         

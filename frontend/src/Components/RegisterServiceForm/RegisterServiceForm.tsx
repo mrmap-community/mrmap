@@ -67,11 +67,11 @@ const RegisterServiceForm = ({
         name='control-hooks'
         onFinish={onFinish}
         initialValues={{
-          collect_metadata_records: false // eslint-disable-line
+          collectMetadataRecords: false
         }}
       >
         <Form.Item
-          name='get_capabilities_url'
+          name='getCapabilitiesUrl'
           label='Capabilities URL'
           rules={[{ required: true, message: 'Required: Capabilities URL' }]}
         >
@@ -98,7 +98,7 @@ const RegisterServiceForm = ({
         />
 
         <Form.Item
-          name='collect_metadata_records'
+          name='collectMetadataRecords'
           label='Collect metadata records'
           valuePropName='checked'
         >

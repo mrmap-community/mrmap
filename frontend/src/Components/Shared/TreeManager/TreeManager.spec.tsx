@@ -1,5 +1,6 @@
 import { SettingFilled } from '@ant-design/icons';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Form } from 'antd';
 import React from 'react';
 import { TreeManager } from './TreeManager';
 import { TreeNodeType, TreeProps } from './TreeManagerTypes';
@@ -422,40 +423,39 @@ describe('TreeFormField component', () => {
   });
 
   // TODO: test works but there is still a problem problem passing the cloned props to the mocked Form
-  // it.skip('adds a new node group when submitting the add new node group attribute form', async() => {
-  //   const mockSubmit = jest.fn();
+  it.skip('adds a new node group when submitting the add new node group attribute form', async() => {
+    const mockSubmit = jest.fn();
 
-  //   const mockForm = (
-  //     <Form
-  //       data-testid='mock-form'
-  //       initialValues={{
-  //         abstract: 'an abstract for newest node',
-  //         title: 'newest node'
-  //       }}
-  //       onFinish={mockSubmit}
-  //     />
-  //   );
-  //   const { container } = getComponent({ 
-  //     ...requiredProps,
-  //     attributeContainer: 'drawer',
-  //     nodeAttributeForm: mockForm
-  //   });
+    const mockForm = (
+      <Form
+        data-testid='mock-form'
+        initialValues={{
+          abstract: 'an abstract for newest node',
+          title: 'newest node'
+        }}
+        onFinish={mockSubmit}
+      />
+    );
+    const { container } = getComponent({ 
+      ...requiredProps,
+      attributeContainer: 'drawer',
+      nodeAttributeForm: mockForm
+    });
 
-  //   // open the context menu
-  //   const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
-  //   const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
-  //   fireEvent.click(firstNodeSettings as Element);
-  //   const contextMenuFirstAction = screen.getByText('Add new layer group');
-  //   fireEvent.click(contextMenuFirstAction);
+    // open the context menu
+    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
+    const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
+    fireEvent.click(firstNodeSettings as Element);
+    const contextMenuFirstAction = screen.getByText('Add new layer group');
+    fireEvent.click(contextMenuFirstAction);
 
-  //   const drawerBody = screen.getByText('Add Node').parentElement?.parentElement?.parentElement;
-  //   expect(drawerBody).toHaveClass('ant-drawer-wrapper-body');
-  //   const drawerForm = drawerBody?.querySelectorAll('.ant-form').item(0);
-  //   //TODO:  mock submit is not beeing called on submit. Why?
-  //   fireEvent.submit(drawerForm as Element);
-  //   await waitFor( () =>{
-  //     expect(mockSubmit).toHaveBeenCalledTimes(1);
-  //   });
+    const drawerBody = screen.getByText('Add Node').parentElement?.parentElement?.parentElement;
+    expect(drawerBody).toHaveClass('ant-drawer-wrapper-body');
+    const drawerForm = drawerBody?.querySelectorAll('.ant-form').item(0);
+    fireEvent.submit(drawerForm as Element);
+    await waitFor( () =>{
+      expect(mockSubmit).toHaveBeenCalledTimes(1);
+    });
     
-  // });
+  });
 });

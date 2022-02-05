@@ -26,11 +26,13 @@ class CustomAutoSchema(AutoSchema):
             if isinstance(field, serializers.HiddenField):
                 continue
             if isinstance(field, serializers.RelatedField):
+                # TODO: here should be the ref to the concrete linked component schema definition... outerwise an automatic usage is not possible
                 relationships[format_field_name(field.field_name)] = {
                     "$ref": "#/components/schemas/reltoone"
                 }
                 continue
             if isinstance(field, serializers.ManyRelatedField):
+                # TODO: here should be the ref to the concrete linked component schema definition... outerwise an automatic usage is not possible
                 relationships[format_field_name(field.field_name)] = {
                     "$ref": "#/components/schemas/reltomany"
                 }
@@ -62,8 +64,11 @@ class CustomAutoSchema(AutoSchema):
             "required": ["type", "id"],
             "additionalProperties": False,
             "properties": {
+                # TODO: here should be the ref to the concrete type... outerwise an automatic usage is not possible
                 "type": {"$ref": "#/components/schemas/type"},
+                # TODO: here should be the concrete id object... uuid, bigint, etc...
                 "id": {"$ref": "#/components/schemas/id"},
+                # TODO: links are not needed for post, patch, delete
                 "links": {
                     "type": "object",
                     "properties": {"self": {"$ref": "#/components/schemas/link"}},

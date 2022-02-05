@@ -1,5 +1,6 @@
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
+from django.utils.translation import gettext_lazy as _
 from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer)
 from MrMap.validators import validate_get_capablities_uri
@@ -147,7 +148,11 @@ class WebMapServiceSerializer(
 
 class WebMapServiceCreateSerializer(ModelSerializer):
 
-    get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
+    get_capabilities_url = URLField(
+        label=_("get capabilities url"),
+        help_text=_("a valid get capabilities url."),
+        # example="http://example.com/SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+        validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebMapServiceAuthentication.objects, required=False
     )

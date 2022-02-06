@@ -40,6 +40,18 @@ class WebMapServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
+    """
+        create:
+            Endpoint to register new Web Map Services
+        list:
+            Retrieves all registered Web Map Services
+        retrieve:
+            Retrieve one specific Web Map Service by the given id
+        partial_update:
+            Endpoint to update some fields of a registered Web Map Service
+        destroy:
+            Endpoint to remove a registered Web Map Service from the system
+    """
     schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
@@ -126,22 +138,6 @@ class WebMapServiceViewSet(
                 )
             )
         return qs
-
-    def get_view_description(self, html=False):
-
-        match(self.action):
-            case "create":
-                return f"Endpoint to register new Web Map Services"
-            case "list":
-                return f"Retrieves all registered Web Map Services"
-            case "retrieve":
-                return "Retrieve one specific Web Map Service by the given id"
-            case "partial_update":
-                return f"Endpoint to update some fields of a registered Web Map Service"
-            case "destroy":
-                return f"Endpoint to remove a registered Web Map Service from the system"
-            case _:
-                return ""
 
 
 class LayerRelationshipView(RelationshipView):

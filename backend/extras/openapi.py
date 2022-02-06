@@ -1,13 +1,42 @@
 from rest_framework.fields import empty
 from rest_framework_json_api import serializers
 from rest_framework_json_api.schemas.openapi import AutoSchema
-from rest_framework_json_api.utils import format_field_name
+from rest_framework_json_api.serializers import ManyRelatedField
+from rest_framework_json_api.utils import (format_field_name,
+                                           get_related_resource_type)
 
 
 class CustomAutoSchema(AutoSchema):
     """
     Extend DRF's openapi.AutoSchema for JSON:API serialization.
     """
+
+    def get_related_field_object_description(self, field) -> dict:
+        description = {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",  # type of the id
+                    "description": "The id of the related object",
+                    # uuid pattern if uuid is pk
+                    # "pattern": "[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}\Z"
+                },
+                "type": {
+                    "type": "string",
+                    "description": "The related resource name",
+                }
+            },
+            "required": [
+                "id",
+                "type"
+            ]
+        }
+
+        description["properties"]["type"].update({"enum": [
+            get_related_resource_type(relation=field)
+        ]})
+
+        return description
 
     def map_serializer(self, serializer):
         """
@@ -26,15 +55,13 @@ class CustomAutoSchema(AutoSchema):
             if isinstance(field, serializers.HiddenField):
                 continue
             if isinstance(field, serializers.RelatedField):
-                # TODO: here should be the ref to the concrete linked component schema definition... outerwise an automatic usage is not possible
-                relationships[format_field_name(field.field_name)] = {
-                    "$ref": "#/components/schemas/reltoone"
-                }
+                relationships[format_field_name(
+                    field.field_name)] = self.get_related_field_object_description(field=field)
                 continue
             if isinstance(field, serializers.ManyRelatedField):
-                # TODO: here should be the ref to the concrete linked component schema definition... outerwise an automatic usage is not possible
                 relationships[format_field_name(field.field_name)] = {
-                    "$ref": "#/components/schemas/reltomany"
+                    "type": "array",
+                    "items": self.get_related_field_object_description(field=field)
                 }
                 continue
 

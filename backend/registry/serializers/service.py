@@ -154,11 +154,18 @@ class WebMapServiceCreateSerializer(ModelSerializer):
         # example="http://example.com/SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
         validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
-        queryset=WebMapServiceAuthentication.objects, required=False
-    )
-    owner = ResourceRelatedField(queryset=Organization.objects)
-
-    collect_metadata_records = BooleanField(default=True)
+        queryset=WebMapServiceAuthentication.objects,
+        required=False,
+        label=_("authentication credentials"),
+        help_text=_("Optional authentication credentials to request the remote service."))
+    owner = ResourceRelatedField(
+        queryset=Organization.objects,
+        label=_("owner"),
+        help_text=_("The selected organization grants all rights on the registered service."))
+    collect_metadata_records = BooleanField(
+        default=True,
+        label=_("collect metadata records"),
+        help_text=_("If checked, Mr. Map collects all related metadata documents after the registration task."))
 
     class Meta:
         model = WebMapService

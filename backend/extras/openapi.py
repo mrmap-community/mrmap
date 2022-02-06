@@ -3,7 +3,8 @@ from rest_framework_json_api import serializers
 from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.serializers import ManyRelatedField
 from rest_framework_json_api.utils import (format_field_name,
-                                           get_related_resource_type)
+                                           get_related_resource_type,
+                                           get_resource_type_from_serializer)
 
 
 class CustomAutoSchema(AutoSchema):
@@ -15,26 +16,19 @@ class CustomAutoSchema(AutoSchema):
         description = {
             "type": "object",
             "properties": {
-                "id": {
-                    "type": "string",  # type of the id
-                    "description": "The id of the related object",
-                    # uuid pattern if uuid is pk
-                    # "pattern": "[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}\Z"
-                },
+                # TODO: here should be the concrete id object... uuid, bigint, etc...
+                "id": {"$ref": "#/components/schemas/id"},
                 "type": {
                     "type": "string",
                     "description": "The related resource name",
-                }
+                    "enum": get_related_resource_type(relation=field)
+                },
             },
             "required": [
                 "id",
                 "type"
             ]
         }
-
-        description["properties"]["type"].update({"enum": [
-            get_related_resource_type(relation=field)
-        ]})
 
         return description
 
@@ -55,10 +49,12 @@ class CustomAutoSchema(AutoSchema):
             if isinstance(field, serializers.HiddenField):
                 continue
             if isinstance(field, serializers.RelatedField):
+                # TODO: handle nullable with anyOf [1: "#/components/schemas/nulltype", ...]
                 relationships[format_field_name(
                     field.field_name)] = self.get_related_field_object_description(field=field)
                 continue
             if isinstance(field, serializers.ManyRelatedField):
+                # TODO: handle nullable with anyOf [1: "#/components/schemas/nulltype", ...]
                 relationships[format_field_name(field.field_name)] = {
                     "type": "array",
                     "items": self.get_related_field_object_description(field=field)
@@ -91,8 +87,11 @@ class CustomAutoSchema(AutoSchema):
             "required": ["type", "id"],
             "additionalProperties": False,
             "properties": {
-                # TODO: here should be the ref to the concrete type... outerwise an automatic usage is not possible
-                "type": {"$ref": "#/components/schemas/type"},
+                "type": {
+                    "type": "string",
+                    "description": "The related resource name",
+                    "enum": [get_resource_type_from_serializer(serializer=serializer)]
+                },
                 # TODO: here should be the concrete id object... uuid, bigint, etc...
                 "id": {"$ref": "#/components/schemas/id"},
                 # TODO: links are not needed for post, patch, delete

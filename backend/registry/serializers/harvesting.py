@@ -1,11 +1,14 @@
 from django.utils.translation import gettext_lazy as _
+from extras.serializers import StringRepresentationSerializer
 from registry.models.harvest import HarvestingJob
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  UniqueTogetherValidator)
 
 
-class HarvestingJobSerializer(ModelSerializer):
+class HarvestingJobSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:harvestingjob-detail',
     )
@@ -13,6 +16,7 @@ class HarvestingJobSerializer(ModelSerializer):
     class Meta:
         model = HarvestingJob
         fields = "__all__"
+        meta_fields = ("string_representation",)
         validators = [
             UniqueTogetherValidator(
                 queryset=HarvestingJob.objects.filter(done_at__isnull=True),

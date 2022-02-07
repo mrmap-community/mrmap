@@ -1,7 +1,6 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
-from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
@@ -34,7 +33,9 @@ class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet
     search_fields = ('operation', )
 
 
-class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
+class AllowedWebMapServiceOperationViewSet(
+        NestedViewSetMixin,
+        ModelViewSet):
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
@@ -87,7 +88,9 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
         return qs
 
 
-class AllowedWebFeatureServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
+class AllowedWebFeatureServiceOperationViewSet(
+        NestedViewSetMixin,
+        ModelViewSet):
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )

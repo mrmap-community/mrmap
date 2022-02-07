@@ -2,7 +2,8 @@ from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (HistoryInformationSerializer,
-                                ObjectPermissionCheckerSerializer)
+                                ObjectPermissionCheckerSerializer,
+                                StringRepresentationSerializer)
 from MrMap.validators import validate_get_capablities_uri
 from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
@@ -36,7 +37,9 @@ class WebMapServiceOperationUrlSerializer(ModelSerializer):
         return instance.get_url(request=self.context["request"])
 
 
-class LayerSerializer(ModelSerializer):
+class LayerSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layer-detail",
     )
@@ -83,13 +86,17 @@ class LayerSerializer(ModelSerializer):
     class Meta:
         model = Layer
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
     def get_reference_systems(self, instance):
         return instance.get_reference_systems
 
 
 class WebMapServiceSerializer(
-    ObjectPermissionCheckerSerializer, HistoryInformationSerializer, ModelSerializer
+    StringRepresentationSerializer,
+    ObjectPermissionCheckerSerializer,
+    HistoryInformationSerializer,
+    ModelSerializer
 ):
 
     url = HyperlinkedIdentityField(
@@ -97,14 +104,12 @@ class WebMapServiceSerializer(
     )
 
     layers = ResourceRelatedField(
-        # queryset=Layer.objects,
         model=Layer,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:wms-layers-list",
         related_link_url_kwarg="parent_lookup_service",
         self_link_view_name="registry:wms-relationships",
         read_only=True,
-        # meta_attrs={'layer_count': 'count'}
     )
 
     service_contact = ResourceRelatedField(
@@ -122,7 +127,6 @@ class WebMapServiceSerializer(
         many=True,
         related_link_view_name="registry:wms-keywords-list",
         related_link_url_kwarg="parent_lookup_ogcservice_metadata",
-        # meta_attrs={'keyword_count': 'count'}
     )
 
     operation_urls = ResourceRelatedField(
@@ -143,7 +147,7 @@ class WebMapServiceSerializer(
     class Meta:
         model = WebMapService
         fields = "__all__"
-        meta_fields = ("is_accessible",)
+        meta_fields = ("string_representation",)
 
 
 class WebMapServiceCreateSerializer(ModelSerializer):
@@ -177,7 +181,9 @@ class WebMapServiceCreateSerializer(ModelSerializer):
         )
 
 
-class FeatureTypeSerializer(ModelSerializer):
+class FeatureTypeSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     keywords = HyperlinkedRelatedField(
         queryset=Keyword.objects,
@@ -194,9 +200,12 @@ class FeatureTypeSerializer(ModelSerializer):
     class Meta:
         model = FeatureType
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
-class WebFeatureServiceSerializer(ModelSerializer):
+class WebFeatureServiceSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
@@ -217,6 +226,7 @@ class WebFeatureServiceSerializer(ModelSerializer):
     class Meta:
         model = WebFeatureService
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
 class WebFeatureServiceCreateSerializer(ModelSerializer):
@@ -254,7 +264,9 @@ class CatalougeServiceCreateSerializer(ModelSerializer):
         )
 
 
-class CatalougeServiceSerializer(ModelSerializer):
+class CatalougeServiceSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
     )
@@ -262,3 +274,4 @@ class CatalougeServiceSerializer(ModelSerializer):
     class Meta:
         model = CatalougeService
         fields = "__all__"
+        meta_fields = ("string_representation",)

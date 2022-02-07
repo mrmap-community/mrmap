@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
-from extras.serializers import ObjectPermissionCheckerSerializer
+from extras.serializers import (ObjectPermissionCheckerSerializer,
+                                StringRepresentationSerializer)
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
@@ -33,7 +34,9 @@ class WebFeatureServiceOperationSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer, ModelSerializer):
+class AllowedWebMapServiceOperationSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:allowedwmsoperation-detail',
     )
@@ -46,6 +49,7 @@ class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer,
     class Meta:
         model = AllowedWebMapServiceOperation
         fields = '__all__'
+        meta_fields = ("string_representation",)
 
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -82,7 +86,9 @@ class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer,
         return data
 
 
-class AllowedWebFeatureServiceOperationSerializer(ObjectPermissionCheckerSerializer, ModelSerializer):
+class AllowedWebFeatureServiceOperationSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:allowedwfsoperation-detail',
     )
@@ -95,3 +101,4 @@ class AllowedWebFeatureServiceOperationSerializer(ObjectPermissionCheckerSeriali
     class Meta:
         model = AllowedWebFeatureServiceOperation
         fields = '__all__'
+        meta_fields = ("string_representation",)

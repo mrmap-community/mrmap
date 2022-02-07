@@ -1,7 +1,6 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
-from extras.serializers import (ObjectPermissionCheckerSerializer,
-                                StringRepresentationSerializer)
+from extras.serializers import StringRepresentationSerializer
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,

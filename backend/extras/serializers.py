@@ -17,6 +17,7 @@ class StringRepresentationSerializer(ModelSerializer):
         return obj.__str__()
 
 
+# TODO: Split this into two classes one which implements the get_perm_checker function and one which implements the is_accessible field
 class ObjectPermissionCheckerSerializer(ModelSerializer):
     is_accessible = SerializerMethodField(read_only=True)
 

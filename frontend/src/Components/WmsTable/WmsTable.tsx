@@ -1,4 +1,4 @@
-import { UnlockOutlined } from '@ant-design/icons';
+import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import { Button, Space } from 'antd';
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router';
@@ -127,6 +127,7 @@ const WmsTable = (): JSX.Element => {
     title: 'Aktionen',
     valueType: 'option',
     render: (text: any, record:any) => {
+      const isSecured = record.allowed_operations > 0;
       return (
         <>
           <Space size='middle'>
@@ -141,12 +142,12 @@ const WmsTable = (): JSX.Element => {
             </Button>
             <Button
               size='small'
-              icon={<UnlockOutlined/>}
+              icon={isSecured ? <LockOutlined/> : <UnlockOutlined/>}
               onClick={ () => {
                 navigate(`/registry/services/wms/${record.id}/security`);
               }}
             >
-              Zugriff einschränken
+              { isSecured ? `Zugriffsregeln: ${record.allowed_operations}` : 'Zugriff unbeschränkt' }
             </Button>
           </Space>
         </>

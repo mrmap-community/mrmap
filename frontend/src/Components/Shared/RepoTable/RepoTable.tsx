@@ -184,11 +184,14 @@ const RepoTable = ({
           layers: [],
           ...record.attributes
         };
+        // TODO handle JSON:API-relationships in a generic way
         if(record.relationships?.self_pointing_layers?.data.length > 0){
           const layerIds = record.relationships.self_pointing_layers.data.map((d:any) => d.id);
           row.layers = layerIds;
         }
-        
+        if(record.relationships['allowed_operations']?.meta?.count){
+          row['allowed_operations'] = record.relationships['allowed_operations'].meta.count;
+        }        
         data.push(row);
       });
     }

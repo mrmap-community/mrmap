@@ -1,4 +1,5 @@
 from django.db.models.query import Prefetch
+from registry.models.security import AllowedWebMapServiceOperation
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              ObjectPermissionCheckerViewSetMixin,
@@ -116,6 +117,10 @@ class WebMapServiceViewSet(
         if not include or "keywords" not in include:
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "allowed_operations" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("allowed_operations", queryset=AllowedWebMapServiceOperation.objects.only("id", "secured_service__id"))
             )
         if not include or "operation_urls" not in include:
             qs = qs.prefetch_related(

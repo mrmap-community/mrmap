@@ -56,8 +56,6 @@ export const RuleForm = ({
     }
     async function initAvailableGroups (userId: string) {
       const jsonApiResponse = await operation(
-        // TODO fetch groups of user (not global groups)
-        // 'List/api/v1/accounts/users/{parent_lookup_user}/groups/',
         'List/api/v1/accounts/groups/'
       ) as any;
       const groups = jsonApiResponse.data.data.map((group: any) => 

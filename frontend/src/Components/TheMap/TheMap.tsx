@@ -1,7 +1,5 @@
 
-import { CloseOutlined } from '@ant-design/icons';
 import { MapComponent, useMap } from '@terrestris/react-geo';
-import Button from 'antd/lib/button';
 import { Key } from 'antd/lib/table/interface';
 import { EventsKey as OlEventsKey } from 'ol/events';
 import LayerGroup from 'ol/layer/Group';
@@ -11,15 +9,12 @@ import { unByKey } from 'ol/Observable';
 import Overlay from 'ol/Overlay';
 import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
-import { LayerUtils } from '../../Utils/LayerUtils';
 import { DropNodeEventType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { LayerManager } from './LayerManager/LayerManager';
 import { CreateLayerOpts } from './LayerManager/LayerManagerTypes';
 import './TheMap.css';
-
-const layerUtils = new LayerUtils();
 
 const backgroundLayersLayerGroup = new LayerGroup({
   // @ts-ignore
@@ -44,21 +39,6 @@ export const olMap = new OlMap({
   }),
   layers: [backgroundLayersLayerGroup]
 });
-
-const FeatureInfoPopUp = ({ info }: {info: any}): JSX.Element => (
-  <div id='popup' className='ol-popup'>
-    <Button
-      id='popup-close'
-      type='link'
-      icon={<CloseOutlined />}
-      size='small'
-    />
-  
-    <div id='popup-content'>
-      {info}
-    </div>
-  </div>
-);
 
 const olListenerKeys: (OlEventsKey[]) = [];
 
@@ -104,35 +84,6 @@ export const TheMap = ({
 }): JSX.Element => {
   const map = useMap();
 
-  const [coordinates, setCoordinates] = useState<any>();
-  
-  const registerMapClickListener = (_olMap: OlMap, _overlay?: Overlay) => {
-    const getFeatureAttributesClickEventKey = _olMap
-      .on('singleclick', (event) => layerUtils.getFeatureAttributes(_olMap, event));
-    if(_overlay) {
-      const onShowInfoPopUpOnCoordinateClickListener = _olMap
-        .on('singleclick', async (event) => {
-          setCoordinates('');
-          const coordinate = event.coordinate;
-          const featureInfo = layerUtils.getFeatureAttributes(_olMap, event);
-          _overlay.setPosition(coordinate);
-          try {
-            const result = await featureInfo;
-            if(result) {
-              const cena = Object.keys(result).map((key:any) => (`${key}: ${result[key]}`));
-              setCoordinates(cena.join('\n'));
-            }
-          } catch(error) {
-            //@ts-ignore
-            throw new Error(error);
-          }
-          
-        });
-      olListenerKeys.push(onShowInfoPopUpOnCoordinateClickListener);
-    }
-    olListenerKeys.push(getFeatureAttributesClickEventKey);
-  };
-
   useEffect(() => {    
     const close = document.getElementById('popup-close');
   
@@ -156,8 +107,8 @@ export const TheMap = ({
     
     //map.render();  
     map.setTarget('the-map');
-    registerMapClickListener(map, infoPopUpBubble);
-    map.addOverlay(infoPopUpBubble);
+    // registerMapClickListener(map, infoPopUpBubble);
+    // map.addOverlay(infoPopUpBubble);
     return () => {
       // unregister the listener
       unByKey(olListenerKeys);
@@ -192,8 +143,7 @@ export const TheMap = ({
       <MapComponent
         id='the-map'
         map={map}
-      />  
-      <FeatureInfoPopUp info={coordinates} />
+      />
     </div>
   );
 };

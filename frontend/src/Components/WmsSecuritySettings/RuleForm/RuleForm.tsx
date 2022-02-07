@@ -1,12 +1,14 @@
 import { useMap } from '@terrestris/react-geo';
+import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
 import { Alert, Button, Form, notification, Select, Space } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
-import TextArea from 'antd/lib/input/TextArea';
 import { Feature } from 'ol';
 import GeoJSON from 'ol/format/GeoJSON';
+import OlGeometry from 'ol/geom/Geometry';
 import MultiPolygon from 'ol/geom/MultiPolygon';
-import VectorLayer from 'ol/layer/Vector';
-import VectorSource from 'ol/source/Vector';
+import Polygon from 'ol/geom/Polygon';
+import OlVectorLayer from 'ol/layer/Vector';
+import OlVectorSource from 'ol/source/Vector';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
@@ -15,10 +17,12 @@ import { operation } from '../../../Repos/JsonApi';
 import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../Repos/WmsAllowedOperationRepo';
 import WmsOperationRepo from '../../../Repos/WmsOperationRepo';
 import { InputField } from '../../Shared/FormFields/InputField/InputField';
+import { AllowedAreaList } from './AllowedAreaList';
 
 const { Option } = Select;
 
 const wmsOpRepo = new WmsOperationRepo();
+const geoJson = new GeoJSON();
 
 interface RuleFormProps {
     wmsId: string,
@@ -40,9 +44,9 @@ export const RuleForm = ({
   const auth = useAuth();
   const map = useMap();
 
+  const [layer, setLayer] = useState<OlVectorLayer<OlVectorSource<OlGeometry>>>();  
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
-  const [allowedArea, setAllowedArea] = useState<MultiPolygon>();
   const [validationErrors, setValidationErrors] = useState<string[]>([]);  
 
   useEffect(() => {
@@ -79,63 +83,52 @@ export const RuleForm = ({
         );
         setSelectedLayerIds(securedLayerIds);
         if (jsonApiResponse.data.data.attributes['allowed_area']) {
-          const format = new GeoJSON();
-          const geom: any = format.readGeometry(
+          console.log ('Reading', jsonApiResponse.data.data.attributes['allowed_area']);
+          const geom: any = geoJson.readGeometry(
             jsonApiResponse.data.data.attributes['allowed_area']
           );
-          setAllowedArea(geom);
+          geom.getPolygons().forEach( (polygon:Polygon) => {
+            const feature = new Feature ( {
+              geometry: polygon.clone().transform('EPSG:4326', 'EPSG:900913')
+            });
+            layer?.getSource().addFeature(feature);
+          });
           const nativeGeom = geom.clone().transform('EPSG:4326', 'EPSG:900913');
           map.getView().fit(nativeGeom.getExtent());
         }
       }
     }
+    setLayer(DigitizeUtil.getDigitizeLayer(map));
     isMounted && initAvailableWmsOps();
     isMounted && auth && initAvailableGroups(auth.userId);
-    isMounted && ruleId && initFromExistingRule(ruleId);
-    return (() => { isMounted = false; });
+    isMounted && ruleId && layer && initFromExistingRule(ruleId);
+    return (() => { 
+      isMounted = false;
+      layer?.getSource().clear();
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[auth, ruleId, map]);
-
-  useEffect(() => {
-    let layer: any = null;
-    if (layer) {
-      map.removeLayer(layer);
-    }
-    if (allowedArea) {
-      const geom = allowedArea.clone();
-      geom.transform('EPSG:4326', 'EPSG:900913');
-      const feature = new Feature({
-        geometry: geom
-      });
-      const source = new VectorSource();
-      source.addFeature(feature);
-      layer = new VectorLayer({
-        source: source,
-      });
-      map.addLayer(layer);
-    }
-    return (() => { map.removeLayer(layer); });
-  }, [allowedArea, map]);
-
-  const onAreaChanged = (event: any) => {
-    try {
-      const format = new GeoJSON();
-      const geom: any = format.readGeometry(event.target.value);    
-      setAllowedArea(geom);
-    } catch (err: any) {
-      setValidationErrors([err.message]);
-    }
-  };
+  },[auth, ruleId, map, layer]);
 
   const onFinish = (values: any) => {
     if (selectedLayerIds.length === 0) {
       setValidationErrors(['At least one layer needs to be selected.']);
       return;
     }
+    
+    let allowedAreaGeoJson: string|null = null;
+    const coords: any [] = [];
+    layer?.getSource().getFeatures().forEach ((feature) => {
+      const poly:any = feature.getGeometry()?.clone().transform('EPSG:900913', 'EPSG:4326');
+      coords.push(poly.getCoordinates());
+    });
+    if (coords.length > 0) {
+      const multiPoly = new MultiPolygon(coords);
+      allowedAreaGeoJson = geoJson.writeGeometry(multiPoly);      
+    }
     async function create () {
       const createObj: WmsAllowedOperationCreate = {
         description: values.description,
-        allowedArea: values.area,
+        allowedArea: allowedAreaGeoJson,
         securedLayerIds: selectedLayerIds,
         allowedOperationIds: values.operations,
         allowedGroupIds: values.groups
@@ -152,14 +145,8 @@ export const RuleForm = ({
     async function update (ruleId: string) {
       const attributes:any = {
         description: values.description,
+        'allowed_area': allowedAreaGeoJson
       };
-      if (values.area) {
-        attributes['allowed_area'] = values.area;
-      } else {
-        // TODO remove this workaround as soon as backend allows setting null values for deleting (optional) attributes
-        attributes['allowed_area'] = 
-          '{"type": "MultiPolygon", "coordinates": [[[[-180, -90], [-180, 90], [180, 90], [180, -90], [-180, -90]]]]}';
-      }
       const relationships = {
         'secured_layers': {
           'data': selectedLayerIds.map((id) => {
@@ -244,8 +231,8 @@ export const RuleForm = ({
           label='Allowed area'
           name='area'
         >
-          <TextArea onChange={onAreaChanged}/>
-        </Form.Item>                
+          <AllowedAreaList />
+        </Form.Item>         
         {
           validationErrors.map((error, i) => (
             <Form.Item key={i}>

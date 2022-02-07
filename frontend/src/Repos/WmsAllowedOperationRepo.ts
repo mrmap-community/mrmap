@@ -3,7 +3,7 @@ import JsonApiRepo, { JsonApiMimeType, JsonApiResponse, QueryParams } from './Js
 
 export interface WmsAllowedOperationCreate {
   description: string;
-  allowedArea?: string;
+  allowedArea: string|null;
   allowedGroupIds: Array<string>;
   allowedOperationIds: Array<string>;
   securedLayerIds: Array<string>;

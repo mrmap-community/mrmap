@@ -47,14 +47,14 @@ class AllowedWebMapServiceOperationViewSet(
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
 
-        if not include or "secured_service" not in include:
+        if not include or "securedService" not in include:
             defer = [
                 f"secured_service__{field.name}"
                 for field in WebMapService._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("secured_service").defer(*defer)
-        if not include or "secured_layers" not in include:
+        if not include or "securedLayers" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "secured_layers",
@@ -66,7 +66,7 @@ class AllowedWebMapServiceOperationViewSet(
                     ),
                 )
             )
-        if not include or "allowed_groups" not in include:
+        if not include or "allowedGroups" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "allowed_groups",

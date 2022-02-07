@@ -91,21 +91,21 @@ class DatasetMetadataViewSet(ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
-        if not include or "metadata_contact" not in include:
+        if not include or "metadataContact" not in include:
             defer = [
                 f"metadata_contact__{field.name}"
                 for field in MetadataContact._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("metadata_contact").defer(*defer)
-        if not include or "dataset_contact" not in include:
+        if not include or "datasetContact" not in include:
             defer = [
                 f"dataset_contact__{field.name}"
                 for field in MetadataContact._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("dataset_contact").defer(*defer)
-        if not include or "self_pointing_layers" not in include:
+        if not include or "selfPointingLayers" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "self_pointing_layers",
@@ -117,14 +117,14 @@ class DatasetMetadataViewSet(ModelViewSet):
                     ),
                 )
             )
-        if not include or "self_pointing_feature_types" not in include:
+        if not include or "selfPointingFeatureTypes" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "self_pointing_feature_types",
                     queryset=FeatureType.objects.only("id", "service_id"),
                 )
             )
-        if not include or "self_pointing_catalouge_service" not in include:
+        if not include or "selfPointingCatalougeService" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "self_pointing_catalouge_service",
@@ -135,7 +135,7 @@ class DatasetMetadataViewSet(ModelViewSet):
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "reference_systems" not in include:
+        if not include or "referenceSystems" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")

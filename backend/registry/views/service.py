@@ -40,7 +40,8 @@ class WebMapServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    """
+    """ Endpoints for resource `WebMapService`
+
         create:
             Endpoint to register new Web Map Services
         list:
@@ -129,7 +130,7 @@ class WebMapServiceViewSet(
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "operation_urls" not in include:
+        if not include or "operationUrls" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "operation_urls",
@@ -204,7 +205,7 @@ class LayerViewSet(
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "reference_systems" not in include:
+        if not include or "referenceSystems" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")

@@ -1,3 +1,4 @@
+from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
 from rest_framework_json_api import serializers, views
 from rest_framework_json_api.schemas.openapi import AutoSchema
@@ -10,6 +11,30 @@ class CustomAutoSchema(AutoSchema):
     """
     Extend DRF's openapi.AutoSchema for JSON:API serialization.
     """
+
+    def get_components(self, path, method):
+        """
+        Return components with their properties from the serializer.
+        """
+
+        if method.lower() == 'delete':
+            return {}
+
+        serializer = self.get_serializer(path, method)
+
+        if not isinstance(serializer, drf_serializers.Serializer):
+            return {}
+
+        component_name = self.get_component_name(serializer)
+
+        content = self.map_serializer(serializer)
+        if method.lower() == "get":
+            content["properties"]["links"] = {
+                "type": "object",
+                "properties": {"self": {"$ref": "#/components/schemas/link"}},
+            },
+
+        return {component_name: content}
 
     def get_related_field_object_description(self, field) -> dict:
         description = {
@@ -52,29 +77,30 @@ class CustomAutoSchema(AutoSchema):
             item_schema = {
                 "$ref": "#/components/schemas/ResourceIdentifierObject"}
         else:
-            item_schema = self.map_serializer(serializer)
-            if method == "POST":
-                # 'type' and 'id' are both required for:
-                # - all relationship operations
-                # - regular PATCH or DELETE
-                # Only 'type' is required for POST: system may assign the 'id'.
-                item_schema["required"] = ["type"]
-            if method in ["POST", "PATCH", "DELETE"]:
-                del item_schema["properties"]["links"]
+            item_schema = self._get_reference(serializer)
+        #    item_schema = self.map_serializer(serializer)
+        #     if method == "POST":
+        #         # 'type' and 'id' are both required for:
+        #         # - all relationship operations
+        #         # - regular PATCH or DELETE
+        #         # Only 'type' is required for POST: system may assign the 'id'.
+        #         item_schema["required"] = ["type"]
+        #     if method in ["POST", "PATCH", "DELETE"]:
+        #         del item_schema["properties"]["links"]
 
-        if "properties" in item_schema and "attributes" in item_schema["properties"]:
-            # No required attributes for PATCH
-            if (
-                method in ["PATCH", "PUT"]
-                and "required" in item_schema["properties"]["attributes"]
-            ):
-                del item_schema["properties"]["attributes"]["required"]
-            # No read_only fields for request.
-            for name, schema in (
-                item_schema["properties"]["attributes"]["properties"].copy().items()
-            ):  # noqa E501
-                if "readOnly" in schema:
-                    del item_schema["properties"]["attributes"]["properties"][name]
+        # if "properties" in item_schema and "attributes" in item_schema["properties"]:
+        #     # No required attributes for PATCH
+        #     if (
+        #         method in ["PATCH", "PUT"]
+        #         and "required" in item_schema["properties"]["attributes"]
+        #     ):
+        #         del item_schema["properties"]["attributes"]["required"]
+        #     # No read_only fields for request.
+        #     for name, schema in (
+        #         item_schema["properties"]["attributes"]["properties"].copy().items()
+        #     ):  # noqa E501
+        #         if "readOnly" in schema:
+        #             del item_schema["properties"]["attributes"]["properties"][name]
         return {
             "content": {
                 ct: {
@@ -167,11 +193,6 @@ class CustomAutoSchema(AutoSchema):
                 },
                 # TODO: here should be the concrete id object... uuid, bigint, etc...
                 "id": {"$ref": "#/components/schemas/id"},
-                # TODO: links are not needed for post, patch, delete
-                "links": {
-                    "type": "object",
-                    "properties": {"self": {"$ref": "#/components/schemas/link"}},
-                },
             },
         }
         if attributes:

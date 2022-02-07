@@ -20,7 +20,6 @@ import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
 import { useAuth } from './Hooks/useAuth';
-import logo from './logo.png';
 import CatalogueServiceRepo from './Repos/CswRepo';
 import WebFeatureServiceRepo from './Repos/WfsRepo';
 import WebMapServiceRepo from './Repos/WmsRepo';
@@ -69,7 +68,7 @@ export default function App (): JSX.Element {
                   onCollapse={onCollapse}>
                   <div className='logo'>
                     <img
-                      src={logo}
+                      src={process.env.PUBLIC_URL + '/logo.png'}
                       alt='Mr. Map Logo'
                     >
                     </img>

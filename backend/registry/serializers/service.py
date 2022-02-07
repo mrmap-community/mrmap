@@ -92,7 +92,7 @@ class LayerSerializer(
         help_text=_("available reference systems of this layer."),
         model=ReferenceSystem,
         many=True,
-        source="get_reference_systems"
+        read_only=True,
     )
 
     included_serializers = {
@@ -107,8 +107,8 @@ class LayerSerializer(
         fields = "__all__"
         meta_fields = ("string_representation",)
 
-    # def get_reference_systems(self, instance):
-    #     return instance.get_reference_systems
+    def get_reference_systems(self, instance):
+        return instance.get_reference_systems
 
 
 class WebMapServiceSerializer(

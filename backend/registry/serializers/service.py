@@ -42,17 +42,22 @@ class LayerSerializer(
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layer-detail",
+        read_only=True,
     )
 
     service = ResourceRelatedField(
-        # model=WebMapService,
-        queryset=WebMapService.objects,
+        label=_("web map service"),
+        help_text=_("the web map service, where this layer is part of."),
+        read_only=True,
+        model=WebMapService,
         related_link_view_name="registry:layer-wms-detail",
         related_link_lookup_field="pk",
-        related_link_url_kwarg="layer_pk"
-        # elf_link_view_name='registry:wms-relationships',
+        related_link_url_kwarg="layer_pk",
+        # self_link_view_name='registry:wms-relationships',
     )
     keywords = ResourceRelatedField(
+        label=_("keywords"),
+        help_text=_("keywords help to find layers by matching keywords."),
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-keywords-list",
@@ -61,10 +66,21 @@ class LayerSerializer(
     )
 
     # FIXME: prefetch ancestors for the following fields, cause otherwise this results in extra db transactions...
-    bbox_lat_lon = GeometryField(source="get_bbox")
-    scale_min = IntegerField(source="get_scale_min")
-    scale_max = IntegerField(source="get_scale_max")
+    bbox_lat_lon = GeometryField(
+        source="get_bbox",
+        label=_("bbox"),
+        help_text=_("this is the spatial extent of the layer."))
+    scale_min = IntegerField(
+        source="get_scale_min",
+        label=_("minimal scale"),
+        help_text=_("the minimum scale value."))
+    scale_max = IntegerField(
+        source="get_scale_max",
+        label=_("maximum scale"),
+        help_text=_("the maximum scale value."))
     styles = ResourceRelatedField(
+        label=_("styles"),
+        help_text=_("related styles of this layer."),
         queryset=Style.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-styles-list",
@@ -72,8 +88,11 @@ class LayerSerializer(
         self_link_view_name="registry:layer-relationships",
     )
     reference_systems = SerializerMethodResourceRelatedField(
+        label=_("reference systems"),
+        help_text=_("available reference systems of this layer."),
         model=ReferenceSystem,
         many=True,
+        source="get_reference_systems"
     )
 
     included_serializers = {
@@ -88,8 +107,8 @@ class LayerSerializer(
         fields = "__all__"
         meta_fields = ("string_representation",)
 
-    def get_reference_systems(self, instance):
-        return instance.get_reference_systems
+    # def get_reference_systems(self, instance):
+    #     return instance.get_reference_systems
 
 
 class WebMapServiceSerializer(
@@ -130,8 +149,11 @@ class WebMapServiceSerializer(
     )
 
     operation_urls = ResourceRelatedField(
-        queryset=WebMapServiceOperationUrl.objects,
+        label=_("operation urls"),
+        help_text=_("this are the urls to use for the ogc operations."),
+        model=WebMapServiceOperationUrl,
         many=True,
+        read_only=True,
     )
 
     included_serializers = {

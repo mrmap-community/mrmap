@@ -41,7 +41,7 @@ class AllowedWebMapServiceOperationSerializer(ObjectPermissionCheckerSerializer,
         queryset=Group.objects,
         many=True,
         required=False)
-    allowed_area = GeometryField(required=False)
+    allowed_area = GeometryField(required=False, allow_null=True)
 
     class Meta:
         model = AllowedWebMapServiceOperation
@@ -90,7 +90,7 @@ class AllowedWebFeatureServiceOperationSerializer(ObjectPermissionCheckerSeriali
         queryset=Group.objects,
         many=True,
         required=False)
-    allowed_area = GeometryField(required=False)
+    allowed_area = GeometryField(required=False, allow_null=True)
 
     class Meta:
         model = AllowedWebFeatureServiceOperation

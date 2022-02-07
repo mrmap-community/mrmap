@@ -40,6 +40,19 @@ class WebMapServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
+    """ Endpoints for resource `WebMapService`
+
+        create:
+            Endpoint to register new Web Map Services
+        list:
+            Retrieves all registered Web Map Services
+        retrieve:
+            Retrieve one specific Web Map Service by the given id
+        partial_update:
+            Endpoint to update some fields of a registered Web Map Service
+        destroy:
+            Endpoint to remove a registered Web Map Service from the system
+    """
     schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
@@ -117,7 +130,7 @@ class WebMapServiceViewSet(
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "operation_urls" not in include:
+        if not include or "operationUrls" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "operation_urls",
@@ -167,6 +180,9 @@ class LayerViewSet(
         "reference_systems": ["reference_systems"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -189,7 +205,7 @@ class LayerViewSet(
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "reference_systems" not in include:
+        if not include or "referenceSystems" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")
@@ -263,6 +279,9 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class CatalougeServiceViewSet(

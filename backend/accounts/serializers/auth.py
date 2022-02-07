@@ -1,5 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import Permission
+from django.utils.translation import gettext_lazy as _
+from extras.serializers import StringRepresentationSerializer
 from rest_framework import exceptions
 from rest_framework.fields import CharField
 from rest_framework.relations import HyperlinkedIdentityField
@@ -17,8 +19,12 @@ class PasswordField(CharField):
 
 
 class LoginSerializer(Serializer):
-    username = CharField()
-    password = PasswordField()
+    username = CharField(
+        label=_("username"),
+    )
+    password = PasswordField(
+        label=_("password"),
+    )
 
     class Meta:
         resource_name = 'Login'
@@ -37,7 +43,9 @@ class LogoutSerializer(Serializer):
         resource_name = 'Logout'
 
 
-class PermissionSerializer(ModelSerializer):
+class PermissionSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='accounts:user-detail',
@@ -46,3 +54,4 @@ class PermissionSerializer(ModelSerializer):
     class Meta:
         model = Permission
         fields = "__all__"
+        meta_fields = ("string_representation",)

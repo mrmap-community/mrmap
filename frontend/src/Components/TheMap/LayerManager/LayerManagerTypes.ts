@@ -22,6 +22,7 @@ export interface CreateLayerOpts {
 
 export interface LayerManagerProps {
   initLayerTreeData:any
+  initExpandedLayerIds?: string[];
   layerManagerLayerGroupName?: string;
   asyncTree?: boolean;
   addLayerDispatchAction?:(

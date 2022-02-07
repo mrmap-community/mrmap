@@ -74,6 +74,7 @@ export const TheMap = ({
   layerEditErrorDispatchAction = () => undefined,
   layerGroupName,
   initLayerTreeData,
+  initExpandedLayerIds = [],
   layerAttributeForm,
   layerAttributeInfoIcons = () => (<></>),
   allowMultipleLayerSelection = false,
@@ -94,6 +95,7 @@ export const TheMap = ({
   layerEditErrorDispatchAction?: (error: any) => undefined | void;
   layerGroupName: string;
   initLayerTreeData: any;
+  initExpandedLayerIds?: string[];
   layerAttributeForm: ReactNode;
   layerAttributeInfoIcons?: (nodeData: TreeNodeType) => ReactNode;
   allowMultipleLayerSelection?: boolean;
@@ -169,6 +171,7 @@ export const TheMap = ({
       {showLayerManager && (
         <LayerManager
           initLayerTreeData={initLayerTreeData}
+          initExpandedLayerIds={initExpandedLayerIds}
           layerManagerLayerGroupName={layerGroupName}
           asyncTree
           selectLayerDispatchAction={selectLayerDispatchAction}

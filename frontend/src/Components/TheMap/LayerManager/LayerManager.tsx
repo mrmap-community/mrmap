@@ -49,6 +49,7 @@ export const LayerManager = ({
   layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
   initLayerTreeData,
+  initExpandedLayerIds = [],
   multipleSelection = false,
   selectedLayerIds = undefined
 }: LayerManagerProps): JSX.Element => {
@@ -377,6 +378,7 @@ export const LayerManager = ({
           className='layer-manager-tree'
           title='Layers'
           treeData={treeData}
+          initExpandedNodeIds={initExpandedLayerIds}
           asyncTree={asyncTree}
           extendedNodeActions={layerActions}
           //@ts-ignore

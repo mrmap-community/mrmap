@@ -36,8 +36,7 @@ function wmsLayersToTreeNodeList(list:any[]):TreeNodeType[] {
         title: element.attributes.title, // yes, title is repeated
         scaleMin: element.attributes.scale_min,
         scaleMax: element.attributes.scale_max,
-      },
-      expanded: true
+      }
     };
 
     if (node.parent) {
@@ -114,7 +113,8 @@ export const WmsSecuritySettings = (): ReactElement => {
   const { wmsId } = useParams();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
-  const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());  
+  const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
+  const [nonLeafLayerIds, setNonLeafLayerIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (wmsId) {
@@ -132,9 +132,23 @@ export const WmsSecuritySettings = (): ReactElement => {
           const wmsAttrs = jsonApiWmsWithOpUrls.data.data.attributes;
           const wmsVersion = wmsAttrs.version;
           const response = await wmsRepo.getAllLayers(String(wmsId));
+
           // convert the WMS layers coming from the server to a compatible tree node list
           const _initLayerTreeData = wmsLayersToOlLayerGroup((response as any).data?.data, getMapUrl, wmsVersion);
+          const layerIds: string[] = [];
+          const collectNonLeafLayers = (layer: BaseLayer) => {
+            if (layer instanceof LayerGroup) {
+              layerIds.push(layer.getProperties()['layerId']);
+              layer.getLayers().forEach ((child) => {
+                collectNonLeafLayers(child);
+              }); 
+            } 
+          };
+          _initLayerTreeData.forEach ( (layer) => {
+            collectNonLeafLayers(layer);
+          });
           setInitLayerTreeData(_initLayerTreeData);
+          setNonLeafLayerIds(layerIds);
         } catch (error) {
           // @ts-ignore
           throw new Error(error);
@@ -162,6 +176,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             }}
             layerGroupName='mrMapWmsSecurityLayers'
             initLayerTreeData={initLayerTreeData}
+            initExpandedLayerIds={nonLeafLayerIds}
             layerAttributeForm={(<h1>Placeholder</h1>)}
             selectedLayerIds={selectedLayerIds}
           />

@@ -68,8 +68,7 @@ export class TreeUtils {
             scaleMax: element.attributes.layer_scale_max,
             style: element.relationships.layer_style.data?.id,
             featureSelectionLayer: element.relationships.selection_layer.data?.id,
-          },
-          expanded: true
+          }
         };
     
         if (node.parent) {
@@ -181,6 +180,18 @@ export class TreeUtils {
       }
       return value;
     });
+  }
+
+  public getAllNodesOfSubtree(root: TreeNodeType): TreeNodeType[] {
+    const treeNodes:TreeNodeType[] = [];
+    const collectTreeNodes = (node: TreeNodeType)  => {
+      treeNodes.push(node);
+      node.children.forEach ((child) => {
+        collectTreeNodes(child);
+      });
+    };
+    collectTreeNodes(root);
+    return treeNodes;
   }
 
 }

@@ -593,10 +593,25 @@ export const TreeManager = ({
   };
 
   /**
-   * @description: Hook to run on component mount. Creates sets the initial tree data
+   * @description: Hook to run on component mount. Creates the initial tree data and expands all non-leaf nodes
    */
   useEffect(() => {
+    const expandAll =  () => {
+      const treeNodes:TreeNodeType[] = [];
+      const collectTreeNodes = (node: TreeNodeType)  => {
+        treeNodes.push(node);
+        node.children.forEach ((child) => {
+          collectTreeNodes(child);
+        });
+      };
+      treeData.forEach ((node) => {
+        collectTreeNodes(node);
+      });
+      const keys = treeNodes.filter( node => !node.isLeaf).map ((node) => node.key);
+      setExpandedKeys(keys);
+    };
     setTreeData(treeData);
+    expandedKeys.length === 0 && expandAll();
   }, [treeData]);
 
   /**

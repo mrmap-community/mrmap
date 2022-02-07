@@ -164,6 +164,25 @@ export const WmsSecuritySettings = (): ReactElement => {
     return (<SyncOutlined spin />);
   }
 
+  const selectLayersAndSublayers = ((ids:string[]) => {
+    olMap.getLayers().forEach (layer => {
+      if (layer.getProperties().title === 'mrMapWmsSecurityLayers') {
+        const layerIds: string[] = [];
+        const collectLayersAndSubLayers = (layer: BaseLayer, include: boolean) => {
+          include = include || ids.includes(layer.getProperties()['layerId']);
+          if (layer instanceof LayerGroup) {
+            layer.getLayers().forEach ((child) => {
+              collectLayersAndSubLayers(child, include);
+            }); 
+          } 
+          include && layerIds.push(layer.getProperties()['layerId']);
+        };
+        collectLayersAndSubLayers(layer, false);
+        setSelectedLayerIds(layerIds);
+      }
+    });
+  });
+
   return (
     <>
       <div className='map-context'>
@@ -172,7 +191,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             showLayerManager
             allowMultipleLayerSelection
             selectLayerDispatchAction={(selectedKeys, info) => { 
-              setSelectedLayerIds(selectedKeys as string[]);
+              selectLayersAndSublayers(selectedKeys as string[]);
             }}
             layerGroupName='mrMapWmsSecurityLayers'
             initLayerTreeData={initLayerTreeData}
@@ -185,7 +204,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             <RulesDrawer 
               wmsId={wmsId}
               selectedLayerIds={selectedLayerIds}
-              setSelectedLayerIds={ (ids:string[]) => { setSelectedLayerIds(ids); } }
+              setSelectedLayerIds={selectLayersAndSublayers}
             /> 
           }
         </ReactGeoMapContext.Provider>

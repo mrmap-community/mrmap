@@ -118,7 +118,6 @@ export const RuleForm = ({
   }, [allowedArea, map]);
 
   const onAreaChanged = (event: any) => {
-    console.log('A', event.target.value);
     try {
       const format = new GeoJSON();
       const geom: any = format.readGeometry(event.target.value);    

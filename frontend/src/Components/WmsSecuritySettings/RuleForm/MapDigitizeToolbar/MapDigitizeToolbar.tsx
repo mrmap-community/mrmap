@@ -17,6 +17,7 @@ import OlMap from 'ol/Map';
 import OlSourceVector from 'ol/source/Vector';
 import React, { useEffect, useState } from 'react';
 import { ToolsContainer } from '../../../Shared/ToolsContainer/ToolsContainer';
+import './MapDigitizeToolbar.css';
 
 const geoJson = new GeoJSON();
 const gml3 = new GML3();
@@ -127,7 +128,7 @@ export const MapDigitizeToolbar: React.FC<MapToolbarProps> = ({
   };
 
   const tools = (
-    <div>
+    <>
       <ToggleGroup orientation='horizontal'>
         <DigitizeButton
           name='drawPolygon'
@@ -165,13 +166,13 @@ export const MapDigitizeToolbar: React.FC<MapToolbarProps> = ({
           tooltip='Zeichenobjekt löschen'
           tooltipPlacement='bottom'
         />
-        <SimpleButton
-          icon={<FontAwesomeIcon icon={faTrash} />}
-          onClick={() => deleteAllDrawings()}
-          tooltip='Alle Zeichenobjekte löschen'
-          tooltipPlacement='bottom'
-        />      
       </ToggleGroup>
+      <SimpleButton
+        icon={<FontAwesomeIcon icon={faTrash} />}
+        onClick={() => deleteAllDrawings()}
+        tooltip='Alle Zeichenobjekte löschen'
+        tooltipPlacement='bottom'
+      />      
       <Upload
         accept='.gml,.geojson,.json'
         beforeUpload={async (file:File)  => {
@@ -195,8 +196,8 @@ export const MapDigitizeToolbar: React.FC<MapToolbarProps> = ({
         tooltipPlacement='bottom'
       >
           Export GeoJSON
-      </SimpleButton>             
-    </div>
+      </SimpleButton>
+    </>
   );
 
   return (

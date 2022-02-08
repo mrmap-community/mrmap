@@ -9,13 +9,15 @@ import { RulesTable } from './RulesTable/RulesTable';
 export interface RulesDrawerProps {
   wmsId: string,
   selectedLayerIds: string[],
-  setSelectedLayerIds: (ids: string[]) => void
+  setSelectedLayerIds: (ids: string[]) => void,
+  setIsRuleEditingActive: (isActive: boolean) => void
 }
 
 export const RulesDrawer = ({
   wmsId,
   selectedLayerIds,
-  setSelectedLayerIds
+  setSelectedLayerIds,
+  setIsRuleEditingActive
 }: RulesDrawerProps): ReactElement => {
 
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -50,6 +52,7 @@ export const RulesDrawer = ({
               <RulesTable 
                 wmsId={wmsId}
                 setSelectedLayerIds={setSelectedLayerIds}
+                setIsRuleEditingActive={setIsRuleEditingActive}
               />
             )}
           />
@@ -60,6 +63,7 @@ export const RulesDrawer = ({
                 wmsId={wmsId}
                 selectedLayerIds={selectedLayerIds}
                 setSelectedLayerIds={setSelectedLayerIds}
+                setIsRuleEditingActive={setIsRuleEditingActive}
               />
             )}
           />
@@ -70,6 +74,7 @@ export const RulesDrawer = ({
                 wmsId={wmsId}
                 selectedLayerIds={selectedLayerIds}
                 setSelectedLayerIds={setSelectedLayerIds}
+                setIsRuleEditingActive={setIsRuleEditingActive}
               />
             )}
           />          

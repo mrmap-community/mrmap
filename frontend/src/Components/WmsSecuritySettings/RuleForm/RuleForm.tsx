@@ -27,14 +27,18 @@ const geoJson = new GeoJSON();
 interface RuleFormProps {
     wmsId: string,
     selectedLayerIds: string[],
-    setSelectedLayerIds: (ids: string[]) => void    
+    setSelectedLayerIds: (ids: string[]) => void
+    setIsRuleEditingActive: (isActive: boolean) => void    
 }
 
 export const RuleForm = ({
   wmsId,
   selectedLayerIds,
-  setSelectedLayerIds
+  setSelectedLayerIds,
+  setIsRuleEditingActive  
 }: RuleFormProps): ReactElement => {
+
+  setIsRuleEditingActive(true);
 
   const ruleRepo = new WmsAllowedOperationRepo(wmsId);
 

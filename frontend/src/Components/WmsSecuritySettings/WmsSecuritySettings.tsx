@@ -113,6 +113,7 @@ export const WmsSecuritySettings = (): ReactElement => {
 
   const { wmsId } = useParams();
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isRuleEditingActive, setIsRuleEditingActive] = useState<boolean>(false);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
   const [nonLeafLayerIds, setNonLeafLayerIds] = useState<string[]>([]);
@@ -207,14 +208,15 @@ export const WmsSecuritySettings = (): ReactElement => {
               wmsId={wmsId}
               selectedLayerIds={selectedLayerIds}
               setSelectedLayerIds={selectLayersAndSublayers}
+              setIsRuleEditingActive={setIsRuleEditingActive}
             /> 
           }
           {
             olMap && 
             <MapDigitizeToolbar
               map={olMap} 
-              visible={true}
-              onClose={ () => {console.log ('Closing');} }
+              visible={isRuleEditingActive}
+              onClose={ () => { console.log('Closing');} }
             /> 
           }
         </ReactGeoMapContext.Provider>

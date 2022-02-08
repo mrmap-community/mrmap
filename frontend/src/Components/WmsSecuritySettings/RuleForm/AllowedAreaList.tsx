@@ -27,46 +27,48 @@ export const AllowedAreaList = (): ReactElement => {
   ];
 
   return (
-    <ProTable
-      bordered={true}
-      cardBordered={true}
-      columns={columns}
-      dataSource={dataSource}
-      showHeader={false}
-      pagination={false}
-      search={false}
-      options={false}
-      toolBarRender={ () => [
-        <ToggleGroup key='toggle'>
-          <DigitizeButton
-            name='drawRectangle'
-            map={map}
-            drawType='Rectangle'
-          >
+    <>
+      <ProTable
+        bordered={true}
+        cardBordered={true}
+        columns={columns}
+        dataSource={dataSource}
+        showHeader={false}
+        pagination={false}
+        search={false}
+        options={false}
+        toolBarRender={ () => [
+          <ToggleGroup key='toggle'>
+            <DigitizeButton
+              name='drawRectangle'
+              map={map}
+              drawType='Rectangle'
+            >
             Add rectangle
-          </DigitizeButton>
-          <DigitizeButton
-            name='drawPolygon'
-            map={map}
-            drawType='Polygon'
-          >
+            </DigitizeButton>
+            <DigitizeButton
+              name='drawPolygon'
+              map={map}
+              drawType='Polygon'
+            >
             Add polygon
-          </DigitizeButton>
-          <DigitizeButton
-            name='edit'
-            map={map}
-            editType='Edit'
-          >
+            </DigitizeButton>
+            <DigitizeButton
+              name='edit'
+              map={map}
+              editType='Edit'
+            >
             Edit
-          </DigitizeButton>          
-          <DigitizeButton
-            name='delete'
-            map={map}
-            editType='Delete'
-          >
+            </DigitizeButton>          
+            <DigitizeButton
+              name='delete'
+              map={map}
+              editType='Delete'
+            >
             Delete
-          </DigitizeButton>
-        </ToggleGroup>
-      ]}
-    />);
+            </DigitizeButton>
+          </ToggleGroup>
+        ]}
+      />
+    </>);
 };

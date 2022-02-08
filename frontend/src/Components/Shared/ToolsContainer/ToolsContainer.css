@@ -1,0 +1,30 @@
+.tools-container {
+  position: absolute;
+  bottom: 55px;
+  left: 50%;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+  background-color: #fff;
+  border: solid 1px black;
+  border-radius: 2px;
+  z-index: 1001; /* ant-drawer has 1000 */
+}
+
+.tools-container button {
+  float: left;
+  color: black;
+  background-color: transparent;
+  border: 0;
+}
+
+.tools-container button :hover {
+  float: left;
+  color: black;
+  background-color: grey;
+  border: 0;
+}
+
+.tools-container .btn-pressed {
+  background-color: grey;
+  color: black;
+}

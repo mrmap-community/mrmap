@@ -12,6 +12,7 @@ import { LayerUtils } from '../../Utils/LayerUtils';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
+import MapDigitizeToolbar from './RuleForm/MapDigitizeToolbar/MapDigitizeToolbar';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
@@ -206,6 +207,14 @@ export const WmsSecuritySettings = (): ReactElement => {
               wmsId={wmsId}
               selectedLayerIds={selectedLayerIds}
               setSelectedLayerIds={selectLayersAndSublayers}
+            /> 
+          }
+          {
+            olMap && 
+            <MapDigitizeToolbar
+              map={olMap} 
+              visible={true}
+              onClose={ () => {console.log ('Closing');} }
             /> 
           }
         </ReactGeoMapContext.Provider>

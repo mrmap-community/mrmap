@@ -38,8 +38,6 @@ export const RuleForm = ({
   setIsRuleEditingActive  
 }: RuleFormProps): ReactElement => {
 
-  setIsRuleEditingActive(true);
-
   const ruleRepo = new WmsAllowedOperationRepo(wmsId);
 
   const navigate = useNavigate();
@@ -52,6 +50,13 @@ export const RuleForm = ({
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);  
+
+  useEffect(() => {
+    setIsRuleEditingActive(true);
+    return ( () => {
+      setIsRuleEditingActive(false);
+    });
+  },[setIsRuleEditingActive]);
 
   useEffect(() => {
     let isMounted = true;

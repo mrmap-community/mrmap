@@ -113,10 +113,11 @@ export const WmsSecuritySettings = (): ReactElement => {
 
   const { wmsId } = useParams();
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isRuleEditingActive, setIsRuleEditingActive] = useState<boolean>(false);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
   const [nonLeafLayerIds, setNonLeafLayerIds] = useState<string[]>([]);
+  // only when rule editing is active, layers are selectable and area digitizing is possible
+  const [isRuleEditingActive, setIsRuleEditingActive] = useState<boolean>(false);
 
   useEffect(() => {
     if (wmsId) {
@@ -162,6 +163,12 @@ export const WmsSecuritySettings = (): ReactElement => {
     }
   }, [wmsId]);
 
+  useEffect(() => {
+    if (!isRuleEditingActive) {
+      setSelectedLayerIds([]);
+    }
+  }, [isRuleEditingActive]);
+
   if(isLoading) {
     return (<SyncOutlined spin />);
   }
@@ -193,7 +200,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             showLayerManager
             allowMultipleLayerSelection
             selectLayerDispatchAction={(selectedKeys, info) => { 
-              selectLayersAndSublayers(selectedKeys as string[]);
+              isRuleEditingActive && selectLayersAndSublayers(selectedKeys as string[]);
             }}
             layerGroupName='mrMapWmsSecurityLayers'
             initLayerTreeData={initLayerTreeData}

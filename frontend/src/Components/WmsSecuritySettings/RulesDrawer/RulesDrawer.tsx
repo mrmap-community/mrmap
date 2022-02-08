@@ -52,7 +52,6 @@ export const RulesDrawer = ({
               <RulesTable 
                 wmsId={wmsId}
                 setSelectedLayerIds={setSelectedLayerIds}
-                setIsRuleEditingActive={setIsRuleEditingActive}
               />
             )}
           />

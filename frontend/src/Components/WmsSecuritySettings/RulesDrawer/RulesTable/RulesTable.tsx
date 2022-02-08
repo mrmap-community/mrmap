@@ -6,17 +6,13 @@ import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/RepoTa
 export interface RulesTableProps {
   wmsId: string,
   setSelectedLayerIds: (ids: string[]) => void,
-  setIsRuleEditingActive: (isActive: boolean) => void  
 }
 
 export const RulesTable = ({
   wmsId,
-  setSelectedLayerIds,
-  setIsRuleEditingActive  
+  setSelectedLayerIds
 }: RulesTableProps): ReactElement => {
 
-  setIsRuleEditingActive(false);
-  
   const navigate = useNavigate();
   // no side effects, so useEffect is not needed here
   const repo = new WmsAllowedOperationRepo(wmsId);

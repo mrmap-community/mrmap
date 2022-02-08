@@ -39,6 +39,7 @@ export interface LayerManagerProps {
   layerAttributeInfoIcons?: (nodeData: TreeNodeType) => ReactNode;
   layerAttributeForm?: ReactNode;
   multipleSelection?: boolean;
+  draggable?: boolean;
   /** (Controlled) Specifies the keys of the selected layers */
   selectedLayerIds?: string[];
 }

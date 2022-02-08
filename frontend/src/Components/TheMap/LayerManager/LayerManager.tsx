@@ -51,7 +51,8 @@ export const LayerManager = ({
   initLayerTreeData,
   initExpandedLayerIds = [],
   multipleSelection = false,
-  selectedLayerIds = undefined
+  selectedLayerIds = undefined,
+  draggable = false
 }: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -371,7 +372,7 @@ export const LayerManager = ({
       </Tooltip>
       {isTreeContainerVisible && (
         <TreeManager
-          draggable
+          draggable={draggable}
           contextMenuOnNode
           checkableNodes
           attributeContainer='drawer'

@@ -198,6 +198,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             initExpandedLayerIds={nonLeafLayerIds}
             layerAttributeForm={(<h1>Placeholder</h1>)}
             selectedLayerIds={selectedLayerIds}
+            draggable={false}
           />
           { 
             wmsId && 

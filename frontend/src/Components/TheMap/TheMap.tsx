@@ -59,7 +59,8 @@ export const TheMap = ({
   layerAttributeInfoIcons = () => (<></>),
   allowMultipleLayerSelection = false,
   showLayerManager = false,
-  selectedLayerIds = undefined
+  selectedLayerIds = undefined,
+  draggable = true
 }: {
   addLayerDispatchAction?:(
     nodeAttributes: any,
@@ -81,6 +82,7 @@ export const TheMap = ({
   allowMultipleLayerSelection?: boolean;
   showLayerManager?: boolean;
   selectedLayerIds?: string[];
+  draggable?: boolean;
 }): JSX.Element => {
   const map = useMap();
 
@@ -138,6 +140,7 @@ export const TheMap = ({
           layerAttributeInfoIcons={layerAttributeInfoIcons}
           multipleSelection={allowMultipleLayerSelection}
           selectedLayerIds={selectedLayerIds}
+          draggable={draggable}
         />
       )}
       <MapComponent

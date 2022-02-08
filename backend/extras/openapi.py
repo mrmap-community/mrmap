@@ -2,15 +2,32 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
 from rest_framework_json_api import serializers, views
 from rest_framework_json_api.schemas.openapi import AutoSchema
+from rest_framework_json_api.serializers import \
+    ResourceIdentifierObjectSerializer
 from rest_framework_json_api.utils import (format_field_name,
                                            get_related_resource_type,
                                            get_resource_type_from_serializer)
+
+from extras.utils import deep_update
 
 
 class CustomAutoSchema(AutoSchema):
     """
     Extend DRF's openapi.AutoSchema for JSON:API serialization.
     """
+
+    def build_base_component(self, serializer):
+        return {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "The [type](https://jsonapi.org/format/#document-resource-object-identification) member is used to describe resource objects that share common attributes and relationships.",
+                    "enum": [get_resource_type_from_serializer(serializer=serializer)]
+                }
+            }
+        }
 
     def get_components(self, path, method):
         """
@@ -27,21 +44,27 @@ class CustomAutoSchema(AutoSchema):
 
         component_name = self.get_component_name(serializer)
 
-        content = self.map_serializer(serializer)
-        if method.lower() == "get":
-            content["properties"]["links"] = {
-                "type": "object",
-                "properties": {"self": {"$ref": "#/components/schemas/link"}},
-            },
+        components = {
+            f"{component_name}Base": self.build_base_component(serializer=serializer)
+        }
 
-        return {component_name: content}
+        content = self.map_serializer(serializer, method)
+        # if method.lower() == "get":
+        #     properties = content.get("properties", {})
+        #     properties.update({"links": {
+        #         "type": "object",
+        #         "properties": {"self": {"$ref": "#/components/schemas/link"}},
+        #     }})
+
+        components.update(
+            {f"{component_name}{method.lower().capitalize() if method.lower() != 'get' else 'Response'}": content})
+        return components
 
     def get_related_field_object_description(self, field) -> dict:
         description = {
             "type": "object",
             "properties": {
-                # TODO: here should be the concrete id object... uuid, bigint, etc...
-                "id": {"$ref": "#/components/schemas/id"},
+                "id": self.map_field(field=field),
                 "type": {
                     "type": "string",
                     "description": "The related resource name",
@@ -55,6 +78,11 @@ class CustomAutoSchema(AutoSchema):
         }
 
         return description
+
+    def _get_reference(self, serializer, method="Response"):
+        if isinstance(serializer, ResourceIdentifierObjectSerializer):
+            method = ""
+        return {'$ref': f'#/components/schemas/{self.get_component_name(serializer)}{method.lower().capitalize()}'}
 
     def get_request_body(self, path, method):
         """
@@ -74,33 +102,11 @@ class CustomAutoSchema(AutoSchema):
         #   Another subclassed from base with required type/id but no required attributes (PATCH)
 
         if is_relationship:
+            # TODO: concrete components should be used here...
             item_schema = {
                 "$ref": "#/components/schemas/ResourceIdentifierObject"}
         else:
-            item_schema = self._get_reference(serializer)
-        #    item_schema = self.map_serializer(serializer)
-        #     if method == "POST":
-        #         # 'type' and 'id' are both required for:
-        #         # - all relationship operations
-        #         # - regular PATCH or DELETE
-        #         # Only 'type' is required for POST: system may assign the 'id'.
-        #         item_schema["required"] = ["type"]
-        #     if method in ["POST", "PATCH", "DELETE"]:
-        #         del item_schema["properties"]["links"]
-
-        # if "properties" in item_schema and "attributes" in item_schema["properties"]:
-        #     # No required attributes for PATCH
-        #     if (
-        #         method in ["PATCH", "PUT"]
-        #         and "required" in item_schema["properties"]["attributes"]
-        #     ):
-        #         del item_schema["properties"]["attributes"]["required"]
-        #     # No read_only fields for request.
-        #     for name, schema in (
-        #         item_schema["properties"]["attributes"]["properties"].copy().items()
-        #     ):  # noqa E501
-        #         if "readOnly" in schema:
-        #             del item_schema["properties"]["attributes"]["properties"][name]
+            item_schema = self._get_reference(serializer, method)
         return {
             "content": {
                 ct: {
@@ -113,7 +119,7 @@ class CustomAutoSchema(AutoSchema):
             }
         }
 
-    def map_serializer(self, serializer):
+    def map_serializer(self, serializer, method):
         """
         Custom map_serializer that serializes the schema using the JSON:API spec.
         Non-attributes like related and identity fields, are move to 'relationships' and 'links'.
@@ -123,6 +129,7 @@ class CustomAutoSchema(AutoSchema):
         attributes = {}
         relationships = {}
         meta = {}
+        _id = {"$ref": "#/components/schemas/id"}
 
         for field in serializer.fields.values():
             if isinstance(field, serializers.HyperlinkedIdentityField):
@@ -181,36 +188,65 @@ class CustomAutoSchema(AutoSchema):
             else:
                 attributes[format_field_name(field.field_name)] = schema
 
-        result = {
-            "type": "object",
-            "required": ["type", "id"],
-            "additionalProperties": False,
-            "properties": {
-                "type": {
-                    "type": "string",
-                    "description": "The related resource name",
-                    "enum": [get_resource_type_from_serializer(serializer=serializer)]
-                },
-                # TODO: here should be the concrete id object... uuid, bigint, etc...
-                "id": {"$ref": "#/components/schemas/id"},
-            },
-        }
-        if attributes:
-            result["properties"]["attributes"] = {
-                "type": "object",
-                "properties": attributes,
-            }
-            if required:
-                result["properties"]["attributes"]["required"] = required
+            # FIXME: this is just a primitive check of the primary key...
+            if field.field_name == "id":
+                _id = schema
 
+        result = {
+            "allOf": [
+                {"$ref": f"#/components/schemas/{self.get_component_name(serializer)}Base"},
+                {
+                    "type": "object",
+                }
+            ],
+        }
+
+        if attributes:
+            deep_update(
+                d=result["allOf"][1],
+                u={
+                    "properties": {
+                        "attributes": {
+                            "type": "object",
+                            "properties": attributes,
+                        }
+                    }
+                })
         if relationships:
-            result["properties"]["relationships"] = {
-                "type": "object",
-                "properties": relationships,
-            }
-        if meta:
-            result["properties"]["meta"] = {
-                "type": "object",
-                "properties": meta,
-            }
+            deep_update(
+                d=result["allOf"][1],
+                u={
+                    "properties": {
+                        "relationships": {
+                            "type": "object",
+                            "properties": relationships,
+                        }
+                    }
+                })
+        if method.lower() == "get" and meta:
+            deep_update(
+                d=result["allOf"][1],
+                u={
+                    "properties": {
+                        "meta": {
+                            "type": "object",
+                            "properties": meta,
+                        }
+                    }
+                })
+
+        if method.lower() in ["get", "patch"]:
+            result["allOf"][1].update({"required": ["id"]})
+            result["allOf"][1].update({"id": _id})
+        elif method.lower() in ["post", "delete"] and attributes and required:
+
+            deep_update(
+                d=result["allOf"][1],
+                u={
+                    "properties": {
+                        "attributes": {
+                            "required": required
+                        }
+                    }
+                })
         return result

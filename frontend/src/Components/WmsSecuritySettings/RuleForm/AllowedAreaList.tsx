@@ -1,11 +1,8 @@
 import ProTable from '@ant-design/pro-table';
-import { DigitizeButton, ToggleGroup, useMap } from '@terrestris/react-geo';
 import { default as React, ReactElement } from 'react';
 
 
 export const AllowedAreaList = (): ReactElement => {
-
-  const map = useMap();
 
   const dataSource = [
     {
@@ -37,38 +34,7 @@ export const AllowedAreaList = (): ReactElement => {
         pagination={false}
         search={false}
         options={false}
-        toolBarRender={ () => [
-          <ToggleGroup key='toggle'>
-            <DigitizeButton
-              name='drawRectangle'
-              map={map}
-              drawType='Rectangle'
-            >
-            Add rectangle
-            </DigitizeButton>
-            <DigitizeButton
-              name='drawPolygon'
-              map={map}
-              drawType='Polygon'
-            >
-            Add polygon
-            </DigitizeButton>
-            <DigitizeButton
-              name='edit'
-              map={map}
-              editType='Edit'
-            >
-            Edit
-            </DigitizeButton>          
-            <DigitizeButton
-              name='delete'
-              map={map}
-              editType='Delete'
-            >
-            Delete
-            </DigitizeButton>
-          </ToggleGroup>
-        ]}
+        toolBarRender={false}
       />
     </>);
 };

@@ -1,5 +1,7 @@
-import { Card, Image } from 'antd';
 import React, { ReactElement } from 'react';
+
+import { Card, Image } from 'antd';
+
 
 export const PageNotFound = (): ReactElement => {
   return (

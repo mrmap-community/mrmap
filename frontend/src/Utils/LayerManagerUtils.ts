@@ -1,7 +1,10 @@
 import LayerGroup from 'ol/layer/Group';
 import Layer from 'ol/layer/Layer';
+
 import { DropNodeEventType } from '../Components/Shared/TreeManager/TreeManagerTypes';
+
 import { LayerUtils } from './LayerUtils';
+
 
 const layerUtils = new LayerUtils();
 

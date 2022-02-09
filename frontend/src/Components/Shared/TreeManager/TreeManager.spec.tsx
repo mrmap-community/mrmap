@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom';
-import { shallow } from 'enzyme';
 import React from 'react';
+
+import { shallow } from 'enzyme';
+
 import { TreeManager } from './TreeManager';
 
 

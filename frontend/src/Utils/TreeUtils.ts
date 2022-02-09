@@ -3,9 +3,12 @@ import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
+
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Components/Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../Components/TheMap/LayerManager/LayerManagerTypes';
+
 import { LayerUtils } from './LayerUtils';
+
 
 const layerUtils = new LayerUtils();
 

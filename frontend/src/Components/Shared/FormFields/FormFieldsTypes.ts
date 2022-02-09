@@ -1,5 +1,7 @@
-import { TooltipProps } from 'antd/lib/tooltip';
 import { ReactNode } from 'react';
+
+import { TooltipProps } from 'antd/lib/tooltip';
+
 
 export interface ValidationPropsType {
   rules: any[]

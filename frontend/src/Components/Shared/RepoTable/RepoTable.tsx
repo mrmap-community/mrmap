@@ -3,11 +3,14 @@ import { ActionType, default as ProTable, ProColumnType, ProTableProps } from '@
 import '@ant-design/pro-table/dist/table.css';
 import { Button, Modal, notification, Space } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
-import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
-import JsonApiRepo from '../../../Repos/JsonApiRepo';
-import { augmentColumnWithJsonSchema } from './TableHelper';
 
+import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
+
+import { useNavigate } from 'react-router';
+
+import JsonApiRepo from '../../../Repos/JsonApiRepo';
+
+import { augmentColumnWithJsonSchema } from './TableHelper';
 
 
 export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'> {

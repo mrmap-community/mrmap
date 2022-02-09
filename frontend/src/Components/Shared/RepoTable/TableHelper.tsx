@@ -1,8 +1,10 @@
+import React, { ReactNode } from 'react';
+
 import { ProColumnType } from '@ant-design/pro-table';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import React, { ReactNode } from 'react';
+
 
 // required for parsing of German dates
 dayjs.extend(customParseFormat);

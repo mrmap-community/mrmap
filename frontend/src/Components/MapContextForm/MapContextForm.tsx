@@ -1,3 +1,5 @@
+import React, { ReactElement, useEffect, useState } from 'react';
+
 import { SyncOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
@@ -5,8 +7,8 @@ import { Button, notification, Tooltip } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
-import React, { ReactElement, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+
 import { JsonApiPrimaryData, JsonApiResponse } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
@@ -16,6 +18,7 @@ import { TreeUtils } from '../../Utils/TreeUtils';
 import { DropNodeEventType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
+
 import { AttributesForm } from './AttributesForm/AttributesForm';
 import { LayerAttributesForm } from './LayerAttributesForm/LayerAttributesForm';
 import './MapContextForm.css';

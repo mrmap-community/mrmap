@@ -1,6 +1,8 @@
 
 import Polygon from 'ol/geom/Polygon';
+
 import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
+
 
 const getServiceType = (url:string): string => {
   if(url) {

@@ -1,7 +1,10 @@
+import { ReactNode } from 'react';
+
 import { Key } from 'antd/lib/table/interface';
 import { DataNode, EventDataNode } from 'antd/lib/tree';
-import { ReactNode } from 'react';
+
 import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
+
 
 // copied from AntD definition
 export type DropNodeEventType = {

@@ -1,4 +1,6 @@
 
+import React, { ReactNode, useEffect, useState } from 'react';
+
 import { CloseOutlined } from '@ant-design/icons';
 import { MapComponent, useMap } from '@terrestris/react-geo';
 import Button from 'antd/lib/button';
@@ -11,13 +13,15 @@ import { unByKey } from 'ol/Observable';
 import Overlay from 'ol/Overlay';
 import OlSourceOsm from 'ol/source/OSM';
 import OlView from 'ol/View';
-import React, { ReactNode, useEffect, useState } from 'react';
+
 import { JsonApiResponse } from '../../Repos/JsonApiRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { DropNodeEventType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
+
 import { LayerManager } from './LayerManager/LayerManager';
 import { CreateLayerOpts } from './LayerManager/LayerManagerTypes';
 import './TheMap.css';
+
 
 const layerUtils = new LayerUtils();
 

@@ -1,7 +1,10 @@
+import React, { FC } from 'react';
+
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Form } from 'antd';
-import React, { FC } from 'react';
+
 import { InputField } from '../../Shared/FormFields/InputField/InputField';
+
 
 interface AttributesFormProps {
   form?: any;

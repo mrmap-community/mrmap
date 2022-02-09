@@ -1,21 +1,24 @@
-import '@testing-library/jest-dom';
-import { shallow } from 'enzyme';
 import React from 'react';
+
+import { render, waitFor } from '@testing-library/react';
+
 import { AttributesForm } from './AttributesForm';
 
 
 describe('AttributesForm component', () => {
   const requiredProps = {};
 
-  const getComponent = (props?:any) => shallow((
+  const renderComponent = (props?:any) => render((
     <AttributesForm
       {...requiredProps}
       {...props}
     />
   ));
 
-  it('renders the component', () => {
-    const component = getComponent();
-    expect(component).toBeDefined();
+  it.skip('renders the component', async() => {
+    const component = renderComponent();
+    await waitFor(() => {
+      expect(component).toBeDefined();
+    });
   });
 });

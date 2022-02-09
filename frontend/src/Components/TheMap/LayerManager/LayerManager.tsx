@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from 'react';
+
 import { ExpandOutlined } from '@ant-design/icons/lib/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useMap } from '@terrestris/react-geo';
@@ -12,7 +14,7 @@ import Layer from 'ol/layer/Layer';
 import { transformExtent } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
-import React, { useEffect, useState } from 'react';
+
 import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
 import LayerRepo from '../../../Repos/LayerRepo';
 import { LayerManagerUtils } from '../../../Utils/LayerManagerUtils';
@@ -20,6 +22,7 @@ import { LayerUtils } from '../../../Utils/LayerUtils';
 import { TreeUtils } from '../../../Utils/TreeUtils';
 import { TreeManager } from '../../Shared/TreeManager/TreeManager';
 import { DropNodeEventType, TreeNodeType } from '../../Shared/TreeManager/TreeManagerTypes';
+
 import './LayerManager.css';
 import { CreateLayerOpts, LayerManagerProps } from './LayerManagerTypes';
 

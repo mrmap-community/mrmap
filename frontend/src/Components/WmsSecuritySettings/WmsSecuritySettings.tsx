@@ -1,3 +1,5 @@
+import React, { ReactElement, useEffect, useState } from 'react';
+
 import { SyncOutlined } from '@ant-design/icons';
 import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
 import Collection from 'ol/Collection';
@@ -5,15 +7,17 @@ import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
-import React, { ReactElement, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+
 import WmsRepo from '../../Repos/WmsRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
+
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
+
 
 const wmsRepo = new WmsRepo();
 const layerUtils = new LayerUtils();

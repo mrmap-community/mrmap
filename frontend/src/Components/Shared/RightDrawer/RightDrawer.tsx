@@ -1,6 +1,8 @@
-import { Button, Drawer, Tooltip } from 'antd';
 import React, { cloneElement, ReactElement, useEffect, useRef, useState } from 'react';
+
+import { Button, Drawer, Tooltip } from 'antd';
 import './RightDrawer.css';
+
 
 export interface DrawerContentType {
   title: string; 

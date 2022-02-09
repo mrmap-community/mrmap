@@ -1,4 +1,5 @@
 import React from 'react';
+
 import FeatureTypeRepo from '../../Repos/FeatureTypeRepo';
 import RepoTable from '../Shared/RepoTable/RepoTable';
 

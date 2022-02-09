@@ -1,8 +1,12 @@
+import React, { ReactElement, useState } from 'react';
+
 import { PlusCircleOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import React, { ReactElement, useState } from 'react';
+
 import { DrawerContentType, RightDrawer } from '../../Shared/RightDrawer/RightDrawer';
+
 import { SearchTable } from './SearchTable/SearchTable';
+
 
 export const TabsDrawer = ({
   addDatasetToMapAction = () => undefined,

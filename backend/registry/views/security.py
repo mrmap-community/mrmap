@@ -54,7 +54,7 @@ class WebFeatureServiceOperationViewSet(
     pass
 
 
-class WebFeatureServiceOperationViewSet(
+class NestedWebFeatureServiceOperationViewSet(
     WebFeatureServiceOperationViewSetMixin,
     NestedModelViewSet
 ):

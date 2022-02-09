@@ -16,25 +16,11 @@ class CustomAutoSchema(AutoSchema):
     Extend DRF's openapi.AutoSchema for JSON:API serialization.
     """
 
-    def build_base_component(self, serializer):
-        return {
-            "type": "object",
-            "required": ["type"],
-            "properties": {
-                "type": {
-                    "type": "string",
-                    "description": "The [type](https://jsonapi.org/format/#document-resource-object-identification) member is used to describe resource objects that share common attributes and relationships.",
-                    "enum": [get_resource_type_from_serializer(serializer=serializer)]
-                }
-            }
-        }
-
     def get_components(self, path, method):
         """
         Return components with their properties from the serializer.
         """
-
-        if method.lower() == 'delete':
+        if method.lower() in ['delete', 'patch']:
             return {}
 
         serializer = self.get_serializer(path, method)
@@ -44,21 +30,9 @@ class CustomAutoSchema(AutoSchema):
 
         component_name = self.get_component_name(serializer)
 
-        components = {
-            f"{component_name}Base": self.build_base_component(serializer=serializer)
-        }
-
         content = self.map_serializer(serializer, method)
-        # if method.lower() == "get":
-        #     properties = content.get("properties", {})
-        #     properties.update({"links": {
-        #         "type": "object",
-        #         "properties": {"self": {"$ref": "#/components/schemas/link"}},
-        #     }})
 
-        components.update(
-            {f"{component_name}{method.lower().capitalize() if method.lower() != 'get' else 'Response'}": content})
-        return components
+        return {component_name: content}
 
     def get_related_field_object_description(self, field) -> dict:
         description = {
@@ -79,11 +53,6 @@ class CustomAutoSchema(AutoSchema):
 
         return description
 
-    def _get_reference(self, serializer, method="Response"):
-        if isinstance(serializer, ResourceIdentifierObjectSerializer):
-            method = ""
-        return {'$ref': f'#/components/schemas/{self.get_component_name(serializer)}{method.lower().capitalize()}'}
-
     def get_request_body(self, path, method):
         """
         A request body is required by JSON:API for POST, PATCH, and DELETE methods.
@@ -96,17 +65,13 @@ class CustomAutoSchema(AutoSchema):
         # DRF uses a $ref to the component schema definition, but this
         # doesn't work for JSON:API due to the different required fields based on
         # the method, so make those changes and inline another copy of the schema.
-        # TODO: A future improvement could make this DRYer with multiple component schemas:
-        #   A base schema for each viewset that has no required fields
-        #   One subclassed from the base that requires some fields (`type` but not `id` for POST)
-        #   Another subclassed from base with required type/id but no required attributes (PATCH)
 
         if is_relationship:
-            # TODO: concrete components should be used here...
             item_schema = {
                 "$ref": "#/components/schemas/ResourceIdentifierObject"}
         else:
-            item_schema = self._get_reference(serializer, method)
+            item_schema = self.map_serializer(
+                serializer=serializer, method=method)
         return {
             "content": {
                 ct: {
@@ -193,17 +158,19 @@ class CustomAutoSchema(AutoSchema):
                 _id = schema
 
         result = {
-            "allOf": [
-                {"$ref": f"#/components/schemas/{self.get_component_name(serializer)}Base"},
-                {
-                    "type": "object",
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "description": "The [type](https://jsonapi.org/format/#document-resource-object-identification) member is used to describe resource objects that share common attributes and relationships.",
+                    "enum": [get_resource_type_from_serializer(serializer=serializer)]
                 }
-            ],
+            }
         }
 
         if attributes:
             deep_update(
-                d=result["allOf"][1],
+                d=result,
                 u={
                     "properties": {
                         "attributes": {
@@ -214,7 +181,7 @@ class CustomAutoSchema(AutoSchema):
                 })
         if relationships:
             deep_update(
-                d=result["allOf"][1],
+                d=result,
                 u={
                     "properties": {
                         "relationships": {
@@ -225,7 +192,7 @@ class CustomAutoSchema(AutoSchema):
                 })
         if method.lower() == "get" and meta:
             deep_update(
-                d=result["allOf"][1],
+                d=result,
                 u={
                     "properties": {
                         "meta": {
@@ -236,12 +203,18 @@ class CustomAutoSchema(AutoSchema):
                 })
 
         if method.lower() in ["get", "patch"]:
-            result["allOf"][1].update({"required": ["id"]})
-            result["allOf"][1].update({"id": _id})
+            result.update({"required": ["id"]})
+            deep_update(
+                d=result,
+                u={
+                    "properties": {
+                        "id": _id
+                    }
+                })
         elif method.lower() in ["post", "delete"] and attributes and required:
 
             deep_update(
-                d=result["allOf"][1],
+                d=result,
                 u={
                     "properties": {
                         "attributes": {

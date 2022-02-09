@@ -1,5 +1,6 @@
 from django.db.models.query import Prefetch
 from registry.models.security import AllowedWebMapServiceOperation
+from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              ObjectPermissionCheckerViewSetMixin,
@@ -21,12 +22,11 @@ from registry.serializers.service import (CatalougeServiceCreateSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 
 class WebMapServiceRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = WebMapService.objects
@@ -41,7 +41,20 @@ class WebMapServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    """ Endpoints for resource `WebMapService`
+
+        create:
+            Endpoint to register new Web Map Services
+        list:
+            Retrieves all registered Web Map Services
+        retrieve:
+            Retrieve one specific Web Map Service by the given id
+        partial_update:
+            Endpoint to update some fields of a registered Web Map Service
+        destroy:
+            Endpoint to remove a registered Web Map Service from the system
+    """
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = WebMapService.objects.all()
@@ -118,11 +131,15 @@ class WebMapServiceViewSet(
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "allowed_operations" not in include:
+        if not include or "allowedOperations" not in include:
             qs = qs.prefetch_related(
-                Prefetch("allowed_operations", queryset=AllowedWebMapServiceOperation.objects.only("id", "secured_service__id"))
+                Prefetch(
+                    "allowed_operations",
+                    queryset=AllowedWebMapServiceOperation.objects.only(
+                        "id", "secured_service__id")
+                )
             )
-        if not include or "operation_urls" not in include:
+        if not include or "operationUrls" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "operation_urls",
@@ -134,7 +151,7 @@ class WebMapServiceViewSet(
 
 
 class LayerRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = Layer.objects
@@ -147,7 +164,7 @@ class LayerViewSet(
     HistoryInformationViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebMapService"],
     )
     queryset = Layer.objects.all()
@@ -172,6 +189,9 @@ class LayerViewSet(
         "reference_systems": ["reference_systems"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -194,7 +214,7 @@ class LayerViewSet(
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "reference_systems" not in include:
+        if not include or "referenceSystems" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")
@@ -205,7 +225,7 @@ class LayerViewSet(
 
 
 class WebFeatureServiceRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = WebFeatureService.objects
@@ -220,7 +240,7 @@ class WebFeatureServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = WebFeatureService.objects.all()
@@ -250,7 +270,7 @@ class WebFeatureServiceViewSet(
 
 
 class FeatureTypeRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = FeatureType.objects
@@ -258,7 +278,7 @@ class FeatureTypeRelationshipView(RelationshipView):
 
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = FeatureType.objects.all()
@@ -268,6 +288,9 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class CatalougeServiceViewSet(
@@ -278,7 +301,7 @@ class CatalougeServiceViewSet(
     NestedViewSetMixin,
     ModelViewSet,
 ):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
     queryset = CatalougeService.objects.all()

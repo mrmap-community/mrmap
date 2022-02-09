@@ -18,12 +18,18 @@ class ObjectPermissionCheckerViewSetMixin:
     """add a ObjectPermissionChecker based on the accessing user to the serializer context."""
 
     def get_serializer_context(self):
+        """adds perm checker with prefetched permissions for objects of the current page to the serializer context."""
         context = super().get_serializer_context()
         if self.request:
-            perm_checker = ObjectPermissionChecker(
+            perm_checker: ObjectPermissionChecker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
-            perm_checker.prefetch_perms(
-                self.get_queryset().prefetch_related(None))
+            if not perm_checker._obj_perms_cache:
+                objects = self.filter_queryset(
+                    self.get_queryset().select_related(None).prefetch_related(None).only("pk"))
+                if self.request.method == "GET":
+                    objects = self.paginate_queryset(objects)
+
+                perm_checker.prefetch_perms(objects)
             context.update({'perm_checker': perm_checker})
         return context
 

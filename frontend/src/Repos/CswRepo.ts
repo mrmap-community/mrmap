@@ -1,20 +1,19 @@
 import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
+
 export interface OgcServiceCreate {
   getCapabilitiesUrl: string;
   owner: string;
-  collectMetadataRecords: boolean;
 }
 
-class WebFeatureServiceRepo extends JsonApiRepo {
+class CatalogueServiceRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/wfs/', 'Downloaddienste (WFS)');
+    super('/api/v1/registry/csw/', ' (CSW)');
   }
-  
+
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {
     const attributes = {
       getCapabilitiesUrl: create.getCapabilitiesUrl,
-      collectMetadataRecords: create.collectMetadataRecords 
     };
     const relationships = {
       owner: { // eslint-disable-line
@@ -24,8 +23,10 @@ class WebFeatureServiceRepo extends JsonApiRepo {
         }
       }
     };
-    return this.add('WebFeatureService', attributes, relationships);
+    return this.add('CatalougeService', attributes, relationships);
   }
+
+
 }
 
-export default WebFeatureServiceRepo;
+export default CatalogueServiceRepo;

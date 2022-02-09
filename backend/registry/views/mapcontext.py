@@ -1,4 +1,5 @@
 
+from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.mapcontext import (
@@ -8,12 +9,11 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, RelationshipView
 
 
 class MapContextRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['MapContext'],
     )
     queryset = MapContext.objects
@@ -21,7 +21,7 @@ class MapContextRelationshipView(RelationshipView):
 
 
 class MapContextLayerRelationshipView(RelationshipView):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['MapContext'],
     )
     queryset = MapContextLayer.objects
@@ -29,10 +29,10 @@ class MapContextLayerRelationshipView(RelationshipView):
 
 
 class MapContextViewSet(ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['MapContext'],
     )
-    queryset = MapContext.objects.with_meta()
+    queryset = MapContext.objects.all()
     serializer_classes = {
         'default': MapContextDefaultSerializer,
         'include': MapContextIncludeSerializer
@@ -54,7 +54,7 @@ class MapContextViewSet(ModelViewSet):
 
 
 class MapContextLayerViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=['MapContext'],
     )
     queryset = MapContextLayer.objects.all()

@@ -1,6 +1,6 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
-from extras.viewsets import ObjectPermissionCheckerViewSetMixin
+from extras.openapi import CustomAutoSchema
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
@@ -12,12 +12,11 @@ from registry.serializers.security import (
     WebFeatureServiceOperationSerializer, WebMapServiceOperationSerializer)
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
 class WebMapServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
     queryset = WebMapServiceOperation.objects.all()
@@ -26,7 +25,7 @@ class WebMapServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
 
 
 class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
     queryset = WebFeatureServiceOperation.objects.all()
@@ -34,8 +33,10 @@ class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet
     search_fields = ('operation', )
 
 
-class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+class AllowedWebMapServiceOperationViewSet(
+        NestedViewSetMixin,
+        ModelViewSet):
+    schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
     queryset = AllowedWebMapServiceOperation.objects.all()
@@ -46,14 +47,14 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
 
-        if not include or "secured_service" not in include:
+        if not include or "securedService" not in include:
             defer = [
                 f"secured_service__{field.name}"
                 for field in WebMapService._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("secured_service").defer(*defer)
-        if not include or "secured_layers" not in include:
+        if not include or "securedLayers" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "secured_layers",
@@ -65,7 +66,7 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
                     ),
                 )
             )
-        if not include or "allowed_groups" not in include:
+        if not include or "allowedGroups" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "allowed_groups",
@@ -87,8 +88,10 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
         return qs
 
 
-class AllowedWebFeatureServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+class AllowedWebFeatureServiceOperationViewSet(
+        NestedViewSetMixin,
+        ModelViewSet):
+    schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
     queryset = AllowedWebFeatureServiceOperation.objects.all()

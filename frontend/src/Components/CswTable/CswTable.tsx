@@ -1,17 +1,14 @@
-import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import { Button, Space } from 'antd';
 import React, { useRef } from 'react';
-import { useNavigate } from 'react-router';
-import WmsRepo from '../../Repos/WmsRepo';
+import CswRepo from '../../Repos/CswRepo';
 import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/RepoTable/RepoTable';
 import { buildSearchTransformDateRange } from '../Shared/RepoTable/TableHelper';
 
 
-const repo = new WmsRepo();
+const repo = new CswRepo();
 
-const WmsTable = (): JSX.Element => {
+const CswTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
-  const navigate = useNavigate();
   const columns: RepoTableColumnType[] = [{
     dataIndex: 'id',
     title: 'ID'
@@ -127,7 +124,6 @@ const WmsTable = (): JSX.Element => {
     title: 'Aktionen',
     valueType: 'option',
     render: (text: any, record:any) => {
-      const isSecured = record.allowed_operations > 0;
       return (
         <>
           <Space size='middle'>
@@ -140,15 +136,6 @@ const WmsTable = (): JSX.Element => {
             >
               Löschen
             </Button>
-            <Button
-              size='small'
-              icon={isSecured ? <LockOutlined/> : <UnlockOutlined/>}
-              onClick={ () => {
-                navigate(`/registry/services/wms/${record.id}/security`);
-              }}
-            >
-              { isSecured ? `Zugriffsregeln: ${record.allowed_operations}` : 'Zugriff unbeschränkt' }
-            </Button>
           </Space>
         </>
       );
@@ -159,8 +146,8 @@ const WmsTable = (): JSX.Element => {
     repo={repo}
     columns={columns}
     actionRef={actionRef as any}
-    onAddRecord='/registry/services/wms/add'
+    onAddRecord='/registry/services/csw/add'
   />;
 };
 
-export default WmsTable;
+export default CswTable;

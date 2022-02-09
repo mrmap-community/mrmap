@@ -70,6 +70,9 @@ class MapContext(models.Model):
     change_log = HistoricalRecords(related_name="change_logs")
     objects = MapContextManager()
 
+    class Meta:
+        ordering = ['title', ]
+
     def __str__(self):
         return self.title
 

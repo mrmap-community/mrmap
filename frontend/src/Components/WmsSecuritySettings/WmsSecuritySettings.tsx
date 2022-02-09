@@ -35,8 +35,8 @@ function wmsLayersToTreeNodeList(list:any[]):TreeNodeType[] {
       properties: {
         origId: element.attributes.identifier,
         title: element.attributes.title, // yes, title is repeated
-        scaleMin: element.attributes.scale_min,
-        scaleMax: element.attributes.scale_max,
+        scaleMin: element.attributes.scaleMin,
+        scaleMax: element.attributes.scaleMax,
       }
     };
 

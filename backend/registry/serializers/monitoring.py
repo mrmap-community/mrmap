@@ -1,3 +1,4 @@
+from extras.serializers import StringRepresentationSerializer
 from registry.models.monitoring import (LayerGetFeatureInfoResult,
                                         LayerGetMapResult,
                                         WMSGetCapabilitiesResult)
@@ -12,7 +13,9 @@ class WMSGetCapabilitiesResultCreateSerializer(ModelSerializer):
         fields = ("service",)
 
 
-class WMSGetCapabilitiesResultSerializer(ModelSerializer):
+class WMSGetCapabilitiesResultSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:wmsgetcapabilitiesresult-detail',
     )
@@ -20,6 +23,7 @@ class WMSGetCapabilitiesResultSerializer(ModelSerializer):
     class Meta:
         model = WMSGetCapabilitiesResult
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
 class LayerGetMapResultCreateSerializer(ModelSerializer):
@@ -29,7 +33,9 @@ class LayerGetMapResultCreateSerializer(ModelSerializer):
         fields = ("layer", )
 
 
-class LayerGetMapResultSerializer(ModelSerializer):
+class LayerGetMapResultSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:layergetmapresult-detail',
     )
@@ -37,6 +43,7 @@ class LayerGetMapResultSerializer(ModelSerializer):
     class Meta:
         model = LayerGetMapResult
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
 class LayerGetFeatureInfoResultCreateSerializer(ModelSerializer):
@@ -46,7 +53,9 @@ class LayerGetFeatureInfoResultCreateSerializer(ModelSerializer):
         fields = ("layer",)
 
 
-class LayerGetFeatureInfoResultSerializer(ModelSerializer):
+class LayerGetFeatureInfoResultSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:layergetfeatureinforesult-detail',
@@ -55,3 +64,4 @@ class LayerGetFeatureInfoResultSerializer(ModelSerializer):
     class Meta:
         model = LayerGetFeatureInfoResult
         fields = "__all__"
+        meta_fields = ("string_representation",)

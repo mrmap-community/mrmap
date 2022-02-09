@@ -1,18 +1,15 @@
-from extras.serializers import ObjectPermissionCheckerSerializer
-from registry.models.metadata import (
-    DatasetMetadata,
-    Keyword,
-    MetadataContact,
-    ReferenceSystem,
-    Style,
-)
+from extras.serializers import StringRepresentationSerializer
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, ReferenceSystem, Style)
 from registry.models.service import FeatureType, Layer
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer
 
 
-class KeywordSerializer(ModelSerializer):
+class KeywordSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name="registry:keyword-detail",
@@ -21,9 +18,12 @@ class KeywordSerializer(ModelSerializer):
     class Meta:
         model = Keyword
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
-class StyleSerializer(ModelSerializer):
+class StyleSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name="registry:style-detail",
@@ -32,18 +32,24 @@ class StyleSerializer(ModelSerializer):
     class Meta:
         model = Style
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
-class MetadataContactSerializer(ModelSerializer):
+class MetadataContactSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:metadatacontact-detail")
 
     class Meta:
         model = MetadataContact
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
-class DatasetMetadataSerializer(ObjectPermissionCheckerSerializer, ModelSerializer):
+class DatasetMetadataSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:datasetmetadata-detail")
 
@@ -103,3 +109,4 @@ class DatasetMetadataSerializer(ObjectPermissionCheckerSerializer, ModelSerializ
     class Meta:
         model = DatasetMetadata
         fields = "__all__"
+        meta_fields = ("string_representation",)

@@ -207,7 +207,7 @@ export const LayerManager = ({
       try {
         const response: CreateLayerOpts | void = await addLayerDispatchAction(nodeAttributes, newNodeParent);
         
-        if(response?.properties.rendering_layer) {
+        if(response?.properties.renderingLayer) {
           layerToAdd = layerUtils.createMrMapOlWMSLayer(response);
         } else {
           layerToAdd = new LayerGroup({

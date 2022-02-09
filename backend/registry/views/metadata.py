@@ -1,27 +1,19 @@
 from django.db.models.query import Prefetch
+from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import ObjectPermissionCheckerViewSetMixin
-from registry.models.metadata import (
-    DatasetMetadata,
-    Keyword,
-    MetadataContact,
-    ReferenceSystem,
-    Style,
-)
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalougeService, FeatureType, Layer
-from registry.serializers.metadata import (
-    DatasetMetadataSerializer,
-    KeywordSerializer,
-    MetadataContactSerializer,
-    StyleSerializer,
-)
+from registry.serializers.metadata import (DatasetMetadataSerializer,
+                                           KeywordSerializer,
+                                           MetadataContactSerializer,
+                                           StyleSerializer)
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.schemas.openapi import AutoSchema
 from rest_framework_json_api.views import ModelViewSet
 
 
 class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = Keyword.objects.all()
@@ -33,7 +25,7 @@ class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
 
 
 class StyleViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = Style.objects.all()
@@ -46,10 +38,13 @@ class StyleViewSet(NestedViewSetMixin, ModelViewSet):
         "name",
         "title",
     )
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
 
 
-class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
-    schema = AutoSchema(
+class DatasetMetadataViewSet(ModelViewSet):
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = DatasetMetadata.objects.all()
@@ -96,21 +91,21 @@ class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
-        if not include or "metadata_contact" not in include:
+        if not include or "metadataContact" not in include:
             defer = [
                 f"metadata_contact__{field.name}"
                 for field in MetadataContact._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("metadata_contact").defer(*defer)
-        if not include or "dataset_contact" not in include:
+        if not include or "datasetContact" not in include:
             defer = [
                 f"dataset_contact__{field.name}"
                 for field in MetadataContact._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("dataset_contact").defer(*defer)
-        if not include or "self_pointing_layers" not in include:
+        if not include or "selfPointingLayers" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "self_pointing_layers",
@@ -122,14 +117,14 @@ class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
                     ),
                 )
             )
-        if not include or "self_pointing_feature_types" not in include:
+        if not include or "selfPointingFeatureTypes" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "self_pointing_feature_types",
                     queryset=FeatureType.objects.only("id", "service_id"),
                 )
             )
-        if not include or "self_pointing_catalouge_service" not in include:
+        if not include or "selfPointingCatalougeService" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "self_pointing_catalouge_service",
@@ -140,7 +135,7 @@ class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
             )
-        if not include or "reference_systems" not in include:
+        if not include or "referenceSystems" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")
@@ -150,7 +145,7 @@ class DatasetMetadataViewSet(ObjectPermissionCheckerViewSetMixin, ModelViewSet):
 
 
 class MetadataContactViewSet(ModelViewSet):
-    schema = AutoSchema(
+    schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = MetadataContact.objects.all()

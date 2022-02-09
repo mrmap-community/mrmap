@@ -101,6 +101,8 @@ class ServiceCapabilitiesManager(models.Manager):
 
         operation_urls = []
         operation_url_model_cls = None
+        db_queryables = []
+        queryable_model_cls = None
         for operation_url in parsed_service.operation_urls:
             if not operation_url_model_cls:
                 operation_url_model_cls = operation_url.get_model_class()
@@ -109,17 +111,26 @@ class ServiceCapabilitiesManager(models.Manager):
                                                        **operation_url.get_field_dict())
             db_operation_url.mime_type_list = []
 
-            if operation_url.mime_types:
-                for mime_type in operation_url.mime_types:
-                    # todo: slow get_or_create solution - maybe there is a better way to do this
-                    if not self.mime_type_cls:
-                        self.mime_type_cls = mime_type.get_model_class()
-                    db_mime_type, created = self.mime_type_cls.objects.get_or_create(
-                        **mime_type.get_field_dict())
-                    db_operation_url.mime_type_list.append(db_mime_type)
+            for mime_type in operation_url.mime_types:
+                # todo: slow get_or_create solution - maybe there is a better way to do this
+                if not self.mime_type_cls:
+                    self.mime_type_cls = mime_type.get_model_class()
+                db_mime_type, created = self.mime_type_cls.objects.get_or_create(
+                    **mime_type.get_field_dict())
+                db_operation_url.mime_type_list.append(db_mime_type)
+
+            if hasattr(operation_url, "queryables"):
+                for queryable in operation_url.queryables:
+                    if not queryable_model_cls:
+                        queryable_model_cls = queryable.get_model_class()
+                    db_queryables.append(queryable_model_cls(
+                        operation_url=db_operation_url, **queryable.get_field_dict()))
+
             operation_urls.append(db_operation_url)
         db_operation_url_list = operation_url_model_cls.objects.bulk_create(
             objs=operation_urls)
+        if queryable_model_cls and db_queryables:
+            queryable_model_cls.objects.bulk_create(objs=db_queryables)
 
         for db_operation_url in db_operation_url_list:
             db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
@@ -450,3 +461,12 @@ class FeatureTypeElementXmlManager(models.Manager):
 class LayerManager(DefaultHistoryManager, TreeManager):
 
     pass
+
+
+class CswOperationUrlQueryableQuerySet(models.QuerySet):
+
+    def closest_matches(self, value: str, operation: str, service_id):
+        return self.filter(
+            value__iregex=fr"(\w+:{value}$)|(^{value}$)",
+            operation_url__operation=operation,
+            operation_url__service__pk=service_id)

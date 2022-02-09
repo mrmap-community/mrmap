@@ -20,6 +20,7 @@ from django.urls import include, path
 from django.views.decorators.cache import cache_page
 from registry.proxy import wms_proxy as security_proxy_views
 from registry.views_ows.mapcontext import OwsContextView
+from rest_framework.renderers import JSONOpenAPIRenderer
 from rest_framework.schemas import get_schema_view
 from rest_framework_json_api.schemas.openapi import SchemaGenerator
 
@@ -43,6 +44,7 @@ urlpatterns = [
                 version="1.0.0",
                 public=True,
                 generator_class=SchemaGenerator,
+                renderer_classes=[JSONOpenAPIRenderer]
             )
         ),
         name="openapi-schema",

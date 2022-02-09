@@ -81,20 +81,19 @@ export const RuleForm = ({
       if (isMounted) {
         form.setFieldsValue({
           description: jsonApiResponse.data.data.attributes.description,
-          area: jsonApiResponse.data.data.attributes['allowed_area'] 
-            ? JSON.stringify(jsonApiResponse.data.data.attributes['allowed_area']) 
+          area: jsonApiResponse.data.data.attributes.allowedArea
+            ? JSON.stringify(jsonApiResponse.data.data.attributes.allowedArea)
             : null,
           operations: jsonApiResponse.data.data.relationships.operations.data.map((operation: any) => operation.id ),
-          groups: jsonApiResponse.data.data.relationships['allowed_groups'].data.map((group: any) => group.id )
+          groups: jsonApiResponse.data.data.relationships.allowedGroups.data.map((group: any) => group.id )
         });
-        const securedLayerIds = jsonApiResponse.data.data.relationships.secured_layers.data.map((layer: any) => 
+        const securedLayerIds = jsonApiResponse.data.data.relationships.securedLayers.data.map((layer: any) => 
           layer.id
         );
         setSelectedLayerIds(securedLayerIds);
-        if (jsonApiResponse.data.data.attributes['allowed_area']) {
-          console.log ('Reading', jsonApiResponse.data.data.attributes['allowed_area']);
+        if (jsonApiResponse.data.data.attributes.allowedArea) {
           const geom: any = geoJson.readGeometry(
-            jsonApiResponse.data.data.attributes['allowed_area']
+            jsonApiResponse.data.data.attributes.allowedArea
           );
           geom.getPolygons().forEach( (polygon:Polygon) => {
             const feature = new Feature ( {
@@ -154,10 +153,10 @@ export const RuleForm = ({
     async function update (ruleId: string) {
       const attributes:any = {
         description: values.description,
-        'allowed_area': allowedAreaGeoJson
+        'allowedArea': allowedAreaGeoJson
       };
       const relationships = {
-        'secured_layers': {
+        'securedLayers': {
           'data': selectedLayerIds.map((id) => {
             return {
               type: 'Layer',
@@ -173,7 +172,7 @@ export const RuleForm = ({
             };
           })
         },
-        'allowed_groups': {
+        'allowedGroups': {
           'data': values.groups.map((id: any) => {
             return {
               type: 'Group',

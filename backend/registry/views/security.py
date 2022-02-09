@@ -118,14 +118,29 @@ class AllowedWebMapServiceOperationViewSet(
         AllowedWebMapServiceOperationViewSetMixin,
         ModelViewSet
 ):
-    pass
+    """ Endpoints for resource `AllowedWebMapServiceOperation`
+        create:
+            Endpoint to create new `AllowedWebMapServiceOperation` object
+        list:
+            Retrieves all `AllowedWebMapServiceOperation` objects
+        retrieve:
+            Retrieve one specific `AllowedWebMapServiceOperation` by the given id
+        partial_update:
+            Endpoint to update some fields of a `AllowedWebMapServiceOperation`
+
+    """
 
 
 class NestedAllowedWebMapServiceOperationViewSet(
         AllowedWebMapServiceOperationViewSetMixin,
         NestedModelViewSet
 ):
-    pass
+    """ Nested list endpoint for resource `AllowedWebMapServiceOperation`
+
+        list:
+            Retrieves all `AllowedWebMapServiceOperation` objects
+
+    """
 
 
 class AllowedWebFeatureServiceOperationViewSetMixin():
@@ -141,11 +156,26 @@ class AllowedWebFeatureServiceOperationViewSet(
         AllowedWebFeatureServiceOperationViewSetMixin,
         ModelViewSet
 ):
-    pass
+    """ Endpoints for resource `AllowedWebFeatureServiceOperation`
+        create:
+            Endpoint to create new `AllowedWebFeatureServiceOperation` object
+        list:
+            Retrieves all `AllowedWebFeatureServiceOperation` objects
+        retrieve:
+            Retrieve one specific `AllowedWebFeatureServiceOperation` by the given id
+        partial_update:
+            Endpoint to update some fields of a `AllowedWebFeatureServiceOperation`
+
+    """
 
 
 class NestedAllowedWebFeatureServiceOperationViewSet(
         AllowedWebFeatureServiceOperationViewSetMixin,
         NestedModelViewSet
 ):
-    pass
+    """ Nested list endpoint for resource `AllowedWebFeatureServiceOperation`
+
+        list:
+            Retrieves all `AllowedWebFeatureServiceOperation` objects
+
+    """

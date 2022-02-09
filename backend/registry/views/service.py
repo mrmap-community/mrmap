@@ -34,15 +34,15 @@ class WebMapServiceViewSet(
     """ Endpoints for resource `WebMapService`
 
         create:
-            Endpoint to register new Web Map Services
+            Endpoint to register new `WebMapServices` object
         list:
-            Retrieves all registered Web Map Services
+            Retrieves all registered `WebMapServices` objects
         retrieve:
-            Retrieve one specific Web Map Service by the given id
+            Retrieve one specific `WebMapServices` by the given id
         partial_update:
-            Endpoint to update some fields of a registered Web Map Service
+            Endpoint to update some fields of a registered `WebMapServices`
         destroy:
-            Endpoint to remove a registered Web Map Service from the system
+            Endpoint to remove a registered `WebMapServices` from the system
     """
     schema = CustomAutoSchema(
         tags=["WebMapService"],
@@ -160,9 +160,6 @@ class LayerViewSetMixin(
         "reference_systems": ["reference_systems"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
-    # delete is only provided on the service endpoint it self, which implicit removes all related objects
-    http_method_names = ["get", "patch", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -198,13 +195,30 @@ class LayerViewSetMixin(
 class LayerViewSet(
         LayerViewSetMixin,
         ModelViewSet):
-    pass
+    """ Endpoints for resource `Layer`
+
+        list:
+            Retrieves all registered `Layer` objects
+        retrieve:
+            Retrieve one specific `Layer` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `Layer`
+
+    """
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class NestedLayerViewSet(
         LayerViewSetMixin,
         NestedModelViewSet):
-    pass
+    """ Nested list endpoint for resource `Layer`
+
+        list:
+            Retrieves all registered `Layer` objects
+
+    """
 
 
 class WebFeatureServiceViewSet(
@@ -214,6 +228,19 @@ class WebFeatureServiceViewSet(
     HistoryInformationViewSetMixin,
     ModelViewSet,
 ):
+    """ Endpoints for resource `WebFeatureService`
+
+        create:
+            Endpoint to register new `WebFeatureService` object
+        list:
+            Retrieves all registered `WebFeatureService` objects
+        retrieve:
+            Retrieve one specific `WebFeatureService` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `WebFeatureService`
+        destroy:
+            Endpoint to remove a registered `WebFeatureService` from the system
+    """
     schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
@@ -256,23 +283,37 @@ class FeatureTypeViewSetMixin(
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
-    # delete is only provided on the service endpoint it self, which implicit removes all related objects
-    http_method_names = ["get", "patch", "head", "options"]
 
 
 class FeatureTypeViewSet(
     FeatureTypeViewSetMixin,
     ModelViewSet
 ):
-    pass
+    """ Endpoints for resource `FeatureType`
+
+        list:
+            Retrieves all registered `FeatureType` objects
+        retrieve:
+            Retrieve one specific `FeatureType` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `FeatureType`
+
+    """
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class NestedFeatureTypeViewSet(
     FeatureTypeViewSetMixin,
     NestedModelViewSet
 ):
-    pass
+    """ Nested list endpoint for resource `FeatureType`
+
+        list:
+            Retrieves all registered `FeatureType` objects
+
+    """
 
 
 class CatalougeServiceViewSet(
@@ -282,6 +323,19 @@ class CatalougeServiceViewSet(
     HistoryInformationViewSetMixin,
     ModelViewSet,
 ):
+    """ Endpoints for resource `CatalougeService`
+
+        create:
+            Endpoint to register new `CatalougeService` object
+        list:
+            Retrieves all registered `CatalougeService` objects
+        retrieve:
+            Retrieve one specific `CatalougeService` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `CatalougeService`
+        destroy:
+            Endpoint to remove a registered `CatalougeService` from the system
+    """
     schema = CustomAutoSchema(
         tags=["CatalogueService"],
     )

@@ -77,7 +77,6 @@ export interface TreeManagerProps {
     editNodeActionIcon?: ReactNode;
     nodeOptionsIcon?: ReactNode;
     title?: string;
-    attributeContainer?: 'modal' | 'drawer';
     contextMenuOnNode?: boolean;
     showMaskOnNodeAttributeForm?: boolean;
     checkableNodes?: boolean;

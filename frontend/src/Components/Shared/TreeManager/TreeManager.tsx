@@ -26,7 +26,6 @@ export const TreeManager = ({
   editNodeActionIcon = (<EditFilled />),
   nodeOptionsIcon = (<SettingFilled/>),
   title = '',
-  attributeContainer = 'modal',
   contextMenuOnNode = false,
   showMaskOnNodeAttributeForm = false,
   checkableNodes = false,
@@ -75,7 +74,7 @@ export const TreeManager = ({
 
   /**
    * @description Method to determine what should happen when clicking the OK button on the
-   * modal containing the attribute form
+   * drawer containing the attribute form
    */
   const onNodeAttributeFormOkClick = () => {
     form.submit();
@@ -83,7 +82,7 @@ export const TreeManager = ({
 
   /**
    * @description Method to determine what should happen when clicking the Cancel button on the
-   * modal containing the attribute form
+   * drawer containing the attribute form
    */
   const onNodeAttributeFormCancelClick = () => {
     toggleNodeAttributeForm();
@@ -296,10 +295,14 @@ export const TreeManager = ({
           setIsAddingNode(false);
           // @ts-ignore
           throw new Error(error);
-        } 
+        } finally {
+          setIsAddingNode(false);
+          setIsNodeAttributeFormVisible(false);
+        }
       } else {
         addNodeDispatchAction(values);
         setTreeDataOnAdd(node, newNode);
+        setIsNodeAttributeFormVisible(false);
       }
     }
   };
@@ -399,9 +402,11 @@ export const TreeManager = ({
         } finally {
           setTreeDataOnEdit(node);
           setIsEditingNode(false);
+          setIsNodeAttributeFormVisible(false);
         }
       } else {
         setTreeDataOnEdit(node);
+        setIsNodeAttributeFormVisible(false);
       }
     }
   };
@@ -707,44 +712,31 @@ export const TreeManager = ({
           </div>
         )}       
       />
-      {attributeContainer === 'modal' && (
-        <Modal
-          className='tree-manager-modal'
-          mask={showMaskOnNodeAttributeForm}
-          title={getNodeAttributeFormTitle()}
-          visible={isNodeAttributeFormVisible}
-          onOk={onNodeAttributeFormOkClick}
-          onCancel={onNodeAttributeFormCancelClick}
-          destroyOnClose
-          okButtonProps={{
-            disabled: isAddingNode || isEditingNode,
-            loading: isAddingNode || isEditingNode
-          }}
-        >
-          {clonedNodeAttributeForm(selectedNode)}
-        </Modal>
-      )}
-      {attributeContainer === 'drawer' && (
-        <Drawer
-          className='tree-manager-drawer'
-          mask={showMaskOnNodeAttributeForm}
-          title={getNodeAttributeFormTitle()}
-          placement='right'
-          width={500}
-          onClose={onNodeAttributeFormCancelClick}
-          visible={isNodeAttributeFormVisible}
-          extra={
-            <Space>
-              <Button onClick={onNodeAttributeFormCancelClick}>Cancel</Button>
-              <Button type='primary' onClick={onNodeAttributeFormOkClick}>
-                OK
-              </Button>
-            </Space>
-          }
-        >
-          {clonedNodeAttributeForm(selectedNode)}
-        </Drawer>
-      )}
+      
+      <Drawer
+        className='tree-manager-drawer'
+        mask={showMaskOnNodeAttributeForm}
+        title={getNodeAttributeFormTitle()}
+        placement='right'
+        width={500}
+        onClose={onNodeAttributeFormCancelClick}
+        visible={isNodeAttributeFormVisible}
+        extra={
+          <Space>
+            <Button onClick={onNodeAttributeFormCancelClick}>Cancel</Button>
+            <Button 
+              disabled={isAddingNode || isEditingNode} 
+              loading= {isAddingNode || isEditingNode} 
+              type='primary' 
+              onClick={onNodeAttributeFormOkClick}
+            >
+              OK
+            </Button>
+          </Space>
+        }
+      >
+        {clonedNodeAttributeForm(selectedNode)}
+      </Drawer>
     </div>
   );
 };

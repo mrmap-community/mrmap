@@ -7,7 +7,7 @@ import { LayerAttributesForm } from './LayerAttributesForm';
 describe('LayerAttributesForm component', () => {
   const requiredProps = {};
 
-  const getComponent = (props?:any) => render((
+  const renderComponent = (props?:any) => render((
     <LayerAttributesForm
       {...requiredProps}
       {...props}
@@ -15,7 +15,7 @@ describe('LayerAttributesForm component', () => {
   ));
 
   it.skip('renders the component', async() => {
-    const component = getComponent();
+    const component = renderComponent();
     await waitFor(() => {
       expect(component).toBeDefined();
     });

@@ -61,7 +61,7 @@ describe('TreeFormField component', () => {
     treeData: mockedTreeData,
   };
   
-  const getComponent = (props?:TreeProps) => render(
+  const renderComponent = (props?:TreeProps) => render(
     <TreeManager
       {...requiredProps}
       {...props}
@@ -83,26 +83,26 @@ describe('TreeFormField component', () => {
   // encapsulated in an act() method will appear
   
   it('defines the component', async () => {
-    const component =  getComponent(); 
+    const component =  renderComponent(); 
     await waitFor(() => expect(component).toBeDefined()); 
   });
 
   it('renders the component elements', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     await waitFor(() =>{
       expect(container).toBeVisible();
     });
   });
 
   it('renders the tree-manager-tree class', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     await waitFor(() =>{
       expect(container.querySelectorAll('.tree-manager-tree').length).toBe(1);
     });
   });
 
   it('does not render tree nodes when tree data does not contains information', async() => {
-    const { container } = getComponent({ treeData: [] });
+    const { container } = renderComponent({ treeData: [] });
     await waitFor(() =>{
       const treeFormFieldTree = container.querySelectorAll('.tree-manager-tree');
       const treeFormFieldNode = treeFormFieldTree.item(0)?.querySelectorAll('.tree-manager-node');  
@@ -110,8 +110,8 @@ describe('TreeFormField component', () => {
     });
   });
 
-  it('renders the tree when data contains information', async() => {
-    const { container } = getComponent();
+  it('renders tree nodes when data contains information', async() => {
+    const { container } = renderComponent();
     await waitFor(() =>{
       const treeFormFieldTree = container.querySelectorAll('.tree-manager-tree');
       const treeFormFieldNode = treeFormFieldTree.item(0)?.getElementsByClassName('tree-manager-node');
@@ -121,7 +121,7 @@ describe('TreeFormField component', () => {
 
   it('does not render the checkboxes if checkable props is set to false', async() => {
     // checkableNodes is set to false by default
-    const { container } = getComponent();
+    const { container } = renderComponent();
     await waitFor(() =>{
       const treeFormFieldCheckboxes = container.querySelectorAll('.ant-tree-checkbox');
       expect(treeFormFieldCheckboxes?.length).toBe(0);
@@ -129,7 +129,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders the checkboxes if checkable props is set to true', async() => {
-    const { container } = getComponent({ ...requiredProps, checkableNodes: true });
+    const { container } = renderComponent({ ...requiredProps, checkableNodes: true });
     await waitFor(() =>{
       const treeFormFieldCheckboxes = container.querySelectorAll('.ant-tree-checkbox');
       expect(treeFormFieldCheckboxes?.length).toBe(2);
@@ -137,7 +137,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders the checkboxes as checked if checkbox is checked', async () => {
-    const { container } = getComponent({ 
+    const { container } = renderComponent({ 
       ...requiredProps, 
       checkableNodes: true 
     });
@@ -168,7 +168,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders the title pre-icon (SettingFilled) if prop is set', async() => {
-    const { container } = getComponent({ 
+    const { container } = renderComponent({ 
       ...requiredProps,
       treeNodeTitlePreIcons: (node: TreeNodeType) => (<SettingFilled />)
     });
@@ -186,7 +186,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders the node title', async () => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     await waitFor(() => {
       const nodeTitles = container.querySelectorAll('.tree-node-title');
       expect(nodeTitles.length).toBe(2);
@@ -196,7 +196,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders the node options icon', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     await waitFor(() => {
       const nodeSettingsIcon = container.querySelectorAll('.tree-manager-node-actions');
       expect(nodeSettingsIcon.length).toBe(2);
@@ -208,7 +208,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders the context menu when right clicking the node title if contextMenuOnNode prop is true', async() => {
-    const { container } = getComponent({ ...requiredProps, contextMenuOnNode: true });
+    const { container } = renderComponent({ ...requiredProps, contextMenuOnNode: true });
     const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const titleNode1 = nodeTitles.item(0);
     // right mouse click
@@ -222,7 +222,7 @@ describe('TreeFormField component', () => {
   it('does not render the context menu when right clicking the node title if ' +
   'contextMenuOnNode prop is false', async() => {
     // contextMenuOnNode is false by default
-    const { container } = getComponent();
+    const { container } = renderComponent();
     const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     // right mouse click
@@ -234,7 +234,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders the context menu when clicking the options icon', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const settingsNode1 = nodeSettings.item(0)?.querySelector('button');
     const settingsNode2 = nodeSettings.item(1)?.querySelector('button');
@@ -246,43 +246,8 @@ describe('TreeFormField component', () => {
     });
   });
 
-  it('renders a modal when clicking to add a new node on the options menu and attributeContainer ' +
-    'is set to modal', async() => {
-    const { container } = getComponent({ ...requiredProps, attributeContainer: 'modal' });
-    // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
-    const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
-    fireEvent.click(firstNodeSettings as Element);
-    await waitFor(async() => {
-      const contextMenuFirstAction = screen.getByText('Add new layer group');
-      fireEvent.click(contextMenuFirstAction);
-      await waitFor(() => {
-        expect(screen.getByText('Add Node').parentElement?.className).toBe('ant-modal-header');
-      });
-    });
-      
-  });
-
-  it('renders a modal when clicking to add a new node on the options menu and attributeContainer is '
-  + 'not set', async() => {
-    const { container } = getComponent();
-    // open the context menu
-    const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
-    const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
-    fireEvent.click(firstNodeSettings as Element);
-    await waitFor(async() => {
-      const contextMenuFirstAction = screen.getByText('Add new layer group');
-      fireEvent.click(contextMenuFirstAction);
-      await waitFor(() => {
-        expect(screen.getByText('Add Node').parentElement?.className).toBe('ant-modal-header');
-      });
-    });
-
-  });
-
-  it('renders a drawer when clicking to add a new node on the options menu and attributeContainer '+ 
-    'is set to drawer', async() => {
-    const { container } = getComponent({ ...requiredProps, attributeContainer: 'drawer' });
+  it('renders a drawer when clicking to add a new node on the options menu', async() => {
+    const { container } = renderComponent();
     // open the context menu
     const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
@@ -297,7 +262,7 @@ describe('TreeFormField component', () => {
   });
   
   it('renders an icon for the add group node option on the context menu', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     // open the context menu
     const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
@@ -312,7 +277,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders an icon for the add node option on the context menu', async () => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     // open the context menu
     const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
@@ -327,7 +292,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders an icon for the remove node option on the context menu', async () => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     // open the context menu
     const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
@@ -342,7 +307,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders an icon for the edit node option on the context menu', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     // open the context menu
     const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const firstNodeSettings = nodeSettings.item(0)?.querySelector('button');
@@ -357,7 +322,7 @@ describe('TreeFormField component', () => {
   });
 
   it('does not render  add new node group or add new node (leaf) if context menu is opened on a leaf', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     // open the context menu
     const nodeSettings = container.querySelectorAll('.tree-manager-node-actions');
     const leafNodeSettings = nodeSettings.item(1)?.querySelector('button');
@@ -376,7 +341,7 @@ describe('TreeFormField component', () => {
   });
 
   it('renders input on node title when double clicking on the title', async () => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     const nodeTitles = container.getElementsByClassName('tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     fireEvent.doubleClick(firstNodeTitle as Element);
@@ -387,7 +352,7 @@ describe('TreeFormField component', () => {
   });
 
   it('changes the node title when submiting value on the title input field', async () => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     fireEvent.doubleClick(firstNodeTitle);
@@ -402,7 +367,7 @@ describe('TreeFormField component', () => {
 
   it('does not change the node title when submiting value on the title input field, when editing and clicking ' + 
     'Escape', async() => {
-    const { container } = getComponent();
+    const { container } = renderComponent();
     const nodeTitles = container.querySelectorAll('.tree-manager-node-title');
     const firstNodeTitle = nodeTitles.item(0);
     const titleText = firstNodeTitle.querySelector('span');
@@ -436,9 +401,8 @@ describe('TreeFormField component', () => {
         onFinish={mockSubmit}
       />
     );
-    const { container } = getComponent({ 
+    const { container } = renderComponent({ 
       ...requiredProps,
-      attributeContainer: 'drawer',
       nodeAttributeForm: mockForm
     });
 

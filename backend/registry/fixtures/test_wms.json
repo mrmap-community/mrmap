@@ -1,5 +1,29 @@
 [
     {
+        "model": "registry.historicalwebmapservice",
+        "pk": "639cb553-8c30-4e72-a38d-10351ce81cf1",
+        "fields": {
+            "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "version": "1.3.0",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+            "title": "WMS1",
+            "abstract": "wms1 abstract",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
         "model": "registry.metadatacontact",
         "pk": "1",
         "fields": {

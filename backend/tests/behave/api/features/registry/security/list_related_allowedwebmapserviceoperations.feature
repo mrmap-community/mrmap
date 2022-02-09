@@ -10,7 +10,7 @@ Feature: Related AllowedWebMapServiceOperation for wms List Endpoint
         Given I am logged in as User1 with password User1
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute meta.pagination.count with value 3
+        Then I expect that response json has an attribute "meta.pagination.count" with value "3"
 
     Scenario: Can't retrieve list as anonymous user
         When I send the request with GET method

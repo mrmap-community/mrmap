@@ -29,7 +29,7 @@ jest.mock('antd/lib/form/Form', () => ({
   }]
 }));
 
-describe('TreeFormField component', () => {
+describe('TreeManager component', () => {
   const mockedTreeData = [
     {
       title: 'node1',
@@ -82,12 +82,12 @@ describe('TreeFormField component', () => {
   // Without this, the tests will pass but a couple of warnings about state changes should be
   // encapsulated in an act() method will appear
   
-  it('defines the component', async () => {
+  it('is defined', async () => {
     const component =  renderComponent(); 
     await waitFor(() => expect(component).toBeDefined()); 
   });
 
-  it('renders the component elements', async() => {
+  it('can be rendered', async() => {
     const { container } = renderComponent();
     await waitFor(() =>{
       expect(container).toBeVisible();

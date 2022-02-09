@@ -208,7 +208,7 @@ export const LayerManager = ({
         // TODO: Better solution for this. Rendering layer should not be the only criteria for this to be a layer
         // and not a group. NOTE: saving a flag isLeaf on the table is for the time out of the question to not corrupt
         // the table with fields that are unrelated to the OGC structure
-        if(response?.properties.rendering_layer) {
+        if(response?.properties.renderingLayer) {
           layerToAdd = layerUtils.createMrMapOlWMSLayer(response);
         } else {
           layerToAdd = new LayerGroup({

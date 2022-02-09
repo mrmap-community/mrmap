@@ -678,22 +678,22 @@
                           "keywords": {
                             "$ref": "#/components/schemas/reltomany"
                           },
+                          "createdBy": {
+                            "$ref": "#/components/schemas/reltoone"
+                          },
+                          "serviceContact": {
+                            "$ref": "#/components/schemas/reltoone"
+                          },
+                          "metadataContact": {
+                            "$ref": "#/components/schemas/reltoone"
+                          },
                           "layers": {
                             "$ref": "#/components/schemas/reltomany"
                           },
                           "operationUrls": {
                             "$ref": "#/components/schemas/reltomany"
                           },
-                          "createdBy": {
-                            "$ref": "#/components/schemas/reltoone"
-                          },
-                          "metadataContact": {
-                            "$ref": "#/components/schemas/reltoone"
-                          },
                           "lastModifiedBy": {
-                            "$ref": "#/components/schemas/reltoone"
-                          },
-                          "serviceContact": {
                             "$ref": "#/components/schemas/reltoone"
                           },
                           "licence": {
@@ -1121,14 +1121,14 @@
                       "attributes": {
                         "type": "object",
                         "properties": {
+                          "scaleMax": {
+                            "type": "integer"
+                          },
                           "scaleMin": {
                             "type": "integer"
                           },
                           "bboxLatLon": {
                             "type": "string"
-                          },
-                          "scaleMax": {
-                            "type": "integer"
                           },
                           "title": {
                             "type": "string",
@@ -1160,9 +1160,9 @@
                           }
                         },
                         "required": [
+                          "scale_max",
                           "scale_min",
                           "bbox_lat_lon",
-                          "scale_max",
                           "title"
                         ]
                       },
@@ -1172,11 +1172,11 @@
                           "keywords": {
                             "$ref": "#/components/schemas/reltomany"
                           },
-                          "referenceSystems": {
-                            "$ref": "#/components/schemas/reltoone"
-                          },
                           "styles": {
                             "$ref": "#/components/schemas/reltomany"
+                          },
+                          "referenceSystems": {
+                            "$ref": "#/components/schemas/reltoone"
                           },
                           "service": {
                             "$ref": "#/components/schemas/reltoone"
@@ -1554,14 +1554,14 @@
                       "attributes": {
                         "type": "object",
                         "properties": {
+                          "scaleMax": {
+                            "type": "integer"
+                          },
                           "scaleMin": {
                             "type": "integer"
                           },
                           "bboxLatLon": {
                             "type": "string"
-                          },
-                          "scaleMax": {
-                            "type": "integer"
                           },
                           "title": {
                             "type": "string",
@@ -1599,11 +1599,11 @@
                           "keywords": {
                             "$ref": "#/components/schemas/reltomany"
                           },
-                          "referenceSystems": {
-                            "$ref": "#/components/schemas/reltoone"
-                          },
                           "styles": {
                             "$ref": "#/components/schemas/reltomany"
+                          },
+                          "referenceSystems": {
+                            "$ref": "#/components/schemas/reltoone"
                           },
                           "service": {
                             "$ref": "#/components/schemas/reltoone"
@@ -4135,14 +4135,14 @@
                       "attributes": {
                         "type": "object",
                         "properties": {
+                          "scaleMax": {
+                            "type": "integer"
+                          },
                           "scaleMin": {
                             "type": "integer"
                           },
                           "bboxLatLon": {
                             "type": "string"
-                          },
-                          "scaleMax": {
-                            "type": "integer"
                           },
                           "title": {
                             "type": "string",
@@ -4174,9 +4174,9 @@
                           }
                         },
                         "required": [
+                          "scale_max",
                           "scale_min",
                           "bbox_lat_lon",
-                          "scale_max",
                           "title"
                         ]
                       },
@@ -4186,11 +4186,11 @@
                           "keywords": {
                             "$ref": "#/components/schemas/reltomany"
                           },
-                          "referenceSystems": {
-                            "$ref": "#/components/schemas/reltoone"
-                          },
                           "styles": {
                             "$ref": "#/components/schemas/reltomany"
+                          },
+                          "referenceSystems": {
+                            "$ref": "#/components/schemas/reltoone"
                           },
                           "service": {
                             "$ref": "#/components/schemas/reltoone"
@@ -4550,14 +4550,14 @@
                       "attributes": {
                         "type": "object",
                         "properties": {
+                          "scaleMax": {
+                            "type": "integer"
+                          },
                           "scaleMin": {
                             "type": "integer"
                           },
                           "bboxLatLon": {
                             "type": "string"
-                          },
-                          "scaleMax": {
-                            "type": "integer"
                           },
                           "title": {
                             "type": "string",
@@ -4595,11 +4595,11 @@
                           "keywords": {
                             "$ref": "#/components/schemas/reltomany"
                           },
-                          "referenceSystems": {
-                            "$ref": "#/components/schemas/reltoone"
-                          },
                           "styles": {
                             "$ref": "#/components/schemas/reltomany"
+                          },
+                          "referenceSystems": {
+                            "$ref": "#/components/schemas/reltoone"
                           },
                           "service": {
                             "$ref": "#/components/schemas/reltoone"
@@ -15145,19 +15145,19 @@
                           "keywords": {
                             "$ref": "#/components/schemas/reltomany"
                           },
-                          "referenceSystems": {
-                            "$ref": "#/components/schemas/reltomany"
-                          },
                           "datasetContact": {
                             "$ref": "#/components/schemas/reltoone"
                           },
-                          "selfPointingFeatureTypes": {
+                          "selfPointingLayers": {
                             "$ref": "#/components/schemas/reltomany"
                           },
                           "metadataContact": {
                             "$ref": "#/components/schemas/reltoone"
                           },
-                          "selfPointingLayers": {
+                          "referenceSystems": {
+                            "$ref": "#/components/schemas/reltomany"
+                          },
+                          "selfPointingFeatureTypes": {
                             "$ref": "#/components/schemas/reltomany"
                           },
                           "licence": {
@@ -15551,19 +15551,19 @@
                           "keywords": {
                             "$ref": "#/components/schemas/reltomany"
                           },
-                          "referenceSystems": {
-                            "$ref": "#/components/schemas/reltomany"
-                          },
                           "datasetContact": {
                             "$ref": "#/components/schemas/reltoone"
                           },
-                          "selfPointingFeatureTypes": {
+                          "selfPointingLayers": {
                             "$ref": "#/components/schemas/reltomany"
                           },
                           "metadataContact": {
                             "$ref": "#/components/schemas/reltoone"
                           },
-                          "selfPointingLayers": {
+                          "referenceSystems": {
+                            "$ref": "#/components/schemas/reltomany"
+                          },
+                          "selfPointingFeatureTypes": {
                             "$ref": "#/components/schemas/reltomany"
                           },
                           "licence": {
@@ -28615,11 +28615,11 @@
                 "format": "uuid",
                 "readOnly": true
               },
-              "lastModifiedAt": {
+              "createdAt": {
                 "type": "string",
                 "readOnly": true
               },
-              "createdAt": {
+              "lastModifiedAt": {
                 "type": "string",
                 "readOnly": true
               },
@@ -28735,22 +28735,22 @@
               "keywords": {
                 "$ref": "#/components/schemas/reltomany"
               },
+              "createdBy": {
+                "$ref": "#/components/schemas/reltoone"
+              },
+              "serviceContact": {
+                "$ref": "#/components/schemas/reltoone"
+              },
+              "metadataContact": {
+                "$ref": "#/components/schemas/reltoone"
+              },
               "layers": {
                 "$ref": "#/components/schemas/reltomany"
               },
               "operationUrls": {
                 "$ref": "#/components/schemas/reltomany"
               },
-              "createdBy": {
-                "$ref": "#/components/schemas/reltoone"
-              },
-              "metadataContact": {
-                "$ref": "#/components/schemas/reltoone"
-              },
               "lastModifiedBy": {
-                "$ref": "#/components/schemas/reltoone"
-              },
-              "serviceContact": {
                 "$ref": "#/components/schemas/reltoone"
               },
               "licence": {
@@ -28790,14 +28790,14 @@
                 "format": "uuid",
                 "readOnly": true
               },
+              "scaleMax": {
+                "type": "integer"
+              },
               "scaleMin": {
                 "type": "integer"
               },
               "bboxLatLon": {
                 "type": "string"
-              },
-              "scaleMax": {
-                "type": "integer"
               },
               "xmlBackupFile": {
                 "type": "string",
@@ -28909,9 +28909,9 @@
               }
             },
             "required": [
-              "scale_min",
-              "bboxLatLon",
               "scale_max",
+              "scale_min",
+              "bbox_lat_lon",
               "title"
             ]
           },
@@ -28921,11 +28921,11 @@
               "keywords": {
                 "$ref": "#/components/schemas/reltomany"
               },
-              "referenceSystems": {
-                "$ref": "#/components/schemas/reltoone"
-              },
               "styles": {
                 "$ref": "#/components/schemas/reltomany"
+              },
+              "referenceSystems": {
+                "$ref": "#/components/schemas/reltoone"
               },
               "service": {
                 "$ref": "#/components/schemas/reltoone"
@@ -30084,19 +30084,19 @@
               "keywords": {
                 "$ref": "#/components/schemas/reltomany"
               },
-              "referenceSystems": {
-                "$ref": "#/components/schemas/reltomany"
-              },
               "datasetContact": {
                 "$ref": "#/components/schemas/reltoone"
               },
-              "selfPointingFeatureTypes": {
+              "selfPointingLayers": {
                 "$ref": "#/components/schemas/reltomany"
               },
               "metadataContact": {
                 "$ref": "#/components/schemas/reltoone"
               },
-              "selfPointingLayers": {
+              "referenceSystems": {
+                "$ref": "#/components/schemas/reltomany"
+              },
+              "selfPointingFeatureTypes": {
                 "$ref": "#/components/schemas/reltomany"
               },
               "licence": {

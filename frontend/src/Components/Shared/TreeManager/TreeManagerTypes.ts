@@ -14,12 +14,12 @@ export type DropNodeEventType = {
 interface MPTTJsonApiAttributeType {
     title: string;
     description: string;
-    layer_scale_min?: string; // eslint-disable-line
-    layer_scale_max?: string; // eslint-disable-line
-    preview_image?: string; // eslint-disable-line
+    layerScaleMin?: string;
+    layerScaleMax?: string;
+    previewImage?: string;
     lft: number;
     rght: number;
-    tree_id: number; // eslint-disable-line
+    treeId: number;
     level: number
   }
   
@@ -32,11 +32,11 @@ interface MPTTJsonApiAttributeType {
   
 export interface MPTTJsonApiRelashionshipType {
     parent: MPTTJsonApiRelashionshipDataType;
-    map_context: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
-    dataset_metadata: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
-    rendering_layer: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
-    layer_style: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
-    selection_layer: MPTTJsonApiRelashionshipDataType; // eslint-disable-line
+    mapContext: MPTTJsonApiRelashionshipDataType;
+    datasetMetadata: MPTTJsonApiRelashionshipDataType;
+    renderingLayer: MPTTJsonApiRelashionshipDataType;
+    layerStyle: MPTTJsonApiRelashionshipDataType;
+    selectionLayer: MPTTJsonApiRelashionshipDataType;
   }
 export interface MPTTJsonApiTreeNodeType{
     type: string;

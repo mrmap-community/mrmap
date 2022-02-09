@@ -51,19 +51,19 @@ class SignalsTestCase(TransactionTestCase):
                 'type': 'TaskResult',
                 'id': f'{task_result.id}',
                 'attributes': {
-                    'task_id': f'{task_result.task_id}',
-                    'task_name': None,
-                    'task_args': None,
-                    'task_kwargs': None,
+                    'taskId': f'{task_result.task_id}',
+                    'taskName': None,
+                    'taskArgs': None,
+                    'taskKwargs': None,
                     'status': 'PENDING',
                     'worker': None,
-                    'content_type': '',
-                    'content_encoding': '',
+                    'contentType': '',
+                    'contentEncoding': '',
                     'result': {},
-                    'date_created': f'{timezone.localtime(task_result.date_created).isoformat()}',
-                    'date_done': f'{timezone.localtime(task_result.date_done).isoformat()}',
+                    'dateCreated': f'{timezone.localtime(task_result.date_created).isoformat()}',
+                    'dateDone': f'{timezone.localtime(task_result.date_done).isoformat()}',
                     'traceback': None,
-                    'task_meta': {}
+                    'taskMeta': {}
                 },
                 'links': {
                     'self': f'http://testserver/api/v1/notify/task-results/{task_result.id}/'

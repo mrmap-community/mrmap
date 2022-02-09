@@ -2,9 +2,9 @@ import JsonApiRepo, { JsonApiResponse } from './JsonApiRepo';
 
 
 export interface OgcServiceCreate {
-  get_capabilities_url: string;  // eslint-disable-line
-  owner: string; // eslint-disable-line
-  collect_metadata_records: boolean; // eslint-disable-line
+  getCapabilitiesUrl: string;
+  owner: string;
+  collectMetadataRecords: boolean;
 }
 
 class WebMapServiceRepo extends JsonApiRepo {
@@ -14,11 +14,11 @@ class WebMapServiceRepo extends JsonApiRepo {
 
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {
     const attributes = {
-      get_capabilities_url: create.get_capabilities_url, // eslint-disable-line
-      collect_metadata_records: create.collect_metadata_records // eslint-disable-line
+      getCapabilitiesUrl: create.getCapabilitiesUrl,
+      collectMetadataRecords: create.collectMetadataRecords 
     };
     const relationships = {
-      owner: { // eslint-disable-line
+      owner: {
         data: {
           type: 'Organization',
           id: create.owner
@@ -44,7 +44,7 @@ class WebMapServiceRepo extends JsonApiRepo {
       {
         in: 'query',
         name: 'include',
-        value: 'operation_urls'
+        value: 'operationUrls'
       }
     ];    
     return await client['retrieve' + this.resourcePath + '{id}/'](params);

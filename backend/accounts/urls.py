@@ -24,7 +24,5 @@ router = ExtendedSimpleRouter()
 urlpatterns = router.urls
 urlpatterns.extend([
     path('login/', auth_views.LoginView.as_view(), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('users/<pk>/relationships/<related_field>',
-         user_views.UserRelationshipView.as_view(), name='user-relationships'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout')
 ])

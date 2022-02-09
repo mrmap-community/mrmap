@@ -17,7 +17,7 @@ from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 class WebMapServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["SecurableOperation"],
     )
     queryset = WebMapServiceOperation.objects.all()
     serializer_class = WebMapServiceOperationSerializer
@@ -40,7 +40,7 @@ class NestedWebMapServiceOperationViewSet(
 
 class WebFeatureServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["SecurableOperation"],
     )
     queryset = WebFeatureServiceOperation.objects.all()
     serializer_class = WebFeatureServiceOperationSerializer
@@ -63,7 +63,7 @@ class WebFeatureServiceOperationViewSet(
 
 class AllowedWebMapServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["AllowedOperation"],
     )
     queryset = AllowedWebMapServiceOperation.objects.all()
     serializer_class = AllowedWebMapServiceOperationSerializer
@@ -130,7 +130,7 @@ class NestedAllowedWebMapServiceOperationViewSet(
 
 class AllowedWebFeatureServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["AllowedOperation"],
     )
     queryset = AllowedWebFeatureServiceOperation.objects.all()
     serializer_class = AllowedWebFeatureServiceOperationSerializer

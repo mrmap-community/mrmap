@@ -14,7 +14,7 @@ from rest_framework_json_api.views import ModelViewSet
 
 class KeywordViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["Keyword"],
     )
     queryset = Keyword.objects.all()
     serializer_class = KeywordSerializer
@@ -40,7 +40,7 @@ class NestedKeywordViewSet(
 
 class StyleViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["Style"],
     )
     queryset = Style.objects.all()
     serializer_class = StyleSerializer
@@ -73,7 +73,7 @@ class NestedStyleViewSet(
 
 class DatasetMetadataViewSet(ModelViewSet):
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["DatasetMetadata"],
     )
     queryset = DatasetMetadata.objects.all()
     serializer_class = DatasetMetadataSerializer
@@ -174,7 +174,7 @@ class DatasetMetadataViewSet(ModelViewSet):
 
 class MetadataContactViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["MetadataContact"],
     )
     queryset = MetadataContact.objects.all()
     serializer_class = MetadataContactSerializer

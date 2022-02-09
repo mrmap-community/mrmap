@@ -9,7 +9,7 @@ from rest_framework_json_api.views import ModelViewSet
 
 class GroupViewSetMixin():
     schema = CustomAutoSchema(
-        tags=['Users'],
+        tags=['Groups'],
     )
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
@@ -38,7 +38,7 @@ class NestedGroupViewSet(
 
 class OrganizationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=['Users'],
+        tags=['Organizations'],
     )
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer

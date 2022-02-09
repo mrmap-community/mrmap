@@ -136,7 +136,7 @@ class LayerViewSetMixin(
     HistoryInformationViewSetMixin,
 ):
     schema = CustomAutoSchema(
-        tags=["WebMapService"],
+        tags=["Layer"],
     )
     queryset = Layer.objects.all()
     serializer_class = LayerSerializer
@@ -247,7 +247,7 @@ class FeatureTypeViewSetMixin(
     HistoryInformationViewSetMixin,
 ):
     schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
+        tags=["FeatureType"],
     )
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
@@ -269,7 +269,7 @@ class FeatureTypeViewSet(
 
 
 class NestedFeatureTypeViewSet(
-    LayerViewSetMixin,
+    FeatureTypeViewSetMixin,
     NestedModelViewSet
 ):
     pass
@@ -283,7 +283,7 @@ class CatalougeServiceViewSet(
     ModelViewSet,
 ):
     schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
+        tags=["CatalogueService"],
     )
     queryset = CatalougeService.objects.all()
     serializer_classes = {

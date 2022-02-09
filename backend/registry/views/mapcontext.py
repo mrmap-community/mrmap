@@ -39,7 +39,7 @@ class MapContextViewSet(ModelViewSet):
 
 class MapContextLayerViewSetMixin():
     schema = CustomAutoSchema(
-        tags=['MapContext'],
+        tags=['MapContextLayer'],
     )
     queryset = MapContextLayer.objects.all()
     serializer_classes = {

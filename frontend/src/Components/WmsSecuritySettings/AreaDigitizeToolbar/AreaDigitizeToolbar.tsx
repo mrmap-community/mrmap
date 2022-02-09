@@ -16,8 +16,8 @@ import OlVectorLayer from 'ol/layer/Vector';
 import OlMap from 'ol/Map';
 import OlSourceVector from 'ol/source/Vector';
 import React, { useEffect, useState } from 'react';
-import { ToolsContainer } from '../../../Shared/ToolsContainer/ToolsContainer';
-import './MapDigitizeToolbar.css';
+import { ToolsContainer } from '../../Shared/ToolsContainer/ToolsContainer';
+import './AreaDigitizeToolbar.css';
 
 const geoJson = new GeoJSON();
 const gml3 = new GML3();
@@ -28,9 +28,9 @@ interface DefaultProps {
   onClose: () => void;
 }
 
-type MapToolbarProps = DefaultProps;
+type AreaDigitizeToolbarProps = DefaultProps;
 
-export const MapDigitizeToolbar: React.FC<MapToolbarProps> = ({
+export const AreaDigitizeToolbar: React.FC<AreaDigitizeToolbarProps> = ({
   map,
   visible,
   onClose
@@ -215,4 +215,4 @@ export const MapDigitizeToolbar: React.FC<MapToolbarProps> = ({
   );
 };
 
-export default MapDigitizeToolbar;
+export default AreaDigitizeToolbar;

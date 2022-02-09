@@ -12,7 +12,7 @@ import { LayerUtils } from '../../Utils/LayerUtils';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { olMap, TheMap } from '../TheMap/TheMap';
-import MapDigitizeToolbar from './RuleForm/MapDigitizeToolbar/MapDigitizeToolbar';
+import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
@@ -220,7 +220,7 @@ export const WmsSecuritySettings = (): ReactElement => {
           }
           {
             olMap && 
-            <MapDigitizeToolbar
+            <AreaDigitizeToolbar
               map={olMap} 
               visible={isRuleEditingActive}
               onClose={ () => { console.log('Closing');} }

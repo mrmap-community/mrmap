@@ -2,7 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Drawer } from 'antd';
 import React, { ReactElement, useRef, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { RuleForm } from '../RuleForm/RuleForm';
+import { RuleForm } from './RuleForm/RuleForm';
 import './RulesDrawer.css';
 import { RulesTable } from './RulesTable/RulesTable';
 

@@ -12,12 +12,12 @@ import OlVectorSource from 'ol/source/Vector';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '../../../Hooks/useAuth';
-import { operation } from '../../../Repos/JsonApi';
-import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../Repos/WmsAllowedOperationRepo';
-import WmsOperationRepo from '../../../Repos/WmsOperationRepo';
-import { InputField } from '../../Shared/FormFields/InputField/InputField';
-import { AllowedAreaList } from './AllowedAreaList';
+import { useAuth } from '../../../../Hooks/useAuth';
+import { operation } from '../../../../Repos/JsonApi';
+import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../../Repos/WmsAllowedOperationRepo';
+import WmsOperationRepo from '../../../../Repos/WmsOperationRepo';
+import { InputField } from '../../../Shared/FormFields/InputField/InputField';
+import { AllowedAreaList } from './AllowedAreaList/AllowedAreaList';
 
 const { Option } = Select;
 

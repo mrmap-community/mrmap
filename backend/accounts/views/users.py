@@ -1,13 +1,13 @@
 from accounts.models.users import User
 from accounts.serializers.users import UserCreateSerializer, UserSerializer
 from extras.openapi import CustomAutoSchema
+from extras.viewsets import NestedModelViewSet
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
-class UserViewSet(NestedViewSetMixin, ModelViewSet):
+class UserViewSetMixin():
     schema = CustomAutoSchema(
         tags=['Users'],
     )
@@ -33,3 +33,17 @@ class UserViewSet(NestedViewSetMixin, ModelViewSet):
         # FIXME: password attribute is still present in the rendered data, but with value null
         new_data.pop('password')
         return Response(new_data, status=response.status_code, headers=response.headers)
+
+
+class UserViewSet(
+    UserViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedUserViewSet(
+    UserViewSetMixin,
+    NestedModelViewSet
+):
+    pass

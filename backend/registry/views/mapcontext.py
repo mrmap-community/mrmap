@@ -1,6 +1,7 @@
 
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
+from extras.viewsets import NestedModelViewSet
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.mapcontext import (
     MapContextDefaultSerializer, MapContextIncludeSerializer,
@@ -8,7 +9,6 @@ from registry.serializers.mapcontext import (
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -37,7 +37,7 @@ class MapContextViewSet(ModelViewSet):
         )
 
 
-class MapContextLayerViewSet(NestedViewSetMixin, ModelViewSet):
+class MapContextLayerViewSetMixin():
     schema = CustomAutoSchema(
         tags=['MapContext'],
     )
@@ -63,3 +63,17 @@ class MapContextLayerViewSet(NestedViewSetMixin, ModelViewSet):
         else:
             return Response(serializer.errors,
                             status=status.HTTP_400_BAD_REQUEST)
+
+
+class MapContextLayerViewSet(
+    MapContextLayerViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedMapContextLayerViewSet(
+    MapContextLayerViewSetMixin,
+    NestedModelViewSet
+):
+    pass

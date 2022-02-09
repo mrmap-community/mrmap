@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
+from extras.viewsets import NestedModelViewSet
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
@@ -11,11 +12,10 @@ from registry.serializers.security import (
     AllowedWebMapServiceOperationSerializer,
     WebFeatureServiceOperationSerializer, WebMapServiceOperationSerializer)
 from rest_framework.permissions import DjangoObjectPermissions
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
-class WebMapServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
+class WebMapServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
@@ -24,7 +24,21 @@ class WebMapServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
     search_fields = ('operation', )
 
 
-class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
+class WebMapServiceOperationViewSet(
+    WebMapServiceOperationViewSetMixin,
+    ReadOnlyModelViewSet
+):
+    pass
+
+
+class NestedWebMapServiceOperationViewSet(
+        WebMapServiceOperationViewSetMixin,
+        NestedModelViewSet
+):
+    pass
+
+
+class WebFeatureServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
@@ -33,9 +47,21 @@ class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet
     search_fields = ('operation', )
 
 
-class AllowedWebMapServiceOperationViewSet(
-        NestedViewSetMixin,
-        ModelViewSet):
+class WebFeatureServiceOperationViewSet(
+    WebFeatureServiceOperationViewSetMixin,
+    ReadOnlyModelViewSet
+):
+    pass
+
+
+class WebFeatureServiceOperationViewSet(
+    WebFeatureServiceOperationViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class AllowedWebMapServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
@@ -88,12 +114,38 @@ class AllowedWebMapServiceOperationViewSet(
         return qs
 
 
-class AllowedWebFeatureServiceOperationViewSet(
-        NestedViewSetMixin,
-        ModelViewSet):
+class AllowedWebMapServiceOperationViewSet(
+        AllowedWebMapServiceOperationViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedAllowedWebMapServiceOperationViewSet(
+        AllowedWebMapServiceOperationViewSetMixin,
+        NestedModelViewSet
+):
+    pass
+
+
+class AllowedWebFeatureServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
     queryset = AllowedWebFeatureServiceOperation.objects.all()
     serializer_class = AllowedWebFeatureServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]
+
+
+class AllowedWebFeatureServiceOperationViewSet(
+        AllowedWebFeatureServiceOperationViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedAllowedWebFeatureServiceOperationViewSet(
+        AllowedWebFeatureServiceOperationViewSetMixin,
+        NestedModelViewSet
+):
+    pass

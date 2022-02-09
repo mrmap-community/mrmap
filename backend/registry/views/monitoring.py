@@ -1,7 +1,7 @@
 
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import (AsyncCreateMixin,
+from extras.viewsets import (AsyncCreateMixin, NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
                              SerializerClassesMixin)
 from registry.models.monitoring import (LayerGetFeatureInfoResult,
@@ -15,17 +15,10 @@ from registry.serializers.monitoring import (
 from registry.tasks.monitoring import (check_get_feature_info_operation,
                                        check_get_map_operation,
                                        check_wms_get_capabilities_operation)
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
-class WMSGetCapabilitiesResultViewSet(
-    AsyncCreateMixin,
-    SerializerClassesMixin,
-    ObjectPermissionCheckerViewSetMixin,
-    NestedViewSetMixin,
-    ModelViewSet,
-):
+class WMSGetCapabilitiesResultViewSetMixin():
     schema = CustomAutoSchema(
         tags=["Monitoring"],
     )
@@ -44,13 +37,24 @@ class WMSGetCapabilitiesResultViewSet(
         }
 
 
-class LayerGetMapResultViewSet(
+class WMSGetCapabilitiesResultViewSet(
+    WMSGetCapabilitiesResultViewSetMixin,
     AsyncCreateMixin,
     SerializerClassesMixin,
-    ObjectPermissionCheckerViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
+    pass
+
+
+class NestedWMSGetCapabilitiesResultViewSet(
+    WMSGetCapabilitiesResultViewSetMixin,
+    SerializerClassesMixin,
+    NestedModelViewSet,
+):
+    pass
+
+
+class LayerGetMapResultViewSetMixin():
     schema = CustomAutoSchema(
         tags=["Monitoring"],
     )
@@ -68,13 +72,24 @@ class LayerGetMapResultViewSet(
         }
 
 
-class LayerGetFeatureInfoResultViewSet(
+class LayerGetMapResultViewSet(
+    LayerGetMapResultViewSetMixin,
     AsyncCreateMixin,
     SerializerClassesMixin,
-    ObjectPermissionCheckerViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
+    pass
+
+
+class NestedLayerGetMapResultViewSet(
+    LayerGetMapResultViewSetMixin,
+    SerializerClassesMixin,
+    NestedModelViewSet,
+):
+    pass
+
+
+class LayerGetFeatureInfoResultViewSetMixin():
     schema = CustomAutoSchema(
         tags=["Monitoring"],
     )
@@ -90,3 +105,20 @@ class LayerGetFeatureInfoResultViewSet(
         return {
             "layer_pk": serializer.data["layer"]["id"]
         }
+
+
+class LayerGetFeatureInfoResultViewSet(
+    LayerGetFeatureInfoResultViewSetMixin,
+    AsyncCreateMixin,
+    SerializerClassesMixin,
+    ModelViewSet,
+):
+    pass
+
+
+class NestedLayerGetFeatureInfoResultViewSet(
+    LayerGetFeatureInfoResultViewSetMixin,
+    SerializerClassesMixin,
+    NestedModelViewSet,
+):
+    pass

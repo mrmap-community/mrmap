@@ -14,26 +14,26 @@ router = ExtendedSimpleRouter()
 (
     # web map service
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'layers', service_views.LayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
+          .register(r'layers', service_views.NestedLayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'service-contact', metadata_views.MetadataContactViewSet, basename='wms-service-contact', parents_query_lookups=['service_contact_webmapservice_metadata']),
+          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wms-service-contact', parents_query_lookups=['service_contact_webmapservice_metadata']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'service-contact', metadata_views.MetadataContactViewSet, basename='wms-metadata-contact', parents_query_lookups=['metadata_contact_webmapservice_metadata']),
+          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wms-metadata-contact', parents_query_lookups=['metadata_contact_webmapservice_metadata']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'keywords', metadata_views.KeywordViewSet, basename='wms-keywords', parents_query_lookups=['ogcservice_metadata']),
+          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wms-keywords', parents_query_lookups=['ogcservice_metadata']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
-          .register(r'styles', metadata_views.StyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
+          .register(r'styles', metadata_views.NestedStyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
-          .register(r'keywords', metadata_views.KeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
+          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'allowed-wms-operations', security_views.AllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
+          .register(r'allowed-wms-operations', security_views.NestedAllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
 
 
     # web feature service
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-          .register(r'featuretypes', service_views.FeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
+          .register(r'featuretypes', service_views.NestedFeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
     router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
-          .register(r'keywords', metadata_views.KeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
+          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
 
     # catalouge service
     router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw'),
@@ -43,7 +43,7 @@ router = ExtendedSimpleRouter()
 
     # map context
     router.register(r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')
-          .register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontext-mapcontextlayers', parents_query_lookups=['map_context']),
+          .register(r'mapcontextlayers', mapcontext_views.NestedMapContextLayerViewSet, basename='mapcontext-mapcontextlayers', parents_query_lookups=['map_context']),
     router.register(r'mapcontextlayers',mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
 
     # metadata

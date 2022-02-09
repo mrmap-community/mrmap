@@ -1,6 +1,7 @@
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
+from extras.viewsets import NestedModelViewSet
 from registry.models.metadata import (DatasetMetadata, Keyword,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalougeService, FeatureType, Layer
@@ -8,11 +9,10 @@ from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            KeywordSerializer,
                                            MetadataContactSerializer,
                                            StyleSerializer)
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
-class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
+class KeywordViewSetMixin():
     schema = CustomAutoSchema(
         tags=["Metadata"],
     )
@@ -24,7 +24,21 @@ class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
     search_fields = ("keyword",)
 
 
-class StyleViewSet(NestedViewSetMixin, ModelViewSet):
+class KeywordViewSet(
+    KeywordViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedKeywordViewSet(
+    KeywordViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class StyleViewSetMixin():
     schema = CustomAutoSchema(
         tags=["Metadata"],
     )
@@ -41,6 +55,20 @@ class StyleViewSet(NestedViewSetMixin, ModelViewSet):
     # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
     # delete is only provided on the service endpoint it self, which implicit removes all related objects
     http_method_names = ["get", "patch", "head", "options"]
+
+
+class StyleViewSet(
+    StyleViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedStyleViewSet(
+    StyleViewSetMixin,
+    NestedModelViewSet
+):
+    pass
 
 
 class DatasetMetadataViewSet(ModelViewSet):
@@ -144,9 +172,23 @@ class DatasetMetadataViewSet(ModelViewSet):
         return qs
 
 
-class MetadataContactViewSet(ModelViewSet):
+class MetadataContactViewSetMixin():
     schema = CustomAutoSchema(
         tags=["Metadata"],
     )
     queryset = MetadataContact.objects.all()
     serializer_class = MetadataContactSerializer
+
+
+class MetadataContactViewSet(
+        MetadataContactViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedMetadataContactViewSet(
+    MetadataContactViewSetMixin,
+    NestedModelViewSet
+):
+    pass

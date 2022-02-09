@@ -2,6 +2,7 @@ from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
+                             NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
                              SerializerClassesMixin)
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
@@ -20,7 +21,6 @@ from registry.serializers.service import (CatalougeServiceCreateSerializer,
                                           WebMapServiceCreateSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -29,7 +29,6 @@ class WebMapServiceViewSet(
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
     """ Endpoints for resource `WebMapService`
@@ -133,11 +132,8 @@ class WebMapServiceViewSet(
         return qs
 
 
-class LayerViewSet(
-    NestedViewSetMixin,
-    ObjectPermissionCheckerViewSetMixin,
+class LayerViewSetMixin(
     HistoryInformationViewSetMixin,
-    ModelViewSet,
 ):
     schema = CustomAutoSchema(
         tags=["WebMapService"],
@@ -199,12 +195,23 @@ class LayerViewSet(
         return qs
 
 
+class LayerViewSet(
+        LayerViewSetMixin,
+        ModelViewSet):
+    pass
+
+
+class NestedLayerViewSet(
+        LayerViewSetMixin,
+        NestedModelViewSet):
+    pass
+
+
 class WebFeatureServiceViewSet(
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
     schema = CustomAutoSchema(
@@ -236,7 +243,9 @@ class WebFeatureServiceViewSet(
         }
 
 
-class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
+class FeatureTypeViewSetMixin(
+    HistoryInformationViewSetMixin,
+):
     schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
@@ -252,12 +261,25 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
     http_method_names = ["get", "patch", "head", "options"]
 
 
+class FeatureTypeViewSet(
+    FeatureTypeViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedFeatureTypeViewSet(
+    LayerViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
 class CatalougeServiceViewSet(
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
     schema = CustomAutoSchema(

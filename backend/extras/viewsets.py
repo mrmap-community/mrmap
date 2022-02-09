@@ -7,11 +7,15 @@ from django.views.generic.detail import BaseDetailView, DetailView
 from django_celery_results.models import TaskResult
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import TaskResultSerializer
-from rest_framework import status
+from rest_framework import mixins, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.settings import api_settings
 from rest_framework.test import APIRequestFactory
+from rest_framework.viewsets import GenericViewSet
+from rest_framework_extensions.mixins import NestedViewSetMixin
+from rest_framework_json_api.views import (AutoPrefetchMixin,
+                                           PreloadIncludesMixin, RelatedMixin)
 
 
 class ObjectPermissionCheckerViewSetMixin:
@@ -154,3 +158,13 @@ class EmbeddedJsonDetailView(JSONResponseMixin, DetailView):
         _json = json.dumps(self.get_data(context=context), indent=3)
         context.update({"json": _json})
         return context
+
+
+class NestedModelViewSet(
+    NestedViewSetMixin, AutoPrefetchMixin, PreloadIncludesMixin, RelatedMixin, mixins.ListModelMixin,
+        GenericViewSet
+):
+    """
+    A viewset that provides default `list()` action for nested usage.
+    """
+    http_method_names = ["get", "head", "options"]

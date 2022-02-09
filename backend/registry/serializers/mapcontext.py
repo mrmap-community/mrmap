@@ -38,7 +38,6 @@ class MapContextDefaultSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:mapcontext-mapcontextlayers-list',
         related_link_url_kwarg='parent_lookup_map_context',
-        self_link_view_name='registry:mapcontextlayer-relationships',
         required=False,
     )
 
@@ -67,7 +66,6 @@ class MapContextIncludeSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:mapcontext-mapcontextlayers-list',
         related_link_url_kwarg='parent_lookup_map_context',
-        self_link_view_name='registry:mapcontextlayer-relationships'
     )
 
     included_serializers = {

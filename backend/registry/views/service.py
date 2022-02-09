@@ -21,15 +21,7 @@ from registry.serializers.service import (CatalougeServiceCreateSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.views import ModelViewSet, RelationshipView
-
-
-class WebMapServiceRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = WebMapService.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+from rest_framework_json_api.views import ModelViewSet
 
 
 class WebMapServiceViewSet(
@@ -141,14 +133,6 @@ class WebMapServiceViewSet(
         return qs
 
 
-class LayerRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = Layer.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
 class LayerViewSet(
     NestedViewSetMixin,
     ObjectPermissionCheckerViewSetMixin,
@@ -215,14 +199,6 @@ class LayerViewSet(
         return qs
 
 
-class WebFeatureServiceRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = WebFeatureService.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
 class WebFeatureServiceViewSet(
     SerializerClassesMixin,
     AsyncCreateMixin,
@@ -258,14 +234,6 @@ class WebFeatureServiceViewSet(
                 "user_pk": request.user.pk,
             }
         }
-
-
-class FeatureTypeRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = FeatureType.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 
 class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):

@@ -9,23 +9,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.views import ModelViewSet, RelationshipView
-
-
-class MapContextRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=['MapContext'],
-    )
-    queryset = MapContext.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class MapContextLayerRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=['MapContext'],
-    )
-    queryset = MapContextLayer.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+from rest_framework_json_api.views import ModelViewSet
 
 
 class MapContextViewSet(ModelViewSet):

@@ -53,7 +53,6 @@ class LayerSerializer(
         related_link_view_name="registry:layer-wms-detail",
         related_link_lookup_field="pk",
         related_link_url_kwarg="layer_pk",
-        # self_link_view_name='registry:wms-relationships',
     )
     keywords = ResourceRelatedField(
         label=_("keywords"),
@@ -62,7 +61,6 @@ class LayerSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-keywords-list",
         related_link_url_kwarg="parent_lookup_layer",
-        self_link_view_name="registry:layer-relationships",
     )
 
     # FIXME: prefetch ancestors for the following fields, cause otherwise this results in extra db transactions...
@@ -85,7 +83,6 @@ class LayerSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-styles-list",
         related_link_url_kwarg="parent_lookup_layer",
-        self_link_view_name="registry:layer-relationships",
     )
     reference_systems = SerializerMethodResourceRelatedField(
         label=_("reference systems"),
@@ -127,7 +124,6 @@ class WebMapServiceSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:wms-layers-list",
         related_link_url_kwarg="parent_lookup_service",
-        self_link_view_name="registry:wms-relationships",
         read_only=True,
     )
 
@@ -212,7 +208,6 @@ class FeatureTypeSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:featuretype-keywords-list",
         related_link_url_kwarg="parent_lookup_featuretype",
-        self_link_view_name="registry:featuretype-relationships",
     )
 
     included_serializers = {
@@ -242,7 +237,6 @@ class WebFeatureServiceSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:wfs-featuretypes-list",
         related_link_url_kwarg="parent_lookup_service",
-        self_link_view_name="registry:wfs-relationships",
     )
 
     class Meta:

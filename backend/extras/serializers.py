@@ -7,8 +7,19 @@ from rest_framework_json_api.serializers import (ModelSerializer,
                                                  SerializerMethodField)
 
 
+class StringRepresentationSerializer(ModelSerializer):
+    string_representation = SerializerMethodField(read_only=True)
+
+    class Meta:
+        abstract = True
+
+    def get_string_representation(self, obj):
+        return obj.__str__()
+
+
+# TODO: Split this into two classes one which implements the get_perm_checker function and one which implements the is_accessible field
 class ObjectPermissionCheckerSerializer(ModelSerializer):
-    is_accessible = SerializerMethodField()
+    is_accessible = SerializerMethodField(read_only=True)
 
     class Meta:
         abstract = True

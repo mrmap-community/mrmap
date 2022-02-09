@@ -3,10 +3,10 @@ import React, { ReactElement } from 'react';
 
 export const PageNotFound = (): ReactElement => {
   return (
-    <Card title='404 - Page Not Found' bordered={false} >
+    <Card title='5xx' bordered={false} >
       <Image
-        alt={'Confused Mr. Map logo'}
-        src={process.env.PUBLIC_URL + '/mr_map_404.png'}
+        alt={'Ill Mr. Map logo'}
+        src={process.env.PUBLIC_URL + '/mr_map_500.png'}
       />
     </Card>
   );

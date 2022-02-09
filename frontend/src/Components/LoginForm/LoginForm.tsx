@@ -1,9 +1,8 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { Alert, Button, Form, Input, notification, Row } from 'antd';
+import { Alert, Button, Form, Image, Input, notification, Row } from 'antd';
 import React, { ReactElement, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../Hooks/useAuth';
-
 export const Login = (): ReactElement => {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -39,11 +38,17 @@ export const Login = (): ReactElement => {
 
   return (
     <Row justify='center' align='middle' style={{ minHeight: '100vh', backgroundColor: '#001529' }}>
+      
       <Form
         name='normal_login'
         initialValues={{ remember: true }}
         onFinish={onFinish}
       >
+        <Image
+          width={200}
+          alt={'Mr. Map logo'}
+          src={process.env.PUBLIC_URL + '/logo.png'}
+        />
         <Form.Item
           name='username'
           rules={[{ required: true, message: 'Please enter your Username!' }]}
@@ -75,6 +80,7 @@ export const Login = (): ReactElement => {
           </Button>
         </Form.Item>
       </Form>
+      
     </Row>
   );
 };

@@ -1,7 +1,6 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
-from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
@@ -34,7 +33,9 @@ class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet
     search_fields = ('operation', )
 
 
-class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
+class AllowedWebMapServiceOperationViewSet(
+        NestedViewSetMixin,
+        ModelViewSet):
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )
@@ -46,14 +47,14 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
 
-        if not include or "secured_service" not in include:
+        if not include or "securedService" not in include:
             defer = [
                 f"secured_service__{field.name}"
                 for field in WebMapService._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("secured_service").defer(*defer)
-        if not include or "secured_layers" not in include:
+        if not include or "securedLayers" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "secured_layers",
@@ -65,7 +66,7 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
                     ),
                 )
             )
-        if not include or "allowed_groups" not in include:
+        if not include or "allowedGroups" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
                     "allowed_groups",
@@ -87,7 +88,9 @@ class AllowedWebMapServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, 
         return qs
 
 
-class AllowedWebFeatureServiceOperationViewSet(ObjectPermissionCheckerViewSetMixin, NestedViewSetMixin, ModelViewSet):
+class AllowedWebFeatureServiceOperationViewSet(
+        NestedViewSetMixin,
+        ModelViewSet):
     schema = CustomAutoSchema(
         tags=["SecurityProxy"],
     )

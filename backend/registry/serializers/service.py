@@ -1,7 +1,9 @@
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
+from django.utils.translation import gettext_lazy as _
 from extras.serializers import (HistoryInformationSerializer,
-                                ObjectPermissionCheckerSerializer)
+                                ObjectPermissionCheckerSerializer,
+                                StringRepresentationSerializer)
 from MrMap.validators import validate_get_capablities_uri
 from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
@@ -35,20 +37,27 @@ class WebMapServiceOperationUrlSerializer(ModelSerializer):
         return instance.get_url(request=self.context["request"])
 
 
-class LayerSerializer(ModelSerializer):
+class LayerSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layer-detail",
+        read_only=True,
     )
 
     service = ResourceRelatedField(
-        # model=WebMapService,
-        queryset=WebMapService.objects,
+        label=_("web map service"),
+        help_text=_("the web map service, where this layer is part of."),
+        read_only=True,
+        model=WebMapService,
         related_link_view_name="registry:layer-wms-detail",
         related_link_lookup_field="pk",
-        related_link_url_kwarg="layer_pk"
-        # elf_link_view_name='registry:wms-relationships',
+        related_link_url_kwarg="layer_pk",
+        # self_link_view_name='registry:wms-relationships',
     )
     keywords = ResourceRelatedField(
+        label=_("keywords"),
+        help_text=_("keywords help to find layers by matching keywords."),
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-keywords-list",
@@ -57,10 +66,21 @@ class LayerSerializer(ModelSerializer):
     )
 
     # FIXME: prefetch ancestors for the following fields, cause otherwise this results in extra db transactions...
-    bbox_lat_lon = GeometryField(source="get_bbox")
-    scale_min = IntegerField(source="get_scale_min")
-    scale_max = IntegerField(source="get_scale_max")
+    bbox_lat_lon = GeometryField(
+        source="get_bbox",
+        label=_("bbox"),
+        help_text=_("this is the spatial extent of the layer."))
+    scale_min = IntegerField(
+        source="get_scale_min",
+        label=_("minimal scale"),
+        help_text=_("the minimum scale value."))
+    scale_max = IntegerField(
+        source="get_scale_max",
+        label=_("maximum scale"),
+        help_text=_("the maximum scale value."))
     styles = ResourceRelatedField(
+        label=_("styles"),
+        help_text=_("related styles of this layer."),
         queryset=Style.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-styles-list",
@@ -68,8 +88,11 @@ class LayerSerializer(ModelSerializer):
         self_link_view_name="registry:layer-relationships",
     )
     reference_systems = SerializerMethodResourceRelatedField(
+        label=_("reference systems"),
+        help_text=_("available reference systems of this layer."),
         model=ReferenceSystem,
         many=True,
+        read_only=True,
     )
 
     included_serializers = {
@@ -82,13 +105,17 @@ class LayerSerializer(ModelSerializer):
     class Meta:
         model = Layer
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
     def get_reference_systems(self, instance):
         return instance.get_reference_systems
 
 
 class WebMapServiceSerializer(
-    ObjectPermissionCheckerSerializer, HistoryInformationSerializer, ModelSerializer
+    StringRepresentationSerializer,
+    ObjectPermissionCheckerSerializer,
+    HistoryInformationSerializer,
+    ModelSerializer
 ):
 
     url = HyperlinkedIdentityField(
@@ -96,14 +123,12 @@ class WebMapServiceSerializer(
     )
 
     layers = ResourceRelatedField(
-        # queryset=Layer.objects,
         model=Layer,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:wms-layers-list",
         related_link_url_kwarg="parent_lookup_service",
         self_link_view_name="registry:wms-relationships",
         read_only=True,
-        # meta_attrs={'layer_count': 'count'}
     )
 
     service_contact = ResourceRelatedField(
@@ -121,12 +146,14 @@ class WebMapServiceSerializer(
         many=True,
         related_link_view_name="registry:wms-keywords-list",
         related_link_url_kwarg="parent_lookup_ogcservice_metadata",
-        # meta_attrs={'keyword_count': 'count'}
     )
 
     operation_urls = ResourceRelatedField(
-        queryset=WebMapServiceOperationUrl.objects,
+        label=_("operation urls"),
+        help_text=_("this are the urls to use for the ogc operations."),
+        model=WebMapServiceOperationUrl,
         many=True,
+        read_only=True,
     )
 
     included_serializers = {
@@ -142,18 +169,29 @@ class WebMapServiceSerializer(
     class Meta:
         model = WebMapService
         fields = "__all__"
-        meta_fields = ("is_accessible",)
+        meta_fields = ("string_representation",)
 
 
 class WebMapServiceCreateSerializer(ModelSerializer):
 
-    get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
+    get_capabilities_url = URLField(
+        label=_("get capabilities url"),
+        help_text=_("a valid get capabilities url."),
+        # example="http://example.com/SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+        validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
-        queryset=WebMapServiceAuthentication.objects, required=False
-    )
-    owner = ResourceRelatedField(queryset=Organization.objects)
-
-    collect_metadata_records = BooleanField(default=True)
+        queryset=WebMapServiceAuthentication.objects,
+        required=False,
+        label=_("authentication credentials"),
+        help_text=_("Optional authentication credentials to request the remote service."))
+    owner = ResourceRelatedField(
+        queryset=Organization.objects,
+        label=_("owner"),
+        help_text=_("The selected organization grants all rights on the registered service."))
+    collect_metadata_records = BooleanField(
+        default=True,
+        label=_("collect metadata records"),
+        help_text=_("If checked, Mr. Map collects all related metadata documents after the registration task."))
 
     class Meta:
         model = WebMapService
@@ -165,7 +203,9 @@ class WebMapServiceCreateSerializer(ModelSerializer):
         )
 
 
-class FeatureTypeSerializer(ModelSerializer):
+class FeatureTypeSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     keywords = HyperlinkedRelatedField(
         queryset=Keyword.objects,
@@ -182,9 +222,12 @@ class FeatureTypeSerializer(ModelSerializer):
     class Meta:
         model = FeatureType
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
-class WebFeatureServiceSerializer(ModelSerializer):
+class WebFeatureServiceSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
@@ -205,6 +248,7 @@ class WebFeatureServiceSerializer(ModelSerializer):
     class Meta:
         model = WebFeatureService
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
 class WebFeatureServiceCreateSerializer(ModelSerializer):
@@ -242,7 +286,9 @@ class CatalougeServiceCreateSerializer(ModelSerializer):
         )
 
 
-class CatalougeServiceSerializer(ModelSerializer):
+class CatalougeServiceSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
     )
@@ -250,3 +296,4 @@ class CatalougeServiceSerializer(ModelSerializer):
     class Meta:
         model = CatalougeService
         fields = "__all__"
+        meta_fields = ("string_representation",)

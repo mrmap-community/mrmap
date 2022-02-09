@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError
-from extras.fields import ExtendedHyperlinkedRelatedField
+from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from rest_framework.fields import ChoiceField, IntegerField
 from rest_framework.serializers import HyperlinkedIdentityField
@@ -7,7 +7,9 @@ from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer, Serializer
 
 
-class MapContextLayerSerializer(ModelSerializer):
+class MapContextLayerSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontextlayer-detail',
@@ -16,6 +18,7 @@ class MapContextLayerSerializer(ModelSerializer):
     class Meta:
         model = MapContextLayer
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
     def validate(self, attrs):
         validated_data = super().validate(attrs)
@@ -23,24 +26,26 @@ class MapContextLayerSerializer(ModelSerializer):
         return validated_data
 
 
-class MapContextDefaultSerializer(ModelSerializer):
+class MapContextDefaultSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontext-detail',
     )
-    map_context_layers = ExtendedHyperlinkedRelatedField(
+    map_context_layers = ResourceRelatedField(
         queryset=MapContextLayer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name='registry:mapcontext-mapcontextlayers-list',
         related_link_url_kwarg='parent_lookup_map_context',
         self_link_view_name='registry:mapcontextlayer-relationships',
         required=False,
-        meta_attrs={'map_context_layer_count': 'count'}
     )
 
     class Meta:
         model = MapContext
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
     def create(self, validated_data):
         instance = super().create(validated_data)
@@ -49,7 +54,9 @@ class MapContextDefaultSerializer(ModelSerializer):
         return instance
 
 
-class MapContextIncludeSerializer(ModelSerializer):
+class MapContextIncludeSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontext-detail',
@@ -70,9 +77,11 @@ class MapContextIncludeSerializer(ModelSerializer):
     class Meta:
         model = MapContext
         fields = "__all__"
+        meta_fields = ("string_representation",)
 
 
-class MapContextLayerMoveLayerSerializer(Serializer):
+class MapContextLayerMoveLayerSerializer(
+        Serializer):
 
     target = IntegerField()
     position = ChoiceField(

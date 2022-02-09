@@ -32,7 +32,7 @@ class MapContextViewSet(ModelViewSet):
     schema = CustomAutoSchema(
         tags=['MapContext'],
     )
-    queryset = MapContext.objects.with_meta()
+    queryset = MapContext.objects.all()
     serializer_classes = {
         'default': MapContextDefaultSerializer,
         'include': MapContextIncludeSerializer

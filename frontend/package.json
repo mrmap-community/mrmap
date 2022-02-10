@@ -94,7 +94,10 @@
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!(ol|antd|(rc-[a-z-]*)|@ant-design/css-animation|@ant-design/pro-[a-z]+|(@ant-design/icons)(-[a-z]+)*|@babel/runtime)/)"
-    ]
+    ],
+    "moduleNameMapper": {
+      "\\.(css|less|png)$": "<rootDir>/jest/spec/__mocks__/mock.js"
+    }
   },
   "proxy": "http://localhost:8001/"
 }

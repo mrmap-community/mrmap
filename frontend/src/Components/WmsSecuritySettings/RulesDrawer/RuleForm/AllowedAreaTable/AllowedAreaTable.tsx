@@ -6,6 +6,7 @@ import Feature from 'ol/Feature';
 import { default as Geometry } from 'ol/geom/Geometry';
 import VectorSource from 'ol/source/Vector';
 import { default as React, ReactElement, useEffect, useState } from 'react';
+import { zoomTo } from '../../../../../Utils/MapUtils';
 
 interface Area {
   key: string,
@@ -62,8 +63,7 @@ export const AllowedAreaTable = (): ReactElement => {
       onRow={(record, rowIndex) => {
         return {
           onClick: event => {
-            const geom = record.feature.getGeometry();
-            map && geom && map.getView().fit(geom.getExtent());
+            map && zoomTo(map, record.feature);
           }
         };
       }}          

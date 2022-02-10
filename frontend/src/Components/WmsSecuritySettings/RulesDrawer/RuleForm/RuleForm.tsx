@@ -1,6 +1,6 @@
 import { useMap } from '@terrestris/react-geo';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
-import { Alert, Button, Form, notification, Select, Space } from 'antd';
+import { Alert, Button, Form, notification, Select, Space, Spin } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Feature } from 'ol';
 import GeoJSON from 'ol/format/GeoJSON';
@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../../../Hooks/useAuth';
 import { createOrUpdate, operation } from '../../../../Repos/JsonApi';
+import { screenToWgs84, wgs84ToScreen, zoomTo } from '../../../../Utils/MapUtils';
 import { InputField } from '../../../Shared/FormFields/InputField/InputField';
 import { AllowedAreaTable } from './AllowedAreaTable/AllowedAreaTable';
 
@@ -45,7 +46,7 @@ export const RuleForm = ({
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);  
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingOrLoading, setIsSavingOrLoading] = useState(false);
 
   // after mount, rule editing mode is active
   useEffect(() => {
@@ -56,8 +57,10 @@ export const RuleForm = ({
     });
   },[setIsRuleEditingActive]);
 
+  // get map digitize layer, fetch form data and initialize
   useEffect(() => {
     let isMounted = true;
+    let digiLayer: OlVectorLayer<OlVectorSource<OlGeometry>>;
     async function initAvailableWmsOps () {
       const jsonApiResponse = await operation('List/api/v1/registry/security/wms-operations/');
       const wmsOps = jsonApiResponse.data.data.map((wmsOp: any) => 
@@ -84,61 +87,69 @@ export const RuleForm = ({
         }]
       );
       if (isMounted) {
+        const attrs = jsonApiResponse.data.data.attributes;
+        const rels = jsonApiResponse.data.data.relationships;
+        // set form fields
         form.setFieldsValue({
-          description: jsonApiResponse.data.data.attributes.description,
-          area: jsonApiResponse.data.data.attributes.allowedArea
-            ? JSON.stringify(jsonApiResponse.data.data.attributes.allowedArea)
-            : null,
-          operations: jsonApiResponse.data.data.relationships.operations.data.map((operation: any) => operation.id ),
-          groups: jsonApiResponse.data.data.relationships.allowedGroups.data.map((group: any) => group.id )
+          description: attrs.description,
+          operations: rels.operations.data.map((o: any) => o.id),
+          groups: rels.allowedGroups.data.map((o: any) => o.id)
         });
-        const securedLayerIds = jsonApiResponse.data.data.relationships.securedLayers.data.map((layer: any) => 
-          layer.id
-        );
-        setSelectedLayerIds(securedLayerIds);
-        if (jsonApiResponse.data.data.attributes.allowedArea) {
-          const geom: any = geoJson.readGeometry(
-            jsonApiResponse.data.data.attributes.allowedArea
-          );
-          geom.getPolygons().forEach( (polygon:Polygon) => {
+        // set layers
+        setSelectedLayerIds(rels.securedLayers.data.map((o: any) => o.id));
+        // set area polygons and zoom map
+        if (attrs.allowedArea) {
+          const geom: any = geoJson.readGeometry(attrs.allowedArea);
+          geom.getPolygons().forEach((polygon: Polygon) => {
             const feature = new Feature ( {
-              geometry: polygon.clone().transform('EPSG:4326', 'EPSG:900913')
+              geometry: wgs84ToScreen(polygon)
             });
-            layer?.getSource().addFeature(feature);
+            digiLayer?.getSource().addFeature(feature);
           });
-          const nativeGeom = geom.clone().transform('EPSG:4326', 'EPSG:900913');
-          map.getView().fit(nativeGeom.getExtent());
+          zoomTo(map, wgs84ToScreen(geom));
         }
       }
     }
-    map && setLayer(DigitizeUtil.getDigitizeLayer(map));
-    isMounted && initAvailableWmsOps();
-    isMounted && auth && initAvailableGroups(auth.userId);
-    isMounted && ruleId && layer && initFromExistingRule(ruleId);
-    return (() => { 
+    if (map && auth) {
+      setIsSavingOrLoading(true);
+      digiLayer = DigitizeUtil.getDigitizeLayer(map);
+      setLayer(digiLayer);
+      initAvailableWmsOps();
+      auth && initAvailableGroups(auth.userId);
+      ruleId && initFromExistingRule(ruleId);
+      setIsSavingOrLoading(false);
+    }
+    return (() => {
       isMounted = false;
-      layer?.getSource().clear();
+      digiLayer?.getSource().clear();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[auth, ruleId, map, layer]);
+  },[auth, ruleId, map, form]);
 
   const onFinish = async (values: any) => {
     if (selectedLayerIds.length === 0) {
       setValidationErrors(['At least one layer needs to be selected.']);
       return;
     }
-    
+
+    // get GeoJson geometry from digitizing layer
     let allowedAreaGeoJson: string|null = null;
     const coords: any [] = [];
     layer?.getSource().getFeatures().forEach ((feature) => {
-      const poly:any = feature.getGeometry()?.clone().transform('EPSG:900913', 'EPSG:4326');
-      coords.push(poly.getCoordinates());
+      const geom = feature.getGeometry();
+      if (geom) {
+        const wgs84Geom = screenToWgs84(geom);
+        if (wgs84Geom instanceof Polygon) {
+          coords.push((wgs84Geom as Polygon).getCoordinates());
+        }
+      }
     });
     if (coords.length > 0) {
       const multiPoly = new MultiPolygon(coords);
       allowedAreaGeoJson = geoJson.writeGeometry(multiPoly);      
     }
 
+    // build attributes and relationships
     const attributes = {
       description: values.description,
       allowedArea: allowedAreaGeoJson
@@ -178,8 +189,9 @@ export const RuleForm = ({
       };
     }
 
+    // perform create or partial update operation
     try {
-      setIsSaving(true);
+      setIsSavingOrLoading(true);
       if (ruleId) {
         const response = await createOrUpdate(
           'partial_update/api/v1/registry/security/allowed-wms-operations/{id}/',
@@ -216,12 +228,12 @@ export const RuleForm = ({
         }
       }
     } finally {
-      setIsSaving(false);
+      setIsSavingOrLoading(false);
     }
   };
 
   return (
-    <>
+    <Spin spinning={isSavingOrLoading}>
       <Form
         form={form}
         layout='vertical'
@@ -283,7 +295,6 @@ export const RuleForm = ({
             <Button
               type='primary'
               htmlType='submit'
-              loading={isSaving}
             >
               Speichern
             </Button>
@@ -296,6 +307,6 @@ export const RuleForm = ({
           </Space>
         </Form.Item>
       </Form>
-    </>
+    </Spin>
   );
 };

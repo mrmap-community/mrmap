@@ -184,9 +184,6 @@ export const WmsSecuritySettings = (): ReactElement => {
           });
           setInitLayerTreeData(_initLayerTreeData);
           setNonLeafLayerIds(layerIds);
-        } catch (error) {
-          // @ts-ignore
-          throw new Error(error);
         } finally {
           setIsLoading(false);
         }

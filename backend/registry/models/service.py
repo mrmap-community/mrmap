@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.db.models import OuterRef, QuerySet
+from django.db.models import QuerySet
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -733,14 +733,13 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 f"Layer '{self.identifier}' is not queryable.")
         try:
             if not info_format:
-                info_format_qs = MimeType.objects.filter(webmapserviceoperationurl_operation_url=OuterRef(
-                    'pk'), mime_type__istartswith="text/").values('mime_type')
-                url_and_format: dict = self.service.operation_urls.annotate(info_format=info_format_qs.first()).values('url', 'info_format').get(
+                url_and_id: dict = self.service.operation_urls.values('id', 'url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
                     method="Get"
                 )
-                url: str = url_and_format["url"]
-                _info_format: str = url_and_format["info_format"]
+                url: str = url_and_id["url"]
+                _info_format: str = MimeType.objects.filter(
+                    webmapserviceoperationurl_operation_url__pk=url_and_id['id'], mime_type__istartswith="text/").values('mime_type').first()['mime_type']
             else:
                 url: str = self.service.operation_urls.values('url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
@@ -751,13 +750,14 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         except WebMapServiceOperationUrl.DoesNotExist:
             raise OperationNotSupported(
                 f"Service {self.service.title} does not suppoert operation GetFeatureInfo")
+
         query_params = {
             "VERSION": self.service.version,
             "REQUEST": "GetFeatureInfo",
             "QUERY_LAYERS": self.identifier,
             "INFO_FORMAT": _info_format,
-            "I" if self.service.minor_version == 3 else "X": column if column else kwargs['width'],
-            "J" if self.service.minor_version == 3 else "Y": row if row else kwargs['row']
+            "I" if self.service.minor_version == 3 else "X": column if column else kwargs.get('width', 1),
+            "J" if self.service.minor_version == 3 else "Y": row if row else kwargs.get('row', 1)
 
         }
         url = update_url_base(url=self.get_map_url(*args, **kwargs), base=url)

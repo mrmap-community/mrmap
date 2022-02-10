@@ -21,6 +21,20 @@ class KeywordSerializer(
         meta_fields = ("string_representation",)
 
 
+class ReferenceSystemSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name="registry:referencesystem-detail",
+    )
+
+    class Meta:
+        model = ReferenceSystem
+        fields = "__all__"
+        meta_fields = ("string_representation",)
+
+
 class StyleSerializer(
         StringRepresentationSerializer,
         ModelSerializer):

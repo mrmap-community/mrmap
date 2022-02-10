@@ -24,11 +24,16 @@ def before_feature(context, feature):
           or 'WMSGetCapabilitiesResult' in feature.name
           or 'LayerGetMapResult' in feature.name
           or 'LayerGetFeatureInfoResult' in feature.name):
-        fixtures.extend(['test_wms.json'])
+        fixtures.extend(['test_wms.json', 'test_keywords.json'])
     elif 'AllowedWebFeatureServiceOperation' in feature.name:
-        fixtures.extend(['test_wfs.json'])
+        fixtures.extend(['test_wfs.json', 'test_keywords.json'])
     elif 'HarvestingJob' in feature.name:
         fixtures.extend(['test_csw.json'])
+
+    elif 'WebMapService' in feature.name:
+        fixtures.extend(['test_wms.json', 'test_keywords.json'])
+    elif 'WebFeatureService' in feature.name:
+        fixtures.extend(['test_wfs.json', 'test_keywords.json'])
 
     if ('AllowedWebMapServiceOperation' in feature.name
             and 'Related' in feature.name):

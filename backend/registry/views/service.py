@@ -2,6 +2,7 @@ from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
+                             NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
                              SerializerClassesMixin)
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
@@ -10,7 +11,9 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.models.metadata import Keyword, ReferenceSystem, Style
-from registry.models.service import CatalougeService, WebMapServiceOperationUrl
+from registry.models.service import (CatalougeService,
+                                     WebFeatureServiceOperationUrl,
+                                     WebMapServiceOperationUrl)
 from registry.serializers.service import (CatalougeServiceCreateSerializer,
                                           CatalougeServiceSerializer,
                                           FeatureTypeSerializer,
@@ -20,16 +23,7 @@ from registry.serializers.service import (CatalougeServiceCreateSerializer,
                                           WebMapServiceCreateSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
-from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.views import ModelViewSet, RelationshipView
-
-
-class WebMapServiceRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = WebMapService.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+from rest_framework_json_api.views import ModelViewSet
 
 
 class WebMapServiceViewSet(
@@ -37,21 +31,20 @@ class WebMapServiceViewSet(
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
     """ Endpoints for resource `WebMapService`
 
         create:
-            Endpoint to register new Web Map Services
+            Endpoint to register new `WebMapServices` object
         list:
-            Retrieves all registered Web Map Services
+            Retrieves all registered `WebMapServices` objects
         retrieve:
-            Retrieve one specific Web Map Service by the given id
+            Retrieve one specific `WebMapServices` by the given id
         partial_update:
-            Endpoint to update some fields of a registered Web Map Service
+            Endpoint to update some fields of a registered `WebMapServices`
         destroy:
-            Endpoint to remove a registered Web Map Service from the system
+            Endpoint to remove a registered `WebMapServices` from the system
     """
     schema = CustomAutoSchema(
         tags=["WebMapService"],
@@ -141,22 +134,11 @@ class WebMapServiceViewSet(
         return qs
 
 
-class LayerRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=["WebMapService"],
-    )
-    queryset = Layer.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class LayerViewSet(
-    NestedViewSetMixin,
-    ObjectPermissionCheckerViewSetMixin,
+class LayerViewSetMixin(
     HistoryInformationViewSetMixin,
-    ModelViewSet,
 ):
     schema = CustomAutoSchema(
-        tags=["WebMapService"],
+        tags=["Layer"],
     )
     queryset = Layer.objects.all()
     serializer_class = LayerSerializer
@@ -180,9 +162,6 @@ class LayerViewSet(
         "reference_systems": ["reference_systems"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
-    # delete is only provided on the service endpoint it self, which implicit removes all related objects
-    http_method_names = ["get", "patch", "head", "options"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -215,12 +194,33 @@ class LayerViewSet(
         return qs
 
 
-class WebFeatureServiceRelationshipView(RelationshipView):
-    schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = WebFeatureService.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+class LayerViewSet(
+        LayerViewSetMixin,
+        ModelViewSet):
+    """ Endpoints for resource `Layer`
+
+        list:
+            Retrieves all registered `Layer` objects
+        retrieve:
+            Retrieve one specific `Layer` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `Layer`
+
+    """
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
+
+
+class NestedLayerViewSet(
+        LayerViewSetMixin,
+        NestedModelViewSet):
+    """ Nested list endpoint for resource `Layer`
+
+        list:
+            Retrieves all registered `Layer` objects
+
+    """
 
 
 class WebFeatureServiceViewSet(
@@ -228,9 +228,21 @@ class WebFeatureServiceViewSet(
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
+    """ Endpoints for resource `WebFeatureService`
+
+        create:
+            Endpoint to register new `WebFeatureService` object
+        list:
+            Retrieves all registered `WebFeatureService` objects
+        retrieve:
+            Retrieve one specific `WebFeatureService` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `WebFeatureService`
+        destroy:
+            Endpoint to remove a registered `WebFeatureService` from the system
+    """
     schema = CustomAutoSchema(
         tags=["WebFeatureService"],
     )
@@ -239,11 +251,41 @@ class WebFeatureServiceViewSet(
         "default": WebFeatureServiceSerializer,
         "create": WebFeatureServiceCreateSerializer,
     }
-    prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
+    select_for_includes = {
+        "service_contact": ["service_contact"],
+        "metadata_contact": ["metadata_contact"],
+    }
+    prefetch_for_includes = {
+        "featuretypes": [
+            Prefetch(
+                "featuretypes",
+                queryset=FeatureType.objects.prefetch_related(
+                    "keywords",
+                    "reference_systems",
+                    "output_formats",
+                ),
+            ),
+        ],
+        "keywords": ["keywords"],
+        "operation_urls": [
+            Prefetch(
+                "operation_urls",
+                queryset=WebFeatureServiceOperationUrl.objects.select_related(
+                    "service"
+                ).prefetch_related("mime_types"),
+            )
+        ],
+    }
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
+
+    def dispatch(self, request, *args, **kwargs):
+        if "featuretype_pk" in self.kwargs:
+            self.lookup_field = "featuretype"
+            self.lookup_url_kwarg = "featuretype_pk"
+        return super().dispatch(request, *args, **kwargs)
 
     def get_task_kwargs(self, request, serializer):
         return {
@@ -259,18 +301,39 @@ class WebFeatureServiceViewSet(
             }
         }
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+        if not include or "featuretypes" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "featuretypes",
+                    queryset=FeatureType.objects.only(
+                        "id",
+                        "service_id",
+                    )
+                ),
+            )
+        if not include or "keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "operationUrls" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "operation_urls",
+                    queryset=WebFeatureServiceOperationUrl.objects.only(
+                        "id", "service_id"),
+                )
+            )
+        return qs
 
-class FeatureTypeRelationshipView(RelationshipView):
+
+class FeatureTypeViewSetMixin(
+    HistoryInformationViewSetMixin,
+):
     schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
-    )
-    queryset = FeatureType.objects
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-
-class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
-    schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
+        tags=["FeatureType"],
     )
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
@@ -279,9 +342,37 @@ class FeatureTypeViewSet(NestedViewSetMixin, ModelViewSet):
 
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+
+class FeatureTypeViewSet(
+    FeatureTypeViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `FeatureType`
+
+        list:
+            Retrieves all registered `FeatureType` objects
+        retrieve:
+            Retrieve one specific `FeatureType` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `FeatureType`
+
+    """
     # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
     # delete is only provided on the service endpoint it self, which implicit removes all related objects
     http_method_names = ["get", "patch", "head", "options"]
+
+
+class NestedFeatureTypeViewSet(
+    FeatureTypeViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested list endpoint for resource `FeatureType`
+
+        list:
+            Retrieves all registered `FeatureType` objects
+
+    """
 
 
 class CatalougeServiceViewSet(
@@ -289,11 +380,23 @@ class CatalougeServiceViewSet(
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
-    NestedViewSetMixin,
     ModelViewSet,
 ):
+    """ Endpoints for resource `CatalougeService`
+
+        create:
+            Endpoint to register new `CatalougeService` object
+        list:
+            Retrieves all registered `CatalougeService` objects
+        retrieve:
+            Retrieve one specific `CatalougeService` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `CatalougeService`
+        destroy:
+            Endpoint to remove a registered `CatalougeService` from the system
+    """
     schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
+        tags=["CatalogueService"],
     )
     queryset = CatalougeService.objects.all()
     serializer_classes = {

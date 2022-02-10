@@ -26,7 +26,6 @@ export const TreeManager = ({
   editNodeActionIcon = (<EditFilled />),
   nodeOptionsIcon = (<SettingFilled/>),
   title = '',
-  attributeContainer = 'modal',
   contextMenuOnNode = false,
   showMaskOnNodeAttributeForm = false,
   checkableNodes = false,
@@ -75,7 +74,7 @@ export const TreeManager = ({
 
   /**
    * @description Method to determine what should happen when clicking the OK button on the
-   * modal containing the attribute form
+   * drawer containing the attribute form
    */
   const onNodeAttributeFormOkClick = () => {
     form.submit();
@@ -83,7 +82,7 @@ export const TreeManager = ({
 
   /**
    * @description Method to determine what should happen when clicking the Cancel button on the
-   * modal containing the attribute form
+   * drawer containing the attribute form
    */
   const onNodeAttributeFormCancelClick = () => {
     toggleNodeAttributeForm();
@@ -96,7 +95,7 @@ export const TreeManager = ({
   * @returns
   */
   const getNodeActions = (nodeData: TreeNodeType): JSX.Element => (
-    <div className='tree-form-field-node-actions'>
+    <div className='tree-manager-node-actions'>
       <Dropdown
         overlay={getNodeContextMenu(nodeData)}
         trigger={['click']}
@@ -120,7 +119,8 @@ export const TreeManager = ({
   * @returns
   */
   const getNodeContextMenu = (nodeData?: TreeNodeType) => (
-    <Menu>
+    <Menu 
+      className='tree-manager-context-menu'>
       {!nodeData?.isLeaf && (
         <>
           <Menu.Item
@@ -196,7 +196,7 @@ export const TreeManager = ({
           trigger={contextMenuOnNode ? ['contextMenu'] : []}
         >
           <div
-            className='tree-form-field-node-title'
+            className='tree-manager-node-title'
             onDoubleClick={() => {
               setSelectedNode(nodeData);
               setIsEditingNewNodeName(true);
@@ -295,10 +295,14 @@ export const TreeManager = ({
           setIsAddingNode(false);
           // @ts-ignore
           throw new Error(error);
-        } 
+        } finally {
+          setIsAddingNode(false);
+          setIsNodeAttributeFormVisible(false);
+        }
       } else {
         addNodeDispatchAction(values);
         setTreeDataOnAdd(node, newNode);
+        setIsNodeAttributeFormVisible(false);
       }
     }
   };
@@ -398,9 +402,11 @@ export const TreeManager = ({
         } finally {
           setTreeDataOnEdit(node);
           setIsEditingNode(false);
+          setIsNodeAttributeFormVisible(false);
         }
       } else {
         setTreeDataOnEdit(node);
+        setIsNodeAttributeFormVisible(false);
       }
     }
   };
@@ -655,9 +661,9 @@ export const TreeManager = ({
   }
 
   return (
-    <div className='tree-form-field' >
+    <div className='tree-manager' >
       <div 
-        className='tree-form-field-title'
+        className='tree-manager-title'
       >
         {title}
         <Tooltip title='Create new node folder'>
@@ -677,7 +683,7 @@ export const TreeManager = ({
         {...selectedKeysAttr}
         checkedKeys={checkedKeys}
         checkable={checkableNodes}
-        className='tree-form-field-tree'
+        className='tree-manager-tree'
         draggable={draggable}
         showIcon
         defaultExpandAll
@@ -693,7 +699,7 @@ export const TreeManager = ({
         expandedKeys={expandedKeys}
         // @ts-ignore
         titleRender={(nodeData: TreeNodeType):JSX.Element => (
-          <div className='tree-form-field-node'>
+          <div className='tree-manager-node'>
             <div className='tree-node-title-group1'>
               <div className='tree-node-title-symbols'>
                 {treeNodeTitlePreIcons(nodeData)}
@@ -706,42 +712,31 @@ export const TreeManager = ({
           </div>
         )}       
       />
-      {attributeContainer === 'modal' && (
-        <Modal
-          mask={showMaskOnNodeAttributeForm}
-          title={getNodeAttributeFormTitle()}
-          visible={isNodeAttributeFormVisible}
-          onOk={onNodeAttributeFormOkClick}
-          onCancel={onNodeAttributeFormCancelClick}
-          destroyOnClose
-          okButtonProps={{
-            disabled: isAddingNode || isEditingNode,
-            loading: isAddingNode || isEditingNode
-          }}
-        >
-          {clonedNodeAttributeForm(selectedNode)}
-        </Modal>
-      )}
-      {attributeContainer === 'drawer' && (
-        <Drawer
-          mask={showMaskOnNodeAttributeForm}
-          title={getNodeAttributeFormTitle()}
-          placement='right'
-          width={500}
-          onClose={onNodeAttributeFormCancelClick}
-          visible={isNodeAttributeFormVisible}
-          extra={
-            <Space>
-              <Button onClick={onNodeAttributeFormCancelClick}>Cancel</Button>
-              <Button type='primary' onClick={onNodeAttributeFormOkClick}>
-                OK
-              </Button>
-            </Space>
-          }
-        >
-          {clonedNodeAttributeForm(selectedNode)}
-        </Drawer>
-      )}
+      
+      <Drawer
+        className='tree-manager-drawer'
+        mask={showMaskOnNodeAttributeForm}
+        title={getNodeAttributeFormTitle()}
+        placement='right'
+        width={500}
+        onClose={onNodeAttributeFormCancelClick}
+        visible={isNodeAttributeFormVisible}
+        extra={
+          <Space>
+            <Button onClick={onNodeAttributeFormCancelClick}>Cancel</Button>
+            <Button 
+              disabled={isAddingNode || isEditingNode} 
+              loading= {isAddingNode || isEditingNode} 
+              type='primary' 
+              onClick={onNodeAttributeFormOkClick}
+            >
+              OK
+            </Button>
+          </Space>
+        }
+      >
+        {clonedNodeAttributeForm(selectedNode)}
+      </Drawer>
     </div>
   );
 };

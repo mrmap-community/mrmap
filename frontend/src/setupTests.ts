@@ -4,12 +4,6 @@
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 
-import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
-import { configure } from 'enzyme';
-
-// maain  configuration
-configure({ adapter: new Adapter() });
-
 // Global mocking of  local storage
 const localStorageMock: Storage = {
   getItem: jest.fn(),

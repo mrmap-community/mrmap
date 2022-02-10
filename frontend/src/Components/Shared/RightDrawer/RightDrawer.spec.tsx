@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/extend-expect';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { RightDrawer } from './RightDrawer';
 
@@ -10,8 +10,10 @@ describe('RightDrawer', () => {
     expect(RightDrawer).toBeDefined();
   });
 
-  it('can be rendered', () => {
+  it('can be rendered', async() => {
     const { container } = render(<RightDrawer />);
-    expect(container).toBeVisible();
+    await waitFor(() => {
+      expect(container).toBeVisible();
+    });
   });
 });

@@ -37,7 +37,7 @@ router = ExtendedSimpleRouter()
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-service-contact', parents_query_lookups=['service_contact_webfeatureservice_metadata']),
     router.register(r'fws', service_views.WebFeatureServiceViewSet, basename='wfs')
-          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-metadata-contact', parents_query_lookups=['metadata_contact_webfeatureservice_metadata']),  
+          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-metadata-contact', parents_query_lookups=['metadata_contact_webfeatureservice_metadata']),
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wfs-keywords', parents_query_lookups=['ogcservice_metadata']),
     router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
@@ -57,7 +57,7 @@ router = ExtendedSimpleRouter()
     # map context
     router.register(r'mapcontexts', mapcontext_views.MapContextViewSet, basename='mapcontext')
           .register(r'mapcontextlayers', mapcontext_views.NestedMapContextLayerViewSet, basename='mapcontext-mapcontextlayers', parents_query_lookups=['map_context']),
-    router.register(r'mapcontextlayers',mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
+    router.register(r'mapcontextlayers', mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
 
     # metadata
     router.register(r'keywords', metadata_views.KeywordViewSet, basename='keyword'),
@@ -65,7 +65,7 @@ router = ExtendedSimpleRouter()
     router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata'),
     router.register(r'metadata-contacts', metadata_views.MetadataContactViewSet, basename='metadatacontact'),
-    
+
 
 
     # security

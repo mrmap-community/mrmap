@@ -2,8 +2,6 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
 from rest_framework_json_api import serializers, views
 from rest_framework_json_api.schemas.openapi import AutoSchema
-from rest_framework_json_api.serializers import \
-    ResourceIdentifierObjectSerializer
 from rest_framework_json_api.utils import (format_field_name,
                                            get_related_resource_type,
                                            get_resource_type_from_serializer)

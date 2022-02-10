@@ -2,7 +2,6 @@
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, NestedModelViewSet,
-                             ObjectPermissionCheckerViewSetMixin,
                              SerializerClassesMixin)
 from registry.models.monitoring import (LayerGetFeatureInfoResult,
                                         LayerGetMapResult,

@@ -25,11 +25,16 @@ def side_effect(url, timeout):
             status_code=status.HTTP_200_OK,
             content=Path(Path.joinpath(Path(__file__).parent.resolve(),
                                        '../../test_data/karte_rp.fcgi.png')))
+    elif "GetFeatureInfo" in url:
+        return MockResponse(
+            status_code=status.HTTP_200_OK,
+            content=Path(Path.joinpath(Path(__file__).parent.resolve(),
+                                       '../../test_data/wms/feature_info.xml')))
 
 
 class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
 
-    fixtures = ['test_wms.json', 'test_keywords.json']
+    fixtures = ['test_keywords.json', 'test_wms.json']
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
@@ -57,7 +62,7 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
 
 class LayerGetMapMonitoringTaskTest(TestCase):
 
-    fixtures = ['test_wms.json', 'test_keywords.json']
+    fixtures = ['test_keywords.json', 'test_wms.json']
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
@@ -85,7 +90,7 @@ class LayerGetMapMonitoringTaskTest(TestCase):
 
 class LayerGetFeatureInfoMonitoringTaskTest(TestCase):
 
-    fixtures = ['test_wms.json', 'test_keywords.json']
+    fixtures = ['test_keywords.json', 'test_wms.json']
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,

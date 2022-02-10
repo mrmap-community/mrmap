@@ -4,7 +4,7 @@ from registry.models.service import WebMapService
 
 class WebMapServiceModelTest(TestCase):
 
-    fixtures = ["test_wms.json"]
+    fixtures = ['test_keywords.json', "test_wms.json"]
 
     def test_get_capabilities_url(self):
         wms: WebMapService = WebMapService.objects.get(

@@ -7,7 +7,7 @@ import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import WmsRepo from '../../Repos/WmsRepo';
+import { operation, unpage } from '../../Repos/JsonApi';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
@@ -16,7 +16,6 @@ import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
-const wmsRepo = new WmsRepo();
 const layerUtils = new LayerUtils();
 
 function wmsLayersToTreeNodeList(list:any[]):TreeNodeType[] {
@@ -124,20 +123,53 @@ export const WmsSecuritySettings = (): ReactElement => {
       setIsLoading(true);
       const fetchWmsAndLayers = async () => {
         try {
-          const jsonApiWmsWithOpUrls = await wmsRepo.get(String(wmsId)) as any;
-          const getMapUrl = jsonApiWmsWithOpUrls.data.included.filter((opUrl:any) => {
+          let jsonApiResponse = await operation(
+            'retrieve/api/v1/registry/wms/{id}/',
+            [{
+              in: 'path',
+              name: 'id',
+              value: String(wmsId),
+            },
+            {
+              in: 'query',
+              name: 'include',
+              value: 'operationUrls'
+            }]
+          );          
+          const getMapUrl = jsonApiResponse.data.included.filter((opUrl:any) => {
             return opUrl.attributes.method === 'Get' && opUrl.attributes.operation === 'GetMap';
           }).map ((opUrl:any) => {
             return opUrl.attributes.url;
           }).reduce ( 
             (acc:string, curr:string) => curr, null
           );
-          const wmsAttrs = jsonApiWmsWithOpUrls.data.data.attributes;
+          const wmsAttrs = jsonApiResponse.data.data.attributes;
           const wmsVersion = wmsAttrs.version;
-          const response = await wmsRepo.getAllLayers(String(wmsId));
+
+          jsonApiResponse = await operation(
+            'List/api/v1/registry/wms/{parent_lookup_service}/layers/',
+            [
+              {
+                in: 'path',
+                name: 'parent_lookup_service',
+                value: String(wmsId),
+              },
+              {
+                in: 'query',
+                name: 'fields[Layer]',
+                value: 'title,identifier,parent'
+              },
+              {
+                in: 'query',
+                name: 'page[size]',
+                value: '1000'
+              },              
+            ]
+          );
+          jsonApiResponse = await unpage(jsonApiResponse);
 
           // convert the WMS layers coming from the server to a compatible tree node list
-          const _initLayerTreeData = wmsLayersToOlLayerGroup((response as any).data?.data, getMapUrl, wmsVersion);
+          const _initLayerTreeData = wmsLayersToOlLayerGroup(jsonApiResponse.data?.data, getMapUrl, wmsVersion);
           const layerIds: string[] = [];
           const collectNonLeafLayers = (layer: BaseLayer) => {
             if (layer instanceof LayerGroup) {

@@ -13,15 +13,12 @@ import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../../../../Hooks/useAuth';
-import { operation } from '../../../../Repos/JsonApi';
-import WmsAllowedOperationRepo, { WmsAllowedOperationCreate } from '../../../../Repos/WmsAllowedOperationRepo';
-import WmsOperationRepo from '../../../../Repos/WmsOperationRepo';
+import { createOrUpdate, operation } from '../../../../Repos/JsonApi';
 import { InputField } from '../../../Shared/FormFields/InputField/InputField';
 import { AllowedAreaList } from './AllowedAreaList/AllowedAreaList';
 
 const { Option } = Select;
 
-const wmsOpRepo = new WmsOperationRepo();
 const geoJson = new GeoJSON();
 
 interface RuleFormProps {
@@ -37,8 +34,6 @@ export const RuleForm = ({
   setSelectedLayerIds,
   setIsRuleEditingActive  
 }: RuleFormProps): ReactElement => {
-
-  const ruleRepo = new WmsAllowedOperationRepo(wmsId);
 
   const navigate = useNavigate();
   const { ruleId } = useParams();
@@ -61,23 +56,30 @@ export const RuleForm = ({
   useEffect(() => {
     let isMounted = true;
     async function initAvailableWmsOps () {
-      const jsonApiResponse = await wmsOpRepo.findAll() as any;
+      const jsonApiResponse = await operation('List/api/v1/registry/security/wms-operations/');
       const wmsOps = jsonApiResponse.data.data.map((wmsOp: any) => 
         (<Option value={wmsOp.id} key={wmsOp.id}>{wmsOp.id}</Option>)
       );
       isMounted && setAvailableOps(wmsOps);
     }
     async function initAvailableGroups (userId: string) {
-      const jsonApiResponse = await operation(
-        'List/api/v1/accounts/groups/'
-      ) as any;
-      const groups = jsonApiResponse.data.data.map((group: any) => 
-        (<Option value={group.id} key={group.id}>{group.attributes.name}</Option>)
-      );
+      // TODO wait for backend fix and reactivate fetching below
+      // const jsonApiResponse = await operation('List/api/v1/accounts/groups/');
+      // const groups = jsonApiResponse.data.data.map((group: any) => 
+      //   (<Option value={group.id} key={group.id}>{group.attributes.name}</Option>)
+      // );
+      const groups: any = [<Option value='1' key='1'>Testorganisation</Option>];
       isMounted && setAvailableGroups(groups);
     }
     async function initFromExistingRule (id: string) {
-      const jsonApiResponse = await ruleRepo.get(id) as any;
+      const jsonApiResponse = await operation(
+        'retrieve/api/v1/registry/security/allowed-wms-operations/{id}/',
+        [{
+          in: 'path',
+          name: 'id',
+          value: String(id),
+        }]
+      );
       if (isMounted) {
         form.setFieldsValue({
           description: jsonApiResponse.data.data.attributes.description,
@@ -106,7 +108,7 @@ export const RuleForm = ({
         }
       }
     }
-    setLayer(DigitizeUtil.getDigitizeLayer(map));
+    map && setLayer(DigitizeUtil.getDigitizeLayer(map));
     isMounted && initAvailableWmsOps();
     isMounted && auth && initAvailableGroups(auth.userId);
     isMounted && ruleId && layer && initFromExistingRule(ruleId);
@@ -117,7 +119,7 @@ export const RuleForm = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[auth, ruleId, map, layer]);
 
-  const onFinish = (values: any) => {
+  const onFinish = async (values: any) => {
     if (selectedLayerIds.length === 0) {
       setValidationErrors(['At least one layer needs to be selected.']);
       return;
@@ -133,16 +135,72 @@ export const RuleForm = ({
       const multiPoly = new MultiPolygon(coords);
       allowedAreaGeoJson = geoJson.writeGeometry(multiPoly);      
     }
-    async function create () {
-      const createObj: WmsAllowedOperationCreate = {
-        description: values.description,
-        allowedArea: allowedAreaGeoJson,
-        securedLayerIds: selectedLayerIds,
-        allowedOperationIds: values.operations,
-        allowedGroupIds: values.groups
-      };      
-      const res = await ruleRepo.create(createObj);
-      if (res.status === 201) {
+
+    const attributes = {
+      description: values.description,
+      allowedArea: allowedAreaGeoJson
+    };
+    const relationships = {
+      securedService: {
+        data: {
+          type: 'WebMapService',
+          id: wmsId
+        }
+      },
+      securedLayers: {
+        data: selectedLayerIds.map((id) => {
+          return {
+            type: 'Layer',
+            id: id
+          };
+        })
+      },
+      operations: {
+        data: values.operations.map((id: any) => {
+          return {
+            type: 'WebMapServiceOperation',
+            id: id
+          };
+        })
+      },
+      allowedGroups: {
+        data: values.groups.map((id: any) => {
+          return {
+            type: 'Group',
+            id: id
+          };
+        })
+      }
+    };
+
+    if (ruleId) {
+      const response = await createOrUpdate(
+        'partial_update/api/v1/registry/security/allowed-wms-operations/{id}/',
+        'AllowedWebMapServiceOperation',
+        attributes,
+        relationships,
+        [{
+          in: 'path',
+          name: 'id',
+          value: ruleId
+        }],
+        ruleId
+      );
+      if (response.status === 200) {
+        notification.info({
+          message: 'WMS security rule updated',
+          description: 'Your WMS security rule has been updated'
+        });
+        navigate(`/registry/services/wms/${wmsId}/security`);
+      }
+    } else {
+      const response = await createOrUpdate(
+        'create/api/v1/registry/security/allowed-wms-operations/',
+        'AllowedWebMapServiceOperation',
+        attributes,
+        relationships
+      );
+      if (response.status === 201) {
         notification.info({
           message: 'WMS security rule created',
           description: 'Your WMS security rule has been created'
@@ -150,47 +208,6 @@ export const RuleForm = ({
         navigate(`/registry/services/wms/${wmsId}/security`);
       }
     }
-    async function update (ruleId: string) {
-      const attributes:any = {
-        description: values.description,
-        'allowedArea': allowedAreaGeoJson
-      };
-      const relationships = {
-        'securedLayers': {
-          'data': selectedLayerIds.map((id) => {
-            return {
-              type: 'Layer',
-              id: id
-            };
-          })
-        },
-        'operations': {
-          'data': values.operations.map((id: any) => {
-            return {
-              type: 'WebMapServiceOperation',
-              id: id
-            };
-          })
-        },
-        'allowedGroups': {
-          'data': values.groups.map((id: any) => {
-            return {
-              type: 'Group',
-              id: id
-            };
-          })
-        }
-      };
-      const res = await ruleRepo.partialUpdate(ruleId, 'AllowedWebMapServiceOperation', attributes, relationships);
-      if (res.status === 200) {
-        notification.info({
-          message: 'WMS security rule updated',
-          description: 'Your WMS security rule has been updated'
-        });
-        navigate(`/registry/services/wms/${wmsId}/security`);
-      }
-    }    
-    ruleId ? update(ruleId) : create();
   };
 
   return (

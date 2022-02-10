@@ -22,10 +22,10 @@ const { Option } = Select;
 const geoJson = new GeoJSON();
 
 interface RuleFormProps {
-    wmsId: string,
-    selectedLayerIds: string[],
-    setSelectedLayerIds: (ids: string[]) => void
-    setIsRuleEditingActive: (isActive: boolean) => void    
+  wmsId: string,
+  selectedLayerIds: string[],
+  setSelectedLayerIds: (ids: string[]) => void
+  setIsRuleEditingActive: (isActive: boolean) => void 
 }
 
 export const RuleForm = ({
@@ -45,10 +45,13 @@ export const RuleForm = ({
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);  
+  const [isSaving, setIsSaving] = useState(false);
 
+  // after mount, rule editing mode is active
   useEffect(() => {
     setIsRuleEditingActive(true);
     return ( () => {
+      // when unmounting, rule editing mode becomes inactive
       setIsRuleEditingActive(false);
     });
   },[setIsRuleEditingActive]);
@@ -140,7 +143,7 @@ export const RuleForm = ({
       description: values.description,
       allowedArea: allowedAreaGeoJson
     };
-    const relationships = {
+    const relationships: any = {
       securedService: {
         data: {
           type: 'WebMapService',
@@ -162,51 +165,58 @@ export const RuleForm = ({
             id: id
           };
         })
-      },
-      allowedGroups: {
+      }
+    };
+    if (values.groups) {
+      relationships.allowedGroups = {
         data: values.groups.map((id: any) => {
           return {
             type: 'Group',
             id: id
           };
         })
-      }
-    };
+      };
+    }
 
-    if (ruleId) {
-      const response = await createOrUpdate(
-        'partial_update/api/v1/registry/security/allowed-wms-operations/{id}/',
-        'AllowedWebMapServiceOperation',
-        attributes,
-        relationships,
-        [{
-          in: 'path',
-          name: 'id',
-          value: ruleId
-        }],
-        ruleId
-      );
-      if (response.status === 200) {
-        notification.info({
-          message: 'WMS security rule updated',
-          description: 'Your WMS security rule has been updated'
-        });
-        navigate(`/registry/services/wms/${wmsId}/security`);
+    try {
+      setIsSaving(true);
+      if (ruleId) {
+        const response = await createOrUpdate(
+          'partial_update/api/v1/registry/security/allowed-wms-operations/{id}/',
+          'AllowedWebMapServiceOperation',
+          attributes,
+          relationships,
+          [{
+            in: 'path',
+            name: 'id',
+            value: ruleId
+          }],
+          ruleId
+        );
+        if (response.status === 200) {
+          notification.info({
+            message: 'WMS security rule updated',
+            description: 'Your WMS security rule has been updated'
+          });
+          navigate(`/registry/services/wms/${wmsId}/security`);
+        }
+      } else {
+        const response = await createOrUpdate(
+          'create/api/v1/registry/security/allowed-wms-operations/',
+          'AllowedWebMapServiceOperation',
+          attributes,
+          relationships
+        );
+        if (response.status === 201) {
+          notification.info({
+            message: 'WMS security rule created',
+            description: 'Your WMS security rule has been created'
+          });
+          navigate(`/registry/services/wms/${wmsId}/security`);
+        }
       }
-    } else {
-      const response = await createOrUpdate(
-        'create/api/v1/registry/security/allowed-wms-operations/',
-        'AllowedWebMapServiceOperation',
-        attributes,
-        relationships
-      );
-      if (response.status === 201) {
-        notification.info({
-          message: 'WMS security rule created',
-          description: 'Your WMS security rule has been created'
-        });
-        navigate(`/registry/services/wms/${wmsId}/security`);
-      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -215,7 +225,7 @@ export const RuleForm = ({
       <Form
         form={form}
         layout='vertical'
-        onFinish={onFinish}
+        onFinish={onFinish}        
       >
         <InputField
           label='Description'
@@ -273,6 +283,7 @@ export const RuleForm = ({
             <Button
               type='primary'
               htmlType='submit'
+              loading={isSaving}
             >
               Speichern
             </Button>

@@ -31,11 +31,6 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
     const params = [
       {
         in: 'path',
-        name: 'parent_lookup_secured_service',
-        value: this.wmsId,
-      },
-      {
-        in: 'path',
         name: 'id',
         value: id,
       },      
@@ -45,7 +40,7 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
         value: Cookies.get('csrftoken') || ''
       }
     ];    
-    return await client['destroy' + this.resourcePath + '{id}/'](params);
+    return await client['destroy/api/v1/registry/security/allowed-wms-operations/{id}/'](params);
   }
 }
 

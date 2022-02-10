@@ -1,12 +1,85 @@
+from django.conf import settings
 from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_json_api import serializers, views
-from rest_framework_json_api.schemas.openapi import AutoSchema
+from rest_framework_json_api.schemas.openapi import AutoSchema, SchemaGenerator
 from rest_framework_json_api.utils import (format_field_name,
                                            get_related_resource_type,
                                            get_resource_type_from_serializer)
 
 from extras.utils import deep_update
+
+
+class CustomSchemaGenerator(SchemaGenerator):
+    """
+    Extend DRF's SchemaGenerator to implement JSON:API flavored generateschema command.
+    """
+    security_options = []
+
+    def get_security_options_for_view(self, view):
+        for perm_class in view.permission_classes:
+            if issubclass(perm_class, (AllowAny, IsAuthenticated)) or perm_class.authenticated_users_only:
+                # only authenticated users are allowed
+                return self.get_security_options()
+
+    def get_security_options(self):
+        if self.security_options:
+            return self.security_options
+        rest_settings = settings.REST_FRAMEWORK
+        auth_classes = rest_settings.get("DEFAULT_AUTHENTICATION_CLASSES", [])
+        for auth_class in auth_classes:
+            if "BasicAuthentication" in auth_class:
+                self.security_options.append({"basicAuth": []})
+
+            if "SessionAuthentication" in auth_class:
+                self.security_options.append({"sessionAuth": []})
+        return self.security_options
+
+    def get_schema(self, request=None, public=False):
+        schema = super().get_schema(request, public)
+        rest_settings = settings.REST_FRAMEWORK
+        auth_classes = rest_settings.get("DEFAULT_AUTHENTICATION_CLASSES", [])
+        security_schemes = {}
+        for auth_class in auth_classes:
+            if "BasicAuthentication" in auth_class:
+                security_schemes["basicAuth"] = {
+                    "type": "http",
+                    "scheme": "basic"
+                }
+            if "SessionAuthentication" in auth_class:
+                security_schemes["sessionAuth"] = {
+                    "type": "apiKey",
+                    "in": "cookie",
+                    "name": "sessionid"
+                }
+        if security_schemes:
+            schema["components"]["securitySchemes"] = security_schemes
+
+        # Iterate endpoints generating per method path operations.
+        _, view_endpoints = self._get_paths_and_endpoints(
+            None if public else request)
+
+        #: `expanded_endpoints` is like view_endpoints with one extra field tacked on:
+        #: - 'action' copy of current view.action (list/fetch) as this gets reset for each request.
+        expanded_endpoints = []
+        for path, method, view in view_endpoints:
+            if hasattr(view, "action") and view.action == "retrieve_related":
+                expanded_endpoints += self._expand_related(
+                    path, method, view, view_endpoints
+                )
+            else:
+                expanded_endpoints.append(
+                    (path, method, view, getattr(view, "action", None))
+                )
+
+        for path, method, view, action in expanded_endpoints:
+            security = self.get_security_options_for_view(view=view)
+            if security:
+                # TODO: catch KeyError
+                schema["paths"][path][method.lower()]["security"] = security
+
+        return schema
 
 
 class CustomAutoSchema(AutoSchema):

@@ -32,8 +32,8 @@ class ObjectPermissionCheckerViewSetMixin:
                     self.get_queryset().select_related(None).prefetch_related(None).only("pk"))
                 if self.request.method == "GET":
                     objects = self.paginate_queryset(objects)
-
-                perm_checker.prefetch_perms(objects)
+                if objects:
+                    perm_checker.prefetch_perms(objects)
             context.update({'perm_checker': perm_checker})
         return context
 

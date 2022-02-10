@@ -1,5 +1,29 @@
 [
     {
+        "model": "registry.historicalwebfeatureservice",
+        "pk": "6c66eabd-c676-4395-8819-f824ea485602",
+        "fields": {
+            "id": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "version": "1.3.0",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "title": "WFS1",
+            "abstract": "wfs1 abstract",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
         "model": "registry.metadatacontact",
         "pk": "1",
         "fields": {}
@@ -22,10 +46,16 @@
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
-            "title": "WMS",
+            "title": "WFS1",
+            "abstract": "wfs1 abstract",
             "service_url": "",
             "service_contact": "1",
-            "metadata_contact": "1"
+            "metadata_contact": "1",
+            "keywords": [
+                [
+                    "meteorology"
+                ]
+            ]
         }
     },
     {
@@ -35,7 +65,7 @@
             "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "node1",
-            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((7.174072265624999 52.11325243469631, 8.85498046875 52.11325243469631, 8.85498046875 53.14677033085082, 7.174072265624999 53.14677033085082, 7.174072265624999 52.11325243469631))",
             "origin": "capabilities",
             "title": "node1"
         }
@@ -74,6 +104,43 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
             "title": "node4"
+        }
+    },
+    {
+        "model": "registry.WebFeatureServiceOperationUrl",
+        "pk": "2",
+        "fields": {
+            "method": "Get",
+            "url": "http://example.com/wms?",
+            "operation": "GetFeature",
+            "service": "72bda0a1-a808-48ba-ab1d-bf03081263df"
+        }
+    },
+    {
+        "model": "registry.webfeatureservice",
+        "pk": "72bda0a1-a808-48ba-ab1d-bf03081263df",
+        "fields": {
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "title": "WFS2",
+            "abstract": "wfs2 abstract",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1"
+        }
+    },
+    {
+        "model": "registry.featuretype",
+        "pk": "9dfcdbf6-b735-41a3-b7f7-353a6344b134",
+        "fields": {
+            "service": "72bda0a1-a808-48ba-ab1d-bf03081263df",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "origin": "capabilities",
+            "title": "node1"
         }
     }
 ]

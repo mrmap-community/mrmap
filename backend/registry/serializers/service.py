@@ -10,16 +10,17 @@ from registry.models.metadata import (Keyword, MetadataContact,
 from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
 from registry.models.service import (CatalougeService, FeatureType, Layer,
-                                     WebFeatureService, WebMapService,
-                                     WebMapServiceOperationUrl)
+                                     WebFeatureService,
+                                     WebFeatureServiceOperationUrl,
+                                     WebMapService, WebMapServiceOperationUrl)
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            StyleSerializer)
+from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import BooleanField, IntegerField, URLField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
-    HyperlinkedRelatedField, ResourceRelatedField,
-    SerializerMethodResourceRelatedField)
+    ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  SerializerMethodField)
@@ -97,6 +98,7 @@ class LayerSerializer(
         "service.operation_urls": WebMapServiceOperationUrlSerializer,
         "styles": StyleSerializer,
         "keywords": KeywordSerializer,
+        # TODO: "reference_systems": ReferenceSystemSerializer
     }
 
     class Meta:
@@ -199,19 +201,62 @@ class WebMapServiceCreateSerializer(ModelSerializer):
         )
 
 
+class WebFeatureServiceOperationUrlSerializer(ModelSerializer):
+
+    url = SerializerMethodField()
+
+    class Meta:
+        model = WebFeatureServiceOperationUrl
+        fields = "__all__"
+
+    def get_url(self, instance):
+        return instance.get_url(request=self.context["request"])
+
+
 class FeatureTypeSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
 
-    keywords = HyperlinkedRelatedField(
+    url = HyperlinkedIdentityField(
+        view_name="registry:featuretype-detail",
+        read_only=True,
+    )
+
+    service = ResourceRelatedField(
+        label=_("web feature service"),
+        help_text=_(
+            "the web feature service, where this featuretype is part of."),
+        read_only=True,
+        model=WebFeatureService,
+        related_link_view_name="registry:featuretype-wfs-detail",
+        related_link_lookup_field="pk",
+        related_link_url_kwarg="featuretype_pk",
+    )
+
+    keywords = ResourceRelatedField(
+        label=_("keywords"),
+        help_text=_("keywords help to find featuretypes by matching keywords."),
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:featuretype-keywords-list",
         related_link_url_kwarg="parent_lookup_featuretype",
     )
 
+    reference_systems = ResourceRelatedField(
+        label=_("reference systems"),
+        help_text=_("available reference systems of this featuretype."),
+        model=ReferenceSystem,
+        many=True,
+        read_only=True,
+        related_link_view_name="registry:featuretype-referencesystems-list",
+        related_link_url_kwarg="parent_lookup_featuretype",
+    )
+
     included_serializers = {
+        "service": "registry.serializers.service.WebFeatureServiceSerializer",
+        "service.operation_urls": WebFeatureServiceOperationSerializer,
         "keywords": KeywordSerializer,
+        # TODO: "reference_systems": ReferenceSystemSerializer
     }
 
     class Meta:
@@ -222,22 +267,54 @@ class FeatureTypeSerializer(
 
 class WebFeatureServiceSerializer(
         StringRepresentationSerializer,
+        HistoryInformationSerializer,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
     )
 
-    included_serializers = {
-        "featuretypes": FeatureTypeSerializer,
-    }
-
-    featuretypes = HyperlinkedRelatedField(
+    featuretypes = ResourceRelatedField(
         queryset=FeatureType.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:wfs-featuretypes-list",
         related_link_url_kwarg="parent_lookup_service",
     )
+
+    service_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name="registry:wfs-service-contact-list",
+        related_link_url_kwarg="parent_lookup_service_contact_webfeatureservice_metadata",
+    )
+    metadata_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name="registry:wfs-metadata-contact-list",
+        related_link_url_kwarg="parent_lookup_metadata_contact_webfeatureservice_metadata",
+    )
+    keywords = ResourceRelatedField(
+        queryset=Keyword.objects,
+        many=True,
+        related_link_view_name="registry:wfs-keywords-list",
+        related_link_url_kwarg="parent_lookup_ogcservice_metadata",
+    )
+
+    operation_urls = ResourceRelatedField(
+        label=_("operation urls"),
+        help_text=_("this are the urls to use for the ogc operations."),
+        model=WebFeatureServiceOperationUrl,
+        many=True,
+        read_only=True,
+    )
+
+    included_serializers = {
+        "featuretypes": FeatureTypeSerializer,
+        "service_contact": MetadataContactSerializer,
+        "metadata_contact": MetadataContactSerializer,
+        "keywords": KeywordSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
+        "operation_urls": WebFeatureServiceOperationUrlSerializer,
+    }
 
     class Meta:
         model = WebFeatureService

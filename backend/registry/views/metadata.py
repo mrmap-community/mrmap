@@ -8,6 +8,7 @@ from registry.models.service import CatalougeService, FeatureType, Layer
 from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            KeywordSerializer,
                                            MetadataContactSerializer,
+                                           ReferenceSystemSerializer,
                                            StyleSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
@@ -33,6 +34,33 @@ class KeywordViewSet(
 
 class NestedKeywordViewSet(
     KeywordViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class ReferenceSystemViewSetMixin():
+    schema = CustomAutoSchema(
+        tags=["ReferenceSystem"],
+    )
+    queryset = ReferenceSystem.objects.all()
+    serializer_class = ReferenceSystemSerializer
+    filterset_fields = {
+        "code": ["exact", "icontains", "contains"],
+        "prefix": ["exact", "icontains", "contains"]
+    }
+    search_fields = ("code", "prefix")
+
+
+class ReferenceSystemViewSet(
+    ReferenceSystemViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedReferenceSystemViewSet(
+    ReferenceSystemViewSetMixin,
     NestedModelViewSet
 ):
     pass

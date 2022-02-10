@@ -11,7 +11,9 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.models.metadata import Keyword, ReferenceSystem, Style
-from registry.models.service import CatalougeService, WebMapServiceOperationUrl
+from registry.models.service import (CatalougeService,
+                                     WebFeatureServiceOperationUrl,
+                                     WebMapServiceOperationUrl)
 from registry.serializers.service import (CatalougeServiceCreateSerializer,
                                           CatalougeServiceSerializer,
                                           FeatureTypeSerializer,
@@ -249,11 +251,40 @@ class WebFeatureServiceViewSet(
         "default": WebFeatureServiceSerializer,
         "create": WebFeatureServiceCreateSerializer,
     }
-    prefetch_for_includes = {"__all__": [], "featuretypes": ["featuretypes"]}
+    select_for_includes = {
+        "service_contact": ["service_contact"],
+        "metadata_contact": ["metadata_contact"],
+    }
+    prefetch_for_includes = {
+        "featuretypes": [
+            Prefetch(
+                "featuretypes",
+                queryset=FeatureType.objects.prefetch_related(
+                    "keywords",
+                    "reference_systems",
+                ),
+            ),
+        ],
+        "keywords": ["keywords"],
+        "operation_urls": [
+            Prefetch(
+                "operation_urls",
+                queryset=WebFeatureServiceOperationUrl.objects.select_related(
+                    "service"
+                ).prefetch_related("mime_types"),
+            )
+        ],
+    }
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
+
+    def dispatch(self, request, *args, **kwargs):
+        if "featuretype_pk" in self.kwargs:
+            self.lookup_field = "featuretype"
+            self.lookup_url_kwarg = "featuretype_pk"
+        return super().dispatch(request, *args, **kwargs)
 
     def get_task_kwargs(self, request, serializer):
         return {
@@ -268,6 +299,33 @@ class WebFeatureServiceViewSet(
                 "user_pk": request.user.pk,
             }
         }
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+        if not include or "featuretypes" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "featuretypes",
+                    queryset=FeatureType.objects.only(
+                        "id",
+                        "service_id",
+                    )
+                ),
+            )
+        if not include or "keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "operationUrls" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "operation_urls",
+                    queryset=WebFeatureServiceOperationUrl.objects.only(
+                        "id", "service_id"),
+                )
+            )
+        return qs
 
 
 class FeatureTypeViewSetMixin(

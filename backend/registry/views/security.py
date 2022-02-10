@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
+from extras.viewsets import NestedModelViewSet
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
@@ -11,33 +12,58 @@ from registry.serializers.security import (
     AllowedWebMapServiceOperationSerializer,
     WebFeatureServiceOperationSerializer, WebMapServiceOperationSerializer)
 from rest_framework.permissions import DjangoObjectPermissions
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
-class WebMapServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
+class WebMapServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["SecurableOperation"],
     )
     queryset = WebMapServiceOperation.objects.all()
     serializer_class = WebMapServiceOperationSerializer
     search_fields = ('operation', )
 
 
-class WebFeatureServiceOperationViewSet(NestedViewSetMixin, ReadOnlyModelViewSet):
+class WebMapServiceOperationViewSet(
+    WebMapServiceOperationViewSetMixin,
+    ReadOnlyModelViewSet
+):
+    pass
+
+
+class NestedWebMapServiceOperationViewSet(
+        WebMapServiceOperationViewSetMixin,
+        NestedModelViewSet
+):
+    pass
+
+
+class WebFeatureServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["SecurableOperation"],
     )
     queryset = WebFeatureServiceOperation.objects.all()
     serializer_class = WebFeatureServiceOperationSerializer
     search_fields = ('operation', )
 
 
-class AllowedWebMapServiceOperationViewSet(
-        NestedViewSetMixin,
-        ModelViewSet):
+class WebFeatureServiceOperationViewSet(
+    WebFeatureServiceOperationViewSetMixin,
+    ReadOnlyModelViewSet
+):
+    pass
+
+
+class NestedWebFeatureServiceOperationViewSet(
+    WebFeatureServiceOperationViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class AllowedWebMapServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["AllowedOperation"],
     )
     queryset = AllowedWebMapServiceOperation.objects.all()
     serializer_class = AllowedWebMapServiceOperationSerializer
@@ -88,12 +114,68 @@ class AllowedWebMapServiceOperationViewSet(
         return qs
 
 
-class AllowedWebFeatureServiceOperationViewSet(
-        NestedViewSetMixin,
-        ModelViewSet):
+class AllowedWebMapServiceOperationViewSet(
+        AllowedWebMapServiceOperationViewSetMixin,
+        ModelViewSet
+):
+    """ Endpoints for resource `AllowedWebMapServiceOperation`
+        create:
+            Endpoint to create new `AllowedWebMapServiceOperation` object
+        list:
+            Retrieves all `AllowedWebMapServiceOperation` objects
+        retrieve:
+            Retrieve one specific `AllowedWebMapServiceOperation` by the given id
+        partial_update:
+            Endpoint to update some fields of a `AllowedWebMapServiceOperation`
+
+    """
+
+
+class NestedAllowedWebMapServiceOperationViewSet(
+        AllowedWebMapServiceOperationViewSetMixin,
+        NestedModelViewSet
+):
+    """ Nested list endpoint for resource `AllowedWebMapServiceOperation`
+
+        list:
+            Retrieves all `AllowedWebMapServiceOperation` objects
+
+    """
+
+
+class AllowedWebFeatureServiceOperationViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["SecurityProxy"],
+        tags=["AllowedOperation"],
     )
     queryset = AllowedWebFeatureServiceOperation.objects.all()
     serializer_class = AllowedWebFeatureServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]
+
+
+class AllowedWebFeatureServiceOperationViewSet(
+        AllowedWebFeatureServiceOperationViewSetMixin,
+        ModelViewSet
+):
+    """ Endpoints for resource `AllowedWebFeatureServiceOperation`
+        create:
+            Endpoint to create new `AllowedWebFeatureServiceOperation` object
+        list:
+            Retrieves all `AllowedWebFeatureServiceOperation` objects
+        retrieve:
+            Retrieve one specific `AllowedWebFeatureServiceOperation` by the given id
+        partial_update:
+            Endpoint to update some fields of a `AllowedWebFeatureServiceOperation`
+
+    """
+
+
+class NestedAllowedWebFeatureServiceOperationViewSet(
+        AllowedWebFeatureServiceOperationViewSetMixin,
+        NestedModelViewSet
+):
+    """ Nested list endpoint for resource `AllowedWebFeatureServiceOperation`
+
+        list:
+            Retrieves all `AllowedWebFeatureServiceOperation` objects
+
+    """

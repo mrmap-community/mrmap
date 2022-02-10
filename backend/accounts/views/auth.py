@@ -43,7 +43,7 @@ class LogoutView(generics.GenericAPIView):
 
 class PermissionViewSet(ReadOnlyModelViewSet):
     schema = CustomAutoSchema(
-        tags=['Auth'],
+        tags=['Permission'],
     )
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer

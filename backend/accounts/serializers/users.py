@@ -22,7 +22,6 @@ class UserSerializer(
         many=True,
         related_link_view_name='accounts:user-groups-list',
         related_link_url_kwarg='parent_lookup_user',
-        self_link_view_name='accounts:user-relationships',
         read_only=True)
 
     class Meta:
@@ -44,8 +43,7 @@ class UserCreateSerializer(ModelSerializer):
         queryset=Group.objects.all(),
         many=True,
         related_link_view_name='accounts:user-groups-list',
-        related_link_url_kwarg='parent_lookup_user',
-        self_link_view_name='accounts:user-relationships')
+        related_link_url_kwarg='parent_lookup_user',)
 
     related_serializers = {
         "groups": GroupSerializer

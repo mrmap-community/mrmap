@@ -2,6 +2,7 @@ import json
 
 from celery import states
 from django_celery_results.models import TaskResult
+from extras.openapi import CustomAutoSchema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
@@ -10,6 +11,9 @@ from notify.serializers import TaskResultSerializer
 
 
 class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
+    schema = CustomAutoSchema(
+        tags=['TaskResult'],
+    )
     queryset = TaskResult.objects.all()
     serializer_class = TaskResultSerializer
     filterset_fields = {

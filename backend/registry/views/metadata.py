@@ -1,20 +1,21 @@
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
+from extras.viewsets import NestedModelViewSet
 from registry.models.metadata import (DatasetMetadata, Keyword,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalougeService, FeatureType, Layer
 from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            KeywordSerializer,
                                            MetadataContactSerializer,
+                                           ReferenceSystemSerializer,
                                            StyleSerializer)
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
-class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
+class KeywordViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["Keyword"],
     )
     queryset = Keyword.objects.all()
     serializer_class = KeywordSerializer
@@ -24,9 +25,50 @@ class KeywordViewSet(NestedViewSetMixin, ModelViewSet):
     search_fields = ("keyword",)
 
 
-class StyleViewSet(NestedViewSetMixin, ModelViewSet):
+class KeywordViewSet(
+    KeywordViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedKeywordViewSet(
+    KeywordViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class ReferenceSystemViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["ReferenceSystem"],
+    )
+    queryset = ReferenceSystem.objects.all()
+    serializer_class = ReferenceSystemSerializer
+    filterset_fields = {
+        "code": ["exact", "icontains", "contains"],
+        "prefix": ["exact", "icontains", "contains"]
+    }
+    search_fields = ("code", "prefix")
+
+
+class ReferenceSystemViewSet(
+    ReferenceSystemViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedReferenceSystemViewSet(
+    ReferenceSystemViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class StyleViewSetMixin():
+    schema = CustomAutoSchema(
+        tags=["Style"],
     )
     queryset = Style.objects.all()
     serializer_class = StyleSerializer
@@ -43,9 +85,23 @@ class StyleViewSet(NestedViewSetMixin, ModelViewSet):
     http_method_names = ["get", "patch", "head", "options"]
 
 
+class StyleViewSet(
+    StyleViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedStyleViewSet(
+    StyleViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
 class DatasetMetadataViewSet(ModelViewSet):
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["DatasetMetadata"],
     )
     queryset = DatasetMetadata.objects.all()
     serializer_class = DatasetMetadataSerializer
@@ -144,9 +200,23 @@ class DatasetMetadataViewSet(ModelViewSet):
         return qs
 
 
-class MetadataContactViewSet(ModelViewSet):
+class MetadataContactViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["Metadata"],
+        tags=["MetadataContact"],
     )
     queryset = MetadataContact.objects.all()
     serializer_class = MetadataContactSerializer
+
+
+class MetadataContactViewSet(
+        MetadataContactViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedMetadataContactViewSet(
+    MetadataContactViewSetMixin,
+    NestedModelViewSet
+):
+    pass

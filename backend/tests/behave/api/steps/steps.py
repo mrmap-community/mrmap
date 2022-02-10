@@ -96,8 +96,8 @@ def _traverse_json(context, attribute):
     return value
 
 
-@then('I expect that response json has an attribute {attribute}')
-@then('I expect that response json has an attribute {attribute} with value {expected_value}')
+@then('I expect that response json has an attribute "{attribute}"')
+@then('I expect that response json has an attribute "{attribute}" with value "{expected_value}"')
 def step_impl(context, attribute, expected_value=None):
     value = _traverse_json(context=context, attribute=attribute)
     if expected_value:

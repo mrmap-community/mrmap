@@ -207,6 +207,9 @@ export const LayerManager = ({
       try {
         const response: CreateLayerOpts | void = await addLayerDispatchAction(nodeAttributes, newNodeParent);
         
+        // TODO: Better solution for this. Rendering layer should not be the only criteria for this to be a layer
+        // and not a group. NOTE: saving a flag isLeaf on the table is for the time out of the question to not corrupt
+        // the table with fields that are unrelated to the OGC structure
         if(response?.properties.renderingLayer) {
           layerToAdd = layerUtils.createMrMapOlWMSLayer(response);
         } else {
@@ -375,7 +378,6 @@ export const LayerManager = ({
           draggable={draggable}
           contextMenuOnNode
           checkableNodes
-          attributeContainer='drawer'
           className='layer-manager-tree'
           title='Layers'
           treeData={treeData}

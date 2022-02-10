@@ -87,6 +87,7 @@ class JsonApiRepo {
 
     async getResourceSchema (): Promise<any> {
       const client = await JsonApiRepo.getClientInstance();
+      // TODO: schema may differs on operations
       const op = client.api.getOperation('List' + this.resourcePath);
       if (!op) {
         return [];

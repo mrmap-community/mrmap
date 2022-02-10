@@ -7,7 +7,7 @@ from registry.models.service import WebMapService
 
 class AllowedWebMapServiceOperationModelTest(TestCase):
 
-    fixtures = ["test_wms.json"]
+    fixtures = ['test_keywords.json', "test_wms.json"]
 
     def test_save_without_geometry(self):
         allowed_wms_operation = AllowedWebMapServiceOperation.objects.create(

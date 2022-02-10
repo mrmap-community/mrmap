@@ -262,6 +262,7 @@ class WebFeatureServiceViewSet(
                 queryset=FeatureType.objects.prefetch_related(
                     "keywords",
                     "reference_systems",
+                    "output_formats",
                 ),
             ),
         ],

@@ -733,14 +733,13 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 f"Layer '{self.identifier}' is not queryable.")
         try:
             if not info_format:
-                info_format_qs = MimeType.objects.filter(webmapserviceoperationurl_operation_url=OuterRef(
-                    'pk'), mime_type__istartswith="text/").values('mime_type')
-                url_and_format: dict = self.service.operation_urls.annotate(info_format=info_format_qs.first()).values('url', 'info_format').get(
+                url_and_id: dict = self.service.operation_urls.values('id', 'url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
                     method="Get"
                 )
-                url: str = url_and_format["url"]
-                _info_format: str = url_and_format["info_format"]
+                url: str = url_and_id["url"]
+                _info_format: str = MimeType.objects.filter(
+                    webmapserviceoperationurl_operation_url__pk=url_and_id['id'], mime_type__istartswith="text/").values('mime_type').first()['mime_type']
             else:
                 url: str = self.service.operation_urls.values('url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,

@@ -131,6 +131,7 @@
             "scale_max": 1000,
             "origin": "capabilities",
             "title": "node1",
+            "is_queryable": true,
             "tree_id": 1,
             "level": 0,
             "lft": 1,

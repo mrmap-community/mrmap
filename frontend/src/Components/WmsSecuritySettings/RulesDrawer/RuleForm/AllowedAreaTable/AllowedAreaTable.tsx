@@ -1,12 +1,12 @@
-import ProTable from '@ant-design/pro-table';
 import { useMap } from '@terrestris/react-geo';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
+import { Table } from 'antd';
 import BaseEvent from 'ol/events/Event';
 import { default as Geometry, default as OlGeometry } from 'ol/geom/Geometry';
 import VectorSource from 'ol/source/Vector';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 
-export const AllowedAreaList = (): ReactElement => {
+export const AllowedAreaTable = (): ReactElement => {
 
   const map = useMap();     
   const [dataSource, setDataSource] = useState([] as any[]);
@@ -48,16 +48,12 @@ export const AllowedAreaList = (): ReactElement => {
   return (
     <>
       {
-        <ProTable
+        <Table
           bordered={true}
-          cardBordered={true}
           columns={columns}
           dataSource={dataSource}
           showHeader={false}
           pagination={false}
-          search={false}
-          options={false}
-          toolBarRender={false}
           onRow={(record, rowIndex) => {
             return {
               onClick: event => {

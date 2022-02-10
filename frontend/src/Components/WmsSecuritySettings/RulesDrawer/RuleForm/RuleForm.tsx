@@ -15,7 +15,7 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '../../../../Hooks/useAuth';
 import { createOrUpdate, operation } from '../../../../Repos/JsonApi';
 import { InputField } from '../../../Shared/FormFields/InputField/InputField';
-import { AllowedAreaList } from './AllowedAreaList/AllowedAreaList';
+import { AllowedAreaTable } from './AllowedAreaTable/AllowedAreaTable';
 
 const { Option } = Select;
 
@@ -256,7 +256,7 @@ export const RuleForm = ({
           label='Allowed area'
           name='area'
         >
-          <AllowedAreaList />
+          <AllowedAreaTable />
         </Form.Item>         
         {
           validationErrors.map((error, i) => (

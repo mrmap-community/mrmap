@@ -1,16 +1,16 @@
 import '@testing-library/jest-dom/extend-expect';
 import { render } from '@testing-library/react';
 import React from 'react';
-import { AllowedAreaList } from './AllowedAreaList';
+import { AllowedAreaTable } from './AllowedAreaTable';
 
 
-describe('AllowedAreaList', () => {
+describe('AllowedAreaTable', () => {
   it('is defined', () => {
-    expect(AllowedAreaList).toBeDefined();
+    expect(AllowedAreaTable).toBeDefined();
   });
 
   it('can be rendered', () => {
-    const { container } = render(<AllowedAreaList />);
+    const { container } = render(<AllowedAreaTable />);
     expect(container).toBeVisible();
   });
 });

@@ -33,13 +33,14 @@ export function zoomTo (map: OlMap, geometryOrExtent: Feature<Geometry> | Geomet
 const backgroundLayersLayerGroup = new LayerGroup({
   // @ts-ignore
   properties: {
-    title: 'Background layers',
+    name: 'mrmap-baselayers',
   },
   layers: [
     new OlLayerTile({
+      properties: {
+        name: 'osm',
+      },      
       source: new OlSourceOsm(),
-      // @ts-ignore
-      title: 'OSM'
     })
   ]
 });

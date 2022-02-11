@@ -65,7 +65,9 @@ export default function App (): JSX.Element {
                   <Sider
                     collapsible
                     collapsed={collapsed}
-                    onCollapse={onCollapse}>
+                    onCollapse={onCollapse}
+                    style={{ zIndex: 1001 }}
+                  >
                     <div className='logo'>
                       <img
                         src={process.env.PUBLIC_URL + '/logo.png'}

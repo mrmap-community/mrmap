@@ -1,5 +1,5 @@
 import { SyncOutlined } from '@ant-design/icons';
-import Collection from 'ol/Collection';
+import { LayerTree, useMap } from '@terrestris/react-geo';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
@@ -7,116 +7,23 @@ import ImageWMS from 'ol/source/ImageWMS';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { operation, unpage } from '../../Repos/JsonApi';
-import { LayerUtils } from '../../Utils/LayerUtils';
 import { olMap } from '../../Utils/MapUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
-import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
-import { LayerManager } from '../TheMap/LayerManager/LayerManager';
-import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
+import { LeftDrawer } from './LeftDrawer/LeftDrawer';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
-const layerUtils = new LayerUtils();
-
-function wmsLayersToTreeNodeList(list:any[]):TreeNodeType[] {
-  const roots:TreeNodeType[] = [];
-
-  // initialize children on the list element
-  list = list.map((element: any) => ({ ...element, children: [] }));
-
-  list.map((element) => {
-    const node: TreeNodeType = {
-      key: element.id,
-      title: element.attributes.title,
-      parent: element.relationships.parent.data?.id,
-      children: element.children || [],
-      isLeaf: element.children && element.children.length === 0,
-      properties: {
-        origId: element.attributes.identifier,
-        title: element.attributes.title, // yes, title is repeated
-        scaleMin: element.attributes.scaleMin,
-        scaleMax: element.attributes.scaleMax,
-      }
-    };
-
-    if (node.parent) {
-      const parentNode: MPTTJsonApiTreeNodeType | undefined = list.find((el:any) => el.id === node.parent);
-      if (parentNode) {
-        list[list.indexOf(parentNode)].children?.push(node);
-      }
-    } else {
-      roots.push(node);
-    }
-    return element;
-  });
-
-  return roots;
-}
-
-function TreeNodeListToOlLayerGroup(list: TreeNodeType[], 
-  getMapUrl:string, wmsVersion:string): Collection<LayerGroup | ImageLayer<ImageWMS>> {
-  const layerList = list.map((node: TreeNodeType) => {
-
-    if (node.children.length > 0) {
-      const layerGroupOpts = {
-        opacity: 1,
-        visible: false,
-        properties: {
-          title: node.properties.title,
-          description: node.properties.description,
-          parent: node.parent,
-          key: node.key,
-          layerId: node.key
-        },
-        layers: TreeNodeListToOlLayerGroup(node.children, getMapUrl, wmsVersion)
-      };
-      return new LayerGroup(layerGroupOpts);
-    } 
-
-    if(node.children.length === 0) {
-      const layerOpts: CreateLayerOpts = {
-        url: getMapUrl,
-        version: wmsVersion as any,
-        format: 'image/png',
-        layers: node.properties.origId,
-        serverType: 'MAPSERVER',
-        visible: false,
-        legendUrl: '',
-        title: node.properties.title,
-        description: node.properties.description,
-        layerId: node.key,
-        properties: {
-          ...node.properties,
-          parent: node.parent,
-          key: node.key,
-        }
-      };
-      return layerUtils.createMrMapOlWMSLayer(layerOpts);
-    }
-    return new LayerGroup();
-  });
-  return new Collection(layerList);
-}
-
-function wmsLayersToOlLayerGroup(list:MPTTJsonApiTreeNodeType[], 
-  getMapUrl:string, wmsVersion:string): Collection<LayerGroup | BaseLayer> {
-  if(list) {
-    const treeNodeList = wmsLayersToTreeNodeList(list);
-    const layerGroupList = TreeNodeListToOlLayerGroup(treeNodeList, getMapUrl, wmsVersion);
-    return layerGroupList;
-  }
-  return new Collection();
-}
+const wmsSecurityLayerGroup = 'mrmap-wms-security';
 
 export const WmsSecuritySettings = (): ReactElement => {
 
+  const map = useMap();
   const { wmsId } = useParams();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
-  const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
-  const [nonLeafLayerIds, setNonLeafLayerIds] = useState<string[]>([]);
-  // only when rule editing is active, layers are selectable and area digitizing is possible
+  const [selectedLayerKeys, setSelectedLayerKeys] = useState<string[]>([]);
+  // only when rule editing is active, are layers selectable and digitizing visible
   const [isRuleEditingActive, setIsRuleEditingActive] = useState<boolean>(false);
 
   useEffect(() => {
@@ -169,33 +76,69 @@ export const WmsSecuritySettings = (): ReactElement => {
           );
           jsonApiResponse = await unpage(jsonApiResponse);
 
-          // convert the WMS layers coming from the server to a compatible tree node list
-          const _initLayerTreeData = wmsLayersToOlLayerGroup(jsonApiResponse.data?.data, getMapUrl, wmsVersion);
-          const layerIds: string[] = [];
-          const collectNonLeafLayers = (layer: BaseLayer) => {
-            if (layer instanceof LayerGroup) {
-              layerIds.push(layer.getProperties()['layerId']);
-              layer.getLayers().forEach ((child) => {
-                collectNonLeafLayers(child);
-              }); 
-            } 
-          };
-          _initLayerTreeData.forEach ( (layer) => {
-            collectNonLeafLayers(layer);
+          // build children lookup dictionary
+          const layerIdToChildren: any = {};
+          jsonApiResponse.data?.data.forEach((layer: any) => {
+            const parentId = layer.relationships?.parent?.data?.id;
+            if (parentId) {
+              const children: any[] = layerIdToChildren[parentId] || [];
+              layerIdToChildren[parentId] = children;
+              children.push(layer);
+            }
           });
-          setInitLayerTreeData(_initLayerTreeData);
-          setNonLeafLayerIds(layerIds);
+
+          const layerToOlLayer = (layer: any): BaseLayer => {
+            const childLayers: [] | undefined = layerIdToChildren[layer.id];
+            if (childLayers) {
+              return new LayerGroup({
+                layers: childLayers.map ((childLayer) => layerToOlLayer (childLayer)),
+                visible: false,
+                properties: {
+                  key: layer.id,
+                  name: layer.attributes.title,
+                }
+              });
+            }
+            return new ImageLayer({
+              source: new ImageWMS({
+                url: getMapUrl,
+                params: {
+                  'LAYERS': layer.attributes.identifier,
+                  'VERSION': wmsVersion,
+                  'TRANSPARENT': true
+                }
+              }),
+              properties: {
+                name: layer.attributes.title
+              },                 
+              visible: false              
+            });
+          };          
+
+          // convert the WMS layers coming from the server to a compatible tree node list
+          const olLayerGroup = new LayerGroup({
+            layers: jsonApiResponse.data?.data
+              .filter((layer: any) => !layer.relationships.parent.data)
+              .map ((root: any) => {
+                return layerToOlLayer (root);
+              }),            
+            properties: {
+              name: wmsSecurityLayerGroup
+            },                 
+            visible: false
+          });
+          map.addLayer(olLayerGroup);
         } finally {
           setIsLoading(false);
         }
       };      
       fetchWmsAndLayers();
     }
-  }, [wmsId]);
+  }, [wmsId, map]);
 
   useEffect(() => {
     if (!isRuleEditingActive) {
-      setSelectedLayerIds([]);
+      setSelectedLayerKeys([]);
     }
   }, [isRuleEditingActive]);
 
@@ -203,48 +146,49 @@ export const WmsSecuritySettings = (): ReactElement => {
     return (<SyncOutlined spin />);
   }
 
-  const selectLayersAndSublayers = ((ids:string[]) => {
-    olMap.getLayers().forEach (layer => {
-      if (layer.getProperties().title === 'mrMapWmsSecurityLayers') {
-        const layerIds: string[] = [];
-        const collectLayersAndSubLayers = (layer: BaseLayer, include: boolean) => {
-          include = include || ids.includes(layer.getProperties()['layerId']);
-          if (layer instanceof LayerGroup) {
-            layer.getLayers().forEach ((child) => {
-              collectLayersAndSubLayers(child, include);
-            }); 
-          } 
-          include && layerIds.push(layer.getProperties()['layerId']);
-        };
-        collectLayersAndSubLayers(layer, false);
-        setSelectedLayerIds(layerIds);
-      }
-    });
-  });
+  // add / remove clicked layer key (and descendants)
+  const onLayerClick = (selectedKeys: any, info: any) => {
+    if (!isRuleEditingActive) {
+      return;
+    }
+    const keys: string[] = [];
+    const addChildKeys = (node: any) => {
+      keys.push(node.key);
+      node.children?.forEach((child: any) => {
+        addChildKeys(child);
+      });
+    };
+    addChildKeys(info.node);
+    const currentKeySet = new Set(selectedLayerKeys);
+    if (info.selected) {
+      keys.forEach( (key) => currentKeySet.add(key));
+    } else {
+      keys.forEach( (key) => currentKeySet.delete(key));
+    }
+    setSelectedLayerKeys(Array.from(currentKeySet).sort());
+  };
 
   return (
     <>
       <div className='wms-security-layout'>
-        <LayerManager
-          multipleSelection
-          asyncTree
-          initLayerTreeData={initLayerTreeData}
-          initExpandedLayerIds={nonLeafLayerIds}
-          layerManagerLayerGroupName='mrMapWmsSecurityLayers'
-          selectLayerDispatchAction={(selectedKeys, info) => { 
-            isRuleEditingActive && selectLayersAndSublayers(selectedKeys as string[]);
-          }}
-          layerAttributeForm={(<h1>Placeholder</h1>)}
-          selectedLayerIds={selectedLayerIds}
-          draggable={false}
-        />
+        <LeftDrawer>
+          <LayerTree
+            map={map}
+            showLine
+            draggable={false}
+            onSelect={onLayerClick}
+            selectedKeys={selectedLayerKeys}
+            multiple
+            defaultExpandParent
+          />
+        </LeftDrawer>
         <AutoResizeMapComponent id='the-map' />
         { 
           wmsId && 
             <RulesDrawer 
               wmsId={wmsId}
               selectedLayerIds={selectedLayerIds}
-              setSelectedLayerIds={selectLayersAndSublayers}
+              setSelectedLayerIds={setSelectedLayerIds}
               setIsRuleEditingActive={setIsRuleEditingActive}
             /> 
         }

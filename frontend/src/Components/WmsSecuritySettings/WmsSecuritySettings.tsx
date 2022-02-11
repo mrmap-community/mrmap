@@ -9,9 +9,10 @@ import { useParams } from 'react-router';
 import { operation, unpage } from '../../Repos/JsonApi';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { olMap } from '../../Utils/MapUtils';
+import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
+import { LayerManager } from '../TheMap/LayerManager/LayerManager';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
-import { TheMap } from '../TheMap/TheMap';
 import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
@@ -223,20 +224,21 @@ export const WmsSecuritySettings = (): ReactElement => {
 
   return (
     <>
-      <div className='map-context'>
-        <TheMap
-          showLayerManager
-          allowMultipleLayerSelection
+      <div className='wms-security-layout'>
+        <LayerManager
+          multipleSelection
+          asyncTree
+          initLayerTreeData={initLayerTreeData}
+          initExpandedLayerIds={nonLeafLayerIds}
+          layerManagerLayerGroupName='mrMapWmsSecurityLayers'
           selectLayerDispatchAction={(selectedKeys, info) => { 
             isRuleEditingActive && selectLayersAndSublayers(selectedKeys as string[]);
           }}
-          layerGroupName='mrMapWmsSecurityLayers'
-          initLayerTreeData={initLayerTreeData}
-          initExpandedLayerIds={nonLeafLayerIds}
           layerAttributeForm={(<h1>Placeholder</h1>)}
           selectedLayerIds={selectedLayerIds}
           draggable={false}
         />
+        <AutoResizeMapComponent id='the-map' />
         { 
           wmsId && 
             <RulesDrawer 

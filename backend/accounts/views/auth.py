@@ -1,44 +1,93 @@
+import re
+
 from accounts.models.users import User
-from accounts.serializers.auth import (LoginSerializer, LogoutSerializer,
+from accounts.serializers.auth import (CsrfTokenSerializer, LoginSerializer,
                                        PermissionSerializer)
 from accounts.serializers.users import UserSerializer
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Permission
+from django.middleware.csrf import get_token
 from extras.openapi import CustomAutoSchema
-from rest_framework import generics, status
+from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
 
-class LoginView(generics.GenericAPIView):
+class CsrfToken:
+    def __init__(self, token):
+        self.pk = token
+        self.token = token
+
+
+class CsrfTokenView(views.APIView):
+    """ Retreives a single csrf token for the given request 
+
+        get: Retreives a single csrf token for the given request 
+
+    """
     schema = CustomAutoSchema(
         tags=['Auth'],
     )
-    queryset = User.objects.all()
-    serializer_class = LoginSerializer
+    http_method_names = ['get', 'head', 'options']
+    resource_name = "CsrfToken"
+
+    def get(self, request, *args, **kwargs):
+        token = get_token(request=request)
+        serializer = CsrfTokenSerializer(CsrfToken(token=token))
+        return Response(serializer.data)
+
+
+class LoginRequestView(views.APIView):
+    """ Login a user by the given credentials
+
+        post: Login a user by the given credentials
+
+    """
+    schema = CustomAutoSchema(
+        tags=['Auth'],
+    )
+    http_method_names = ['post', 'head', 'options']
+    resource_name = "LoginRequest"
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         login(request=request, user=serializer.user)
-        user = serializer.user
-        user.group_count = user.groups.count()
-        return Response(UserSerializer(serializer.user, context={'request': request}).data, status=status.HTTP_200_OK)
+        return Response({"username": serializer.data["username"]})
 
 
-class LogoutView(generics.GenericAPIView):
+class LogoutRequestView(views.APIView):
+    """ Logout a user by the given session id
+
+        delete: Logout a user by the given session id
+
+    """
     schema = CustomAutoSchema(
         tags=['Auth'],
     )
-    serializer_class = LogoutSerializer
 
     class Meta:
-        resource_name = 'Logout'
+        resource_name = 'LogoutRequest'
 
-    def post(self, request, *args, **kwargs):
+    def delete(self, request, *args, **kwargs):
         logout(request=request)
         return Response(status=status.HTTP_200_OK)
+
+
+class WhoAmIView(views.APIView):
+    schema = CustomAutoSchema(
+        tags=['Auth'],
+    )
+    http_method_names = ['get', 'head', 'options']
+    resource_name = "User"
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_anonymous:
+            user = User.get_anonymous()
+        serializer = UserSerializer(user, context={"request": request})
+        return Response(serializer.data)
 
 
 class PermissionViewSet(ReadOnlyModelViewSet):

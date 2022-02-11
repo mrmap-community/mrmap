@@ -8,6 +8,16 @@ from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.serializers import ModelSerializer, Serializer
 
 
+class CsrfTokenSerializer(Serializer):
+    token = CharField(
+        label=_("token"),
+        help_text=("token to protect against cross-site-request-forgery")
+    )
+
+    class Meta:
+        resource_name = 'CsrfToken'
+
+
 class PasswordField(CharField):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('style', {})
@@ -35,12 +45,6 @@ class LoginSerializer(Serializer):
         if not self.user:
             raise exceptions.AuthenticationFailed
         return {}
-
-
-class LogoutSerializer(Serializer):
-
-    class Meta:
-        resource_name = 'Logout'
 
 
 class PermissionSerializer(

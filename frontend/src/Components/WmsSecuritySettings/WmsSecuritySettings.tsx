@@ -14,8 +14,6 @@ import { LeftDrawer } from './LeftDrawer/LeftDrawer';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
-const wmsSecurityLayerGroup = 'mrmap-wms-security';
-
 export const WmsSecuritySettings = (): ReactElement => {
 
   const map = useMap();
@@ -29,6 +27,7 @@ export const WmsSecuritySettings = (): ReactElement => {
   useEffect(() => {
     if (wmsId) {
       setIsLoading(true);
+      let wmsOlRootLayer: BaseLayer | undefined;
       const fetchWmsAndLayers = async () => {
         try {
           let jsonApiResponse = await operation(
@@ -96,6 +95,7 @@ export const WmsSecuritySettings = (): ReactElement => {
                 properties: {
                   key: layer.id,
                   name: layer.attributes.title,
+                  isSecurityLayer: true
                 }
               });
             }
@@ -109,30 +109,26 @@ export const WmsSecuritySettings = (): ReactElement => {
                 }
               }),
               properties: {
-                name: layer.attributes.title
+                name: layer.attributes.title,
+                isSecurityLayer: true
               },                 
               visible: false              
             });
           };          
-
-          // convert the WMS layers coming from the server to a compatible tree node list
-          const olLayerGroup = new LayerGroup({
-            layers: jsonApiResponse.data?.data
-              .filter((layer: any) => !layer.relationships.parent.data)
-              .map ((root: any) => {
-                return layerToOlLayer (root);
-              }),            
-            properties: {
-              name: wmsSecurityLayerGroup
-            },                 
-            visible: false
-          });
-          map.addLayer(olLayerGroup);
+          wmsOlRootLayer = jsonApiResponse.data?.data
+            .filter((layer: any) => !layer.relationships.parent.data)
+            .map ((root: any) => {
+              return layerToOlLayer (root);
+            })[0];
+          map.addLayer(wmsOlRootLayer as BaseLayer);
         } finally {
           setIsLoading(false);
         }
       };      
       fetchWmsAndLayers();
+      return ( () => {
+        wmsOlRootLayer && map.removeLayer(wmsOlRootLayer);
+      });
     }
   }, [wmsId, map]);
 
@@ -173,13 +169,16 @@ export const WmsSecuritySettings = (): ReactElement => {
       <div className='wms-security-layout'>
         <LeftDrawer>
           <LayerTree
-            map={map}
+            multiple
             showLine
+            defaultExpandParent
+            map={map}
             draggable={false}
             onSelect={onLayerClick}
             selectedKeys={selectedLayerKeys}
-            multiple
-            defaultExpandParent
+            filterFunction={ (value: any, index: number, array: any[]) => {
+              return value.get('isSecurityLayer');
+            }}
           />
         </LeftDrawer>
         <AutoResizeMapComponent id='the-map' />

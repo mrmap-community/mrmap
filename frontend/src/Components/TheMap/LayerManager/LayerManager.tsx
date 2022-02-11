@@ -64,10 +64,6 @@ export const LayerManager = ({
   // const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>(); // TODO
 
   useEffect(() => {
-    map.updateSize();  
-  },[isTreeContainerVisible, map]);
-
-  useEffect(() => {
     const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {       
       setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
     };

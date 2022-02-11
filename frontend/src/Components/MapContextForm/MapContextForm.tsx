@@ -1,6 +1,5 @@
 import { SyncOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
 import { Button, notification, Tooltip } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
@@ -12,10 +11,11 @@ import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
+import { olMap } from '../../Utils/MapUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
 import { DropNodeEventType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
-import { olMap, TheMap } from '../TheMap/TheMap';
+import { TheMap } from '../TheMap/TheMap';
 import { AttributesForm } from './AttributesForm/AttributesForm';
 import { LayerAttributesForm } from './LayerAttributesForm/LayerAttributesForm';
 import './MapContextForm.css';
@@ -207,169 +207,167 @@ export const MapContextForm = (): ReactElement => {
   return (
     <>
       <div className='map-context'>
-        <ReactGeoMapContext.Provider value={olMap}>
-          <TheMap
-            showLayerManager={!!createdMapContextId}
-            selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}
-            addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
-              let renderingLayerInfo = null;
-              try {
-                // create the layer in the DB
-                const createdLayer: JsonApiResponse = await mapContextLayerRepo.create({
-                  ...nodeAttributes,
-                  parentLayerId: newNodeParent || '',
-                  mapContextId: createdMapContextId
-                });
+        <TheMap
+          showLayerManager={!!createdMapContextId}
+          selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}
+          addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
+            let renderingLayerInfo = null;
+            try {
+              // create the layer in the DB
+              const createdLayer: JsonApiResponse = await mapContextLayerRepo.create({
+                ...nodeAttributes,
+                parentLayerId: newNodeParent || '',
+                mapContextId: createdMapContextId
+              });
 
-                // return createdLayer;
-                //@ts-ignore
-                const renderingLayerId = createdLayer.data?.data?.relationships.renderingLayer?.data?.id;
-                if(renderingLayerId) {
-                  renderingLayerInfo = await layerRepo.autocompleteInitialValue(renderingLayerId);
+              // return createdLayer;
+              //@ts-ignore
+              const renderingLayerId = createdLayer.data?.data?.relationships.renderingLayer?.data?.id;
+              if(renderingLayerId) {
+                renderingLayerInfo = await layerRepo.autocompleteInitialValue(renderingLayerId);
+              }
+
+              return {
+                url: renderingLayerInfo?.attributes.WMSParams.url,
+                version: renderingLayerInfo?.attributes.WMSParams.version,
+                format: 'image/png',
+                layers: renderingLayerInfo?.attributes.WMSParams.layer,
+                serverType: renderingLayerInfo?.attributes.WMSParams.serviceType,
+                legendUrl: renderingLayerInfo?.attributes.WMSParams.legendUrl,
+                visible: false,
+                layerId: (createdLayer?.data?.data as JsonApiPrimaryData).id,
+                title: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.title,
+                description: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.description,
+                properties: {
+                  ...(createdLayer?.data?.data as JsonApiPrimaryData).attributes,
+                  datasetMetadata: (createdLayer?.data?.data as JsonApiPrimaryData)
+                    .relationships.datasetMetadata.data?.id,
+                  renderingLayer: (createdLayer?.data?.data as JsonApiPrimaryData).relationships
+                    .renderingLayer.data?.id,
+                  scaleMin: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMin,
+                  scaleMax: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMax,
+                  style: (createdLayer?.data?.data as JsonApiPrimaryData).relationships.layerStyle.data?.id,
+                  featureSelectionLayer: (createdLayer?.data?.data as JsonApiPrimaryData)
+                    .relationships.selectionLayer.data?.id,
+                  parent: (createdLayer?.data?.data as JsonApiPrimaryData).relationships?.parent?.data?.id,
+                  key: (createdLayer?.data?.data as JsonApiPrimaryData).id
                 }
+              };
+            } catch (error) {
+              //@ts-ignore
+              throw new Error(error);
+            }
+          }}
+          removeLayerDispatchAction={async (nodeToRemove) => {
+            try {
+              // setCurrentSelectedTreeLayerNode(undefined);
+              return await mapContextLayerRepo?.delete(String(nodeToRemove.key));
+            } catch (error) {
+              //@ts-ignore
+              throw new Error(error);
+            } finally {
+              // setCurrentSelectedTreeLayerNode(undefined);
+            }
+          }}
+          editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => {
+            try {
+              return await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate);
+            } catch(error) {
+              //@ts-ignore
+              throw new Error(error);
+            }
 
-                return {
-                  url: renderingLayerInfo?.attributes.WMSParams.url,
-                  version: renderingLayerInfo?.attributes.WMSParams.version,
-                  format: 'image/png',
-                  layers: renderingLayerInfo?.attributes.WMSParams.layer,
-                  serverType: renderingLayerInfo?.attributes.WMSParams.serviceType,
-                  legendUrl: renderingLayerInfo?.attributes.WMSParams.legendUrl,
-                  visible: false,
-                  layerId: (createdLayer?.data?.data as JsonApiPrimaryData).id,
-                  title: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.title,
-                  description: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.description,
-                  properties: {
-                    ...(createdLayer?.data?.data as JsonApiPrimaryData).attributes,
-                    datasetMetadata: (createdLayer?.data?.data as JsonApiPrimaryData)
-                      .relationships.datasetMetadata.data?.id,
-                    renderingLayer: (createdLayer?.data?.data as JsonApiPrimaryData).relationships
-                      .renderingLayer.data?.id,
-                    scaleMin: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMin,
-                    scaleMax: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMax,
-                    style: (createdLayer?.data?.data as JsonApiPrimaryData).relationships.layerStyle.data?.id,
-                    featureSelectionLayer: (createdLayer?.data?.data as JsonApiPrimaryData)
-                      .relationships.selectionLayer.data?.id,
-                    parent: (createdLayer?.data?.data as JsonApiPrimaryData).relationships?.parent?.data?.id,
-                    key: (createdLayer?.data?.data as JsonApiPrimaryData).id
-                  }
-                };
-              } catch (error) {
-                //@ts-ignore
-                throw new Error(error);
-              }
-            }}
-            removeLayerDispatchAction={async (nodeToRemove) => {
-              try {
-                // setCurrentSelectedTreeLayerNode(undefined);
-                return await mapContextLayerRepo?.delete(String(nodeToRemove.key));
-              } catch (error) {
-                //@ts-ignore
-                throw new Error(error);
-              } finally {
-                // setCurrentSelectedTreeLayerNode(undefined);
-              }
-            }}
-            editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => {
-              try {
-                return await mapContextLayerRepo?.update(String(nodeId), nodeAttributesToUpdate);
-              } catch(error) {
-                //@ts-ignore
-                throw new Error(error);
-              }
+          }}
+          dropLayerDispatchAction={async (dropEvent:DropNodeEventType): Promise<JsonApiResponse> => {
+            try {
+              const isDroppingToGap = dropEvent.dropToGap;
+              const dragKey = dropEvent.dragNode.key;
+              const dropKey = dropEvent.node.key;
+              let position:string;
 
-            }}
-            dropLayerDispatchAction={async (dropEvent:DropNodeEventType): Promise<JsonApiResponse> => {
-              try {
-                const isDroppingToGap = dropEvent.dropToGap;
-                const dragKey = dropEvent.dragNode.key;
-                const dropKey = dropEvent.node.key;
-                let position:string;
-
-                // if tree element is beeing dropped to a gap, it means
-                if(isDroppingToGap) {
-                  position = 'right';
-                } else {
-                  position = 'first-child';
-                }
-
-                return await mapContextLayerRepo?.move(dragKey, dropKey, position);
-
-              } catch(error) {
-                //@ts-ignore
-                throw new Error(error);
-              }
-            }}
-            layerGroupName='mrMapMapContextLayers'
-            initLayerTreeData={initLayerTreeData}
-            layerAttributeForm={(
-              <LayerAttributesForm
-                key={currentSelectedTreeLayerNode?.key}
-                form={form}
-              />
-            )}
-            layerCreateErrorDispatchAction={(error: any) => {
-              if(!createdMapContextId) {
-                notification.warn({
-                  message: 'No MapContext was created. Please create a valid Map '+
-                    'Context before adding Map Context Layers'
-                });
-
+              // if tree element is beeing dropped to a gap, it means
+              if(isDroppingToGap) {
+                position = 'right';
               } else {
-                notification.error({
-                  message: 'Something went wrong while trying to create the layer'
-                });
+                position = 'first-child';
               }
-            }}
-            layerRemoveErrorDispatchAction={(error: any) => {
-              notification.error({
-                message: 'Something went wrong while trying to remove the layer'
+
+              return await mapContextLayerRepo?.move(dragKey, dropKey, position);
+
+            } catch(error) {
+              //@ts-ignore
+              throw new Error(error);
+            }
+          }}
+          layerGroupName='mrMapMapContextLayers'
+          initLayerTreeData={initLayerTreeData}
+          layerAttributeForm={(
+            <LayerAttributesForm
+              key={currentSelectedTreeLayerNode?.key}
+              form={form}
+            />
+          )}
+          layerCreateErrorDispatchAction={(error: any) => {
+            if(!createdMapContextId) {
+              notification.warn({
+                message: 'No MapContext was created. Please create a valid Map '+
+                    'Context before adding Map Context Layers'
               });
-            }}
-            layerEditErrorDispatchAction={(error: any) => {
+
+            } else {
               notification.error({
-                message: 'Something went wrong while trying to edit the layer'
+                message: 'Something went wrong while trying to create the layer'
               });
-            }}
-            layerAttributeInfoIcons={(nodeData:TreeNodeType) => {
-              if(!nodeData.isLeaf) {
-                return (<></>);
-              }
-              return (
-                <>
-                  {nodeData.properties.datasetMetadata && (
-                    <Tooltip title='Dataset Metadata is set' >
-                      <FontAwesomeIcon icon={['fas','eye']} />
-                    </Tooltip>
-                  )}
-                  <Tooltip
-                    title={
-                      nodeData.properties.renderingLayer ?
-                        'Rendering Layer is set' :
-                        'Rendering Layer is not set'
-                    }
-                  >
-                    <FontAwesomeIcon
-                      icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]}
-                    />
+            }
+          }}
+          layerRemoveErrorDispatchAction={(error: any) => {
+            notification.error({
+              message: 'Something went wrong while trying to remove the layer'
+            });
+          }}
+          layerEditErrorDispatchAction={(error: any) => {
+            notification.error({
+              message: 'Something went wrong while trying to edit the layer'
+            });
+          }}
+          layerAttributeInfoIcons={(nodeData:TreeNodeType) => {
+            if(!nodeData.isLeaf) {
+              return (<></>);
+            }
+            return (
+              <>
+                {nodeData.properties.datasetMetadata && (
+                  <Tooltip title='Dataset Metadata is set' >
+                    <FontAwesomeIcon icon={['fas','eye']} />
                   </Tooltip>
-                  <Tooltip
-                    title={
-                      nodeData.properties.featureSelectionLayer ?
-                        'Feature Selection Layer is set' :
-                        'Feature Selection Layer is not set'
-                    }
-                  >
-                    <FontAwesomeIcon
-                      style={{ color: nodeData.properties.featureSelectionLayer ? '' : 'lightgray' }}
-                      icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']}
-                    />
-                  </Tooltip>
-                </>
-              );
-            }}
-          />
-        </ReactGeoMapContext.Provider>
+                )}
+                <Tooltip
+                  title={
+                    nodeData.properties.renderingLayer ?
+                      'Rendering Layer is set' :
+                      'Rendering Layer is not set'
+                  }
+                >
+                  <FontAwesomeIcon
+                    icon={['fas',`${nodeData.properties.renderingLayer ? 'eye' : 'eye-slash'}`]}
+                  />
+                </Tooltip>
+                <Tooltip
+                  title={
+                    nodeData.properties.featureSelectionLayer ?
+                      'Feature Selection Layer is set' :
+                      'Feature Selection Layer is not set'
+                  }
+                >
+                  <FontAwesomeIcon
+                    style={{ color: nodeData.properties.featureSelectionLayer ? '' : 'lightgray' }}
+                    icon={[`${nodeData.properties.featureSelectionLayer ? 'fas' : 'far'}`,'check-circle']}
+                  />
+                </Tooltip>
+              </>
+            );
+          }}
+        />
       </div>
       <TabsDrawer
         isVisible={isMapContextSearchDrawerVisible}

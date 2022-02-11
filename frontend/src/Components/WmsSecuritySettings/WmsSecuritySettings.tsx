@@ -1,5 +1,4 @@
 import { SyncOutlined } from '@ant-design/icons';
-import { MapContext as ReactGeoMapContext } from '@terrestris/react-geo';
 import Collection from 'ol/Collection';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
@@ -9,9 +8,10 @@ import React, { ReactElement, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { operation, unpage } from '../../Repos/JsonApi';
 import { LayerUtils } from '../../Utils/LayerUtils';
+import { olMap } from '../../Utils/MapUtils';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
-import { olMap, TheMap } from '../TheMap/TheMap';
+import { TheMap } from '../TheMap/TheMap';
 import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
@@ -224,33 +224,31 @@ export const WmsSecuritySettings = (): ReactElement => {
   return (
     <>
       <div className='map-context'>
-        <ReactGeoMapContext.Provider value={olMap}>
-          <TheMap
-            showLayerManager
-            allowMultipleLayerSelection
-            selectLayerDispatchAction={(selectedKeys, info) => { 
-              isRuleEditingActive && selectLayersAndSublayers(selectedKeys as string[]);
-            }}
-            layerGroupName='mrMapWmsSecurityLayers'
-            initLayerTreeData={initLayerTreeData}
-            initExpandedLayerIds={nonLeafLayerIds}
-            layerAttributeForm={(<h1>Placeholder</h1>)}
-            selectedLayerIds={selectedLayerIds}
-            draggable={false}
-          />
-          { 
-            wmsId && 
+        <TheMap
+          showLayerManager
+          allowMultipleLayerSelection
+          selectLayerDispatchAction={(selectedKeys, info) => { 
+            isRuleEditingActive && selectLayersAndSublayers(selectedKeys as string[]);
+          }}
+          layerGroupName='mrMapWmsSecurityLayers'
+          initLayerTreeData={initLayerTreeData}
+          initExpandedLayerIds={nonLeafLayerIds}
+          layerAttributeForm={(<h1>Placeholder</h1>)}
+          selectedLayerIds={selectedLayerIds}
+          draggable={false}
+        />
+        { 
+          wmsId && 
             <RulesDrawer 
               wmsId={wmsId}
               selectedLayerIds={selectedLayerIds}
               setSelectedLayerIds={selectLayersAndSublayers}
               setIsRuleEditingActive={setIsRuleEditingActive}
             /> 
-          }
-          {
-            olMap && isRuleEditingActive && <AreaDigitizeToolbar map={olMap} /> 
-          }
-        </ReactGeoMapContext.Provider>
+        }
+        {
+          olMap && isRuleEditingActive && <AreaDigitizeToolbar map={olMap} /> 
+        }
       </div>
     </>
   );

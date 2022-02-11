@@ -2,7 +2,7 @@
 import '@testing-library/jest-dom/extend-expect';
 import { render } from '@testing-library/react';
 import React from 'react';
-import { olMap } from '../../TheMap/TheMap';
+import { olMap } from '../../../Utils/MapUtils';
 import { AreaDigitizeToolbar } from './AreaDigitizeToolbar';
 
 describe('AreaDigitizeToolbar', () => {

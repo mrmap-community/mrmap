@@ -90,7 +90,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             const childLayers: [] | undefined = layerIdToChildren[layer.id];
             if (childLayers) {
               return new LayerGroup({
-                layers: childLayers.map ((childLayer) => layerToOlLayer (childLayer)),
+                layers: childLayers.map ((childLayer) => layerToOlLayer (childLayer)).reverse(),
                 visible: false,
                 properties: {
                   key: layer.id,
@@ -120,6 +120,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             .map ((root: any) => {
               return layerToOlLayer (root);
             })[0];
+          console.log('ASDSA', wmsOlRootLayer);
           map.addLayer(wmsOlRootLayer as BaseLayer);
         } finally {
           setIsLoading(false);

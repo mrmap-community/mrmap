@@ -43,46 +43,51 @@ export interface QueryParams {
     filters?: any;
 }
 
-class JsonApiRepo {
-    private static readonly REACT_APP_REST_API_BASE_URL = '/';
+export class BaseJsonApiRepo {
+  protected static readonly REACT_APP_REST_API_BASE_URL = '/';
 
-    private static readonly REACT_APP_REST_API_SCHEMA_URL = '/api/schema/';
+  protected static readonly REACT_APP_REST_API_SCHEMA_URL = '/api/schema/';
 
-    private static apiInstance: OpenAPIClientAxios;
+  protected static apiInstance: OpenAPIClientAxios;
 
-    private static clientInstance: OpenAPIClient;
+  protected static clientInstance: OpenAPIClient;
 
+  static async getClientInstance (): Promise<OpenAPIClient> {
+    if (!this.clientInstance) {
+      this.clientInstance = await (await this.getApiInstance()).getClient();
+    }
+    return this.clientInstance;
+  }
+
+  static async getApiInstance (): Promise<OpenAPIClientAxios> {
+    if (!this.apiInstance) {
+      this.apiInstance = new OpenAPIClientAxios({
+        definition: BaseJsonApiRepo.REACT_APP_REST_API_SCHEMA_URL,
+        axiosConfigDefaults: {
+          baseURL: BaseJsonApiRepo.REACT_APP_REST_API_BASE_URL
+        }
+      });
+      try {
+        await this.apiInstance.init();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    return this.apiInstance;
+  }
+
+}
+
+class JsonApiRepo extends BaseJsonApiRepo {
+   
     protected readonly resourcePath: string;
 
     readonly displayName: string;
 
     constructor (resourcePath: string, displayName: string) {
+      super();
       this.resourcePath = resourcePath;
       this.displayName = displayName;
-    }
-
-    static async getClientInstance (): Promise<OpenAPIClient> {
-      if (!this.clientInstance) {
-        this.clientInstance = await (await this.getApiInstance()).getClient();
-      }
-      return this.clientInstance;
-    }
-
-    static async getApiInstance (): Promise<OpenAPIClientAxios> {
-      if (!this.apiInstance) {
-        this.apiInstance = new OpenAPIClientAxios({
-          definition: JsonApiRepo.REACT_APP_REST_API_SCHEMA_URL,
-          axiosConfigDefaults: {
-            baseURL: JsonApiRepo.REACT_APP_REST_API_BASE_URL
-          }
-        });
-        try {
-          await this.apiInstance.init();
-        } catch (err) {
-          console.error(err);
-        }
-      }
-      return this.apiInstance;
     }
 
     async getResourceSchema (): Promise<any> {

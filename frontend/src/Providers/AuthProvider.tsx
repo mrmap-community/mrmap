@@ -1,13 +1,9 @@
 import React, { ReactElement, useEffect } from 'react';
 import { AuthContext } from '../Contexts/AuthContext/AuthContext';
-import LoginRepo from '../Repos/LoginRepo';
-import LogoutRepo from '../Repos/LogoutRepo';
-import UserRepo from '../Repos/UserRepo';
+import AuthRepo from '../Repos/AuthRepo';
 import { useLocalStorage } from '../utils';
 
-const loginRepo = new LoginRepo();
-const logoutRepo = new LogoutRepo();
-const userRepo = new UserRepo();
+const authRepo = new AuthRepo();
 
 export function AuthProvider ({ children }: { children: React.ReactNode }): ReactElement {
   const [user, setUser] = React.useState('');
@@ -16,8 +12,9 @@ export function AuthProvider ({ children }: { children: React.ReactNode }): Reac
   // on first initialization & when user id changes, fetch user information
   useEffect(() => {
     async function fetchCurrentUser () {
+
       try {
-        const res = await userRepo.get(userId);
+        const res = await authRepo.whoAmI();
         if (res.status === 200 &&
         res.data &&
         res.data.data &&
@@ -40,7 +37,7 @@ export function AuthProvider ({ children }: { children: React.ReactNode }): Reac
 
   async function login (_user: string, password: string): Promise<boolean> {
     try {
-      const res = await loginRepo.login({ username: _user, password: password });
+      const res = await authRepo.login({ username: _user, password: password });
       if (res.status === 200 &&
       res.data &&
       res.data.data &&
@@ -61,7 +58,7 @@ export function AuthProvider ({ children }: { children: React.ReactNode }): Reac
     setUserId('');
     localStorage.setItem('schema', '');
     try {
-      const res = await logoutRepo.logout();
+      const res = await authRepo.logout();
       if (res.status === 200) {
         return Promise.resolve(true);
       }

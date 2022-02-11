@@ -2,6 +2,7 @@ from django.conf import settings
 from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.schemas.utils import is_list_view
 from rest_framework_json_api import serializers, views
 from rest_framework_json_api.schemas.openapi import AutoSchema, SchemaGenerator
 from rest_framework_json_api.utils import (format_field_name,
@@ -104,6 +105,22 @@ class CustomAutoSchema(AutoSchema):
         content = self.map_serializer(serializer, method)
 
         return {component_name: content}
+
+    def get_operation_id(self, path, method):
+        """
+        The upstream DRF version creates non-unique operationIDs, because the same view is
+        used for the main path as well as such as related and relationships.
+        This concatenates the (mapped) method name and path as the spec allows most any
+        """
+        method_name = getattr(self.view, "action", method.lower())
+        if is_list_view(path, method, self.view) and hasattr(self.view, "list"):
+            action = "List"
+
+        elif method_name not in self.method_mapping:
+            action = method_name
+        else:
+            action = self.method_mapping[method.lower()]
+        return action + path
 
     def get_related_field_object_description(self, field) -> dict:
         description = {

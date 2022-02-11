@@ -40,11 +40,18 @@ class LoginSerializer(Serializer):
         resource_name = 'Login'
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         self.user = authenticate(
             username=attrs['username'], password=attrs['password'])
         if not self.user:
             raise exceptions.AuthenticationFailed
-        return {}
+        return attrs
+
+
+class LogoutSerializer(Serializer):
+
+    class Meta:
+        resource_name = 'Logout'
 
 
 class PermissionSerializer(

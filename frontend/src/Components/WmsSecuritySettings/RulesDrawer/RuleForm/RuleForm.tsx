@@ -45,7 +45,7 @@ export const RuleForm = ({
   const [layer, setLayer] = useState<OlVectorLayer<OlVectorSource<OlGeometry>>>();  
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);  
+  const [layerSelectionError, setLayerSelectionError] = useState<string>();
   const [isSavingOrLoading, setIsSavingOrLoading] = useState(false);
 
   // after mount, rule editing mode is active
@@ -128,9 +128,10 @@ export const RuleForm = ({
 
   const onFinish = async (values: any) => {
     if (selectedLayerIds.length === 0) {
-      setValidationErrors(['At least one layer needs to be selected.']);
+      setLayerSelectionError('At least one layer needs to be selected.');
       return;
     }
+    setLayerSelectionError(undefined);
 
     // get GeoJson geometry from digitizing layer
     let allowedAreaGeoJson: string|null = null;
@@ -205,12 +206,9 @@ export const RuleForm = ({
           }],
           ruleId
         );
-        if (response.status === 200) {
-          notification.info({
-            message: 'WMS security rule updated',
-            description: 'Your WMS security rule has been updated'
-          });
-          navigate(`/registry/services/wms/${wmsId}/security`);
+        if (response.status !== 200) {
+          notification.error({ message: 'Unexpected response code' });
+          return;
         }
       } else {
         const response = await createOrUpdate(
@@ -219,17 +217,15 @@ export const RuleForm = ({
           attributes,
           relationships
         );
-        if (response.status === 201) {
-          notification.info({
-            message: 'WMS security rule created',
-            description: 'Your WMS security rule has been created'
-          });
-          navigate(`/registry/services/wms/${wmsId}/security`);
+        if (response.status !== 201) {
+          notification.error({ message: 'Unexpected response code' });
+          return;
         }
       }
     } finally {
       setIsSavingOrLoading(false);
     }
+    navigate(`/registry/services/wms/${wmsId}/security`);
   };
 
   return (
@@ -279,16 +275,15 @@ export const RuleForm = ({
           name='area'
         >
           <AllowedAreaTable />
-        </Form.Item>         
+        </Form.Item>        
         {
-          validationErrors.map((error, i) => (
-            <Form.Item key={i}>
-              <Alert
-                description={error}
-                type='error'
-              />
-            </Form.Item>
-          ))
+          layerSelectionError &&
+          <Form.Item key='layerSelectionError'>
+            <Alert
+              description={layerSelectionError}
+              type='error'
+            />
+          </Form.Item>
         }
         <Form.Item>
           <Space>

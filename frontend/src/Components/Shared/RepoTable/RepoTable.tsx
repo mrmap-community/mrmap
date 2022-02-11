@@ -81,11 +81,10 @@ const RepoTable = ({
       ...proTableActions,
       deleteRecord: (row:any) => {
         async function deleteFromRepo () {
-          await repo.delete(row.id);
-          notification.success({
-            message: 'Record deleted',
-            description: `Record with id ${row.id} has been deleted succesfully`
-          });
+          const res = await repo.delete(row.id);
+          if (res.status !== 204) {
+            notification.error({ message: 'Unexpected response code' });
+          }
         }
         const modal = Modal.confirm({
           title: 'Delete record',

@@ -127,7 +127,7 @@ const WmsTable = (): JSX.Element => {
     title: 'Aktionen',
     valueType: 'option',
     render: (text: any, record:any) => {
-      const isSecured = record.allowed_operations > 0;
+      const isSecured = record.allowedOperations > 0;
       return (
         <>
           <Space size='middle'>
@@ -147,7 +147,7 @@ const WmsTable = (): JSX.Element => {
                 navigate(`/registry/services/wms/${record.id}/security`);
               }}
             >
-              { isSecured ? `Zugriffsregeln: ${record.allowed_operations}` : 'Zugriff unbeschränkt' }
+              { isSecured ? `Zugriffsregeln: ${record.allowedOperations}` : 'Zugriff unbeschränkt' }
             </Button>
           </Space>
         </>

@@ -5,7 +5,7 @@ import DigitizeButton from '@terrestris/react-geo/dist/Button/DigitizeButton/Dig
 import SimpleButton from '@terrestris/react-geo/dist/Button/SimpleButton/SimpleButton';
 import ToggleGroup from '@terrestris/react-geo/dist/Button/ToggleGroup/ToggleGroup';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
-import { Upload } from 'antd';
+import { notification, Upload } from 'antd';
 import { Feature } from 'ol';
 import GeoJSON from 'ol/format/GeoJSON';
 import GML3 from 'ol/format/GML3';
@@ -15,45 +15,24 @@ import Polygon from 'ol/geom/Polygon';
 import OlVectorLayer from 'ol/layer/Vector';
 import OlMap from 'ol/Map';
 import OlSourceVector from 'ol/source/Vector';
-import React, { useEffect, useState } from 'react';
-import { ToolsContainer } from '../../Shared/ToolsContainer/ToolsContainer';
+import React, { ReactElement } from 'react';
+import { screenToWgs84 } from '../../../Utils/MapUtils';
 import './AreaDigitizeToolbar.css';
 
 const geoJson = new GeoJSON();
 const gml3 = new GML3();
 
-interface DefaultProps {
-  map: OlMap;
-  visible: boolean;
-  onClose: () => void;
-}
+export const AreaDigitizeToolbar = ({
+  map
+}: {
+  map: OlMap
+}): ReactElement => {
 
-type AreaDigitizeToolbarProps = DefaultProps;
-
-export const AreaDigitizeToolbar: React.FC<AreaDigitizeToolbarProps> = ({
-  map,
-  visible,
-  onClose
-}) => {
-
-  const [toolsActive, setToolsActive] = useState(false);
-
-  useEffect(() => {
-    setToolsActive(visible);
-  }, [visible]);
-
-  /**
-   * Finds and returns the drawing layer based on the layer name
-   * @returns drawingLayer: VectorLayer
-   */
   const getDrawingLayer = () => {
     const drawingLayer: OlVectorLayer<OlSourceVector<OlGeometry>> = DigitizeUtil.getDigitizeLayer(map);
     return drawingLayer;
   };
 
-  /**
-   * Delete all drawing objects
-   */
   const deleteAllDrawings = () => {
     const drawingLayer = getDrawingLayer();
     if (drawingLayer) {
@@ -65,8 +44,11 @@ export const AreaDigitizeToolbar: React.FC<AreaDigitizeToolbarProps> = ({
     const layer = getDrawingLayer();
     const coords: any [] = [];
     layer.getSource().getFeatures().forEach ((feature) => {
-      const poly:any = feature.getGeometry()?.clone().transform('EPSG:900913', 'EPSG:4326');
-      coords.push(poly.getCoordinates());
+      const geom = feature.getGeometry();
+      if (geom) {
+        const poly:any = screenToWgs84 (geom);
+        coords.push(poly.getCoordinates());
+      }
     });
     if (coords.length ===  0) {
       return;
@@ -74,7 +56,7 @@ export const AreaDigitizeToolbar: React.FC<AreaDigitizeToolbarProps> = ({
     const multiPoly = new MultiPolygon(coords);
     const exportedGeoJson:string = geoJson.writeGeometry(multiPoly, {
       decimals: 7
-    });      
+    });
 
     function downloadFile(file:any) {
       const link: any = document.createElement('a');
@@ -100,18 +82,26 @@ export const AreaDigitizeToolbar: React.FC<AreaDigitizeToolbarProps> = ({
       try {
         geom = geoJson.readGeometry(content);
       } catch (err:any) {
-        console.log('Error reading GeoJSON geometry:', err);
+        notification.error({ 
+          message: 'Error reading GeoJSON geometry',
+          description: String(err)
+        });
         return;
       }
     } else if (content.startsWith('<')) {
       try {
         geom = gml3.readGeometry(content);
       } catch (err:any) {
-        console.log('Error reading GML geometry:', err);
-        return;
+        notification.error({ 
+          message: 'Error reading GML 3 geometry',
+          description: String(err)
+        });
       }
     } else {
-      // cannot be JSON or GML
+      notification.error({ 
+        message: 'Unsupported format',
+        description: 'File seems neither to be GeoJSON nor GML 3.'
+      });
       return;
     }      
     if (geom instanceof MultiPolygon) {
@@ -123,7 +113,10 @@ export const AreaDigitizeToolbar: React.FC<AreaDigitizeToolbarProps> = ({
         layer.getSource().addFeature(feature);
       });
     } else {
-      console.log('Geometry is not a MultiPolygon');
+      notification.error({ 
+        message: 'Unsupported geometry type',
+        description: 'File does not contain a MultiPolygon'
+      });      
     }
   };
 
@@ -201,18 +194,6 @@ export const AreaDigitizeToolbar: React.FC<AreaDigitizeToolbarProps> = ({
   );
 
   return (
-    <>
-      <ToolsContainer
-        visible={toolsActive}
-        title='Zeichnen'
-        tools={tools}
-        onClick={() => {
-          setToolsActive(!toolsActive);
-          onClose();
-        }}
-      />
-    </>
+    <div className='tools-container'>{tools}</div>
   );
 };
-
-export default AreaDigitizeToolbar;

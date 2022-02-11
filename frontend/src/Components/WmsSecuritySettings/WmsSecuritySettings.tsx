@@ -248,12 +248,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             /> 
           }
           {
-            olMap && 
-            <AreaDigitizeToolbar
-              map={olMap} 
-              visible={isRuleEditingActive}
-              onClose={ () => { console.log('Closing');} }
-            /> 
+            olMap && isRuleEditingActive && <AreaDigitizeToolbar map={olMap} /> 
           }
         </ReactGeoMapContext.Provider>
       </div>

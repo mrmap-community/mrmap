@@ -1,6 +1,5 @@
-import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
 import { MapContext } from '@terrestris/react-geo';
-import { Layout, Space } from 'antd';
+import { Layout } from 'antd';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
@@ -27,7 +26,7 @@ import WebMapServiceRepo from './Repos/WmsRepo';
 import { olMap } from './Utils/MapUtils';
 
 
-const { Content, Footer, Sider } = Layout;
+const { Content, Sider } = Layout;
 
 function RequireAuth ({ children }:{ children: JSX.Element }) {
   const auth = useAuth();
@@ -40,8 +39,6 @@ function RequireAuth ({ children }:{ children: JSX.Element }) {
 }
 
 export default function App (): JSX.Element {
-  const swaggerUiUrl = '/swagger-ui/';
-
   const [collapsed, setCollapsed] = useState(false);
 
   const onCollapse = (_collapsed: boolean) => {
@@ -87,12 +84,6 @@ export default function App (): JSX.Element {
                         <Outlet />
                       </div>
                     </Content>
-                    <Footer style={{ textAlign: 'center' }}>
-                      <Space>
-                        <a href={swaggerUiUrl}><ApiOutlined /> OpenAPI</a>
-                        <a href='https://github.com/mrmap-community/mrmap'><GithubOutlined /> GitHub</a>
-                      </Space>
-                    </Footer>
                   </Layout>
                 </Layout>
               </MapContext.Provider>

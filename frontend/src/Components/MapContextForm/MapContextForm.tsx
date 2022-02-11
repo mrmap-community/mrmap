@@ -206,7 +206,7 @@ export const MapContextForm = (): ReactElement => {
 
   return (
     <>
-      <div className='map-context'>
+      <div className='map-context-layout'>
         <TheMap
           showLayerManager={!!createdMapContextId}
           selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}

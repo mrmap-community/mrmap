@@ -2,16 +2,15 @@
   display: flex;
   width: calc(
     100% + 48px
-  ); /* to overlap parent's padding defined in site-layout class */
+  ); /* to override parent's padding defined in site-layout class */
   height: calc(
     100% + 48px
-  ); /* to overlap parent's padding defined in site-layout class */
+  ); /* to override parent's padding defined in site-layout class */
   position: relative;
-  margin-left: -24px; /* to overlap parent's padding defined in site-layout class */
-  margin-top: -24px; /* to overlap parent's padding defined in site-layout class */
-  max-height: calc(
-    100vh - 96px
-  ); /* the 96px values comes from the current site layout padding ((top + bottom) * 2) . change this value if the site background layout changes*/
+  margin-left: -24px; /* to override parent's padding defined in site-layout class */
+  margin-top: -24px; /* to override parent's padding defined in site-layout class */
+  margin-bottom: -24px; /* to override parent's padding defined in site-layout class */
+  max-height: calc(100vh);
 }
 
 #the-map {

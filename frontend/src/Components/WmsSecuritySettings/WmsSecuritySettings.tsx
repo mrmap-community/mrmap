@@ -1,5 +1,6 @@
 import { SyncOutlined } from '@ant-design/icons';
 import { LayerTree, useMap } from '@terrestris/react-geo';
+import { getUid } from 'ol';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
@@ -19,10 +20,13 @@ export const WmsSecuritySettings = (): ReactElement => {
   const map = useMap();
   const { wmsId } = useParams();
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
-  const [selectedLayerKeys, setSelectedLayerKeys] = useState<string[]>([]);
   // only when rule editing is active, are layers selectable and digitizing visible
   const [isRuleEditingActive, setIsRuleEditingActive] = useState<boolean>(false);
+
+  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
+  const [selectedOlUids, setSelectedOlUids] = useState<string[]>([]);
+  const [layerIdToOlUid, setLayerIdToOlUid]  = useState(new Map<string, string>());
+  const [olUidToLayerId, setOlUidToLayerId] = useState(new Map<string, string>());
 
   useEffect(() => {
     if (wmsId) {
@@ -86,10 +90,14 @@ export const WmsSecuritySettings = (): ReactElement => {
             }
           });
 
+          const newLayerIdToOlUid = new Map<string,string>();
+          const newOlUidToLayerId = new Map<string,string>();
+
           const layerToOlLayer = (layer: any): BaseLayer => {
             const childLayers: [] | undefined = layerIdToChildren[layer.id];
+            let olLayer;
             if (childLayers) {
-              return new LayerGroup({
+              olLayer = new LayerGroup({
                 layers: childLayers.map ((childLayer) => layerToOlLayer (childLayer)).reverse(),
                 visible: false,
                 properties: {
@@ -98,30 +106,35 @@ export const WmsSecuritySettings = (): ReactElement => {
                   isSecurityLayer: true
                 }
               });
+            } else {
+              olLayer = new ImageLayer({
+                source: new ImageWMS({
+                  url: getMapUrl,
+                  params: {
+                    'LAYERS': layer.attributes.identifier,
+                    'VERSION': wmsVersion,
+                    'TRANSPARENT': true
+                  }
+                }),
+                properties: {
+                  name: layer.attributes.title,
+                  isSecurityLayer: true
+                },                 
+                visible: false              
+              });
             }
-            return new ImageLayer({
-              source: new ImageWMS({
-                url: getMapUrl,
-                params: {
-                  'LAYERS': layer.attributes.identifier,
-                  'VERSION': wmsVersion,
-                  'TRANSPARENT': true
-                }
-              }),
-              properties: {
-                name: layer.attributes.title,
-                isSecurityLayer: true
-              },                 
-              visible: false              
-            });
+            newLayerIdToOlUid.set(layer.id, getUid(olLayer));
+            newOlUidToLayerId.set(getUid(olLayer), layer.id);
+            return olLayer;
           };          
           wmsOlRootLayer = jsonApiResponse.data?.data
             .filter((layer: any) => !layer.relationships.parent.data)
             .map ((root: any) => {
               return layerToOlLayer (root);
             })[0];
-          console.log('ASDSA', wmsOlRootLayer);
           map.addLayer(wmsOlRootLayer as BaseLayer);
+          setLayerIdToOlUid(newLayerIdToOlUid);
+          setOlUidToLayerId(newOlUidToLayerId);
         } finally {
           setIsLoading(false);
         }
@@ -135,15 +148,21 @@ export const WmsSecuritySettings = (): ReactElement => {
 
   useEffect(() => {
     if (!isRuleEditingActive) {
-      setSelectedLayerKeys([]);
+      setSelectedLayerIds([]);
     }
   }, [isRuleEditingActive]);
+
+  useEffect(() => {
+    setSelectedOlUids(selectedLayerIds.map( (layerId) => layerIdToOlUid.get(layerId) as string));
+  }, [selectedLayerIds, layerIdToOlUid]);
 
   if(isLoading) {
     return (<SyncOutlined spin />);
   }
 
-  // add / remove clicked layer key (and descendants)
+  // the backend always expects complete layer subtrees to be selected
+  // when selecting a layer, we also select all ancestors
+  // when unselecting layer, we also unselect all descendants
   const onLayerClick = (selectedKeys: any, info: any) => {
     if (!isRuleEditingActive) {
       return;
@@ -156,13 +175,13 @@ export const WmsSecuritySettings = (): ReactElement => {
       });
     };
     addChildKeys(info.node);
-    const currentKeySet = new Set(selectedLayerKeys);
+    const currentKeySet = new Set(selectedLayerIds.map( (id) => layerIdToOlUid.get(id) || ''));
     if (info.selected) {
       keys.forEach( (key) => currentKeySet.add(key));
     } else {
       keys.forEach( (key) => currentKeySet.delete(key));
     }
-    setSelectedLayerKeys(Array.from(currentKeySet).sort());
+    setSelectedLayerIds(Array.from(currentKeySet).map( (key) => (olUidToLayerId.get(key) as string)).sort());
   };
 
   return (
@@ -176,7 +195,7 @@ export const WmsSecuritySettings = (): ReactElement => {
             map={map}
             draggable={false}
             onSelect={onLayerClick}
-            selectedKeys={selectedLayerKeys}
+            selectedKeys={selectedOlUids}
             filterFunction={ (value: any, index: number, array: any[]) => {
               return value.get('isSecurityLayer');
             }}

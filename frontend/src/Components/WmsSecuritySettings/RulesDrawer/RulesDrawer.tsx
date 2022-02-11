@@ -1,4 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useMap } from '@terrestris/react-geo';
 import { Button, Drawer } from 'antd';
 import React, { ReactElement, useRef, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
@@ -20,12 +21,24 @@ export const RulesDrawer = ({
   setIsRuleEditingActive
 }: RulesDrawerProps): ReactElement => {
 
+  const map = useMap();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
+
   const toggleVisible = () => {
     setIsVisible(!isVisible);
     buttonRef.current?.blur();
+    // hack map div width
+    if (map) {
+      const mapDiv: any = document.querySelector(`#${map.getTarget()}`);
+      if (isVisible) {
+        mapDiv.style.paddingRight = '0px';
+      } else {
+        mapDiv.style.paddingRight = '500px';
+      }
+    }
   };
+
   return (
     <>
       <Button

@@ -169,7 +169,7 @@ class WebMapServiceSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        "operation_urls": WebMapServiceOperationUrlSerializer,        
+        "operation_urls": WebMapServiceOperationUrlSerializer,
     }
 
     class Meta:

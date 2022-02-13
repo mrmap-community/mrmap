@@ -10,24 +10,36 @@ import ImageWMS from 'ol/source/ImageWMS';
 import { CreateLayerOpts } from '../Components/TheMap/LayerManager/LayerManagerTypes';
 
 export class LayerUtils {
-    
+
   public getAllMapLayers(collection: OlMap | LayerGroup): (LayerGroup | BaseLayer | ImageLayer<ImageWMS>)[] {
     if (!(collection instanceof OlMap) && !(collection instanceof LayerGroup)) {
       console.error('Input parameter collection must be from type `ol.Map` or `ol.layer.Group`.');
       return [];
     }
-      
+
     const layers = collection.getLayers().getArray();
     const allLayers:any = [];
-      
+
     layers.forEach((layer) => {
       if (layer instanceof LayerGroup) {
         this.getAllMapLayers(layer).forEach((layeri:any) => allLayers.push(layeri));
       }
       allLayers.push(layer);
     });
-        
+
     return allLayers;
+  }
+
+  public getAllSubtreeLayers(root: BaseLayer): BaseLayer[] {
+    const layers: BaseLayer[] = [];
+    const addAllSubtreeLayers = (layer: BaseLayer) => {
+      layers.push(layer);
+      if (layer instanceof LayerGroup) {
+        layer.getLayers().forEach( childLayer => addAllSubtreeLayers(childLayer));
+      }
+    };
+    addAllSubtreeLayers(root);
+    return layers;
   }
 
   public createMrMapOlWMSLayer(opts: CreateLayerOpts): ImageLayer<ImageWMS> {
@@ -41,12 +53,12 @@ export class LayerUtils {
       },
       serverType: opts.serverType
     });
-      
+
     const olWMSLayer = new ImageLayer({
       source: olLayerSource,
       visible: opts.visible,
     });
-      
+
     olWMSLayer.setProperties({
       ...opts.properties,
       key: opts.layerId,
@@ -57,12 +69,12 @@ export class LayerUtils {
       extent: opts.extent
       // parent: opts.parent,
     });
-      
+
     return olWMSLayer;
   }
 
   public getLayerByMrMapLayerId(
-    collection: OlMap | LayerGroup, 
+    collection: OlMap | LayerGroup,
     id: string | number
   ): LayerGroup | BaseLayer | ImageLayer<ImageWMS> | undefined {
     const layersToSearch = this.getAllMapLayers(collection);
@@ -70,7 +82,7 @@ export class LayerUtils {
   }
 
   public getLayerGroupByGroupTitle = (
-    collection: OlMap | LayerGroup, 
+    collection: OlMap | LayerGroup,
     layerGroupTitle: string
   ): LayerGroup | undefined => {
     const requiredLayerGroup = this.getAllMapLayers(collection)
@@ -81,7 +93,7 @@ export class LayerUtils {
   };
 
   private getLayerGroupByMrMapLayerId(
-    collection: OlMap | LayerGroup, 
+    collection: OlMap | LayerGroup,
     id: string|number
   ): LayerGroup | undefined {
     const allMapLayers = this.getAllMapLayers(collection);
@@ -115,10 +127,10 @@ export class LayerUtils {
       }
     }
   }
-      
+
   public addLayerToGroupByGroupTitle(
-    collection: OlMap | LayerGroup, 
-    layerGroupTitle: string, 
+    collection: OlMap | LayerGroup,
+    layerGroupTitle: string,
     layerToAdd: LayerGroup | BaseLayer
   ): void {
     const layerGroup: LayerGroup | undefined = this.getLayerGroupByGroupTitle(collection, layerGroupTitle);
@@ -130,10 +142,10 @@ export class LayerUtils {
       console.warn(`No layer group with the title ${layerGroupTitle}, was found on the map`);
     }
   }
-      
+
   public addLayerToGroupByMrMapLayerId(
-    collection: OlMap | LayerGroup, 
-    id: string | number, 
+    collection: OlMap | LayerGroup,
+    id: string | number,
     layerToAdd: LayerGroup | BaseLayer
   ): void {
     const layerGroup: LayerGroup | undefined = this.getLayerGroupByMrMapLayerId(collection, id);
@@ -147,8 +159,8 @@ export class LayerUtils {
   }
 
   private getWMSFeatureInfoUrl(
-    olMap: OlMap, 
-    layerSource: ImageWMS, 
+    olMap: OlMap,
+    layerSource: ImageWMS,
     coordinates: [number, number]
   )
   : (string | undefined) {
@@ -169,14 +181,14 @@ export class LayerUtils {
   private async resolveWMSPromise(url: string): Promise<any> {
     try {
       const response = await fetch(url,
-        { 
-          method: 'GET', 
+        {
+          method: 'GET',
           //@ts-ignore
-          headers: { 
+          headers: {
             'Content-Type': 'application/vnd.ogc.gml',
             'Referer': 'http://localhost:3000'
           }
-        } 
+        }
       );
       const textRes = await response.text();
       const format = new GML2();
@@ -217,7 +229,7 @@ export class LayerUtils {
       .transform(realCoordinates, 'EPSG:4326', olMap.getView().getProjection());
 
     const coords = transformedClickedCoordinate as [number, number];
-    
+
     return olMap.forEachLayerAtPixel(
       clickedPixel,
       (layer: ImageLayer<ImageWMS>) => {

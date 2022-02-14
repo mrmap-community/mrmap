@@ -8,7 +8,7 @@ export interface OgcServiceCreate {
 
 class CatalogueServiceRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/csw/', ' (CSW)');
+    super('CatalougeService');
   }
 
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {

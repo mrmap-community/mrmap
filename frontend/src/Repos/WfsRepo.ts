@@ -8,7 +8,7 @@ export interface OgcServiceCreate {
 
 class WebFeatureServiceRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/wfs/', 'Downloaddienste (WFS)');
+    super('WebFeatureService');
   }
   
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {

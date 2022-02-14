@@ -46,7 +46,7 @@ export const WmsSecuritySettings = (): ReactElement => {
       const fetchWmsAndLayers = async () => {
         try {
           let jsonApiResponse = await operation(
-            'retrieve/api/v1/registry/wms/{id}/',
+            'getWebMapService',
             [{
               in: 'path',
               name: 'id',
@@ -69,7 +69,7 @@ export const WmsSecuritySettings = (): ReactElement => {
           const wmsVersion = wmsAttrs.version;
 
           jsonApiResponse = await operation(
-            'List/api/v1/registry/wms/{parent_lookup_service}/layers/',
+            'listLayer',
             [
               {
                 in: 'path',

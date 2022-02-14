@@ -62,7 +62,7 @@ export const RuleForm = ({
     let isMounted = true;
     let digiLayer: OlVectorLayer<OlVectorSource<OlGeometry>>;
     async function initAvailableWmsOps () {
-      const jsonApiResponse = await operation('List/api/v1/registry/security/wms-operations/');
+      const jsonApiResponse = await operation('listAllowedWebMapServiceOperation');
       const wmsOps = jsonApiResponse.data.data.map((wmsOp: any) => 
         (<Option value={wmsOp.id} key={wmsOp.id}>{wmsOp.id}</Option>)
       );
@@ -79,7 +79,7 @@ export const RuleForm = ({
     }
     async function initFromExistingRule (id: string) {
       const jsonApiResponse = await operation(
-        'retrieve/api/v1/registry/security/allowed-wms-operations/{id}/',
+        'getAllowedWebMapServiceOperation',
         [{
           in: 'path',
           name: 'id',
@@ -195,7 +195,7 @@ export const RuleForm = ({
       setIsSavingOrLoading(true);
       if (ruleId) {
         const response = await createOrUpdate(
-          'partial_update/api/v1/registry/security/allowed-wms-operations/{id}/',
+          'updateAllowedWebMapServiceOperation',
           'AllowedWebMapServiceOperation',
           attributes,
           relationships,
@@ -212,7 +212,7 @@ export const RuleForm = ({
         }
       } else {
         const response = await createOrUpdate(
-          'create/api/v1/registry/security/allowed-wms-operations/',
+          'addAllowedWebMapServiceOperation',
           'AllowedWebMapServiceOperation',
           attributes,
           relationships

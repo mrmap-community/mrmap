@@ -3,7 +3,7 @@ import JsonApiRepo from './JsonApiRepo';
 
 class OrganizationRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/accounts/organizations/', 'Organisationen');
+    super('Organization');
   }
 
   async autocomplete (searchText: string | undefined): Promise<SearchFieldData[]> {
@@ -14,7 +14,7 @@ class OrganizationRepo extends JsonApiRepo {
     if (searchText) {
       jsonApiParams['filter[name.icontains]'] = searchText;
     }
-    const res = await client['List' + this.resourcePath](jsonApiParams);
+    const res = await client['list' + this.resourceType](jsonApiParams);
     return res.data.data.map((o: any) => ({ value: o.id, text: o.attributes.name }));
   }
 }

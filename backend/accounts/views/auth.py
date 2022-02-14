@@ -87,7 +87,7 @@ class WhoAmIView(generics.GenericAPIView):
         operation_id_base="retreive"
     )
     http_method_names = ['get', 'head', 'options']
-    resource_name = "User"
+    resource_name = "CurrentUser"
     queryset = User.objects.all()
     serializer_class = UserSerializer
 

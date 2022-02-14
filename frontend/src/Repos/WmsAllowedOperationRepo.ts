@@ -6,7 +6,7 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
   readonly wmsId: string;
 
   constructor (wmsId: string) {
-    super('/api/v1/registry/wms/{parent_lookup_secured_service}/allowed-wms-operations/', 'Zugriffsregeln');
+    super('AllowedWebMapServiceOperation');
     this.wmsId = wmsId;
   }
 
@@ -23,7 +23,7 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
         jsonApiParams.sort = queryParams.ordering;
       }
     }
-    return await client['List' + this.resourcePath](this.wmsId, jsonApiParams);
+    return await client['list' + this.resourceType](this.wmsId, jsonApiParams);
   }
 
   async delete (id: string): Promise<JsonApiResponse> {
@@ -40,7 +40,7 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
         value: Cookies.get('csrftoken') || ''
       }
     ];    
-    return await client['destroy/api/v1/registry/security/allowed-wms-operations/{id}/'](params);
+    return await client['delete/' + this.resourceType](params);
   }
 }
 

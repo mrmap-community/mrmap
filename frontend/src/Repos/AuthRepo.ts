@@ -8,8 +8,6 @@ export interface Login {
 
 class AuthRepo extends BaseJsonApiRepo {
 
-    private readonly REACT_APP_REST_API_LOGIN_URL = '/api/v1/accounts/login/';
-    private readonly REACT_APP_REST_API_LOGOUT_URL = '/api/v1/accounts/logout/';
     private readonly REACT_APP_REST_API_CSRF_URL = '/api/v1/accounts/csrf-token/';
     private readonly REACT_APP_REST_API_WHOAMI_URL = '/api/v1/accounts/who-am-i/';
 
@@ -23,7 +21,7 @@ class AuthRepo extends BaseJsonApiRepo {
         password: obtain.password
       };
       const client = await AuthRepo.getClientInstance();
-      return client['create' + this.REACT_APP_REST_API_LOGIN_URL](undefined, {
+      return client['addLoginRequest'](undefined, {
         data: {
           type: 'LoginRequest',
           id: obtain.username,
@@ -38,14 +36,14 @@ class AuthRepo extends BaseJsonApiRepo {
 
     async logout (): Promise<JsonApiResponse> {
       const client = await AuthRepo.getClientInstance();
-      return client['destroy' + this.REACT_APP_REST_API_LOGOUT_URL](undefined, {}, {
+      return client['deleteLoginRequest'](undefined, {}, {
         headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
       });
     }
 
     async getCsrfToken (): Promise<JsonApiResponse> {
       const client = await AuthRepo.getClientInstance();
-      return client['retrieve' + this.REACT_APP_REST_API_CSRF_URL](undefined, {}, {
+      return client['getCsrfToken'](undefined, {}, {
         headers: { 'Content-Type': JsonApiMimeType, },
       }); 
     }
@@ -53,7 +51,7 @@ class AuthRepo extends BaseJsonApiRepo {
     async whoAmI (): Promise<JsonApiResponse> {
       const client = await AuthRepo.getClientInstance();
 
-      return client['retrieve' + this.REACT_APP_REST_API_WHOAMI_URL ](undefined, {}, {
+      return client['getCurrentUser'](undefined, {}, {
         headers: { 'Content-Type': JsonApiMimeType }
       });
       

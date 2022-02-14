@@ -80,20 +80,21 @@ export class BaseJsonApiRepo {
 
 class JsonApiRepo extends BaseJsonApiRepo {
    
-    protected readonly resourcePath: string;
+    protected readonly resourceType: string;
 
     readonly displayName: string;
 
-    constructor (resourcePath: string, displayName: string) {
+    constructor (resourceType: string) {
       super();
-      this.resourcePath = resourcePath;
-      this.displayName = displayName;
+      this.resourceType = resourceType;
+      // TODO: obtain it from the schema
+      this.displayName = resourceType;
     }
 
     async getResourceSchema (): Promise<any> {
       const client = await JsonApiRepo.getClientInstance();
       // TODO: schema may differs on operations
-      const op = client.api.getOperation('List' + this.resourcePath);
+      const op = client.api.getOperation('list' + this.resourceType);
       if (!op) {
         return [];
       }
@@ -110,7 +111,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
 
     async getQueryParams (): Promise<any> {
       const client = await JsonApiRepo.getClientInstance();
-      const op = client.api.getOperation('List' + this.resourcePath);
+      const op = client.api.getOperation('list' + this.resourceType);
       if (!op) {
         return [];
       }
@@ -135,7 +136,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
           jsonApiParams.sort = queryParams.ordering;
         }
       }
-      return await client['List' + this.resourcePath](jsonApiParams);
+      return await client['list' + this.resourceType](jsonApiParams);
     }
 
     // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
@@ -145,14 +146,14 @@ class JsonApiRepo extends BaseJsonApiRepo {
 
     async get (id: string): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
-      return await client['retrieve' + this.resourcePath + '{id}/'](id, {}, {
+      return await client['get' + this.resourceType](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType }
       });
     }
 
     async delete (id: string): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
-      return await client['destroy' + this.resourcePath + '{id}/'](id, {}, {
+      return await client['delete' + this.resourceType](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
       });
     }
@@ -162,7 +163,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
       const client = await JsonApiRepo.getClientInstance();
 
       // TODO: make relationships optional
-      return await client['create' + this.resourcePath](undefined, {
+      return await client['create' + this.resourceType](undefined, {
         data: {
           type: type,
           attributes: {
@@ -185,7 +186,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
     ): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
       // TODO: make relationships optional
-      return await client['partial_update' + this.resourcePath + '{id}/'](id, {
+      return await client['update' + this.resourceType](id, {
         data: {
           type: type,
           id: id,

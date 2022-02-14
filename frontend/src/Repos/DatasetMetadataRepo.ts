@@ -3,7 +3,7 @@ import JsonApiRepo, { JsonApiMimeType, JsonApiResponse, QueryParams } from './Js
 
 class DatasetMetadataRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/dataset-metadata/', 'Metadatensätze');
+    super('DatasetMetadata');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
@@ -18,7 +18,7 @@ class DatasetMetadataRepo extends JsonApiRepo {
       delete jsonApiParams['filter[search]'];
     }
 
-    const res = await client['List' + this.resourcePath](jsonApiParams);
+    const res = await client['List' + this.resourceType](jsonApiParams);
     return res.data.data.map((o: any) => ({
       value: o.id,
       text: o.attributes.title,
@@ -34,7 +34,7 @@ class DatasetMetadataRepo extends JsonApiRepo {
   async autocompleteInitialValue (id:string): Promise<any> {
     const client = await JsonApiRepo.getClientInstance();
 
-    const res = await client['retrieve' + this.resourcePath + '{id}/'](
+    const res = await client['get' + this.resourceType](
       id,
       {},
       {
@@ -73,7 +73,7 @@ class DatasetMetadataRepo extends JsonApiRepo {
         jsonApiParams.sort = queryParams.ordering;
       }
     }
-    const res = await client['List' + this.resourcePath](jsonApiParams);
+    const res = await client['list' + this.resourceType](jsonApiParams);
     return res;
 
   }

@@ -9,7 +9,7 @@ export interface OgcServiceCreate {
 
 class WebMapServiceRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/wms/', 'Darstellungsdienste (WMS)');
+    super('WebMapService',);
   }
 
   async create (create: OgcServiceCreate): Promise<JsonApiResponse> {
@@ -47,7 +47,7 @@ class WebMapServiceRepo extends JsonApiRepo {
         value: 'operationUrls'
       }
     ];    
-    return await client['retrieve' + this.resourcePath + '{id}/'](params);
+    return await client['get' + this.resourceType](params);
   }
 
 }

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { Form } from 'antd';
 import React from 'react';
 import { TreeManager } from './TreeManager';
-import { TreeNodeType, TreeProps } from './TreeManagerTypes';
+import { TreeManagerProps, TreeNodeType } from './TreeManagerTypes';
 
 // mock the useForm hook from AntD form context
 jest.mock('antd/lib/form/Form', () => ({
@@ -61,7 +61,7 @@ describe('TreeManager component', () => {
     treeData: mockedTreeData,
   };
   
-  const renderComponent = (props?:TreeProps) => render(
+  const renderComponent = (props?:TreeManagerProps) => render(
     <TreeManager
       {...requiredProps}
       {...props}

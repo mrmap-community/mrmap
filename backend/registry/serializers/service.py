@@ -7,7 +7,7 @@ from extras.serializers import (HistoryInformationSerializer,
 from MrMap.validators import validate_get_capablities_uri
 from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
-from registry.models.security import (WebFeatureServiceAuthentication,
+from registry.models.security import (AllowedWebMapServiceOperation, WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
 from registry.models.service import (CatalougeService, FeatureType, Layer,
                                      WebFeatureService,
@@ -144,6 +144,14 @@ class WebMapServiceSerializer(
         many=True,
         related_link_view_name="registry:wms-keywords-list",
         related_link_url_kwarg="parent_lookup_ogcservice_metadata",
+    )
+
+    allowed_operations = ResourceRelatedField(
+        queryset=AllowedWebMapServiceOperation.objects,
+        many=True,
+        related_link_view_name="registry:wms-allowedwmsoperation-list",
+        related_link_url_kwarg="parent_lookup_secured_service",
+        # meta_attrs={'keyword_count': 'count'}
     )
 
     operation_urls = ResourceRelatedField(

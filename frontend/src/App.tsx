@@ -1,5 +1,5 @@
-import { ApiOutlined, GithubOutlined } from '@ant-design/icons';
-import { Layout, Space } from 'antd';
+import { MapContext } from '@terrestris/react-geo';
+import { Layout } from 'antd';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
@@ -23,9 +23,10 @@ import { useAuth } from './Hooks/useAuth';
 import CatalogueServiceRepo from './Repos/CswRepo';
 import WebFeatureServiceRepo from './Repos/WfsRepo';
 import WebMapServiceRepo from './Repos/WmsRepo';
+import { olMap } from './Utils/MapUtils';
 
 
-const { Content, Footer, Sider } = Layout;
+const { Content, Sider } = Layout;
 
 function RequireAuth ({ children }:{ children: JSX.Element }) {
   const auth = useAuth();
@@ -38,8 +39,6 @@ function RequireAuth ({ children }:{ children: JSX.Element }) {
 }
 
 export default function App (): JSX.Element {
-  const swaggerUiUrl = '/swagger-ui/';
-
   const [collapsed, setCollapsed] = useState(false);
 
   const onCollapse = (_collapsed: boolean) => {
@@ -61,37 +60,35 @@ export default function App (): JSX.Element {
           path='/'
           element={
             <RequireAuth>
-              <Layout style={{ minHeight: '100vh' }}>
-                <Sider
-                  collapsible
-                  collapsed={collapsed}
-                  onCollapse={onCollapse}>
-                  <div className='logo'>
-                    <img
-                      src={process.env.PUBLIC_URL + '/logo.png'}
-                      alt='Mr. Map Logo'
-                    >
-                    </img>
-                  </div>
-                  <NavMenu />
-                </Sider>
-                <Layout className='site-layout'>
-                  <Content style={{ margin: '0 16px' }}>
-                    <div
-                      className='site-layout-background'
-                      style={{ padding: 24, minHeight: 360 }}
-                    >
-                      <Outlet />
+              <MapContext.Provider value={olMap}>
+                <Layout style={{ minHeight: '100vh' }}>
+                  <Sider
+                    collapsible
+                    collapsed={collapsed}
+                    onCollapse={onCollapse}
+                    style={{ zIndex: 1001 }}
+                  >
+                    <div className='logo'>
+                      <img
+                        src={process.env.PUBLIC_URL + '/logo.png'}
+                        alt='Mr. Map Logo'
+                      >
+                      </img>
                     </div>
-                  </Content>
-                  <Footer style={{ textAlign: 'center' }}>
-                    <Space>
-                      <a href={swaggerUiUrl}><ApiOutlined /> OpenAPI</a>
-                      <a href='https://github.com/mrmap-community/mrmap'><GithubOutlined /> GitHub</a>
-                    </Space>
-                  </Footer>
+                    <NavMenu />
+                  </Sider>
+                  <Layout className='site-layout'>
+                    <Content style={{ margin: '0 16px' }}>
+                      <div
+                        className='site-layout-background'
+                        style={{ padding: 24, minHeight: 360 }}
+                      >
+                        <Outlet />
+                      </div>
+                    </Content>
+                  </Layout>
                 </Layout>
-              </Layout>
+              </MapContext.Provider>
             </RequireAuth>
           }
         >
@@ -112,7 +109,7 @@ export default function App (): JSX.Element {
             element={<RegisterServiceForm repo={new WebMapServiceRepo()} />}
           />
           <Route
-            path='/registry/services/wms/:id/security/*'
+            path='/registry/services/wms/:wmsId/security/*'
             element={<WmsSecuritySettings />}
           />
           <Route

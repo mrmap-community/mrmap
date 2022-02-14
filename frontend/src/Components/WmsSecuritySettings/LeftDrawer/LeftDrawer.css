@@ -1,0 +1,21 @@
+.left-drawer-toggle-button {
+  position: absolute;
+  top: 50%;
+  z-index: 1000;
+  height: 60px;
+  width: 30px;
+  padding: 0;
+  border-radius: 0 5px 5px 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  border: unset;
+  /* same transition timing as drawer */
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.left-drawer-toggle-button :focus {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+.left-drawer-toggle-button :hover {
+  background-color: rgba(0, 0, 0, 0.85);
+}

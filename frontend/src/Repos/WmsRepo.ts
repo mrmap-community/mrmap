@@ -50,23 +50,6 @@ class WebMapServiceRepo extends JsonApiRepo {
     return await client['retrieve' + this.resourcePath + '{id}/'](params);
   }
 
-  async getAllLayers (id: string): Promise<JsonApiResponse> {
-    const client = await JsonApiRepo.getClientInstance();
-    const params = [
-      {
-        in: 'path',
-        name: 'parent_lookup_service',
-        value: id,
-      },
-      {
-        in: 'query',
-        name: 'page[size]',
-        value: 1000,
-      }
-    ];
-    return await client['List' + this.resourcePath + '{parent_lookup_service}/layers/'](params);
-  }
-
 }
 
 export default WebMapServiceRepo;

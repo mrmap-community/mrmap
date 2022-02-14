@@ -3,15 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import WmsAllowedOperationRepo from '../../../../Repos/WmsAllowedOperationRepo';
 import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/RepoTable';
 
-export interface RulesTableProps {
-  wmsId: string,
-  setSelectedLayerIds: (ids: string[]) => void
-}
-
 export const RulesTable = ({
   wmsId,
-  setSelectedLayerIds
-}: RulesTableProps): ReactElement => {
+}: {
+  wmsId: string
+}): ReactElement => {
+
   const navigate = useNavigate();
   // no side effects, so useEffect is not needed here
   const repo = new WmsAllowedOperationRepo(wmsId);
@@ -31,19 +28,17 @@ export const RulesTable = ({
     hideInTable: true
   }];
 
-  return (
-    <>
-      <RepoTable
-        repo={repo}
-        columns={columns}
-        options={{
-          setting: false,
-          density: false
-        }}
-        pagination={false}
-        onAddRecord={`/registry/services/wms/${wmsId}/security/rules/add`}
-        onEditRecord={(recordId) => navigate(`/registry/services/wms/${wmsId}/security/rules/${recordId}/edit`)}
-      />
-    </>
+  return (   
+    <RepoTable
+      repo={repo}
+      columns={columns}
+      options={{
+        setting: false,
+        density: false
+      }}
+      pagination={false}
+      onAddRecord={`/registry/services/wms/${wmsId}/security/rules/add`}
+      onEditRecord={(recordId) => navigate(`/registry/services/wms/${wmsId}/security/rules/${recordId}/edit`)}
+    />
   );
 };

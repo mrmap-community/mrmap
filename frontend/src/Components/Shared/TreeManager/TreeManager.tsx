@@ -12,6 +12,7 @@ const treeUtils = new TreeUtils();
 
 export const TreeManager = ({
   treeData = [],
+  initExpandedNodeIds = [],
   asyncTree = false,
   addNodeDispatchAction = () => undefined,removeNodeDispatchAction = () => undefined,
   editNodeDispatchAction = () => undefined,
@@ -272,7 +273,6 @@ export const TreeManager = ({
         children: [],
         parent: isRoot ? null : node.key,
         properties: values || null,
-        expanded: true,
         isLeaf: isCreatingGroupNode ? false : true,
       };
       if (asyncTree) {
@@ -599,11 +599,12 @@ export const TreeManager = ({
   };
 
   /**
-   * @description: Hook to run on component mount. Creates sets the initial tree data
+   * @description: Hook to run on component mount. Creates the initial tree data and sets the initial expanded keys
    */
   useEffect(() => {
     setTreeData(treeData);
-  }, [treeData]);
+    expandedKeys.length === 0 && initExpandedNodeIds.length > 0 && setExpandedKeys(initExpandedNodeIds);
+  }, [treeData, initExpandedNodeIds]);
 
   /**
    * @description: Hook to detect a click anywhere on the document. This will reset the isEditingNameOnNode value.

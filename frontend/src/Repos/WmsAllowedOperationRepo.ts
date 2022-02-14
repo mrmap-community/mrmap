@@ -1,12 +1,5 @@
 import Cookies from 'js-cookie';
-import JsonApiRepo, { JsonApiMimeType, JsonApiResponse, QueryParams } from './JsonApiRepo';
-
-export interface WmsAllowedOperationCreate {
-  description: string;
-  allowedGroupIds: Array<string>;
-  allowedOperationIds: Array<string>;
-  securedLayerIds: Array<string>;
-}
+import JsonApiRepo, { JsonApiResponse, QueryParams } from './JsonApiRepo';
 
 class WmsAllowedOperationRepo extends JsonApiRepo {
 
@@ -33,31 +26,9 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
     return await client['List' + this.resourcePath](this.wmsId, jsonApiParams);
   }
 
-  async add (type: string, attributes: any, relationships?: any): Promise<JsonApiResponse> {
-    const client = await JsonApiRepo.getClientInstance();
-    return await client['create' + this.resourcePath](this.wmsId, {
-      data: {
-        type: type,
-        attributes: {
-          ...attributes
-        },
-        relationships: {
-          ...relationships
-        }
-      }
-    }, {
-      headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
-    });
-  }
-
   async delete (id: string): Promise<JsonApiResponse> {
     const client = await JsonApiRepo.getClientInstance();
     const params = [
-      {
-        in: 'path',
-        name: 'parent_lookup_secured_service',
-        value: this.wmsId,
-      },
       {
         in: 'path',
         name: 'id',
@@ -69,48 +40,8 @@ class WmsAllowedOperationRepo extends JsonApiRepo {
         value: Cookies.get('csrftoken') || ''
       }
     ];    
-    return await client['destroy' + this.resourcePath + '{id}/'](params);
+    return await client['destroy/api/v1/registry/security/allowed-wms-operations/{id}/'](params);
   }
-
-  async create (create: WmsAllowedOperationCreate): Promise<JsonApiResponse> {
-    const attributes = {
-      description: create.description
-    };
-    const relationships = {
-      'securedService': {
-        data: {
-          type: 'WebMapService',
-          id: this.wmsId
-        }
-      },
-      'securedLayers': {
-        data: create.securedLayerIds.map((id) => {
-          return {
-            type: 'Layer',
-            id: id
-          };
-        })
-      },
-      'operations': {
-        data: create.allowedOperationIds.map((id) => {
-          return {
-            type: 'WebMapServiceOperation',
-            id: id
-          };
-        })
-      },
-      'allowedGroups': {
-        data: create.allowedGroupIds.map((id) => {
-          return {
-            type: 'Group',
-            id: id
-          };
-        })
-      }      
-    };
-    return this.add('AllowedWebMapServiceOperation', attributes, relationships);
-  }
-
 }
 
 export default WmsAllowedOperationRepo;

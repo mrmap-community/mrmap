@@ -49,8 +49,10 @@ export const LayerManager = ({
   layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
   initLayerTreeData,
+  initExpandedLayerIds = [],
   multipleSelection = false,
-  selectedLayerIds = undefined
+  selectedLayerIds = undefined,
+  draggable = false
 }: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -60,10 +62,6 @@ export const LayerManager = ({
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
   const [isTreeContainerVisible, setIsTreeContainerVisible] = useState<boolean>(true); 
   // const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>(); // TODO
-
-  useEffect(() => {
-    map.updateSize();  
-  },[isTreeContainerVisible, map]);
 
   useEffect(() => {
     const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {       
@@ -373,12 +371,13 @@ export const LayerManager = ({
       </Tooltip>
       {isTreeContainerVisible && (
         <TreeManager
-          draggable
+          draggable={draggable}
           contextMenuOnNode
           checkableNodes
           className='layer-manager-tree'
           title='Layers'
           treeData={treeData}
+          initExpandedNodeIds={initExpandedLayerIds}
           asyncTree={asyncTree}
           extendedNodeActions={layerActions}
           //@ts-ignore

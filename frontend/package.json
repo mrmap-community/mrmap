@@ -14,7 +14,7 @@
     "@reduxjs/toolkit": "1.7.1",
     "@rjsf/antd": "^3.2.0",
     "@rjsf/core": "^3.2.0",
-    "@terrestris/react-geo": "^16.0.0",
+    "@terrestris/react-geo": "^16.2.0",
     "@types/node": "^16.11.7",
     "@types/react-dom": "^17.0.11",
     "@types/react-redux": "^7.1.20",
@@ -94,7 +94,10 @@
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!(ol|antd|(rc-[a-z-]*)|@ant-design/css-animation|@ant-design/pro-[a-z]+|(@ant-design/icons)(-[a-z]+)*|@babel/runtime)/)"
-    ]
+    ],
+    "moduleNameMapper": {
+      "\\.(css|less|png)$": "<rootDir>/jest/spec/__mocks__/mock.js"
+    }
   },
   "proxy": "http://localhost:8001/"
 }

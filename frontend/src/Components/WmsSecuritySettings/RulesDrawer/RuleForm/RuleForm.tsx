@@ -68,7 +68,7 @@ export const RuleForm = ({
       );
       isMounted && setAvailableOps(wmsOps);
     }
-    async function initAvailableGroups (userId: string) {
+    async function initAvailableGroups () {
       // TODO wait for backend fix and reactivate fetching below
       // const jsonApiResponse = await operation('List/api/v1/accounts/groups/');
       // const groups = jsonApiResponse.data.data.map((group: any) => 
@@ -115,7 +115,7 @@ export const RuleForm = ({
       digiLayer = DigitizeUtil.getDigitizeLayer(map);
       setLayer(digiLayer);
       initAvailableWmsOps();
-      auth && initAvailableGroups(auth.userId);
+      auth && initAvailableGroups();
       ruleId && initFromExistingRule(ruleId);
       setIsSavingOrLoading(false);
     }

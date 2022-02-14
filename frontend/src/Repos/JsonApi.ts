@@ -85,7 +85,13 @@ export async function operation (
     throw new Error(msg);
   }
   return performJsonApiCallAndReportErrors( async () => {
-    return op(params, data);
+    const response: any = op(params, data);
+    
+    if (response.status === 401) {
+      // TODO: use auth hook
+      document.location.href = 'login'; 
+    }
+    return response;
   });
 }
 

@@ -31,7 +31,8 @@ const { Content, Sider } = Layout;
 function RequireAuth ({ children }:{ children: JSX.Element }) {
   const auth = useAuth();
   const location = useLocation();
-  if (!auth || !auth.userId) {
+
+  if (!auth || !auth.user) {
     // store location so login page can forward to original page
     return <Navigate to='/login' state={{ from: location }} />;
   }

@@ -7,6 +7,7 @@ from rest_framework_json_api import serializers, views
 from rest_framework_json_api.schemas.openapi import AutoSchema, SchemaGenerator
 from rest_framework_json_api.utils import (format_field_name,
                                            get_related_resource_type,
+                                           get_resource_name,
                                            get_resource_type_from_serializer)
 
 from extras.utils import deep_update
@@ -114,13 +115,28 @@ class CustomAutoSchema(AutoSchema):
         """
         method_name = getattr(self.view, "action", method.lower())
         if is_list_view(path, method, self.view) and hasattr(self.view, "list"):
-            action = "List"
+            action = "list"
 
         elif method_name not in self.method_mapping:
             action = method_name
         else:
             action = self.method_mapping[method.lower()]
-        return action + path
+
+        resource_name = get_resource_name(context={"view": self.view})
+
+        match (action):
+            case "list":
+                return f"list{resource_name}"
+            case "retrieve":
+                return f"get{resource_name}"
+            case "create":
+                return f"add{resource_name}"
+            case "partial_update":
+                return f"update{resource_name}"
+            case "destroy":
+                return f"delete{resource_name}"
+            case _:
+                return action + path
 
     def get_related_field_object_description(self, field) -> dict:
         description = {

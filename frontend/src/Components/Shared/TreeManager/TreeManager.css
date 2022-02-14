@@ -1,4 +1,4 @@
-.tree-form-field{
+.tree-manager{
   display: grid;
   grid-template-columns: auto;
   grid-template-rows: 50px auto;
@@ -6,19 +6,19 @@
   height: 100%;
 }
 
-.tree-form-field-node {
+.tree-manager-node {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   width: 100%;
 }
 
-.tree-form-field-tree {
+.tree-manager-tree {
   overflow: auto;
   background: rgb(255, 255, 255);
 }
 
-.tree-form-field-title {
+.tree-manager-title {
   width: 100%;
   background-color: rgba(0, 0, 0, 0.85);
   color:rgba(255, 255, 255, 0.65);
@@ -40,10 +40,10 @@
   margin: 0 5px 0 5px;
 }
 
-.tree-form-field .ant-tree .ant-tree-treenode {
+.tree-manager .ant-tree .ant-tree-treenode {
   width: 100%;
 }
 
-.tree-form-field .ant-tree .ant-tree-node-content-wrapper {
+.tree-manager .ant-tree .ant-tree-node-content-wrapper {
   width: 100%;
 }

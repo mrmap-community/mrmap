@@ -49,8 +49,10 @@ export const LayerManager = ({
   layerAttributeInfoIcons = () => (<></>),
   layerAttributeForm,
   initLayerTreeData,
+  initExpandedLayerIds = [],
   multipleSelection = false,
-  selectedLayerIds = undefined
+  selectedLayerIds = undefined,
+  draggable = false
 }: LayerManagerProps): JSX.Element => {
   // TODO: all logic to handle layers or interaction between map and layers should be handled here,
   // not to the tree form field component.
@@ -60,10 +62,6 @@ export const LayerManager = ({
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
   const [isTreeContainerVisible, setIsTreeContainerVisible] = useState<boolean>(true); 
   // const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>(); // TODO
-
-  useEffect(() => {
-    map.updateSize();  
-  },[isTreeContainerVisible, map]);
 
   useEffect(() => {
     const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {       
@@ -205,6 +203,9 @@ export const LayerManager = ({
       try {
         const response: CreateLayerOpts | void = await addLayerDispatchAction(nodeAttributes, newNodeParent);
         
+        // TODO: Better solution for this. Rendering layer should not be the only criteria for this to be a layer
+        // and not a group. NOTE: saving a flag isLeaf on the table is for the time out of the question to not corrupt
+        // the table with fields that are unrelated to the OGC structure
         if(response?.properties.renderingLayer) {
           layerToAdd = layerUtils.createMrMapOlWMSLayer(response);
         } else {
@@ -370,13 +371,13 @@ export const LayerManager = ({
       </Tooltip>
       {isTreeContainerVisible && (
         <TreeManager
-          draggable
+          draggable={draggable}
           contextMenuOnNode
           checkableNodes
-          attributeContainer='drawer'
           className='layer-manager-tree'
           title='Layers'
           treeData={treeData}
+          initExpandedNodeIds={initExpandedLayerIds}
           asyncTree={asyncTree}
           extendedNodeActions={layerActions}
           //@ts-ignore

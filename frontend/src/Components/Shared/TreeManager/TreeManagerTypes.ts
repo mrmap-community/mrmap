@@ -54,11 +54,11 @@ export interface TreeNodeType extends DataNode {
     parent?: string | number | null;
     children: TreeNodeType[];
     properties?: any;
-    expanded?: boolean;
   }
   
 export interface TreeManagerProps {
     treeData: TreeNodeType[];
+    initExpandedNodeIds?: string[];
     asyncTree?: boolean;
     addNodeDispatchAction?:(
       nodeAttributes: any,
@@ -77,7 +77,6 @@ export interface TreeManagerProps {
     editNodeActionIcon?: ReactNode;
     nodeOptionsIcon?: ReactNode;
     title?: string;
-    attributeContainer?: 'modal' | 'drawer';
     contextMenuOnNode?: boolean;
     showMaskOnNodeAttributeForm?: boolean;
     checkableNodes?: boolean;

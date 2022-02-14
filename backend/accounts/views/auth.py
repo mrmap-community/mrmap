@@ -8,7 +8,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.models import Permission
 from django.middleware.csrf import get_token
 from extras.openapi import CustomAutoSchema
-from rest_framework import generics, status, views
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet

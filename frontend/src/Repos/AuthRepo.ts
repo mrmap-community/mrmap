@@ -30,14 +30,14 @@ class AuthRepo extends BaseJsonApiRepo {
           }
         }
       }, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string },
       });
     }
 
     async logout (): Promise<JsonApiResponse> {
       const client = await AuthRepo.getClientInstance();
       return client['deleteLoginRequest'](undefined, {}, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string },
       });
     }
 

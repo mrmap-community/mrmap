@@ -55,7 +55,7 @@ class MapContextLayerRepo extends JsonApiRepo {
         }
       }
     }, {
-      headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+      headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken')as string }
     });
   }
 

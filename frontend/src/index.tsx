@@ -1,9 +1,11 @@
 import { ConfigProvider } from 'antd';
 import deDE from 'antd/lib/locale/de_DE';
+import { AxiosRequestConfig } from 'axios';
 import 'moment/locale/de'; // needed for german date formats in antd date components
 import 'ol/ol.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { OpenAPIProvider } from 'react-openapi-client';
 import { Provider } from 'react-redux';
 import App from './App';
 import './index.css';
@@ -12,14 +14,26 @@ import reportWebVitals from './reportWebVitals';
 import { store } from './Services/ReduxStore/Store';
 import WebSockets from './Services/WebSockets';
 
+const defaultConfig: AxiosRequestConfig = {
+  baseURL: '/',
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
+  headers: {
+    'Content-Type': 'application/vnd.api+json'
+  }
+};
 
 ReactDOM.render(
   <Provider store={store}>
     <WebSockets />
     <AuthProvider>
-      <ConfigProvider locale={deDE}>
-        <App />
-      </ConfigProvider>
+      <OpenAPIProvider 
+        definition='/api/schema/' 
+        axiosConfigDefaults={defaultConfig}>
+        <ConfigProvider locale={deDE}>
+          <App />
+        </ConfigProvider>
+      </OpenAPIProvider>
     </AuthProvider>
   </Provider>,
 

@@ -154,7 +154,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
     async delete (id: string): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
       return await client['delete' + this.resourceType](id, {}, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string }
       });
     }
 
@@ -174,7 +174,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
           }
         }
       }, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string },
       });
     }
 
@@ -198,7 +198,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
           }
         }
       }, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string }
       });
     }
 }

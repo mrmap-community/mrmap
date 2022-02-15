@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.urls import resolve
 from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -123,6 +124,21 @@ class CustomAutoSchema(AutoSchema):
             action = self.method_mapping[method.lower()]
 
         resource_name = get_resource_name(context={"view": self.view})
+
+        if "parent_lookup" in path:
+            import importlib
+            original_list_path = path.split('{', 1)[0]
+            resolve_match = resolve(original_list_path)
+            module_name = resolve_match.func.__module__  # 'path.to.views'
+            views = importlib.import_module(module_name)
+            view_class = getattr(views, resolve_match.func.__name__)
+            view_instance = view_class()
+            view_instance.action = 'list'
+            # print(self.view.request)
+            # view_instance.request = clone_request(self.view.request, "get")
+            parent_resource_name = get_resource_name(
+                context={"view": view_instance})
+            return f"list{resource_name}By{parent_resource_name}"
 
         match (action):
             case "list":

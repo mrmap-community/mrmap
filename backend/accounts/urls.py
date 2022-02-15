@@ -24,7 +24,6 @@ router = ExtendedSimpleRouter()
 
 urlpatterns = router.urls
 urlpatterns.extend([
-    path('csrf-token/', auth_views.CsrfTokenView.as_view(), name='crsf'),
     path('login/', auth_views.LoginRequestView.as_view(), name='login'),
     path('logout/', auth_views.LogoutRequestView.as_view(), name='logout'),
     path('who-am-i/', auth_views.WhoAmIView.as_view(), name='whoami'),

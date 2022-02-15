@@ -12,7 +12,6 @@ import OlVectorSource from 'ol/source/Vector';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '../../../../Hooks/useAuth';
 import { createOrUpdate, operation } from '../../../../Repos/JsonApi';
 import { screenToWgs84, wgs84ToScreen, zoomTo } from '../../../../Utils/MapUtils';
 import { InputField } from '../../../Shared/FormFields/InputField/InputField';
@@ -39,7 +38,6 @@ export const RuleForm = ({
   const navigate = useNavigate();
   const { ruleId } = useParams();
   const [form] = useForm();
-  const auth = useAuth();
   const map = useMap();
 
   const [layer, setLayer] = useState<OlVectorLayer<OlVectorSource<OlGeometry>>>();  
@@ -110,12 +108,12 @@ export const RuleForm = ({
         }
       }
     }
-    if (map && auth) {
+    if (map) {
       setIsSavingOrLoading(true);
       digiLayer = DigitizeUtil.getDigitizeLayer(map);
       setLayer(digiLayer);
       initAvailableWmsOps();
-      auth && initAvailableGroups();
+      initAvailableGroups();
       ruleId && initFromExistingRule(ruleId);
       setIsSavingOrLoading(false);
     }
@@ -124,7 +122,7 @@ export const RuleForm = ({
       digiLayer?.getSource().clear();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[auth, ruleId, map, form]);
+  },[ruleId, map, form]);
 
   const onFinish = async (values: any) => {
     if (selectedLayerIds.length === 0) {

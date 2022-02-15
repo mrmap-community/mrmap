@@ -1,37 +1,48 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Alert, Button, Form, Image, Input, Row } from 'antd';
 import { RequestPayload } from 'openapi-client-axios';
-import React, { ReactElement, useEffect } from 'react';
+import React, { ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
+import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../Hooks/useAuth';
 
 
 export const Login = (): ReactElement => {
-  const auth = useAuth();
   const navigate = useNavigate();
   // workaround for a strange issue with TypeScript version 4.4.4
   // (currently cannot update to 4.5.4 due to eslint incompatibility)
   const location: any = useLocation();
-  const [createLoginRequest, { loading: loginLoading, error: loginError, data: loginData }] = useOperationMethod('addLoginRequest');
-  const [getCurrentUser, { loading: userLoading, error: userError, data: userData }] = useOperationMethod('getCurrentUser');
+  // eslint-disable-next-line max-len
+  const [createLoginRequest, { loading: loginLoading, error: loginError, response: loginResponse }] = useOperationMethod('addLoginRequest');
+  const [getCurrentUser, { loading: userLoading, data: userData }] = useOperationMethod('getCurrentUser');
+  const dispatch = useDispatch();
+  const [isInit, setIsInit] = useState(false);
 
-  //const [loggingIn, setLoggingIn] = useState(false);
-  //const [loginFailed, setLoginFailed] = useState(false);
-
-  useEffect(() => {
-    // TODO: set currentUser
-    // const from = location.state?.from?.pathname || '/';
-    // navigate(from);
-    console.log(userData);
-    auth?.setUser(userData);
-  }, [userData, auth]);
 
 
   useEffect(() => {
-    getCurrentUser();
-  }, [getCurrentUser, loginData]);
+    
+    if (isInit && userData && userData.data.attributes.username !== 'AnonymousUser'){
+      dispatch({
+        type: 'currentUser/set',
+        payload: userData.data
+      });
+      const from = location.state?.from?.pathname || '/';
+      navigate(from);
+    }
+  }, [isInit, userData, navigate, location, dispatch]);
 
+  useEffect(() => {
+    if (!isInit){
+      setIsInit(true);
+      getCurrentUser();
+    }
+    if (loginResponse && loginResponse.status === 200) {
+      getCurrentUser();
+    }
+  }, [loginResponse, isInit, getCurrentUser]);
+
+  
   const onFinish = (values: any) => {
     const jsonApiPayload: RequestPayload = {
       'data': {
@@ -73,16 +84,16 @@ export const Login = (): ReactElement => {
             placeholder='Password'
           />
         </Form.Item>
-        {loginError || userError
+        {loginError
           ? (
             <Form.Item><Alert message='Login failed. Hint: mrmap/mrmap' type='error' showIcon /></Form.Item>
           )
           : (<></>)
         }
         <Form.Item>
-          <Button size='large' type='primary' loading={loginLoading || userLoading}
+          <Button size='large' type='primary' loading={loginLoading} disabled={userLoading}
             htmlType='submit'>
-            {loginLoading || userLoading ? 'Logging in' : 'Log in'}
+            {loginLoading ? 'Logging in' : 'Log in'}
           </Button>
         </Form.Item>
       </Form>

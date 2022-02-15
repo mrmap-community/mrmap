@@ -1,6 +1,7 @@
 import { MapContext } from '@terrestris/react-geo';
 import { Layout } from 'antd';
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 import CswTable from './Components/CswTable/CswTable';
@@ -19,20 +20,20 @@ import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList
 import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
-import { useAuth } from './Hooks/useAuth';
 import CatalogueServiceRepo from './Repos/CswRepo';
 import WebFeatureServiceRepo from './Repos/WfsRepo';
 import WebMapServiceRepo from './Repos/WmsRepo';
+import { currentUserSelectors } from './Services/ReduxStore/Reducers/CurrentUser';
 import { olMap } from './Utils/MapUtils';
-
 
 const { Content, Sider } = Layout;
 
 function RequireAuth ({ children }:{ children: JSX.Element }) {
-  const auth = useAuth();
   const location = useLocation();
-
-  if (!auth || !auth.user) {
+  const currentUser = useSelector(currentUserSelectors.selectAll);
+  console.log(currentUser);
+  
+  if (!currentUser || !currentUser[0]) {
     // store location so login page can forward to original page
     return <Navigate to='/login' state={{ from: location }} />;
   }
@@ -40,11 +41,14 @@ function RequireAuth ({ children }:{ children: JSX.Element }) {
 }
 
 export default function App (): JSX.Element {
+
   const [collapsed, setCollapsed] = useState(false);
 
   const onCollapse = (_collapsed: boolean) => {
     setCollapsed(_collapsed);
   };
+
+
 
   return (
     <Router>

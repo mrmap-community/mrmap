@@ -9,7 +9,6 @@ import { OpenAPIProvider } from 'react-openapi-client';
 import { Provider } from 'react-redux';
 import App from './App';
 import './index.css';
-import { AuthProvider } from './Providers/AuthProvider';
 import reportWebVitals from './reportWebVitals';
 import { store } from './Services/ReduxStore/Store';
 import WebSockets from './Services/WebSockets';
@@ -26,15 +25,13 @@ const defaultConfig: AxiosRequestConfig = {
 ReactDOM.render(
   <Provider store={store}>
     <WebSockets />
-    <AuthProvider>
-      <OpenAPIProvider 
-        definition='/api/schema/' 
-        axiosConfigDefaults={defaultConfig}>
-        <ConfigProvider locale={deDE}>
-          <App />
-        </ConfigProvider>
-      </OpenAPIProvider>
-    </AuthProvider>
+    <OpenAPIProvider 
+      definition='/api/schema/' 
+      axiosConfigDefaults={defaultConfig}>
+      <ConfigProvider locale={deDE}>
+        <App />
+      </ConfigProvider>
+    </OpenAPIProvider>
   </Provider>,
 
   document.getElementById('root'),

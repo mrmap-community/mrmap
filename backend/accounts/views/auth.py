@@ -1,45 +1,14 @@
-import re
-
 from accounts.models.users import User
-from accounts.serializers.auth import (CsrfTokenSerializer, LoginSerializer,
-                                       LogoutSerializer, PermissionSerializer)
+from accounts.serializers.auth import (LoginSerializer, LogoutSerializer,
+                                       PermissionSerializer)
 from accounts.serializers.users import UserSerializer
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Permission
-from django.middleware.csrf import get_token
 from extras.openapi import CustomAutoSchema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
-
-
-class CsrfToken:
-    def __init__(self, token):
-        self.pk = token
-        self.token = token
-
-
-class CsrfTokenView(generics.GenericAPIView):
-    """ Retreives a single csrf token for the given request 
-
-        get: Retreives a single csrf token for the given request 
-
-    """
-    schema = CustomAutoSchema(
-        tags=['Auth'],
-    )
-    http_method_names = ['get', 'head', 'options']
-    resource_name = "CsrfToken"
-    serializer_class = CsrfTokenSerializer
-
-    def get(self, *args, **kwargs):
-        return self.retreive(*args, **kwargs)
-
-    def retreive(self, request, *args, **kwargs):
-        token = get_token(request=request)
-        serializer = self.get_serializer(CsrfToken(token=token))
-        return Response(serializer.data)
 
 
 class LoginRequestView(generics.GenericAPIView):

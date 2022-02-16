@@ -31,7 +31,6 @@ const { Content, Sider } = Layout;
 function RequireAuth ({ children }:{ children: JSX.Element }) {
   const location = useLocation();
   const currentUser = useSelector(currentUserSelectors.selectAll);
-  console.log(currentUser);
   
   if (!currentUser || !currentUser[0]) {
     // store location so login page can forward to original page

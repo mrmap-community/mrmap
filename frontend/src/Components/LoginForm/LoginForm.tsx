@@ -12,7 +12,7 @@ export const Login = (): ReactElement => {
   // (currently cannot update to 4.5.4 due to eslint incompatibility)
   const location: any = useLocation();
   // eslint-disable-next-line max-len
-  const [createLoginRequest, { loading: loginLoading, error: loginError, response: loginResponse , api }] = useOperationMethod('addLoginRequest');
+  const [createLoginRequest, { loading: loginLoading, error: loginError, response: loginResponse  }] = useOperationMethod('addLoginRequest');
   const [getCurrentUser, { loading: userLoading, data: userData }] = useOperationMethod('getCurrentUser');
   const dispatch = useDispatch();
   const [isInit, setIsInit] = useState(false);
@@ -32,18 +32,6 @@ export const Login = (): ReactElement => {
   }, [isInit, userData, navigate, location, dispatch]);
 
   useEffect(() => {
-    console.log(api);
-    // if (api.document) {
-    //   SwaggerParser.validate(api.document, (err, api) => {
-    //     if (err) {
-    //       console.error(err);
-    //     }
-    //     else {
-    //       console.log(api?.definition);
-    //     }
-    //   });
-    // }
-    
     if (!isInit){
       setIsInit(true);
       getCurrentUser();

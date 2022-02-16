@@ -3,12 +3,12 @@ import { ActionType, default as ProTable, ProColumnType, ProTableProps } from '@
 import '@ant-design/pro-table/dist/table.css';
 import { Button, Modal, Space } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
+import { OpenAPIV3 } from 'openapi-types';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useNavigate } from 'react-router';
 import { getQueryParams } from '../../../Utils/JsonApiUtils';
 import { augmentColumnWithJsonSchema } from './TableHelper';
-
 
 export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'> {
     /** Repository that defines the schema and offers CRUD operations */
@@ -80,6 +80,15 @@ const RepoTable = ({
   const [deleteResource, { loading: deleteLoading, error: deleteError, response: deleteResponse, api: deleteApi }] = useOperationMethod('delete'+resourceType);
 
 
+  const tableDataSourceInit = {
+    current: 0,
+    data: [],
+    pageSize: 0,
+    success: true,
+    total: 0
+  };
+  const [tableDataSource, setTableDataSource] = useState<any>(tableDataSourceInit);
+
 
   const actions = useRef<RepoActionType>();
   const setActions = (proTableActions: ActionType) => {
@@ -117,11 +126,14 @@ const RepoTable = ({
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
     let isMounted = true;
-    async function buildColumns () {
-      
-      const queryParams = getQueryParams(listApi, 'list'+resourceType);
+  
+    const queryParams = getQueryParams(listApi, 'list'+resourceType);
+    const operation = listApi.getOperation('list'+resourceType);
 
-      const _augmentedColumns = augmentColumns(resourceSchema, queryParams, columns);
+    const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
+    const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema;
+    if (responseSchema) {
+      const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
       if (!_augmentedColumns.some(column => column.key === 'actions')) {
         _augmentedColumns.push({
           key: 'actions',
@@ -154,12 +166,47 @@ const RepoTable = ({
       }
       isMounted && setAugmentedColumns(_augmentedColumns);
     }
-    buildColumns();
+    
+    
     return () => { isMounted = false; }; // componentWillUnmount handler
   }, [columns, onEditRecord]);
 
+  useEffect(() => {
+    if (listResponse) {
+      const records = listResponse?.data.data === undefined ? [] : listResponse?.data.data;
+      const data: any = [];
+      if (Array.isArray(records)) {
+        records.forEach((record: any) => {
+          const row = {
+            key: record.id,
+            id: record.id,
+            layers: [],
+            ...record.attributes
+          };
+          if(record.relationships?.selfPointingLayers?.data.length > 0){
+            const layerIds = record.relationships.selfPointingLayers.data.map((d:any) => d.id);
+            row.layers = layerIds;
+          }
+          if(record.relationships.allowedOperations?.meta?.count){
+            row.allowedOperations = record.relationships.allowedOperations.meta.count;
+          }        
+          data.push(row);
+        });
+      }
+      const dataSource = {
+        current: listResponse.data.meta.pagination.page,
+        data: data,
+        pageSize: 10,
+        success: listError,
+        total: listResponse?.data.meta.pagination.count
+      };
+      setTableDataSource(dataSource);
+    }
+    
+  }, [listResponse, setTableDataSource]);
+
   // fetches data in format expected by antd ProTable component
-  async function fetchData (params: any, sorter?: Record<string, SortOrder>): Promise<any> {
+  function fetchData (params: any, sorter?: Record<string, SortOrder>) {
     let ordering = '';
     if (sorter) {
       for (const prop in sorter) {
@@ -180,42 +227,16 @@ const RepoTable = ({
       ordering: ordering,
       filters: filters
     };
-    //const response = await repo.findAll(queryParams);
-    const response = {} as any;
-    const records = response.data?.data === undefined ? [] : response.data?.data;
-    const data: any = [];
-    if (Array.isArray(records)) {
-      records.forEach((record: any) => {
-        const row = {
-          key: record.id,
-          id: record.id,
-          layers: [],
-          ...record.attributes
-        };
-        if(record.relationships?.selfPointingLayers?.data.length > 0){
-          const layerIds = record.relationships.selfPointingLayers.data.map((d:any) => d.id);
-          row.layers = layerIds;
-        }
-        if(record.relationships.allowedOperations?.meta?.count){
-          row.allowedOperations = record.relationships.allowedOperations.meta.count;
-        }        
-        data.push(row);
-      });
-    }
-    const dataSource = {
-      current: response.data?.meta.pagination.page,
-      data: data,
-      pageSize: params.pageSize,
-      success: true,
-      total: response.data?.meta.pagination.count
-    };
-    return dataSource;
+    // TODO: add params
+    listResource();
+    return tableDataSource;
   }
 
   return (
     <>{ augmentedColumns.length > 0 && (
       <ProTable
         request={fetchData}
+        dataSource={tableDataSource.data}
         columns={augmentedColumns}
         scroll={{ x: true }}
         headerTitle={resourceType}

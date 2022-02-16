@@ -27,4 +27,3 @@ export function getQueryParams (api: OpenAPIClientAxios, operationId: string): a
   return params;
 }
 
-

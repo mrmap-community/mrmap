@@ -11,20 +11,15 @@ const WmsTable = (): JSX.Element => {
   const navigate = useNavigate();
   const columns: RepoTableColumnType[] = [{
     dataIndex: 'id',
-    title: 'ID'
   }, {
     dataIndex: 'title',
-    title: 'Titel'
   }, {
     dataIndex: 'abstract',
-    title: 'Zusammenfassung'
   }, {
     dataIndex: 'createdAt',
-    title: 'Erstellt',
     hideInSearch: true
   }, {
     dataIndex: 'createdBetween',
-    title: 'Erstellt',
     valueType: 'dateRange',
     fieldProps: {
       format: 'DD.MM.YYYY',
@@ -36,11 +31,9 @@ const WmsTable = (): JSX.Element => {
     hideInTable: true
   }, {
     dataIndex: 'lastModifiedAt',
-    title: 'Modifiziert',
     hideInSearch: true
   }, {
     dataIndex: 'lastModifiedBetween',
-    title: 'Modifiziert',
     valueType: 'dateRange',
     fieldProps: {
       format: 'DD.MM.YYYY',
@@ -52,13 +45,10 @@ const WmsTable = (): JSX.Element => {
     hideInTable: true
   }, {
     dataIndex: 'version',
-    title: 'Version'
   }, {
     dataIndex: 'serviceUrl',
-    title: 'Service URL'
   }, {
     dataIndex: 'getCapabilitiesUrl',
-    title: 'Capabilities URL'
   }, {
     dataIndex: 'xmlBackupFile',
     hideInTable: true,

@@ -250,7 +250,7 @@ const RepoTable = ({
               type='primary'
               key='primary'
               onClick={() => {
-                navigate(onAddRecord as string);
+                navigate(onAddRecord);
               }}
             >
               <PlusOutlined />Neu

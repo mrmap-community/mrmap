@@ -151,7 +151,7 @@ export const WmsSecuritySettings = (): ReactElement => {
           map.addLayer(wmsOlRootLayer as BaseLayer);
           setOlUidToLayer(newOlUidToLayer);
           setLayerIdToLayer(newLayerIdToLayer);
-          setExpandedOlUids([getUid(wmsOlRootLayer)]);
+          setExpandedOlUids(newExpandedOlUids);
         } finally {
           setIsLoading(false);
         }
@@ -205,10 +205,6 @@ export const WmsSecuritySettings = (): ReactElement => {
     setSelectedLayerIds(Array.from(newSelectedLayerIds).sort());
   };
 
-  const onExpand = (expandedKeys: any) => {
-    setExpandedOlUids(expandedKeys);
-  };
-
   return (
     <>
       <div className='wms-security-layout'>
@@ -224,7 +220,9 @@ export const WmsSecuritySettings = (): ReactElement => {
               return value.get('isSecurityLayer');
             }}
             expandedKeys={expandedOlUids}
-            onExpand={onExpand}
+            switcherIcon={<></>}
+            /* workaround for node expansion bug: https://codesandbox.io/s/antd-reproduction-template-forked-zxzdf */
+            defaultExpandParent={false}
           />
         </LeftDrawer>
         <AutoResizeMapComponent id='the-map' />

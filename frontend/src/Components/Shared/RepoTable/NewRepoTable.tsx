@@ -207,6 +207,11 @@ const RepoTable = ({
 
   // fetches data in format expected by antd ProTable component
   function fetchData (params: any, sorter?: Record<string, SortOrder>) {
+    const queryParams = [
+      { name: 'page', value: params.current, in: 'query' },
+      { name: 'page[size]', value: params.pageSize, in: 'query' },
+    ];
+    
     let ordering = '';
     if (sorter) {
       for (const prop in sorter) {
@@ -214,21 +219,17 @@ const RepoTable = ({
         ordering = (sorter[prop] === 'descend' ? '-' : '') + prop;
       }
     }
-    const filters:any = {};
+    if (ordering !== '') {
+      queryParams.push({ name: 'sort', value: ordering, in: 'query' });
+    }
     for (const prop in params) {
       // 'current' and 'pageSize' are reserved names in antd ProTable (and cannot be used for filtering)
       if (prop !== 'current' && prop !== 'pageSize' && params[prop]) {
-        filters[prop] = params[prop];
+        queryParams.push({ name: prop, value: params[prop], in: 'query' });
       }
     }
-    const queryParams = {
-      page: params.current,
-      pageSize: params.pageSize,
-      ordering: ordering,
-      filters: filters
-    };
-    // TODO: add params
-    listResource();
+
+    listResource(queryParams);
     return tableDataSource;
   }
 
@@ -237,6 +238,7 @@ const RepoTable = ({
       <ProTable
         request={fetchData}
         dataSource={tableDataSource.data}
+        loading={listLoading}
         columns={augmentedColumns}
         scroll={{ x: true }}
         headerTitle={resourceType}

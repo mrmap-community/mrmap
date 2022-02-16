@@ -124,6 +124,7 @@ class MapContext(models.Model):
 
 
 class RenderingOffering(models.Model):
+    # TODO: to get rid of the models.PROTECT calls on_delete and a consistent object instance... we need to create a seperate model for rendering layer...
     rendering_layer: Layer = models.ForeignKey(
         to=Layer,
         on_delete=models.PROTECT,

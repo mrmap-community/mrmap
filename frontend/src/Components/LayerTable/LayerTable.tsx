@@ -1,12 +1,10 @@
 import React from 'react';
-import LayerRepo from '../../Repos/LayerRepo';
-import RepoTable from '../Shared/RepoTable/RepoTable';
+import RepoTable from '../Shared/RepoTable/NewRepoTable';
 
 
-const repo = new LayerRepo();
 
 const LayerTable = (): JSX.Element => {
-  return <RepoTable repo={repo} />;
+  return <RepoTable resourceType='Layer' />;
 };
 
 export default LayerTable;

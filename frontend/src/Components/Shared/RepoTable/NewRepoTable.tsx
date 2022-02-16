@@ -1,7 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { ActionType, default as ProTable, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
-import { Button, Modal, Space } from 'antd';
+import { Button, Modal, notification, Space, TablePaginationConfig } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
@@ -13,7 +13,6 @@ import { augmentColumnWithJsonSchema } from './TableHelper';
 export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'> {
     /** Repository that defines the schema and offers CRUD operations */
     resourceType: string
-    parentResourceType?: string
     /** Optional column definitions, automatically augmented with the repository schema */
     columns?: RepoTableColumnType[]
     /** Reference to table actions for custom triggering */
@@ -67,7 +66,6 @@ function augmentColumns (resourceSchema: any, queryParams: any,
 
 const RepoTable = ({
   resourceType,
-  parentResourceType = undefined,
   columns = undefined,
   actionRef = undefined,
   onAddRecord = undefined,
@@ -76,32 +74,23 @@ const RepoTable = ({
 }: RepoTableProps): ReactElement => {
   const navigate = useNavigate();
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
+  // eslint-disable-next-line max-len
   const [listResource, { loading: listLoading, error: listError, response: listResponse, api: listApi }] = useOperationMethod('list'+resourceType);
-  const [deleteResource, { loading: deleteLoading, error: deleteError, response: deleteResponse, api: deleteApi }] = useOperationMethod('delete'+resourceType);
-
+  const [deleteResource, { error: deleteError, api: deleteApi }] = useOperationMethod('delete'+resourceType);
 
   const tableDataSourceInit = {
-    current: 0,
     data: [],
-    pageSize: 0,
     success: true,
     total: 0
   };
   const [tableDataSource, setTableDataSource] = useState<any>(tableDataSourceInit);
-
+  const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
 
   const actions = useRef<RepoActionType>();
   const setActions = (proTableActions: ActionType) => {
     actions.current = {
       ...proTableActions,
       deleteRecord: (row:any) => {
-        async function deleteFromRepo () {
-          // TODO
-          // const res = await repo.delete(row.id);
-          // if (res.status !== 204) {
-          //   notification.error({ message: 'Unexpected response code' });
-          // }
-        }
         const modal = Modal.confirm({
           title: 'Delete record',
           content: `Do you want to delete the record with id ${row.id}?`,
@@ -110,7 +99,8 @@ const RepoTable = ({
               ...prevConfig,
               confirmLoading: true
             }));
-            deleteFromRepo();
+
+            deleteResource(row.id);
             proTableActions.reload();
           }
         });
@@ -122,6 +112,12 @@ const RepoTable = ({
       actionRef.current = actions.current;
     }
   };
+
+  useEffect(() => {
+    if (deleteError) {
+      notification.error({ message: 'Something went wrong. Can\'t delete resource.' });
+    }
+  }, [deleteError]);
 
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
@@ -135,29 +131,35 @@ const RepoTable = ({
     if (responseSchema) {
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
       if (!_augmentedColumns.some(column => column.key === 'actions')) {
+        
         _augmentedColumns.push({
           key: 'actions',
           title: 'Aktionen',
           valueType: 'option',
+
           render: (text: any, record: any) => {
             return (
               <>
                 <Space size='middle'>
-                  {onEditRecord && (
-                    <Button
-                      size='small'
-                      onClick={() => onEditRecord(record.id)}
-                    >
+                  { // todo: check if user has permission also
+                    onEditRecord && (
+                      <Button
+                        size='small'
+                        onClick={() => onEditRecord(record.id)}
+                      >
                     Bearbeiten
-                    </Button>
-                  )}
-                  <Button
-                    danger
-                    size='small'
-                    onClick={() => actions.current?.deleteRecord(record)}
-                  >
+                      </Button>
+                    )}
+                  
+                  { // todo: check if user has permission also
+                    deleteApi.getOperation('delete'+resourceType) ?
+                      <Button
+                        danger
+                        size='small'
+                        onClick={() => actions.current?.deleteRecord(record)}
+                      >
                   Löschen
-                  </Button>
+                      </Button> : <></>}
                 </Space>
               </>
             );
@@ -167,13 +169,12 @@ const RepoTable = ({
       isMounted && setAugmentedColumns(_augmentedColumns);
     }
     
-    
     return () => { isMounted = false; }; // componentWillUnmount handler
-  }, [columns, onEditRecord]);
+  }, [columns, deleteApi, listApi, onEditRecord, resourceType]);
 
   useEffect(() => {
     if (listResponse) {
-      const records = listResponse?.data.data === undefined ? [] : listResponse?.data.data;
+      const records = listResponse.data.data === undefined ? [] : listResponse.data.data;
       const data: any = [];
       if (Array.isArray(records)) {
         records.forEach((record: any) => {
@@ -183,6 +184,7 @@ const RepoTable = ({
             layers: [],
             ...record.attributes
           };
+          // TODO: remove this from this component... this is layer specific stuff
           if(record.relationships?.selfPointingLayers?.data.length > 0){
             const layerIds = record.relationships.selfPointingLayers.data.map((d:any) => d.id);
             row.layers = layerIds;
@@ -194,21 +196,21 @@ const RepoTable = ({
         });
       }
       const dataSource = {
-        current: listResponse.data.meta.pagination.page,
+        //current: listResponse.data.meta.pagination.page,
         data: data,
-        pageSize: 10,
         success: listError,
-        total: listResponse?.data.meta.pagination.count
+        total: listResponse.data.meta.pagination.count
       };
       setTableDataSource(dataSource);
+      setPaginationConfig({ total: dataSource.total });
     }
     
-  }, [listResponse, setTableDataSource]);
+  }, [listError, listResponse]);
 
   // fetches data in format expected by antd ProTable component
   function fetchData (params: any, sorter?: Record<string, SortOrder>) {
     const queryParams = [
-      { name: 'page', value: params.current, in: 'query' },
+      { name: 'page[number]', value: params.current, in: 'query' },
       { name: 'page[size]', value: params.pageSize, in: 'query' },
     ];
     
@@ -244,6 +246,7 @@ const RepoTable = ({
         headerTitle={resourceType}
         actionRef={setActions}
         dateFormatter={false}
+        pagination={paginationConfig}
         toolBarRender={onAddRecord
           ? () => [
             <Button

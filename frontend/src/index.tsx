@@ -10,12 +10,9 @@ import './index.css';
 import { AuthProvider } from './Providers/AuthProvider';
 import reportWebVitals from './reportWebVitals';
 import { store } from './Services/ReduxStore/Store';
-import WebSockets from './Services/WebSockets';
-
 
 ReactDOM.render(
   <Provider store={store}>
-    <WebSockets />
     <AuthProvider>
       <ConfigProvider locale={deDE}>
         <App />

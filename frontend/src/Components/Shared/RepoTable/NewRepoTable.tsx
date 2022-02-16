@@ -118,21 +118,7 @@ const RepoTable = ({
   useEffect(() => {
     let isMounted = true;
     async function buildColumns () {
-      const fullSchema = listApi?.document;
-
-      const op = listApi.getOperation('list'+resourceType);
-      const responsesObject = op?.responses['200'] as any;
-      let resourceSchema = undefined;
-      if (Object.prototype.hasOwnProperty.call(responsesObject, 'content')){
-        const schema = responsesObject?.content['application/vnd.api+json'].schema;
-        resourceSchema = schema.properties.data.items;
-        if (resourceSchema.startsWith('#/components/schemas/')) {
-          const ref = resourceSchema.split('#/components/schemas/')[1];
-          //resourceSchema =  fullSchema?.components?.schemas[ref];
-        }
-      }
-
-
+      
       const queryParams = getQueryParams(listApi, 'list'+resourceType);
 
       const _augmentedColumns = augmentColumns(resourceSchema, queryParams, columns);

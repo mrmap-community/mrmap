@@ -6,6 +6,7 @@
     "@ant-design/icons": "^4.7.0",
     "@ant-design/pro-layout": "^6.31.3",
     "@ant-design/pro-table": "^2.59.0",
+    "@apidevtools/swagger-parser": "^10.0.3",
     "@fortawesome/fontawesome-svg-core": "^1.2.36",
     "@fortawesome/free-brands-svg-icons": "^5.15.4",
     "@fortawesome/free-regular-svg-icons": "^5.15.4",

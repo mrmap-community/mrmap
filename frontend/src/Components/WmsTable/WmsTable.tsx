@@ -2,12 +2,9 @@ import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import { Button, Space } from 'antd';
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router';
-import WmsRepo from '../../Repos/WmsRepo';
-import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/RepoTable/RepoTable';
+import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/RepoTable/NewRepoTable';
 import { buildSearchTransformDateRange } from '../Shared/RepoTable/TableHelper';
 
-
-const repo = new WmsRepo();
 
 const WmsTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
@@ -156,7 +153,7 @@ const WmsTable = (): JSX.Element => {
   }];
 
   return <RepoTable
-    repo={repo}
+    resourceType='WebMapService'
     columns={columns}
     actionRef={actionRef as any}
     onAddRecord='/registry/services/wms/add'

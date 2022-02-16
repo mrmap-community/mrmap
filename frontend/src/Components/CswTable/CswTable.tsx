@@ -1,11 +1,9 @@
 import { Button, Space } from 'antd';
 import React, { useRef } from 'react';
-import CswRepo from '../../Repos/CswRepo';
-import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/RepoTable/RepoTable';
+import RepoTable, { RepoActionType, RepoTableColumnType } from '../Shared/RepoTable/NewRepoTable';
 import { buildSearchTransformDateRange } from '../Shared/RepoTable/TableHelper';
 
 
-const repo = new CswRepo();
 
 const CswTable = (): JSX.Element => {
   const actionRef = useRef<RepoActionType>();
@@ -143,7 +141,7 @@ const CswTable = (): JSX.Element => {
   }];
 
   return <RepoTable
-    repo={repo}
+    resourceType='CatalougeService'
     columns={columns}
     actionRef={actionRef as any}
     onAddRecord='/registry/services/csw/add'

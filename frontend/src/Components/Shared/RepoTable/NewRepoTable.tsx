@@ -72,6 +72,10 @@ const RepoTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
+
+  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
+
+
   const navigate = useNavigate();
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
   // eslint-disable-next-line max-len

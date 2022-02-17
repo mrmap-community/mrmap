@@ -65,4 +65,3 @@ class PermissionSerializer(
     class Meta:
         model = Permission
         fields = "__all__"
-        meta_fields = ("string_representation",)

@@ -28,7 +28,6 @@ class UserSerializer(
         resource_name = 'User'
         model = User
         exclude = ("password", )
-        meta_fields = ("string_representation",)
 
 
 class UserCreateSerializer(ModelSerializer):

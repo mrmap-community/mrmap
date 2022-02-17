@@ -4,6 +4,7 @@ import { BetaSchemaForm } from '@ant-design/pro-form';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
+import RepoSelect from '../RepoSelect/RepoSelect';
 
 function getValueType(fieldSchema: any):  ProFieldValueType {
   if (fieldSchema.type === 'string') {
@@ -95,8 +96,8 @@ function augmentColumns (
       const column: ProFormColumnsType = {
         title: relation.title,
         dataIndex: relation.relationName,
-        valueType: 'text'
-        //renderFormItem: () => {};
+        valueType: 'text',
+        renderFormItem: () => <RepoSelect resourceType={relatedResourceType} fieldSchema={relation}/>
       };
       columns.push(column);
     }

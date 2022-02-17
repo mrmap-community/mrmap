@@ -1,31 +1,51 @@
-import { Select } from 'antd';
-import React, { ReactElement, useEffect, useState } from 'react';
+import { notification, Select } from 'antd';
+import React, { ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 
 
-const { Option } = Select;
-
-
-
+export interface OptionData {
+  value: string | number;
+  label: string;
+  attributes?: any;
+  relationships?: any;
+}
 
 const RepoSelect = ({
   resourceType,
+  fieldSchema,
   ...passThroughProps
 }: any): ReactElement => {
-    
-  const [options, setOptions] = useState<any[]>([]);
+
+  const [options, setOptions] = useState<OptionData[]>([]);
   const [listOperation, { loading, error, response, api }] = useOperationMethod('list'+resourceType);
+  
+  const isMounted = useRef(false);
 
   useEffect(() => {
-    const newOptions = [];
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    const newOptions: OptionData[] = [] ;
     if (response?.data.data) {
       for (const obj of response.data.data) {
 
-        newOptions.push({ id: obj.id, value: obj.attributes.stringRepresentation });
+        newOptions.push({ 
+          value: obj.id, 
+          label: obj.attributes.stringRepresentation, 
+          attributes: obj.attributes, 
+          relationships: obj.relationships });
       }
     }
     setOptions(newOptions);
   }, [response]);
+
+  useEffect(() => {
+    if (error) {
+      notification.error({ message: 'Something went wrong.' });
+    }
+  }, [error]);
 
   function onChange(value: any) {
     console.log(`selected ${value}`);
@@ -44,18 +64,22 @@ const RepoSelect = ({
     
   return (
     <>
+
       <Select
         showSearch
+        allowClear={true}
         placeholder='Select a person'
-        optionFilterProp='children'
+        
+        //optionFilterProp='children'
         onChange={onChange}
         onSearch={onSearch}
         options={options}
-        filterOption={(input, option) =>
-          option?.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-        }
+        loading={loading}
+        filterOption={false}
+        
         {...passThroughProps}
       />
+     
     </>
   );
 };

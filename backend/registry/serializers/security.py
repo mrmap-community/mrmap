@@ -48,7 +48,6 @@ class AllowedWebMapServiceOperationSerializer(
     class Meta:
         model = AllowedWebMapServiceOperation
         fields = '__all__'
-        meta_fields = ("string_representation",)
 
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -100,4 +99,3 @@ class AllowedWebFeatureServiceOperationSerializer(
     class Meta:
         model = AllowedWebFeatureServiceOperation
         fields = '__all__'
-        meta_fields = ("string_representation",)

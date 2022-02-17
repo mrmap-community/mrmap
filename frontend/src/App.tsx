@@ -16,7 +16,7 @@ import MapContextTable from './Components/MapContextTable/MapContextTable';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import RegisterServiceForm from './Components/RegisterServiceForm/RegisterServiceForm';
-import RepoForm from './Components/Shared/RepoForm/RepoForm';
+import RepoSelect from './Components/Shared/RepoSelect/RepoSelect';
 import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList';
 import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
@@ -114,7 +114,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/services/wms/add'
-            element={<RepoForm resourceType='WebMapService' />}
+            element={<RepoSelect resourceType='WebMapService' />}
           />
           <Route
             path='/registry/services/wms/:wmsId/security/*'

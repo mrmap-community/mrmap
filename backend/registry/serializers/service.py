@@ -7,7 +7,8 @@ from extras.serializers import (HistoryInformationSerializer,
 from MrMap.validators import validate_get_capablities_uri
 from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
-from registry.models.security import (AllowedWebMapServiceOperation, WebFeatureServiceAuthentication,
+from registry.models.security import (AllowedWebMapServiceOperation,
+                                      WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
 from registry.models.service import (CatalougeService, FeatureType, Layer,
                                      WebFeatureService,
@@ -104,7 +105,6 @@ class LayerSerializer(
     class Meta:
         model = Layer
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
     def get_reference_systems(self, instance):
         return instance.get_reference_systems
@@ -175,7 +175,6 @@ class WebMapServiceSerializer(
     class Meta:
         model = WebMapService
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class WebMapServiceCreateSerializer(ModelSerializer):
@@ -270,7 +269,6 @@ class FeatureTypeSerializer(
     class Meta:
         model = FeatureType
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class WebFeatureServiceSerializer(
@@ -327,7 +325,6 @@ class WebFeatureServiceSerializer(
     class Meta:
         model = WebFeatureService
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class WebFeatureServiceCreateSerializer(ModelSerializer):
@@ -375,4 +372,3 @@ class CatalougeServiceSerializer(
     class Meta:
         model = CatalougeService
         fields = "__all__"
-        meta_fields = ("string_representation",)

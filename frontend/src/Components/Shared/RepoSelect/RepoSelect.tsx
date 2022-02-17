@@ -17,9 +17,15 @@ const RepoSelect = ({
 }: any): ReactElement => {
 
   const [options, setOptions] = useState<OptionData[]>([]);
-  const [listOperation, { loading, error, response, api }] = useOperationMethod('list'+resourceType);
+  const [listOperation, { loading, error, response }] = useOperationMethod('list'+resourceType);
   
+
+
   useEffect(() => {
+    if (!response){
+      // force initial options
+      listOperation();
+    }
     const newOptions: OptionData[] = [] ;
     if (response?.data.data) {
       for (const obj of response.data.data) {
@@ -32,13 +38,17 @@ const RepoSelect = ({
       }
     }
     setOptions(newOptions);
-  }, [response]);
+  }, [listOperation, response]);
 
   useEffect(() => {
     if (error) {
-      notification.error({ message: 'Something went wrong.' });
+      notification.error({ 
+        message: `Something went wrong while trying to get data for field ${fieldSchema.title}`, 
+        description: `used OperationId: ${'list'+resourceType} ${error.message}`,
+        duration: 10 
+      });
     }
-  }, [error]);
+  }, [error, fieldSchema.title]);
 
   function onChange(value: any) {
     console.log(`changed ${value}`);
@@ -67,7 +77,6 @@ const RepoSelect = ({
         allowClear={true}
         placeholder={'select '+fieldSchema.title || 'select'}
         autoClearSearchValue={true}
-
         //optionFilterProp='children'
         onChange={onChange}
         onSearch={onSearch}

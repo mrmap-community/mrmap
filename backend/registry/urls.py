@@ -85,6 +85,8 @@ router = ExtendedSimpleRouter()
 
 
     # security
+    router.register(r'security/wms-authentication',
+                    security_views.WebMapServiceAuthenticationViewSet, basename='wmsauth'),
     router.register(r'security/wms-operations',
                     security_views.WebMapServiceOperationViewSet, basename='wmsoperation'),
     router.register(r'security/wfs-operations',

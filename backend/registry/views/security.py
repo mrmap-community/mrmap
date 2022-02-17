@@ -5,14 +5,39 @@ from extras.viewsets import NestedModelViewSet
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
+                                      WebMapServiceAuthentication,
                                       WebMapServiceOperation)
 from registry.models.service import Layer, WebMapService
 from registry.serializers.security import (
     AllowedWebFeatureServiceOperationSerializer,
     AllowedWebMapServiceOperationSerializer,
-    WebFeatureServiceOperationSerializer, WebMapServiceOperationSerializer)
+    WebFeatureServiceOperationSerializer,
+    WebMapServiceAuthenticationSerializer, WebMapServiceOperationSerializer)
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
+
+
+class WebMapServiceAuthenticationViewSetMixin():
+    schema = CustomAutoSchema(
+        tags=["ServiceAuthentication"],
+    )
+    queryset = WebMapServiceAuthentication.objects.all()
+    serializer_class = WebMapServiceAuthenticationSerializer
+    search_fields = ('username', 'service__title', 'service__id')
+
+
+class WebMapServiceAuthenticationViewSet(
+    WebMapServiceAuthenticationViewSetMixin,
+    ReadOnlyModelViewSet
+):
+    pass
+
+
+class NestedWebMapServiceAuthenticationViewSet(
+        WebMapServiceAuthenticationViewSetMixin,
+        NestedModelViewSet
+):
+    pass
 
 
 class WebMapServiceOperationViewSetMixin():

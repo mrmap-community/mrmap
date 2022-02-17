@@ -47,6 +47,7 @@ function getFormItemProps(fieldSchema: any, isRequired = true): any {
   }
   
   return {
+    help: fieldSchema.description,
     rules: rules
   };
 }
@@ -97,6 +98,7 @@ function augmentColumns (
         title: relation.title,
         dataIndex: relation.relationName,
         valueType: 'text',
+        formItemProps: { help: relation.description },
         renderFormItem: () => <RepoSelect resourceType={relatedResourceType} fieldSchema={relation}/>
       };
       columns.push(column);
@@ -138,7 +140,7 @@ const RepoForm = ({
         columns={columns}
         description={description}
         layoutType='Form'
-        onFinish={async (values) => {
+        onFinish={(values) => {
           // TODO: post data with the remoteOperation function
           console.log(values);
         }}

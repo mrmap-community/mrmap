@@ -16,14 +16,15 @@ import MapContextTable from './Components/MapContextTable/MapContextTable';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import RegisterServiceForm from './Components/RegisterServiceForm/RegisterServiceForm';
+import RepoForm from './Components/Shared/RepoForm/RepoForm';
 import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList';
 import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
 import CatalogueServiceRepo from './Repos/CswRepo';
 import WebFeatureServiceRepo from './Repos/WfsRepo';
-import WebMapServiceRepo from './Repos/WmsRepo';
 import { currentUserSelectors } from './Services/ReduxStore/Reducers/CurrentUser';
+import WebSockets from './Services/WebSockets';
 import { olMap } from './Utils/MapUtils';
 
 const { Content, Sider } = Layout;
@@ -113,7 +114,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/services/wms/add'
-            element={<RegisterServiceForm repo={new WebMapServiceRepo()} />}
+            element={<RepoForm resourceType='WebMapService' />}
           />
           <Route
             path='/registry/services/wms/:wmsId/security/*'

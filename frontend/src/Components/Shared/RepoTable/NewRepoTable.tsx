@@ -34,7 +34,9 @@ export type RepoActionType = ActionType & {
   deleteRecord: (row:any) => void
 }
 
-function augmentColumns (resourceSchema: any, queryParams: any,
+function augmentColumns (
+  resourceSchema: any, 
+  queryParams: any,
   columnHints: ProColumnType[] | undefined): ProColumnType[] {
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};

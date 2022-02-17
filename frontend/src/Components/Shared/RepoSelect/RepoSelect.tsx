@@ -1,5 +1,5 @@
 import { notification, Select } from 'antd';
-import React, { ReactElement, useEffect, useRef, useState } from 'react';
+import React, { ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 
 
@@ -19,13 +19,6 @@ const RepoSelect = ({
   const [options, setOptions] = useState<OptionData[]>([]);
   const [listOperation, { loading, error, response, api }] = useOperationMethod('list'+resourceType);
   
-  const isMounted = useRef(false);
-
-  useEffect(() => {
-    isMounted.current = true;
-    return () => { isMounted.current = false; };
-  }, []);
-
   useEffect(() => {
     const newOptions: OptionData[] = [] ;
     if (response?.data.data) {
@@ -48,7 +41,11 @@ const RepoSelect = ({
   }, [error]);
 
   function onChange(value: any) {
-    console.log(`selected ${value}`);
+    console.log(`changed ${value}`);
+  }
+
+  function onSelect(value: any) {
+    console.log(`selected  ${value}`);
   }
       
   function onSearch(value: any) {
@@ -68,11 +65,13 @@ const RepoSelect = ({
       <Select
         showSearch
         allowClear={true}
-        placeholder='Select a person'
-        
+        placeholder={'select '+fieldSchema.title || 'select'}
+        autoClearSearchValue={true}
+
         //optionFilterProp='children'
         onChange={onChange}
         onSearch={onSearch}
+        onSelect={onSelect}
         options={options}
         loading={loading}
         filterOption={false}

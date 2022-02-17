@@ -30,7 +30,7 @@ export interface JsonApiErrorObject {
 // }
 export interface JsonApiPrimaryData {
     type: string;
-    id: string;
+    id: string;  // TODO: only on patch needed (update)
     links: any; // TODO: add JsonApiLinkObject
     attributes: any;
     relationships: any;

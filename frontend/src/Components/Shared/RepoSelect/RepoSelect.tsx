@@ -4,6 +4,7 @@ import { useOperationMethod } from 'react-openapi-client';
 
 
 export interface OptionData {
+  key: string | number;
   value: string | number;
   label: string;
   attributes?: any;
@@ -18,8 +19,6 @@ const RepoSelect = ({
 
   const [options, setOptions] = useState<OptionData[]>([]);
   const [listOperation, { loading, error, response }] = useOperationMethod('list'+resourceType);
-  
-
 
   useEffect(() => {
     if (!response){
@@ -29,8 +28,8 @@ const RepoSelect = ({
     const newOptions: OptionData[] = [] ;
     if (response?.data.data) {
       for (const obj of response.data.data) {
-
         newOptions.push({ 
+          key: obj.id,
           value: obj.id, 
           label: obj.attributes.stringRepresentation, 
           attributes: obj.attributes, 
@@ -48,18 +47,9 @@ const RepoSelect = ({
         duration: 10 
       });
     }
-  }, [error, fieldSchema.title]);
-
-  function onChange(value: any) {
-    console.log(`changed ${value}`);
-  }
-
-  function onSelect(value: any) {
-    console.log(`selected  ${value}`);
-  }
+  }, [error, fieldSchema.title, resourceType]);
       
   function onSearch(value: any) {
-    console.log('search:', value);
     // TODO: currently there is a bug in backend django 
     // json:api package, where sparse fields from query param are not used as configured
     const params = [
@@ -68,26 +58,21 @@ const RepoSelect = ({
     ];
     listOperation(params);
   }
+
     
   return (
     <>
-
       <Select
-        showSearch
+        showSearch={true}
         allowClear={true}
         placeholder={'select '+fieldSchema.title || 'select'}
-        autoClearSearchValue={true}
-        //optionFilterProp='children'
-        onChange={onChange}
+        //autoClearSearchValue={true}
         onSearch={onSearch}
-        onSelect={onSelect}
         options={options}
         loading={loading}
         filterOption={false}
-        
         {...passThroughProps}
       />
-     
     </>
   );
 };

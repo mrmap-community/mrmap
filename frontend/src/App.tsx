@@ -64,35 +64,38 @@ export default function App (): JSX.Element {
           path='/'
           element={
             <RequireAuth>
-              <MapContext.Provider value={olMap}>
-                <Layout style={{ minHeight: '100vh' }}>
-                  <Sider
-                    collapsible
-                    collapsed={collapsed}
-                    onCollapse={onCollapse}
-                    style={{ zIndex: 1001 }}
-                  >
-                    <div className='logo'>
-                      <img
-                        src={process.env.PUBLIC_URL + '/logo.png'}
-                        alt='Mr. Map Logo'
-                      >
-                      </img>
-                    </div>
-                    <NavMenu />
-                  </Sider>
-                  <Layout className='site-layout'>
-                    <Content style={{ margin: '0 16px' }}>
-                      <div
-                        className='site-layout-background'
-                        style={{ padding: 24, minHeight: 360 }}
-                      >
-                        <Outlet />
+              <>
+                <WebSockets />
+                <MapContext.Provider value={olMap}>
+                  <Layout style={{ minHeight: '100vh' }}>
+                    <Sider
+                      collapsible
+                      collapsed={collapsed}
+                      onCollapse={onCollapse}
+                      style={{ zIndex: 1001 }}
+                    >
+                      <div className='logo'>
+                        <img
+                          src={process.env.PUBLIC_URL + '/logo.png'}
+                          alt='Mr. Map Logo'
+                        >
+                        </img>
                       </div>
-                    </Content>
+                      <NavMenu />
+                    </Sider>
+                    <Layout className='site-layout'>
+                      <Content style={{ margin: '0 16px' }}>
+                        <div
+                          className='site-layout-background'
+                          style={{ padding: 24, minHeight: 360 }}
+                        >
+                          <Outlet />
+                        </div>
+                      </Content>
+                    </Layout>
                   </Layout>
-                </Layout>
-              </MapContext.Provider>
+                </MapContext.Provider>
+              </>
             </RequireAuth>
           }
         >

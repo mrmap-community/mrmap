@@ -19,7 +19,6 @@ function getValueType(fieldSchema: any):  ProFieldValueType {
 function getFieldProps(fieldSchema: any): any {
   return {
     placeholder: fieldSchema.description ? fieldSchema.description: undefined,
-              
   };
 }
 

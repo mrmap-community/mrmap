@@ -57,6 +57,9 @@ function augmentColumns (
   const requiredResourceProperties = resourceSchema.properties?.data?.properties?.attributes?.required;
   const resourceProperties = resourceSchema.properties?.data?.properties?.attributes?.properties;
 
+  const requiredRelatedResources = resourceSchema.properties?.data?.properties?.relationships?.required;
+  const relatedResources = resourceSchema.properties?.data?.properties?.relationships?.properties;
+
   for (const propName in resourceProperties) {
     const prop = resourceProperties[propName];
     const isRequired = true ? requiredResourceProperties?.includes(propName) : false;
@@ -73,6 +76,32 @@ function augmentColumns (
     columns.push(column);
   }
   
+  for (const relationName in relatedResources) {
+    const relation = relatedResources[relationName];
+
+    if (relation.type === 'array'){
+      // we need a multiselect
+      const relatedResourceType = relation.items.properties.type.enum[0];
+      const column: ProFormColumnsType = {
+        title: relation.title,
+        dataIndex: relation.relationName,
+        valueType: 'text'
+        //renderFormItem: () => {};
+      };
+      columns.push(column);
+    } else {
+      // we need a select
+      const relatedResourceType = relation.properties.type.enum[0];
+      const column: ProFormColumnsType = {
+        title: relation.title,
+        dataIndex: relation.relationName,
+        valueType: 'text'
+        //renderFormItem: () => {};
+      };
+      columns.push(column);
+    }
+  }
+
   return columns;
 }
 

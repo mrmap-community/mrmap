@@ -1,6 +1,7 @@
 import { ProFieldValueType } from '@ant-design/pro-field';
 import type { ProFormColumnsType } from '@ant-design/pro-form';
 import { BetaSchemaForm } from '@ant-design/pro-form';
+import { FormSchema } from '@ant-design/pro-form/lib/components/SchemaForm';
 import { notification } from 'antd';
 import { FormInstance, useForm } from 'antd/lib/form/Form';
 import { AxiosError } from 'openapi-client-axios';
@@ -12,6 +13,11 @@ import { JsonApiErrorObject } from '../../../Repos/JsonApiRepo';
 import { buildJsonApiPayload } from '../../../Utils/JsonApiUtils';
 import RepoSelect from '../RepoSelect/RepoSelect';
 
+interface RepoFormProps extends Partial<FormSchema>{
+  resourceType: string;
+  resourceId?: string | number;
+  onSuccess?: () => void;
+}
 
 function getValueType(fieldSchema: any):  ProFieldValueType {
   if (fieldSchema.type === 'string') {
@@ -128,10 +134,10 @@ function setFormErrors(form: FormInstance, error: AxiosError) {
 
 const RepoForm = ({
   resourceType,
-  resourceId = undefined,
-  onSuccess = undefined,
+  resourceId = '',
+  onSuccess = () => undefined,
   ...passThroughProps
-}: any): ReactElement => {
+}: RepoFormProps): ReactElement => {
   const operationId = resourceId ? 'update'+resourceType : 'add'+resourceType;
   const [remoteOperation, { response, error, api }] = useOperationMethod(operationId);
   const [columns, setColumns] = useState<ProFormColumnsType[]>([]);
@@ -139,7 +145,9 @@ const RepoForm = ({
   const [form] = useForm(passThroughProps.form);
   const navigate = useNavigate();
 
-
+  /**
+   * @description Hook to run on error response from the remote server
+   */
   useEffect(() => {
     const axiosError = error as AxiosError;
     if (axiosError && axiosError?.response?.status !== 400) {
@@ -154,6 +162,9 @@ const RepoForm = ({
     }
   }, [error, form, resourceType]);
 
+  /**
+   * @description Hook to run on success response from the remote server
+   */
   useEffect(() => {
     if (response) {
       let message = 'unknown';
@@ -179,6 +190,9 @@ const RepoForm = ({
     }
   }, [resourceType, onSuccess, response, navigate]);
 
+  /**
+   * @description Hook to initial pro form with argumentColumns
+   */
   useEffect(() => {
     const operation = api.getOperation(operationId);
     const requestSchema = getRequestSchema(operation);
@@ -190,7 +204,7 @@ const RepoForm = ({
     
   }, [api, operationId]);     
   
-  function onFinish(formData: any) {
+  async function onFinish(formData: any): Promise<boolean> {
     const operation = api.getOperation(operationId);
     const requestSchema = getRequestSchema(operation);
     const attributes : any = {};
@@ -218,17 +232,20 @@ const RepoForm = ({
       }
     }
     const payload = buildJsonApiPayload(requestSchema.type.enum[0], attributes, relationships);
-    return remoteOperation({}, payload);
+    remoteOperation({}, payload);
+    return true;
   }
 
   return (
     <>
       <BetaSchemaForm
+        {...passThroughProps}
         columns={columns}
         description={description}
         onFinish={onFinish}
+        
         form={form}
-        {...passThroughProps}
+        
       />
     </>
   );

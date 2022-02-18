@@ -48,8 +48,6 @@ export default function App (): JSX.Element {
     setCollapsed(_collapsed);
   };
 
-
-
   return (
     <Router>
       <Routes>

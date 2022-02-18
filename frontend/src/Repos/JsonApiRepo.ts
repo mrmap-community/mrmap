@@ -14,6 +14,11 @@ export interface JsonApiDocument {
     included?: any;
 }
 
+export interface JsonApiErrorSource {
+  pointer?: string;
+  parameter?: string;
+}
+
 export interface JsonApiErrorObject {
   id: string;
   links: any; // TODO: add JsonApiLinkObject
@@ -21,7 +26,7 @@ export interface JsonApiErrorObject {
   code: string;
   title: string;
   detail: string;
-  source: string;
+  source: JsonApiErrorSource;
 }
 
 // TODO: add and complete this one.

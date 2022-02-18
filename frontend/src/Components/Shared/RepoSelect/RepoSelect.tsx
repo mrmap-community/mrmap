@@ -71,6 +71,7 @@ const RepoSelect = ({
         options={options}
         loading={loading}
         filterOption={false}
+        
         {...passThroughProps}
       />
     </>

@@ -2,9 +2,13 @@ import { ProFieldValueType } from '@ant-design/pro-field';
 import type { ProFormColumnsType } from '@ant-design/pro-form';
 import { BetaSchemaForm } from '@ant-design/pro-form';
 import { notification } from 'antd';
+import { FormInstance, useForm } from 'antd/lib/form/Form';
+import { AxiosError } from 'openapi-client-axios';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
+import { useNavigate } from 'react-router-dom';
+import { JsonApiErrorObject } from '../../../Repos/JsonApiRepo';
 import { buildJsonApiPayload } from '../../../Utils/JsonApiUtils';
 import RepoSelect from '../RepoSelect/RepoSelect';
 
@@ -44,7 +48,7 @@ function getFormItemProps(fieldSchema: any, isRequired = false): any {
   }
   
   return {
-    help: fieldSchema.description,
+    extra: fieldSchema.description,
     rules: rules
   };
 }
@@ -68,6 +72,7 @@ function augmentColumns (
       readonly: prop.readOnly ? prop.readOnly : false,
       valueType: getValueType(prop),
       formItemProps: getFormItemProps(prop, isRequired)
+
     });
   }
   
@@ -94,34 +99,85 @@ function getRequestSchema(operation: any): any{
   const requestBodyObject = operation?.requestBody as OpenAPIV3.RequestBodyObject;
   const schema = requestBodyObject?.content?.['application/vnd.api+json'].schema as OpenAPIV3.SchemaObject;
   const props = schema.properties?.data as any;
-  return props.properties as any;
+  return props.properties;
+}
+
+function setFormErrors(form: FormInstance, error: AxiosError) {
+  const jsonApiErrors: JsonApiErrorObject[] = error?.response?.data?.errors;
+  const fieldDatas: any[] = [];
+
+  jsonApiErrors.forEach(jsonApiError => {
+    const fieldName = jsonApiError.source?.pointer?.split('/').pop();
+    if (fieldName){
+      const exists = fieldDatas.some(fieldData => {
+        if (fieldData.name === fieldName) {
+          fieldData.errors.push(jsonApiError.detail);
+          return true;
+        }
+        return false;
+      });
+      if (!exists){
+        fieldDatas.push({ name: fieldName, errors: [jsonApiError.detail], help: undefined });
+      }
+    }
+  });
+  if (fieldDatas) {
+    form.setFields(fieldDatas);
+  }
 }
 
 const RepoForm = ({
   resourceType,
   resourceId = undefined,
+  onSuccess = undefined,
   ...passThroughProps
 }: any): ReactElement => {
   const operationId = resourceId ? 'update'+resourceType : 'add'+resourceType;
-  const [remoteOperation, { error, response, api }] = useOperationMethod(operationId);
+  const [remoteOperation, { response, error, api }] = useOperationMethod(operationId);
   const [columns, setColumns] = useState<ProFormColumnsType[]>([]);
   const [description, setDescription] = useState<string>(operationId);
+  const [form] = useForm(passThroughProps.form);
+  const navigate = useNavigate();
+
 
   useEffect(() => {
-    if (error) {
-      console.log(error.message);
-      console.log(response);
-      if (response?.status === 400){
-        console.log(response);
-        // TODO: try to match field errors
-      }
+    const axiosError = error as AxiosError;
+    if (axiosError && axiosError?.response?.status !== 400) {
       notification.error({ 
         message: 'Something went wrong while trying to send data', 
-        description: `used OperationId: ${'list'+resourceType} ${error.message}`,
+        description: `used OperationId: ${'list'+resourceType} ${axiosError.message}`,
         duration: 10 
       });
     }
-  }, [error, resourceType]);
+    if (axiosError?.response?.status === 400){
+      setFormErrors(form, axiosError);     
+    }
+  }, [error, form, resourceType]);
+
+  useEffect(() => {
+    if (response) {
+      let message = 'unknown';
+      switch(response.status){
+      case 200:
+        message = `Successfully updated ${response.data?.data?.attributes?.stringRepresentation}`;
+        break;
+      case 201:
+        message = `Successfully created ${response.data?.data?.attributes?.stringRepresentation}`;
+        break;
+      case 202:
+        message = `Successfully accepted creation job for resource ${resourceType}`;
+        break;
+      }
+      notification.success({ 
+        message: message, 
+      });
+      if (onSuccess){
+        onSuccess();
+      } else {
+        navigate(-1);
+      }
+    }
+  }, [resourceType, onSuccess, response, navigate]);
 
   useEffect(() => {
     const operation = api.getOperation(operationId);
@@ -141,11 +197,9 @@ const RepoForm = ({
     const relationships : any = {} ;
 
     for (const field in formData){
-
       const isAttribute = Object.prototype.hasOwnProperty.call(requestSchema?.attributes?.properties, field);
       const isRelationship = !isAttribute && 
       Object.prototype.hasOwnProperty.call(requestSchema?.relationships?.properties, field);
-
       if (isAttribute){   
         attributes[field] = formData[field];
       }
@@ -173,6 +227,7 @@ const RepoForm = ({
         columns={columns}
         description={description}
         onFinish={onFinish}
+        form={form}
         {...passThroughProps}
       />
     </>

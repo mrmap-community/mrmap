@@ -118,6 +118,7 @@ const RepoTable = ({
         });
       },
       editRecord: (row:any) => {
+        // TODO: open RepoForm for row
         console.log(row);
       }
     };

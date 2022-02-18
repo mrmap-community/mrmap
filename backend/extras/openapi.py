@@ -295,6 +295,11 @@ class CustomAutoSchema(AutoSchema):
             }
         }
 
+        serializer_model_class = getattr(serializer.Meta, "model", None)
+        if serializer_model_class and serializer_model_class._meta.verbose_name_plural:
+            result.update(
+                {"title": str(serializer_model_class._meta.verbose_name_plural)})
+
         if attributes:
             deep_update(
                 d=result,

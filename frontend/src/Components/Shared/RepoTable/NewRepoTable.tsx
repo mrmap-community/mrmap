@@ -80,6 +80,7 @@ const RepoTable = ({
 
   const navigate = useNavigate();
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
+  const [header, setHeader]= useState<string>(resourceType);
   // eslint-disable-next-line max-len
   const [listResource, { loading: listLoading, error: listError, response: listResponse, api: listApi }] = useOperationMethod('list'+resourceType);
   const [deleteResource, { error: deleteError, api: deleteApi }] = useOperationMethod('delete'+resourceType);
@@ -133,8 +134,12 @@ const RepoTable = ({
     const operation = listApi.getOperation('list'+resourceType);
 
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
-    const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema;
+    const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
     if (responseSchema) {
+      if (responseSchema.properties?.data.items.title){
+        setHeader(responseSchema.properties?.data.items.title);
+      }
+      
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
       if (!_augmentedColumns.some(column => column.key === 'actions')) {
         
@@ -249,7 +254,7 @@ const RepoTable = ({
         loading={listLoading}
         columns={augmentedColumns}
         scroll={{ x: true }}
-        headerTitle={resourceType}
+        headerTitle={header}
         actionRef={setActions}
         dateFormatter={false}
         pagination={paginationConfig}

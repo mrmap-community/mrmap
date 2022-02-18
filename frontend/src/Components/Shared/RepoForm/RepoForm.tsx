@@ -243,9 +243,7 @@ const RepoForm = ({
         columns={columns}
         description={description}
         onFinish={onFinish}
-        
         form={form}
-        
       />
     </>
   );

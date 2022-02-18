@@ -210,8 +210,9 @@ class CustomAutoSchema(AutoSchema):
         Non-attributes like related and identity fields, are move to 'relationships' and 'links'.
         """
         # TODO: remove attributes, etc. for relationshipView??
-        required = []
+        required_attributes = []
         attributes = {}
+        required_relationships = []
         relationships = {}
         meta = {}
         _id = {"$ref": "#/components/schemas/id"}
@@ -232,6 +233,9 @@ class CustomAutoSchema(AutoSchema):
                     # Ensure django gettext_lazy is rendered correctly
                     d["title"] = str(field.label)
                 relationships[format_field_name(field.field_name)] = d
+                if field.required:
+                    required_relationships.append(
+                        format_field_name(field.field_name))
                 continue
             if isinstance(field, serializers.ManyRelatedField):
                 # TODO: handle nullable with anyOf [1: "#/components/schemas/nulltype", ...]
@@ -246,10 +250,13 @@ class CustomAutoSchema(AutoSchema):
                     # Ensure django gettext_lazy is rendered correctly
                     d["title"] = str(field.label)
                 relationships[format_field_name(field.field_name)] = d
+                if field.required:
+                    required_relationships.append(
+                        format_field_name(field.field_name))
                 continue
 
             if field.required:
-                required.append(format_field_name(field.field_name))
+                required_attributes.append(format_field_name(field.field_name))
 
             schema = self.map_field(field)
             if field.read_only:
@@ -331,15 +338,25 @@ class CustomAutoSchema(AutoSchema):
                         "id": _id
                     }
                 })
-        elif method.lower() in ["post", "delete"] and attributes and required:
-
-            deep_update(
-                d=result,
-                u={
-                    "properties": {
-                        "attributes": {
-                            "required": required
+        elif method.lower() in ["post", "delete"]:
+            if attributes and required_attributes:
+                deep_update(
+                    d=result,
+                    u={
+                        "properties": {
+                            "attributes": {
+                                "required": required_attributes
+                            }
                         }
-                    }
-                })
+                    })
+            if relationships and required_relationships:
+                deep_update(
+                    d=result,
+                    u={
+                        "properties": {
+                            "relationships": {
+                                "required": required_relationships
+                            }
+                        }
+                    })
         return result

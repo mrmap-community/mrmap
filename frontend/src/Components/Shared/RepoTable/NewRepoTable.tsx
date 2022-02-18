@@ -1,7 +1,7 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { DeleteFilled, EditFilled, PlusOutlined } from '@ant-design/icons';
 import { ActionType, default as ProTable, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
-import { Button, Modal, notification, Space, TablePaginationConfig } from 'antd';
+import { Button, Modal, notification, Space, TablePaginationConfig, Tooltip } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
@@ -15,6 +15,7 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
     resourceType: string
     /** Optional column definitions, automatically augmented with the repository schema */
     columns?: RepoTableColumnType[]
+    additionalActions?: (text: any, record:any) => void
     /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
     /** Path to navigate to for adding records (if omitted, no 'New' button will be available) */
@@ -32,6 +33,7 @@ export type RepoTableColumnType = ProColumnType & {
 // https://procomponents.ant.design/en-US/components/table/?current=1&pageSize=5#protable
 export type RepoActionType = ActionType & {
   deleteRecord: (row:any) => void
+  editRecord: (row: any) => void
 }
 
 function augmentColumns (
@@ -69,6 +71,7 @@ function augmentColumns (
 const RepoTable = ({
   resourceType,
   columns = undefined,
+  additionalActions = undefined,
   actionRef = undefined,
   onAddRecord = undefined,
   onEditRecord = undefined,
@@ -84,6 +87,8 @@ const RepoTable = ({
   // eslint-disable-next-line max-len
   const [listResource, { loading: listLoading, error: listError, response: listResponse, api: listApi }] = useOperationMethod('list'+resourceType);
   const [deleteResource, { error: deleteError, api: deleteApi }] = useOperationMethod('delete'+resourceType);
+  const [editResource, { error: editError, api: editApi }] = useOperationMethod('update'+resourceType);
+
 
   const tableDataSourceInit = {
     data: [],
@@ -111,6 +116,9 @@ const RepoTable = ({
             proTableActions.reload();
           }
         });
+      },
+      editRecord: (row:any) => {
+        console.log(row);
       }
     };
     if (typeof actionRef === 'function') {
@@ -151,26 +159,33 @@ const RepoTable = ({
           render: (text: any, record: any) => {
             return (
               <>
-                <Space size='middle'>
+                <Space size='small'>
                   { // todo: check if user has permission also
-                    onEditRecord && (
-                      <Button
-                        size='small'
-                        onClick={() => onEditRecord(record.id)}
-                      >
-                    Bearbeiten
-                      </Button>
-                    )}
-                  
+                    editApi.getOperation('update'+resourceType) ? 
+                      <Tooltip 
+                        title={ 'Edit' }>
+                        <Button
+                          size='small'
+                          icon={<EditFilled/>}
+                          style={{ borderColor: 'gold', color: 'gold' }}
+                          onClick={() => actions.current?.editRecord(record)}
+                        />
+                      </Tooltip>
+                      : null}
                   { // todo: check if user has permission also
                     deleteApi.getOperation('delete'+resourceType) ?
-                      <Button
-                        danger
-                        size='small'
-                        onClick={() => actions.current?.deleteRecord(record)}
-                      >
-                  Löschen
-                      </Button> : <></>}
+                      <Tooltip 
+                        title={ 'Delete' }>
+                        <Button
+                          style={{ borderColor: 'red', color: 'red' }}
+                          type='default'
+                          icon={<DeleteFilled/>}
+                          size='small'
+                          onClick={() => actions.current?.deleteRecord(record)}
+                        />
+                      </Tooltip>
+                      : null}
+                  {additionalActions ? additionalActions(text, record) : null}
                 </Space>
               </>
             );
@@ -181,7 +196,7 @@ const RepoTable = ({
     }
     
     return () => { isMounted = false; }; // componentWillUnmount handler
-  }, [columns, deleteApi, listApi, onEditRecord, resourceType]);
+  },[additionalActions, columns, deleteApi, editApi, listApi, resourceType]);
 
   useEffect(() => {
     if (listResponse) {

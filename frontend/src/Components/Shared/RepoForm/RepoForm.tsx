@@ -93,6 +93,7 @@ function augmentColumns (
         dataIndex: relationName,
         formItemProps: getFormItemProps(relation, isRequired),
         renderFormItem: () => 
+        // TODO: pass in initialValues to RepoSelect component to fetch the string representations 
           <RepoSelect 
             mode={relation.type === 'array' ? 'multiple' : undefined}
             resourceType={

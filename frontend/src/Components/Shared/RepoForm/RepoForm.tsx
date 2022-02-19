@@ -8,15 +8,14 @@ import { AxiosError } from 'openapi-client-axios';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
-import { useNavigate } from 'react-router-dom';
-import { JsonApiErrorObject } from '../../../Repos/JsonApiRepo';
+import { JsonApiErrorObject, JsonApiPrimaryData, ResourceIdentifierObject } from '../../../Repos/JsonApiRepo';
 import { buildJsonApiPayload } from '../../../Utils/JsonApiUtils';
 import RepoSelect from '../RepoSelect/RepoSelect';
 
 interface RepoFormProps extends Partial<FormSchema>{
   resourceType: string;
   resourceId?: string | number;
-  onSuccess?: () => void;
+  onSuccess?: {() : void} | null;
 }
 
 function getValueType(fieldSchema: any):  ProFieldValueType {
@@ -71,31 +70,36 @@ function augmentColumns (
   for (const propName in resourceProperties) {
     const prop = resourceProperties[propName];
     const isRequired = requiredResourceProperties?.includes(propName) ? true : false;
-    columns.push({
-      title: prop.title,
-      dataIndex: propName,
-      initialValue: prop.default ? prop.default : undefined,
-      readonly: prop.readOnly ? prop.readOnly : false,
-      valueType: getValueType(prop),
-      formItemProps: getFormItemProps(prop, isRequired)
-
-    });
+    if (!prop.readOnly){
+      columns.push({
+        title: prop.title,
+        dataIndex: propName,
+        initialValue: prop.default ? prop.default : undefined,
+        //readonly: prop.readOnly ? prop.readOnly : false,
+        valueType: getValueType(prop),
+        formItemProps: getFormItemProps(prop, isRequired)
+  
+      });
+    }
+    
   }
   
   for (const relationName in relatedResources) {
     const relation = relatedResources[relationName];
     const isRequired = requiredRelatedResources?.includes(relationName) ? true : false;
-    columns.push({
-      title: relation.title,
-      dataIndex: relationName,
-      formItemProps: getFormItemProps(relation, isRequired),
-      renderFormItem: () => 
-        <RepoSelect 
-          mode={relation.type === 'array' ? 'multiple' : undefined}
-          resourceType={
-            relation.type === 'array' ? relation.items.properties.type.enum[0] : relation.properties.type.enum[0]} 
-          fieldSchema={relation} />
-    });
+    if (!relation.readOnly){
+      columns.push({
+        title: relation.title,
+        dataIndex: relationName,
+        formItemProps: getFormItemProps(relation, isRequired),
+        renderFormItem: () => 
+          <RepoSelect 
+            mode={relation.type === 'array' ? 'multiple' : undefined}
+            resourceType={
+              relation.type === 'array' ? relation.items.properties.type.enum[0] : relation.properties.type.enum[0]} 
+            fieldSchema={relation} />
+      });
+    }
     
   }
   return columns;
@@ -135,15 +139,47 @@ function setFormErrors(form: FormInstance, error: AxiosError) {
 const RepoForm = ({
   resourceType,
   resourceId = '',
-  onSuccess = () => undefined,
+  onSuccess = null,
   ...passThroughProps
 }: RepoFormProps): ReactElement => {
   const operationId = resourceId ? 'update'+resourceType : 'add'+resourceType;
   const [remoteOperation, { response, error, api }] = useOperationMethod(operationId);
+  const [getRemoteResource, { response: resourceResponse }] = useOperationMethod('get'+resourceType);
+  const [succeded, setSucceded] = useState<boolean>(false);
+
+  const [_resourceId] = useState<string | number>(resourceId);
   const [columns, setColumns] = useState<ProFormColumnsType[]>([]);
   const [description, setDescription] = useState<string>(operationId);
+
   const [form] = useForm(passThroughProps.form);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (_resourceId){
+      getRemoteResource(_resourceId);
+    }
+  }, [getRemoteResource, _resourceId]);
+
+  useEffect(() => {
+    if(resourceResponse){
+      const initialValues: any = {};
+      const resource: JsonApiPrimaryData = resourceResponse.data.data;
+      for (const key in resource.attributes){
+        initialValues[key] = resource.attributes[key];
+      }
+      for (const key in resource.relationships){
+        const relations = resource.relationships[key];
+        
+        if (Array.isArray(relations.data)){
+          const relatedIds: any[] = [];
+          relations.data.forEach(relation => {
+            relatedIds.push(relation.id);
+          });
+          initialValues[key] = relatedIds;
+        }
+      }
+      form.setFieldsValue(initialValues);
+    }
+  }, [resourceResponse, form]);
 
   /**
    * @description Hook to run on error response from the remote server
@@ -153,20 +189,21 @@ const RepoForm = ({
     if (axiosError && axiosError?.response?.status !== 400) {
       notification.error({ 
         message: 'Something went wrong while trying to send data', 
-        description: `used OperationId: ${'list'+resourceType} ${axiosError.message}`,
+        description: `used OperationId: ${operationId} ${axiosError.message}`,
         duration: 10 
       });
     }
     if (axiosError?.response?.status === 400){
       setFormErrors(form, axiosError);     
     }
-  }, [error, form, resourceType]);
+  }, [error, form, operationId]);
 
   /**
    * @description Hook to run on success response from the remote server
    */
   useEffect(() => {
-    if (response) {
+    // TODO: this hook is rendering to often... fix it!
+    if (response && !succeded) {
       let message = 'unknown';
       switch(response.status){
       case 200:
@@ -176,19 +213,18 @@ const RepoForm = ({
         message = `Successfully created ${response.data?.data?.attributes?.stringRepresentation}`;
         break;
       case 202:
-        message = `Successfully accepted creation job for resource ${resourceType}`;
+        message = `Successfully accepted background creation job for resource ${response.request?.data?.data.type}`;
         break;
       }
       notification.success({ 
         message: message, 
       });
+      setSucceded(true);
       if (onSuccess){
         onSuccess();
-      } else {
-        navigate(-1);
-      }
+      } 
     }
-  }, [resourceType, onSuccess, response, navigate]);
+  }, [onSuccess, response, succeded]);
 
   /**
    * @description Hook to initial pro form with argumentColumns
@@ -218,21 +254,32 @@ const RepoForm = ({
         attributes[field] = formData[field];
       }
       if (isRelationship){
+        let relationData: any;
         if (requestSchema?.relationships?.properties[field].type === 'array'){
-          // TODO
+          relationData = [] as ResourceIdentifierObject[];
+          formData[field].forEach((id: string | number) => {
+            // eslint-disable-next-line max-len
+            relationData.push({ type: requestSchema.relationships.properties[field].items.properties.type.enum[0], id: id });
+          });
         } else {
-          relationships[field] = { 
-            'data': { 
-              type: requestSchema.relationships.properties[field].properties.type.enum[0], 
-              id: formData[field] 
-            }
-          };
+          relationData = {
+            type: requestSchema.relationships.properties[field].properties.type.enum[0], 
+            id: formData[field] } as ResourceIdentifierObject;
         }
-        
+        if (formData[field]){
+          relationships[field] = { 'data': relationData };
+        }
       }
     }
-    const payload = buildJsonApiPayload(requestSchema.type.enum[0], attributes, relationships);
-    remoteOperation({}, payload);
+    
+    setSucceded(false);
+    const payload = buildJsonApiPayload(requestSchema.type.enum[0], resourceId, attributes, relationships);
+    if (resourceId){
+      remoteOperation(resourceId, payload);
+    } else {
+      remoteOperation({}, payload);
+    }
+    
     return true;
   }
 

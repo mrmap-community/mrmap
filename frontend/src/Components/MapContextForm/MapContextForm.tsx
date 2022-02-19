@@ -6,7 +6,7 @@ import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import { JsonApiPrimaryData, JsonApiResponse } from '../../Repos/JsonApiRepo';
+import { JsonApiPrimaryData, JsonApiResponse, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
 import MapContextRepo from '../../Repos/MapContextRepo';
@@ -219,6 +219,14 @@ export const MapContextForm = (): ReactElement => {
                 parentLayerId: newNodeParent || '',
                 mapContextId: createdMapContextId
               });
+              const responsePrimary = createdLayer?.data?.data as JsonApiPrimaryData;
+              // eslint-disable-next-line max-len
+              const datasetMetadata = responsePrimary?.relationships['datasetMetadata']?.data as ResourceIdentifierObject;
+              const renderingLayer = responsePrimary?.relationships['renderingLayer']?.data as ResourceIdentifierObject;
+              const selectionLayer = responsePrimary?.relationships['selectionLayer']?.data as ResourceIdentifierObject;
+              const layerStyle = responsePrimary?.relationships['layerStyle']?.data as ResourceIdentifierObject;
+              const parent = responsePrimary?.relationships['parent']?.data as ResourceIdentifierObject;
+
 
               // return createdLayer;
               //@ts-ignore
@@ -240,16 +248,13 @@ export const MapContextForm = (): ReactElement => {
                 description: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.description,
                 properties: {
                   ...(createdLayer?.data?.data as JsonApiPrimaryData).attributes,
-                  datasetMetadata: (createdLayer?.data?.data as JsonApiPrimaryData)
-                    .relationships.datasetMetadata.data?.id,
-                  renderingLayer: (createdLayer?.data?.data as JsonApiPrimaryData).relationships
-                    .renderingLayer.data?.id,
+                  datasetMetadata: datasetMetadata.id,
+                  renderingLayer: renderingLayer.id,
                   scaleMin: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMin,
                   scaleMax: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.layerScaleMax,
-                  style: (createdLayer?.data?.data as JsonApiPrimaryData).relationships.layerStyle.data?.id,
-                  featureSelectionLayer: (createdLayer?.data?.data as JsonApiPrimaryData)
-                    .relationships.selectionLayer.data?.id,
-                  parent: (createdLayer?.data?.data as JsonApiPrimaryData).relationships?.parent?.data?.id,
+                  style: layerStyle.id,
+                  featureSelectionLayer: selectionLayer.id,
+                  parent: parent.id,
                   key: (createdLayer?.data?.data as JsonApiPrimaryData).id
                 }
               };

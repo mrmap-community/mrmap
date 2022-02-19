@@ -225,31 +225,47 @@ class CustomAutoSchema(AutoSchema):
                 continue
             if isinstance(field, serializers.RelatedField):
                 # TODO: handle nullable with anyOf [1: "#/components/schemas/nulltype", ...]
-                d = self.get_related_field_object_description(field=field)
+                field_schema = self.get_related_field_object_description(
+                    field=field)
+                if field.read_only:
+                    field_schema["readOnly"] = True
+                if field.write_only:
+                    field_schema["writeOnly"] = True
+                if field.allow_null:
+                    field_schema["nullable"] = True
                 if field.help_text:
                     # Ensure django gettext_lazy is rendered correctly
-                    d["description"] = str(field.help_text)
+                    field_schema["description"] = str(field.help_text)
                 if field.label:
                     # Ensure django gettext_lazy is rendered correctly
-                    d["title"] = str(field.label)
-                relationships[format_field_name(field.field_name)] = d
+                    field_schema["title"] = str(field.label)
+
+                relationships[format_field_name(
+                    field.field_name)] = field_schema
                 if field.required:
                     required_relationships.append(
                         format_field_name(field.field_name))
                 continue
             if isinstance(field, serializers.ManyRelatedField):
                 # TODO: handle nullable with anyOf [1: "#/components/schemas/nulltype", ...]
-                d = {
+                field_schema = {
                     "type": "array",
                     "items": self.get_related_field_object_description(field=field)
                 }
+                if field.read_only:
+                    field_schema["readOnly"] = True
+                if field.write_only:
+                    field_schema["writeOnly"] = True
+                if field.allow_null:
+                    field_schema["nullable"] = True
                 if field.help_text:
                     # Ensure django gettext_lazy is rendered correctly
-                    d["description"] = str(field.help_text)
+                    field_schema["description"] = str(field.help_text)
                 if field.label:
                     # Ensure django gettext_lazy is rendered correctly
-                    d["title"] = str(field.label)
-                relationships[format_field_name(field.field_name)] = d
+                    field_schema["title"] = str(field.label)
+                relationships[format_field_name(
+                    field.field_name)] = field_schema
                 if field.required:
                     required_relationships.append(
                         format_field_name(field.field_name))

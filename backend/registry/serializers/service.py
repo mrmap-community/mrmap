@@ -52,9 +52,6 @@ class LayerSerializer(
         help_text=_("the web map service, where this layer is part of."),
         read_only=True,
         model=WebMapService,
-        related_link_view_name="registry:layer-wms-detail",
-        related_link_lookup_field="pk",
-        related_link_url_kwarg="layer_pk",
     )
     keywords = ResourceRelatedField(
         label=_("keywords"),
@@ -235,9 +232,6 @@ class FeatureTypeSerializer(
             "the web feature service, where this featuretype is part of."),
         read_only=True,
         model=WebFeatureService,
-        related_link_view_name="registry:featuretype-wfs-detail",
-        related_link_lookup_field="pk",
-        related_link_url_kwarg="featuretype_pk",
     )
 
     keywords = ResourceRelatedField(

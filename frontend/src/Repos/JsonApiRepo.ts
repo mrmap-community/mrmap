@@ -5,6 +5,10 @@ export const JsonApiMimeType = 'application/vnd.api+json';
 
 export type JsonApiResponse = AxiosResponse<JsonApiDocument | null>
 
+export interface LinksObject {
+
+}
+
 export interface JsonApiDocument {
     data?: JsonApiPrimaryData[] | JsonApiPrimaryData;
     // data?: JsonApiDocumentData; TODO: replace by this one
@@ -29,6 +33,20 @@ export interface JsonApiErrorObject {
   source: JsonApiErrorSource;
 }
 
+export interface ResourceIdentifierObject {
+  type: string,
+  id: string | number
+  meta?: any
+}
+
+export interface ResourceLinkage {
+  links: LinksObject;
+  data: null | ResourceIdentifierObject | ResourceIdentifierObject[];
+  meta?: any
+}
+
+
+
 // TODO: add and complete this one.
 // export interface JsonApiDocumentData {
 //   data: JsonApiPrimaryData[] | JsonApiPrimaryData;
@@ -38,7 +56,11 @@ export interface JsonApiPrimaryData {
     id: string;  // TODO: only on patch needed (update)
     links: any; // TODO: add JsonApiLinkObject
     attributes: any;
-    relationships: any;
+    relationships: {
+      [variable: string]: ResourceLinkage;
+    };
+    
+    
 }
 
 export interface QueryParams {

@@ -117,8 +117,12 @@ const RepoTable = ({
         });
       },
       editRecord: (row:any) => {
-        setSelectedForEdit(row.id);
-        setEditResourceDrawerVisible(true);
+        if (onEditRecord){
+          onEditRecord(row.id);
+        }else {
+          setSelectedForEdit(row.id);
+          setEditResourceDrawerVisible(true);
+        }
       }
     };
     if (typeof actionRef === 'function') {

@@ -1,10 +1,8 @@
 import { Button } from 'antd';
 import React, { ReactElement, ReactNode } from 'react';
-import DatasetMetadataRepo from '../../../../Repos/DatasetMetadataRepo';
-import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/RepoTable';
+import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/NewRepoTable';
 import { buildSearchTransformText } from '../../../Shared/RepoTable/TableHelper';
 
-const datasetMetadataRepo = new DatasetMetadataRepo();
 
 const getDatasetMetadataColumns = 
   (renderActions: (text: any, record:any) => ReactNode): RepoTableColumnType[] => [{
@@ -147,7 +145,7 @@ export const SearchTable = ({
 
   return (
     <RepoTable
-      repo={datasetMetadataRepo}
+      resourceTypes={['DatasetMetadata']}
       columns={datasetMetadataColumns}
       pagination={{
         defaultPageSize: 13,

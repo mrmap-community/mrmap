@@ -152,7 +152,7 @@ export class TreeUtils {
   }
 
   public mapContextLayersToOlLayerGroup(response: JsonApiResponse): Collection<LayerGroup | BaseLayer> {
-    const mapContextLayers = response.data?.included.filter(
+    const mapContextLayers = response.data?.included?.filter(
       (item: JsonApiPrimaryData) => item.type === 'MapContextLayer'
     );
     if(mapContextLayers && mapContextLayers.length > 0) {

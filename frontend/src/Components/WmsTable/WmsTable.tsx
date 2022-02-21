@@ -26,10 +26,9 @@ const WmsTable = (): JSX.Element => {
   };
 
   return <RepoTable
-    resourceType='WebMapService'
+    resourceTypes={['WebMapService']}
     additionalActions={additionalActions}
     actionRef={actionRef as any}
-    onAddRecord='/registry/services/wms/add'
   />;
 };
 

@@ -60,7 +60,7 @@ export const RuleForm = ({
     let isMounted = true;
     let digiLayer: OlVectorLayer<OlVectorSource<OlGeometry>>;
     async function initAvailableWmsOps () {
-      const jsonApiResponse = await operation('listAllowedWebMapServiceOperation');
+      const jsonApiResponse = await operation('listWebMapServiceOperation');
       const wmsOps = jsonApiResponse.data.data.map((wmsOp: any) => 
         (<Option value={wmsOp.id} key={wmsOp.id}>{wmsOp.id}</Option>)
       );

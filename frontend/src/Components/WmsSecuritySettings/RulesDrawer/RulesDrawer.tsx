@@ -62,7 +62,9 @@ export const RulesDrawer = ({
           <Route
             path='/'
             element={(
-              <RulesTable wmsId={wmsId}/>
+              <RulesTable 
+                wmsId={wmsId}
+              />
             )}
           />
           <Route

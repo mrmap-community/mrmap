@@ -1,7 +1,6 @@
 import React, { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import WmsAllowedOperationRepo from '../../../../Repos/WmsAllowedOperationRepo';
-import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/RepoTable';
+import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/NewRepoTable';
 
 export const RulesTable = ({
   wmsId,
@@ -10,8 +9,6 @@ export const RulesTable = ({
 }): ReactElement => {
 
   const navigate = useNavigate();
-  // no side effects, so useEffect is not needed here
-  const repo = new WmsAllowedOperationRepo(wmsId);
 
   const columns: RepoTableColumnType[] = [{
     dataIndex: 'description',
@@ -30,14 +27,15 @@ export const RulesTable = ({
 
   return (   
     <RepoTable
-      repo={repo}
+      resourceTypes={['AllowedWebMapServiceOperation', 'WebMapService']}
+      nestedLookups={[{ name: 'parent_lookup_secured_service', value: wmsId, in: 'path' }]}
       columns={columns}
       options={{
         setting: false,
         density: false
       }}
       pagination={false}
-      onAddRecord={`/registry/services/wms/${wmsId}/security/rules/add`}
+      onAddRecord={() => navigate(`/registry/services/wms/${wmsId}/security/rules/add`)}
       onEditRecord={(recordId) => navigate(`/registry/services/wms/${wmsId}/security/rules/${recordId}/edit`)}
     />
   );

@@ -4,7 +4,7 @@ import RepoTable from '../Shared/RepoTable/NewRepoTable';
 
 
 const LayerTable = (): JSX.Element => {
-  return <RepoTable resourceType='Layer' />;
+  return <RepoTable resourceTypes={['Layer']} />;
 };
 
 export default LayerTable;

@@ -141,10 +141,9 @@ const CswTable = (): JSX.Element => {
   }];
 
   return <RepoTable
-    resourceType='CatalougeService'
+    resourceTypes={['CatalougeService']}
     columns={columns}
     actionRef={actionRef as any}
-    onAddRecord='/registry/services/csw/add'
   />;
 };
 

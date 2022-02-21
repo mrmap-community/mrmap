@@ -3,6 +3,7 @@ import { ActionType, default as ProTable, ProColumnType, ProTableProps } from '@
 import '@ant-design/pro-table/dist/table.css';
 import { Button, Drawer, Modal, notification, Space, TablePaginationConfig, Tooltip } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
+import { ParamsArray } from 'openapi-client-axios';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
@@ -10,16 +11,23 @@ import { getQueryParams } from '../../../Utils/JsonApiUtils';
 import RepoForm from '../RepoForm/RepoForm';
 import { augmentColumnWithJsonSchema } from './TableHelper';
 
+export interface NestedLookup {
+  paramName: string;
+  paramValue: string | number;
+}
+
+
 export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'> {
     /** Repository that defines the schema and offers CRUD operations */
-    resourceType: string
+    resourceTypes: string[]
+    nestedLookups?: ParamsArray
     /** Optional column definitions, automatically augmented with the repository schema */
     columns?: RepoTableColumnType[]
     additionalActions?: (text: any, record:any) => void
     /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
     /** Path to navigate to for adding records (if omitted, no 'New' button will be available) */
-    onAddRecord?: string
+    onAddRecord?: () => void
     /** Function to invoke for editing records (if omitted, no 'Edit' button will be available) */
     onEditRecord?: (recordId: number | string) => void
 }
@@ -69,7 +77,8 @@ function augmentColumns (
 }
 
 const RepoTable = ({
-  resourceType,
+  resourceTypes,
+  nestedLookups = [],
   columns = undefined,
   additionalActions = undefined,
   actionRef = undefined,
@@ -78,16 +87,18 @@ const RepoTable = ({
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
 
+  const nestedResourceListLookup: string = 'list'+resourceTypes.join('By');
+
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
-  const [header, setHeader] = useState<string>(resourceType);
+  const [header, setHeader] = useState<string>('TODO');
   const [addResourceDrawerVisible, setAddResourceDrawerVisible] = useState<boolean>(false);
   const [editResourceDrawerVisible, setEditResourceDrawerVisible] = useState<boolean>(false);
   const [selectedForEdit, setSelectedForEdit] = useState<string | number>();
 
   // eslint-disable-next-line max-len
-  const [listResource, { loading: listLoading, error: listError, response: listResponse, api }] = useOperationMethod('list'+resourceType);
-  const [deleteResource, { error: deleteError }] = useOperationMethod('delete'+resourceType);
+  const [listResource, { loading: listLoading, error: listError, response: listResponse, api }] = useOperationMethod(nestedResourceListLookup);
+  const [deleteResource, { error: deleteError }] = useOperationMethod('delete'+resourceTypes[0]);
 
   const tableDataSourceInit = {
     data: [],
@@ -142,8 +153,8 @@ const RepoTable = ({
   useEffect(() => {
     let isMounted = true;
   
-    const queryParams = getQueryParams(api, 'list'+resourceType);
-    const operation = api.getOperation('list'+resourceType);
+    const queryParams = getQueryParams(api, nestedResourceListLookup);
+    const operation = api.getOperation(nestedResourceListLookup);
 
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
@@ -165,7 +176,7 @@ const RepoTable = ({
               <>
                 <Space size='small'>
                   { // todo: check if user has permission also
-                    api.getOperation('update'+resourceType) ? 
+                    api.getOperation('update'+resourceTypes[0]) ? 
                       <Tooltip 
                         title={ 'Edit' }>
                         <Button
@@ -177,7 +188,7 @@ const RepoTable = ({
                       </Tooltip>
                       : null}
                   { // todo: check if user has permission also
-                    api.getOperation('delete'+resourceType) ?
+                    api.getOperation('delete'+resourceTypes[0]) ?
                       <Tooltip 
                         title={ 'Delete' }>
                         <Button
@@ -200,7 +211,7 @@ const RepoTable = ({
     }
     
     return () => { isMounted = false; }; // componentWillUnmount handler
-  },[additionalActions, columns, api, resourceType]);
+  },[additionalActions, columns, api, resourceTypes, nestedResourceListLookup]);
 
   useEffect(() => {
     if (listResponse) {
@@ -239,10 +250,11 @@ const RepoTable = ({
 
   // fetches data in format expected by antd ProTable component
   function fetchData (params: any, sorter?: Record<string, SortOrder>) {
-    const queryParams = [
+    const queryParams = [...nestedLookups];
+    queryParams.push(...[
       { name: 'page[number]', value: params.current, in: 'query' },
       { name: 'page[size]', value: params.pageSize, in: 'query' },
-    ];
+    ]);
     
     let ordering = '';
     if (sorter) {
@@ -278,19 +290,21 @@ const RepoTable = ({
           actionRef={setActions}
           dateFormatter={false}
           pagination={paginationConfig}
-          toolBarRender={onAddRecord
-            ? () => [
-              <Button
-                type='primary'
-                key='primary'
-                onClick={() => {
+          toolBarRender={() => [
+            <Button
+              type='primary'
+              key='primary'
+              onClick={!onAddRecord ?
+                () => {
                   setAddResourceDrawerVisible(true);
-                }}
-              >
-                <PlusOutlined />Neu
-              </Button>
-            ]
-            : () => []}
+                }
+                : () => {onAddRecord(); }
+              }
+            >
+              <PlusOutlined />Neu
+            </Button>
+          ]
+          }
           search={ augmentedColumns.some((column: RepoTableColumnType) => {
             return column.search && column.search.transform;
           })
@@ -307,7 +321,7 @@ const RepoTable = ({
         visible={addResourceDrawerVisible}
         onClose={()=>{setAddResourceDrawerVisible(false);}}
       >
-        <RepoForm resourceType={resourceType} />
+        <RepoForm resourceType={resourceTypes[0]} />
       </Drawer>
       <Drawer
         title={`edit ${header}`}
@@ -317,7 +331,7 @@ const RepoTable = ({
         
       >
         <RepoForm 
-          resourceType={resourceType} 
+          resourceType={resourceTypes[0]} 
           resourceId={selectedForEdit} 
           onSuccess={()=>{setEditResourceDrawerVisible(false);}}/>
       </Drawer>

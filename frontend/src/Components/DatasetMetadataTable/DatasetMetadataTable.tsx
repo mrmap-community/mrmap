@@ -4,7 +4,7 @@ import RepoTable from '../Shared/RepoTable/NewRepoTable';
 
 
 const DatasetMetadataTable = (): JSX.Element => {
-  return <RepoTable resourceType='DatasetMetadata' />;
+  return <RepoTable resourceTypes={['DatasetMetadata']} />;
 };
 
 export default DatasetMetadataTable;

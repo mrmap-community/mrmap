@@ -9,8 +9,8 @@ const MapContextTable = (): JSX.Element => {
 
   return (
     <RepoTable
-      resourceType='MapContext'
-      onAddRecord='/registry/mapcontexts/add'
+      resourceTypes={['MapContext']}
+      onAddRecord={() => navigate('/registry/mapcontexts/add')}
       onEditRecord={(mapContextId) => navigate(`/registry/mapcontexts/${mapContextId}/edit`)}
     />);
 };

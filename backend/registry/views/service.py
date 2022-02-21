@@ -1,5 +1,4 @@
 from django.db.models.query import Prefetch
-from registry.models.security import AllowedWebMapServiceOperation
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
@@ -12,6 +11,7 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
 from registry.models.metadata import Keyword, ReferenceSystem, Style
+from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalougeService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapServiceOperationUrl)
@@ -98,12 +98,6 @@ class WebMapServiceViewSet(
                 "user_pk": request.user.pk,
             }
         }
-
-    def dispatch(self, request, *args, **kwargs):
-        if "layer_pk" in self.kwargs:
-            self.lookup_field = "layer"
-            self.lookup_url_kwarg = "layer_pk"
-        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -289,12 +283,6 @@ class WebFeatureServiceViewSet(
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
-
-    def dispatch(self, request, *args, **kwargs):
-        if "featuretype_pk" in self.kwargs:
-            self.lookup_field = "featuretype"
-            self.lookup_url_kwarg = "featuretype_pk"
-        return super().dispatch(request, *args, **kwargs)
 
     def get_task_kwargs(self, request, serializer):
         return {

@@ -3,7 +3,7 @@ import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 class FeatureTypeRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/featuretypes/', 'WFS-Feature Types');
+    super('Featuretypes');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
@@ -17,7 +17,7 @@ class FeatureTypeRepo extends JsonApiRepo {
       // to avoid error when string is empty
       delete jsonApiParams['filter[title.icontains]'];
     }
-    const res = await client['List' + this.resourcePath](jsonApiParams);
+    const res = await client['list' + this.resourceType](jsonApiParams);
     return res.data.data.map((o: any) => ({
       value: o.id,
       text: o.attributes.title,
@@ -31,7 +31,7 @@ class FeatureTypeRepo extends JsonApiRepo {
   async autocompleteInitialValue (id:string): Promise<any> {
     const client = await JsonApiRepo.getClientInstance();
 
-    const res = await client['retrieve' + this.resourcePath + '{id}/'](
+    const res = await client['get' + this.resourceType](
       id,
       {},
       {

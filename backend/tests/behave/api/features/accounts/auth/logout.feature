@@ -9,13 +9,5 @@ Feature: Logout Endpoint
         Given I set the content type of the request to application/vnd.api+json
 
     Scenario: Logout the current user
-        Given I set the request payload to:
-            """
-            {
-            "data": {
-            "type": "Logout",
-            }
-            }
-            """
-        When I send the request with POST method
+        When I send the request with DELETE method
         Then I expect the response status is 200

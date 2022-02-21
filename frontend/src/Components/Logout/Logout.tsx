@@ -1,33 +1,34 @@
-import { notification, Row, Spin } from 'antd';
+import { Row, Spin } from 'antd';
 import React, { ReactElement, useEffect } from 'react';
+import { useOperationMethod } from 'react-openapi-client';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router';
-import { useAuth } from '../../Hooks/useAuth';
+import { currentUserSelectors } from '../../Services/ReduxStore/Reducers/CurrentUser';
 
 export const Logout = (): ReactElement => {
-  const auth = useAuth();
   const navigate = useNavigate();
+  const [deleteLogoutRequest, { response: logoutResponse }] = useOperationMethod('deleteLogout');
+  const currentUser = useSelector(currentUserSelectors.selectAll);
+  const dispatch = useDispatch();
+  
+  useEffect(() => {
+    deleteLogoutRequest();
+  }, [deleteLogoutRequest]);
 
   useEffect(() => {
-    async function ensureLogoutAndForwardToLogin () {
-      if (auth && auth.user) {
-        if (await auth.logout()) {
-          notification.success({
-            message: 'Successfully logged out.'
-          });
-        } else {
-          notification.error({
-            message: 'Logout failed.'
-          });
-        }
-      }
-      navigate('/login');
+    if (logoutResponse && logoutResponse.status === 200) {
+      dispatch({
+        type: 'currentUser/clear'
+      });
+      navigate('/login');  
     }
-    ensureLogoutAndForwardToLogin();
-  }, [auth, navigate]);
+  }, [navigate, logoutResponse, dispatch]);
 
   return (
     <Row justify='center' align='middle' style={{ minHeight: '100vh', backgroundColor: '#001529' }}>
-      {auth && auth.user && <Spin tip={`Logging out "${auth.user.name}"...`} />}
+      {currentUser && currentUser[0] && <Spin tip={`Logging out "${currentUser[0]?.attributes.username}"...`} />}
     </Row>
+    
+
   );
 };

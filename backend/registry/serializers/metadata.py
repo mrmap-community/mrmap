@@ -18,7 +18,6 @@ class KeywordSerializer(
     class Meta:
         model = Keyword
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class ReferenceSystemSerializer(
@@ -58,7 +57,6 @@ class MetadataContactSerializer(
     class Meta:
         model = MetadataContact
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class DatasetMetadataSerializer(
@@ -123,4 +121,3 @@ class DatasetMetadataSerializer(
     class Meta:
         model = DatasetMetadata
         fields = "__all__"
-        meta_fields = ("string_representation",)

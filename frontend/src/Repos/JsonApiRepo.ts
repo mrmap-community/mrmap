@@ -5,6 +5,10 @@ export const JsonApiMimeType = 'application/vnd.api+json';
 
 export type JsonApiResponse = AxiosResponse<JsonApiDocument | null>
 
+export interface LinksObject {
+
+}
+
 export interface JsonApiDocument {
     data?: JsonApiPrimaryData[] | JsonApiPrimaryData;
     // data?: JsonApiDocumentData; TODO: replace by this one
@@ -14,6 +18,11 @@ export interface JsonApiDocument {
     included?: any;
 }
 
+export interface JsonApiErrorSource {
+  pointer?: string;
+  parameter?: string;
+}
+
 export interface JsonApiErrorObject {
   id: string;
   links: any; // TODO: add JsonApiLinkObject
@@ -21,8 +30,22 @@ export interface JsonApiErrorObject {
   code: string;
   title: string;
   detail: string;
-  source: string;
+  source: JsonApiErrorSource;
 }
+
+export interface ResourceIdentifierObject {
+  type: string,
+  id: string | number
+  meta?: any
+}
+
+export interface ResourceLinkage {
+  links: LinksObject;
+  data: null | ResourceIdentifierObject | ResourceIdentifierObject[];
+  meta?: any
+}
+
+
 
 // TODO: add and complete this one.
 // export interface JsonApiDocumentData {
@@ -30,10 +53,14 @@ export interface JsonApiErrorObject {
 // }
 export interface JsonApiPrimaryData {
     type: string;
-    id: string;
+    id: string;  // TODO: only on patch needed (update)
     links: any; // TODO: add JsonApiLinkObject
     attributes: any;
-    relationships: any;
+    relationships: {
+      [variable: string]: ResourceLinkage;
+    };
+    
+    
 }
 
 export interface QueryParams {
@@ -43,52 +70,58 @@ export interface QueryParams {
     filters?: any;
 }
 
-class JsonApiRepo {
-    private static readonly REACT_APP_REST_API_BASE_URL = '/';
+export class BaseJsonApiRepo {
+  protected static readonly REACT_APP_REST_API_BASE_URL = '/';
 
-    private static readonly REACT_APP_REST_API_SCHEMA_URL = '/api/schema/';
+  protected static readonly REACT_APP_REST_API_SCHEMA_URL = '/api/schema/';
 
-    private static apiInstance: OpenAPIClientAxios;
+  protected static apiInstance: OpenAPIClientAxios;
 
-    private static clientInstance: OpenAPIClient;
+  protected static clientInstance: OpenAPIClient;
 
-    protected readonly resourcePath: string;
+  static async getClientInstance (): Promise<OpenAPIClient> {
+    if (!this.clientInstance) {
+      this.clientInstance = await (await this.getApiInstance()).getClient();
+    }
+    return this.clientInstance;
+  }
+
+  static async getApiInstance (): Promise<OpenAPIClientAxios> {
+    if (!this.apiInstance) {
+      this.apiInstance = new OpenAPIClientAxios({
+        definition: BaseJsonApiRepo.REACT_APP_REST_API_SCHEMA_URL,
+        axiosConfigDefaults: {
+          baseURL: BaseJsonApiRepo.REACT_APP_REST_API_BASE_URL
+        }
+      });
+      try {
+        await this.apiInstance.init();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    return this.apiInstance;
+  }
+
+}
+
+class JsonApiRepo extends BaseJsonApiRepo {
+   
+    protected readonly resourceType: string;
 
     readonly displayName: string;
 
-    constructor (resourcePath: string, displayName: string) {
-      this.resourcePath = resourcePath;
-      this.displayName = displayName;
-    }
-
-    static async getClientInstance (): Promise<OpenAPIClient> {
-      if (!this.clientInstance) {
-        this.clientInstance = await (await this.getApiInstance()).getClient();
-      }
-      return this.clientInstance;
-    }
-
-    static async getApiInstance (): Promise<OpenAPIClientAxios> {
-      if (!this.apiInstance) {
-        this.apiInstance = new OpenAPIClientAxios({
-          definition: JsonApiRepo.REACT_APP_REST_API_SCHEMA_URL,
-          axiosConfigDefaults: {
-            baseURL: JsonApiRepo.REACT_APP_REST_API_BASE_URL
-          }
-        });
-        try {
-          await this.apiInstance.init();
-        } catch (err) {
-          console.error(err);
-        }
-      }
-      return this.apiInstance;
+    constructor (resourceType: string) {
+      super();
+      this.resourceType = resourceType;
+      // TODO: obtain it from the schema
+      this.displayName = resourceType;
     }
 
     async getResourceSchema (): Promise<any> {
       const client = await JsonApiRepo.getClientInstance();
       // TODO: schema may differs on operations
-      const op = client.api.getOperation('List' + this.resourcePath);
+      const op = client.api.getOperation('list' + this.resourceType);
       if (!op) {
         return [];
       }
@@ -105,7 +138,7 @@ class JsonApiRepo {
 
     async getQueryParams (): Promise<any> {
       const client = await JsonApiRepo.getClientInstance();
-      const op = client.api.getOperation('List' + this.resourcePath);
+      const op = client.api.getOperation('list' + this.resourceType);
       if (!op) {
         return [];
       }
@@ -130,7 +163,7 @@ class JsonApiRepo {
           jsonApiParams.sort = queryParams.ordering;
         }
       }
-      return await client['List' + this.resourcePath](jsonApiParams);
+      return await client['list' + this.resourceType](jsonApiParams);
     }
 
     // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
@@ -140,15 +173,15 @@ class JsonApiRepo {
 
     async get (id: string): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
-      return await client['retrieve' + this.resourcePath + '{id}/'](id, {}, {
+      return await client['get' + this.resourceType](id, {}, {
         headers: { 'Content-Type': JsonApiMimeType }
       });
     }
 
     async delete (id: string): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
-      return await client['destroy' + this.resourcePath + '{id}/'](id, {}, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+      return await client['delete' + this.resourceType](id, {}, {
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string }
       });
     }
 
@@ -157,7 +190,7 @@ class JsonApiRepo {
       const client = await JsonApiRepo.getClientInstance();
 
       // TODO: make relationships optional
-      return await client['create' + this.resourcePath](undefined, {
+      return await client['create' + this.resourceType](undefined, {
         data: {
           type: type,
           attributes: {
@@ -168,7 +201,7 @@ class JsonApiRepo {
           }
         }
       }, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') },
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string },
       });
     }
 
@@ -180,7 +213,7 @@ class JsonApiRepo {
     ): Promise<JsonApiResponse> {
       const client = await JsonApiRepo.getClientInstance();
       // TODO: make relationships optional
-      return await client['partial_update' + this.resourcePath + '{id}/'](id, {
+      return await client['update' + this.resourceType](id, {
         data: {
           type: type,
           id: id,
@@ -192,7 +225,7 @@ class JsonApiRepo {
           }
         }
       }, {
-        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+        headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') as string }
       });
     }
 }

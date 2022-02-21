@@ -12,6 +12,7 @@ class NonAnonymousJsonWebsocketConsumer(JsonWebsocketConsumer):
 
     def connect(self):
         if self.scope['user'].is_anonymous:
+            # TODO: use close(code=401)
             raise DenyConnection
         else:
             super().connect()

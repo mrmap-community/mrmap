@@ -12,7 +12,7 @@ Feature: Login Endpoint
             """
             {
                 "data": {
-                    "type": "Login",
+                    "type": "LoginRequest",
                     "attributes": {
                         "username": "User1",
                         "password": "User1"
@@ -28,7 +28,7 @@ Feature: Login Endpoint
             """
             {
                 "data": {
-                    "type": "Login",
+                    "type": "LoginRequest",
                     "attributes": {
                         "username": "User1",
                         "password": "mrmap2"
@@ -37,4 +37,4 @@ Feature: Login Endpoint
             }
             """
         When I send the request with POST method
-        Then I expect the response status is 403
+        Then I expect the response status is 401

@@ -23,7 +23,6 @@ class WMSGetCapabilitiesResultSerializer(
     class Meta:
         model = WMSGetCapabilitiesResult
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class LayerGetMapResultCreateSerializer(ModelSerializer):
@@ -43,7 +42,6 @@ class LayerGetMapResultSerializer(
     class Meta:
         model = LayerGetMapResult
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class LayerGetFeatureInfoResultCreateSerializer(ModelSerializer):
@@ -64,4 +62,3 @@ class LayerGetFeatureInfoResultSerializer(
     class Meta:
         model = LayerGetFeatureInfoResult
         fields = "__all__"
-        meta_fields = ("string_representation",)

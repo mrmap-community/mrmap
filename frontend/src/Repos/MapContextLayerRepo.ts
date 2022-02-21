@@ -37,7 +37,7 @@ type MapContextLayerAttributesUpdate = {
 
 class MapContextLayerRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/mapcontextlayers/', 'Kartenebenen');
+    super('MapContextLayer');
   }
 
   async move (
@@ -46,7 +46,7 @@ class MapContextLayerRepo extends JsonApiRepo {
     position: number|string
   ) : Promise<JsonApiResponse> {
     const client = await JsonApiRepo.getClientInstance();
-    return await client['move_to' + this.resourcePath + '{id}/move_to/'](id, {
+    return await client['move_to' + this.resourceType + '{id}/move_to/'](id, {
       data: {
         type: 'MapContextLayer',
         attributes: {
@@ -55,7 +55,7 @@ class MapContextLayerRepo extends JsonApiRepo {
         }
       }
     }, {
-      headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken') }
+      headers: { 'Content-Type': JsonApiMimeType, 'X-CSRFToken': Cookies.get('csrftoken')as string }
     });
   }
 

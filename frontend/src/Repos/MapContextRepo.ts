@@ -15,7 +15,7 @@ interface MapContextWithLayersResponseType {
 
 class MapContextRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/mapcontexts/', 'Karten');
+    super('MapContext');
   }
 
   async create (create: MapContextCreate): Promise<JsonApiResponse> {
@@ -37,7 +37,7 @@ class MapContextRepo extends JsonApiRepo {
 
   async getMapContextWithLayers (mapContextId: string): Promise<MapContextWithLayersResponseType> {
     const client = await JsonApiRepo.getClientInstance();
-    const res = await client['retrieve' + this.resourcePath + '{id}/'](
+    const res = await client['get' + this.resourceType](
       mapContextId,
       {},
       {

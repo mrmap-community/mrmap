@@ -1,15 +1,12 @@
 import React from 'react';
-import WfsRepo from '../../Repos/WfsRepo';
-import RepoTable from '../Shared/RepoTable/RepoTable';
+import RepoTable from '../Shared/RepoTable/NewRepoTable';
 
 
-const repo = new WfsRepo();
 
 const WfsTable = (): JSX.Element => {
   return (
     <RepoTable 
-      repo={repo} 
-      onAddRecord='/registry/services/wfs/add'
+      resourceTypes={['WebFeatureService']} 
     />
   );
 };

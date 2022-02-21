@@ -1,6 +1,7 @@
 import { MapContext } from '@terrestris/react-geo';
 import { Layout } from 'antd';
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 import CswTable from './Components/CswTable/CswTable';
@@ -14,25 +15,22 @@ import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import MapContextTable from './Components/MapContextTable/MapContextTable';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
-import RegisterServiceForm from './Components/RegisterServiceForm/RegisterServiceForm';
+import RepoForm from './Components/Shared/RepoForm/RepoForm';
 import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList';
 import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
-import { useAuth } from './Hooks/useAuth';
-import CatalogueServiceRepo from './Repos/CswRepo';
-import WebFeatureServiceRepo from './Repos/WfsRepo';
-import WebMapServiceRepo from './Repos/WmsRepo';
+import { currentUserSelectors } from './Services/ReduxStore/Reducers/CurrentUser';
 import WebSockets from './Services/WebSockets';
 import { olMap } from './Utils/MapUtils';
-
 
 const { Content, Sider } = Layout;
 
 function RequireAuth ({ children }:{ children: JSX.Element }) {
-  const auth = useAuth();
   const location = useLocation();
-  if (!auth || !auth.userId) {
+  const currentUser = useSelector(currentUserSelectors.selectAll);
+  
+  if (!currentUser || !currentUser[0]) {
     // store location so login page can forward to original page
     return <Navigate to='/login' state={{ from: location }} />;
   }
@@ -40,6 +38,7 @@ function RequireAuth ({ children }:{ children: JSX.Element }) {
 }
 
 export default function App (): JSX.Element {
+
   const [collapsed, setCollapsed] = useState(false);
 
   const onCollapse = (_collapsed: boolean) => {
@@ -110,7 +109,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/services/wms/add'
-            element={<RegisterServiceForm repo={new WebMapServiceRepo()} />}
+            element={<RepoForm resourceType='WebMapService'/>}
           />
           <Route
             path='/registry/services/wms/:wmsId/security/*'
@@ -122,7 +121,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/services/wfs/add'
-            element={<RegisterServiceForm repo={new WebFeatureServiceRepo()} />}
+            element={<RepoForm resourceType='WebFeatureService'/>}
           />
           <Route
             path='/registry/services/csw'
@@ -130,7 +129,7 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/services/csw/add'
-            element={<RegisterServiceForm repo={new CatalogueServiceRepo()} />}
+            element={<RepoForm resourceType='CatalougeService'/>}
           />
           <Route
             path='/registry/layers'

@@ -3,8 +3,8 @@ import { List, Progress } from 'antd';
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { JsonApiPrimaryData } from '../../Repos/JsonApiRepo';
-import { TaskResult } from '../../Repos/TaskResultRepo';
 import { fetchTaskResults, taskResultsSelectors } from '../../Services/ReduxStore/Reducers/TaskResult';
+import { TaskResult } from '../Shared/Interfaces/TaskResult';
 
 // TODO: Rename to TaskProgressList
 export const TaskProgressList = (): JSX.Element => {

@@ -18,7 +18,6 @@ class MapContextLayerSerializer(
     class Meta:
         model = MapContextLayer
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
     def validate(self, attrs):
         validated_data = super().validate(attrs)
@@ -75,7 +74,6 @@ class MapContextIncludeSerializer(
     class Meta:
         model = MapContext
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class MapContextLayerMoveLayerSerializer(

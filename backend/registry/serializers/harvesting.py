@@ -16,7 +16,6 @@ class HarvestingJobSerializer(
     class Meta:
         model = HarvestingJob
         fields = "__all__"
-        meta_fields = ("string_representation",)
         validators = [
             UniqueTogetherValidator(
                 queryset=HarvestingJob.objects.filter(done_at__isnull=True),

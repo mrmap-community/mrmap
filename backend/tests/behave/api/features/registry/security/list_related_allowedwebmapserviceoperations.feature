@@ -14,4 +14,4 @@ Feature: Related AllowedWebMapServiceOperation for wms List Endpoint
 
     Scenario: Can't retrieve list as anonymous user
         When I send the request with GET method
-        Then I expect the response status is 403
+        Then I expect the response status is 401

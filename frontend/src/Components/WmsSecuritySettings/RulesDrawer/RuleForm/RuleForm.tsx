@@ -12,7 +12,6 @@ import OlVectorSource from 'ol/source/Vector';
 import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '../../../../Hooks/useAuth';
 import { createOrUpdate, operation } from '../../../../Repos/JsonApi';
 import { screenToWgs84, wgs84ToScreen, zoomTo } from '../../../../Utils/MapUtils';
 import { InputField } from '../../../Shared/FormFields/InputField/InputField';
@@ -39,7 +38,6 @@ export const RuleForm = ({
   const navigate = useNavigate();
   const { ruleId } = useParams();
   const [form] = useForm();
-  const auth = useAuth();
   const map = useMap();
 
   const [layer, setLayer] = useState<OlVectorLayer<OlVectorSource<OlGeometry>>>();  
@@ -62,13 +60,13 @@ export const RuleForm = ({
     let isMounted = true;
     let digiLayer: OlVectorLayer<OlVectorSource<OlGeometry>>;
     async function initAvailableWmsOps () {
-      const jsonApiResponse = await operation('List/api/v1/registry/security/wms-operations/');
+      const jsonApiResponse = await operation('listWebMapServiceOperation');
       const wmsOps = jsonApiResponse.data.data.map((wmsOp: any) => 
         (<Option value={wmsOp.id} key={wmsOp.id}>{wmsOp.id}</Option>)
       );
       isMounted && setAvailableOps(wmsOps);
     }
-    async function initAvailableGroups (userId: string) {
+    async function initAvailableGroups () {
       // TODO wait for backend fix and reactivate fetching below
       // const jsonApiResponse = await operation('List/api/v1/accounts/groups/');
       // const groups = jsonApiResponse.data.data.map((group: any) => 
@@ -79,7 +77,7 @@ export const RuleForm = ({
     }
     async function initFromExistingRule (id: string) {
       const jsonApiResponse = await operation(
-        'retrieve/api/v1/registry/security/allowed-wms-operations/{id}/',
+        'getAllowedWebMapServiceOperation',
         [{
           in: 'path',
           name: 'id',
@@ -110,12 +108,12 @@ export const RuleForm = ({
         }
       }
     }
-    if (map && auth) {
+    if (map) {
       setIsSavingOrLoading(true);
       digiLayer = DigitizeUtil.getDigitizeLayer(map);
       setLayer(digiLayer);
       initAvailableWmsOps();
-      auth && initAvailableGroups(auth.userId);
+      initAvailableGroups();
       ruleId && initFromExistingRule(ruleId);
       setIsSavingOrLoading(false);
     }
@@ -124,7 +122,7 @@ export const RuleForm = ({
       digiLayer?.getSource().clear();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[auth, ruleId, map, form]);
+  },[ruleId, map, form]);
 
   const onFinish = async (values: any) => {
     if (selectedLayerIds.length === 0) {
@@ -195,7 +193,7 @@ export const RuleForm = ({
       setIsSavingOrLoading(true);
       if (ruleId) {
         const response = await createOrUpdate(
-          'partial_update/api/v1/registry/security/allowed-wms-operations/{id}/',
+          'updateAllowedWebMapServiceOperation',
           'AllowedWebMapServiceOperation',
           attributes,
           relationships,
@@ -212,7 +210,7 @@ export const RuleForm = ({
         }
       } else {
         const response = await createOrUpdate(
-          'create/api/v1/registry/security/allowed-wms-operations/',
+          'addAllowedWebMapServiceOperation',
           'AllowedWebMapServiceOperation',
           attributes,
           relationships

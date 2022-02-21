@@ -34,7 +34,7 @@ const getServiceUrl = (includedServices: any[], operation:string) => {
 };
 class LayerRepo extends JsonApiRepo {
   constructor () {
-    super('/api/v1/registry/layers/', 'WMS-Ebenen');
+    super('Layer');
   }
 
   async autocomplete (searchText: string): Promise<JsonApiResponse> {
@@ -50,7 +50,7 @@ class LayerRepo extends JsonApiRepo {
       delete jsonApiParams['filter[title.icontains]'];
     }
 
-    const res = await client['List' + this.resourcePath](jsonApiParams);
+    const res = await client['list' + this.resourceType](jsonApiParams);
     return res.data.data.map((o: any) => { 
       return ({
         value: o.id,
@@ -75,7 +75,7 @@ class LayerRepo extends JsonApiRepo {
   async autocompleteInitialValue (id:string): Promise<any> {
     const client = await JsonApiRepo.getClientInstance();
 
-    const res = await client['retrieve' + this.resourcePath + '{id}/'](
+    const res = await client['get' + this.resourceType](
       id,
       {},
       {

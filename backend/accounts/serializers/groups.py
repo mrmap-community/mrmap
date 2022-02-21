@@ -16,7 +16,6 @@ class GroupSerializer(
     class Meta:
         model = Group
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class OrganizationSerializer(
@@ -30,4 +29,3 @@ class OrganizationSerializer(
     class Meta:
         model = Organization
         fields = "__all__"
-        meta_fields = ("string_representation",)

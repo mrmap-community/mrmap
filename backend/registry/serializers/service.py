@@ -7,7 +7,8 @@ from extras.serializers import (HistoryInformationSerializer,
 from MrMap.validators import validate_get_capablities_uri
 from registry.models.metadata import (Keyword, MetadataContact,
                                       ReferenceSystem, Style)
-from registry.models.security import (AllowedWebMapServiceOperation, WebFeatureServiceAuthentication,
+from registry.models.security import (AllowedWebMapServiceOperation,
+                                      WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
 from registry.models.service import (CatalougeService, FeatureType, Layer,
                                      WebFeatureService,
@@ -51,9 +52,6 @@ class LayerSerializer(
         help_text=_("the web map service, where this layer is part of."),
         read_only=True,
         model=WebMapService,
-        related_link_view_name="registry:layer-wms-detail",
-        related_link_lookup_field="pk",
-        related_link_url_kwarg="layer_pk",
     )
     keywords = ResourceRelatedField(
         label=_("keywords"),
@@ -104,7 +102,6 @@ class LayerSerializer(
     class Meta:
         model = Layer
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
     def get_reference_systems(self, instance):
         return instance.get_reference_systems
@@ -175,7 +172,6 @@ class WebMapServiceSerializer(
     class Meta:
         model = WebMapService
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class WebMapServiceCreateSerializer(ModelSerializer):
@@ -236,9 +232,6 @@ class FeatureTypeSerializer(
             "the web feature service, where this featuretype is part of."),
         read_only=True,
         model=WebFeatureService,
-        related_link_view_name="registry:featuretype-wfs-detail",
-        related_link_lookup_field="pk",
-        related_link_url_kwarg="featuretype_pk",
     )
 
     keywords = ResourceRelatedField(
@@ -270,7 +263,6 @@ class FeatureTypeSerializer(
     class Meta:
         model = FeatureType
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class WebFeatureServiceSerializer(
@@ -327,7 +319,6 @@ class WebFeatureServiceSerializer(
     class Meta:
         model = WebFeatureService
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class WebFeatureServiceCreateSerializer(ModelSerializer):
@@ -375,4 +366,3 @@ class CatalougeServiceSerializer(
     class Meta:
         model = CatalougeService
         fields = "__all__"
-        meta_fields = ("string_representation",)

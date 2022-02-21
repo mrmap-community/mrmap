@@ -11,34 +11,64 @@ from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
 
-class LoginView(generics.GenericAPIView):
+class LoginRequestView(generics.GenericAPIView):
+    """ Login a user by the given credentials
+
+        post: Login a user by the given credentials
+
+    """
     schema = CustomAutoSchema(
         tags=['Auth'],
     )
-    queryset = User.objects.all()
+    http_method_names = ['post', 'head', 'options']
+    resource_name = "LoginRequest"
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         login(request=request, user=serializer.user)
-        user = serializer.user
-        user.group_count = user.groups.count()
-        return Response(UserSerializer(serializer.user, context={'request': request}).data, status=status.HTTP_200_OK)
+        return Response(serializer.data)
 
 
-class LogoutView(generics.GenericAPIView):
+class LogoutRequestView(generics.GenericAPIView):
+    """ Logout a user by the given session id
+
+        delete: Logout a user by the given session id
+
+    """
     schema = CustomAutoSchema(
         tags=['Auth'],
     )
     serializer_class = LogoutSerializer
 
     class Meta:
-        resource_name = 'Logout'
+        resource_name = 'LogoutRequest'
 
-    def post(self, request, *args, **kwargs):
+    def delete(self, request, *args, **kwargs):
         logout(request=request)
         return Response(status=status.HTTP_200_OK)
+
+
+class WhoAmIView(generics.GenericAPIView):
+    schema = CustomAutoSchema(
+        tags=['Auth'],
+        operation_id_base="retreive"
+    )
+    http_method_names = ['get', 'head', 'options']
+    resource_name = "CurrentUser"
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def get(self, *args, **kwargs):
+        return self.retreive(*args, **kwargs)
+
+    def retreive(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_anonymous:
+            user = User.get_anonymous()
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)
 
 
 class PermissionViewSet(ReadOnlyModelViewSet):

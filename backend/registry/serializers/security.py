@@ -4,6 +4,7 @@ from extras.serializers import StringRepresentationSerializer
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceOperation,
+                                      WebMapServiceAuthentication,
                                       WebMapServiceOperation)
 from registry.models.service import Layer
 from rest_framework_gis.fields import GeometryField
@@ -11,6 +12,16 @@ from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  ValidationError)
+
+
+class WebMapServiceAuthenticationSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:wmsauth-detail',
+    )
+
+    class Meta:
+        model = WebMapServiceAuthentication
+        fields = '__all__'
 
 
 class WebMapServiceOperationSerializer(ModelSerializer):
@@ -48,7 +59,6 @@ class AllowedWebMapServiceOperationSerializer(
     class Meta:
         model = AllowedWebMapServiceOperation
         fields = '__all__'
-        meta_fields = ("string_representation",)
 
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -100,4 +110,3 @@ class AllowedWebFeatureServiceOperationSerializer(
     class Meta:
         model = AllowedWebFeatureServiceOperation
         fields = '__all__'
-        meta_fields = ("string_representation",)

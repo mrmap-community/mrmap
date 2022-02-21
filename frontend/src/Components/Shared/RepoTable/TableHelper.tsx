@@ -89,27 +89,32 @@ const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryPar
   return column;
 };
 
-export const augmentColumnWithJsonSchema = (column: ProColumnType, propSchema: { type: string, format: string },
+export const augmentColumnWithJsonSchema = (
+  column: ProColumnType, 
+  propSchema: { type: string, format: string, title: string },
   queryParams: Record<string, string>) : ProColumnType => {
-  column.title = column.title || column.dataIndex;
+
+  column.title = column.title || propSchema.title ||column.dataIndex;
 
   // https://procomponents.ant.design/components/schema#valuetype
   if (!column.valueType) {
     if (propSchema.type === 'string') {
-      if (propSchema.format === 'date-time') {
+      switch (propSchema.format){
+      case 'date-time':
         column.valueType = 'dateTime';
-      } else if (propSchema.format === 'uri') {
+        break;
+      case 'uri':
         column.render = renderLink.bind(null, column.dataIndex as string) as any;
         column.valueType = 'text';
-      } else if (propSchema.format === 'uuid') {
-        // column.render = renderLink.bind(null, column.dataIndex as string) as any;
+        break;
+      case 'uuid':
+      case 'binary':
         column.valueType = 'text';
-      } else if (propSchema.format === 'binary') {
-        // column.render = renderLink.bind(null, column.dataIndex as string) as any;
-        column.valueType = 'text';
-      } else {
+        break;
+      default:
         column.render = renderEllipsis.bind(null, column.dataIndex as string) as any;
         column.valueType = 'text';
+        break;
       }
     } else if (propSchema.type === 'integer') {
       column.valueType = 'digit';

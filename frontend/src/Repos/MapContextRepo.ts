@@ -1,16 +1,10 @@
 
-import { MPTTJsonApiTreeNodeType } from '../Components/Shared/TreeManager/TreeManagerTypes';
-import JsonApiRepo, { JsonApiMimeType, JsonApiPrimaryData, JsonApiResponse } from './JsonApiRepo';
+import JsonApiRepo, { JsonApiMimeType, JsonApiResponse } from './JsonApiRepo';
 
 export interface MapContextCreate {
     title: string;
     abstract?: string;
     ownerOrganizationId: string;
-}
-
-interface MapContextWithLayersResponseType {
-  mapContext: JsonApiPrimaryData,
-  mapContextLayers: MPTTJsonApiTreeNodeType[]
 }
 
 class MapContextRepo extends JsonApiRepo {
@@ -23,7 +17,7 @@ class MapContextRepo extends JsonApiRepo {
       title: create.title,
       abstract: create.abstract
     };
-    
+
     const relationships = {
       owner: { // eslint-disable-line
         data: {
@@ -35,20 +29,17 @@ class MapContextRepo extends JsonApiRepo {
     return this.add('MapContext', attributes, relationships);
   }
 
-  async getMapContextWithLayers (mapContextId: string): Promise<MapContextWithLayersResponseType> {
+  async getMapContextWithLayers (mapContextId: string): Promise<JsonApiResponse> {
     const client = await JsonApiRepo.getClientInstance();
     const res = await client['get' + this.resourceType](
       mapContextId,
       {},
       {
         headers: { 'Content-Type': JsonApiMimeType },
-        params: { include: 'mapContextLayers' }
+        params: { include: 'mapContextLayers.renderingLayer.service.operationUrls' }
       }
     );
-    return {
-      mapContext: res.data.data,
-      mapContextLayers: res.data.included
-    };
+    return res;
   }
 
   async update (mapContextId:string, attributesToUpdate: MapContextCreate): Promise<JsonApiResponse> {
@@ -67,7 +58,7 @@ class MapContextRepo extends JsonApiRepo {
         }
       };
     }
-    
+
     return this.partialUpdate(mapContextId, 'MapContext', attributes, relationships);
   }
 

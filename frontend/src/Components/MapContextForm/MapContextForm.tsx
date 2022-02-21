@@ -52,12 +52,12 @@ export const MapContextForm = (): ReactElement => {
           const response = await mapContextRepo.getMapContextWithLayers(String(id));
           form.setFieldsValue({
             // @ts-ignore
-            title: response.mapContext.attributes.title || '',
+            title: response.data.data.attributes.title || '',
             // @ts-ignore
-            abstract: response.mapContext.attributes.abstract || ''
+            abstract: response.data.data.attributes.abstract || ''
           });
           // Convert the mapContext layers coming from the server to a compatible tree node list
-          const _initLayerTreeData = treeUtils.mapContextLayersToOlLayerGroup(response.mapContextLayers);
+          const _initLayerTreeData = treeUtils.mapContextLayersToOlLayerGroup(response);
           setInitLayerTreeData(_initLayerTreeData);
         } catch (error) {
           // @ts-ignore
@@ -71,7 +71,7 @@ export const MapContextForm = (): ReactElement => {
       setIsMapContextSearchDrawerVisible(true);
     }
   }, [id, form]);
-  
+
 
   const onAddDatasetToMapAction = async(dataset:any) => {
     dataset.layers.forEach(async (layer: string) => {

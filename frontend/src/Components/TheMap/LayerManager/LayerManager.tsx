@@ -60,50 +60,22 @@ export const LayerManager = ({
   // Only change it if you detect aa bug thaat could be traced baack deep to the tree form field
   const map = useMap();
   const [treeData, setTreeData] = useState<TreeNodeType[]>([]);
-  const [isTreeContainerVisible, setIsTreeContainerVisible] = useState<boolean>(true); 
+  const [isTreeContainerVisible, setIsTreeContainerVisible] = useState<boolean>(true);
   // const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>(); // TODO
 
   useEffect(() => {
-    const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {       
+    const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {
       setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
     };
-    const setWMSParams = async(theLayer: ImageLayer<ImageWMS>) => {
-      try {
-        const source = theLayer.getSource();
-        const res = await new LayerRepo().autocompleteInitialValue(theLayer.getProperties().renderingLayer);
-        source.setUrl(res.attributes.WMSParams.url);
-        source.getParams().LAYERS = res.attributes.WMSParams.layer;
-        source.getParams().VERSION = res.attributes.WMSParams.version;
-        source.set('serverType',res.attributes.WMSParams.serviceType);
-      } catch (error) {
-        //@ts-ignore
-        throw new Error(error);
-      }
-    };
-    
+
     layerManagerLayerGroup.set('title', layerManagerLayerGroupName);
     layerManagerLayerGroup.setLayers(initLayerTreeData);
 
     map.addLayer(layerManagerLayerGroup);
     setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
-    
-    const allMapLayers = layerUtils.getAllMapLayers(layerManagerLayerGroup);
-    
-    allMapLayers.forEach((mapLayer: any) => {
-      if(mapLayer instanceof ImageLayer) {
-        const src: ImageWMS = mapLayer.getSource();
-        // loaded layers from the DB will not have any information regarding the WMS parameters
-        // get them here
-        // TODO: Maybe they can be included in the initial response
-        if(!src.getUrl() && mapLayer.getProperties().renderingLayer){
-          setWMSParams(mapLayer);
-        }
-      }
-    });
-    
 
     layerManagerLayerGroup.on('change', onLayerGroupReceivedNewLayer);
-    
+
     return () => {
       layerManagerLayerGroup.un('change', onLayerGroupReceivedNewLayer);
       map.removeLayer(layerManagerLayerGroup);
@@ -119,7 +91,7 @@ export const LayerManager = ({
   };
 
   const setLayerVisibility = (
-    layer: BaseLayer | LayerGroup | ImageLayer<ImageWMS> | undefined, 
+    layer: BaseLayer | LayerGroup | ImageLayer<ImageWMS> | undefined,
     visibility: boolean
   ) => {
     // if (!(layer instanceof BaseLayer) || !(layer instanceof LayerGroup)) {
@@ -176,7 +148,7 @@ export const LayerManager = ({
           onClick={async() => {
           // fit to layer extent
             const theLayer = layerUtils.getAllMapLayers(layerManagerLayerGroup)
-              .find(l => { 
+              .find(l => {
                 return l.getProperties().key === nodeData?.key;
               });
             if(theLayer && theLayer.get('renderingLayer')) {
@@ -192,7 +164,7 @@ export const LayerManager = ({
         </Menu.Item>
       </>
     );
-  }; 
+  };
 
   const onCreateLayer = async(nodeAttributes:any, newNodeParent:any) => {
     // NOTE it is assumed that the object returned by the addDispatchLayerAction, is of type CreateLayerOpts
@@ -202,7 +174,7 @@ export const LayerManager = ({
     if(addLayerDispatchAction instanceof Object.getPrototypeOf(async function(){}).constructor){
       try {
         const response: CreateLayerOpts | void = await addLayerDispatchAction(nodeAttributes, newNodeParent);
-        
+
         // TODO: Better solution for this. Rendering layer should not be the only criteria for this to be a layer
         // and not a group. NOTE: saving a flag isLeaf on the table is for the time out of the question to not corrupt
         // the table with fields that are unrelated to the OGC structure
@@ -223,8 +195,8 @@ export const LayerManager = ({
         }
         // add the layer to the parent, where the layer or group is being created
         layerUtils.addLayerToGroupByMrMapLayerId(
-          layerManagerLayerGroup, 
-          newNodeParent as string, 
+          layerManagerLayerGroup,
+          newNodeParent as string,
           layerToAdd
         );
         return response;
@@ -237,12 +209,12 @@ export const LayerManager = ({
       if(layerOpts) {
         //@ts-ignore
         layerToAdd = layerUtils.createMrMapOlWMSLayer(layerOpts);
-      } 
-    } 
+      }
+    }
     // add the layer to the parent, where the layer or group is being created
     layerUtils.addLayerToGroupByMrMapLayerId(
-      layerManagerLayerGroup, 
-      newNodeParent as string, 
+      layerManagerLayerGroup,
+      newNodeParent as string,
       layerToAdd
     );
   };
@@ -273,7 +245,7 @@ export const LayerManager = ({
             .filter((l:any) => l.getProperties().layerId !== nodeToRemove.key);
           layerManagerLayerGroup.setLayers(new Collection(layersToKeep));
         }
-      } 
+      }
     // Non Async version
     } else {
       removeLayerDispatchAction(nodeToRemove);
@@ -307,9 +279,9 @@ export const LayerManager = ({
         const layerToUpdate = layerUtils.getAllMapLayers(layerManagerLayerGroup)
           .find((l: any) => l.getProperties().layerId === nodeId);
         if(layerToUpdate) {
-          layerToUpdate.setProperties({ 
-            ...layerToUpdate.getProperties(), 
-            ...nodeAttributesToUpdate 
+          layerToUpdate.setProperties({
+            ...layerToUpdate.getProperties(),
+            ...nodeAttributesToUpdate
           });
         }
         return editedLayer;
@@ -362,10 +334,10 @@ export const LayerManager = ({
             left: isTreeContainerVisible ? '500px' : 0
           }}
           icon={(
-            <FontAwesomeIcon 
-              icon={['fas', isTreeContainerVisible ? 'angle-double-left' : 'angle-double-right']} 
+            <FontAwesomeIcon
+              icon={['fas', isTreeContainerVisible ? 'angle-double-left' : 'angle-double-right']}
             />
-          )} 
+          )}
           onClick={() => setIsTreeContainerVisible(!isTreeContainerVisible)}
         />
       </Tooltip>

@@ -19,4 +19,4 @@ Feature: MapContext Delete Endpoint
 
     Scenario: Can't delete as anonymous user
         When I send the request with DELETE method
-        Then I expect the response status is 403
+        Then I expect the response status is 401

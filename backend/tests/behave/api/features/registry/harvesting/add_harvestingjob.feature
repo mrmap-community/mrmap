@@ -46,7 +46,7 @@ Feature: HarvestingJob Add Endpoint
             }
             """
         When I send the request with POST method
-        Then I expect the response status is 403
+        Then I expect the response status is 401
 
     Scenario: Can't add another if there is one running job
         Given I am logged in as User1 with password User1

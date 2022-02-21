@@ -5,6 +5,7 @@ import { Button, Menu, Tooltip } from 'antd';
 import { Key } from 'antd/lib/table/interface';
 import Collection from 'ol/Collection';
 import BaseEvent from 'ol/events/Event';
+import Polygon from 'ol/geom/Polygon';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
@@ -13,8 +14,8 @@ import { transformExtent } from 'ol/proj';
 import ImageWMS from 'ol/source/ImageWMS';
 import { getUid } from 'ol/util';
 import React, { useEffect, useState } from 'react';
+import { useOperationMethod } from 'react-openapi-client';
 import { JsonApiResponse } from '../../../Repos/JsonApiRepo';
-import LayerRepo from '../../../Repos/LayerRepo';
 import { LayerManagerUtils } from '../../../Utils/LayerManagerUtils';
 import { LayerUtils } from '../../../Utils/LayerUtils';
 import { TreeUtils } from '../../../Utils/TreeUtils';
@@ -63,6 +64,8 @@ export const LayerManager = ({
   const [isTreeContainerVisible, setIsTreeContainerVisible] = useState<boolean>(true);
   // const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>(); // TODO
 
+  const [getLayer, { response: getLayerResponse }] = useOperationMethod('getLayer');
+
   useEffect(() => {
     const onLayerGroupReceivedNewLayer = (e: BaseEvent) => {
       setTreeData(treeUtils.OlLayerGroupToTreeNodeList(layerManagerLayerGroup));
@@ -82,6 +85,13 @@ export const LayerManager = ({
     };
 
   }, [layerManagerLayerGroupName, map, initLayerTreeData]);
+
+  useEffect(() => {
+    if(getLayerResponse && getLayerResponse.data.data?.attributes?.bboxLatLon?.coordinates){
+      const extent = new Polygon(getLayerResponse.data.data.attributes.bboxLatLon.coordinates).getExtent();
+      map.getView().fit(transformExtent(extent, 'EPSG:4326', 'EPSG:3857'));
+    }
+  }, [getLayerResponse, map]);
 
   const onCheckLayer = (checkedKeys: (Key[] | {checked: Key[]; halfChecked: Key[];}), info: any) => {
     const { checked } = info;
@@ -130,15 +140,7 @@ export const LayerManager = ({
   };
 
   const onFitToLayerExtent = async(layerId: string) => {
-    try {
-      const res = await new LayerRepo().autocompleteInitialValue(layerId);
-      if(res.attributes.WMSParams.bbox) {
-        map.getView().fit(transformExtent(res.attributes.WMSParams.bbox, 'EPSG:4326', 'EPSG:3857'));
-      }
-    } catch(error) {
-      //@ts-ignore
-      throw new Error(error);
-    }
+    getLayer([{ name: 'id', value: layerId, in: 'path' }]);
   };
 
   const layerActions = (nodeData: TreeNodeType|undefined): any => {

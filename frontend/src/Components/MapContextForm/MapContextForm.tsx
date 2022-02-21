@@ -5,6 +5,7 @@ import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
 import React, { ReactElement, useEffect, useState } from 'react';
+import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router';
 import { JsonApiPrimaryData, JsonApiResponse, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
@@ -41,36 +42,40 @@ export const MapContextForm = (): ReactElement => {
   const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>();
   const [isMapContextSearchDrawerVisible, setIsMapContextSearchDrawerVisible] = useState<boolean>(false);
 
+  const [getMapContext, { response: getMapContextResponse }] = useOperationMethod('getMapContext');
+  const [addMapContext, { response: addMapContextResponse }] = useOperationMethod('addMapContext');  
+  const [updateMapContext, { response: updateMapContextResponse }] = useOperationMethod('updateMapContext');  
+
+
+  useEffect(() => {
+    if (getMapContextResponse){
+      form.setFieldsValue({
+        // @ts-ignore
+        title: getMapContextResponse.data.data.attributes.title || '',
+        // @ts-ignore
+        abstract: getMapContextResponse.data.data.attributes.abstract || ''
+      });
+      // Convert the mapContext layers coming from the server to a compatible tree node list
+      const _initLayerTreeData = treeUtils.mapContextLayersToOlLayerGroup(getMapContextResponse);
+      setInitLayerTreeData(_initLayerTreeData);
+      setIsLoadingMapContextInfo(false);
+    }
+  }, [form, getMapContextResponse]);
+
   useEffect(() => {
     // TODO: need to add some sort of loading until the values are fetched
     // olMap.addLayer(mapContextLayersPreviewGroup);
     if (id) {
       setIsLoadingMapContextInfo(true);
       setCreatedMapContextId(id);
-      const fetchMapContext = async () => {
-        try {
-          const response = await mapContextRepo.getMapContextWithLayers(String(id));
-          form.setFieldsValue({
-            // @ts-ignore
-            title: response.data.data.attributes.title || '',
-            // @ts-ignore
-            abstract: response.data.data.attributes.abstract || ''
-          });
-          // Convert the mapContext layers coming from the server to a compatible tree node list
-          const _initLayerTreeData = treeUtils.mapContextLayersToOlLayerGroup(response);
-          setInitLayerTreeData(_initLayerTreeData);
-        } catch (error) {
-          // @ts-ignore
-          throw new Error(error);
-        } finally {
-          setIsLoadingMapContextInfo(false);
-        }
-      };
-      fetchMapContext();
+      getMapContext([
+        { name: 'id', value: String(id), in: 'path' },
+        { name: 'include', value: 'mapContextLayers.renderingLayer.service.operationUrls', in: 'query' }
+      ]);
     } else {
       setIsMapContextSearchDrawerVisible(true);
     }
-  }, [id, form]);
+  }, [getMapContext, id]);
 
 
   const onAddDatasetToMapAction = async(dataset:any) => {

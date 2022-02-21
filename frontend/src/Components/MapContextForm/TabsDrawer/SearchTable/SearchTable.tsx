@@ -147,7 +147,7 @@ export const SearchTable = ({
     <RepoTable
       resourceTypes={['DatasetMetadata']}
       columns={datasetMetadataColumns}
-      
+      toolBarRender={false}
     />
   );
 };

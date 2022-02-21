@@ -147,11 +147,7 @@ export const SearchTable = ({
     <RepoTable
       resourceTypes={['DatasetMetadata']}
       columns={datasetMetadataColumns}
-      pagination={{
-        defaultPageSize: 13,
-        showSizeChanger: true,
-        pageSizeOptions: ['10', '13', '20', '50', '100']
-      }}
+      
     />
   );
 };

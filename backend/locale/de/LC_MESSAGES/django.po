@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-02-21 12:05+0100\n"
+"POT-Creation-Date: 2022-02-22 21:56+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -161,15 +161,15 @@ msgstr "Ausstehende Anfragen"
 msgid " can already publish for "
 msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
 
-#: accounts/models/users.py:22
+#: accounts/models/users.py:28
 msgid "I want to sign up for the newsletter"
 msgstr "Ich möchte den Newsletter abonnieren"
 
-#: accounts/models/users.py:24
+#: accounts/models/users.py:31
 msgid "I want to participate in surveys"
 msgstr "Ich möchte an Umfragen teilnehmen"
 
-#: accounts/models/users.py:26
+#: accounts/models/users.py:35
 msgid ""
 "I understand and accept that my data will be automatically processed and "
 "securely stored, as it is stated in the general data protection regulation "
@@ -178,11 +178,23 @@ msgstr ""
 "Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
-#: accounts/models/users.py:33
+#: accounts/models/users.py:39
+#, fuzzy
+#| msgid "General settings"
+msgid "settings"
+msgstr "Allgemeine Einstellungen"
+
+#: accounts/models/users.py:41
+msgid "json storage on backend to provide configurations for frontends."
+msgstr ""
+"Feld um ein JSON object zu speicher, welches das frontend für "
+"Konfigurationen verwenden kann."
+
+#: accounts/models/users.py:47
 msgid "User"
 msgstr "Nutzer"
 
-#: accounts/models/users.py:34
+#: accounts/models/users.py:48
 msgid "Users"
 msgstr "Nutzer"
 

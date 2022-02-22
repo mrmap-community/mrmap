@@ -41,8 +41,7 @@ export const MapContextForm = (): ReactElement => {
       response: getMapContextResponse 
     }] = useOperationMethod('getMapContext');
 
-  const [deleteMapContextLayer, { response: deleteMapContextLayerResponse }] = useOperationMethod('deleteMapContextLayer');
-  const [updateMapContextLayer, { response: updateMapContextLayerResponse }] = useOperationMethod('updateMapContextLayer');
+  const [deleteMapContextLayer, ] = useOperationMethod('deleteMapContextLayer');
 
   
   useEffect(() => {
@@ -183,7 +182,6 @@ export const MapContextForm = (): ReactElement => {
             message: `Add dataset '${dataset.title}'`
           });
         } catch (error) {
-          console.log(error);
           if(!id) {
             // TODO: Why is this not working?
             setIsMapContextSearchDrawerVisible(true);

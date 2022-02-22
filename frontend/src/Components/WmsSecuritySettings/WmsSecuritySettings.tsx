@@ -57,6 +57,7 @@ export const WmsSecuritySettings = (): ReactElement => {
 
 
   useEffect(() => {
+    let olLayerGroup: LayerGroup;
     // TODO: move unpaging in custom useOperationMethod hook?
     async function buildLayerTree() {
       // WMS specific stuff
@@ -127,24 +128,23 @@ export const WmsSecuritySettings = (): ReactElement => {
         return olLayer;
       };
 
-      const wmsOlRootLayer = unpagedLayerResponse.data?.data
+      olLayerGroup = unpagedLayerResponse.data?.data
         .filter((layer: any) => !layer.relationships.parent.data)
         .map ((root: any) => {
           return layerToOlLayer (root);
         })[0];
 
-      map.addLayer(wmsOlRootLayer as BaseLayer);
+      map.addLayer(olLayerGroup);
       setOlUidToLayer(newOlUidToLayer);
       setLayerIdToLayer(newLayerIdToLayer);
       setExpandedOlUids(newExpandedOlUids);
-
-
-      return ( () => {
-        wmsOlRootLayer && map.removeLayer(wmsOlRootLayer);
-      });
     }
     if (getWMSResponse && listLayerResponse){
       buildLayerTree();
+      // componentDidUnmount: remove layer group
+      return ( () => {
+        olLayerGroup && map.removeLayer(olLayerGroup);
+      });
     }
   }, [getWMSResponse, listLayerApi, listLayerResponse, map]);
 

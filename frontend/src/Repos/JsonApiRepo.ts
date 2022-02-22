@@ -190,7 +190,7 @@ class JsonApiRepo extends BaseJsonApiRepo {
       const client = await JsonApiRepo.getClientInstance();
 
       // TODO: make relationships optional
-      return await client['create' + this.resourceType](undefined, {
+      return await client['add' + this.resourceType](undefined, {
         data: {
           type: type,
           attributes: {

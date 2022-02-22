@@ -4,7 +4,7 @@ import { BetaSchemaForm } from '@ant-design/pro-form';
 import { FormSchema } from '@ant-design/pro-form/lib/components/SchemaForm';
 import { notification } from 'antd';
 import { FormInstance, useForm } from 'antd/lib/form/Form';
-import { AxiosError } from 'openapi-client-axios';
+import { AxiosError, AxiosResponse } from 'openapi-client-axios';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
@@ -15,7 +15,7 @@ import RepoSelect from '../RepoSelect/RepoSelect';
 interface RepoFormProps extends Partial<FormSchema>{
   resourceType: string;
   resourceId?: string | number;
-  onSuccess?: {() : void} | null;
+  onSuccess?: {(response: AxiosResponse, created: boolean) : void} | null;
 }
 
 function getValueType(fieldSchema: any):  ProFieldValueType {
@@ -144,7 +144,13 @@ const RepoForm = ({
   ...passThroughProps
 }: RepoFormProps): ReactElement => {
   const operationId = resourceId ? 'update'+resourceType : 'add'+resourceType;
-  const [remoteOperation, { response, error, api }] = useOperationMethod(operationId);
+  const [
+    remoteOperation, 
+    { 
+      response: remoteOperationResponse,
+      error: remoteOperationError,
+      api: remoteOperationApi 
+    }] = useOperationMethod(operationId);
   const [getRemoteResource, { response: resourceResponse }] = useOperationMethod('get'+resourceType);
   const [succeded, setSucceded] = useState<boolean>(false);
 
@@ -186,7 +192,7 @@ const RepoForm = ({
    * @description Hook to run on error response from the remote server
    */
   useEffect(() => {
-    const axiosError = error as AxiosError;
+    const axiosError = remoteOperationError as AxiosError;
     if (axiosError && axiosError?.response?.status !== 400) {
       notification.error({ 
         message: 'Something went wrong while trying to send data', 
@@ -197,24 +203,25 @@ const RepoForm = ({
     if (axiosError?.response?.status === 400){
       setFormErrors(form, axiosError);     
     }
-  }, [error, form, operationId]);
+  }, [remoteOperationError, form, operationId]);
 
   /**
    * @description Hook to run on success response from the remote server
    */
   useEffect(() => {
     // TODO: this hook is rendering to often... fix it!
-    if (response && !succeded) {
+    if (remoteOperationResponse && !succeded) {
       let message = 'unknown';
-      switch(response.status){
+      switch(remoteOperationResponse.status){
       case 200:
-        message = `Successfully updated ${response.data?.data?.attributes?.stringRepresentation}`;
+        message = `Successfully updated ${remoteOperationResponse.data?.data?.attributes?.stringRepresentation}`;
         break;
       case 201:
-        message = `Successfully created ${response.data?.data?.attributes?.stringRepresentation}`;
+        message = `Successfully created ${remoteOperationResponse.data?.data?.attributes?.stringRepresentation}`;
         break;
       case 202:
-        message = `Successfully accepted background creation job for resource ${response.request?.data?.data.type}`;
+        message = `Successfully accepted background creation job for resource ${remoteOperationResponse
+          .request?.data?.data.type}`;
         break;
       }
       notification.success({ 
@@ -222,16 +229,16 @@ const RepoForm = ({
       });
       setSucceded(true);
       if (onSuccess){
-        onSuccess();
+        onSuccess(remoteOperationResponse, resourceId ? false: true);
       } 
     }
-  }, [onSuccess, response, succeded]);
+  }, [onSuccess, remoteOperationResponse, succeded, resourceId]);
 
   /**
    * @description Hook to initial pro form with argumentColumns
    */
   useEffect(() => {
-    const operation = api.getOperation(operationId);
+    const operation = remoteOperationApi.getOperation(operationId);
     const requestSchema = getRequestSchema(operation);
     setDescription(operation?.description || operationId);
 
@@ -239,10 +246,10 @@ const RepoForm = ({
       setColumns(augmentColumns(requestSchema));
     }
     
-  }, [api, operationId]);     
+  }, [remoteOperationApi, operationId]);     
   
   async function onFinish(formData: any): Promise<boolean> {
-    const operation = api.getOperation(operationId);
+    const operation = remoteOperationApi.getOperation(operationId);
     const requestSchema = getRequestSchema(operation);
     const attributes : any = {};
     const relationships : any = {} ;

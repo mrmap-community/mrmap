@@ -5,13 +5,14 @@ import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Components/Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../Components/TheMap/LayerManager/LayerManagerTypes';
+import { JsonApiPrimaryData, JsonApiResponse, ResourceIdentifierObject } from '../Repos/JsonApiRepo';
 import { LayerUtils } from './LayerUtils';
 
 const layerUtils = new LayerUtils();
 
 export class TreeUtils {
   public OlLayerGroupToTreeNodeList(layerGroup: LayerGroup): TreeNodeType[] {
-    
+
     return layerGroup.getLayers().getArray().map((layer: LayerGroup | BaseLayer) => {
       const node: any = {
         key: layer.getProperties().layerId,
@@ -21,7 +22,7 @@ export class TreeUtils {
         isLeaf: true,
         expanded: layer instanceof LayerGroup,
         children: []
-      }; 
+      };
       if (layer instanceof LayerGroup ) {
         node.children = this.OlLayerGroupToTreeNodeList(layer);
         node.isLeaf = false;
@@ -37,14 +38,14 @@ export class TreeUtils {
     */
   private mapContextLayersToTreeNodeList(list:MPTTJsonApiTreeNodeType[]):TreeNodeType[] {
     const roots:TreeNodeType[] = [];
-  
+
     // initialize children on the list element
     list = list.map((element: MPTTJsonApiTreeNodeType) => ({ ...element, children: [] }));
-  
+
     list
       // sort elements on the correct order defined in the MPTT tree
       .sort((a, b) => (
-        (a.attributes.treeId - b.attributes.treeId) || 
+        (a.attributes.treeId - b.attributes.treeId) ||
       (a.attributes.lft - b.attributes.lft)
       ))
       .map((element:MPTTJsonApiTreeNodeType) => {
@@ -70,7 +71,7 @@ export class TreeUtils {
             featureSelectionLayer: element.relationships.selectionLayer.data?.id,
           }
         };
-    
+
         if (node.parent) {
           const parentNode: MPTTJsonApiTreeNodeType | undefined = list.find((el:any) => el.id === node.parent);
           if (parentNode) {
@@ -84,7 +85,11 @@ export class TreeUtils {
     return roots;
   }
 
-  private TreeNodeListToOlLayerGroup(list: TreeNodeType[]): Collection<LayerGroup | ImageLayer<ImageWMS>> {
+  private TreeNodeListToOlLayerGroup(
+    list: TreeNodeType[],
+    response: JsonApiResponse
+  ): Collection<LayerGroup | ImageLayer<ImageWMS>> {
+
     const layerList = list.map((node: TreeNodeType) => {
       if (node.children.length > 0) {
         const layerGroupOpts = {
@@ -97,17 +102,36 @@ export class TreeUtils {
             key: node.key,
             layerId: node.key
           },
-          layers: this.TreeNodeListToOlLayerGroup(node.children)
+          layers: this.TreeNodeListToOlLayerGroup(node.children, response)
         };
         return new LayerGroup(layerGroupOpts);
-      } 
-  
-      if(node.children.length === 0) {
+      }
+
+      if(node.children.length === 0 && node.properties.renderingLayer) {
+        // step 1: get Layer
+        const renderingLayer = response.data?.included.filter(
+          (item: JsonApiPrimaryData) => item.type === 'Layer' && item.id === node.properties.renderingLayer
+        )[0];
+        // step 2: get WebMapService
+        const wms = response.data?.included.filter(
+          (item: JsonApiPrimaryData) =>
+            item.type === 'WebMapService' && item.id === renderingLayer.relationships.service.data.id
+        )[0];
+        // step 3: get OperationUrl ('GetMap')
+        const operationUrl = response.data?.included.filter(
+          (item: JsonApiPrimaryData) =>
+            item.type === 'WebMapServiceOperationUrl' &&
+            wms.relationships.operationUrls.data.map (
+              (operationUrl: ResourceIdentifierObject) => operationUrl.id).includes(item.id
+            ) &&
+            item.attributes.operation === 'GetMap' &&
+            item.attributes.method === 'Get'
+        )[0];
         const layerOpts: CreateLayerOpts = {
-          url: '',
-          layers: 'dummy value, set later',
+          url: operationUrl.attributes.url,
+          layers: renderingLayer.attributes.identifier,
           legendUrl: 'dummy value, set later',
-          version: '1.1.1',
+          version: wms.attributes.version,
           format: 'image/png',
           visible: false,
           title: node.properties.title,
@@ -119,6 +143,7 @@ export class TreeUtils {
             key: node.key,
           }
         };
+        console.log('A', layerOpts);
         return layerUtils.createMrMapOlWMSLayer(layerOpts);
       }
       return new LayerGroup();
@@ -126,10 +151,13 @@ export class TreeUtils {
     return new Collection(layerList);
   }
 
-  public mapContextLayersToOlLayerGroup(list:MPTTJsonApiTreeNodeType[]): Collection<LayerGroup | BaseLayer> {
-    if(list) {
-      const treeNodeList = this.mapContextLayersToTreeNodeList(list);
-      const layerGroupList = this.TreeNodeListToOlLayerGroup(treeNodeList);
+  public mapContextLayersToOlLayerGroup(response: JsonApiResponse): Collection<LayerGroup | BaseLayer> {
+    const mapContextLayers = response.data?.included?.filter(
+      (item: JsonApiPrimaryData) => item.type === 'MapContextLayer'
+    );
+    if(mapContextLayers && mapContextLayers.length > 0) {
+      const treeNodeList = this.mapContextLayersToTreeNodeList(mapContextLayers);
+      const layerGroupList = this.TreeNodeListToOlLayerGroup(treeNodeList, response);
       return layerGroupList;
     }
     return new Collection();
@@ -170,7 +198,7 @@ export class TreeUtils {
    * @param node
    * @returns TreeNodeType[] | never[]
    */
-  public getNodeParent(list: TreeNodeType[], node: TreeNodeType): TreeNodeType[] | never[]{ 
+  public getNodeParent(list: TreeNodeType[], node: TreeNodeType): TreeNodeType[] | never[]{
     return list.flatMap((value: TreeNodeType) => {
       if (value.key === node.parent) {
         return value;

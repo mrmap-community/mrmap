@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
+from registry.serializers.service import LayerSerializer
 from rest_framework.fields import ChoiceField, IntegerField
 from rest_framework.serializers import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
@@ -14,6 +15,10 @@ class MapContextLayerSerializer(
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontextlayer-detail',
     )
+
+    included_serializers = {
+        'rendering_layer': LayerSerializer
+    }
 
     class Meta:
         model = MapContextLayer
@@ -43,7 +48,6 @@ class MapContextDefaultSerializer(
     class Meta:
         model = MapContext
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
     def create(self, validated_data):
         instance = super().create(validated_data)

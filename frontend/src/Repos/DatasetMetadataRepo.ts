@@ -18,7 +18,7 @@ class DatasetMetadataRepo extends JsonApiRepo {
       delete jsonApiParams['filter[search]'];
     }
 
-    const res = await client['List' + this.resourceType](jsonApiParams);
+    const res = await client['list' + this.resourceType](jsonApiParams);
     return res.data.data.map((o: any) => ({
       value: o.id,
       text: o.attributes.title,

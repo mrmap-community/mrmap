@@ -1,29 +1,26 @@
 import { SyncOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Button, notification, Tooltip } from 'antd';
+import { notification, Tooltip } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import Collection from 'ol/Collection';
 import { transformExtent } from 'ol/proj';
 import React, { ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { JsonApiPrimaryData, JsonApiResponse, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
 import LayerRepo from '../../Repos/LayerRepo';
 import MapContextLayerRepo from '../../Repos/MapContextLayerRepo';
-import MapContextRepo from '../../Repos/MapContextRepo';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { olMap } from '../../Utils/MapUtils';
 import { TreeUtils } from '../../Utils/TreeUtils';
+import RepoForm from '../Shared/RepoForm/RepoForm';
 import { DropNodeEventType, TreeNodeType } from '../Shared/TreeManager/TreeManagerTypes';
 import { CreateLayerOpts } from '../TheMap/LayerManager/LayerManagerTypes';
 import { TheMap } from '../TheMap/TheMap';
-import { AttributesForm } from './AttributesForm/AttributesForm';
-import { LayerAttributesForm } from './LayerAttributesForm/LayerAttributesForm';
 import './MapContextForm.css';
 import { TabsDrawer } from './TabsDrawer/TabsDrawer';
 
 
-const mapContextRepo = new MapContextRepo();
 const mapContextLayerRepo = new MapContextLayerRepo();
 const layerRepo = new LayerRepo();
 const layerUtils = new LayerUtils();
@@ -34,17 +31,14 @@ export const MapContextForm = (): ReactElement => {
 
   // get the ID parameter from the url
   const { id } = useParams();
-
+  const navigate = useNavigate();
   const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
   const [isLoadingMapContextInfo, setIsLoadingMapContextInfo] = useState<boolean>(false);
-  const [isSubmittingMapContext, setIsSubmittingMapContext] = useState<boolean>(false);
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
   const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>();
   const [isMapContextSearchDrawerVisible, setIsMapContextSearchDrawerVisible] = useState<boolean>(false);
 
   const [getMapContext, { response: getMapContextResponse }] = useOperationMethod('getMapContext');
-  const [addMapContext, { response: addMapContextResponse }] = useOperationMethod('addMapContext');  
-  const [updateMapContext, { response: updateMapContextResponse }] = useOperationMethod('updateMapContext');  
 
 
   useEffect(() => {
@@ -188,6 +182,7 @@ export const MapContextForm = (): ReactElement => {
           message: `Add dataset '${dataset.title}'`
         });
       } catch (error) {
+        console.log(error);
         if(!createdMapContextId) {
           // TODO: Why is this not working?
           setIsMapContextSearchDrawerVisible(true);
@@ -312,9 +307,11 @@ export const MapContextForm = (): ReactElement => {
           layerGroupName='mrMapMapContextLayers'
           initLayerTreeData={initLayerTreeData}
           layerAttributeForm={(
-            <LayerAttributesForm
-              key={currentSelectedTreeLayerNode?.key}
+            <RepoForm
+              resourceType={'MapContextLayer'}
+              resourceId={currentSelectedTreeLayerNode?.key}
               form={form}
+              // TODO: onSuccess={}
             />
           )}
           layerCreateErrorDispatchAction={(error: any) => {
@@ -385,40 +382,15 @@ export const MapContextForm = (): ReactElement => {
         addDatasetToMapAction={onAddDatasetToMapAction}
         mapContextForm={(
           <>
-            <AttributesForm
-              onSubmit={async (values) => {
-                let response;
-                if (!id) {
-                  setIsSubmittingMapContext(true);
-                  try {
-                    response = await mapContextRepo.create(values);
-                    if (response.data?.data && (response.data.data as JsonApiPrimaryData).id) {
-                      setCreatedMapContextId((response.data.data as JsonApiPrimaryData).id);
-                    }
-                    return response;
-                  } catch (error) {
-                    setIsSubmittingMapContext(false);
-                    // @ts-ignore
-                    throw new Error(error);
-                  } finally {
-                    setIsSubmittingMapContext(false);
-                  }
-                } else {
-                  // TODO add action to edit
-                  response = await mapContextRepo.update(id, values);
-                  setCreatedMapContextId(id);
-                }
-              }}
+            <RepoForm
+              resourceType='MapContext'
+              resourceId={id}
               form={form}
+              onSuccess={(response, created) => {
+                const mapContextId = (response.data.data as JsonApiPrimaryData).id;
+                navigate(`/registry/mapcontexts/${mapContextId}/edit`);               
+              }}
             />
-            <Button
-              type='primary'
-              onClick={() => form.submit()}
-              disabled={isSubmittingMapContext}
-              loading={isSubmittingMapContext}
-            >
-              {!createdMapContextId ? 'Submit' : 'Change' }
-            </Button>
           </>
         )}
       />

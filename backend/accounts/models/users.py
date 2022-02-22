@@ -14,18 +14,32 @@ from django.utils.translation import gettext_lazy as _
 from guardian.shortcuts import assign_perm
 
 
+def get_settings_default():
+    return {}
+
+
 class User(AbstractUser):
-    id = models.UUIDField(primary_key=True,
-                          default=uuid.uuid4,
-                          editable=False)
-    confirmed_newsletter = models.BooleanField(default=False,
-                                               verbose_name=_("I want to sign up for the newsletter"))
-    confirmed_survey = models.BooleanField(default=False,
-                                           verbose_name=_("I want to participate in surveys"))
-    confirmed_dsgvo = models.DateTimeField(auto_now_add=True,  # FIXME: auto_now_add results in auto accepting dsgvo... this is not a good practice.
-                                           help_text=_("I understand and accept that my data will be automatically "
-                                                       "processed and securely stored, as it is stated in the "
-                                                       "general data protection regulation (GDPR)."))
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False)
+    confirmed_newsletter = models.BooleanField(
+        default=False,
+        verbose_name=_("I want to sign up for the newsletter"))
+    confirmed_survey = models.BooleanField(
+        default=False,
+        verbose_name=_("I want to participate in surveys"))
+    confirmed_dsgvo = models.DateTimeField(
+        # FIXME: auto_now_add results in auto accepting dsgvo... this is not a good practice.
+        auto_now_add=True,
+        help_text=_("I understand and accept that my data will be automatically "
+                    "processed and securely stored, as it is stated in the "
+                    "general data protection regulation (GDPR)."))
+    settings = models.JSONField(
+        verbose_name=_('settings'),
+        help_text=_(
+            'json storage on backend to provide configurations for frontends.'),
+        default=get_settings_default)
 
     objects = CustomUserManager()
 

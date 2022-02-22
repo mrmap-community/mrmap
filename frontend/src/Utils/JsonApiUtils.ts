@@ -30,7 +30,7 @@ export async function unpage (jsonApiResponse: any, api: OpenAPIClientAxios): Pr
 export function buildJsonApiPayload (
   type: string, 
   id?: string | number, 
-  attributes?: Array<any>, 
+  attributes?: any, 
   relationships?: Array<any>): any {
     
   if (id){

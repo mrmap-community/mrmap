@@ -9,15 +9,23 @@ SECURED_MODELS = ['registry.WebMapService',
 
 
 DEFAULT_SETTINGS_FOR_REACT_CLIENT = {
-    'tables': {
-        'WebMapService': {
-            'columns': ['title', 'version', 'createdAt', 'actions']
-        },
-        'WebFeatureService': {
-            'columns': ['title', 'version', 'createdAt', 'actions']
-        },
-        'CatalougeService': {
-            'columns': ['title', 'version', 'createdAt', 'actions']
+    'react-client': {
+        'tables': {
+            'WebMapService': {
+                'id': {
+                    'show': False,
+                    'order': 1,
+                },
+                'title': {
+                    'show': True,
+                    'order': 2,
+                },
+                'stringRepresentation': {
+                    'show': False,
+                    'order': 3
+                }
+            }
+
         }
     }
 }

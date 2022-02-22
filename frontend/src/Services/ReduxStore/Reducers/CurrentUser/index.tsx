@@ -1,26 +1,27 @@
-import { createEntityAdapter, createSlice } from '@reduxjs/toolkit';
-import { RootState } from '../../Store';
+import { createSlice } from '@reduxjs/toolkit';
 
 
-
-const currentUserAdapter = createEntityAdapter<any>({
-  selectId: (currentUser) => currentUser.id,
-});
-
-export const currentUserSelectors = currentUserAdapter.getSelectors<RootState>(
-  (state) => state.currentUser
-);
 
 export const currentUserSlice = createSlice({
   name: 'currentUser',
-  initialState: currentUserAdapter.getInitialState(),
+  initialState: { user : undefined } as any ,
   reducers: {
-    set: currentUserAdapter.setOne,
-    clear: currentUserAdapter.removeAll
+    set: (state, action) => {
+      state.user = action.payload;
+    },
+    clear: (state) => {
+      state.user = undefined;
+    },
+    updateSettings: (state, action) => {
+      state.user.attributes.settings[action.payload.jsonPointer] = action.payload.newSettings;
+      // TODO: update user on backend also
+    }
   }
 });
 
-export const { set } = currentUserSlice.actions;
+export const { set, clear, updateSettings } = currentUserSlice.actions;
 export default currentUserSlice.reducer;
+
+
 
 

@@ -3,8 +3,7 @@ import uuid
 
 import six
 from accounts.managers.users import CustomUserManager
-from accounts.settings import (DEFAULT_SETTINGS_FOR_REACT_CLIENT,
-                               USER_ACTIVATION_TIME_WINDOW)
+from accounts.settings import USER_ACTIVATION_TIME_WINDOW
 from django.contrib.auth.hashers import get_hasher
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -13,10 +12,6 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from guardian.shortcuts import assign_perm
-
-
-def get_settings():
-    return DEFAULT_SETTINGS_FOR_REACT_CLIENT
 
 
 class User(AbstractUser):
@@ -40,7 +35,8 @@ class User(AbstractUser):
         verbose_name=_('settings'),
         help_text=_(
             'json storage on backend to provide configurations for frontends.'),
-        default=get_settings)
+        null=True,
+        blank=True)
 
     objects = CustomUserManager()
 

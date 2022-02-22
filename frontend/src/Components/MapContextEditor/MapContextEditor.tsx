@@ -1,4 +1,5 @@
 import { LayerTree, useMap } from '@terrestris/react-geo';
+import { getUid } from 'ol';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
@@ -19,6 +20,11 @@ export const MapContextEditor = (): ReactElement => {
 
   // contains the layer hierarchy of the map context
   const [olLayerGroup, setOlLayerGroup] = useState<LayerGroup>();
+  const [selectedLayer, setSelectedLayer] = useState<BaseLayer>();
+  // lookup map for the OpenLayer layer objects, for a layer object, the ids can be retrieved like this:
+  // - Layer id: property 'id'
+  // - OpenLayers Uid: getUid(layer)
+  const [olUidToLayer, setOlUidToLayer] = useState(new Map<string, BaseLayer>());
 
   const [
     getMapContext,
@@ -60,6 +66,8 @@ export const MapContextEditor = (): ReactElement => {
           children.push(layer);
         }
       });
+
+      const newOlUidToLayer = new Map<string,BaseLayer>();
 
       // recursive function for building OL ImageLayers / LayerGroups from a MapContext layer
       const layerToOlLayer = (layer: any): BaseLayer => {
@@ -118,6 +126,7 @@ export const MapContextEditor = (): ReactElement => {
             visible: false
           });
         }
+        newOlUidToLayer.set(getUid(olLayer), olLayer);
         return olLayer;
       };
 
@@ -132,6 +141,7 @@ export const MapContextEditor = (): ReactElement => {
       });
       map.addLayer(layerGroup);
       setOlLayerGroup(layerGroup);
+      setOlUidToLayer(newOlUidToLayer);
     };
     if (map && getMapContextResponse) {
       buildLayerTree();
@@ -142,6 +152,14 @@ export const MapContextEditor = (): ReactElement => {
     }
   }, [map, getMapContextResponse, getMapContextResponseApi]);
 
+  const onSelect = (selectedKeys: any, info: any) => {
+    if (info.selected) {
+      setSelectedLayer(olUidToLayer.get(info.node.key) as BaseLayer);
+    } else {
+      setSelectedLayer(undefined);
+    }
+  };
+
   return (
     <>
       <div className='mapcontext-editor-layout'>
@@ -151,6 +169,8 @@ export const MapContextEditor = (): ReactElement => {
             <LayerTree
               map={map}
               layerGroup={olLayerGroup}
+              onSelect={onSelect}
+              selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
             />
           }
         </LeftDrawer>

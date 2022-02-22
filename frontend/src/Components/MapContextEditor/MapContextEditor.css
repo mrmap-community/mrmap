@@ -18,6 +18,24 @@
   width: 100%;
 }
 
+.mapcontext-layertree-layout {
+  margin-left: -24px; /* to override parent's padding defined in site-layout class */
+  margin-top: -24px; /* to override parent's padding defined in site-layout class */
+  margin-bottom: -24px; /* to override parent's padding defined in site-layout class */
+  width: calc(100% + 48px);
+}
+
+.mapcontext-layertree-header {
+  background-color: rgba(0, 0, 0, 0.85);
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 35px;
+  display: flex;
+  flex-direction: row;
+  padding: 10px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
 .mapcontext-layertree-node {
   display: flex;
   justify-content: space-between;

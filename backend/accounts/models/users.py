@@ -14,6 +14,10 @@ from django.utils.translation import gettext_lazy as _
 from guardian.shortcuts import assign_perm
 
 
+def get_settings_default():
+    return {}
+
+
 class User(AbstractUser):
     id = models.UUIDField(
         primary_key=True,
@@ -35,8 +39,7 @@ class User(AbstractUser):
         verbose_name=_('settings'),
         help_text=_(
             'json storage on backend to provide configurations for frontends.'),
-        null=True,
-        blank=True)
+        default=get_settings_default)
 
     objects = CustomUserManager()
 

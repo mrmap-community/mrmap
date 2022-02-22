@@ -1,7 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-
-
 export const currentUserSlice = createSlice({
   name: 'currentUser',
   initialState: { user : undefined } as any ,
@@ -13,15 +11,10 @@ export const currentUserSlice = createSlice({
       state.user = undefined;
     },
     updateSettings: (state, action) => {
-      state.user.attributes.settings[action.payload.jsonPointer] = action.payload.newSettings;
-      // TODO: update user on backend also
+      state.user.attributes.settings = action.payload;
     }
   }
 });
 
 export const { set, clear, updateSettings } = currentUserSlice.actions;
 export default currentUserSlice.reducer;
-
-
-
-

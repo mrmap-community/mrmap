@@ -8,7 +8,7 @@ import { OpenAPIV3 } from 'openapi-types';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { store } from '../../../Services/ReduxStore/Store';
-import { getQueryParams } from '../../../Utils/JsonApiUtils';
+import { buildJsonApiPayload, getQueryParams } from '../../../Utils/JsonApiUtils';
 import RepoForm from '../RepoForm/RepoForm';
 import { augmentColumnWithJsonSchema } from './TableHelper';
 
@@ -78,14 +78,19 @@ const RepoTable = ({
   const jsonPointer = 'reactClient/tables/'+resourceTypes[0];
 
   const currentUser = store.getState().currentUser.user;
-  const savedColumnsStateMap = currentUser.attributes?.settings[jsonPointer] || {};
-  const [columnsStateMap, setColumnsStateMap] = useState<Record<string, ColumnsState>>(savedColumnsStateMap);
+  const settings: any = useRef(currentUser.attributes?.settings);
+
+  const [
+    columnsStateMap, 
+    setColumnsStateMap
+  ] = useState<Record<string, ColumnsState>>(settings.current[jsonPointer] || {});
 
   const nestedResourceListLookup: string = 'list'+resourceTypes.join('By');
 
-  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
   const [header, setHeader] = useState<string>('TODO');
+  
+  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [addResourceDrawerVisible, setAddResourceDrawerVisible] = useState<boolean>(false);
   const [editResourceDrawerVisible, setEditResourceDrawerVisible] = useState<boolean>(false);
   const [selectedForEdit, setSelectedForEdit] = useState<string | number>();
@@ -93,6 +98,8 @@ const RepoTable = ({
   // eslint-disable-next-line max-len
   const [listResource, { loading: listLoading, error: listError, response: listResponse, api }] = useOperationMethod(nestedResourceListLookup);
   const [deleteResource, { error: deleteError }] = useOperationMethod('delete'+resourceTypes[0]);
+
+  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
 
   const tableDataSourceInit = {
     data: [],
@@ -138,17 +145,25 @@ const RepoTable = ({
   };
 
   useEffect(() => {
-    
-    const newSettings = columnsStateMap;
-  
-    store.dispatch({ 
-      type: 'currentUser/updateSettings',
-      payload: { 
-        jsonPointer: jsonPointer,
-        newSettings: newSettings
-      }
-    });
-  }, [columnsStateMap, jsonPointer, resourceTypes]);
+    if (updateUserResponse){
+      store.dispatch({ 
+        type: 'currentUser/updateSettings',
+        payload: updateUserResponse.data.data.attributes.settings
+      });
+    } 
+  }, [updateUserResponse]);
+
+  useEffect(() => {
+    if (columnsStateMap){
+      const _settings = { ...settings.current };
+      _settings[jsonPointer] = columnsStateMap;
+      updateUser(
+        [{ name: 'id', value: currentUser.id, in: 'path' }],
+        buildJsonApiPayload('User', currentUser.id, { settings: _settings })
+      );
+    }
+  }, [columnsStateMap, settings, currentUser.id, jsonPointer, updateUser]);
+
 
   useEffect(() => {
     if (deleteError) {
@@ -325,6 +340,7 @@ const RepoTable = ({
               layout: 'vertical'
             }
             : false}
+          
           {...passThroughProps}
         />
       )}

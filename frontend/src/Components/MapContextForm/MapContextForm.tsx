@@ -27,20 +27,24 @@ const layerUtils = new LayerUtils();
 const treeUtils = new TreeUtils();
 
 export const MapContextForm = (): ReactElement => {
-  const [form] = useForm();
-
-  // get the ID parameter from the url
-  const { id } = useParams();
   const navigate = useNavigate();
-  const [createdMapContextId, setCreatedMapContextId] = useState<string>('');
-  const [isLoadingMapContextInfo, setIsLoadingMapContextInfo] = useState<boolean>(false);
+  const [form] = useForm();
+  const { id } = useParams();
   const [initLayerTreeData, setInitLayerTreeData] = useState<Collection<any>>(new Collection());
   const [currentSelectedTreeLayerNode, setCurrentSelectedTreeLayerNode] = useState<TreeNodeType>();
   const [isMapContextSearchDrawerVisible, setIsMapContextSearchDrawerVisible] = useState<boolean>(false);
 
-  const [getMapContext, { response: getMapContextResponse }] = useOperationMethod('getMapContext');
+  const [
+    getMapContext, 
+    { 
+      loading: getMapContextLoading, 
+      response: getMapContextResponse 
+    }] = useOperationMethod('getMapContext');
 
+  const [deleteMapContextLayer, { response: deleteMapContextLayerResponse }] = useOperationMethod('deleteMapContextLayer');
+  const [updateMapContextLayer, { response: updateMapContextLayerResponse }] = useOperationMethod('updateMapContextLayer');
 
+  
   useEffect(() => {
     if (getMapContextResponse){
       form.setFieldsValue({
@@ -52,16 +56,11 @@ export const MapContextForm = (): ReactElement => {
       // Convert the mapContext layers coming from the server to a compatible tree node list
       const _initLayerTreeData = treeUtils.mapContextLayersToOlLayerGroup(getMapContextResponse);
       setInitLayerTreeData(_initLayerTreeData);
-      setIsLoadingMapContextInfo(false);
     }
   }, [form, getMapContextResponse]);
 
   useEffect(() => {
-    // TODO: need to add some sort of loading until the values are fetched
-    // olMap.addLayer(mapContextLayersPreviewGroup);
     if (id) {
-      setIsLoadingMapContextInfo(true);
-      setCreatedMapContextId(id);
       getMapContext([
         { name: 'id', value: String(id), in: 'path' },
         { name: 'include', value: 'mapContextLayers.renderingLayer.service.operationUrls', in: 'query' }
@@ -73,134 +72,138 @@ export const MapContextForm = (): ReactElement => {
 
 
   const onAddDatasetToMapAction = async(dataset:any) => {
-    dataset.layers.forEach(async (layer: string) => {
-      const getParentId = (): string => {
-        const currentSelectedIsNodeOnRoot = currentSelectedTreeLayerNode &&
-          !currentSelectedTreeLayerNode?.parent &&
-          !currentSelectedTreeLayerNode?.isLeaf;
-        const currentSelectedIsLeafOnRoot = currentSelectedTreeLayerNode &&
-          !currentSelectedTreeLayerNode?.parent &&
-          currentSelectedTreeLayerNode?.isLeaf;
-        const currentSelectedIsNodeWithParent = currentSelectedTreeLayerNode &&
-          currentSelectedTreeLayerNode?.parent &&
-          !currentSelectedTreeLayerNode?.isLeaf;
-        const currentSelectedIsLeafWithParent = currentSelectedTreeLayerNode && currentSelectedTreeLayerNode?.parent &&
-          currentSelectedTreeLayerNode?.isLeaf;
-
-        if(currentSelectedIsNodeOnRoot) {
-          return String(currentSelectedTreeLayerNode?.key);
-        }
-        if(currentSelectedIsLeafOnRoot) {
-          return '';
-        }
-        if(currentSelectedIsNodeWithParent) {
-          return String(currentSelectedTreeLayerNode?.key);
-        }
-        if(currentSelectedIsLeafWithParent) {
-          return String(currentSelectedTreeLayerNode?.parent);
-        }
-
-        return '';
-      };
-      // make call
-      try {
-        // get the layer details with the id and create an OL Layer
-        const renderingLayerDetails = await layerRepo.autocompleteInitialValue(layer);
-        // this layer needs to be persisted in the DB. Create this layer in the DB
-        const createdLayer = await mapContextLayerRepo.create({
-          title:renderingLayerDetails.attributes.title,
-          description:renderingLayerDetails.attributes.abstract,
-          layerScaleMax:renderingLayerDetails.attributes.scaleMax,
-          layerScaleMin:renderingLayerDetails.attributes.scaleMin,
-          renderingLayer: renderingLayerDetails.attributes.id,
-          datasetMetadata: dataset.id,
-          parentLayerId: getParentId(),
-          mapContextId: createdMapContextId
-        });
-        //@ts-ignore
-        const layerOpts: CreateLayerOpts = {
-          url: '',
-          version: '1.1.1',
-          format: 'image/png',
-          layers: '',
-          serverType: 'MAPSERVER',
-          legendUrl: 'string',
-          visible: false,
-          //@ts-ignore
-          title: createdLayer.data.data.attributes.title,
-          //@ts-ignore
-          description: createdLayer.data.data.attributes.description,
-          //@ts-ignore
-          layerId: createdLayer.data.data.id,
-          properties: {
-            //@ts-ignore
-            datasetMetadata: createdLayer.data.data.relationships.datasetMetadata.data?.id,
-            //@ts-ignore
-            renderingLayer: createdLayer.data.data.relationships.renderingLayer.data?.id,
-            //@ts-ignore
-            scaleMin: createdLayer.data.data.attributes.layerScaleMin,
-            //@ts-ignore
-            scaleMax: createdLayer.data.data.attributes.layerScaleMax,
-            //@ts-ignore
-            style: createdLayer.data.data.relationships.layerStyle.data?.id,
-            //@ts-ignore
-            featureSelectionLayer: createdLayer.data.data.relationships.selectionLayer.data?.id,
-            //@ts-ignore
-            parent: createdLayer?.data?.data?.relationships?.parent?.data?.id,
-            //@ts-ignore
-            key: createdLayer.data.data.id,
+    if (id){
+      dataset.layers.forEach(async (layer: string) => {
+        const getParentId = (): string => {
+          const currentSelectedIsNodeOnRoot = currentSelectedTreeLayerNode &&
+            !currentSelectedTreeLayerNode?.parent &&
+            !currentSelectedTreeLayerNode?.isLeaf;
+          const currentSelectedIsLeafOnRoot = currentSelectedTreeLayerNode &&
+            !currentSelectedTreeLayerNode?.parent &&
+            currentSelectedTreeLayerNode?.isLeaf;
+          const currentSelectedIsNodeWithParent = currentSelectedTreeLayerNode &&
+            currentSelectedTreeLayerNode?.parent &&
+            !currentSelectedTreeLayerNode?.isLeaf;
+          const currentSelectedIsLeafWithParent = currentSelectedTreeLayerNode && 
+            currentSelectedTreeLayerNode?.parent &&
+            currentSelectedTreeLayerNode?.isLeaf;
+  
+          if(currentSelectedIsNodeOnRoot) {
+            return String(currentSelectedTreeLayerNode?.key);
           }
+          if(currentSelectedIsLeafOnRoot) {
+            return '';
+          }
+          if(currentSelectedIsNodeWithParent) {
+            return String(currentSelectedTreeLayerNode?.key);
+          }
+          if(currentSelectedIsLeafWithParent) {
+            return String(currentSelectedTreeLayerNode?.parent);
+          }
+  
+          return '';
         };
-        const renderingLayer = layerUtils.createMrMapOlWMSLayer({
-          ...layerOpts,
-          url: renderingLayerDetails.attributes.WMSParams.url,
-          version: renderingLayerDetails.attributes.WMSParams.version,
-          format: 'image/png',
-          layers: renderingLayerDetails.attributes.WMSParams.layer,
-          serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
-          legendUrl: renderingLayerDetails.attributes.WMSParams.legendUrl,
-        });
-
-        // TODO: This code is repeated in the layer tree.
-        // Make this action more centralized or automatic when users adds it to the tree
-        const res = await new LayerRepo().autocompleteInitialValue(renderingLayer.getProperties().renderingLayer);
-        if(res.attributes.WMSParams.bbox) {
-          olMap.getView().fit(transformExtent(res.attributes.WMSParams.bbox, 'EPSG:4326', 'EPSG:3857'));
-        }
-
-        const mapContextLayersGroup = layerUtils.getLayerGroupByGroupTitle(olMap, 'mrMapMapContextLayers');
-
-        if(mapContextLayersGroup) {
-          layerUtils.addLayerToGroupByMrMapLayerId(
-            mapContextLayersGroup,
-            currentSelectedTreeLayerNode?.key as string,
-            renderingLayer
-          );
-        }
-
-        notification.info({
-          message: `Add dataset '${dataset.title}'`
-        });
-      } catch (error) {
-        console.log(error);
-        if(!createdMapContextId) {
-          // TODO: Why is this not working?
-          setIsMapContextSearchDrawerVisible(true);
-          notification.warn({
-            message: 'No MapContext was created. Please create a valid Map '+
-              'Context before adding Map Context Layers'
+        // make call
+        try {
+          // get the layer details with the id and create an OL Layer
+          const renderingLayerDetails = await layerRepo.autocompleteInitialValue(layer);
+          // this layer needs to be persisted in the DB. Create this layer in the DB
+          const createdLayer = await mapContextLayerRepo.create({
+            title:renderingLayerDetails.attributes.title,
+            description:renderingLayerDetails.attributes.abstract,
+            layerScaleMax:renderingLayerDetails.attributes.scaleMax,
+            layerScaleMin:renderingLayerDetails.attributes.scaleMin,
+            renderingLayer: renderingLayerDetails.attributes.id,
+            datasetMetadata: dataset.id,
+            parentLayerId: getParentId(),
+            mapContextId: id
           });
-        } else {
-          notification.error({
-            message: 'Something went wrong while trying to create the layer'
+          //@ts-ignore
+          const layerOpts: CreateLayerOpts = {
+            url: '',
+            version: '1.1.1',
+            format: 'image/png',
+            layers: '',
+            serverType: 'MAPSERVER',
+            legendUrl: 'string',
+            visible: false,
+            //@ts-ignore
+            title: createdLayer.data.data.attributes.title,
+            //@ts-ignore
+            description: createdLayer.data.data.attributes.description,
+            //@ts-ignore
+            layerId: createdLayer.data.data.id,
+            properties: {
+              //@ts-ignore
+              datasetMetadata: createdLayer.data.data.relationships.datasetMetadata.data?.id,
+              //@ts-ignore
+              renderingLayer: createdLayer.data.data.relationships.renderingLayer.data?.id,
+              //@ts-ignore
+              scaleMin: createdLayer.data.data.attributes.layerScaleMin,
+              //@ts-ignore
+              scaleMax: createdLayer.data.data.attributes.layerScaleMax,
+              //@ts-ignore
+              style: createdLayer.data.data.relationships.layerStyle.data?.id,
+              //@ts-ignore
+              featureSelectionLayer: createdLayer.data.data.relationships.selectionLayer.data?.id,
+              //@ts-ignore
+              parent: createdLayer?.data?.data?.relationships?.parent?.data?.id,
+              //@ts-ignore
+              key: createdLayer.data.data.id,
+            }
+          };
+          const renderingLayer = layerUtils.createMrMapOlWMSLayer({
+            ...layerOpts,
+            url: renderingLayerDetails.attributes.WMSParams.url,
+            version: renderingLayerDetails.attributes.WMSParams.version,
+            format: 'image/png',
+            layers: renderingLayerDetails.attributes.WMSParams.layer,
+            serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
+            legendUrl: renderingLayerDetails.attributes.WMSParams.legendUrl,
           });
+  
+          // TODO: This code is repeated in the layer tree.
+          // Make this action more centralized or automatic when users adds it to the tree
+          const res = await new LayerRepo().autocompleteInitialValue(renderingLayer.getProperties().renderingLayer);
+          if(res.attributes.WMSParams.bbox) {
+            olMap.getView().fit(transformExtent(res.attributes.WMSParams.bbox, 'EPSG:4326', 'EPSG:3857'));
+          }
+  
+          const mapContextLayersGroup = layerUtils.getLayerGroupByGroupTitle(olMap, 'mrMapMapContextLayers');
+  
+          if(mapContextLayersGroup) {
+            layerUtils.addLayerToGroupByMrMapLayerId(
+              mapContextLayersGroup,
+              currentSelectedTreeLayerNode?.key as string,
+              renderingLayer
+            );
+          }
+  
+          notification.info({
+            message: `Add dataset '${dataset.title}'`
+          });
+        } catch (error) {
+          console.log(error);
+          if(!id) {
+            // TODO: Why is this not working?
+            setIsMapContextSearchDrawerVisible(true);
+            notification.warn({
+              message: 'No MapContext was created. Please create a valid Map '+
+                'Context before adding Map Context Layers'
+            });
+          } else {
+            notification.error({
+              message: 'Something went wrong while trying to create the layer'
+            });
+          }
         }
-      }
-    });
+      });
+    }
+    
   };
 
   // TODO: replace for a decent loading screen
-  if(isLoadingMapContextInfo) {
+  if(getMapContextLoading) {
     return (<SyncOutlined spin />);
   }
 
@@ -208,7 +211,7 @@ export const MapContextForm = (): ReactElement => {
     <>
       <div className='map-context-layout'>
         <TheMap
-          showLayerManager={!!createdMapContextId}
+          showLayerManager={!!id}
           selectLayerDispatchAction={(selectedKeys, info) => setCurrentSelectedTreeLayerNode(info.node)}
           addLayerDispatchAction={async (nodeAttributes, newNodeParent) => {
             let renderingLayerInfo = null;
@@ -217,7 +220,7 @@ export const MapContextForm = (): ReactElement => {
               const createdLayer: JsonApiResponse = await mapContextLayerRepo.create({
                 ...nodeAttributes,
                 parentLayerId: newNodeParent || '',
-                mapContextId: createdMapContextId
+                mapContextId: id
               });
               const responsePrimary = createdLayer?.data?.data as JsonApiPrimaryData;
               // eslint-disable-next-line max-len
@@ -263,16 +266,8 @@ export const MapContextForm = (): ReactElement => {
               throw new Error(error);
             }
           }}
-          removeLayerDispatchAction={async (nodeToRemove) => {
-            try {
-              // setCurrentSelectedTreeLayerNode(undefined);
-              return await mapContextLayerRepo?.delete(String(nodeToRemove.key));
-            } catch (error) {
-              //@ts-ignore
-              throw new Error(error);
-            } finally {
-              // setCurrentSelectedTreeLayerNode(undefined);
-            }
+          removeLayerDispatchAction={(nodeToRemove) => {
+            return deleteMapContextLayer([{ name: 'id', value: nodeToRemove.key, in: 'path' }]);
           }}
           editLayerDispatchAction={async (nodeId, nodeAttributesToUpdate) => {
             try {
@@ -315,7 +310,7 @@ export const MapContextForm = (): ReactElement => {
             />
           )}
           layerCreateErrorDispatchAction={(error: any) => {
-            if(!createdMapContextId) {
+            if(!id) {
               notification.warn({
                 message: 'No MapContext was created. Please create a valid Map '+
                     'Context before adding Map Context Layers'
@@ -378,7 +373,7 @@ export const MapContextForm = (): ReactElement => {
       </div>
       <TabsDrawer
         isVisible={isMapContextSearchDrawerVisible}
-        defaultOpenTab={!createdMapContextId ? '0' : ''}
+        defaultOpenTab={!id ? '0' : ''}
         addDatasetToMapAction={onAddDatasetToMapAction}
         mapContextForm={(
           <>

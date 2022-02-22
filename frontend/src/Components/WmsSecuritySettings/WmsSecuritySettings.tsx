@@ -12,8 +12,8 @@ import { unpage } from '../../Utils/JsonApiUtils';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { olMap } from '../../Utils/MapUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
+import LeftDrawer from '../Shared/LeftDrawer/LeftDrawer';
 import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
-import { LeftDrawer } from './LeftDrawer/LeftDrawer';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';
 
@@ -42,23 +42,23 @@ export const WmsSecuritySettings = (): ReactElement => {
   const [
     getWebMapService,
     {
-      loading: getWMSLoading, 
-      response: getWMSResponse 
+      loading: getWMSLoading,
+      response: getWMSResponse
     }
   ] = useOperationMethod('getWebMapService');
   const [
-    listLayer, 
-    { 
-      loading: listLayerLoading, 
-      response: listLayerResponse, 
-      api: listLayerApi 
+    listLayer,
+    {
+      loading: listLayerLoading,
+      response: listLayerResponse,
+      api: listLayerApi
     }
   ] = useOperationMethod('listLayerByWebMapService');
 
 
   useEffect(() => {
     // TODO: move unpaging in custom useOperationMethod hook?
-    async function buildLayerTree() {      
+    async function buildLayerTree() {
       // WMS specific stuff
       const getMapUrl = getWMSResponse.data.included.filter((opUrl:any) => {
         return opUrl.attributes.method === 'Get' && opUrl.attributes.operation === 'GetMap';
@@ -138,7 +138,7 @@ export const WmsSecuritySettings = (): ReactElement => {
       setLayerIdToLayer(newLayerIdToLayer);
       setExpandedOlUids(newExpandedOlUids);
 
-      
+
       return ( () => {
         wmsOlRootLayer && map.removeLayer(wmsOlRootLayer);
       });
@@ -227,7 +227,7 @@ export const WmsSecuritySettings = (): ReactElement => {
   return (
     <>
       <div className='wms-security-layout'>
-        <LeftDrawer>
+        <LeftDrawer map={map}>
           <LayerTree
             multiple
             showLine
@@ -244,10 +244,11 @@ export const WmsSecuritySettings = (): ReactElement => {
             defaultExpandParent={false}
           />
         </LeftDrawer>
-        <AutoResizeMapComponent id='the-map' />
+        <AutoResizeMapComponent id='map' />
         {
           wmsId &&
             <RulesDrawer
+              map={map}
               wmsId={wmsId}
               selectedLayerIds={selectedLayerIds}
               setSelectedLayerIds={setSelectedLayerIds}

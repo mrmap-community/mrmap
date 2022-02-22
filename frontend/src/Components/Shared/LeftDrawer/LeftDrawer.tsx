@@ -1,34 +1,39 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useMap } from '@terrestris/react-geo';
 import { Button, Drawer } from 'antd';
-import React, { useRef, useState } from 'react';
+import OlMap from 'ol/Map';
+import { default as React, useEffect, useRef, useState } from 'react';
 import './LeftDrawer.css';
 
 interface OwnProps {
+  map?: OlMap;
   children?: JSX.Element;
 }
 
 type LeftDrawerProps = OwnProps;
 
 export const LeftDrawer: React.FC<LeftDrawerProps> = ({
+  map,
   children
 }) => {
 
-  const map = useMap();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
-  const toggleVisible = () => {
-    setIsVisible(!isVisible);
-    buttonRef.current?.blur();
-    // hack map div width
+
+  // adjust padding of map div
+  useEffect( () => {
     if (map) {
       const mapDiv: any = document.querySelector(`#${map.getTarget()}`);
-      if (isVisible) {
+      if (!isVisible) {
         mapDiv.style.paddingLeft = '0px';
       } else {
         mapDiv.style.paddingLeft = '500px';
       }
-    }    
+    }
+  }, [map, isVisible]);
+
+  const toggleVisible = () => {
+    setIsVisible(!isVisible);
+    buttonRef.current?.blur();
   };
 
   return (

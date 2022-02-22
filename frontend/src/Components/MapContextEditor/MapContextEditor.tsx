@@ -1,10 +1,12 @@
+import { MinusCircleFilled, SettingFilled } from '@ant-design/icons';
 import { LayerTree, useMap } from '@terrestris/react-geo';
+import { Button, Dropdown, Menu, Tooltip } from 'antd';
 import { getUid } from 'ol';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
-import { default as React, ReactElement, useEffect, useState } from 'react';
+import { default as React, ReactElement, ReactNode, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { JsonApiPrimaryData, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
@@ -160,6 +162,58 @@ export const MapContextEditor = (): ReactElement => {
     }
   };
 
+  const renderNodeContextMenu = (layer: BaseLayer): ReactElement => {
+    const removeLayer = () => {
+      // TODO handle nested layers
+      olLayerGroup?.getLayers().remove(layer);
+    };
+
+    return (
+      <Menu
+        className='tree-manager-context-menu'>
+        <Menu.Item
+          onClick={removeLayer}
+          icon={<MinusCircleFilled />}
+          key='remove-node'
+        >
+        Delete
+        </Menu.Item>
+      </Menu>
+    );
+  };
+
+  const renderNodeTitle = (layer: BaseLayer): ReactNode => {
+    return (
+      <div className='mapcontext-layertree-node'>
+        <div className='mapcontext-layertree-node-title'>{ layer.get('name') }</div>
+        <div className='mapcontext-layertree-node-actions'>
+          <Dropdown
+            overlay={renderNodeContextMenu(layer)}
+            trigger={['click']}
+          >
+            <Tooltip title='Node options'>
+              <Button
+                type='text'
+                icon={<SettingFilled />}
+              />
+            </Tooltip>
+          </Dropdown>
+        </div>
+      </div>
+    );
+  };
+
+  const allowDrop = ({ dropNode, dropPosition }: {dropNode: any, dropPosition: any}) => {
+    const layer = olUidToLayer.get(dropNode.key);
+    // dropPosition: -1 (previous sibling)
+    // dropPosition: 1 (next sibling)
+    // dropPosition: 0 (first child)
+    console.log('dropNode', dropNode);
+    console.log('dropPosition', dropPosition);
+    // disable dropping a new child of non-group layer
+    return dropPosition !== 0 || layer instanceof LayerGroup;
+  };
+
   return (
     <>
       <div className='mapcontext-editor-layout'>
@@ -167,10 +221,13 @@ export const MapContextEditor = (): ReactElement => {
           {
             olLayerGroup &&
             <LayerTree
+              draggable
+              allowDrop={allowDrop}
               map={map}
               layerGroup={olLayerGroup}
               onSelect={onSelect}
               selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
+              nodeTitleRenderer={renderNodeTitle}
             />
           }
         </LeftDrawer>

@@ -12,7 +12,7 @@ import { unpage } from '../../Utils/JsonApiUtils';
 import { LayerUtils } from '../../Utils/LayerUtils';
 import { olMap } from '../../Utils/MapUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
-import LeftDrawer from '../Shared/LeftDrawer/LeftDrawer';
+import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
 import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
 import { RulesDrawer } from './RulesDrawer/RulesDrawer';
 import './WmsSecuritySettings.css';

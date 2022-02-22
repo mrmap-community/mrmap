@@ -11,6 +11,7 @@ import FeatureTypeTable from './Components/FeatureTypeTable/FeatureTypeTable';
 import LayerTable from './Components/LayerTable/LayerTable';
 import { Login } from './Components/LoginForm/LoginForm';
 import { Logout } from './Components/Logout/Logout';
+import { MapContextEditor } from './Components/MapContextEditor/MapContextEditor';
 import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import MapContextTable from './Components/MapContextTable/MapContextTable';
 import { NavMenu } from './Components/NavMenu/NavMenu';
@@ -29,7 +30,7 @@ const { Content, Sider } = Layout;
 function RequireAuth ({ children }:{ children: JSX.Element }) {
   const location = useLocation();
   const currentUser = useSelector(currentUserSelectors.selectAll);
-  
+
   if (!currentUser || !currentUser[0]) {
     // store location so login page can forward to original page
     return <Navigate to='/login' state={{ from: location }} />;
@@ -149,10 +150,20 @@ export default function App (): JSX.Element {
           />
           <Route
             path='/registry/mapcontexts/add'
-            element={<MapContextForm />}
+            element={<MapContextEditor />}
           />
           <Route
             path='/registry/mapcontexts/:id/edit'
+            element={<MapContextEditor />}
+            // @ts-ignore
+            exact
+          />
+          <Route
+            path='/registry/mapcontexts-old/add'
+            element={<MapContextForm />}
+          />
+          <Route
+            path='/registry/mapcontexts-old/:id/edit'
             element={<MapContextForm />}
             // @ts-ignore
             exact

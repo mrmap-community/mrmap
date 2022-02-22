@@ -2,6 +2,7 @@ import { FolderAddOutlined, MinusCircleFilled, SettingFilled } from '@ant-design
 import { LayerTree, useMap } from '@terrestris/react-geo';
 import { Button, Dropdown, Menu, Tooltip } from 'antd';
 import { getUid } from 'ol';
+import { CollectionEvent } from 'ol/Collection';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
@@ -28,7 +29,8 @@ export const MapContextEditor = (): ReactElement => {
   // - OpenLayers Uid: getUid(layer)
   const [olUidToLayer, setOlUidToLayer] = useState(new Map<string, BaseLayer>());
 
-  // unfortunately, we need some state to distinguish between a normal remove and a remove followed by an add (move)
+  // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
+  // so we work around this by using some state...
   const removingLayer = useRef(false);
   const moveRemoveStep = useRef<any>();
 
@@ -169,7 +171,7 @@ export const MapContextEditor = (): ReactElement => {
   // register listeners for layer group recursively
   const registerLayerListeners = (groupLayer: LayerGroup) => {
     const collection = groupLayer.getLayers();
-    collection.on('add', (evt: any) => {
+    collection.on('add', (evt: CollectionEvent) => {
       if (!moveRemoveStep.current) {
         // a normal add operation
         onLayerAdd(evt);
@@ -179,7 +181,7 @@ export const MapContextEditor = (): ReactElement => {
         moveRemoveStep.current = undefined;
       }
     });
-    collection.on('remove', (evt: any) => {
+    collection.on('remove', (evt: CollectionEvent) => {
       if (removingLayer.current) {
         // a normal remove operation
         onLayerRemove(evt);
@@ -196,17 +198,22 @@ export const MapContextEditor = (): ReactElement => {
     });
   };
 
-  const onLayerAdd = (addEvent: any) => {
-    console.log('onLayerAdd', addEvent);
+  const onLayerAdd = (evt: CollectionEvent) => {
+    console.log('onLayerAdd', evt);
+    const layer: BaseLayer = evt.element;
+    olUidToLayer.set(getUid(layer), layer);
+    layer.set('parent', evt.target);
   };
 
-  const onLayerRemove = (removeEvent: any) => {
-    console.log('onLayerRemove', removeEvent);
+  const onLayerRemove = (evt: CollectionEvent) => {
+    console.log('onLayerRemove', evt);
+    const layer: BaseLayer = evt.element;
+    olUidToLayer.delete(getUid(layer));
   };
 
-  const onLayerMove = (removeEvent: any, addEvent: any) => {
-    console.log('onLayerMove (remove)', removeEvent);
-    console.log('onLayerMove (add)', addEvent);
+  const onLayerMove = (remove: CollectionEvent, add: CollectionEvent) => {
+    console.log('onLayerMove (remove)', remove);
+    console.log('onLayerMove (add)', add);
   };
 
   const onSelect = (selectedKeys: any, info: any) => {

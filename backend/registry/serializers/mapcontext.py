@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
@@ -26,55 +27,54 @@ class MapContextLayerSerializer(
         fields = "__all__"
 
 
-class MapContextLayerPostOrPatchSerializer(
+class MapContextLayerPatchSerializer(
         MapContextLayerSerializer):
-
-    target = IntegerField(
-        label=_('target id'),
-        help_text=_('pass the id of the target node')
-    )
     # https://django-mptt.readthedocs.io/en/latest/models.html?highlight=insert_node#insert-node-node-target-position-last-child-save-false
-    position = ChoiceField(
+    position = IntegerField(
         label=_('position'),
         help_text=_(
             'the tree position of the node where it should be moved to'),
-        choices=['first-child', 'last-child', 'left', 'right'])
+        write_only=True)
 
     def validate(self, attrs):
         validated_data = super().validate(attrs)
-        if ('target' in validated_data and 'position' not in validated_data) or ('target' not in validated_data and 'position' in validated_data):
-            raise ValidationError(
-                _('if you want to use move to or insert at action, you need to pass target AND position.'))
-        elif 'target' in validated_data and 'position' in validated_data:
-            if 'parent' in validated_data:
-                raise ValidationError(
-                    _('set parent on move or insert action is not allowed'))
-            try:
-                validated_data['target'] = MapContextLayer.objects.get(
-                    pk=validated_data['target'])
-            except MapContextLayer.DoesNotExist:
-                raise ValidationError(
-                    'given target MapContextLayer does not exist.')
-
+        request: HttpRequest = self.context.get('request', None)
+        if request and request.method.lower() == 'patch':
+            position = validated_data.get('position', None)
+            if isinstance(position, int):
+                # move action detected
+                parent = validated_data.get('parent', self.instance.parent)
+                if not parent:
+                    raise ValidationError(_('root node can not be moved'))
+                else:
+                    validated_data['parent'] = parent
+                child_layers_count = parent.child_layers.count()
+                if position > child_layers_count:
+                    raise ValidationError(_('position index out of range'))
         return validated_data
 
-    def create(self, validated_data):
-        target = validated_data.pop('target')
-        position = validated_data.pop('position')
-        obj = super().create(validated_data=validated_data)
-        if target and position:
-            obj.move_to(
-                target=target,
-                position=position)
-        return obj
-
     def update(self, instance, validated_data):
-        target = validated_data.pop('target')
         position = validated_data.pop('position')
-        if target and position:
-            instance.move_to(
-                target=target,
-                position=position)
+        if position == 0:
+            parent = validated_data['parent']
+            child_layers = parent.child_layers.all()
+            child_layers_count = child_layers.count()
+            if child_layers_count == 0:
+                # first and only child
+                instance.move_to(
+                    target=parent,
+                    position='first-child')
+            elif position == child_layers_count:
+                # last child
+                instance.move_to(
+                    target=parent,
+                    position='last-child')
+            else:
+                # new child somewhere between
+                target = child_layers[position]
+                instance.move_to(
+                    target=target,
+                    position='left')
         return super().update(instance, validated_data)
 
 

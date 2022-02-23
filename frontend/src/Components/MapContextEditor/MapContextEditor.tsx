@@ -13,6 +13,7 @@ import { useParams } from 'react-router-dom';
 import { JsonApiPrimaryData, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
 import { unpage } from '../../Utils/JsonApiUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
+import { BottomDrawer } from '../Shared/BottomDrawer/BottomDrawer';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
 import './MapContextEditor.css';
 import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
@@ -229,6 +230,7 @@ export const MapContextEditor = (): ReactElement => {
         </LeftDrawer>
         <AutoResizeMapComponent id='map' />
       </div>
+      <BottomDrawer map={map} />
     </>
   );
 };

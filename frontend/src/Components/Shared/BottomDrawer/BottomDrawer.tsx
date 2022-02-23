@@ -1,17 +1,17 @@
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { DownOutlined, UpOutlined } from '@ant-design/icons';
 import { Button, Drawer } from 'antd';
 import OlMap from 'ol/Map';
 import { default as React, useEffect, useRef, useState } from 'react';
-import './LeftDrawer.css';
+import './BottomDrawer.css';
 
 interface OwnProps {
   map?: OlMap;
   children?: JSX.Element;
 }
 
-type LeftDrawerProps = OwnProps;
+type BottomDrawerProps = OwnProps;
 
-export const LeftDrawer: React.FC<LeftDrawerProps> = ({
+export const BottomDrawer: React.FC<BottomDrawerProps> = ({
   map,
   children
 }) => {
@@ -24,9 +24,9 @@ export const LeftDrawer: React.FC<LeftDrawerProps> = ({
     if (map) {
       const mapDiv: any = document.querySelector(`#${map.getTarget()}`);
       if (!isVisible) {
-        mapDiv.style.paddingLeft = '0px';
+        mapDiv.style.paddingBottom = '0px';
       } else {
-        mapDiv.style.paddingLeft = '500px';
+        mapDiv.style.paddingBottom = '500px';
       }
     }
   }, [map, isVisible]);
@@ -40,22 +40,21 @@ export const LeftDrawer: React.FC<LeftDrawerProps> = ({
     <>
       <Button
         ref={buttonRef}
-        className={'left-drawer-toggle-button'}
+        className={'bottom-drawer-toggle-button'}
         type='primary'
         style={{
-          left: isVisible ? '500px' : 0
+          bottom: isVisible ? '500px' : 0
         }}
-        icon={isVisible ? <LeftOutlined/> : <RightOutlined />}
+        icon={isVisible ? <DownOutlined /> : <UpOutlined />}
         onClick={toggleVisible}
       />
       <Drawer
-        placement='left'
-        getContainer={false}
+        placement='bottom'
         visible={isVisible}
         closable={false}
         mask={false}
-        width={500}
-        style={{ position: 'absolute', zIndex: 1, height: '100%' }}
+        height={500}
+        style={{ zIndex: 2 }}
       >
         {children}
       </Drawer>

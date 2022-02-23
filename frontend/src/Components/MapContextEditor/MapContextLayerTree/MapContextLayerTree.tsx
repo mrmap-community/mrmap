@@ -1,26 +1,23 @@
-import { MinusCircleFilled, SettingFilled } from '@ant-design/icons';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { LayerTree } from '@terrestris/react-geo';
-import { Button, Dropdown, Menu, Tooltip } from 'antd';
-import { getUid } from 'ol';
+import { LayerTreeProps } from '@terrestris/react-geo/dist/LayerTree/LayerTree';
 import { CollectionEvent } from 'ol/Collection';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import OlMap from 'ol/Map';
-import { default as React, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
+import { default as React, ReactElement, ReactNode, useEffect, useRef } from 'react';
 import './MapContextLayerTree.css';
 
 export const MapContextLayerTree = ({
   id,
   map,
-  olLayerGroup
+  olLayerGroup,
+  ...passThroughProps
 }:{
   id: string,
   map: OlMap,
   olLayerGroup: LayerGroup
-}): ReactElement => {
-
-  const [selectedLayer, setSelectedLayer] = useState<BaseLayer>();
+} & LayerTreeProps): ReactElement => {
 
   // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
   // so we work around this by using two state variables
@@ -83,52 +80,10 @@ export const MapContextLayerTree = ({
     console.log('onLayerMove (add)', add);
   };
 
-  const onSelect = (selectedKeys: any, info: any) => {
-    if (info.selected) {
-      setSelectedLayer(MapUtil.getLayerByOlUid(map,info.node.key));
-    } else {
-      setSelectedLayer(undefined);
-    }
-  };
-
-  const renderNodeContextMenu = (layer: BaseLayer): ReactElement => {
-    const removeLayer = () => {
-      // TODO handle nested layers
-      removingLayer.current = true;
-      olLayerGroup?.getLayers().remove(layer);
-    };
-
-    return (
-      <Menu
-        className='tree-manager-context-menu'>
-        <Menu.Item
-          onClick={removeLayer}
-          icon={<MinusCircleFilled />}
-          key='remove-node'
-        >
-        Delete
-        </Menu.Item>
-      </Menu>
-    );
-  };
-
   const renderNodeTitle = (layer: BaseLayer): ReactNode => {
     return (
       <div className='mapcontext-layertree-node'>
         <div className='mapcontext-layertree-node-title'>{ layer.get('name') }</div>
-        <div className='mapcontext-layertree-node-actions'>
-          <Dropdown
-            overlay={renderNodeContextMenu(layer)}
-            trigger={['click']}
-          >
-            <Tooltip title='Node options'>
-              <Button
-                type='text'
-                icon={<SettingFilled />}
-              />
-            </Tooltip>
-          </Dropdown>
-        </div>
       </div>
     );
   };
@@ -148,9 +103,8 @@ export const MapContextLayerTree = ({
       allowDrop={allowDrop}
       map={map}
       layerGroup={olLayerGroup}
-      onSelect={onSelect}
-      selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
       nodeTitleRenderer={renderNodeTitle}
+      {...passThroughProps}
     />
   );
 };

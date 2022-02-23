@@ -1,6 +1,7 @@
-import { FolderAddOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, MinusCircleFilled, SettingFilled } from '@ant-design/icons';
+import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { useMap } from '@terrestris/react-geo';
-import { Button, Tooltip } from 'antd';
+import { Button, Space, Tooltip } from 'antd';
 import { getUid } from 'ol';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
@@ -23,6 +24,7 @@ export const MapContextEditor = (): ReactElement => {
 
   // contains the layer hierarchy of the map context
   const [olLayerGroup, setOlLayerGroup] = useState<LayerGroup>();
+  const [selectedLayer, setSelectedLayer] = useState<BaseLayer>();
 
   const [
     getMapContext,
@@ -78,10 +80,9 @@ export const MapContextEditor = (): ReactElement => {
             visible: false,
             properties: {
               id: layer.id,
-              name: layer.attributes.title
+              name: layer.attributes.title,
             }
           });
-          olLayer.getLayers().forEach ( (childLayer: any) => childLayer.set('parent', olLayer));
         } else {
           let wmsLayer, wmsUrl, wmsVersion;
           // step 1: get WMS Layer
@@ -119,7 +120,7 @@ export const MapContextEditor = (): ReactElement => {
             }),
             properties: {
               id: layer.id,
-              name: layer.attributes.title
+              name: layer.attributes.title,
             },
             visible: false
           });
@@ -149,16 +150,36 @@ export const MapContextEditor = (): ReactElement => {
     }
   }, [map, getMapContextResponse, getMapContextResponseApi]);
 
-  const onCreateLayerGroup = (parent: LayerGroup) => {
-    console.log('onCreateRootLayerGroup', parent);
+  const onSelectLayer = (selectedKeys: any, info: any) => {
+    if (info.selected) {
+      setSelectedLayer(MapUtil.getLayerByOlUid(map,info.node.key));
+    } else {
+      setSelectedLayer(undefined);
+    }
+  };
+
+  const onCreateLayerGroup = () => {
+    const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
     const layerGroup = new LayerGroup({
       visible: false,
       properties: {
-        name: 'New Layer Group'
+        name: 'New Layer Group',
       }
     });
     const layers = parent.getLayers();
     layers.insertAt(layers.getLength(), layerGroup);
+  };
+
+  const onDeleteLayer = () => {
+    if (selectedLayer) {
+      MapUtil
+        .getAllLayers(map)
+        .filter((layer: BaseLayer) => layer instanceof LayerGroup)
+        .forEach((layer: LayerGroup) => {
+          layer.getLayers().remove(selectedLayer);
+        });
+      setSelectedLayer(undefined);
+    }
   };
 
   return (
@@ -172,13 +193,30 @@ export const MapContextEditor = (): ReactElement => {
                 className='mapcontext-layertree-header'
               >
                 Layers
-                <Tooltip title='Create new node folder'>
-                  <Button
-                    icon={<FolderAddOutlined />}
-                    size='middle'
-                    onClick={ () => { onCreateLayerGroup(olLayerGroup);} }
-                  />
-                </Tooltip>
+                <Space>
+                  <Tooltip title='Create new layer group'>
+                    <Button
+                      icon={<FolderAddOutlined />}
+                      size='middle'
+                      onClick={onCreateLayerGroup}
+                    />
+                  </Tooltip>
+                  <Tooltip title='Delete layer'>
+                    <Button
+                      icon={<MinusCircleFilled />}
+                      size='middle'
+                      onClick={onDeleteLayer}
+                      disabled={!selectedLayer}
+                    />
+                  </Tooltip>
+                  <Tooltip title='Layer settings'>
+                    <Button
+                      icon={<SettingFilled />}
+                      size='middle'
+                      disabled={!selectedLayer}
+                    />
+                  </Tooltip>
+                </Space>
               </div>
               {
                 id &&
@@ -186,6 +224,8 @@ export const MapContextEditor = (): ReactElement => {
                   id={id}
                   map={map}
                   olLayerGroup={olLayerGroup}
+                  onSelect={onSelectLayer}
+                  selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
                 />
               }
             </div>

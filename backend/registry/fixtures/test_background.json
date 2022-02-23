@@ -1,0 +1,16 @@
+[
+    {
+        "model": "celery_task_result.taskresult",
+        "pk": "1",
+        "fields": {
+            "task_id": "7f00f0f0-9aad-49e8-a59b-2855548e1d5b",
+            "task_name": "a pending task",
+            "status": "PENDING"
+        }
+    },
+    {
+        "model": "registry.backgroundprocess",
+        "pk": "1",
+        "fields": {}
+    }
+]

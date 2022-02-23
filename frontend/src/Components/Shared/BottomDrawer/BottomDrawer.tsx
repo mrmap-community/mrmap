@@ -50,11 +50,12 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({
       />
       <Drawer
         placement='bottom'
+        getContainer={false}
         visible={isVisible}
         closable={false}
         mask={false}
         height={500}
-        style={{ zIndex: 2 }}
+        style={{ zIndex: 1001 }}
       >
         {children}
       </Drawer>

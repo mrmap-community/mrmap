@@ -17,6 +17,7 @@ import { BottomDrawer } from '../Shared/BottomDrawer/BottomDrawer';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
 import './MapContextEditor.css';
 import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
+import { SearchTable } from './SearchTable/SearchTable';
 
 export const MapContextEditor = (): ReactElement => {
 
@@ -230,7 +231,9 @@ export const MapContextEditor = (): ReactElement => {
         </LeftDrawer>
         <AutoResizeMapComponent id='map' />
       </div>
-      <BottomDrawer map={map} />
+      <BottomDrawer map={map}>
+        <SearchTable />
+      </BottomDrawer>
     </>
   );
 };

@@ -45,6 +45,15 @@ export const MapContextLayerTree = ({
     }
   ] = useOperationMethod('deleteMapContextLayer');
 
+  const [
+    moveMapContextLayer,
+    {
+      loading: moveMapContextLayerLoading,
+      response: moveMapContextLayerResponse,
+      error: moveMapContextLayerError
+    }
+  ] = useOperationMethod('move_to/api/v1/registry/mapcontextlayers/{id}/move_to/');
+
   // init: register listeners for layer group
   useEffect(() => {
     if (olLayerGroup) {
@@ -79,6 +88,13 @@ export const MapContextLayerTree = ({
     console.log('deleteMapContextLayerError', addMapContextLayerError);
   }, [deleteMapContextLayerError]);
 
+  useEffect(() => {
+    console.log('moveMapContextLayerResponse', moveMapContextLayerResponse);
+  }, [moveMapContextLayerResponse]);
+  useEffect(() => {
+    console.log('moveMapContextLayerError', moveMapContextLayerError);
+  }, [moveMapContextLayerError]);
+
   // register listeners for layer group recursively
   const registerLayerListeners = (groupLayer: LayerGroup) => {
     const collection = groupLayer.getLayers();
@@ -112,7 +128,12 @@ export const MapContextLayerTree = ({
   const onLayerAdd = (evt: CollectionEvent) => {
     const layer: BaseLayer = evt.element;
     addingLayer.current = layer;
-    const relationships = {
+    console.log('adding layer', evt);
+    const targetGroup = MapUtil
+      .getAllLayers(map)
+      .filter((l: BaseLayer) => l instanceof LayerGroup)
+      .filter((l: LayerGroup) => l.getLayers() === evt.target)[0];
+    const relationships: any = {
       mapContext: {
         data: {
           type: 'MapContext',
@@ -120,6 +141,15 @@ export const MapContextLayerTree = ({
         }
       }
     };
+    if (targetGroup.get('id')) {
+      relationships.parent = {
+        data: {
+          type: 'MapContextLayer',
+          id: targetGroup.get('id')
+        }
+      };
+    }
+    console.log('Adding to ', targetGroup);
     addMapContextLayer([], {
       data: {
         type: 'MapContextLayer',
@@ -142,6 +172,23 @@ export const MapContextLayerTree = ({
   const onLayerMove = (remove: CollectionEvent, add: CollectionEvent) => {
     console.log('onLayerMove (remove)', remove);
     console.log('onLayerMove (add)', add);
+    const movedLayer: BaseLayer = add.element;
+    const targetGroup = MapUtil
+      .getAllLayers(map)
+      .filter((layer: BaseLayer) => layer instanceof LayerGroup)
+      .filter((layer: LayerGroup) => layer.getLayers().getArray().includes(movedLayer))[0];
+    console.log('movedLayer', movedLayer);
+    console.log('target', targetGroup);
+    console.log('index', add.index);
+    // moveMapContextLayer([{ name: 'id', value: movedLayer.get('id'), in: 'path' }], {
+    //   data: {
+    //     type: 'MapContextLayer',
+    //     attributes: {
+    //       target: targetGroup.get('id'),
+    //       position: add.index
+    //     }
+    //   }
+    // });
   };
 
   const renderNodeTitle = (layer: BaseLayer): ReactNode => {
@@ -163,7 +210,11 @@ export const MapContextLayerTree = ({
 
   return (
     <LayerTree
-      disabled={addMapContextLayerLoading || deleteMapContextLayerLoading}
+      disabled={
+        addMapContextLayerLoading ||
+        deleteMapContextLayerLoading ||
+        moveMapContextLayerLoading
+      }
       draggable
       allowDrop={allowDrop}
       map={map}

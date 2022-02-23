@@ -54,6 +54,7 @@ export const MapContextEditor = (): ReactElement => {
     let layerGroup: LayerGroup;
     const buildLayerTree = async () => {
       const fullResponse = await unpage(getMapContextResponse, getMapContextResponseApi);
+      // at least one layer *must* exist
       const mapContextLayers = fullResponse.data.included
         .filter((included: any) => included.type === 'MapContextLayer')
         .sort((a: any, b: any) => (
@@ -62,7 +63,7 @@ export const MapContextEditor = (): ReactElement => {
 
       // build lookup map: map context layer id -> children
       const layerIdToChildren: any = {};
-      mapContextLayers.forEach((layer: any) => {
+      mapContextLayers?.forEach((layer: any) => {
         const parentId = layer.relationships?.parent?.data?.id;
         if (parentId) {
           const children: any[] = layerIdToChildren[parentId] || [];
@@ -71,13 +72,11 @@ export const MapContextEditor = (): ReactElement => {
         }
       });
 
-      const newOlUidToLayer = new Map<string,BaseLayer>();
-
-      // recursive function for building OL ImageLayers / LayerGroups from a MapContext layer
+      // recursive function for building OL ImageLayers / LayerGroups from MapContext layer
       const layerToOlLayer = (layer: any): BaseLayer => {
-        const childLayers: [] | undefined = layerIdToChildren[layer.id];
+        const childLayers = layerIdToChildren[layer.id] || [];
         let olLayer: any;
-        if (childLayers) {
+        if (!layer.relationships.parent.data || childLayers.length === 0) {
           olLayer = new LayerGroup({
             layers: childLayers
               .map ((childLayer) => layerToOlLayer (childLayer)).reverse(),
@@ -129,19 +128,11 @@ export const MapContextEditor = (): ReactElement => {
             visible: false
           });
         }
-        newOlUidToLayer.set(getUid(olLayer), olLayer);
         return olLayer;
       };
 
-      const rootLayers = mapContextLayers.filter((layer: any) => !layer.relationships.parent.data);
-      const olLayers = rootLayers.map((root: any) => layerToOlLayer(root));
-      layerGroup = new LayerGroup({
-        layers: olLayers.reverse(),
-        visible: false,
-        properties: {
-          name: 'mrmap-mapcontext-layers'
-        }
-      });
+      const rootLayer = mapContextLayers.filter((layer: any) => !layer.relationships.parent.data)[0];
+      layerGroup = layerToOlLayer(rootLayer) as LayerGroup;
       map.addLayer(layerGroup);
       setOlLayerGroup(layerGroup);
     };

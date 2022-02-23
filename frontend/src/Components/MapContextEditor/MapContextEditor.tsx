@@ -1,13 +1,12 @@
-import { FolderAddOutlined, MinusCircleFilled, SettingFilled } from '@ant-design/icons';
-import { LayerTree, useMap } from '@terrestris/react-geo';
-import { Button, Dropdown, Menu, Tooltip } from 'antd';
+import { FolderAddOutlined } from '@ant-design/icons';
+import { useMap } from '@terrestris/react-geo';
+import { Button, Tooltip } from 'antd';
 import { getUid } from 'ol';
-import { CollectionEvent } from 'ol/Collection';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
-import { default as React, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
+import { default as React, ReactElement, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { JsonApiPrimaryData, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
@@ -15,6 +14,7 @@ import { unpage } from '../../Utils/JsonApiUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
 import './MapContextEditor.css';
+import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
 
 export const MapContextEditor = (): ReactElement => {
 
@@ -23,21 +23,11 @@ export const MapContextEditor = (): ReactElement => {
 
   // contains the layer hierarchy of the map context
   const [olLayerGroup, setOlLayerGroup] = useState<LayerGroup>();
-  const [selectedLayer, setSelectedLayer] = useState<BaseLayer>();
-  // lookup map for the OpenLayer layer objects, for a layer object, the ids can be retrieved like this:
-  // - Layer id: property 'id'
-  // - OpenLayers Uid: getUid(layer)
-  const [olUidToLayer, setOlUidToLayer] = useState(new Map<string, BaseLayer>());
-
-  // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
-  // so we work around this by using some state...
-  const removingLayer = useRef(false);
-  const moveRemoveStep = useRef<any>();
 
   const [
     getMapContext,
     {
-      loading: getMapContextLoading,
+      // loading: getMapContextLoading,
       response: getMapContextResponse,
       api: getMapContextResponseApi
     }
@@ -149,7 +139,6 @@ export const MapContextEditor = (): ReactElement => {
       });
       map.addLayer(layerGroup);
       setOlLayerGroup(layerGroup);
-      setOlUidToLayer(newOlUidToLayer);
     };
     if (map && getMapContextResponse) {
       buildLayerTree();
@@ -159,70 +148,6 @@ export const MapContextEditor = (): ReactElement => {
       });
     }
   }, [map, getMapContextResponse, getMapContextResponseApi]);
-
-  // init: register listeners for layer group
-  useEffect(() => {
-    if (olLayerGroup) {
-      registerLayerListeners(olLayerGroup);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [olLayerGroup]);
-
-  // register listeners for layer group recursively
-  const registerLayerListeners = (groupLayer: LayerGroup) => {
-    const collection = groupLayer.getLayers();
-    collection.on('add', (evt: CollectionEvent) => {
-      if (!moveRemoveStep.current) {
-        // a normal add operation
-        onLayerAdd(evt);
-      } else {
-        // the second event of a move operation (remove + add)
-        onLayerMove(moveRemoveStep.current, evt);
-        moveRemoveStep.current = undefined;
-      }
-    });
-    collection.on('remove', (evt: CollectionEvent) => {
-      if (removingLayer.current) {
-        // a normal remove operation
-        onLayerRemove(evt);
-        removingLayer.current = false;
-      } else {
-        // the first event of a move operation (remove + add)
-        moveRemoveStep.current = evt;
-      }
-    });
-    collection.forEach((layer) => {
-      if (layer instanceof LayerGroup) {
-        registerLayerListeners(layer);
-      }
-    });
-  };
-
-  const onLayerAdd = (evt: CollectionEvent) => {
-    console.log('onLayerAdd', evt);
-    const layer: BaseLayer = evt.element;
-    olUidToLayer.set(getUid(layer), layer);
-    layer.set('parent', evt.target);
-  };
-
-  const onLayerRemove = (evt: CollectionEvent) => {
-    console.log('onLayerRemove', evt);
-    const layer: BaseLayer = evt.element;
-    olUidToLayer.delete(getUid(layer));
-  };
-
-  const onLayerMove = (remove: CollectionEvent, add: CollectionEvent) => {
-    console.log('onLayerMove (remove)', remove);
-    console.log('onLayerMove (add)', add);
-  };
-
-  const onSelect = (selectedKeys: any, info: any) => {
-    if (info.selected) {
-      setSelectedLayer(olUidToLayer.get(info.node.key) as BaseLayer);
-    } else {
-      setSelectedLayer(undefined);
-    }
-  };
 
   const onCreateLayerGroup = (parent: LayerGroup) => {
     console.log('onCreateRootLayerGroup', parent);
@@ -235,61 +160,6 @@ export const MapContextEditor = (): ReactElement => {
     const layers = parent.getLayers();
     layers.insertAt(layers.getLength(), layerGroup);
   };
-
-  const renderNodeContextMenu = (layer: BaseLayer): ReactElement => {
-    const removeLayer = () => {
-      // TODO handle nested layers
-      removingLayer.current = true;
-      olLayerGroup?.getLayers().remove(layer);
-    };
-
-    return (
-      <Menu
-        className='tree-manager-context-menu'>
-        <Menu.Item
-          onClick={removeLayer}
-          icon={<MinusCircleFilled />}
-          key='remove-node'
-        >
-        Delete
-        </Menu.Item>
-      </Menu>
-    );
-  };
-
-  const renderNodeTitle = (layer: BaseLayer): ReactNode => {
-    return (
-      <div className='mapcontext-layertree-node'>
-        <div className='mapcontext-layertree-node-title'>{ layer.get('name') }</div>
-        <div className='mapcontext-layertree-node-actions'>
-          <Dropdown
-            overlay={renderNodeContextMenu(layer)}
-            trigger={['click']}
-          >
-            <Tooltip title='Node options'>
-              <Button
-                type='text'
-                icon={<SettingFilled />}
-              />
-            </Tooltip>
-          </Dropdown>
-        </div>
-      </div>
-    );
-  };
-
-  const allowDrop = ({ dropNode, dropPosition }: {dropNode: any, dropPosition: any}) => {
-    const layer = olUidToLayer.get(dropNode.key);
-    // dropPosition: -1 (previous sibling)
-    // dropPosition: 1 (next sibling)
-    // dropPosition: 0 (first child)
-    console.log('dropNode', dropNode);
-    console.log('dropPosition', dropPosition);
-    // disable dropping a new child of non-group layer
-    return dropPosition !== 0 || layer instanceof LayerGroup;
-  };
-
-  console.log('removingLayer', removingLayer);
 
   return (
     <>
@@ -310,15 +180,14 @@ export const MapContextEditor = (): ReactElement => {
                   />
                 </Tooltip>
               </div>
-              <LayerTree
-                draggable
-                allowDrop={allowDrop}
-                map={map}
-                layerGroup={olLayerGroup}
-                onSelect={onSelect}
-                selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
-                nodeTitleRenderer={renderNodeTitle}
-              />
+              {
+                id &&
+                <MapContextLayerTree
+                  id={id}
+                  map={map}
+                  olLayerGroup={olLayerGroup}
+                />
+              }
             </div>
           }
         </LeftDrawer>

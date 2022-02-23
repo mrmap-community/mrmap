@@ -35,17 +35,3 @@
   justify-content: space-between;
   margin-bottom: 10px;
 }
-
-.mapcontext-layertree-node {
-  display: flex;
-  justify-content: space-between;
-  flex-direction: row;
-  width: 100%;
-}
-
-.mapcontext-layertree-node-title,
-.mapcontext-layertree-node-actions {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-}

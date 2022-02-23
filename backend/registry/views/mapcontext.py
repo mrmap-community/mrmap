@@ -1,14 +1,11 @@
 
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import NestedModelViewSet
+from extras.viewsets import NestedModelViewSet, SerializerClassesMixin
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.mapcontext import (
     MapContextDefaultSerializer, MapContextIncludeSerializer,
-    MapContextLayerMoveLayerSerializer, MapContextLayerSerializer)
-from rest_framework import status
-from rest_framework.decorators import action
-from rest_framework.response import Response
+    MapContextLayerPostOrPatchSerializer, MapContextLayerSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -37,32 +34,19 @@ class MapContextViewSet(ModelViewSet):
         )
 
 
-class MapContextLayerViewSetMixin():
+class MapContextLayerViewSetMixin(SerializerClassesMixin):
     schema = CustomAutoSchema(
         tags=['MapContextLayer'],
+
     )
     queryset = MapContextLayer.objects.all()
     serializer_classes = {
         "default": MapContextLayerSerializer,
-        "move_to": MapContextLayerMoveLayerSerializer,
+        "post": MapContextLayerPostOrPatchSerializer,
+        "patch": MapContextLayerPostOrPatchSerializer,
+
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-    def get_serializer_class(self):
-        return self.serializer_classes.get(self.action, self.serializer_classes['default'])
-
-    @action(detail=True, methods=['post'])
-    def move_to(self, request, pk=None):
-        current_node = self.get_object()
-
-        serializer = MapContextLayerMoveLayerSerializer(data=request.data)
-        if serializer.is_valid():
-            current_node.move_to(
-                target=serializer.validated_data['target'], position=serializer.validated_data['position'])
-            return Response(MapContextLayerSerializer(current_node, context={'request': request}).data, status=status.HTTP_200_OK)
-        else:
-            return Response(serializer.errors,
-                            status=status.HTTP_400_BAD_REQUEST)
 
 
 class MapContextLayerViewSet(

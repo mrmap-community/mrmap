@@ -441,5 +441,119 @@
         "Group2"
       ]
     }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 5,
+    "fields": {
+      "permission": [
+        "delete_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontext"
+      ],
+      "object_pk": "7",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 6,
+    "fields": {
+      "permission": [
+        "delete_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontext"
+      ],
+      "object_pk": "8",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 7,
+    "fields": {
+      "permission": [
+        "delete_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontext"
+      ],
+      "object_pk": "9",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 8,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontext"
+      ],
+      "object_pk": "7",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 9,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontext"
+      ],
+      "object_pk": "8",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 10,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontext"
+      ],
+      "object_pk": "9",
+      "group": [
+        "Group2"
+      ]
+    }
   }
 ]

@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
@@ -24,9 +25,87 @@ class MapContextLayerSerializer(
         model = MapContextLayer
         fields = "__all__"
 
+
+class MapContextLayerPostOrPatchSerializer(
+        MapContextLayerSerializer):
+
+    target = IntegerField(
+        label=_('target id'),
+        help_text=_('pass the id of the target node')
+    )
+    # https://django-mptt.readthedocs.io/en/latest/models.html?highlight=insert_node#insert-node-node-target-position-last-child-save-false
+    position = ChoiceField(
+        label=_('position'),
+        help_text=_(
+            'the tree position of the node where it should be moved to'),
+        choices=['first-child', 'last-child', 'left', 'right'])
+
     def validate(self, attrs):
         validated_data = super().validate(attrs)
-        # FIXME: check if the requesting user has permissions to change the parent. If not raise PermissionDenied
+        if ('target' in validated_data and 'position' not in validated_data) or ('target' not in validated_data and 'position' in validated_data):
+            raise ValidationError(
+                _('if you want to use move to or insert at action, you need to pass target AND position.'))
+        elif 'target' in validated_data and 'position' in validated_data:
+            if 'parent' in validated_data:
+                raise ValidationError(
+                    _('set parent on move or insert action is not allowed'))
+            try:
+                validated_data['target'] = MapContextLayer.objects.get(
+                    pk=validated_data['target'])
+            except MapContextLayer.DoesNotExist:
+                raise ValidationError(
+                    'given target MapContextLayer does not exist.')
+
+        return validated_data
+
+    def create(self, validated_data):
+        target = validated_data.pop('target')
+        position = validated_data.pop('position')
+        obj = super().create(validated_data=validated_data)
+        if target and position:
+            obj.move_to(
+                target=target,
+                position=position)
+        return obj
+
+    def update(self, instance, validated_data):
+        target = validated_data.pop('target')
+        position = validated_data.pop('position')
+        if target and position:
+            instance.move_to(
+                target=target,
+                position=position)
+        return super().update(instance, validated_data)
+
+
+class MapContextLayerInsertSerializer(
+        MapContextLayerSerializer):
+
+    position = ChoiceField(
+        choices=['first-child', 'last-child', 'left', 'right'])
+
+
+class MapContextLayerMoveLayerSerializer(
+        Serializer):
+
+    target = IntegerField()
+    position = ChoiceField(
+        choices=['first-child', 'last-child', 'left', 'right'])
+
+    class Meta:
+        # TODO: maybe this should be an other resource_name to differ from default crud used MapContextLayer resource
+        resource_name = 'MapContextLayer'
+
+    def validate(self, attrs):
+        validated_data = super().validate(attrs)
+
+        try:
+            validated_data['target'] = MapContextLayer.objects.get(
+                pk=validated_data['target'])
+        except MapContextLayer.DoesNotExist:
+            raise ValidationError(
+                'given target MapContextLayer does not exist.')
+
         return validated_data
 
 
@@ -78,26 +157,3 @@ class MapContextIncludeSerializer(
     class Meta:
         model = MapContext
         fields = "__all__"
-
-
-class MapContextLayerMoveLayerSerializer(
-        Serializer):
-
-    target = IntegerField()
-    position = ChoiceField(
-        choices=['first-child', 'last-child', 'left', 'right'])
-
-    class Meta:
-        resource_name = 'MapContextLayer'
-
-    def validate(self, attrs):
-        validated_data = super().validate(attrs)
-
-        try:
-            validated_data['target'] = MapContextLayer.objects.get(
-                pk=validated_data['target'])
-        except MapContextLayer.DoesNotExist:
-            raise ValidationError(
-                'given target MapContextLayer does not exist.')
-
-        return validated_data

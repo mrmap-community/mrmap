@@ -6,23 +6,44 @@ import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import OlMap from 'ol/Map';
 import { default as React, ReactElement, ReactNode, useEffect, useRef } from 'react';
+import { useOperationMethod } from 'react-openapi-client';
 import './MapContextLayerTree.css';
 
 export const MapContextLayerTree = ({
   id,
   map,
   olLayerGroup,
+  removeLayerInProgress,
   ...passThroughProps
 }:{
   id: string,
   map: OlMap,
-  olLayerGroup: LayerGroup
+  olLayerGroup: LayerGroup,
+  removeLayerInProgress: React.MutableRefObject<boolean>
 } & LayerTreeProps): ReactElement => {
 
-  // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
-  // so we work around this by using two state variables
-  const removingLayer = useRef(false);
-  const moveRemoveStep = useRef<any>();
+  const moveRemoveStep = useRef<CollectionEvent>();
+
+  // tracks the layer that is currently being added (so we can set the new backend id)
+  const addingLayer = useRef<BaseLayer>();
+
+  const [
+    addMapContextLayer,
+    {
+      loading: addMapContextLayerLoading,
+      response: addMapContextLayerResponse,
+      error: addMapContextLayerError
+    }
+  ] = useOperationMethod('addMapContextLayer');
+
+  const [
+    deleteMapContextLayer,
+    {
+      loading: deleteMapContextLayerLoading,
+      response: deleteMapContextLayerResponse,
+      error: deleteMapContextLayerError
+    }
+  ] = useOperationMethod('deleteMapContextLayer');
 
   // init: register listeners for layer group
   useEffect(() => {
@@ -31,6 +52,32 @@ export const MapContextLayerTree = ({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [olLayerGroup]);
+
+
+  useEffect(() => {
+    console.log('addMapContextLayerLoading', addMapContextLayerLoading);
+  }, [addMapContextLayerLoading]);
+  useEffect(() => {
+    if (addMapContextLayerResponse) {
+      console.log('addMapContextLayerResponse', addMapContextLayerResponse);
+      (addingLayer.current as BaseLayer).set('id', addMapContextLayerResponse.data.data.id);
+      addingLayer.current = undefined;
+    }
+  }, [addMapContextLayerResponse]);
+  useEffect(() => {
+    console.log('addMapContextLayerError', addMapContextLayerError);
+    addingLayer.current = undefined;
+  }, [addMapContextLayerError]);
+
+  useEffect(() => {
+    console.log('deleteMapContextLayerLoading', addMapContextLayerLoading);
+  }, [deleteMapContextLayerLoading]);
+  useEffect(() => {
+    console.log('deleteMapContextLayerResponse', deleteMapContextLayerResponse);
+  }, [deleteMapContextLayerResponse]);
+  useEffect(() => {
+    console.log('deleteMapContextLayerError', addMapContextLayerError);
+  }, [deleteMapContextLayerError]);
 
   // register listeners for layer group recursively
   const registerLayerListeners = (groupLayer: LayerGroup) => {
@@ -46,10 +93,10 @@ export const MapContextLayerTree = ({
       }
     });
     collection.on('remove', (evt: CollectionEvent) => {
-      if (removingLayer.current) {
+      if (removeLayerInProgress.current) {
         // a normal remove operation
         onLayerRemove(evt);
-        removingLayer.current = false;
+        removeLayerInProgress.current = false;
       } else {
         // the first event of a move operation (remove + add)
         moveRemoveStep.current = evt;
@@ -63,16 +110,33 @@ export const MapContextLayerTree = ({
   };
 
   const onLayerAdd = (evt: CollectionEvent) => {
-    console.log('onLayerAdd', evt);
     const layer: BaseLayer = evt.element;
-    layer.set('parent', evt.target);
-
-    // POST
-    // lft/right?
+    addingLayer.current = layer;
+    const relationships = {
+      mapContext: {
+        data: {
+          type: 'MapContext',
+          id: id
+        }
+      }
+    };
+    addMapContextLayer([], {
+      data: {
+        type: 'MapContextLayer',
+        attributes: {
+          title: layer.get('name')
+        },
+        relationships: {
+          ...relationships
+        }
+      }
+    });
   };
 
   const onLayerRemove = (evt: CollectionEvent) => {
     console.log('onLayerRemove', evt);
+    const layer: BaseLayer = evt.element;
+    deleteMapContextLayer([{ name: 'id', value: layer.get('id'), in: 'path' }]);
   };
 
   const onLayerMove = (remove: CollectionEvent, add: CollectionEvent) => {
@@ -99,6 +163,7 @@ export const MapContextLayerTree = ({
 
   return (
     <LayerTree
+      disabled={addMapContextLayerLoading || deleteMapContextLayerLoading}
       draggable
       allowDrop={allowDrop}
       map={map}

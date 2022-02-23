@@ -7,7 +7,7 @@ import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
-import { default as React, ReactElement, useEffect, useState } from 'react';
+import { default as React, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { JsonApiPrimaryData, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
@@ -25,6 +25,10 @@ export const MapContextEditor = (): ReactElement => {
   // contains the layer hierarchy of the map context
   const [olLayerGroup, setOlLayerGroup] = useState<LayerGroup>();
   const [selectedLayer, setSelectedLayer] = useState<BaseLayer>();
+
+  // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
+  // so we track if we started a remove
+  const removeLayerInProgress = useRef(false);
 
   const [
     getMapContext,
@@ -166,12 +170,12 @@ export const MapContextEditor = (): ReactElement => {
         name: 'New Layer Group',
       }
     });
-    const layers = parent.getLayers();
-    layers.insertAt(layers.getLength(), layerGroup);
+    parent.getLayers().insertAt(0, layerGroup);
   };
 
   const onDeleteLayer = () => {
     if (selectedLayer) {
+      removeLayerInProgress.current = true;
       MapUtil
         .getAllLayers(map)
         .filter((layer: BaseLayer) => layer instanceof LayerGroup)
@@ -226,6 +230,7 @@ export const MapContextEditor = (): ReactElement => {
                   olLayerGroup={olLayerGroup}
                   onSelect={onSelectLayer}
                   selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
+                  removeLayerInProgress={removeLayerInProgress}
                 />
               }
             </div>

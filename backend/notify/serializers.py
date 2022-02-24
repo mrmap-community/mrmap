@@ -49,7 +49,7 @@ class BackgroundProcessSerializer(
     is_done = BooleanField(read_only=True)
     has_failures = BooleanField(read_only=True)
 
-    progress = SerializerMethodField()
+    progress = SerializerMethodField(read_only=True)
 
     class Meta:
         model = BackgroundProcess

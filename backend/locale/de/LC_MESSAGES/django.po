@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-02-22 21:56+0100\n"
+"POT-Creation-Date: 2022-02-24 10:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1384,6 +1384,26 @@ msgstr "Featuretype Titel enthält"
 #| msgid "the base url of the service"
 msgid "There is an existing harvesting job for this service."
 msgstr "Die Basis-URL des Dienstes."
+
+#: registry/serializers/mapcontext.py:34
+#, fuzzy
+#| msgid "Description"
+msgid "position"
+msgstr "Beschreibung"
+
+#: registry/serializers/mapcontext.py:36
+msgid "the tree position of the node where it should be moved to"
+msgstr ""
+"Die Position innerhalb einer Ebene im Baum, auf die der Knoten verschoben "
+"werden soll."
+
+#: registry/serializers/mapcontext.py:48
+msgid "root node can not be moved"
+msgstr "Wurzelknoten kann nicht verschoben werden"
+
+#: registry/serializers/mapcontext.py:54
+msgid "position index out of range"
+msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
 #: registry/serializers/service.py:52
 #, fuzzy

@@ -49,7 +49,7 @@ class MapContextLayerPatchSerializer(
                 else:
                     validated_data['parent'] = parent
                 child_layers_count = parent.child_layers.count()
-                if position > child_layers_count:
+                if position > child_layers_count or position < child_layers_count:
                     raise ValidationError(
                         {"position": _('position index out of range')})
         return validated_data
@@ -65,7 +65,7 @@ class MapContextLayerPatchSerializer(
                 instance.move_to(
                     target=parent,
                     position='first-child')
-            elif position == child_layers_count or position == child_layers_count-1:
+            elif position == child_layers_count or position == child_layers_count - 1:
                 # last child
                 instance.move_to(
                     target=parent,

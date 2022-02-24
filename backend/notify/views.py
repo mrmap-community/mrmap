@@ -1,6 +1,8 @@
 import json
 
 from celery import states
+from celery.states import STARTED
+from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.openapi import CustomAutoSchema
 from rest_framework import status
@@ -56,6 +58,18 @@ class BackgroundProcessViewSetMixin():
         "description": ["exact", "icontains", "contains"],
         "phase": ["exact", "icontains", "contains"],
     }
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        qs = qs.prefetch_related(
+            Prefetch(
+                "threads",
+                queryset=TaskResult.objects.filter(status=STARTED),
+                to_attr='running_threads_list'
+            )
+        )
+
+        return qs
 
 
 class BackgroundProcessViewSet(

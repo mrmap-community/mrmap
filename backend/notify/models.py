@@ -15,7 +15,7 @@ class ProcessNameEnum(EnumChoice):
 
 class BackgroundProcessManager(models.Manager):
 
-    def _process_info(self):
+    def process_info(self):
         qs = self.get_queryset()
         qs = qs.annotate(
             pending_threads=Count(
@@ -25,23 +25,9 @@ class BackgroundProcessManager(models.Manager):
             successed_threads=Count(
                 'threads', filter=Q(threads__status=SUCCESS)),
             failed_threads=Count('threads', filter=Q(threads__status=FAILURE)),
+            all_threads=Count('threads'),
             date_created=Min('threads__date_created'),
         ).order_by('-date_created')
-        return qs
-
-    def process_info(self):
-        qs = self._process_info()
-
-        qs.annotate(
-            progess_new=(
-                (
-                    F('successed_threads') +
-                    F('failed_threads') -
-                    F('pending_threads')
-                    # add sum of progress of the processing threads...
-                ) / Count('threads') * 100
-            )
-        )
         return qs
 
 
@@ -50,10 +36,6 @@ class BackgroundProcess(models.Model):
         to=TaskResult,
         related_name='processes',
         related_query_name='process')
-    progress = models.FloatField(
-        default=0.0,
-        verbose_name=_('progress'),
-        help_text=_('the current progress of the process as per'))
     phase = models.CharField(
         max_length=256,
         verbose_name=_('phase'),

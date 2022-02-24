@@ -17,8 +17,8 @@
             "task_id": "1bceb2fe-2da9-4c0e-bc3b-9a38c47a95ea",
             "task_name": "a succeded task",
             "status": "SUCCESS",
-            "date_created": "2013-03-16T17:41:28+00:00",
-            "date_done": "2013-03-16T17:41:28+00:00"
+            "date_created": "2014-03-16T17:41:28+00:00",
+            "date_done": "2014-03-16T17:41:28+00:00"
         }
     },
     {
@@ -28,8 +28,8 @@
             "task_id": "6075db2f-7d9d-473f-a437-d8bd5da5539b",
             "task_name": "a succeded task",
             "status": "SUCCESS",
-            "date_created": "2013-03-16T17:41:28+00:00",
-            "date_done": "2013-03-16T17:41:28+00:00"
+            "date_created": "2014-03-16T17:41:28+00:00",
+            "date_done": "2014-03-16T17:41:28+00:00"
         }
     },
     {
@@ -39,8 +39,8 @@
             "task_id": "c9997a17-a895-4d9b-9abb-1d4d030c05a7",
             "task_name": "a succeded task",
             "status": "SUCCESS",
-            "date_created": "2013-03-16T17:41:28+00:00",
-            "date_done": "2013-03-16T17:41:28+00:00"
+            "date_created": "2014-03-16T17:41:28+00:00",
+            "date_done": "2014-03-16T17:41:28+00:00"
         }
     },
     {
@@ -66,6 +66,42 @@
         }
     },
     {
+        "model": "django_celery_results.taskresult",
+        "pk": 7,
+        "fields": {
+            "task_id": "009ac6dc-816e-47f7-8846-9dfe250a1fee",
+            "task_name": "a running task",
+            "status": "STARTED",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00",
+            "meta": "{ \"current\": \"1\", \"total\": \"3\"}"
+        }
+    },
+    {
+        "model": "django_celery_results.taskresult",
+        "pk": 8,
+        "fields": {
+            "task_id": "9b173d6d-369a-4b10-a62e-0deb66512b9e",
+            "task_name": "a running task",
+            "status": "STARTED",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00",
+            "meta": "{ \"current\": \"2\", \"total\": \"3\"}"
+        }
+    },
+    {
+        "model": "django_celery_results.taskresult",
+        "pk": 9,
+        "fields": {
+            "task_id": "d2b5f774-a368-42eb-8321-d6ef72519629",
+            "task_name": "a running task",
+            "status": "STARTED",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00",
+            "meta": "{ \"current\": \"2\", \"total\": \"8\"}"
+        }
+    },
+    {
         "model": "notify.backgroundprocess",
         "pk": 1,
         "fields": {
@@ -73,7 +109,9 @@
                 1,
                 2,
                 3,
-                4
+                4,
+                7,
+                8
             ],
             "phase": "waiting for one thread to be executed",
             "name": "process 1",
@@ -91,6 +129,21 @@
             "phase": "failed",
             "name": "process 2",
             "description": "description 2"
+        }
+    },
+    {
+        "model": "notify.backgroundprocess",
+        "pk": 3,
+        "fields": {
+            "threads": [
+                2,
+                3,
+                4,
+                9
+            ],
+            "phase": "running",
+            "name": "process 3",
+            "description": "description 3"
         }
     }
 ]

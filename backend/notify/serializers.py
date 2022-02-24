@@ -44,10 +44,27 @@ class BackgroundProcessSerializer(
     running_threads = IntegerField(read_only=True)
     successed_threads = IntegerField(read_only=True)
     failed_threads = IntegerField(read_only=True)
+    all_threads = IntegerField(read_only=True)
     date_created = DateTimeField(read_only=True)
     is_done = BooleanField(read_only=True)
     has_failures = BooleanField(read_only=True)
 
+    progress = SerializerMethodField()
+
     class Meta:
         model = BackgroundProcess
         fields = "__all__"
+
+    def get_progress(self, instance):
+        aggregated_running_task_progress = 0.0
+        running_thread: TaskResult
+        for running_thread in instance.running_threads_list:
+            meta_info = json.loads(
+                running_thread.meta) if running_thread.meta else {}
+            try:
+                aggregated_running_task_progress += \
+                    int(meta_info['current']) / int(meta_info['total'])
+            except AttributeError:
+                pass
+
+        return (aggregated_running_task_progress + instance.successed_threads + instance.failed_threads - instance.pending_threads) * 100 / instance.all_threads

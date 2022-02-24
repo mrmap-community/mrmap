@@ -47,9 +47,9 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
 
 class BackgroundProcessViewSetMixin():
     schema = CustomAutoSchema(
-        tags=["Harvesting"],
+        tags=["BackgroundProcess"],
     )
-    queryset = BackgroundProcess.objects
+    queryset = BackgroundProcess.objects.process_info()
     serializer_class = BackgroundProcessSerializer
     filterset_fields = {
         "name": ["exact", "icontains", "contains"],

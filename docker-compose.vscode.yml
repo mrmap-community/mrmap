@@ -58,7 +58,7 @@ services:
 
   behave:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave  --noinput --tags=-skip --no-skipped --stop tests/behave/api/features --simple && python -m coverage xml -i -o /opt/mrmap/acceptance-tests-coverage-report.xml"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave  --noinput --tags=qwertz --no-skipped --stop tests/behave/api/features --simple && python -m coverage xml -i -o /opt/mrmap/acceptance-tests-coverage-report.xml"
     ports:
       - "0.0.0.0:3010:5678"
 

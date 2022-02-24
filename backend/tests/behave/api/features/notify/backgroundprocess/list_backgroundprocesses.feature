@@ -1,3 +1,4 @@
+@qwertz
 Feature: BackgroundProcess List Endpoint
     As an API client,
     I want to get backgroundprocesses,
@@ -11,7 +12,14 @@ Feature: BackgroundProcess List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "2"
-    #Then I expect that response json has an attribute "data.[0]." with value "2"
+        Then I expect that response json has an attribute "data.[0].attributes.runningThreads" with value "0"
+        Then I expect that response json has an attribute "data.[0].attributes.successedThreads" with value "1"
+        Then I expect that response json has an attribute "data.[0].attributes.failedThreads" with value "1"
+        Then I expect that response json has an attribute "data.[0].attributes.pendingThreads" with value "0"
+        Then I expect that response json has an attribute "data.[1].attributes.runningThreads" with value "0"
+        Then I expect that response json has an attribute "data.[1].attributes.successedThreads" with value "3"
+        Then I expect that response json has an attribute "data.[1].attributes.failedThreads" with value "0"
+        Then I expect that response json has an attribute "data.[1].attributes.pendingThreads" with value "1"
 
 
     Scenario: Can filter by name

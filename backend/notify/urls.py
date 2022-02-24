@@ -4,11 +4,13 @@ from notify import views
 
 app_name = 'notify'
 
-nested_api_router = ExtendedSimpleRouter()
+router = ExtendedSimpleRouter()
 (
     # jobs
-    nested_api_router.register(
-        r'task-results', views.TaskResultReadOnlyViewSet, basename='taskresult')
+    router.register(r'task-results', views.TaskResultReadOnlyViewSet, basename='taskresult'),
+
+    # background prcesses
+    router.register(r'background-processes', views.BackgroundProcessViewSet, basename='backgroundprocess'),
 )
 
-urlpatterns = nested_api_router.urls
+urlpatterns = router.urls

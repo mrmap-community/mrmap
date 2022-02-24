@@ -1,5 +1,4 @@
 
-from black import out
 from celery.states import FAILURE, PENDING, STARTED, SUCCESS
 from django.db import models
 from django.db.models import BooleanField, Case, Count, Manager, Q, Value, When
@@ -11,6 +10,7 @@ from MrMap.enums import EnumChoice
 class ProcessNameEnum(EnumChoice):
     HARVESTING = 'harvesting'
     MONITORING = 'monitoring'
+    REGISTERING = 'registering'
 
 
 class BackgroundProcessQuerySet(models.QuerySet):
@@ -63,11 +63,21 @@ class BackgroundProcessQuerySet(models.QuerySet):
         return self.filter(name=ProcessNameEnum.MONITORING.value)
 
 
+class BackgroundProcessManager(models.Manager):
+
+    def get_queryset(self):
+        return BackgroundProcessQuerySet(self.model, using=self._db).process_info().order_by('-date_created')
+
+
 class BackgroundProcess(models.Model):
     threads = models.ManyToManyField(
         to=TaskResult,
         related_name='processes',
         related_query_name='process')
+    progress = models.FloatField(
+        default=0.0,
+        verbose_name=_('progress'),
+        help_text=_('the current progress of the process as per'))
     phase = models.CharField(
         max_length=256,
         verbose_name=_('phase'),
@@ -84,8 +94,7 @@ class BackgroundProcess(models.Model):
     )
 
     class Meta:
-        abstract = True
         verbose_name = _('Background Process')
         verbose_name_plural = _('Background Processes')
 
-    objects = Manager.from_queryset(BackgroundProcessQuerySet)()
+    objects = BackgroundProcessManager()

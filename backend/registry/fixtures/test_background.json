@@ -1,16 +1,96 @@
 [
     {
-        "model": "celery_task_result.taskresult",
-        "pk": "1",
+        "model": "django_celery_results.taskresult",
+        "pk": 1,
         "fields": {
             "task_id": "7f00f0f0-9aad-49e8-a59b-2855548e1d5b",
             "task_name": "a pending task",
-            "status": "PENDING"
+            "status": "PENDING",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00"
         }
     },
     {
-        "model": "registry.backgroundprocess",
-        "pk": "1",
-        "fields": {}
+        "model": "django_celery_results.taskresult",
+        "pk": 2,
+        "fields": {
+            "task_id": "1bceb2fe-2da9-4c0e-bc3b-9a38c47a95ea",
+            "task_name": "a succeded task",
+            "status": "SUCCESS",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00"
+        }
+    },
+    {
+        "model": "django_celery_results.taskresult",
+        "pk": 3,
+        "fields": {
+            "task_id": "6075db2f-7d9d-473f-a437-d8bd5da5539b",
+            "task_name": "a succeded task",
+            "status": "SUCCESS",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00"
+        }
+    },
+    {
+        "model": "django_celery_results.taskresult",
+        "pk": 4,
+        "fields": {
+            "task_id": "c9997a17-a895-4d9b-9abb-1d4d030c05a7",
+            "task_name": "a succeded task",
+            "status": "SUCCESS",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00"
+        }
+    },
+    {
+        "model": "django_celery_results.taskresult",
+        "pk": 5,
+        "fields": {
+            "task_id": "34c0c28d-5afb-4897-9249-906f8acd908c",
+            "task_name": "a succeded task",
+            "status": "SUCCESS",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00"
+        }
+    },
+    {
+        "model": "django_celery_results.taskresult",
+        "pk": 6,
+        "fields": {
+            "task_id": "e333d7bc-5ed4-469a-9aff-646ef366765b",
+            "task_name": "a failed task",
+            "status": "FAILURE",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T17:41:28+00:00"
+        }
+    },
+    {
+        "model": "notify.backgroundprocess",
+        "pk": 1,
+        "fields": {
+            "threads": [
+                1,
+                2,
+                3,
+                4
+            ],
+            "phase": "waiting for one thread to be executed",
+            "name": "process 1",
+            "description": "description 1"
+        }
+    },
+    {
+        "model": "notify.backgroundprocess",
+        "pk": 2,
+        "fields": {
+            "threads": [
+                5,
+                6
+            ],
+            "phase": "failed",
+            "name": "process 2",
+            "description": "description 2"
+        }
     }
 ]

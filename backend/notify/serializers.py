@@ -1,9 +1,14 @@
 import json
 
+from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
+from extras.serializers import StringRepresentationSerializer
 from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
-from rest_framework_json_api.serializers import ModelSerializer
+from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
+                                                 ModelSerializer)
+
+from notify.models import BackgroundProcess
 
 
 class TaskResultSerializer(ModelSerializer):
@@ -26,3 +31,15 @@ class TaskResultSerializer(ModelSerializer):
 
     def get_result(self, obj):
         return json.loads(obj.result if obj.result else '{}')
+
+
+class BackgroundProcessSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='notify:backgroundprocess-detail',
+    )
+
+    class Meta:
+        model = BackgroundProcess
+        fields = "__all__"

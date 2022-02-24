@@ -7,7 +7,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
-from notify.serializers import TaskResultSerializer
+from notify.models import BackgroundProcess
+from notify.serializers import (BackgroundProcessSerializer,
+                                TaskResultSerializer)
 
 
 class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
@@ -41,3 +43,23 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
         else:
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
+
+
+class BackgroundProcessViewSetMixin():
+    schema = CustomAutoSchema(
+        tags=["Harvesting"],
+    )
+    queryset = BackgroundProcess.objects
+    serializer_class = BackgroundProcessSerializer
+    filterset_fields = {
+        "name": ["exact", "icontains", "contains"],
+        "description": ["exact", "icontains", "contains"],
+        "phase": ["exact", "icontains", "contains"],
+    }
+
+
+class BackgroundProcessViewSet(
+    BackgroundProcessViewSetMixin,
+    ReadOnlyModelViewSet
+):
+    pass

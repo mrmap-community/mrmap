@@ -54,7 +54,7 @@ class BackgroundProcessViewSetMixin():
     queryset = BackgroundProcess.objects.process_info()
     serializer_class = BackgroundProcessSerializer
     filterset_fields = {
-        "name": ["exact", "icontains", "contains"],
+        "process_type": ["exact", "icontains", "contains"],
         "description": ["exact", "icontains", "contains"],
         "phase": ["exact", "icontains", "contains"],
     }

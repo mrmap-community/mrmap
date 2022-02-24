@@ -1,7 +1,9 @@
 
 from celery.states import FAILURE, PENDING, STARTED, SUCCESS
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models import Count, F, Min, Q, Sum
+from django.db.models import Count, Min, Q
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from MrMap.enums import EnumChoice
@@ -40,16 +42,26 @@ class BackgroundProcess(models.Model):
         max_length=256,
         verbose_name=_('phase'),
         help_text=_('Current phase of the process'))
-    name = models.CharField(
+    process_type = models.CharField(
         max_length=32,
         choices=ProcessNameEnum.as_choices(drop_empty_choice=True),
-        verbose_name=_('name'),
-        help_text=_('Human readable short name of this process'))
+        verbose_name=_('process type'),
+        help_text=_('tells you what kind of process this is'))
     description = models.CharField(
         max_length=128,
         verbose_name=_('description'),
         help_text=_('Human readable description of what this process does')
     )
+    related_resource_type = models.ForeignKey(
+        to=ContentType,
+        on_delete=models.CASCADE,
+        null=True)
+    related_id = models.UUIDField(
+        null=True
+    )
+    service = GenericForeignKey(
+        ct_field='related_resource_type',
+        fk_field='related_id')
 
     class Meta:
         verbose_name = _('Background Process')

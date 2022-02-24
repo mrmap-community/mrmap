@@ -28,8 +28,8 @@ Feature: BackgroundProcess List Endpoint
         Then I expect that response json has an attribute "data.[3].attributes.pendingThreads" with value "1"
         Then I expect that response json has an attribute "data.[3].attributes.progress" with value "50.0"
 
-    Scenario: Can filter by name
-        Given I set a queryparam "filter[name.icontains]" with value "process 2"
+    Scenario: Can filter by process_type
+        Given I set a queryparam "filter[processType.icontains]" with value "process 2"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"

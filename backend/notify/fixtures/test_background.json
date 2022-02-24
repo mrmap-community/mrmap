@@ -145,5 +145,14 @@
             "name": "process 3",
             "description": "description 3"
         }
+    },
+    {
+        "model": "notify.backgroundprocess",
+        "pk": 4,
+        "fields": {
+            "phase": "empty threads",
+            "name": "process 4",
+            "description": "description 4"
+        }
     }
 ]

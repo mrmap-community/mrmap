@@ -11,6 +11,7 @@ from rest_framework_json_api.utils import (format_field_name,
                                            get_resource_name,
                                            get_resource_type_from_serializer)
 
+from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.utils import deep_update
 
 
@@ -20,10 +21,12 @@ class CustomSchemaGenerator(SchemaGenerator):
     """
     security_options = []
 
-    def get_security_options_for_view(self, view):
+    def get_security_options_for_view(self, view, method):
         for perm_class in view.permission_classes:
             if issubclass(perm_class, (AllowAny, IsAuthenticated)) or perm_class.authenticated_users_only:
                 # only authenticated users are allowed
+                return self.get_security_options()
+            if issubclass(perm_class, DjangoObjectPermissionsOrAnonReadOnly) and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
                 return self.get_security_options()
 
     def get_security_options(self):
@@ -77,7 +80,8 @@ class CustomSchemaGenerator(SchemaGenerator):
                 )
 
         for path, method, view, action in expanded_endpoints:
-            security = self.get_security_options_for_view(view=view)
+            security = self.get_security_options_for_view(
+                view=view, method=method)
             if security:
                 # TODO: catch KeyError
                 schema["paths"][path][method.lower()]["security"] = security
@@ -151,6 +155,11 @@ class CustomAutoSchema(AutoSchema):
                 return f"update{resource_name}"
             case "destroy":
                 return f"delete{resource_name}"
+            # MPTT specific stuff
+            case "move":
+                return f"move{resource_name}"
+            case "insert":
+                return f"insert{resource_name}"
             case _:
                 return action + path
 

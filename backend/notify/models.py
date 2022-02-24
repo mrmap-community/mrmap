@@ -1,11 +1,7 @@
 
 from celery.states import FAILURE, PENDING, STARTED, SUCCESS
 from django.db import models
-from django.db.models import (BooleanField, Case, Count, DateTimeField,
-                              ExpressionWrapper, F, Min, OuterRef, Q, Subquery,
-                              Value, When)
-from django.db.models.functions import Coalesce
-from django.db.models.lookups import GreaterThan, LessThanOrEqual
+from django.db.models import Count, F, Min, Q, Sum
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from MrMap.enums import EnumChoice
@@ -19,7 +15,7 @@ class ProcessNameEnum(EnumChoice):
 
 class BackgroundProcessManager(models.Manager):
 
-    def process_info(self):
+    def _process_info(self):
         qs = self.get_queryset()
         qs = qs.annotate(
             pending_threads=Count(
@@ -29,8 +25,23 @@ class BackgroundProcessManager(models.Manager):
             successed_threads=Count(
                 'threads', filter=Q(threads__status=SUCCESS)),
             failed_threads=Count('threads', filter=Q(threads__status=FAILURE)),
-            date_created=Min('threads__date_created')
+            date_created=Min('threads__date_created'),
         ).order_by('-date_created')
+        return qs
+
+    def process_info(self):
+        qs = self._process_info()
+
+        qs.annotate(
+            progess_new=(
+                (
+                    F('successed_threads') +
+                    F('failed_threads') -
+                    F('pending_threads')
+                    # add sum of progress of the processing threads...
+                ) / Count('threads') * 100
+            )
+        )
         return qs
 
 

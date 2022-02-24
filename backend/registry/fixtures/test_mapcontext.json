@@ -319,7 +319,7 @@
       "preview_image": "",
       "selection_layer": null,
       "lft": 1,
-      "rght": 6,
+      "rght": 12,
       "tree_id": 2,
       "level": 0
     }
@@ -361,7 +361,70 @@
       "preview_image": "",
       "selection_layer": null,
       "lft": 4,
-      "rght": 5,
+      "rght": 9,
+      "tree_id": 2,
+      "level": 1
+    }
+  },
+  {
+    "model": "registry.mapcontextlayer",
+    "pk": 9,
+    "fields": {
+      "parent": 8,
+      "map_context": 2,
+      "title": "mc2_node1.2.1",
+      "description": null,
+      "dataset_metadata": null,
+      "rendering_layer": null,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "layer_style": null,
+      "preview_image": "",
+      "selection_layer": null,
+      "lft": 5,
+      "rght": 6,
+      "tree_id": 2,
+      "level": 2
+    }
+  },
+  {
+    "model": "registry.mapcontextlayer",
+    "pk": 10,
+    "fields": {
+      "parent": 8,
+      "map_context": 2,
+      "title": "mc2_node1.2.2",
+      "description": null,
+      "dataset_metadata": null,
+      "rendering_layer": null,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "layer_style": null,
+      "preview_image": "",
+      "selection_layer": null,
+      "lft": 7,
+      "rght": 8,
+      "tree_id": 2,
+      "level": 2
+    }
+  },
+  {
+    "model": "registry.mapcontextlayer",
+    "pk": 11,
+    "fields": {
+      "parent": 6,
+      "map_context": 2,
+      "title": "mc2_node1.3",
+      "description": null,
+      "dataset_metadata": null,
+      "rendering_layer": null,
+      "layer_scale_min": null,
+      "layer_scale_max": null,
+      "layer_style": null,
+      "preview_image": "",
+      "selection_layer": null,
+      "lft": 10,
+      "rght": 11,
       "tree_id": 2,
       "level": 1
     }
@@ -455,7 +518,7 @@
         "registry",
         "mapcontext"
       ],
-      "object_pk": "7",
+      "object_pk": "6",
       "group": [
         "Group2"
       ]
@@ -474,7 +537,7 @@
         "registry",
         "mapcontext"
       ],
-      "object_pk": "8",
+      "object_pk": "7",
       "group": [
         "Group2"
       ]
@@ -493,7 +556,7 @@
         "registry",
         "mapcontext"
       ],
-      "object_pk": "9",
+      "object_pk": "8",
       "group": [
         "Group2"
       ]
@@ -504,15 +567,15 @@
     "pk": 8,
     "fields": {
       "permission": [
-        "change_mapcontextlayer",
+        "delete_mapcontextlayer",
         "registry",
         "mapcontextlayer"
       ],
       "content_type": [
         "registry",
-        "mapcontext"
+        "mapcontextlayer"
       ],
-      "object_pk": "7",
+      "object_pk": "9",
       "group": [
         "Group2"
       ]
@@ -523,15 +586,15 @@
     "pk": 9,
     "fields": {
       "permission": [
-        "change_mapcontextlayer",
+        "delete_mapcontextlayer",
         "registry",
         "mapcontextlayer"
       ],
       "content_type": [
         "registry",
-        "mapcontext"
+        "mapcontextlayer"
       ],
-      "object_pk": "8",
+      "object_pk": "10",
       "group": [
         "Group2"
       ]
@@ -542,15 +605,129 @@
     "pk": 10,
     "fields": {
       "permission": [
+        "delete_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontextlayer"
+      ],
+      "object_pk": "11",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 11,
+    "fields": {
+      "permission": [
         "change_mapcontextlayer",
         "registry",
         "mapcontextlayer"
       ],
       "content_type": [
         "registry",
-        "mapcontext"
+        "mapcontextlayer"
+      ],
+      "object_pk": "6",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 12,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontextlayer"
+      ],
+      "object_pk": "7",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 13,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontextlayer"
+      ],
+      "object_pk": "8",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 14,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontextlayer"
       ],
       "object_pk": "9",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 15,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontextlayer"
+      ],
+      "object_pk": "10",
+      "group": [
+        "Group2"
+      ]
+    }
+  },
+  {
+    "model": "guardian.groupobjectpermission",
+    "pk": 16,
+    "fields": {
+      "permission": [
+        "change_mapcontextlayer",
+        "registry",
+        "mapcontextlayer"
+      ],
+      "content_type": [
+        "registry",
+        "mapcontextlayer"
+      ],
+      "object_pk": "11",
       "group": [
         "Group2"
       ]

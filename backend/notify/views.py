@@ -59,18 +59,6 @@ class BackgroundProcessViewSetMixin():
         "phase": ["exact", "icontains", "contains"],
     }
 
-    def get_queryset(self, *args, **kwargs):
-        qs = super().get_queryset(*args, **kwargs)
-        qs = qs.prefetch_related(
-            Prefetch(
-                "threads",
-                queryset=TaskResult.objects.filter(status=STARTED),
-                to_attr='running_threads_list'
-            )
-        )
-
-        return qs
-
 
 class BackgroundProcessViewSet(
     BackgroundProcessViewSetMixin,

@@ -65,7 +65,7 @@ class BackgroundProcessSerializer(
                 running_thread.meta) if running_thread.meta else {}
             try:
                 aggregated_running_task_progress += \
-                    int(meta_info['current']) / int(meta_info['total'])
+                    int(meta_info['done']) / int(meta_info['total'])
             except AttributeError:
                 pass
 

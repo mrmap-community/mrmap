@@ -4,6 +4,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count, Min, Q
+from django.db.models.query import Prefetch
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from MrMap.enums import EnumChoice
@@ -30,6 +31,13 @@ class BackgroundProcessManager(models.Manager):
             all_threads=Count('threads'),
             date_created=Min('threads__date_created'),
         ).order_by('-date_created')
+        qs = qs.prefetch_related(
+            Prefetch(
+                "threads",
+                queryset=TaskResult.objects.filter(status=STARTED),
+                to_attr='running_threads_list'
+            )
+        )
         return qs
 
 

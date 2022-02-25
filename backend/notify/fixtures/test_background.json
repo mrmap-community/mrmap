@@ -74,7 +74,7 @@
             "status": "STARTED",
             "date_created": "2013-03-16T17:41:28+00:00",
             "date_done": "2013-03-16T17:41:28+00:00",
-            "meta": "{ \"current\": \"1\", \"total\": \"3\"}"
+            "meta": "{ \"done\": \"1\", \"total\": \"3\"}"
         }
     },
     {
@@ -86,7 +86,7 @@
             "status": "STARTED",
             "date_created": "2013-03-16T17:41:28+00:00",
             "date_done": "2013-03-16T17:41:28+00:00",
-            "meta": "{ \"current\": \"2\", \"total\": \"3\"}"
+            "meta": "{ \"done\": \"2\", \"total\": \"3\"}"
         }
     },
     {
@@ -98,7 +98,7 @@
             "status": "STARTED",
             "date_created": "2013-03-16T17:41:28+00:00",
             "date_done": "2013-03-16T17:41:28+00:00",
-            "meta": "{ \"current\": \"2\", \"total\": \"8\"}"
+            "meta": "{ \"done\": \"2\", \"total\": \"8\"}"
         }
     },
     {

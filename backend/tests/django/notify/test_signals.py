@@ -1,10 +1,8 @@
-import json
 from typing import OrderedDict
 
 from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase
-from django.utils import timezone
 from django_celery_results.models import TaskResult
 from MrMap.asgi import application
 from rest_framework.test import APIRequestFactory
@@ -81,8 +79,8 @@ class SignalsTestCase(TransactionTestCase):
         self.assertEqual(response['type'], "backgroundProcesses/add")
 
         # if a thread is updated, we shall receive a update event
-        task_result = await self.create_thread(background_process)
-        task_result = await self.update_thread()
+        await self.create_thread(background_process)
+        await self.update_thread()
         background_process = await self.get_background_process(background_process.pk)
 
         response = await communicator.receive_json_from()

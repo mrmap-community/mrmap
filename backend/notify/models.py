@@ -21,14 +21,15 @@ class BackgroundProcessManager(models.Manager):
     def process_info(self):
         qs = self.get_queryset()
         qs = qs.annotate(
-            pending_threads=Count(
+            pending_threads_count=Count(
                 'threads', filter=Q(threads__status=PENDING)),
-            running_threads=Count(
+            running_threads_count=Count(
                 'threads', filter=Q(threads__status=STARTED)),
-            successed_threads=Count(
+            successed_threads_count=Count(
                 'threads', filter=Q(threads__status=SUCCESS)),
-            failed_threads=Count('threads', filter=Q(threads__status=FAILURE)),
-            all_threads=Count('threads'),
+            failed_threads_count=Count(
+                'threads', filter=Q(threads__status=FAILURE)),
+            all_threads_count=Count('threads'),
             date_created=Min('threads__date_created'),
         ).order_by('-date_created')
         qs = qs.prefetch_related(

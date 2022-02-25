@@ -1,8 +1,6 @@
 import json
 
 from celery import states
-from celery.states import STARTED
-from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
 from extras.openapi import CustomAutoSchema
 from rest_framework import status

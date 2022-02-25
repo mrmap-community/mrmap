@@ -107,6 +107,6 @@ def update_background_process_listeners_on_task_result_save_delete(**kwargs):
                         "json": reducer_action,
             },
         )
-    except Exception as e:
+    except Exception:
         # errors while building messages and sending messages shall be ignored
         pass

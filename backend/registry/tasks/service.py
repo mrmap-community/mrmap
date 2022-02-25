@@ -1,4 +1,3 @@
-from cmath import phase
 from urllib import parse
 
 from celery import shared_task, states

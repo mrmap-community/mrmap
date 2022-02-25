@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-02-24 10:08+0100\n"
+"POT-Creation-Date: 2022-02-25 18:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -104,8 +104,8 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:91 registry/models/mapcontext.py:278
-#: registry/models/security.py:236
+#: accounts/models/groups.py:91 notify/models.py:60
+#: registry/models/mapcontext.py:278 registry/models/security.py:236
 #, fuzzy
 #| msgid "Description"
 msgid "description"
@@ -231,6 +231,104 @@ msgstr "Gruppen in denen dieser Nutzer Mitglied sein soll."
 #: notify/apps.py:9
 msgid "Notify"
 msgstr "Benachrichtigung"
+
+#: notify/models.py:51
+#, fuzzy
+#| msgid "Phase"
+msgid "phase"
+msgstr "Phase"
+
+#: notify/models.py:52
+#, fuzzy
+#| msgid "Current state of the task being run"
+msgid "Current phase of the process"
+msgstr "Aktueller Status der Teilaufgabe."
+
+#: notify/models.py:56
+#, fuzzy
+#| msgid "Address"
+msgid "process type"
+msgstr "Adresse"
+
+#: notify/models.py:57
+msgid "tells you what kind of process this is"
+msgstr "beschreibt, welche Art von Prozess dies ist"
+
+#: notify/models.py:61
+#, fuzzy
+#| msgid "a short description what this group is for."
+msgid "Human readable description of what this process does"
+msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
+
+#: notify/models.py:75
+msgid "Background Process"
+msgstr "Hintergrundprozess"
+
+#: notify/models.py:76
+msgid "Background Processes"
+msgstr "Hintergrundprozesse"
+
+#: notify/serializers.py:44
+#, fuzzy
+#| msgid "Pending tasks"
+msgid "pending threads"
+msgstr "Laufende Prozesse"
+
+#: notify/serializers.py:45
+#, fuzzy
+#| msgid "Your account is currently not activated"
+msgid "count of currently pending threads"
+msgstr "Dieser Account ist nicht aktiviert"
+
+#: notify/serializers.py:48
+msgid "running threads"
+msgstr "laufende Teilaufgaben"
+
+#: notify/serializers.py:49
+#, fuzzy
+#| msgid "Your account is currently not activated"
+msgid "count of currently running threads"
+msgstr "Dieser Account ist nicht aktiviert"
+
+#: notify/serializers.py:52
+msgid "successed threads"
+msgstr "erfolgreiche Teilaufgaben"
+
+#: notify/serializers.py:53
+msgid "count of currently successed threads"
+msgstr "Anzahl der erfolgreich abgeschlossenen Teilaufgaben"
+
+#: notify/serializers.py:56
+msgid "failed threads"
+msgstr "fehlerhafte Teilaufgaben"
+
+#: notify/serializers.py:57
+#, fuzzy
+#| msgid "Your account is currently not activated"
+msgid "count of currently failed threads"
+msgstr "Dieser Account ist nicht aktiviert"
+
+#: notify/serializers.py:60
+#, fuzzy
+#| msgid "Date of creation"
+msgid "date created"
+msgstr "Erstellt am"
+
+#: notify/serializers.py:61
+msgid "the datetime when the first thread was created"
+msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
+
+#: notify/serializers.py:64
+#, fuzzy
+#| msgid "Progress"
+msgid "progress"
+msgstr "Fortschritt"
+
+#: notify/serializers.py:65
+msgid "the current progress aggregated from all threads from 0 to 100"
+msgstr ""
+"Der aktuelle Fortschritt kumuliert aus allen Fortschritten aller "
+"Teilaufgaben von 0 bis 100"
 
 #: registry/apps.py:9
 msgid "Registry"
@@ -1614,9 +1712,6 @@ msgstr "Diese Ressource ist deaktiviert."
 #~ msgid "Sends an e-mai if the service's access has been changed."
 #~ msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
 
-#~ msgid "a short description what this group is for."
-#~ msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
-
 #, fuzzy
 #~| msgid "Created on"
 #~ msgid "Created at"
@@ -1725,9 +1820,6 @@ msgstr "Diese Ressource ist deaktiviert."
 #~| msgid "Health state"
 #~ msgid "task state"
 #~ msgstr "Gesundheitszustand"
-
-#~ msgid "Current state of the task being run"
-#~ msgstr "Aktueller Status der Teilaufgabe."
 
 #~ msgid ""
 #~ "auto start collecting task after successful registering which register "
@@ -2220,9 +2312,6 @@ msgstr "Diese Ressource ist deaktiviert."
 #~ msgid "Account updated successfully!"
 #~ msgstr "Account aktualisiert!"
 
-#~ msgid "Your account is currently not activated"
-#~ msgstr "Dieser Account ist nicht aktiviert"
-
 #~ msgid "You have been logged out."
 #~ msgstr "Sie wurden ausgeloggt."
 
@@ -2671,16 +2760,8 @@ msgstr "Diese Ressource ist deaktiviert."
 #~ msgid "Status"
 #~ msgstr "Status"
 
-#, fuzzy
-#~| msgid "Date of creation"
-#~ msgid "Date Created"
-#~ msgstr "Erstellt am"
-
 #~ msgid "Execution time"
 #~ msgstr "Ausführungsdauer"
-
-#~ msgid "Progress"
-#~ msgstr "Fortschritt"
 
 #~ msgid "Task is pending"
 #~ msgstr "Aufgabe steht aus"
@@ -3739,9 +3820,6 @@ msgstr "Diese Ressource ist deaktiviert."
 #~ msgid "Type"
 #~ msgstr "Typ"
 
-#~ msgid "Phase"
-#~ msgstr "Phase"
-
 #, fuzzy
 #~| msgid "Harvest with group"
 #~ msgid "Harvest catalogue"
@@ -4551,9 +4629,6 @@ msgstr "Diese Ressource ist deaktiviert."
 
 #~ msgid "New Group invitation request"
 #~ msgstr "Neue Gruppeneinladung"
-
-#~ msgid "Pending tasks"
-#~ msgstr "Laufende Prozesse"
 
 #~ msgid "Choice a date and time with the calender"
 #~ msgstr "Datum und Uhrzeit auswählen"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-02-25 18:54+0100\n"
+"POT-Creation-Date: 2022-02-25 19:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -104,7 +104,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:91 notify/models.py:60
+#: accounts/models/groups.py:91 notify/models.py:61
 #: registry/models/mapcontext.py:278 registry/models/security.py:236
 #, fuzzy
 #| msgid "Description"
@@ -232,39 +232,39 @@ msgstr "Gruppen in denen dieser Nutzer Mitglied sein soll."
 msgid "Notify"
 msgstr "Benachrichtigung"
 
-#: notify/models.py:51
+#: notify/models.py:52
 #, fuzzy
 #| msgid "Phase"
 msgid "phase"
 msgstr "Phase"
 
-#: notify/models.py:52
+#: notify/models.py:53
 #, fuzzy
 #| msgid "Current state of the task being run"
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
-#: notify/models.py:56
+#: notify/models.py:57
 #, fuzzy
 #| msgid "Address"
 msgid "process type"
 msgstr "Adresse"
 
-#: notify/models.py:57
+#: notify/models.py:58
 msgid "tells you what kind of process this is"
 msgstr "beschreibt, welche Art von Prozess dies ist"
 
-#: notify/models.py:61
+#: notify/models.py:62
 #, fuzzy
 #| msgid "a short description what this group is for."
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:75
+#: notify/models.py:76
 msgid "Background Process"
 msgstr "Hintergrundprozess"
 
-#: notify/models.py:76
+#: notify/models.py:77
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
@@ -1483,23 +1483,23 @@ msgstr "Featuretype Titel enthält"
 msgid "There is an existing harvesting job for this service."
 msgstr "Die Basis-URL des Dienstes."
 
-#: registry/serializers/mapcontext.py:34
+#: registry/serializers/mapcontext.py:23
 #, fuzzy
 #| msgid "Description"
 msgid "position"
 msgstr "Beschreibung"
 
-#: registry/serializers/mapcontext.py:36
+#: registry/serializers/mapcontext.py:25
 msgid "the tree position of the node where it should be moved to"
 msgstr ""
 "Die Position innerhalb einer Ebene im Baum, auf die der Knoten verschoben "
 "werden soll."
 
-#: registry/serializers/mapcontext.py:48
+#: registry/serializers/mapcontext.py:46
 msgid "root node can not be moved"
 msgstr "Wurzelknoten kann nicht verschoben werden"
 
-#: registry/serializers/mapcontext.py:54
+#: registry/serializers/mapcontext.py:52
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 

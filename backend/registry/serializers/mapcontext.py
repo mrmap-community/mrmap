@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
-from rest_framework.fields import ChoiceField, IntegerField
+from rest_framework.fields import IntegerField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
@@ -23,6 +23,7 @@ class MapContextLayerSerializer(
         label=_('position'),
         help_text=_(
             'the tree position of the node where it should be moved to'),
+        required=False,
         write_only=True)
 
     included_serializers = {

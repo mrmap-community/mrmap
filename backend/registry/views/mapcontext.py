@@ -1,11 +1,10 @@
 
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import NestedModelViewSet, SerializerClassesMixin
+from extras.viewsets import NestedModelViewSet
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.mapcontext import (MapContextDefaultSerializer,
                                              MapContextIncludeSerializer,
-                                             MapContextLayerPatchSerializer,
                                              MapContextLayerSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
@@ -35,17 +34,13 @@ class MapContextViewSet(ModelViewSet):
         )
 
 
-class MapContextLayerViewSetMixin(SerializerClassesMixin):
+class MapContextLayerViewSetMixin:
     schema = CustomAutoSchema(
         tags=['MapContextLayer'],
 
     )
     queryset = MapContextLayer.objects.all()
-    serializer_classes = {
-        "default": MapContextLayerSerializer,
-        "partial_update": MapContextLayerPatchSerializer,
-
-    }
+    serializer_class = MapContextLayerSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
 

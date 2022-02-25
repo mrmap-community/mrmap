@@ -5,9 +5,9 @@ from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
 from rest_framework.fields import ChoiceField, IntegerField
-from rest_framework.serializers import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import ModelSerializer, Serializer
+from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
+                                                 ModelSerializer)
 
 
 class MapContextLayerSerializer(
@@ -18,6 +18,13 @@ class MapContextLayerSerializer(
         view_name='registry:mapcontextlayer-detail',
     )
 
+    # https://django-mptt.readthedocs.io/en/latest/models.html?highlight=insert_node#insert-node-node-target-position-last-child-save-false
+    position = IntegerField(
+        label=_('position'),
+        help_text=_(
+            'the tree position of the node where it should be moved to'),
+        write_only=True)
+
     included_serializers = {
         'rendering_layer': LayerSerializer
     }
@@ -25,16 +32,6 @@ class MapContextLayerSerializer(
     class Meta:
         model = MapContextLayer
         fields = "__all__"
-
-
-class MapContextLayerPatchSerializer(
-        MapContextLayerSerializer):
-    # https://django-mptt.readthedocs.io/en/latest/models.html?highlight=insert_node#insert-node-node-target-position-last-child-save-false
-    position = IntegerField(
-        label=_('position'),
-        help_text=_(
-            'the tree position of the node where it should be moved to'),
-        write_only=True)
 
     def validate(self, attrs):
         validated_data = super().validate(attrs)
@@ -78,37 +75,6 @@ class MapContextLayerPatchSerializer(
                         target=target,
                         position='left')
         return super().update(instance, validated_data)
-
-
-class MapContextLayerInsertSerializer(
-        MapContextLayerSerializer):
-
-    position = ChoiceField(
-        choices=['first-child', 'last-child', 'left', 'right'])
-
-
-class MapContextLayerMoveLayerSerializer(
-        Serializer):
-
-    target = IntegerField()
-    position = ChoiceField(
-        choices=['first-child', 'last-child', 'left', 'right'])
-
-    class Meta:
-        # TODO: maybe this should be an other resource_name to differ from default crud used MapContextLayer resource
-        resource_name = 'MapContextLayer'
-
-    def validate(self, attrs):
-        validated_data = super().validate(attrs)
-
-        try:
-            validated_data['target'] = MapContextLayer.objects.get(
-                pk=validated_data['target'])
-        except MapContextLayer.DoesNotExist:
-            raise ValidationError(
-                'given target MapContextLayer does not exist.')
-
-        return validated_data
 
 
 class MapContextDefaultSerializer(

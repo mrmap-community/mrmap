@@ -75,7 +75,6 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
         )
     except Exception:
         # errors while building messages and sending messages shall be ignored
-
         pass
 
 
@@ -85,12 +84,10 @@ def update_background_process_listeners_on_task_result_save_delete(**kwargs):
     """
     Send the information to the channel group when a BackgroundProcess is created/modified
     """
-    print('HUHU')
     if hasattr(HistoricalRecords.context, "request"):
         request = HistoricalRecords.context.request
     else:
         return
-    print('HAHA')
     try:
         task_result = kwargs['instance']
         if not task_result.processes.exists():
@@ -112,7 +109,4 @@ def update_background_process_listeners_on_task_result_save_delete(**kwargs):
         )
     except Exception as e:
         # errors while building messages and sending messages shall be ignored
-        print(e)
-        import traceback
-        print(traceback.format_exc())
         pass

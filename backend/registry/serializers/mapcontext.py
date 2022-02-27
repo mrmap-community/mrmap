@@ -1,4 +1,6 @@
 from django.core.exceptions import ValidationError
+from django.http import HttpRequest
+from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
@@ -24,9 +26,88 @@ class MapContextLayerSerializer(
         model = MapContextLayer
         fields = "__all__"
 
+
+class MapContextLayerPatchSerializer(
+        MapContextLayerSerializer):
+    # https://django-mptt.readthedocs.io/en/latest/models.html?highlight=insert_node#insert-node-node-target-position-last-child-save-false
+    position = IntegerField(
+        label=_('position'),
+        help_text=_(
+            'the tree position of the node where it should be moved to'),
+        write_only=True)
+
     def validate(self, attrs):
         validated_data = super().validate(attrs)
-        # FIXME: check if the requesting user has permissions to change the parent. If not raise PermissionDenied
+        request: HttpRequest = self.context.get('request', None)
+        if request and request.method.lower() == 'patch':
+            position = validated_data.get('position', None)
+            if isinstance(position, int):
+                # move action detected
+                parent = validated_data.get('parent', self.instance.parent)
+                if not parent:
+                    raise ValidationError(_('root node can not be moved'))
+                else:
+                    validated_data['parent'] = parent
+                child_layers_count = parent.child_layers.count()
+                if position > child_layers_count or position < 0:
+                    raise ValidationError(
+                        {"position": _('position index out of range')})
+        return validated_data
+
+    def update(self, instance, validated_data):
+        position = validated_data.pop('position', None)
+        if isinstance(position, int):
+            parent = validated_data['parent']
+            child_layers = parent.child_layers.all()
+            child_layers_count = child_layers.count()
+            if child_layers_count == 0:
+                # first and only child
+                instance.move_to(
+                    target=parent,
+                    position='first-child')
+            elif position == child_layers_count or position == child_layers_count - 1:
+                # last child
+                instance.move_to(
+                    target=parent,
+                    position='last-child')
+            else:
+                # new child somewhere between
+                target = child_layers[position]
+                if target != instance:
+                    instance.move_to(
+                        target=target,
+                        position='left')
+        return super().update(instance, validated_data)
+
+
+class MapContextLayerInsertSerializer(
+        MapContextLayerSerializer):
+
+    position = ChoiceField(
+        choices=['first-child', 'last-child', 'left', 'right'])
+
+
+class MapContextLayerMoveLayerSerializer(
+        Serializer):
+
+    target = IntegerField()
+    position = ChoiceField(
+        choices=['first-child', 'last-child', 'left', 'right'])
+
+    class Meta:
+        # TODO: maybe this should be an other resource_name to differ from default crud used MapContextLayer resource
+        resource_name = 'MapContextLayer'
+
+    def validate(self, attrs):
+        validated_data = super().validate(attrs)
+
+        try:
+            validated_data['target'] = MapContextLayer.objects.get(
+                pk=validated_data['target'])
+        except MapContextLayer.DoesNotExist:
+            raise ValidationError(
+                'given target MapContextLayer does not exist.')
+
         return validated_data
 
 
@@ -78,26 +159,3 @@ class MapContextIncludeSerializer(
     class Meta:
         model = MapContext
         fields = "__all__"
-
-
-class MapContextLayerMoveLayerSerializer(
-        Serializer):
-
-    target = IntegerField()
-    position = ChoiceField(
-        choices=['first-child', 'last-child', 'left', 'right'])
-
-    class Meta:
-        resource_name = 'MapContextLayer'
-
-    def validate(self, attrs):
-        validated_data = super().validate(attrs)
-
-        try:
-            validated_data['target'] = MapContextLayer.objects.get(
-                pk=validated_data['target'])
-        except MapContextLayer.DoesNotExist:
-            raise ValidationError(
-                'given target MapContextLayer does not exist.')
-
-        return validated_data

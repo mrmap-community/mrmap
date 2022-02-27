@@ -82,6 +82,21 @@
                     "mapcontext"
                 ],
                 [
+                    "add_mapcontextlayer",
+                    "registry",
+                    "mapcontextlayer"
+                ],
+                [
+                    "change_mapcontextlayer",
+                    "registry",
+                    "mapcontextlayer"
+                ],
+                [
+                    "delete_mapcontextlayer",
+                    "registry",
+                    "mapcontextlayer"
+                ],
+                [
                     "add_allowedwebmapserviceoperation",
                     "registry",
                     "allowedwebmapserviceoperation"

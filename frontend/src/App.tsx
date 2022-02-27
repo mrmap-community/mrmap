@@ -1,7 +1,6 @@
 import { MapContext } from '@terrestris/react-geo';
 import { Layout } from 'antd';
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
 import CswTable from './Components/CswTable/CswTable';
@@ -21,7 +20,7 @@ import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList
 import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
-import { currentUserSelectors } from './Services/ReduxStore/Reducers/CurrentUser';
+import { store } from './Services/ReduxStore/Store';
 import WebSockets from './Services/WebSockets';
 import { olMap } from './Utils/MapUtils';
 
@@ -29,9 +28,10 @@ const { Content, Sider } = Layout;
 
 function RequireAuth ({ children }:{ children: JSX.Element }) {
   const location = useLocation();
-  const currentUser = useSelector(currentUserSelectors.selectAll);
+  const currentUser = store.getState().currentUser.user;
 
-  if (!currentUser || !currentUser[0]) {
+  if (!currentUser)
+  {
     // store location so login page can forward to original page
     return <Navigate to='/login' state={{ from: location }} />;
   }

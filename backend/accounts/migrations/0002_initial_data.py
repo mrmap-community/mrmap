@@ -2,7 +2,6 @@
 
 import os
 
-from django.contrib.auth import get_user_model
 from django.db import migrations
 
 
@@ -14,7 +13,7 @@ class Migration(migrations.Migration):
 
     def generate_superuser(apps, schema_editor):
 
-        superuser = get_user_model().objects.create_superuser(
+        superuser = apps.get_model("accounts", "User").objects.create_superuser(
             username=os.environ.get("MRMAP_USER"),
             password=os.environ.get("MRMAP_PASSWORD")
         )

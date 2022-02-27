@@ -1,9 +1,8 @@
 import { DashboardOutlined, DatabaseOutlined, LogoutOutlined, SecurityScanOutlined, UserOutlined } from '@ant-design/icons';
 import { Menu } from 'antd';
 import React, { ReactElement } from 'react';
-import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { currentUserSelectors } from '../../Services/ReduxStore/Reducers/CurrentUser';
+import { store } from '../../Services/ReduxStore/Store';
 
 
 const { SubMenu } = Menu;
@@ -13,7 +12,7 @@ const rootSubmenuKeys = ['users', 'registry', 'security'];
 
 export const NavMenu = (): ReactElement => {
   const location = useLocation();
-  const currentUser = useSelector(currentUserSelectors.selectAll);
+  const currentUser = store.getState().currentUser.user;
 
   const [openKeys, setOpenKeys] = React.useState(['/']);
 
@@ -78,7 +77,7 @@ export const NavMenu = (): ReactElement => {
         key='logout'
         icon={<LogoutOutlined />}
       >
-        <Link to='/logout'>Logout ({currentUser[0]?.attributes.username})</Link>
+        <Link to='/logout'>Logout ({currentUser.attributes.username})</Link>
       </Menu.Item>
     </Menu>
   );

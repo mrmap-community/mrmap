@@ -1,5 +1,5 @@
 import { DeleteFilled, EditFilled, PlusOutlined } from '@ant-design/icons';
-import { ActionType, default as ProTable, ProColumnType, ProTableProps } from '@ant-design/pro-table';
+import { ActionType, ColumnsState, default as ProTable, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
 import { Button, Drawer, Modal, notification, Space, TablePaginationConfig, Tooltip } from 'antd';
 import { SortOrder } from 'antd/lib/table/interface';
@@ -7,7 +7,8 @@ import { ParamsArray } from 'openapi-client-axios';
 import { OpenAPIV3 } from 'openapi-types';
 import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
-import { getQueryParams } from '../../../Utils/JsonApiUtils';
+import { store } from '../../../Services/ReduxStore/Store';
+import { buildJsonApiPayload, getQueryParams } from '../../../Utils/JsonApiUtils';
 import RepoForm from '../RepoForm/RepoForm';
 import { augmentColumnWithJsonSchema } from './TableHelper';
 
@@ -48,31 +49,19 @@ function augmentColumns (
   resourceSchema: any, 
   queryParams: any,
   columnHints: ProColumnType[] | undefined): ProColumnType[] {
+  
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
-  // phase 1: add a column for every column hint, merge with schema property definition (if available)
-  if (columnHints) {
-    columnHints.forEach((columnHint) => {
-      const columnName = columnHint.dataIndex as string;
-      const schema = props[columnName];
-      if (schema) {
-        columns[columnName] = augmentColumnWithJsonSchema(columnHint, schema, queryParams);
-      } else {
-        columns[columnName] = columnHint;
-      }
-    });
-  }
-  // phase 2: add a column for every schema property that does not have a corresponding column hint
   for (const propName in props) {
-    if (propName in columns) {
-      continue;
+    const columnHint = columnHints?.find(hint => hint.dataIndex === propName);
+    if (columnHint){
+      columns[propName] = columnHint;
+    } else {
+      columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
     }
-    const prop = props[propName];
-    const columnHint = {
-      dataIndex: propName
-    };
-    columns[propName] = augmentColumnWithJsonSchema(columnHint, prop, queryParams);
+
   }
+
   return Object.values(columns);
 }
 
@@ -86,12 +75,22 @@ const RepoTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
+  const jsonPointer = 'reactClient/tables/'+resourceTypes[0];
+
+  const currentUser = store.getState().currentUser.user;
+  const settings: any = useRef(currentUser.attributes?.settings);
+
+  const [
+    columnsStateMap, 
+    setColumnsStateMap
+  ] = useState<Record<string, ColumnsState>>(settings.current[jsonPointer] || {});
 
   const nestedResourceListLookup: string = 'list'+resourceTypes.join('By');
 
-  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
   const [header, setHeader] = useState<string>('TODO');
+  
+  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [addResourceDrawerVisible, setAddResourceDrawerVisible] = useState<boolean>(false);
   const [editResourceDrawerVisible, setEditResourceDrawerVisible] = useState<boolean>(false);
   const [selectedForEdit, setSelectedForEdit] = useState<string | number>();
@@ -99,6 +98,8 @@ const RepoTable = ({
   // eslint-disable-next-line max-len
   const [listResource, { loading: listLoading, error: listError, response: listResponse, api }] = useOperationMethod(nestedResourceListLookup);
   const [deleteResource, { error: deleteError }] = useOperationMethod('delete'+resourceTypes[0]);
+
+  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
 
   const tableDataSourceInit = {
     data: [],
@@ -144,6 +145,27 @@ const RepoTable = ({
   };
 
   useEffect(() => {
+    if (updateUserResponse){
+      store.dispatch({ 
+        type: 'currentUser/updateSettings',
+        payload: updateUserResponse.data.data.attributes.settings
+      });
+    } 
+  }, [updateUserResponse]);
+
+  useEffect(() => {
+    if (columnsStateMap){
+      const _settings = { ...settings.current };
+      _settings[jsonPointer] = columnsStateMap;
+      updateUser(
+        [{ name: 'id', value: currentUser.id, in: 'path' }],
+        buildJsonApiPayload('User', currentUser.id, { settings: _settings })
+      );
+    }
+  }, [columnsStateMap, settings, currentUser.id, jsonPointer, updateUser]);
+
+
+  useEffect(() => {
     if (deleteError) {
       notification.error({ message: 'Something went wrong. Can\'t delete resource.' });
     }
@@ -167,9 +189,10 @@ const RepoTable = ({
       if (!_augmentedColumns.some(column => column.key === 'actions')) {
         
         _augmentedColumns.push({
-          key: 'actions',
+          key: 'operation',
           title: 'Aktionen',
           valueType: 'option',
+          fixed: 'right',
 
           render: (text: any, record: any) => {
             return (
@@ -206,6 +229,7 @@ const RepoTable = ({
             );
           }
         });
+        
       }
       isMounted && setAugmentedColumns(_augmentedColumns);
     }
@@ -305,6 +329,10 @@ const RepoTable = ({
             </Button>
           ]
           }
+          columnsState={{
+            value: columnsStateMap,
+            onChange: setColumnsStateMap
+          }}
           search={ augmentedColumns.some((column: RepoTableColumnType) => {
             return column.search && column.search.transform;
           })
@@ -312,6 +340,7 @@ const RepoTable = ({
               layout: 'vertical'
             }
             : false}
+          
           {...passThroughProps}
         />
       )}

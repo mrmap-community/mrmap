@@ -15,7 +15,7 @@ export const BackgroundProcessList = (): JSX.Element => {
   ] = useOperationMethod('listBackgroundProcess');
 
   const dispatch = useDispatch();
-
+  
   useEffect(() => {
     if (listBackgroundProcessResponse){
       dispatch(
@@ -65,7 +65,7 @@ export const BackgroundProcessList = (): JSX.Element => {
             }
             description={
               <Progress
-                percent={backgroundProcess.attributes.progress}
+                percent={Math.round(backgroundProcess.attributes.progress)}
                 status={getStatus(backgroundProcess)} 
               />
             }
@@ -77,3 +77,5 @@ export const BackgroundProcessList = (): JSX.Element => {
     />
   );
 };
+
+

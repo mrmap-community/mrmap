@@ -1,7 +1,9 @@
-import { DashboardOutlined, DatabaseOutlined, LogoutOutlined, SecurityScanOutlined, UserOutlined } from '@ant-design/icons';
-import { Menu } from 'antd';
+import { DashboardOutlined, DatabaseOutlined, LogoutOutlined, SecurityScanOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
+import { Badge, Menu } from 'antd';
 import React, { ReactElement } from 'react';
+import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
+import { backgroundProcessesSelectors } from '../../Services/ReduxStore/Reducers/BackgroundProcess';
 import { store } from '../../Services/ReduxStore/Store';
  
 
@@ -13,7 +15,7 @@ const rootSubmenuKeys = ['users', 'registry', 'security'];
 export const NavMenu = (): ReactElement => {
   const location = useLocation();
   const currentUser = store.getState().currentUser.user;
-
+  const backgroundProcesses = useSelector(backgroundProcessesSelectors.selectAll);
   const [openKeys, setOpenKeys] = React.useState(['/']);
 
   const onOpenChange = (keys: string[]) => {
@@ -72,8 +74,16 @@ export const NavMenu = (): ReactElement => {
         <Menu.Item key='security:allowed-operations'>Allowed Operations</Menu.Item>
         <Menu.Item key='security:logs'>Logs</Menu.Item>
       </SubMenu>
-      {/* Here the magic starts - push all items form this place to the bottom */}
-      <span style={{ marginTop: 'auto', display: 'hidden' }}></span>
+      
+      <Menu.Item 
+        key ='notify:background-processes'
+        icon={<Badge count={backgroundProcesses.length}>
+          <UnorderedListOutlined />
+        </Badge>}
+      >
+        <Link to='/notify/background-processes'>Processes</Link>
+      </Menu.Item>
+
       <Menu.Item
         key='logout'
         icon={<LogoutOutlined />}

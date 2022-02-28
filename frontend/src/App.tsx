@@ -3,6 +3,7 @@ import { Divider, Layout } from 'antd';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
+import { BackgroundProcessList } from './Components/BackgroundProcessTable';
 import CswTable from './Components/CswTable/CswTable';
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import DatasetMetadataTable from './Components/DatasetMetadataTable/DatasetMetadataTable';
@@ -12,7 +13,6 @@ import { Login } from './Components/LoginForm/LoginForm';
 import { Logout } from './Components/Logout/Logout';
 import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import MapContextTable from './Components/MapContextTable/MapContextTable';
-import { BackgroundProcessList } from './Components/NavMenu/BackgroundProcess';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import RepoForm from './Components/Shared/RepoForm/RepoForm';
@@ -39,7 +39,7 @@ function RequireAuth ({ children }:{ children: JSX.Element }) {
 
 export default function App (): JSX.Element {
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(false);
 
   const onCollapse = (_collapsed: boolean) => {
     setCollapsed(_collapsed);
@@ -82,7 +82,7 @@ export default function App (): JSX.Element {
                       <Divider />
                       <NavMenu />
                       <Divider />
-                      <BackgroundProcessList/>
+                      
                     </Sider>
                     <Layout className='site-layout'>
                       <Content style={{ margin: '0 16px' }}>
@@ -101,7 +101,7 @@ export default function App (): JSX.Element {
           }
         >
           <Route
-            path='/notify'
+            path='/notify/background-processes'
             element={<BackgroundProcessList />}
           />
           <Route

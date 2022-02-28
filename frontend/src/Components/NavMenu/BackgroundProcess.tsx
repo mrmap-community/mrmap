@@ -1,5 +1,7 @@
+import { UnorderedListOutlined } from '@ant-design/icons';
 import { List, Progress } from 'antd';
 import Paragraph from 'antd/lib/typography/Paragraph';
+import Title from 'antd/lib/typography/Title';
 import React, { useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useDispatch, useSelector } from 'react-redux';
@@ -46,6 +48,7 @@ export const BackgroundProcessList = (): JSX.Element => {
   return (
     <List
       size={'small'}
+      header={<Title level={5}><UnorderedListOutlined /> Background Processes</Title>}
       loading={listBackgroundProcessLoading}
       dataSource={backgroundProcesses}
       renderItem={backgroundProcess => (

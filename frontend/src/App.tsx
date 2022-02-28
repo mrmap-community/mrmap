@@ -1,5 +1,5 @@
 import { MapContext } from '@terrestris/react-geo';
-import { Layout } from 'antd';
+import { Divider, Layout } from 'antd';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
@@ -79,9 +79,9 @@ export default function App (): JSX.Element {
                         >
                         </img>
                       </div>
-                      
+                      <Divider />
                       <NavMenu />
-                      
+                      <Divider />
                       <BackgroundProcessList/>
                     </Sider>
                     <Layout className='site-layout'>

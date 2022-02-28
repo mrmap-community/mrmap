@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.views.generic.detail import BaseDetailView, DetailView
 from django_celery_results.models import TaskResult
 from guardian.core import ObjectPermissionChecker
+from notify.models import BackgroundProcess
 from notify.serializers import TaskResultSerializer
 from rest_framework import mixins, status
 from rest_framework.response import Response

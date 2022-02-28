@@ -49,7 +49,7 @@ class BackgroundProcessManager(models.Manager):
                 When(Q(
                     pending_threads_count__lte=0,
                     running_threads_count__lte=0,
-                    successed_threads_count__gte=0),
+                    successed_threads_count__gt=0),
                     then=Value("successed")),
                 default=Value("unknown"),
                 output_field=CharField()
@@ -78,7 +78,7 @@ class BackgroundProcess(models.Model):
         null=True,
         blank=True)
     phase = models.CharField(
-        max_length=256,
+        max_length=512,
         verbose_name=_('phase'),
         help_text=_('Current phase of the process'))
     process_type = models.CharField(
@@ -87,7 +87,7 @@ class BackgroundProcess(models.Model):
         verbose_name=_('process type'),
         help_text=_('tells you what kind of process this is'))
     description = models.CharField(
-        max_length=128,
+        max_length=512,
         verbose_name=_('description'),
         help_text=_('Human readable description of what this process does')
     )

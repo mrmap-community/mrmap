@@ -4,8 +4,7 @@ from celery import shared_task, states
 from celery.canvas import group
 from django.conf import settings
 from django.db import transaction
-from django_celery_results.models import TaskResult
-from notify.models import BackgroundProcess, ProcessNameEnum
+from notify.tasks import BackgroundProcessBased
 from registry.models import CatalougeService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
@@ -22,18 +21,14 @@ from rest_framework.reverse import reverse
 
 @shared_task(
     bind=True,
-    queue="default"
+    queue="default",
+    base=BackgroundProcessBased
 )
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
-    background_process: BackgroundProcess = BackgroundProcess.objects.create(
-        process_type=ProcessNameEnum.REGISTERING.value,
-        description=f'Register a new service with url {get_capabilities_url}',
-        phase="download capabilities document...")
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
-    if self.request and self.request.id:
-        background_process.threads.add(
-            *TaskResult.objects.filter(task_id=self.request.id))
+    self.update_background_process()
+
     auth = None
     if service_auth_pk:
         match parse.parse_qs(parse.urlsplit(get_capabilities_url).query)['SERVICE'][0].lower():
@@ -55,15 +50,13 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     self.update_state(state=states.STARTED, meta={
                       'done': 1, 'total': 3, 'phase': 'parse capabilities document...'})
-    background_process.phase = 'parse capabilities document...'
-    background_process.save()
+    self.update_background_process('parse capabilities document...')
 
     parsed_service = get_parsed_service(xml=response.content)
 
     self.update_state(state=states.STARTED, meta={
                       'done': 2, 'total': 3, 'phase': 'persisting service...'})
-    background_process.phase = 'persisting service...'
-    background_process.save()
+    self.update_background_process('persisting service...')
 
     with transaction.atomic():
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
@@ -87,8 +80,8 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             self_url = reverse(
                 viewname='registry:csw-detail', args=[db_service.pk])
         else:
-            background_process.phase = 'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.'
-            background_process.save()
+            self.update_background_process(
+                'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.')
             raise NotImplementedError(
                 "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
 
@@ -120,7 +113,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
         if remote_metadata_list:
             # TODO: create Task Result objects for all child threads, so we can append them directly to the Background Process to avoid
             #  progress bar melting after increasement
-            job = group([fetch_remote_metadata_xml.s(remote_metadata.pk, db_service.__class__.__name__, background_process.pk, **kwargs)
+            job = group([fetch_remote_metadata_xml.s(remote_metadata.pk, db_service.__class__.__name__, **kwargs)
                         for remote_metadata in remote_metadata_list])
             group_result = job.apply_async()
             group_result.save()
@@ -131,26 +124,23 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
                     "collect_metadata_records_job_id": str(group_result.id)
                 }
             })
-        background_process.phase = 'collecting metadata records...'
-        background_process.save()
+        self.update_background_process(
+            'collecting metadata records...', db_service)
+
     else:
-        background_process.phase = 'completed.'
-        background_process.save()
+        self.update_background_process('completed.', db_service)
 
     return return_dict
 
 
 @shared_task(bind=True,
-             queue="download")
-def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, background_process_id, **kwargs):
+             queue="download",
+             base=BackgroundProcessBased)
+def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
-    if self.request and self.request.id and background_process_id:
-        # TODO: see todo above... if we add the threads first we can dropt this code part...
-        background_process: BackgroundProcess = BackgroundProcess.objects.get(
-            pk=background_process_id)
-        background_process.threads.add(
-            *TaskResult.objects.filter(task_id=self.request.id))
+    self.update_background_process()
+
     remote_metadata = None
     if class_name == 'WebMapService':
         remote_metadata = WebMapServiceRemoteMetadata.objects.get(

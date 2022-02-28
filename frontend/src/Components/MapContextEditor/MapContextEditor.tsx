@@ -1,9 +1,10 @@
-import { FolderAddOutlined, MinusCircleFilled, SearchOutlined, SettingOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, MinusCircleFilled, SearchOutlined, SettingFilled, SettingOutlined } from '@ant-design/icons';
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { useMap } from '@terrestris/react-geo';
 import { Button, Space, Tabs, Tooltip } from 'antd';
+import { useForm } from 'antd/lib/form/Form';
 import { getUid } from 'ol';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
@@ -17,6 +18,7 @@ import { unpage } from '../../Utils/JsonApiUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
 import { BottomDrawer } from '../Shared/BottomDrawer/BottomDrawer';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
+import RepoForm from '../Shared/RepoForm/RepoForm';
 import './MapContextEditor.css';
 import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
 import { MapContextSettings } from './MapContextSettings/MapContextSettings';
@@ -190,6 +192,8 @@ export const MapContextEditor = (): ReactElement => {
     console.log('Adding', dataset);
   };
 
+  const [form] = useForm();
+
   return (
     <>
       <div className='mapcontext-editor-layout'>
@@ -217,6 +221,13 @@ export const MapContextEditor = (): ReactElement => {
                       disabled={!selectedLayer}
                     />
                   </Tooltip>
+                  <Tooltip title='Layer settings'>
+                    <Button
+                      icon={<SettingFilled />}
+                      size='middle'
+                      disabled={!selectedLayer}
+                    />
+                  </Tooltip>
                 </Space>
               </div>
               <MapContextLayerTree
@@ -239,8 +250,12 @@ export const MapContextEditor = (): ReactElement => {
             <TabPane tab={<span><SettingOutlined />Map settings</span>} key='1'>
               <MapContextSettings id={id}/>
             </TabPane>
-            <TabPane tab={<span><SettingOutlined />Layer settings</span>} key='2' disabled={!id}>
-              <SearchTable addDatasetToMapAction={onAddDataset} />
+            <TabPane tab={<span><SettingOutlined />Layer settings</span>} key='2' disabled={!id || !selectedLayer}>
+              <RepoForm
+                resourceType='MapContextLayer'
+                resourceId={selectedLayer && getUid(selectedLayer)}
+                form={form}
+              />
             </TabPane>
             <TabPane tab={<span><SearchOutlined />Dataset search</span>} key='3' disabled={!id}>
               <SearchTable addDatasetToMapAction={onAddDataset} />

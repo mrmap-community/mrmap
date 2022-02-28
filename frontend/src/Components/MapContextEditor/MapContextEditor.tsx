@@ -1,4 +1,6 @@
-import { FolderAddOutlined, MinusCircleFilled, SettingFilled } from '@ant-design/icons';
+import { FolderAddOutlined, MinusCircleFilled, SearchOutlined, SettingOutlined } from '@ant-design/icons';
+import { faLayerGroup } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { useMap } from '@terrestris/react-geo';
 import { Button, Space, Tabs, Tooltip } from 'antd';
@@ -27,7 +29,7 @@ export const MapContextEditor = (): ReactElement => {
   const { id } = useParams();
   const map = useMap();
 
-  const [activeTab, setActiveTab] = useState('1');
+  // const [activeTab, setActiveTab] = useState('1');
 
   // contains the layer hierarchy of the map context
   const [olLayerGroup, setOlLayerGroup] = useState<LayerGroup>();
@@ -188,70 +190,62 @@ export const MapContextEditor = (): ReactElement => {
     console.log('Adding', dataset);
   };
 
-  const operations = (
-    <Space size='small'>
-      <Tooltip title='Create new layer group'>
-        <Button
-          icon={<FolderAddOutlined />}
-          size='middle'
-          onClick={onCreateLayerGroup}
-        />
-      </Tooltip>
-      <Tooltip title='Delete layer'>
-        <Button
-          icon={<MinusCircleFilled />}
-          size='middle'
-          onClick={onDeleteLayer}
-          disabled={!selectedLayer}
-        />
-      </Tooltip>
-      <Tooltip title='Layer settings'>
-        <Button
-          icon={<SettingFilled />}
-          size='middle'
-          disabled={!selectedLayer}
-        />
-      </Tooltip>
-    </Space>
-  );
-
   return (
     <>
       <div className='mapcontext-editor-layout'>
-        <LeftDrawer map={map}>
-          <Tabs
-            tabBarExtraContent={activeTab === '1' ? operations : undefined}
-            onChange={(activeKey:string) => {setActiveTab(activeKey);}}
-          >
-            <TabPane tab='Map layers' key='1' disabled={!id}>
-              {
-                olLayerGroup &&
+        { id && <LeftDrawer map={map}>
+          {
+            olLayerGroup &&
             <div className='mapcontext-layertree-layout'>
-              {
-                id &&
-                <MapContextLayerTree
-                  id={id}
-                  map={map}
-                  olLayerGroup={olLayerGroup}
-                  onSelect={onSelectLayer}
-                  selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
-                  removeLayerInProgress={removeLayerInProgress}
-                />
-              }
+              <div
+                className='mapcontext-layertree-header'
+              >
+                <span><FontAwesomeIcon icon={faLayerGroup}/>&nbsp;&nbsp;&nbsp;Layers</span>
+                <Space>
+                  <Tooltip title='Create new layer group'>
+                    <Button
+                      icon={<FolderAddOutlined />}
+                      size='middle'
+                      onClick={onCreateLayerGroup}
+                    />
+                  </Tooltip>
+                  <Tooltip title='Delete layer'>
+                    <Button
+                      icon={<MinusCircleFilled />}
+                      size='middle'
+                      onClick={onDeleteLayer}
+                      disabled={!selectedLayer}
+                    />
+                  </Tooltip>
+                </Space>
+              </div>
+              <MapContextLayerTree
+                id={id}
+                map={map}
+                olLayerGroup={olLayerGroup}
+                onSelect={onSelectLayer}
+                selectedKeys={selectedLayer ? [getUid(selectedLayer)] : []}
+                removeLayerInProgress={removeLayerInProgress}
+              />
             </div>
-              }
-            </TabPane>
-            <TabPane tab='Map settings' key='2'>
-              <MapContextSettings id={id}/>
-            </TabPane>
-          </Tabs>
+          }
         </LeftDrawer>
+        }
         <AutoResizeMapComponent id='map' />
       </div>
       {
-        id &&
         <BottomDrawer map={map}>
-          <SearchTable addDatasetToMapAction={onAddDataset} />
+          <Tabs tabPosition='left'>
+            <TabPane tab={<span><SettingOutlined />Map settings</span>} key='1'>
+              <MapContextSettings id={id}/>
+            </TabPane>
+            <TabPane tab={<span><SettingOutlined />Layer settings</span>} key='2' disabled={!id}>
+              <SearchTable addDatasetToMapAction={onAddDataset} />
+            </TabPane>
+            <TabPane tab={<span><SearchOutlined />Dataset search</span>} key='3' disabled={!id}>
+              <SearchTable addDatasetToMapAction={onAddDataset} />
+            </TabPane>
+          </Tabs>
         </BottomDrawer>
       }
     </>

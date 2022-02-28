@@ -153,9 +153,6 @@ export const SearchTable = ({
       columns={datasetMetadataColumns}
       toolBarRender={false}
       size='small'
-      pagination={{
-        pageSize: 5
-      }}
     />
   );
 };

@@ -43,7 +43,7 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({
         className={'bottom-drawer-toggle-button'}
         type='primary'
         style={{
-          bottom: isVisible ? '500px' : 0
+          bottom: isVisible ? '700px' : 0
         }}
         icon={isVisible ? <DownOutlined /> : <UpOutlined />}
         onClick={toggleVisible}
@@ -54,7 +54,7 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({
         visible={isVisible}
         closable={false}
         mask={false}
-        height={500}
+        height={'700px'}
         style={{ zIndex: 1001 }}
       >
         {children}

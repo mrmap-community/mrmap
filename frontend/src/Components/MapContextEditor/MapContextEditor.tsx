@@ -161,7 +161,7 @@ export const MapContextEditor = (): ReactElement => {
     }
   }, [map, getMapContextResponse, getMapContextResponseApi]);
 
-  // update: handle layer response
+  // update: handle layer response (when adding a dataset)
   useEffect(() => {
     if (olLayerGroup && getLayerResponse) {
       const layerId = getLayerResponse.data.data.attributes.identifier;
@@ -180,14 +180,6 @@ export const MapContextEditor = (): ReactElement => {
             item.attributes.method === 'Get'
       )[0];
       const wmsUrl = getMapUrl.attributes.url;
-
-      const mapContextLayer = {
-        type: 'MapContextLayer',
-        attributes: {
-          title: getLayerResponse.data.data.attributes.title
-        }
-      };
-
       const olLayer = new ImageLayer({
         source: new ImageWMS({
           url: wmsUrl || 'undefined',
@@ -198,19 +190,34 @@ export const MapContextEditor = (): ReactElement => {
           }
         }),
         properties: {
-          name: getLayerResponse.data.data.attributes.title,
-          mapContextLayer: mapContextLayer
+          mapContextLayer: {
+            type: 'MapContextLayer',
+            attributes: {
+              title: getLayerResponse.data.data.attributes.title,
+              description: addingDataset.current.abstract
+            },
+            relationships: {
+              datasetMetadata: {
+                data: {
+                  type: 'DatasetMetadata',
+                  id: addingDataset.current.id
+                }
+              },
+              renderingLayer: {
+                data: {
+                  type: 'Layer',
+                  id: addingDataset.current.layers[0]
+                }
+              }
+            }
+          }
         },
         visible: false
       });
-
-      let parentLayerGroup = olLayerGroup;
-      if (selectedLayer && selectedLayer instanceof LayerGroup) {
-        parentLayerGroup = selectedLayer as LayerGroup;
-      }
-      parentLayerGroup?.getLayers().insertAt(0, olLayer);
+      const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
+      parent.getLayers().insertAt(0, olLayer);
     }
-  }, [olLayerGroup, selectedLayer, getLayerResponse]);
+  }, [olLayerGroup, getLayerResponse]);
 
   const onSelectLayer = (selectedKeys: any, info: any) => {
     if (info.selected) {
@@ -221,20 +228,18 @@ export const MapContextEditor = (): ReactElement => {
   };
 
   const onCreateLayerGroup = () => {
-    const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
-    const mapContextLayer = {
-      type: 'MapContextLayer',
-      attributes: {
-        title: 'New Layer Group'
-      }
-    };
     const layerGroup = new LayerGroup({
       visible: false,
       properties: {
-        name: 'New Layer Group',
-        mapContextLayer: mapContextLayer
+        mapContextLayer: {
+          type: 'MapContextLayer',
+          attributes: {
+            title: 'New Layer Group'
+          }
+        }
       }
     });
+    const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
     parent.getLayers().insertAt(0, layerGroup);
   };
 
@@ -252,8 +257,7 @@ export const MapContextEditor = (): ReactElement => {
   };
 
   const onAddDataset = (dataset: any) => {
-    console.log('Adding', dataset);
-    if (!dataset.layers || dataset.layers.length != 1) {
+    if (!dataset.layers || dataset.layers.length !== 1) {
       alert(`Dataset ${dataset.id} does not have exactly one layer.`);
       return;
     }

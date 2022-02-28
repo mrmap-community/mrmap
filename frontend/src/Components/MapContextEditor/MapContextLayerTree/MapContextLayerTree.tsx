@@ -134,40 +134,33 @@ export const MapContextLayerTree = ({
       .getAllLayers(map)
       .filter((l: BaseLayer) => l instanceof LayerGroup)
       .filter((l: LayerGroup) => l.getLayers() === evt.target)[0];
-    const relationships: any = {
-      mapContext: {
-        data: {
-          type: 'MapContext',
-          id: id
-        }
+    const mapContextLayer = layer.get('mapContextLayer');
+    if (!mapContextLayer.relationships) {
+      mapContextLayer.relationships = {};
+    }
+    mapContextLayer.relationships.mapContext = {
+      data: {
+        type: 'MapContext',
+        id: id
       }
     };
-    if (targetGroup.get('id')) {
-      relationships.parent = {
-        data: {
-          type: 'MapContextLayer',
-          id: targetGroup.get('id')
-        }
-      };
-    }
-    console.log('Adding to ', targetGroup);
-    addMapContextLayer([], {
+    mapContextLayer.relationships.parent = {
       data: {
         type: 'MapContextLayer',
-        attributes: {
-          title: layer.get('name')
-        },
-        relationships: {
-          ...relationships
-        }
+        id: targetGroup.get('mapContextLayer').id
       }
+    };
+    // console.log('Adding to ', targetGroup);
+    // console.log('Adding ', mapContextLayer);
+    addMapContextLayer([], {
+      data: mapContextLayer
     });
   };
 
   const onLayerRemove = (evt: CollectionEvent) => {
     console.log('onLayerRemove', evt);
     const layer: BaseLayer = evt.element;
-    deleteMapContextLayer([{ name: 'id', value: layer.get('id'), in: 'path' }]);
+    deleteMapContextLayer([{ name: 'id', value: layer.get('mapContextLayer').id, in: 'path' }]);
   };
 
   const onLayerMove = (remove: CollectionEvent, add: CollectionEvent) => {

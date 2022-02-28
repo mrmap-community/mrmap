@@ -31,8 +31,6 @@ export const MapContextEditor = (): ReactElement => {
   const { id } = useParams();
   const map = useMap();
 
-  // const [activeTab, setActiveTab] = useState('1');
-
   // contains the layer hierarchy of the map context
   const [olLayerGroup, setOlLayerGroup] = useState<LayerGroup>();
   const [selectedLayer, setSelectedLayer] = useState<BaseLayer>();
@@ -41,14 +39,22 @@ export const MapContextEditor = (): ReactElement => {
   // so we track if we started a remove
   const removeLayerInProgress = useRef(false);
 
+  const addingDataset = useRef<any>();
+
   const [
     getMapContext,
     {
-      // loading: getMapContextLoading,
       response: getMapContextResponse,
       api: getMapContextResponseApi
     }
   ] = useOperationMethod('getMapContext');
+
+  const [
+    getLayer,
+    {
+      response: getLayerResponse
+    }
+  ] = useOperationMethod('getLayer');
 
   // init: request map context and related data (map context layers, rendering layer, operation urls)
   useEffect(() => {
@@ -156,6 +162,54 @@ export const MapContextEditor = (): ReactElement => {
     }
   }, [map, getMapContextResponse, getMapContextResponseApi]);
 
+  // update: handle layer response
+  useEffect(() => {
+    if (getLayerResponse) {
+      console.log('Got response', getLayerResponse);
+      const layerId = getLayerResponse.data.data.attributes.identifier;
+      const wms = getLayerResponse.data?.included.filter(
+        (included: JsonApiPrimaryData) =>
+          included.type === 'WebMapService' &&
+          included.id === getLayerResponse.data.data.relationships.service.data.id
+      )[0];
+      const wmsVersion = wms.attributes.version;
+      const getMapUrl = getLayerResponse.data?.included.filter(
+        (item: JsonApiPrimaryData) =>
+          item.type === 'WebMapServiceOperationUrl' &&
+          wms.relationships.operationUrls.data.map (
+            (operationUrl: ResourceIdentifierObject) => operationUrl.id).includes(item.id) &&
+            item.attributes.operation === 'GetMap' &&
+            item.attributes.method === 'Get'
+      )[0];
+      const wmsUrl = getMapUrl.attributes.url;
+      console.log('layerId', layerId);
+      console.log('wms', wms);
+      console.log('wmsVersion', wmsVersion);
+      console.log('wmsUrl', wmsUrl);
+
+      const olLayer = new ImageLayer({
+        source: new ImageWMS({
+          url: wmsUrl || 'undefined',
+          params: {
+            'VERSION': wmsVersion,
+            'LAYERS': layerId,
+            'TRANSPARENT': true
+          }
+        }),
+        properties: {
+          name: getLayerResponse.data.data.attributes.title,
+        },
+        visible: false
+      });
+
+      let parentLayerGroup = olLayerGroup;
+      if (selectedLayer && selectedLayer instanceof LayerGroup) {
+        parentLayerGroup = selectedLayer as LayerGroup;
+      }
+      parentLayerGroup?.getLayers().insertAt(0, olLayer);
+    }
+  }, [getLayerResponse]);
+
   const onSelectLayer = (selectedKeys: any, info: any) => {
     if (info.selected) {
       setSelectedLayer(MapUtil.getLayerByOlUid(map,info.node.key));
@@ -190,6 +244,16 @@ export const MapContextEditor = (): ReactElement => {
 
   const onAddDataset = (dataset: any) => {
     console.log('Adding', dataset);
+    if (!dataset.layers || dataset.layers.length != 1) {
+      alert(`Dataset ${dataset.id} does not have exactly one layer.`);
+      return;
+    }
+    addingDataset.current = dataset;
+    const layerId = dataset.layers[0];
+    getLayer([
+      { name: 'id', value: layerId, in: 'path' },
+      { name: 'include', value: 'service.operationUrls', in: 'query' }
+    ]);
   };
 
   const [form] = useForm();
@@ -253,7 +317,7 @@ export const MapContextEditor = (): ReactElement => {
             <TabPane tab={<span><SettingOutlined />Layer settings</span>} key='2' disabled={!id || !selectedLayer}>
               <RepoForm
                 resourceType='MapContextLayer'
-                resourceId={selectedLayer && getUid(selectedLayer)}
+                resourceId={selectedLayer && selectedLayer.get('id')}
                 form={form}
               />
             </TabPane>

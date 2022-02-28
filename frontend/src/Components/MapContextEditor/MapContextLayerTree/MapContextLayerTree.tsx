@@ -71,7 +71,7 @@ export const MapContextLayerTree = ({
   useEffect(() => {
     if (addMapContextLayerResponse) {
       console.log('addMapContextLayerResponse', addMapContextLayerResponse);
-      (addingLayer.current as BaseLayer).set('id', addMapContextLayerResponse.data.data.id);
+      (addingLayer.current as BaseLayer).set('mapContextLayer', addMapContextLayerResponse.data.data);
       addingLayer.current = undefined;
     }
   }, [addMapContextLayerResponse]);
@@ -130,7 +130,6 @@ export const MapContextLayerTree = ({
   const onLayerAdd = (evt: CollectionEvent) => {
     const layer: BaseLayer = evt.element;
     addingLayer.current = layer;
-    console.log('adding layer', evt);
     const targetGroup = MapUtil
       .getAllLayers(map)
       .filter((l: BaseLayer) => l instanceof LayerGroup)
@@ -215,7 +214,7 @@ export const MapContextLayerTree = ({
                 <FontAwesomeIcon icon='slash' />
               </span>
             </Tooltip>
-            { layer.get('name') }
+            { layer.get('mapContextLayer').attributes.title }
           </Space>
         </div>
       </div>

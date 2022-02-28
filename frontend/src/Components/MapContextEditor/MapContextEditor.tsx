@@ -31,7 +31,8 @@ export const MapContextEditor = (): ReactElement => {
   const { id } = useParams();
   const map = useMap();
 
-  // contains the layer hierarchy of the map context
+  // we use this OpenLayers layer group as the source of truth, each layer / group has the corresponding JSON:API
+  // MapContextLayer entity attached to it (property 'mapContextLayer')
   const [olLayerGroup, setOlLayerGroup] = useState<LayerGroup>();
   const [selectedLayer, setSelectedLayer] = useState<BaseLayer>();
 
@@ -99,8 +100,7 @@ export const MapContextEditor = (): ReactElement => {
               .map ((childLayer) => layerToOlLayer (childLayer)).reverse(),
             visible: false,
             properties: {
-              id: layer.id,
-              name: layer.attributes.title,
+              mapContextLayer: layer
             }
           });
         } else {
@@ -139,8 +139,7 @@ export const MapContextEditor = (): ReactElement => {
               }
             }),
             properties: {
-              id: layer.id,
-              name: layer.attributes.title,
+              mapContextLayer: layer
             },
             visible: false
           });
@@ -164,8 +163,7 @@ export const MapContextEditor = (): ReactElement => {
 
   // update: handle layer response
   useEffect(() => {
-    if (getLayerResponse) {
-      console.log('Got response', getLayerResponse);
+    if (olLayerGroup && getLayerResponse) {
       const layerId = getLayerResponse.data.data.attributes.identifier;
       const wms = getLayerResponse.data?.included.filter(
         (included: JsonApiPrimaryData) =>
@@ -182,10 +180,13 @@ export const MapContextEditor = (): ReactElement => {
             item.attributes.method === 'Get'
       )[0];
       const wmsUrl = getMapUrl.attributes.url;
-      console.log('layerId', layerId);
-      console.log('wms', wms);
-      console.log('wmsVersion', wmsVersion);
-      console.log('wmsUrl', wmsUrl);
+
+      const mapContextLayer = {
+        type: 'MapContextLayer',
+        attributes: {
+          title: getLayerResponse.data.data.attributes.title
+        }
+      };
 
       const olLayer = new ImageLayer({
         source: new ImageWMS({
@@ -198,6 +199,7 @@ export const MapContextEditor = (): ReactElement => {
         }),
         properties: {
           name: getLayerResponse.data.data.attributes.title,
+          mapContextLayer: mapContextLayer
         },
         visible: false
       });
@@ -208,7 +210,7 @@ export const MapContextEditor = (): ReactElement => {
       }
       parentLayerGroup?.getLayers().insertAt(0, olLayer);
     }
-  }, [getLayerResponse]);
+  }, [olLayerGroup, selectedLayer, getLayerResponse]);
 
   const onSelectLayer = (selectedKeys: any, info: any) => {
     if (info.selected) {
@@ -220,10 +222,17 @@ export const MapContextEditor = (): ReactElement => {
 
   const onCreateLayerGroup = () => {
     const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
+    const mapContextLayer = {
+      type: 'MapContextLayer',
+      attributes: {
+        title: 'New Layer Group'
+      }
+    };
     const layerGroup = new LayerGroup({
       visible: false,
       properties: {
         name: 'New Layer Group',
+        mapContextLayer: mapContextLayer
       }
     });
     parent.getLayers().insertAt(0, layerGroup);

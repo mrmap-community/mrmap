@@ -1,6 +1,8 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { LayerTree } from '@terrestris/react-geo';
 import { LayerTreeProps } from '@terrestris/react-geo/dist/LayerTree/LayerTree';
+import { Space, Tooltip } from 'antd';
 import { CollectionEvent } from 'ol/Collection';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
@@ -194,7 +196,28 @@ export const MapContextLayerTree = ({
   const renderNodeTitle = (layer: BaseLayer): ReactNode => {
     return (
       <div className='mapcontext-layertree-node'>
-        <div className='mapcontext-layertree-node-title'>{ layer.get('name') }</div>
+        <div className='mapcontext-layertree-node-title'>
+          <Space>
+            <Tooltip title='Dataset Metadata is set' >
+              <span className='fa-layers fa-fw'>
+                <FontAwesomeIcon icon='file' />
+                <FontAwesomeIcon icon='slash' transform='left-1 down-1' color='white'/>
+                <FontAwesomeIcon icon='slash' />
+              </span>
+            </Tooltip>
+            <Tooltip title='Rendering layer is set' >
+              <FontAwesomeIcon icon='eye-slash' />
+            </Tooltip>
+            <Tooltip title='Selection layer is set' >
+              <span className='fa-layers fa-fw'>
+                <FontAwesomeIcon icon='crosshairs' />
+                <FontAwesomeIcon icon='slash' transform='left-1 down-1' color='white'/>
+                <FontAwesomeIcon icon='slash' />
+              </span>
+            </Tooltip>
+            { layer.get('name') }
+          </Space>
+        </div>
       </div>
     );
   };

@@ -10,6 +10,7 @@ import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
+import { AxiosResponse } from 'openapi-client-axios';
 import { default as React, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
@@ -228,19 +229,28 @@ export const MapContextEditor = (): ReactElement => {
   };
 
   const onCreateLayerGroup = () => {
-    const layerGroup = new LayerGroup({
+    const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
+    const layers = parent.getLayers();
+    let free = 1;
+    const groupNameTaken = (i: number) => {
+      return layers.getArray().some( (l: BaseLayer) =>
+        l.get('mapContextLayer').attributes.title === (i === 1 ? 'New Layer Group' : `New Layer Group (${i})`));
+    };
+    while (groupNameTaken(free)) {
+      free++;
+    }
+    const newLayerGroup = new LayerGroup({
       visible: false,
       properties: {
         mapContextLayer: {
           type: 'MapContextLayer',
           attributes: {
-            title: 'New Layer Group'
+            title: (free === 1 ? 'New Layer Group' : `New Layer Group (${free})`)
           }
         }
       }
     });
-    const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
-    parent.getLayers().insertAt(0, layerGroup);
+    layers.insertAt(0, newLayerGroup);
   };
 
   const onDeleteLayer = () => {
@@ -267,6 +277,14 @@ export const MapContextEditor = (): ReactElement => {
       { name: 'id', value: layerId, in: 'path' },
       { name: 'include', value: 'service.operationUrls', in: 'query' }
     ]);
+  };
+
+  const onLayerSettingsChanged = (response: AxiosResponse) => {
+    const layer: BaseLayer = MapUtil
+      .getAllLayers(olLayerGroup)
+      .filter((l: BaseLayer) => l.get('mapContextLayer').id === response.data.data.id)[0];
+    layer.set('mapContextLayer', response.data.data);
+    layer.changed();
   };
 
   const [form] = useForm();
@@ -332,6 +350,7 @@ export const MapContextEditor = (): ReactElement => {
                 resourceType='MapContextLayer'
                 resourceId={selectedLayer && selectedLayer.get('mapContextLayer').id}
                 form={form}
+                onSuccess={onLayerSettingsChanged}
               />
             </TabPane>
             <TabPane tab={<span><SearchOutlined />Dataset search</span>} key='3' disabled={!id}>

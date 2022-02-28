@@ -150,8 +150,6 @@ export const MapContextLayerTree = ({
         id: targetGroup.get('mapContextLayer').id
       }
     };
-    // console.log('Adding to ', targetGroup);
-    // console.log('Adding ', mapContextLayer);
     addMapContextLayer([], {
       data: mapContextLayer
     });
@@ -185,6 +183,7 @@ export const MapContextLayerTree = ({
   };
 
   const renderNodeTitle = (layer: BaseLayer): ReactNode => {
+    console.log('Rendering', layer);
     const mapContextLayer = layer.get('mapContextLayer');
     const hasMetadata = mapContextLayer.relationships?.datasetMetadata?.data;
     const hasRenderingLayer = mapContextLayer.relationships?.renderingLayer?.data;

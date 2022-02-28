@@ -1,9 +1,10 @@
 import json
+from random import choices
 
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from extras.serializers import StringRepresentationSerializer
-from rest_framework.fields import (DateTimeField, IntegerField,
+from rest_framework.fields import (CharField, DateTimeField, IntegerField,
                                    SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
@@ -63,6 +64,10 @@ class BackgroundProcessSerializer(
         read_only=True,
         label=_("progress"),
         help_text=_("the current progress aggregated from all threads from 0 to 100"))
+    status = CharField(
+        read_only=True,
+        label=_("status"),
+        help_text=_("the current status, aggregated from all threads."))
 
     class Meta:
         model = BackgroundProcess

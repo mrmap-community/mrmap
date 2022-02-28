@@ -12,10 +12,10 @@ import { Login } from './Components/LoginForm/LoginForm';
 import { Logout } from './Components/Logout/Logout';
 import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import MapContextTable from './Components/MapContextTable/MapContextTable';
+import { BackgroundProcessList } from './Components/NavMenu/BackgroundProcess';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import RepoForm from './Components/Shared/RepoForm/RepoForm';
-import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList';
 import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
@@ -69,7 +69,9 @@ export default function App (): JSX.Element {
                       collapsed={collapsed}
                       onCollapse={onCollapse}
                       style={{ zIndex: 1001 }}
+                      theme='light'
                     >
+                      
                       <div className='logo'>
                         <img
                           src={process.env.PUBLIC_URL + '/logo.png'}
@@ -77,7 +79,10 @@ export default function App (): JSX.Element {
                         >
                         </img>
                       </div>
+                      
                       <NavMenu />
+                      
+                      <BackgroundProcessList/>
                     </Sider>
                     <Layout className='site-layout'>
                       <Content style={{ margin: '0 16px' }}>
@@ -97,7 +102,7 @@ export default function App (): JSX.Element {
         >
           <Route
             path='/notify'
-            element={<TaskProgressList />}
+            element={<BackgroundProcessList />}
           />
           <Route
             path='/'

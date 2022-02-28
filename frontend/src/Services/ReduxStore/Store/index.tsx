@@ -1,11 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
+import backgroundProcessReducer from '../Reducers/BackgroundProcess';
 import currentUserReducer from '../Reducers/CurrentUser';
-import taskResultReducer from '../Reducers/TaskResult';
 
 export const store = configureStore({
   reducer: {
     currentUser: currentUserReducer,
-    taskResults: taskResultReducer
+    backgroundProcesses: backgroundProcessReducer
   }
 });
 

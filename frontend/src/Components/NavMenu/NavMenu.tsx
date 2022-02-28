@@ -3,7 +3,7 @@ import { Menu } from 'antd';
 import React, { ReactElement } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { store } from '../../Services/ReduxStore/Store';
-
+ 
 
 const { SubMenu } = Menu;
 
@@ -27,7 +27,6 @@ export const NavMenu = (): ReactElement => {
 
   return (
     <Menu
-      theme='dark'
       selectedKeys={[location.pathname]}
       openKeys={openKeys} onOpenChange={onOpenChange}
       mode='inline'
@@ -73,12 +72,15 @@ export const NavMenu = (): ReactElement => {
         <Menu.Item key='security:allowed-operations'>Allowed Operations</Menu.Item>
         <Menu.Item key='security:logs'>Logs</Menu.Item>
       </SubMenu>
+      {/* Here the magic starts - push all items form this place to the bottom */}
+      <span style={{ marginTop: 'auto', display: 'hidden' }}></span>
       <Menu.Item
         key='logout'
         icon={<LogoutOutlined />}
       >
         <Link to='/logout'>Logout ({currentUser.attributes.username})</Link>
       </Menu.Item>
+      
     </Menu>
   );
 };

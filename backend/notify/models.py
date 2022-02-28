@@ -3,7 +3,7 @@ from celery.states import FAILURE, PENDING, STARTED, SUCCESS
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models import Case, Count, Min, Q, Value, When
+from django.db.models import Case, Count, Q, Value, When
 from django.db.models.fields import CharField
 from django.db.models.query import Prefetch
 from django.utils.translation import gettext_lazy as _

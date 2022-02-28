@@ -1,5 +1,4 @@
 import json
-from random import choices
 
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
@@ -84,6 +83,6 @@ class BackgroundProcessSerializer(
             try:
                 aggregated_running_task_progress += \
                     int(meta_info['done']) / int(meta_info['total'])
-            except AttributeError:
+            except (AttributeError, KeyError):
                 pass
         return (aggregated_running_task_progress + instance.successed_threads_count + instance.failed_threads_count - instance.pending_threads_count) * 100 / instance.all_threads_count

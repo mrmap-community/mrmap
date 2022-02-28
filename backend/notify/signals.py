@@ -1,8 +1,10 @@
 import json
+from logging import Logger
 from typing import OrderedDict
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.conf import settings
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django_celery_results.models import TaskResult
@@ -11,6 +13,8 @@ from simple_history.models import HistoricalRecords
 
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
+
+logger: Logger = settings.ROOT_LOGGER
 
 
 def build_action_payload(request, instance):
@@ -73,9 +77,10 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
                         "json": reducer_action,
             },
         )
-    except Exception:
+    except Exception as e:
         # errors while building messages and sending messages shall be ignored
-        pass
+        logger.warning("can't send websocket message")
+        logger.exception(e, stack_info=True, exc_info=True)
 
 
 @receiver(post_delete, sender=TaskResult, dispatch_uid='update_BackgroundProcess_listeners_on_post_delete_TaskResult')
@@ -107,6 +112,7 @@ def update_background_process_listeners_on_task_result_save_delete(**kwargs):
                         "json": reducer_action,
             },
         )
-    except Exception:
+    except Exception as e:
         # errors while building messages and sending messages shall be ignored
-        pass
+        logger.warning("can't send websocket message")
+        logger.exception(e, stack_info=True, exc_info=True)

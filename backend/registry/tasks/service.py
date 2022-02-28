@@ -60,7 +60,6 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     with transaction.atomic():
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        # FIXME: pass the current user
         if isinstance(parsed_service, WmsXmlMapper):
             db_service = WebMapService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)

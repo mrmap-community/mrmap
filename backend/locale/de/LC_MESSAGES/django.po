@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-02-25 19:19+0100\n"
+"POT-Creation-Date: 2022-02-28 19:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -104,7 +104,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:91 notify/models.py:61
+#: accounts/models/groups.py:91 notify/models.py:91
 #: registry/models/mapcontext.py:278 registry/models/security.py:236
 #, fuzzy
 #| msgid "Description"
@@ -232,39 +232,51 @@ msgstr "Gruppen in denen dieser Nutzer Mitglied sein soll."
 msgid "Notify"
 msgstr "Benachrichtigung"
 
-#: notify/models.py:52
+#: notify/models.py:76
+#, fuzzy
+#| msgid "Created on"
+msgid "Created DateTime"
+msgstr "Erstellt am"
+
+#: notify/models.py:77
+#, fuzzy
+#| msgid "the datetime when the first thread was created"
+msgid "Datetime field when the process was created in UTC"
+msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
+
+#: notify/models.py:82
 #, fuzzy
 #| msgid "Phase"
 msgid "phase"
 msgstr "Phase"
 
-#: notify/models.py:53
+#: notify/models.py:83
 #, fuzzy
 #| msgid "Current state of the task being run"
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
-#: notify/models.py:57
+#: notify/models.py:87
 #, fuzzy
 #| msgid "Address"
 msgid "process type"
 msgstr "Adresse"
 
-#: notify/models.py:58
+#: notify/models.py:88
 msgid "tells you what kind of process this is"
 msgstr "beschreibt, welche Art von Prozess dies ist"
 
-#: notify/models.py:62
+#: notify/models.py:92
 #, fuzzy
 #| msgid "a short description what this group is for."
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:76
+#: notify/models.py:108
 msgid "Background Process"
 msgstr "Hintergrundprozess"
 
-#: notify/models.py:77
+#: notify/models.py:109
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
@@ -326,6 +338,20 @@ msgstr "Fortschritt"
 
 #: notify/serializers.py:65
 msgid "the current progress aggregated from all threads from 0 to 100"
+msgstr ""
+"Der aktuelle Fortschritt kumuliert aus allen Fortschritten aller "
+"Teilaufgaben von 0 bis 100"
+
+#: notify/serializers.py:68
+#, fuzzy
+#| msgid "Status"
+msgid "status"
+msgstr "Status"
+
+#: notify/serializers.py:69
+#, fuzzy
+#| msgid "the current progress aggregated from all threads from 0 to 100"
+msgid "the current status, aggregated from all threads."
 msgstr ""
 "Der aktuelle Fortschritt kumuliert aus allen Fortschritten aller "
 "Teilaufgaben von 0 bis 100"
@@ -1712,11 +1738,6 @@ msgstr "Diese Ressource ist deaktiviert."
 #~ msgid "Sends an e-mai if the service's access has been changed."
 #~ msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
 
-#, fuzzy
-#~| msgid "Created on"
-#~ msgid "Created at"
-#~ msgstr "Erstellt am"
-
 #~ msgid "The timestamp of the creation date of this object."
 #~ msgstr "Der Zeitstempel an dem das Objekt erstellt wurde."
 
@@ -2756,9 +2777,6 @@ msgstr "Diese Ressource ist deaktiviert."
 
 #~ msgid "details"
 #~ msgstr "Einzelheiten"
-
-#~ msgid "Status"
-#~ msgstr "Status"
 
 #~ msgid "Execution time"
 #~ msgstr "Ausführungsdauer"

@@ -330,7 +330,7 @@ export const MapContextEditor = (): ReactElement => {
             <TabPane tab={<span><SettingOutlined />Layer settings</span>} key='2' disabled={!id || !selectedLayer}>
               <RepoForm
                 resourceType='MapContextLayer'
-                resourceId={selectedLayer && selectedLayer.get('id')}
+                resourceId={selectedLayer && selectedLayer.get('mapContextLayer').id}
                 form={form}
               />
             </TabPane>

@@ -158,7 +158,6 @@ export const MapContextLayerTree = ({
   };
 
   const onLayerRemove = (evt: CollectionEvent) => {
-    console.log('onLayerRemove', evt);
     const layer: BaseLayer = evt.element;
     deleteMapContextLayer([{ name: 'id', value: layer.get('mapContextLayer').id, in: 'path' }]);
   };
@@ -186,28 +185,50 @@ export const MapContextLayerTree = ({
   };
 
   const renderNodeTitle = (layer: BaseLayer): ReactNode => {
+    const mapContextLayer = layer.get('mapContextLayer');
+    const hasMetadata = mapContextLayer.relationships?.datasetMetadata?.data;
+    const hasRenderingLayer = mapContextLayer.relationships?.renderingLayer?.data;
+    const hasSelectionLayer = mapContextLayer.relationships?.selectionLayer?.data;
     return (
       <div className='mapcontext-layertree-node'>
         <div className='mapcontext-layertree-node-title'>
           <Space>
-            <Tooltip title='Dataset Metadata is set' >
+            <Tooltip title={hasMetadata ? 'Dataset Metadata is set' : 'Dataset Metadata is not set'}>
               <span className='fa-layers fa-fw'>
                 <FontAwesomeIcon icon='file' />
-                <FontAwesomeIcon icon='slash' transform='left-1 down-1' color='white'/>
-                <FontAwesomeIcon icon='slash' />
+                {
+                  !hasMetadata &&
+                  (
+                    <>
+                      <FontAwesomeIcon icon='slash' transform='left-1 down-1' color='white'/>
+                      <FontAwesomeIcon icon='slash' />
+                    </>
+                  )
+                }
               </span>
             </Tooltip>
-            <Tooltip title='Rendering layer is set' >
-              <FontAwesomeIcon icon='eye-slash' />
+            <Tooltip title={hasRenderingLayer ? 'Rendering layer is set' : 'Rendering layer is not set'} >
+              {
+                hasRenderingLayer ?
+                  <FontAwesomeIcon icon='eye' /> :
+                  <FontAwesomeIcon icon='eye-slash' />
+              }
             </Tooltip>
-            <Tooltip title='Selection layer is set' >
+            <Tooltip title={hasSelectionLayer ? 'Selection layer is set' : 'Selection layer is not set'} >
               <span className='fa-layers fa-fw'>
                 <FontAwesomeIcon icon='crosshairs' />
-                <FontAwesomeIcon icon='slash' transform='left-1 down-1' color='white'/>
-                <FontAwesomeIcon icon='slash' />
+                {
+                  !hasSelectionLayer &&
+                  (
+                    <>
+                      <FontAwesomeIcon icon='slash' transform='left-1 down-1' color='white'/>
+                      <FontAwesomeIcon icon='slash' />
+                    </>
+                  )
+                }
               </span>
             </Tooltip>
-            { layer.get('mapContextLayer').attributes.title }
+            { mapContextLayer.attributes.title }
           </Space>
         </div>
       </div>

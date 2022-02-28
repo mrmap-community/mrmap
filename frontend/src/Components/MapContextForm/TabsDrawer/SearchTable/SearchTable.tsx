@@ -4,7 +4,7 @@ import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/NewRep
 import { buildSearchTransformText } from '../../../Shared/RepoTable/TableHelper';
 
 
-const getDatasetMetadataColumns = 
+const getDatasetMetadataColumns =
   (renderActions: (text: any, record:any) => ReactNode): RepoTableColumnType[] => [{
     dataIndex: 'title',
     title: 'Titel',
@@ -103,6 +103,7 @@ const getDatasetMetadataColumns =
     key: 'actions',
     title: 'Aktionen',
     valueType: 'option',
+    hideInSearch: true,
     render: renderActions
   }, {
     dataIndex: 'search',
@@ -140,7 +141,7 @@ export const SearchTable = ({
       </>
     );
   };
-    
+
   const datasetMetadataColumns = getDatasetMetadataColumns(getDatasetMetadataColumnActions);
 
   return (

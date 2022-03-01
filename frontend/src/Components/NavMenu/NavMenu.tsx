@@ -38,8 +38,7 @@ export const NavMenu = ({
     <Menu
       selectedKeys={[location.pathname]}
       openKeys={openKeys} onOpenChange={onOpenChange}
-      mode='inline'
-      
+      mode='inline'     
     >
       <Menu.Item
         key='/'
@@ -89,9 +88,10 @@ export const NavMenu = ({
           <Badge 
             count={backgroundProcesses.length}
             overflowCount={10}
-            status='processing'           
+            status='processing'
+            
           >
-            <UnorderedListOutlined />
+            <UnorderedListOutlined/>
           </Badge>}
       >
         <Link to='/notify/background-processes'>Processes</Link>

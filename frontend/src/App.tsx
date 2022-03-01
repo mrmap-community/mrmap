@@ -3,7 +3,7 @@ import { Divider, Layout } from 'antd';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
-import { BackgroundProcessList } from './Components/BackgroundProcessTable';
+import BackgroundProcessTable from './Components/BackgroundProcessTable/table';
 import CswTable from './Components/CswTable/CswTable';
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import DatasetMetadataTable from './Components/DatasetMetadataTable/DatasetMetadataTable';
@@ -95,6 +95,7 @@ export default function App (): JSX.Element {
                         marginLeft: collapsed? 80: 200,
                       }}
                     >
+
                       <Content >
                         <div
                           className='site-layout-background'
@@ -112,7 +113,7 @@ export default function App (): JSX.Element {
         >
           <Route
             path='/notify/background-processes'
-            element={<BackgroundProcessList />}
+            element={<BackgroundProcessTable />}
           />
           <Route
             path='/'

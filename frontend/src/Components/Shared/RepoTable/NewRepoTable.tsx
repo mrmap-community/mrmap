@@ -61,9 +61,10 @@ function augmentColumns (
     }
 
   }
-
   return Object.values(columns);
 }
+
+
 
 const RepoTable = ({
   resourceTypes,

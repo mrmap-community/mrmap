@@ -101,7 +101,6 @@ function augmentColumns (
             fieldSchema={relation} />
       });
     }
-
   }
   return columns;
 }
@@ -154,17 +153,16 @@ const RepoForm = ({
   const [getRemoteResource, { response: resourceResponse }] = useOperationMethod('get'+resourceType);
   const [succeded, setSucceded] = useState<boolean>(false);
 
-  const [_resourceId] = useState<string | number>(resourceId);
   const [columns, setColumns] = useState<ProFormColumnsType[]>([]);
   const [description, setDescription] = useState<string>(operationId);
 
   const [form] = useForm(passThroughProps.form);
 
   useEffect(() => {
-    if (_resourceId){
-      getRemoteResource(_resourceId);
+    if (resourceId){
+      getRemoteResource(resourceId);
     }
-  }, [getRemoteResource, _resourceId]);
+  }, [getRemoteResource, resourceId]);
 
   useEffect(() => {
     if(resourceResponse){
@@ -175,13 +173,14 @@ const RepoForm = ({
       }
       for (const key in resource.relationships){
         const relations = resource.relationships[key];
-
         if (Array.isArray(relations.data)){
           const relatedIds: any[] = [];
           relations.data.forEach(relation => {
             relatedIds.push(relation.id);
           });
           initialValues[key] = relatedIds;
+        } else {
+          initialValues[key] = relations?.data?.id;
         }
       }
       form.setFieldsValue(initialValues);

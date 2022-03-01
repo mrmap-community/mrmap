@@ -85,7 +85,7 @@ export default function App (): JSX.Element {
                         </img>
                       </div>
                       <Divider />
-                      <NavMenu />
+                      <NavMenu collapsed={collapsed}/>
                       <Divider />
                       
                     </Sider>

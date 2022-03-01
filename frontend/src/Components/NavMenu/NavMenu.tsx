@@ -7,12 +7,19 @@ import { backgroundProcessesSelectors } from '../../Services/ReduxStore/Reducers
 import { store } from '../../Services/ReduxStore/Store';
  
 
-const { SubMenu } = Menu;
+export interface NavMenuProps {
+  collapsed: boolean;
+}
 
+
+const { SubMenu } = Menu;
 // submenu keys of first level
 const rootSubmenuKeys = ['users', 'registry', 'security'];
 
-export const NavMenu = (): ReactElement => {
+
+export const NavMenu = ({
+  collapsed
+}: NavMenuProps): ReactElement => {
   const location = useLocation();
   const currentUser = store.getState().currentUser.user;
   const backgroundProcesses = useSelector(backgroundProcessesSelectors.selectAll);
@@ -32,6 +39,7 @@ export const NavMenu = (): ReactElement => {
       selectedKeys={[location.pathname]}
       openKeys={openKeys} onOpenChange={onOpenChange}
       mode='inline'
+      
     >
       <Menu.Item
         key='/'
@@ -77,9 +85,14 @@ export const NavMenu = (): ReactElement => {
       
       <Menu.Item 
         key ='notify:background-processes'
-        icon={<Badge count={backgroundProcesses.length}>
-          <UnorderedListOutlined />
-        </Badge>}
+        icon={
+          <Badge 
+            count={backgroundProcesses.length}
+            overflowCount={10}
+            status='processing'           
+          >
+            <UnorderedListOutlined />
+          </Badge>}
       >
         <Link to='/notify/background-processes'>Processes</Link>
       </Menu.Item>

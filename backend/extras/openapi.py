@@ -1,9 +1,13 @@
+from datetime import datetime
+from inspect import signature
+
 from django.conf import settings
 from django.urls import resolve
 from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.schemas.utils import is_list_view
+from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api import serializers, views
 from rest_framework_json_api.schemas.openapi import AutoSchema, SchemaGenerator
 from rest_framework_json_api.utils import (format_field_name,
@@ -284,6 +288,39 @@ class CustomAutoSchema(AutoSchema):
                 required_attributes.append(format_field_name(field.field_name))
 
             schema = self.map_field(field)
+
+            if isinstance(field, serializers.SerializerMethodField):
+                field_method = getattr(serializer, field.method_name)
+                sig = signature(field_method)
+                if issubclass(sig._return_annotation, int):
+                    schema = {
+                        "type": 'integer'
+                    }
+                if issubclass(sig._return_annotation, str):
+                    schema = {
+                        "type": 'string'
+                    }
+                if issubclass(sig._return_annotation, float):
+
+                    schema = {
+                        "type": 'number'
+                    }
+
+                if issubclass(sig._return_annotation, bool):
+                    schema = {
+                        "type": 'boolean'
+                    }
+                if issubclass(sig._return_annotation, datetime):
+                    schema = {
+                        "type": 'string',
+                        "format": "date-time"
+                    }
+            elif isinstance(field, GeometryField):
+                schema = {
+                    "type": 'string',
+                    "format": "geojson"
+                }
+
             if field.read_only:
                 schema["readOnly"] = True
             if field.write_only:

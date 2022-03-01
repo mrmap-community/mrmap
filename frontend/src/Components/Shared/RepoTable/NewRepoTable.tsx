@@ -351,7 +351,10 @@ const RepoTable = ({
         visible={addResourceDrawerVisible}
         onClose={()=>{setAddResourceDrawerVisible(false);}}
       >
-        <RepoForm resourceType={resourceTypes[0]} />
+        <RepoForm 
+          resourceType={resourceTypes[0]}
+          onSuccess={()=>{setAddResourceDrawerVisible(false);}} 
+        />
       </Drawer>
       <Drawer
         title={`edit ${header}`}

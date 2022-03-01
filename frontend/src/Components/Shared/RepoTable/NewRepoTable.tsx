@@ -316,18 +316,19 @@ const RepoTable = ({
           dateFormatter={false}
           pagination={paginationConfig}
           toolBarRender={() => [
-            <Button
-              type='primary'
-              key='primary'
-              onClick={!onAddRecord ?
-                () => {
-                  setAddResourceDrawerVisible(true);
+            api.getOperation('add'+resourceTypes[0])?
+              <Button
+                type='primary'
+                key='primary'
+                onClick={!onAddRecord ?
+                  () => {
+                    setAddResourceDrawerVisible(true);
+                  }
+                  : () => {onAddRecord(); }
                 }
-                : () => {onAddRecord(); }
-              }
-            >
-              <PlusOutlined />Neu
-            </Button>
+              >
+                <PlusOutlined />Neu
+              </Button>: null
           ]
           }
           columnsState={{

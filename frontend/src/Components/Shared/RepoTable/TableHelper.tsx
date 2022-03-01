@@ -1,3 +1,4 @@
+import { CheckCircleTwoTone, CloseCircleTwoTone } from '@ant-design/icons';
 import { ProColumnType } from '@ant-design/pro-table';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
@@ -111,6 +112,10 @@ export const augmentColumnWithJsonSchema = (
       case 'binary':
         column.valueType = 'text';
         break;
+      case 'geojson':
+        // TODO: here should be a map component
+        column.valueType = 'textarea';
+        break;
       default:
         column.render = renderEllipsis.bind(null, column.dataIndex as string) as any;
         column.valueType = 'text';
@@ -118,7 +123,17 @@ export const augmentColumnWithJsonSchema = (
       }
     } else if (propSchema.type === 'integer') {
       column.valueType = 'digit';
+    } else if (propSchema.type === 'number'){
+      column.valueType = 'digit';
+    } else if (propSchema.type === 'boolean') {
+      column.renderText = (text, record, index, action) => {
+        return text ? <CheckCircleTwoTone twoToneColor='#52c41a'/>: <CloseCircleTwoTone twoToneColor='#eb2f96'/>;
+      };
     }
+    // @ts-ignore
+    // column.ellipsis = {
+    //   showTitle: true,
+    // };
   }
 
   if (!('sorter' in column) && column.valueType !== 'option') {

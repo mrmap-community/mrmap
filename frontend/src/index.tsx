@@ -11,7 +11,6 @@ import App from './App';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
 import { store } from './Services/ReduxStore/Store';
-import WebSockets from './Services/WebSockets';
 
 const defaultConfig: AxiosRequestConfig = {
   baseURL: '/',
@@ -24,7 +23,6 @@ const defaultConfig: AxiosRequestConfig = {
 
 ReactDOM.render(
   <Provider store={store}>
-    <WebSockets />
     <OpenAPIProvider 
       definition='/api/schema/' 
       axiosConfigDefaults={defaultConfig}>

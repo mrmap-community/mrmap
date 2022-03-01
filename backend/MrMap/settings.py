@@ -394,7 +394,7 @@ ERROR_MASK_TXT = (
 ################################################################
 # Logger settings
 ################################################################
-ROOT_LOGGER = logging.getLogger("MrMap.root")
+ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
 
 LOG_DIR = os.environ.get(
     "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")

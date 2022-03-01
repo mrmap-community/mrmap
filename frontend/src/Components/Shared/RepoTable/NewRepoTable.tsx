@@ -61,9 +61,10 @@ function augmentColumns (
     }
 
   }
-
   return Object.values(columns);
 }
+
+
 
 const RepoTable = ({
   resourceTypes,
@@ -309,7 +310,7 @@ const RepoTable = ({
           dataSource={tableDataSource.data}
           loading={listLoading}
           columns={augmentedColumns}
-          scroll={{ x: true }}
+          scroll={{ x: true, y: '60vh' }}
           headerTitle={header}
           actionRef={setActions}
           dateFormatter={false}

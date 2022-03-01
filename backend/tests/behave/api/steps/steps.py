@@ -101,7 +101,10 @@ def _traverse_json(context, attribute):
 def step_impl(context, attribute, expected_value=None):
     value = _traverse_json(context=context, attribute=attribute)
     if expected_value:
-        context.test.assertEqual(str(value), expected_value)
+        if expected_value == 'false' or expected_value == 'true':
+            context.test.assertEqual(bool(value), bool(expected_value))
+        else:
+            context.test.assertEqual(str(value), expected_value)
 
 
 @given('I mock the function "{func_name}" of the module "{module_name}" with return value as object')

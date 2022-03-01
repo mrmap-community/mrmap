@@ -1,8 +1,9 @@
 import { MapContext } from '@terrestris/react-geo';
-import { Layout } from 'antd';
+import { Divider, Layout } from 'antd';
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
+import BackgroundProcessTable from './Components/BackgroundProcessTable/table';
 import CswTable from './Components/CswTable/CswTable';
 import { Dashboard } from './Components/Dashboard/Dashboard';
 import DatasetMetadataTable from './Components/DatasetMetadataTable/DatasetMetadataTable';
@@ -15,7 +16,6 @@ import MapContextTable from './Components/MapContextTable/MapContextTable';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
 import RepoForm from './Components/Shared/RepoForm/RepoForm';
-import { TaskProgressList } from './Components/TaskProgressList/TaskProgressList';
 import WfsTable from './Components/WfsTable/WfsTable';
 import { WmsSecuritySettings } from './Components/WmsSecuritySettings/WmsSecuritySettings';
 import WmsTable from './Components/WmsTable/WmsTable';
@@ -39,7 +39,7 @@ function RequireAuth ({ children }:{ children: JSX.Element }) {
 
 export default function App (): JSX.Element {
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(false);
 
   const onCollapse = (_collapsed: boolean) => {
     setCollapsed(_collapsed);
@@ -68,8 +68,15 @@ export default function App (): JSX.Element {
                       collapsible
                       collapsed={collapsed}
                       onCollapse={onCollapse}
-                      style={{ zIndex: 1001 }}
+                      style={{ 
+                        zIndex: 1001,  
+                        overflow: 'auto',
+                        height: '100vh',
+                        position: 'fixed',
+                      }}
+                      theme='light'
                     >
+                      
                       <div className='logo'>
                         <img
                           src={process.env.PUBLIC_URL + '/logo.png'}
@@ -77,15 +84,24 @@ export default function App (): JSX.Element {
                         >
                         </img>
                       </div>
-                      <NavMenu />
+                      <Divider />
+                      <NavMenu collapsed={collapsed}/>
+                      <Divider />
+                      
                     </Sider>
-                    <Layout className='site-layout'>
-                      <Content style={{ margin: '0 16px' }}>
+                    <Layout 
+                      className='site-layout' 
+                      style={{ 
+                        marginLeft: collapsed? 80: 200,
+                      }}
+                    >
+
+                      <Content >
                         <div
                           className='site-layout-background'
-                          style={{ padding: 24, minHeight: 360 }}
+                          style={{ padding: 24 }}
                         >
-                          <Outlet />
+                          <Outlet/>
                         </div>
                       </Content>
                     </Layout>
@@ -96,8 +112,8 @@ export default function App (): JSX.Element {
           }
         >
           <Route
-            path='/notify'
-            element={<TaskProgressList />}
+            path='/notify/background-processes'
+            element={<BackgroundProcessTable />}
           />
           <Route
             path='/'

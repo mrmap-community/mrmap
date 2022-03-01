@@ -324,7 +324,7 @@ const RepoTable = ({
           dataSource={tableDataSource.data}
           loading={listLoading}
           columns={augmentedColumns}
-          scroll={{ x: true, y: '60vh' }}
+          scroll={{ x: true }}
           headerTitle={header}
           actionRef={setActions}
           dateFormatter={false}
@@ -344,10 +344,14 @@ const RepoTable = ({
             </Button>
           ]
           }
-          columnsState={{
-            value: columnsStateMap,
-            onChange: setColumnsStateMap
-          }}
+          columnsState={
+            passThroughProps.columnsState ?
+              passThroughProps.columnsState :
+              {
+                value: columnsStateMap,
+                onChange: setColumnsStateMap
+              }
+          }
           search={ augmentedColumns.some((column: RepoTableColumnType) => {
             return column.search && column.search.transform;
           })

@@ -90,7 +90,7 @@ const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryPar
 };
 
 export const augmentColumnWithJsonSchema = (
-  column: ProColumnType, 
+  column: ProColumnType,
   propSchema: { type: string, format: string, title: string },
   queryParams: Record<string, string>) : ProColumnType => {
 
@@ -119,6 +119,9 @@ export const augmentColumnWithJsonSchema = (
     } else if (propSchema.type === 'integer') {
       column.valueType = 'digit';
     }
+    // column.ellipsis = {
+    //   showTitle: true
+    // };
   }
 
   if (!('sorter' in column) && column.valueType !== 'option') {

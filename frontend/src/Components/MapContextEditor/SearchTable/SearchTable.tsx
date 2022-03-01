@@ -32,6 +32,20 @@ export const SearchTable = ({
       size='small'
       defaultActions={[]}
       additionalActions={getDatasetMetadataColumnActions}
+      columnsState={{
+        value: {
+          title: { order: -10 },
+          abstract: { order: -9 },
+          dateStamp: { order: -8 },
+          fees: { order: -7 },
+          id: { show: false },
+          boundingGeometry: { show: false },
+          charset: { show: false },
+          hits: { show: false },
+          stringRepresentation: { show: false },
+          xmlBackupFile: { show: false }
+        }
+      }}
     />
   );
 };

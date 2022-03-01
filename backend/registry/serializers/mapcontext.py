@@ -67,12 +67,12 @@ class MapContextLayerSerializer(
             parent = validated_data['parent']
             child_layers = parent.child_layers.all()
             child_layers_count = child_layers.count()
-            if child_layers_count == 0:
-                # first and only child
+            if position == 0:
+                # first child
                 instance.move_to(
                     target=parent,
                     position='first-child')
-            elif position == child_layers_count or position == child_layers_count - 1:
+            elif position == child_layers_count:
                 # last child
                 instance.move_to(
                     target=parent,

@@ -25,11 +25,12 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
     /** Optional column definitions, automatically augmented with the repository schema */
     columns?: RepoTableColumnType[]
     additionalActions?: (text: any, record:any) => void
+    defaultActions?: string[]
     /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
-    /** Path to navigate to for adding records (if omitted, no 'New' button will be available) */
+    /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
     onAddRecord?: () => void
-    /** Function to invoke for editing records (if omitted, no 'Edit' button will be available) */
+    /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
     onEditRecord?: (recordId: number | string) => void
 }
 
@@ -83,6 +84,7 @@ const RepoTable = ({
   nestedLookups = [],
   columns = undefined,
   additionalActions = undefined,
+  defaultActions = ['edit', 'delete'],
   actionRef = undefined,
   onAddRecord = undefined,
   onEditRecord = undefined,
@@ -212,7 +214,7 @@ const RepoTable = ({
               <>
                 <Space size='small'>
                   { // todo: check if user has permission also
-                    api.getOperation('update'+resourceTypes[0]) ?
+                    defaultActions.includes('edit') && api.getOperation('update'+resourceTypes[0]) ?
                       <Tooltip
                         title={ 'Edit' }>
                         <Button
@@ -224,7 +226,7 @@ const RepoTable = ({
                       </Tooltip>
                       : null}
                   { // todo: check if user has permission also
-                    api.getOperation('delete'+resourceTypes[0]) ?
+                    defaultActions.includes('delete') && api.getOperation('delete'+resourceTypes[0]) ?
                       <Tooltip
                         title={ 'Delete' }>
                         <Button

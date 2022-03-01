@@ -136,7 +136,7 @@ export const MapContextEditor = (): ReactElement => {
         } else {
           olLayer = new LayerGroup({
             layers: childLayers
-              .map ((childLayer) => layerToOlLayer (childLayer)).reverse(),
+              .map ((childLayer) => layerToOlLayer (childLayer)),
             visible: false,
             properties: {
               mapContextLayer: layer
@@ -214,7 +214,7 @@ export const MapContextEditor = (): ReactElement => {
         visible: false
       });
       const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
-      parent.getLayers().insertAt(0, olLayer);
+      parent.getLayers().push(olLayer);
     }
   }, [olLayerGroup, getLayerResponse]);
 
@@ -248,7 +248,7 @@ export const MapContextEditor = (): ReactElement => {
         }
       }
     });
-    layers.insertAt(0, newLayerGroup);
+    layers.push(newLayerGroup);
   };
 
   const onDeleteLayer = () => {

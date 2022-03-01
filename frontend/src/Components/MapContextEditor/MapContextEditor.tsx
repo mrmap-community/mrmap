@@ -324,7 +324,7 @@ export const MapContextEditor = (): ReactElement => {
                 </Space>
               </div>
               <MapContextLayerTree
-                id={id}
+                mapContextId={id}
                 map={map}
                 olLayerGroup={olLayerGroup}
                 onSelect={onSelectLayer}

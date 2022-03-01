@@ -1,19 +1,28 @@
-import { DashboardOutlined, DatabaseOutlined, LogoutOutlined, SecurityScanOutlined, UserOutlined } from '@ant-design/icons';
-import { Menu } from 'antd';
+import { DashboardOutlined, DatabaseOutlined, LogoutOutlined, SecurityScanOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
+import { Badge, Menu } from 'antd';
 import React, { ReactElement } from 'react';
+import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
+import { backgroundProcessesSelectors } from '../../Services/ReduxStore/Reducers/BackgroundProcess';
 import { store } from '../../Services/ReduxStore/Store';
+ 
+
+export interface NavMenuProps {
+  collapsed: boolean;
+}
 
 
 const { SubMenu } = Menu;
-
 // submenu keys of first level
 const rootSubmenuKeys = ['users', 'registry', 'security'];
 
-export const NavMenu = (): ReactElement => {
+
+export const NavMenu = ({
+  collapsed
+}: NavMenuProps): ReactElement => {
   const location = useLocation();
   const currentUser = store.getState().currentUser.user;
-
+  const backgroundProcesses = useSelector(backgroundProcessesSelectors.selectAll);
   const [openKeys, setOpenKeys] = React.useState(['/']);
 
   const onOpenChange = (keys: string[]) => {
@@ -27,10 +36,9 @@ export const NavMenu = (): ReactElement => {
 
   return (
     <Menu
-      theme='dark'
       selectedKeys={[location.pathname]}
       openKeys={openKeys} onOpenChange={onOpenChange}
-      mode='inline'
+      mode='inline'     
     >
       <Menu.Item
         key='/'
@@ -73,12 +81,29 @@ export const NavMenu = (): ReactElement => {
         <Menu.Item key='security:allowed-operations'>Allowed Operations</Menu.Item>
         <Menu.Item key='security:logs'>Logs</Menu.Item>
       </SubMenu>
+      
+      <Menu.Item 
+        key ='notify:background-processes'
+        icon={
+          <Badge 
+            count={backgroundProcesses.length}
+            overflowCount={10}
+            status='processing'
+            
+          >
+            <UnorderedListOutlined/>
+          </Badge>}
+      >
+        <Link to='/notify/background-processes'>Processes</Link>
+      </Menu.Item>
+
       <Menu.Item
         key='logout'
         icon={<LogoutOutlined />}
       >
         <Link to='/logout'>Logout ({currentUser.attributes.username})</Link>
       </Menu.Item>
+      
     </Menu>
   );
 };

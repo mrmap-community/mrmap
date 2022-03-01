@@ -1,14 +1,14 @@
-import json
 from typing import OrderedDict
 
 from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase
-from django.utils import timezone
 from django_celery_results.models import TaskResult
 from MrMap.asgi import application
 from rest_framework.test import APIRequestFactory
 from simple_history.models import HistoricalRecords
+
+from notify.models import BackgroundProcess, ProcessNameEnum
 
 
 class SignalsTestCase(TransactionTestCase):
@@ -22,54 +22,45 @@ class SignalsTestCase(TransactionTestCase):
         self.headers = [(b'origin', b'http://127.0.0.1:8000'), (b'cookie',
                                                                 self.client.cookies.output(header='', sep='; ').encode())]
 
-        dummy_request = APIRequestFactory().get(path="/api/notify/task-results/")
+        dummy_request = APIRequestFactory().get(
+            path="/api/notify/background-processes/")
         dummy_request.query_params = OrderedDict()
 
         HistoricalRecords.context.request = dummy_request
 
     @sync_to_async
-    def create_pending_task(self):
-        pending_task = TaskResult.objects.create(task_id=123)
-        return pending_task
+    def create_background_process(self):
+        background_process = BackgroundProcess.objects.create(
+            phase="started",
+            process_type=ProcessNameEnum.REGISTERING.value,
+            description="register a new service"
+        )
+        background_process = BackgroundProcess.objects.process_info().get(
+            pk=background_process.pk)
+        return background_process
 
     @sync_to_async
-    def get_pending_task(self):
-        return TaskResult.objects.get(task_id=123)
+    def get_background_process(self, pk):
+        return BackgroundProcess.objects.process_info().get(
+            pk=pk)
 
     @sync_to_async
-    def update_pending_task(self):
-        return TaskResult.objects.get(task_id=123).save()
+    def create_thread(self, background_process):
+        task_result = TaskResult.objects.create(task_id=123)
+        task_result.processes.add(background_process)
+        return task_result
+
+    @sync_to_async
+    def update_thread(self):
+        task_result = TaskResult.objects.get(task_id=123)
+        task_result.status = "STARTED"
+        task_result.meta = "{ \"done\": \"1\", \"total\": \"3\"}"
+        task_result.save()
+        return task_result
 
     @sync_to_async
     def delete_pending_task(self):
         return TaskResult.objects.get(task_id=123).delete()
-
-    def get_expected_json(self, task_result):
-        return {
-            'type': 'taskResults/add',
-            'payload': {
-                'type': 'TaskResult',
-                'id': f'{task_result.id}',
-                'attributes': {
-                    'taskId': f'{task_result.task_id}',
-                    'taskName': None,
-                    'taskArgs': None,
-                    'taskKwargs': None,
-                    'status': 'PENDING',
-                    'worker': None,
-                    'contentType': '',
-                    'contentEncoding': '',
-                    'result': {},
-                    'dateCreated': f'{timezone.localtime(task_result.date_created).isoformat()}',
-                    'dateDone': f'{timezone.localtime(task_result.date_done).isoformat()}',
-                    'traceback': None,
-                    'taskMeta': {}
-                },
-                'links': {
-                    'self': f'http://testserver/api/v1/notify/task-results/{task_result.id}/'
-                }
-            }
-        }
 
     async def test_signal_events_for_task_result(self):
         # test connection established for authenticated user
@@ -78,32 +69,24 @@ class SignalsTestCase(TransactionTestCase):
                                              headers=self.headers)
         connected, exit_code = await communicator.connect()
         self.assertTrue(connected)
-        # if a TaskResult is created, we shall receive a create event
-        task_result = await self.create_pending_task()
-        expected_json = self.get_expected_json(task_result)
+
+        # if a BackgroundProcess is created, we shall receive a create event
+        background_process = await self.create_background_process()
 
         response = await communicator.receive_json_from()
-        self.assertJSONEqual(raw=json.dumps(response, sort_keys=True),
-                             expected_data=json.dumps(expected_json, sort_keys=True))
+        self.assertEqual(response['payload']['type'], "BackgroundProcess")
+        self.assertEqual(response['payload']['id'], str(background_process.pk))
+        self.assertEqual(response['type'], "backgroundProcesses/add")
 
-        task_result = await self.update_pending_task()
-        task_result = await self.get_pending_task()
-        expected_json = self.get_expected_json(task_result)
-        expected_json.update({'type': 'taskResults/update'})
-
-        response = await communicator.receive_json_from()
-        self.assertJSONEqual(raw=json.dumps(response, sort_keys=True),
-                             expected_data=json.dumps(expected_json, sort_keys=True))
-
-        task_result = await self.get_pending_task()
-        expected_json = self.get_expected_json(task_result)
-        expected_json.update({'type': 'taskResults/remove'})
-
-        task_result = await self.delete_pending_task()
+        # if a thread is updated, we shall receive a update event
+        await self.create_thread(background_process)
+        await self.update_thread()
+        background_process = await self.get_background_process(background_process.pk)
 
         response = await communicator.receive_json_from()
-        self.assertJSONEqual(raw=json.dumps(response, sort_keys=True),
-                             expected_data=json.dumps(expected_json, sort_keys=True))
+        self.assertEqual(response['payload']['type'], "BackgroundProcess")
+        self.assertEqual(response['payload']['id'], str(background_process.pk))
+        self.assertEqual(response['type'], "backgroundProcesses/update")
 
         # Close
         await communicator.disconnect()

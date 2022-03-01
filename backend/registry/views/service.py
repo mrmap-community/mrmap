@@ -5,6 +5,7 @@ from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
                              SerializerClassesMixin)
+from notify.models import BackgroundProcess, ProcessNameEnum
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
@@ -86,17 +87,24 @@ class WebMapServiceViewSet(
     task_function = build_ogc_service
 
     def get_task_kwargs(self, request, serializer):
+        background_process = BackgroundProcess.objects.create(
+            phase="Background process created",
+            process_type=ProcessNameEnum.REGISTERING.value,
+            description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'
+        )
+
         return {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
-            "request": {
+            "http_request": {
                 "path": request.path,
                 "method": request.method,
                 "content_type": request.content_type,
                 "data": request.GET,
                 "user_pk": request.user.pk,
-            }
+            },
+            "background_process_pk": background_process.pk
         }
 
     def get_queryset(self):

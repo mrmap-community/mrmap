@@ -4,6 +4,7 @@ from celery import shared_task, states
 from celery.canvas import group
 from django.conf import settings
 from django.db import transaction
+from notify.tasks import BackgroundProcessBased
 from registry.models import CatalougeService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
@@ -20,11 +21,13 @@ from rest_framework.reverse import reverse
 
 @shared_task(
     bind=True,
-    queue="default"
+    queue="default",
+    base=BackgroundProcessBased
 )
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
+    self.update_background_process()
 
     auth = None
     if service_auth_pk:
@@ -47,15 +50,16 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     self.update_state(state=states.STARTED, meta={
                       'done': 1, 'total': 3, 'phase': 'parse capabilities document...'})
+    self.update_background_process('parse capabilities document...')
 
     parsed_service = get_parsed_service(xml=response.content)
 
     self.update_state(state=states.STARTED, meta={
                       'done': 2, 'total': 3, 'phase': 'persisting service...'})
+    self.update_background_process('persisting service...')
 
     with transaction.atomic():
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        # FIXME: pass the current user
         if isinstance(parsed_service, WmsXmlMapper):
             db_service = WebMapService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
@@ -75,6 +79,8 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             self_url = reverse(
                 viewname='registry:csw-detail', args=[db_service.pk])
         else:
+            self.update_background_process(
+                'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.')
             raise NotImplementedError(
                 "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
 
@@ -104,6 +110,8 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             remote_metadata_list = WebFeatureServiceRemoteMetadata.objects.filter(
                 service__pk=db_service.pk)
         if remote_metadata_list:
+            # TODO: create Task Result objects for all child threads, so we can append them directly to the Background Process to avoid
+            #  progress bar melting after increasement
             job = group([fetch_remote_metadata_xml.s(remote_metadata.pk, db_service.__class__.__name__, **kwargs)
                         for remote_metadata in remote_metadata_list])
             group_result = job.apply_async()
@@ -115,15 +123,22 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
                     "collect_metadata_records_job_id": str(group_result.id)
                 }
             })
+        self.update_background_process(
+            'collecting metadata records...', db_service)
+
+    else:
+        self.update_background_process('completed.', db_service)
 
     return return_dict
 
 
 @shared_task(bind=True,
-             queue="download")
+             queue="download",
+             base=BackgroundProcessBased)
 def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
+    self.update_background_process()
 
     remote_metadata = None
     if class_name == 'WebMapService':

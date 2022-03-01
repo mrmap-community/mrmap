@@ -9,4 +9,4 @@ class NotifyConfig(AppConfig):
     verbose_name = _('Notify')
 
     def ready(self):
-        from notify import signals  # noqa
+        import notify.signals  # noqa

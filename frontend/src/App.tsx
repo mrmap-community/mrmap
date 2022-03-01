@@ -68,7 +68,12 @@ export default function App (): JSX.Element {
                       collapsible
                       collapsed={collapsed}
                       onCollapse={onCollapse}
-                      style={{ zIndex: 1001 }}
+                      style={{ 
+                        zIndex: 1001,  
+                        overflow: 'auto',
+                        height: '100vh',
+                        position: 'fixed',
+                      }}
                       theme='light'
                     >
                       
@@ -84,13 +89,18 @@ export default function App (): JSX.Element {
                       <Divider />
                       
                     </Sider>
-                    <Layout className='site-layout'>
-                      <Content style={{ margin: '0 16px' }}>
+                    <Layout 
+                      className='site-layout' 
+                      style={{ 
+                        marginLeft: collapsed? 80: 200,
+                      }}
+                    >
+                      <Content >
                         <div
                           className='site-layout-background'
-                          style={{ padding: 24, minHeight: 360 }}
+                          style={{ padding: 24 }}
                         >
-                          <Outlet />
+                          <Outlet/>
                         </div>
                       </Content>
                     </Layout>

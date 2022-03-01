@@ -22,7 +22,7 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
     /** Repository that defines the schema and offers CRUD operations */
     resourceTypes: string[]
     nestedLookups?: ParamsArray
-    /** Optional column definitions, automatically augmented with the repository schema */
+    /** Optional column definitions, automatically augmented and merged with the repository schema */
     columns?: RepoTableColumnType[]
     additionalActions?: (text: any, record:any) => void
     /** Reference to table actions for custom triggering */
@@ -53,17 +53,17 @@ function augmentColumns (
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
   for (const propName in props) {
+    columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
     const columnHint = columnHints?.find(hint => hint.dataIndex === propName);
     if (columnHint){
-      columns[propName] = columnHint;
-    } else {
-      columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
-    }
-
+      columns[propName].valueType = 'text';
+      for (const [key, value] of Object.entries(columnHint)){
+        columns[propName][key] = value;
+      }
+    } 
   }
   return Object.values(columns);
 }
-
 
 
 const RepoTable = ({

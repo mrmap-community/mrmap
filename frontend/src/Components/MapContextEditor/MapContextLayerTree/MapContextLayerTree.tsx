@@ -72,6 +72,9 @@ export const MapContextLayerTree = ({
     if (addMapContextLayerResponse) {
       console.log('addMapContextLayerResponse', addMapContextLayerResponse);
       (addingLayer.current as BaseLayer).set('mapContextLayer', addMapContextLayerResponse.data.data);
+      if (addingLayer.current instanceof LayerGroup) {
+        registerLayerListeners(addingLayer.current);
+      }
       addingLayer.current = undefined;
     }
   }, [addMapContextLayerResponse]);

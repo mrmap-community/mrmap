@@ -95,41 +95,30 @@ export const MapContextEditor = (): ReactElement => {
       const layerToOlLayer = (layer: any): BaseLayer => {
         const childLayers = layerIdToChildren[layer.id] || [];
         let olLayer: any;
-        if (!layer.relationships.parent.data || childLayers.length === 0) {
-          olLayer = new LayerGroup({
-            layers: childLayers
-              .map ((childLayer) => layerToOlLayer (childLayer)).reverse(),
-            visible: false,
-            properties: {
-              mapContextLayer: layer
-            }
-          });
-        } else {
-          let wmsLayer, wmsUrl, wmsVersion;
+        // no rendering layer -> WMS Layer in tree
+        if (layer.relationships?.renderingLayer?.data?.id) {
           // step 1: get WMS Layer
-          if (layer.relationships?.renderingLayer?.data?.id) {
-            const renderingLayer = fullResponse.data?.included.filter(
-              (included: JsonApiPrimaryData) => included.type === 'Layer'
+          const renderingLayer = fullResponse.data?.included.filter(
+            (included: JsonApiPrimaryData) => included.type === 'Layer'
               && included.id === layer.relationships?.renderingLayer?.data?.id
-            )[0];
-            wmsLayer = renderingLayer.attributes.identifier;
-            // step 2: get WebMapService
-            const wms = fullResponse.data?.included.filter(
-              (included: JsonApiPrimaryData) =>
-                included.type === 'WebMapService' && included.id === renderingLayer.relationships.service.data.id
-            )[0];
-            wmsVersion = wms.attributes.version;
-            // step 3: get OperationUrl ('GetMap')
-            const getMapUrl = fullResponse.data?.included.filter(
-              (item: JsonApiPrimaryData) =>
-                item.type === 'WebMapServiceOperationUrl' &&
+          )[0];
+          const wmsLayer = renderingLayer.attributes.identifier;
+          // step 2: get WebMapService
+          const wms = fullResponse.data?.included.filter(
+            (included: JsonApiPrimaryData) =>
+              included.type === 'WebMapService' && included.id === renderingLayer.relationships.service.data.id
+          )[0];
+          const wmsVersion = wms.attributes.version;
+          // step 3: get OperationUrl ('GetMap')
+          const getMapUrl = fullResponse.data?.included.filter(
+            (item: JsonApiPrimaryData) =>
+              item.type === 'WebMapServiceOperationUrl' &&
                 wms.relationships.operationUrls.data.map (
                   (operationUrl: ResourceIdentifierObject) => operationUrl.id).includes(item.id) &&
                 item.attributes.operation === 'GetMap' &&
                 item.attributes.method === 'Get'
-            )[0];
-            wmsUrl = getMapUrl.attributes.url;
-          }
+          )[0];
+          const wmsUrl = getMapUrl.attributes.url;
           olLayer = new ImageLayer({
             source: new ImageWMS({
               url: wmsUrl || 'undefined',
@@ -143,6 +132,15 @@ export const MapContextEditor = (): ReactElement => {
               mapContextLayer: layer
             },
             visible: false
+          });
+        } else {
+          olLayer = new LayerGroup({
+            layers: childLayers
+              .map ((childLayer) => layerToOlLayer (childLayer)).reverse(),
+            visible: false,
+            properties: {
+              mapContextLayer: layer
+            }
           });
         }
         return olLayer;

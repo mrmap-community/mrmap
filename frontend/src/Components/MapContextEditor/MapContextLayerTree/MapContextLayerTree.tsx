@@ -87,13 +87,8 @@ export const MapContextLayerTree = ({
   removeLayerInProgress: React.MutableRefObject<boolean>
 } & LayerTreeProps): ReactElement => {
 
-  // layer groups that we watch for changes and sync with the backend (non-recursive)
+  // layer groups that we watch for changes and sync with the backend
   const [watchedLayerGroups, setWatchedLayerGroups] = useState<LayerGroup[]>([]);
-  const olListenerKeys = useRef<EventsKey[]>([]);
-
-  // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
-  // so we track the remove step of a move operation
-  const moveRemoveStep = useRef<CollectionEvent>();
 
   // tracks the OpenLayer layer that is currently being added/updated via a backend call, so we can attach
   // the new/updated MapContextLayer to it later
@@ -112,6 +107,7 @@ export const MapContextLayerTree = ({
     deleteMapContextLayer,
     {
       loading: deleteMapContextLayerLoading,
+      response: deleteMapContextLayerResponse,
       error: deleteMapContextLayerError
     }
   ] = useOperationMethod('deleteMapContextLayer');
@@ -205,48 +201,47 @@ export const MapContextLayerTree = ({
       };
 
       const collection = groupLayer.getLayers();
-      olListenerKeys.current.push (collection.on('add', (evt: CollectionEvent) => {
-        if (!moveRemoveStep.current) {
+      olListenerKeys.push (collection.on('add', (evt: CollectionEvent) => {
+        if (!moveRemoveStep) {
           // a normal add operation
           onLayerAdd(evt);
         } else {
           // the second event of a move operation (remove + add)
-          onLayerMove(moveRemoveStep.current, evt);
-          moveRemoveStep.current = undefined;
+          onLayerMove(moveRemoveStep, evt);
+          moveRemoveStep = undefined;
         }
       }));
-      olListenerKeys.current.push (collection.on('remove', (evt: CollectionEvent) => {
+      olListenerKeys.push (collection.on('remove', (evt: CollectionEvent) => {
         if (removeLayerInProgress.current) {
           // a normal remove operation
           onLayerRemove(evt);
           removeLayerInProgress.current = false;
         } else {
           // the first event of a move operation (remove + add)
-          moveRemoveStep.current = evt;
+          moveRemoveStep = evt;
         }
       }));
     };
+    // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
+    // so we track the remove step of a move operation
+    let moveRemoveStep: CollectionEvent|undefined;
+    const olListenerKeys: EventsKey[] = [];
     watchedLayerGroups.forEach((group) => {
-      if (!olListenerKeys.current.some ( key => key.target === group.getLayers() )) {
-        registerLayerListeners(group);
-      }
+      registerLayerListeners(group);
+    });
+    return ( () => {
+      // add hook to remove listeners
+      unByKey(olListenerKeys);
     });
   }, [
     watchedLayerGroups,
     mapContextId,
     map,
+    removeLayerInProgress,
     addMapContextLayer,
     deleteMapContextLayer,
-    updateMapContextLayer,
-    removeLayerInProgress
+    updateMapContextLayer
   ]);
-
-  // init: add unmount hook to remove listeners
-  useEffect(() => {
-    return ( () => {
-      unByKey(olListenerKeys.current);
-    });
-  },[]);
 
   // addMapContext backend call succeeded
   useEffect(() => {
@@ -260,6 +255,20 @@ export const MapContextLayerTree = ({
     }
   }, [
     addMapContextLayerResponse,
+    setWatchedLayerGroups,
+    olLayerGroup
+  ]);
+
+  // deleteMapContext backend call succeeded
+  useEffect(() => {
+    if (deleteMapContextLayerResponse) {
+      const nestedGroups = MapUtil
+        .getAllLayers(olLayerGroup)
+        .filter((l: BaseLayer) => l instanceof LayerGroup);
+      setWatchedLayerGroups([olLayerGroup, ...nestedGroups]);
+    }
+  }, [
+    deleteMapContextLayerResponse,
     setWatchedLayerGroups,
     olLayerGroup
   ]);

@@ -1,17 +1,15 @@
-import { FolderAddOutlined, MinusCircleFilled, SearchOutlined, SettingFilled, SettingOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, InfoCircleOutlined, MinusCircleFilled, SearchOutlined, SettingFilled, SettingOutlined } from '@ant-design/icons';
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { useMap } from '@terrestris/react-geo';
 import { Button, Space, Tabs, Tooltip } from 'antd';
-import { useForm } from 'antd/lib/form/Form';
 import { getUid } from 'ol';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
-import { AxiosResponse } from 'openapi-client-axios';
-import { default as React, ReactElement, useCallback, useEffect, useRef, useState } from 'react';
+import { default as React, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { JsonApiPrimaryData, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
@@ -19,8 +17,8 @@ import { unpage } from '../../Utils/JsonApiUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
 import { BottomDrawer } from '../Shared/BottomDrawer/BottomDrawer';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
-import RepoForm from '../Shared/RepoForm/RepoForm';
 import './MapContextEditor.css';
+import { MapContextLayerRepoForm } from './MapContextLayerRepoForm/MapContextLayerRepoForm';
 import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
 import { MapContextSettings } from './MapContextSettings/MapContextSettings';
 import { SearchTable } from './SearchTable/SearchTable';
@@ -45,8 +43,6 @@ export const MapContextEditor = (): ReactElement => {
 
   const [bottomDrawerVisible, setBottomDrawerVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('mapSettings');
-
-  const [layerSettingsForm] = useForm();
 
   const [
     getMapContext,
@@ -287,13 +283,6 @@ export const MapContextEditor = (): ReactElement => {
     setActiveTab('layerSettings');
   };
 
-  const onLayerSettingsChanged = useCallback((response: AxiosResponse) => {
-    const layer: BaseLayer = MapUtil
-      .getAllLayers(olLayerGroup)
-      .filter((l: BaseLayer) => l.get('mapContextLayer').id === response.data.data.id)[0];
-    layer.set('mapContextLayer', response.data.data);
-  }, [olLayerGroup]);
-
   return (
     <>
       <div className='mapcontext-editor-layout'>
@@ -357,7 +346,7 @@ export const MapContextEditor = (): ReactElement => {
             onChange={activeKey => setActiveTab(activeKey)}
           >
             <TabPane
-              tab={<span><SettingOutlined />Map settings</span>}
+              tab={<span><InfoCircleOutlined />Map settings</span>}
               key='mapSettings'
             >
               <MapContextSettings id={id}/>
@@ -367,11 +356,9 @@ export const MapContextEditor = (): ReactElement => {
               key='layerSettings'
               disabled={!id || !selectedLayer}
             >
-              <RepoForm
-                resourceType='MapContextLayer'
-                resourceId={selectedLayer && selectedLayer.get('mapContextLayer').id}
-                form={layerSettingsForm}
-                onSuccess={onLayerSettingsChanged}
+              <MapContextLayerRepoForm
+                layerGroup={olLayerGroup}
+                selectedLayer={selectedLayer}
               />
             </TabPane>
             <TabPane

@@ -17,6 +17,7 @@ import { unpage } from '../../Utils/JsonApiUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
 import { BottomDrawer } from '../Shared/BottomDrawer/BottomDrawer';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
+import { LayerSettingsForm } from './LayerSettingsForm/LayerSettingsForm';
 import './MapContextEditor.css';
 import { MapContextLayerRepoForm } from './MapContextLayerRepoForm/MapContextLayerRepoForm';
 import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
@@ -43,6 +44,9 @@ export const MapContextEditor = (): ReactElement => {
 
   const [bottomDrawerVisible, setBottomDrawerVisible] = useState(true);
   const [activeTab, setActiveTab] = useState('mapSettings');
+
+
+  const layerTitleInputRef = useRef<any>();
 
   const [
     getMapContext,
@@ -281,6 +285,7 @@ export const MapContextEditor = (): ReactElement => {
   const onOpenLayerSettings = () => {
     setBottomDrawerVisible(true);
     setActiveTab('layerSettings');
+    layerTitleInputRef.current?.focus();
   };
 
   return (
@@ -354,6 +359,16 @@ export const MapContextEditor = (): ReactElement => {
             <TabPane
               tab={<span><SettingOutlined />Layer settings</span>}
               key='layerSettings'
+              disabled={!id || !selectedLayer}
+            >
+              <LayerSettingsForm
+                selectedLayer={selectedLayer}
+                titleInputRef={layerTitleInputRef}
+              />
+            </TabPane>
+            <TabPane
+              tab={<span><SettingOutlined />Layer settings (schema-based)</span>}
+              key='layerSettings2'
               disabled={!id || !selectedLayer}
             >
               <MapContextLayerRepoForm

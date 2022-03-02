@@ -69,19 +69,14 @@ const augmentDateTimeColumn = (column: ProColumnType) : ProColumnType => {
 const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryParams: any) => {
   if (column.search && column.search.transform) {
     // manually defined mapping to query params
-    console.log(`custom ${column.dataIndex}`);
-
     return column;
   }
   if (column.valueType === 'option') {
     // value type does not support backend filtering
-    console.log(`is option ${column.dataIndex}`);
-
     return column;
   }
   if (column.hideInSearch) {
     // column hidden from search form anyway
-    console.log(`hide ${column.dataIndex}`);
     return column;
   }
   // try to derive mapping to query params automatically
@@ -93,13 +88,7 @@ const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryPar
         transform: buildSearchTransformText(`${name}`, 'icontains')
       };
     }
-  } else if (column.valueType === 'digit') {
-    if(queryParams[`filter[${name}]`]) {
-      column.search = {
-        transform: buildSearchTransformText(`${name}`)
-      };
-    }
-  } else if (column.valueType === 'checkbox') {
+  } else if (column.valueType === 'digit' || column.valueType === 'checkbox') {
     if(queryParams[`filter[${name}]`]) {
       column.search = {
         transform: buildSearchTransformText(`${name}`)
@@ -173,7 +162,7 @@ export const augmentColumnWithJsonSchema = (
 
   augmentSearchTransform(column, propSchema, queryParams);
   if ((!column.search || !column.search.transform) && column.valueType !== 'option') {
-    column.hideInSearch = true;
+    column.search = false;
   }
 
   return column;

@@ -2,8 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router';
 import RepoTable from '../Shared/RepoTable/NewRepoTable';
 
-
-
 const MapContextTable = (): JSX.Element => {
   const navigate = useNavigate();
 

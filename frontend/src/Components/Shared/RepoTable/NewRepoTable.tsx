@@ -10,7 +10,7 @@ import { useOperationMethod } from 'react-openapi-client';
 import { store } from '../../../Services/ReduxStore/Store';
 import { buildJsonApiPayload, getQueryParams } from '../../../Utils/JsonApiUtils';
 import RepoForm from '../RepoForm/RepoForm';
-import { augmentColumnWithJsonSchema } from './TableHelper';
+import { augmentColumnWithJsonSchema, buildSearchTransformText } from './TableHelper';
 
 export interface NestedLookup {
   paramName: string;
@@ -25,11 +25,12 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
     /** Optional column definitions, automatically augmented with the repository schema */
     columns?: RepoTableColumnType[]
     additionalActions?: (text: any, record:any) => void
+    defaultActions?: string[]
     /** Reference to table actions for custom triggering */
     actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
-    /** Path to navigate to for adding records (if omitted, no 'New' button will be available) */
+    /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
     onAddRecord?: () => void
-    /** Function to invoke for editing records (if omitted, no 'Edit' button will be available) */
+    /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
     onEditRecord?: (recordId: number | string) => void
 }
 
@@ -46,10 +47,10 @@ export type RepoActionType = ActionType & {
 }
 
 function augmentColumns (
-  resourceSchema: any, 
+  resourceSchema: any,
   queryParams: any,
   columnHints: ProColumnType[] | undefined): ProColumnType[] {
-  
+
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
   for (const propName in props) {
@@ -59,11 +60,23 @@ function augmentColumns (
     } else {
       columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
     }
-
   }
+
+  if (queryParams['filter[search]']) {
+    columns['search'] = {
+      dataIndex: 'search',
+      title: 'Suchbegriffe',
+      valueType: 'text',
+      hideInTable: true,
+      hideInSearch: false,
+      search : {
+        transform : buildSearchTransformText('search')
+      }
+    };
+  }
+
   return Object.values(columns);
 }
-
 
 
 const RepoTable = ({
@@ -71,6 +84,7 @@ const RepoTable = ({
   nestedLookups = [],
   columns = undefined,
   additionalActions = undefined,
+  defaultActions = ['edit', 'delete'],
   actionRef = undefined,
   onAddRecord = undefined,
   onEditRecord = undefined,
@@ -82,7 +96,7 @@ const RepoTable = ({
   const settings: any = useRef(currentUser.attributes?.settings);
 
   const [
-    columnsStateMap, 
+    columnsStateMap,
     setColumnsStateMap
   ] = useState<Record<string, ColumnsState>>(settings.current[jsonPointer] || {});
 
@@ -90,7 +104,7 @@ const RepoTable = ({
 
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
   const [header, setHeader] = useState<string>('TODO');
-  
+
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [addResourceDrawerVisible, setAddResourceDrawerVisible] = useState<boolean>(false);
   const [editResourceDrawerVisible, setEditResourceDrawerVisible] = useState<boolean>(false);
@@ -147,11 +161,11 @@ const RepoTable = ({
 
   useEffect(() => {
     if (updateUserResponse){
-      store.dispatch({ 
+      store.dispatch({
         type: 'currentUser/updateSettings',
         payload: updateUserResponse.data.data.attributes.settings
       });
-    } 
+    }
   }, [updateUserResponse]);
 
   useEffect(() => {
@@ -175,7 +189,7 @@ const RepoTable = ({
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
     let isMounted = true;
-  
+
     const queryParams = getQueryParams(api, nestedResourceListLookup);
     const operation = api.getOperation(nestedResourceListLookup);
 
@@ -185,10 +199,10 @@ const RepoTable = ({
       if (responseSchema.properties?.data.items.title){
         setHeader(responseSchema.properties?.data.items.title);
       }
-      
+
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
       if (!_augmentedColumns.some(column => column.key === 'actions')) {
-        
+
         _augmentedColumns.push({
           key: 'operation',
           title: 'Aktionen',
@@ -200,8 +214,8 @@ const RepoTable = ({
               <>
                 <Space size='small'>
                   { // todo: check if user has permission also
-                    api.getOperation('update'+resourceTypes[0]) ? 
-                      <Tooltip 
+                    defaultActions.includes('edit') && api.getOperation('update'+resourceTypes[0]) ?
+                      <Tooltip
                         title={ 'Edit' }>
                         <Button
                           size='small'
@@ -212,8 +226,8 @@ const RepoTable = ({
                       </Tooltip>
                       : null}
                   { // todo: check if user has permission also
-                    api.getOperation('delete'+resourceTypes[0]) ?
-                      <Tooltip 
+                    defaultActions.includes('delete') && api.getOperation('delete'+resourceTypes[0]) ?
+                      <Tooltip
                         title={ 'Delete' }>
                         <Button
                           style={{ borderColor: 'red', color: 'red' }}
@@ -230,11 +244,11 @@ const RepoTable = ({
             );
           }
         });
-        
+
       }
       isMounted && setAugmentedColumns(_augmentedColumns);
     }
-    
+
     return () => { isMounted = false; }; // componentWillUnmount handler
   },[additionalActions, columns, api, resourceTypes, nestedResourceListLookup]);
 
@@ -257,7 +271,7 @@ const RepoTable = ({
           }
           if(record.relationships.allowedOperations?.meta?.count){
             row.allowedOperations = record.relationships.allowedOperations.meta.count;
-          }        
+          }
           data.push(row);
         });
       }
@@ -270,7 +284,7 @@ const RepoTable = ({
       setTableDataSource(dataSource);
       setPaginationConfig({ total: dataSource.total });
     }
-    
+
   }, [listError, listResponse]);
 
   // fetches data in format expected by antd ProTable component
@@ -280,7 +294,7 @@ const RepoTable = ({
       { name: 'page[number]', value: params.current, in: 'query' },
       { name: 'page[size]', value: params.pageSize, in: 'query' },
     ]);
-    
+
     let ordering = '';
     if (sorter) {
       for (const prop in sorter) {
@@ -310,7 +324,7 @@ const RepoTable = ({
           dataSource={tableDataSource.data}
           loading={listLoading}
           columns={augmentedColumns}
-          scroll={{ x: true, y: '60vh' }}
+          scroll={{ x: true }}
           headerTitle={header}
           actionRef={setActions}
           dateFormatter={false}
@@ -330,10 +344,14 @@ const RepoTable = ({
             </Button>
           ]
           }
-          columnsState={{
-            value: columnsStateMap,
-            onChange: setColumnsStateMap
-          }}
+          columnsState={
+            passThroughProps.columnsState ?
+              passThroughProps.columnsState :
+              {
+                value: columnsStateMap,
+                onChange: setColumnsStateMap
+              }
+          }
           search={ augmentedColumns.some((column: RepoTableColumnType) => {
             return column.search && column.search.transform;
           })
@@ -341,7 +359,7 @@ const RepoTable = ({
               layout: 'vertical'
             }
             : false}
-          
+
           {...passThroughProps}
         />
       )}
@@ -358,15 +376,15 @@ const RepoTable = ({
         placement='right'
         visible={editResourceDrawerVisible}
         onClose={()=>{setEditResourceDrawerVisible(false);}}
-        
+
       >
-        <RepoForm 
-          resourceType={resourceTypes[0]} 
-          resourceId={selectedForEdit} 
+        <RepoForm
+          resourceType={resourceTypes[0]}
+          resourceId={selectedForEdit}
           onSuccess={()=>{setEditResourceDrawerVisible(false);}}/>
       </Drawer>
     </>
-    
+
   );
 };
 

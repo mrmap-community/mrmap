@@ -1,7 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useMap } from '@terrestris/react-geo';
 import { Button, Drawer } from 'antd';
-import React, { ReactElement, useRef, useState } from 'react';
+import OlMap from 'ol/Map';
+import { default as React, ReactElement, useEffect, useRef, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { RuleForm } from './RuleForm/RuleForm';
 import './RulesDrawer.css';
@@ -11,32 +11,36 @@ export interface RulesDrawerProps {
   wmsId: string,
   selectedLayerIds: string[],
   setSelectedLayerIds: (ids: string[]) => void,
-  setIsRuleEditingActive: (isActive: boolean) => void
+  setIsRuleEditingActive: (isActive: boolean) => void,
+  map: OlMap
 }
 
 export const RulesDrawer = ({
   wmsId,
   selectedLayerIds,
   setSelectedLayerIds,
-  setIsRuleEditingActive
+  setIsRuleEditingActive,
+  map
 }: RulesDrawerProps): ReactElement => {
 
-  const map = useMap();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
 
-  const toggleVisible = () => {
-    setIsVisible(!isVisible);
-    buttonRef.current?.blur();
-    // hack map div width
+  // adjust padding of map div
+  useEffect( () => {
     if (map) {
       const mapDiv: any = document.querySelector(`#${map.getTarget()}`);
-      if (isVisible) {
+      if (!isVisible) {
         mapDiv.style.paddingRight = '0px';
       } else {
         mapDiv.style.paddingRight = '500px';
       }
     }
+  }, [map, isVisible]);
+
+  const toggleVisible = () => {
+    setIsVisible(!isVisible);
+    buttonRef.current?.blur();
   };
 
   return (
@@ -58,11 +62,11 @@ export const RulesDrawer = ({
         closable={false}
         mask={false}
       >
-        <Routes>           
+        <Routes>
           <Route
             path='/'
             element={(
-              <RulesTable 
+              <RulesTable
                 wmsId={wmsId}
               />
             )}
@@ -70,7 +74,7 @@ export const RulesDrawer = ({
           <Route
             path='rules/add'
             element={(
-              <RuleForm 
+              <RuleForm
                 wmsId={wmsId}
                 selectedLayerIds={selectedLayerIds}
                 setSelectedLayerIds={setSelectedLayerIds}
@@ -81,14 +85,14 @@ export const RulesDrawer = ({
           <Route
             path='rules/:ruleId/edit'
             element={(
-              <RuleForm 
+              <RuleForm
                 wmsId={wmsId}
                 selectedLayerIds={selectedLayerIds}
                 setSelectedLayerIds={setSelectedLayerIds}
                 setIsRuleEditingActive={setIsRuleEditingActive}
               />
             )}
-          />          
+          />
         </Routes>
       </Drawer>
     </>

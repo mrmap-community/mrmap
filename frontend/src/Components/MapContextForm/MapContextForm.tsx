@@ -35,15 +35,15 @@ export const MapContextForm = (): ReactElement => {
   const [isMapContextSearchDrawerVisible, setIsMapContextSearchDrawerVisible] = useState<boolean>(false);
 
   const [
-    getMapContext, 
-    { 
-      loading: getMapContextLoading, 
-      response: getMapContextResponse 
+    getMapContext,
+    {
+      loading: getMapContextLoading,
+      response: getMapContextResponse
     }] = useOperationMethod('getMapContext');
 
   const [deleteMapContextLayer, ] = useOperationMethod('deleteMapContextLayer');
 
-  
+
   useEffect(() => {
     if (getMapContextResponse){
       form.setFieldsValue({
@@ -83,10 +83,10 @@ export const MapContextForm = (): ReactElement => {
           const currentSelectedIsNodeWithParent = currentSelectedTreeLayerNode &&
             currentSelectedTreeLayerNode?.parent &&
             !currentSelectedTreeLayerNode?.isLeaf;
-          const currentSelectedIsLeafWithParent = currentSelectedTreeLayerNode && 
+          const currentSelectedIsLeafWithParent = currentSelectedTreeLayerNode &&
             currentSelectedTreeLayerNode?.parent &&
             currentSelectedTreeLayerNode?.isLeaf;
-  
+
           if(currentSelectedIsNodeOnRoot) {
             return String(currentSelectedTreeLayerNode?.key);
           }
@@ -99,7 +99,7 @@ export const MapContextForm = (): ReactElement => {
           if(currentSelectedIsLeafWithParent) {
             return String(currentSelectedTreeLayerNode?.parent);
           }
-  
+
           return '';
         };
         // make call
@@ -160,16 +160,16 @@ export const MapContextForm = (): ReactElement => {
             serverType: renderingLayerDetails.attributes.WMSParams.serviceType,
             legendUrl: renderingLayerDetails.attributes.WMSParams.legendUrl,
           });
-  
+
           // TODO: This code is repeated in the layer tree.
           // Make this action more centralized or automatic when users adds it to the tree
           const res = await new LayerRepo().autocompleteInitialValue(renderingLayer.getProperties().renderingLayer);
           if(res.attributes.WMSParams.bbox) {
             olMap.getView().fit(transformExtent(res.attributes.WMSParams.bbox, 'EPSG:4326', 'EPSG:3857'));
           }
-  
+
           const mapContextLayersGroup = layerUtils.getLayerGroupByGroupTitle(olMap, 'mrMapMapContextLayers');
-  
+
           if(mapContextLayersGroup) {
             layerUtils.addLayerToGroupByMrMapLayerId(
               mapContextLayersGroup,
@@ -177,7 +177,7 @@ export const MapContextForm = (): ReactElement => {
               renderingLayer
             );
           }
-  
+
           notification.info({
             message: `Add dataset '${dataset.title}'`
           });
@@ -197,7 +197,7 @@ export const MapContextForm = (): ReactElement => {
         }
       });
     }
-    
+
   };
 
   // TODO: replace for a decent loading screen
@@ -237,12 +237,12 @@ export const MapContextForm = (): ReactElement => {
               }
 
               return {
-                url: renderingLayerInfo?.attributes.WMSParams.url,
-                version: renderingLayerInfo?.attributes.WMSParams.version,
+                url: (renderingLayerInfo as any).attributes.WMSParams.url,
+                version: (renderingLayerInfo as any).attributes.WMSParams.version,
                 format: 'image/png',
-                layers: renderingLayerInfo?.attributes.WMSParams.layer,
-                serverType: renderingLayerInfo?.attributes.WMSParams.serviceType,
-                legendUrl: renderingLayerInfo?.attributes.WMSParams.legendUrl,
+                layers: (renderingLayerInfo as any).attributes.WMSParams.layer,
+                serverType: (renderingLayerInfo as any).attributes.WMSParams.serviceType,
+                legendUrl: (renderingLayerInfo as any).attributes.WMSParams.legendUrl,
                 visible: false,
                 layerId: (createdLayer?.data?.data as JsonApiPrimaryData).id,
                 title: (createdLayer?.data?.data as JsonApiPrimaryData).attributes.title,
@@ -381,7 +381,7 @@ export const MapContextForm = (): ReactElement => {
               form={form}
               onSuccess={(response, created) => {
                 const mapContextId = (response.data.data as JsonApiPrimaryData).id;
-                navigate(`/registry/mapcontexts/${mapContextId}/edit`);               
+                navigate(`/registry/mapcontexts/${mapContextId}/edit`);
               }}
             />
           </>

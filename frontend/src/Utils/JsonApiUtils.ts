@@ -3,16 +3,16 @@ import OpenAPIClientAxios from 'openapi-client-axios';
 
 /**
  * Collects the data of a paginated JSON:API response as a single JSON:API response structure.
- * 
+ *
  * @param jsonApiResponse response that may contain a next link
- * 
+ *
  * @throws {Error} if an error collecting the response pages occured
  */
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export async function unpage (jsonApiResponse: any, api: OpenAPIClientAxios): Promise<any> {
   const client = await api.getClient();
   const mergedResponse: any = jsonApiResponse;
-  while (jsonApiResponse.data.links.next) {
+  while (jsonApiResponse.data.links?.next) {
     const next = jsonApiResponse.data.links.next;
     jsonApiResponse = await client.get(next);
     mergedResponse.data.data = mergedResponse.data.data.concat(jsonApiResponse.data.data);
@@ -28,11 +28,11 @@ export async function unpage (jsonApiResponse: any, api: OpenAPIClientAxios): Pr
 
 
 export function buildJsonApiPayload (
-  type: string, 
-  id?: string | number, 
-  attributes?: any, 
+  type: string,
+  id?: string | number,
+  attributes?: any,
   relationships?: Array<any>): any {
-    
+
   if (id){
     return {
       'data':{
@@ -51,7 +51,7 @@ export function buildJsonApiPayload (
       }
     };
   }
-    
+
 }
 
 export function getQueryParams (api: OpenAPIClientAxios, operationId: string): any {

@@ -1,6 +1,5 @@
 import { CheckCircleTwoTone, CloseCircleTwoTone } from '@ant-design/icons';
 import { ProColumnType } from '@ant-design/pro-table';
-import Checkbox from 'antd/lib/checkbox/Checkbox';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -152,12 +151,10 @@ export const augmentColumnWithJsonSchema = (
       column.valueType = 'digit';
     } else if (propSchema.type === 'boolean') {
       column.valueType = 'checkbox';
-      //column.valueEnum = [];
+      column.valueEnum = { true: { text: column.title } };
+      column.formItemProps = { label: '' };
       column.renderText = (text, record, index, action) => {
         return text ? <CheckCircleTwoTone twoToneColor='#52c41a'/>: <CloseCircleTwoTone twoToneColor='#eb2f96'/>;
-      };
-      column.renderFormItem = (schema, config, form) => {
-        return <Checkbox></Checkbox>;
       };
     }
     // @ts-ignore

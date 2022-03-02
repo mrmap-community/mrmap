@@ -176,7 +176,6 @@ export const augmentColumnWithJsonSchema = (
 
   augmentSearchTransform(column, propSchema, queryParams);
   if ((!column.search || !column.search.transform) && column.valueType !== 'option') {
-    console.log(column);
     column.hideInSearch = true;
   }
 

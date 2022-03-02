@@ -1,5 +1,7 @@
 import { CheckCircleTwoTone, CloseCircleTwoTone } from '@ant-design/icons';
 import { ProColumnType } from '@ant-design/pro-table';
+import { Input } from 'antd';
+import Checkbox from 'antd/lib/checkbox/Checkbox';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -7,6 +9,7 @@ import React, { ReactNode } from 'react';
 
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
+
 
 export const buildSearchTransformDateRange = (dataIndex: string) => {
   return (values: any[]): Record<string, string> => {
@@ -68,26 +71,77 @@ const augmentDateTimeColumn = (column: ProColumnType) : ProColumnType => {
 const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryParams: any) => {
   if (column.search && column.search.transform) {
     // manually defined mapping to query params
+    console.log('custom search', column);
     return column;
   }
   if (column.valueType === 'option') {
     // value type does not support backend filtering
+    console.log('option', column);
     return column;
   }
   if (column.hideInSearch) {
     // column hidden from search form anyway
+    console.log('hide', column);
     return column;
   }
   // try to derive mapping to query params automatically
   const name = column.dataIndex;
+  console.log('dataIndex', name);
+  console.log('valueType', column.valueType);
   if (column.valueType === 'text') {
+    if (propSchema.type === 'boolean'){
+      if(queryParams[`filter[${name}]`]) {
+        column.search = {
+          transform: buildSearchTransformText(`${name}`)
+        };
+      }
+    }
     if (queryParams[`filter[${name}.icontains]`]) {
       column.search = {
         transform: buildSearchTransformText(`${name}`, 'icontains')
       };
     }
+  } else if (column.valueType === 'digit') {
+    if(queryParams[`filter[${name}]`]) {
+      column.search = {
+        transform: buildSearchTransformText(`${name}`)
+      };
+    }
+  } else if (column.valueType === undefined){
+    column.search = {
+      transform: buildSearchTransformText(`${name}`)
+    };
+    column.renderFormItem = (item, { type, defaultRender, ...rest }, form) => {
+      if (type === 'form') {
+        return null;
+      }
+      console.log('item', item);
+      if (propSchema.type === 'boolean'){
+
+
+        return <Checkbox {...rest}></Checkbox>;
+      }
+      
+      return <Input />;
+      // const stateType = form.getFieldValue('state');
+      // if (stateType === 3) {
+        
+      // }
+      // if (stateType === 4) {
+      //   return null;
+      // }
+      // return (
+      //   <MySelect
+      //     {...rest}
+      //     state={{
+      //       type: stateType,
+      //     }}
+      //   />
+      // );
+    };
+  
+    return column;
   }
-  return column;
 };
 
 export const augmentColumnWithJsonSchema = (

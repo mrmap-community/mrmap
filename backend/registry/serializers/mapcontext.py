@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
-from rest_framework.fields import IntegerField
+from rest_framework.fields import CharField, IntegerField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
@@ -14,6 +14,15 @@ class MapContextLayerSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
 
+    title = CharField(
+        label=_('title'),
+        help_text=_('an identifying name for this map context layer'),
+        required=True
+    )
+    # description = CharField(
+    #     label=_("description"),
+    #     help_text=_("a short description for this map context layer")
+    # )
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontextlayer-detail',
     )
@@ -58,12 +67,12 @@ class MapContextLayerSerializer(
             parent = validated_data['parent']
             child_layers = parent.child_layers.all()
             child_layers_count = child_layers.count()
-            if child_layers_count == 0:
-                # first and only child
+            if position == 0:
+                # first child
                 instance.move_to(
                     target=parent,
                     position='first-child')
-            elif position == child_layers_count or position == child_layers_count - 1:
+            elif position == child_layers_count - 1:
                 # last child
                 instance.move_to(
                     target=parent,

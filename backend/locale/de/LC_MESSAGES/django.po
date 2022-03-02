@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-01 10:24+0100\n"
+"POT-Creation-Date: 2022-03-02 10:07+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -485,6 +485,7 @@ msgstr "Zeigt den Gesundheitszustand der Ressource."
 
 #: registry/models/mapcontext.py:25 registry/models/mapcontext.py:272
 #: registry/models/metadata.py:52 registry/models/metadata.py:353
+#: registry/serializers/mapcontext.py:18
 #, fuzzy
 #| msgid "Title"
 msgid "title"
@@ -588,7 +589,7 @@ msgstr "Selektionsebene"
 msgid "Select a layer for feature selection."
 msgstr "Wählen Sie einen Stil für die Darstellung."
 
-#: registry/models/mapcontext.py:273
+#: registry/models/mapcontext.py:273 registry/serializers/mapcontext.py:19
 msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
@@ -1509,23 +1510,23 @@ msgstr "Featuretype Titel enthält"
 msgid "There is an existing harvesting job for this service."
 msgstr "Die Basis-URL des Dienstes."
 
-#: registry/serializers/mapcontext.py:23
+#: registry/serializers/mapcontext.py:32
 #, fuzzy
 #| msgid "Description"
 msgid "position"
 msgstr "Beschreibung"
 
-#: registry/serializers/mapcontext.py:25
+#: registry/serializers/mapcontext.py:34
 msgid "the tree position of the node where it should be moved to"
 msgstr ""
 "Die Position innerhalb einer Ebene im Baum, auf die der Knoten verschoben "
 "werden soll."
 
-#: registry/serializers/mapcontext.py:46
+#: registry/serializers/mapcontext.py:55
 msgid "root node can not be moved"
 msgstr "Wurzelknoten kann nicht verschoben werden"
 
-#: registry/serializers/mapcontext.py:52
+#: registry/serializers/mapcontext.py:61
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 

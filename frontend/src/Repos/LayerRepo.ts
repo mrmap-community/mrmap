@@ -51,7 +51,7 @@ class LayerRepo extends JsonApiRepo {
     }
 
     const res = await client['list' + this.resourceType](jsonApiParams);
-    return res.data.data.map((o: any) => { 
+    return res.data.data.map((o: any) => {
       return ({
         value: o.id,
         text: o.attributes.title,
@@ -61,7 +61,7 @@ class LayerRepo extends JsonApiRepo {
             layer: o.attributes.identifier,
             url: res.data.included && res.data.included.length > 0 && getServiceUrl(res.data.included, 'GetMap'),
             version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
-            serviceType: res.data.included && res.data.included.length > 0 && 
+            serviceType: res.data.included && res.data.included.length > 0 &&
              getServiceType(getServiceUrl(res.data.included, 'GetMap'))
           },
         },
@@ -86,7 +86,7 @@ class LayerRepo extends JsonApiRepo {
 
     let styles;
     let included;
-    let extent = null;
+    let extent:null|number[] = null;
     if(res.data.data?.attributes?.bboxLatLon?.coordinates) {
       extent = new Polygon(res.data.data.attributes.bboxLatLon.coordinates).getExtent();
     }
@@ -111,7 +111,7 @@ class LayerRepo extends JsonApiRepo {
           layer: res.data.data.attributes.identifier,
           url: res.data.included && res.data.included.length > 0  && getServiceUrl(res.data.included, 'GetMap'),
           version: res.data.included && res.data.included.length > 0 && res.data.included[0].attributes.version,
-          serviceType: res.data.included && res.data.included.length > 0 && 
+          serviceType: res.data.included && res.data.included.length > 0 &&
             getServiceType(getServiceUrl(res.data.included, 'GetMap')),
           legendUrl: included ? included.attributes.url : ''
         },

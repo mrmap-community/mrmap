@@ -25,17 +25,17 @@ function getValueType(fieldSchema: any):  ProFieldValueType {
     }
   } else if (fieldSchema.type ==='boolean') {
     return 'switch';
-  } 
-  return 'text';   
+  }
+  return 'text';
 }
 
 function getFormItemProps(fieldSchema: any, isRequired = false): any {
-  const rules = [];
+  const rules:any[] = [];
 
   if (isRequired){
     rules.push({ required: true });
   }
-  
+
   if (fieldSchema.minimum) {
     rules.push({ min: fieldSchema.minimum });
   }
@@ -51,13 +51,13 @@ function getFormItemProps(fieldSchema: any, isRequired = false): any {
   case 'boolean':
     rules.push({ type: 'boolean' });
   }
-  
+
   return {
     extra: fieldSchema.description,
     rules: rules
   };
 }
-    
+
 function augmentColumns (
   resourceSchema: any): ProFormColumnsType[] {
   const columns: ProFormColumnsType[] = [];
@@ -78,12 +78,12 @@ function augmentColumns (
         //readonly: prop.readOnly ? prop.readOnly : false,
         valueType: getValueType(prop),
         formItemProps: getFormItemProps(prop, isRequired)
-  
+
       });
     }
-    
+
   }
-  
+
   for (const relationName in relatedResources) {
     const relation = relatedResources[relationName];
     const isRequired = requiredRelatedResources?.includes(relationName) ? true : false;
@@ -92,16 +92,15 @@ function augmentColumns (
         title: relation.title,
         dataIndex: relationName,
         formItemProps: getFormItemProps(relation, isRequired),
-        renderFormItem: () => 
-        // TODO: pass in initialValues to RepoSelect component to fetch the string representations 
-          <RepoSelect 
+        renderFormItem: () =>
+        // TODO: pass in initialValues to RepoSelect component to fetch the string representations
+          <RepoSelect
             mode={relation.type === 'array' ? 'multiple' : undefined}
             resourceType={
-              relation.type === 'array' ? relation.items.properties.type.enum[0] : relation.properties.type.enum[0]} 
+              relation.type === 'array' ? relation.items.properties.type.enum[0] : relation.properties.type.enum[0]}
             fieldSchema={relation} />
       });
     }
-    
   }
   return columns;
 }
@@ -145,26 +144,25 @@ const RepoForm = ({
 }: RepoFormProps): ReactElement => {
   const operationId = resourceId ? 'update'+resourceType : 'add'+resourceType;
   const [
-    remoteOperation, 
-    { 
+    remoteOperation,
+    {
       response: remoteOperationResponse,
       error: remoteOperationError,
-      api: remoteOperationApi 
+      api: remoteOperationApi
     }] = useOperationMethod(operationId);
   const [getRemoteResource, { response: resourceResponse }] = useOperationMethod('get'+resourceType);
   const [succeded, setSucceded] = useState<boolean>(false);
 
-  const [_resourceId] = useState<string | number>(resourceId);
   const [columns, setColumns] = useState<ProFormColumnsType[]>([]);
   const [description, setDescription] = useState<string>(operationId);
 
   const [form] = useForm(passThroughProps.form);
 
   useEffect(() => {
-    if (_resourceId){
-      getRemoteResource(_resourceId);
+    if (resourceId){
+      getRemoteResource(resourceId);
     }
-  }, [getRemoteResource, _resourceId]);
+  }, [getRemoteResource, resourceId]);
 
   useEffect(() => {
     if(resourceResponse){
@@ -175,13 +173,14 @@ const RepoForm = ({
       }
       for (const key in resource.relationships){
         const relations = resource.relationships[key];
-        
         if (Array.isArray(relations.data)){
           const relatedIds: any[] = [];
           relations.data.forEach(relation => {
             relatedIds.push(relation.id);
           });
           initialValues[key] = relatedIds;
+        } else {
+          initialValues[key] = relations?.data?.id;
         }
       }
       form.setFieldsValue(initialValues);
@@ -194,14 +193,14 @@ const RepoForm = ({
   useEffect(() => {
     const axiosError = remoteOperationError as AxiosError;
     if (axiosError && axiosError?.response?.status !== 400) {
-      notification.error({ 
-        message: 'Something went wrong while trying to send data', 
+      notification.error({
+        message: 'Something went wrong while trying to send data',
         description: `used OperationId: ${operationId} ${axiosError.message}`,
-        duration: 10 
+        duration: 10
       });
     }
     if (axiosError?.response?.status === 400){
-      setFormErrors(form, axiosError);     
+      setFormErrors(form, axiosError);
     }
   }, [remoteOperationError, form, operationId]);
 
@@ -224,13 +223,13 @@ const RepoForm = ({
           .request?.data?.data.type}`;
         break;
       }
-      notification.success({ 
-        message: message, 
+      notification.success({
+        message: message,
       });
       setSucceded(true);
       if (onSuccess){
         onSuccess(remoteOperationResponse, resourceId ? false: true);
-      } 
+      }
     }
   }, [onSuccess, remoteOperationResponse, succeded, resourceId]);
 
@@ -245,9 +244,9 @@ const RepoForm = ({
     if (requestSchema) {
       setColumns(augmentColumns(requestSchema));
     }
-    
-  }, [remoteOperationApi, operationId]);     
-  
+
+  }, [remoteOperationApi, operationId]);
+
   async function onFinish(formData: any): Promise<boolean> {
     const operation = remoteOperationApi.getOperation(operationId);
     const requestSchema = getRequestSchema(operation);
@@ -256,9 +255,9 @@ const RepoForm = ({
 
     for (const field in formData){
       const isAttribute = Object.prototype.hasOwnProperty.call(requestSchema?.attributes?.properties, field);
-      const isRelationship = !isAttribute && 
+      const isRelationship = !isAttribute &&
       Object.prototype.hasOwnProperty.call(requestSchema?.relationships?.properties, field);
-      if (isAttribute){   
+      if (isAttribute){
         attributes[field] = formData[field];
       }
       if (isRelationship){
@@ -271,7 +270,7 @@ const RepoForm = ({
           });
         } else {
           relationData = {
-            type: requestSchema.relationships.properties[field].properties.type.enum[0], 
+            type: requestSchema.relationships.properties[field].properties.type.enum[0],
             id: formData[field] } as ResourceIdentifierObject;
         }
         if (formData[field]){
@@ -279,7 +278,7 @@ const RepoForm = ({
         }
       }
     }
-    
+
     setSucceded(false);
     const payload = buildJsonApiPayload(requestSchema.type.enum[0], resourceId, attributes, relationships);
     if (resourceId){
@@ -287,7 +286,7 @@ const RepoForm = ({
     } else {
       remoteOperation({}, payload);
     }
-    
+
     return true;
   }
 
@@ -303,6 +302,6 @@ const RepoForm = ({
     </>
   );
 };
-  
+
 export default RepoForm;
-  
+

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-02 10:07+0100\n"
+"POT-Creation-Date: 2022-03-02 10:31+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -104,7 +104,7 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:91 notify/models.py:91
+#: accounts/models/groups.py:91 notify/models.py:35
 #: registry/models/mapcontext.py:278 registry/models/security.py:236
 #, fuzzy
 #| msgid "Description"
@@ -232,51 +232,51 @@ msgstr "Gruppen in denen dieser Nutzer Mitglied sein soll."
 msgid "Notify"
 msgstr "Benachrichtigung"
 
-#: notify/models.py:76
+#: notify/models.py:20
 #, fuzzy
 #| msgid "Created on"
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
-#: notify/models.py:77
+#: notify/models.py:21
 #, fuzzy
 #| msgid "the datetime when the first thread was created"
 msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
-#: notify/models.py:82
+#: notify/models.py:26
 #, fuzzy
 #| msgid "Phase"
 msgid "phase"
 msgstr "Phase"
 
-#: notify/models.py:83
+#: notify/models.py:27
 #, fuzzy
 #| msgid "Current state of the task being run"
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
-#: notify/models.py:87
+#: notify/models.py:31
 #, fuzzy
 #| msgid "Address"
 msgid "process type"
 msgstr "Adresse"
 
-#: notify/models.py:88
+#: notify/models.py:32
 msgid "tells you what kind of process this is"
 msgstr "beschreibt, welche Art von Prozess dies ist"
 
-#: notify/models.py:92
+#: notify/models.py:36
 #, fuzzy
 #| msgid "a short description what this group is for."
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
-#: notify/models.py:108
+#: notify/models.py:52
 msgid "Background Process"
 msgstr "Hintergrundprozess"
 
-#: notify/models.py:109
+#: notify/models.py:53
 msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
@@ -359,6 +359,39 @@ msgstr ""
 #: registry/apps.py:9
 msgid "Registry"
 msgstr "Registrierung"
+
+#: registry/filters/service.py:29
+msgid "bbox contains"
+msgstr "bbox beinhaltet"
+
+#: registry/filters/service.py:31
+msgid "returns layers with bbox that are contained by the passed geometry"
+msgstr "liefert alle Ebenen die Teil der übermittelten Geometrie sind"
+
+#: registry/filters/service.py:35
+msgid "bbox covers"
+msgstr "bbox überdeckt"
+
+#: registry/filters/service.py:37
+msgid "returns layers with bbox that are covers the passed geometry"
+msgstr "liefert alle Ebenen die überdeckt von der übermittelten Geometrie sind"
+
+#: registry/filters/service.py:41
+msgid "bbox equals"
+msgstr "bbox gleich"
+
+#: registry/filters/service.py:43
+msgid "returns layers with bbox that are equal to the passed geometry"
+msgstr "liefert alle Ebenen die mit der übermittelten Geometrie übereinstimmen"
+
+#: registry/filters/service.py:47
+msgid "bbox intersects"
+msgstr "bbox schneidet"
+
+#: registry/filters/service.py:49
+msgid "returns layers with bbox that intersects the passed geometry"
+msgstr ""
+"liefert alle Ebenen die sich mit der übermittelten Geometrie überschneiden"
 
 #: registry/managers/metadata.py:41
 msgid "Explanations: <br>"

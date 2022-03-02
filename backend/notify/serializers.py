@@ -72,7 +72,7 @@ class BackgroundProcessSerializer(
         model = BackgroundProcess
         fields = "__all__"
 
-    def get_progress(self, instance):
+    def get_progress(self, instance) -> float:
         if instance.all_threads_count == 0:
             return 0
         aggregated_running_task_progress = 0.0

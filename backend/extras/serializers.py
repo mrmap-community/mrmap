@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from guardian.core import ObjectPermissionChecker
@@ -13,7 +15,7 @@ class StringRepresentationSerializer(ModelSerializer):
     class Meta:
         abstract = True
 
-    def get_string_representation(self, obj):
+    def get_string_representation(self, obj) -> str:
         return obj.__str__()
 
 
@@ -34,7 +36,7 @@ class ObjectPermissionCheckerSerializer(ModelSerializer):
                 "slow handling of object permissions detected. Optimize your view by adding a permchecker in your view.")
         return perm_checker
 
-    def get_is_accessible(self, obj):
+    def get_is_accessible(self, obj) -> bool:
         perm_checker = self.get_perm_checker()
         return perm_checker.has_perm(f'view_{obj._meta.model_name}', obj)
 
@@ -57,10 +59,10 @@ class HistoryInformationSerializer(ModelSerializer):
     class Meta:
         abstract = True
 
-    def get_created_at(self, instance):
+    def get_created_at(self, instance) -> datetime:
         return instance.first_history[0].history_date if hasattr(instance, 'first_history') and instance.first_history and len(instance.first_history) == 1 else None
 
-    def get_last_modified_at(self, instance):
+    def get_last_modified_at(self, instance) -> datetime:
         return instance.last_history[0].history_date if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None
 
     def get_created_by(self, instance):

@@ -22,7 +22,7 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
     /** Repository that defines the schema and offers CRUD operations */
     resourceTypes: string[]
     nestedLookups?: ParamsArray
-    /** Optional column definitions, automatically augmented with the repository schema */
+    /** Optional column definitions, automatically augmented and merged with the repository schema */
     columns?: RepoTableColumnType[]
     additionalActions?: (text: any, record:any) => void
     defaultActions?: string[]
@@ -54,12 +54,14 @@ function augmentColumns (
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
   for (const propName in props) {
+    columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
     const columnHint = columnHints?.find(hint => hint.dataIndex === propName);
     if (columnHint){
-      columns[propName] = columnHint;
-    } else {
-      columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
-    }
+      columns[propName].valueType = 'text';
+      for (const [key, value] of Object.entries(columnHint)){
+        columns[propName][key] = value;
+      }
+    } 
   }
 
   if (queryParams['filter[search]']) {
@@ -330,18 +332,19 @@ const RepoTable = ({
           dateFormatter={false}
           pagination={paginationConfig}
           toolBarRender={() => [
-            <Button
-              type='primary'
-              key='primary'
-              onClick={!onAddRecord ?
-                () => {
-                  setAddResourceDrawerVisible(true);
+            api.getOperation('add'+resourceTypes[0])?
+              <Button
+                type='primary'
+                key='primary'
+                onClick={!onAddRecord ?
+                  () => {
+                    setAddResourceDrawerVisible(true);
+                  }
+                  : () => {onAddRecord(); }
                 }
-                : () => {onAddRecord(); }
-              }
-            >
-              <PlusOutlined />Neu
-            </Button>
+              >
+                <PlusOutlined />Neu
+              </Button>: null
           ]
           }
           columnsState={
@@ -369,7 +372,10 @@ const RepoTable = ({
         visible={addResourceDrawerVisible}
         onClose={()=>{setAddResourceDrawerVisible(false);}}
       >
-        <RepoForm resourceType={resourceTypes[0]} />
+        <RepoForm 
+          resourceType={resourceTypes[0]}
+          onSuccess={()=>{setAddResourceDrawerVisible(false);}} 
+        />
       </Drawer>
       <Drawer
         title={`edit ${header}`}

@@ -72,7 +72,7 @@ class MapContextLayerSerializer(
                 instance.move_to(
                     target=parent,
                     position='first-child')
-            elif position == child_layers_count:
+            elif position == child_layers_count - 1:
                 # last child
                 instance.move_to(
                     target=parent,

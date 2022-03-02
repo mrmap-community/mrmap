@@ -19,7 +19,7 @@ export const MapContextSettings = ({
     addMapContextLayer,
     {
       response: addMapContextLayerResponse,
-      error: addMapContextLayerError
+      // error: addMapContextLayerError //TODO
     }
   ] = useOperationMethod('addMapContextLayer');
 

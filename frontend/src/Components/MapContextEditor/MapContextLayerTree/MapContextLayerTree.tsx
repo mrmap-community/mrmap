@@ -3,13 +3,14 @@ import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { LayerTree } from '@terrestris/react-geo';
 import { LayerTreeProps } from '@terrestris/react-geo/dist/LayerTree/LayerTree';
 import { Space, Tooltip } from 'antd';
+import { getUid } from 'ol';
 import { CollectionEvent } from 'ol/Collection';
 import { EventsKey } from 'ol/events';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import OlMap from 'ol/Map';
 import { unByKey } from 'ol/Observable';
-import { default as React, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
+import { default as React, Key, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import './MapContextLayerTree.css';
 
@@ -98,6 +99,8 @@ export const MapContextLayerTree = ({
   // this is a bit of a workaround, maybe a better solution can be added to react-geo LayerTree
   const [nodeTitleRenderer, setNodeTitleRenderer] = useState<any>(() => renderNodeTitle);
 
+  const [expandedOlUids, setExpandedOlUids] = useState<string[]|Key[]>([]);
+
   const [
     addMapContextLayer,
     {
@@ -130,6 +133,10 @@ export const MapContextLayerTree = ({
     setWatchedLayers([
       olLayerGroup,
       ...MapUtil.getAllLayers(olLayerGroup)
+    ]);
+    setExpandedOlUids([
+      getUid(olLayerGroup),
+      ...MapUtil.getAllLayers(olLayerGroup).map (layer => getUid(layer))
     ]);
   }, [olLayerGroup]);
 
@@ -318,6 +325,8 @@ export const MapContextLayerTree = ({
       map={map}
       layerGroup={olLayerGroup}
       nodeTitleRenderer={nodeTitleRenderer}
+      expandedKeys={expandedOlUids}
+      onExpand={expandedKeys => setExpandedOlUids(expandedKeys)}
       {...passThroughProps}
     />
   );

@@ -7,17 +7,29 @@ import './BottomDrawer.css';
 interface OwnProps {
   map?: OlMap;
   children?: JSX.Element;
+  /* Whether the Drawer dialog is visible or not, can be omitted (automatic) */
+  visible?: boolean;
+  /* Callback function for when the expand button is clicked */
+  onExpand?: ((expanded: boolean) => void)
 }
 
 type BottomDrawerProps = OwnProps;
 
 export const BottomDrawer: React.FC<BottomDrawerProps> = ({
   map,
-  children
+  children,
+  visible,
+  onExpand
 }) => {
 
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const [isVisible, setIsVisible] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (visible !== undefined) {
+      setIsVisible(visible);
+    }
+  },[visible]);
 
   // adjust padding of map div
   useEffect( () => {
@@ -32,7 +44,11 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({
   }, [map, isVisible]);
 
   const toggleVisible = () => {
-    setIsVisible(!isVisible);
+    if (onExpand) {
+      onExpand(isVisible);
+    } else {
+      setIsVisible(!isVisible);
+    }
     buttonRef.current?.blur();
   };
 

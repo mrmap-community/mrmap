@@ -286,7 +286,6 @@ export const MapContextLayerTree = ({
     // TODO warning for user
   }, [addMapContextLayerError, deleteMapContextLayerError, updateMapContextLayerError]);
 
-  // register listeners for layer group recursively
   const allowDrop = ({ dropNode, dropPosition }: {dropNode: any, dropPosition: any}) => {
     const layer = MapUtil.getLayerByOlUid(olLayerGroup, dropNode.key);
     // dropPosition: -1 (previous sibling)

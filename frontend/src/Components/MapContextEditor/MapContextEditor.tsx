@@ -43,6 +43,11 @@ export const MapContextEditor = (): ReactElement => {
 
   const addingDataset = useRef<any>();
 
+  const [bottomDrawerVisible, setBottomDrawerVisible] = useState(true);
+  const [activeTab, setActiveTab] = useState('mapSettings');
+
+  const [layerSettingsForm] = useForm();
+
   const [
     getMapContext,
     {
@@ -277,14 +282,17 @@ export const MapContextEditor = (): ReactElement => {
     ]);
   };
 
+  const onOpenLayerSettings = () => {
+    setBottomDrawerVisible(true);
+    setActiveTab('layerSettings');
+  };
+
   const onLayerSettingsChanged = useCallback((response: AxiosResponse) => {
     const layer: BaseLayer = MapUtil
       .getAllLayers(olLayerGroup)
       .filter((l: BaseLayer) => l.get('mapContextLayer').id === response.data.data.id)[0];
     layer.set('mapContextLayer', response.data.data);
   }, [olLayerGroup]);
-
-  const [form] = useForm();
 
   return (
     <>
@@ -317,6 +325,7 @@ export const MapContextEditor = (): ReactElement => {
                     <Button
                       icon={<SettingFilled />}
                       size='middle'
+                      onClick={onOpenLayerSettings}
                       disabled={!selectedLayer}
                     />
                   </Tooltip>
@@ -337,20 +346,39 @@ export const MapContextEditor = (): ReactElement => {
         <AutoResizeMapComponent id='map' />
       </div>
       {
-        <BottomDrawer map={map}>
-          <Tabs tabPosition='left'>
-            <TabPane tab={<span><SettingOutlined />Map settings</span>} key='1'>
+        <BottomDrawer
+          map={map}
+          visible={bottomDrawerVisible}
+          onExpand={ expanded => setBottomDrawerVisible(!expanded) }
+        >
+          <Tabs
+            tabPosition='left'
+            activeKey={activeTab}
+            onChange={activeKey => setActiveTab(activeKey)}
+          >
+            <TabPane
+              tab={<span><SettingOutlined />Map settings</span>}
+              key='mapSettings'
+            >
               <MapContextSettings id={id}/>
             </TabPane>
-            <TabPane tab={<span><SettingOutlined />Layer settings</span>} key='2' disabled={!id || !selectedLayer}>
+            <TabPane
+              tab={<span><SettingOutlined />Layer settings</span>}
+              key='layerSettings'
+              disabled={!id || !selectedLayer}
+            >
               <RepoForm
                 resourceType='MapContextLayer'
                 resourceId={selectedLayer && selectedLayer.get('mapContextLayer').id}
-                form={form}
+                form={layerSettingsForm}
                 onSuccess={onLayerSettingsChanged}
               />
             </TabPane>
-            <TabPane tab={<span><SearchOutlined />Dataset search</span>} key='3' disabled={!id}>
+            <TabPane
+              tab={<span><SearchOutlined />Dataset search</span>}
+              key='datasetSearch'
+              disabled={!id}
+            >
               <SearchTable addDatasetToMapAction={onAddDataset} />
             </TabPane>
           </Tabs>

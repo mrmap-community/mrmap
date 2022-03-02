@@ -4,10 +4,12 @@ import { LayerTree } from '@terrestris/react-geo';
 import { LayerTreeProps } from '@terrestris/react-geo/dist/LayerTree/LayerTree';
 import { Space, Tooltip } from 'antd';
 import { CollectionEvent } from 'ol/Collection';
+import { EventsKey } from 'ol/events';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import OlMap from 'ol/Map';
-import { default as React, ReactElement, ReactNode, useEffect, useRef } from 'react';
+import { unByKey } from 'ol/Observable';
+import { default as React, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import './MapContextLayerTree.css';
 
@@ -86,7 +88,8 @@ export const MapContextLayerTree = ({
 } & LayerTreeProps): ReactElement => {
 
   // layer groups that we watch for changes and sync with the backend (non-recursive)
-  // const [watchedLayerGroups, setWatchedLayerGroups] = useState<LayerGroup[]>([]);
+  const [watchedLayerGroups, setWatchedLayerGroups] = useState<LayerGroup[]>([]);
+  const olListenerKeys = useRef<EventsKey[]>([]);
 
   // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
   // so we track the remove step of a move operation
@@ -122,24 +125,144 @@ export const MapContextLayerTree = ({
     }
   ] = useOperationMethod('updateMapContextLayer');
 
-  // init: register listeners for layer group
+  // init/update: initialize layer groups to watch
   useEffect(() => {
-    if (olLayerGroup) {
-      registerLayerListeners(olLayerGroup);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const nestedGroups = MapUtil
+      .getAllLayers(olLayerGroup)
+      .filter((l: BaseLayer) => l instanceof LayerGroup);
+    setWatchedLayerGroups([olLayerGroup, ...nestedGroups]);
   }, [olLayerGroup]);
+
+  // init/update: ensure all watched layer groups have listeners
+  useEffect(() => {
+    const registerLayerListeners = (groupLayer: LayerGroup) => {
+
+      const onLayerAdd = (evt: CollectionEvent) => {
+        const layer: BaseLayer = evt.element;
+        layerBeingPersisted.current = layer;
+        // TODO just use event for target?
+        const targetGroup = MapUtil
+          .getAllLayers(map)
+          .filter((l: BaseLayer) => l instanceof LayerGroup)
+          .filter((l: LayerGroup) => l.getLayers() === evt.target)[0];
+        const mapContextLayer = layer.get('mapContextLayer');
+        if (!mapContextLayer.relationships) {
+          mapContextLayer.relationships = {};
+        }
+        mapContextLayer.relationships.mapContext = {
+          data: {
+            type: 'MapContext',
+            id: mapContextId
+          }
+        };
+        mapContextLayer.relationships.parent = {
+          data: {
+            type: 'MapContextLayer',
+            id: targetGroup.get('mapContextLayer').id
+          }
+        };
+        addMapContextLayer([], {
+          data: mapContextLayer
+        });
+      };
+
+      const onLayerRemove = (evt: CollectionEvent) => {
+        const layer: BaseLayer = evt.element;
+        deleteMapContextLayer([{ name: 'id', value: layer.get('mapContextLayer').id, in: 'path' }]);
+      };
+
+      const onLayerMove = (remove: CollectionEvent, add: CollectionEvent) => {
+        const movedLayer: BaseLayer = add.element;
+        layerBeingPersisted.current = movedLayer;
+        const targetGroup = MapUtil
+          .getAllLayers(map)
+          .filter((layer: BaseLayer) => layer instanceof LayerGroup)
+          .filter((layer: LayerGroup) => layer.getLayers().getArray().includes(movedLayer))[0];
+        let position = add.index;
+        if (remove.target === add.target) {
+          // a move in the same group, we may need to adjust the index
+          if (add.index > remove.index) {
+            position++;
+          }
+        }
+        updateMapContextLayer([{ name: 'id', value: movedLayer.get('mapContextLayer').id, in: 'path' }], {
+          data: {
+            type: 'MapContextLayer',
+            id: movedLayer.get('mapContextLayer').id,
+            attributes: {
+              position: position
+            },
+            relationships: {
+              parent: {
+                data: {
+                  type: 'MapContextLayer',
+                  id: targetGroup.get('mapContextLayer').id
+                }
+              }
+            }
+          }
+        });
+      };
+
+      const collection = groupLayer.getLayers();
+      olListenerKeys.current.push (collection.on('add', (evt: CollectionEvent) => {
+        if (!moveRemoveStep.current) {
+          // a normal add operation
+          onLayerAdd(evt);
+        } else {
+          // the second event of a move operation (remove + add)
+          onLayerMove(moveRemoveStep.current, evt);
+          moveRemoveStep.current = undefined;
+        }
+      }));
+      olListenerKeys.current.push (collection.on('remove', (evt: CollectionEvent) => {
+        if (removeLayerInProgress.current) {
+          // a normal remove operation
+          onLayerRemove(evt);
+          removeLayerInProgress.current = false;
+        } else {
+          // the first event of a move operation (remove + add)
+          moveRemoveStep.current = evt;
+        }
+      }));
+    };
+    watchedLayerGroups.forEach((group) => {
+      if (!olListenerKeys.current.some ( key => key.target === group.getLayers() )) {
+        registerLayerListeners(group);
+      }
+    });
+  }, [
+    watchedLayerGroups,
+    mapContextId,
+    map,
+    addMapContextLayer,
+    deleteMapContextLayer,
+    updateMapContextLayer,
+    removeLayerInProgress
+  ]);
+
+  // init: add unmount hook to remove listeners
+  useEffect(() => {
+    return ( () => {
+      unByKey(olListenerKeys.current);
+    });
+  },[]);
 
   // addMapContext backend call succeeded
   useEffect(() => {
     if (addMapContextLayerResponse) {
       (layerBeingPersisted.current as BaseLayer).set('mapContextLayer', addMapContextLayerResponse.data.data);
-      if (layerBeingPersisted.current instanceof LayerGroup) {
-        registerLayerListeners(layerBeingPersisted.current);
-      }
       layerBeingPersisted.current = undefined;
+      const nestedGroups = MapUtil
+        .getAllLayers(olLayerGroup)
+        .filter((l: BaseLayer) => l instanceof LayerGroup);
+      setWatchedLayerGroups([olLayerGroup, ...nestedGroups]);
     }
-  }, [addMapContextLayerResponse]);
+  }, [
+    addMapContextLayerResponse,
+    setWatchedLayerGroups,
+    olLayerGroup
+  ]);
 
   // updateMapContext backend call succeeded
   useEffect(() => {
@@ -155,102 +278,6 @@ export const MapContextLayerTree = ({
   }, [addMapContextLayerError, deleteMapContextLayerError, updateMapContextLayerError]);
 
   // register listeners for layer group recursively
-  const registerLayerListeners = (groupLayer: LayerGroup) => {
-
-    const onLayerAdd = (evt: CollectionEvent) => {
-      const layer: BaseLayer = evt.element;
-      layerBeingPersisted.current = layer;
-      const targetGroup = MapUtil
-        .getAllLayers(map)
-        .filter((l: BaseLayer) => l instanceof LayerGroup)
-        .filter((l: LayerGroup) => l.getLayers() === evt.target)[0];
-      const mapContextLayer = layer.get('mapContextLayer');
-      if (!mapContextLayer.relationships) {
-        mapContextLayer.relationships = {};
-      }
-      mapContextLayer.relationships.mapContext = {
-        data: {
-          type: 'MapContext',
-          id: mapContextId
-        }
-      };
-      mapContextLayer.relationships.parent = {
-        data: {
-          type: 'MapContextLayer',
-          id: targetGroup.get('mapContextLayer').id
-        }
-      };
-      addMapContextLayer([], {
-        data: mapContextLayer
-      });
-    };
-
-    const onLayerRemove = (evt: CollectionEvent) => {
-      const layer: BaseLayer = evt.element;
-      deleteMapContextLayer([{ name: 'id', value: layer.get('mapContextLayer').id, in: 'path' }]);
-    };
-
-    const onLayerMove = (remove: CollectionEvent, add: CollectionEvent) => {
-      const movedLayer: BaseLayer = add.element;
-      layerBeingPersisted.current = movedLayer;
-      const targetGroup = MapUtil
-        .getAllLayers(map)
-        .filter((layer: BaseLayer) => layer instanceof LayerGroup)
-        .filter((layer: LayerGroup) => layer.getLayers().getArray().includes(movedLayer))[0];
-      let position = add.index;
-      if (remove.target === add.target) {
-        // a move in the same group, we may need to adjust the index
-        if (add.index > remove.index) {
-          position++;
-        }
-      }
-      updateMapContextLayer([{ name: 'id', value: movedLayer.get('mapContextLayer').id, in: 'path' }], {
-        data: {
-          type: 'MapContextLayer',
-          id: movedLayer.get('mapContextLayer').id,
-          attributes: {
-            position: position
-          },
-          relationships: {
-            parent: {
-              data: {
-                type: 'MapContextLayer',
-                id: targetGroup.get('mapContextLayer').id
-              }
-            }
-          }
-        }
-      });
-    };
-
-    const collection = groupLayer.getLayers();
-    collection.on('add', (evt: CollectionEvent) => {
-      if (!moveRemoveStep.current) {
-        // a normal add operation
-        onLayerAdd(evt);
-      } else {
-        // the second event of a move operation (remove + add)
-        onLayerMove(moveRemoveStep.current, evt);
-        moveRemoveStep.current = undefined;
-      }
-    });
-    collection.on('remove', (evt: CollectionEvent) => {
-      if (removeLayerInProgress.current) {
-        // a normal remove operation
-        onLayerRemove(evt);
-        removeLayerInProgress.current = false;
-      } else {
-        // the first event of a move operation (remove + add)
-        moveRemoveStep.current = evt;
-      }
-    });
-    collection.forEach((layer) => {
-      if (layer instanceof LayerGroup) {
-        registerLayerListeners(layer);
-      }
-    });
-  };
-
   const allowDrop = ({ dropNode, dropPosition }: {dropNode: any, dropPosition: any}) => {
     const layer = MapUtil.getLayerByOlUid(olLayerGroup, dropNode.key);
     // dropPosition: -1 (previous sibling)

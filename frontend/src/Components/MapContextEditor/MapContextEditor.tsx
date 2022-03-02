@@ -11,7 +11,7 @@ import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
 import { AxiosResponse } from 'openapi-client-axios';
-import { default as React, ReactElement, useEffect, useRef, useState } from 'react';
+import { default as React, ReactElement, useCallback, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { JsonApiPrimaryData, ResourceIdentifierObject } from '../../Repos/JsonApiRepo';
@@ -277,13 +277,12 @@ export const MapContextEditor = (): ReactElement => {
     ]);
   };
 
-  const onLayerSettingsChanged = (response: AxiosResponse) => {
+  const onLayerSettingsChanged = useCallback((response: AxiosResponse) => {
     const layer: BaseLayer = MapUtil
       .getAllLayers(olLayerGroup)
       .filter((l: BaseLayer) => l.get('mapContextLayer').id === response.data.data.id)[0];
     layer.set('mapContextLayer', response.data.data);
-    layer.changed();
-  };
+  }, [olLayerGroup]);
 
   const [form] = useForm();
 

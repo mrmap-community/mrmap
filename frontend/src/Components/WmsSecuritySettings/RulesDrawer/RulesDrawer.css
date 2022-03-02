@@ -1,14 +1,23 @@
 .rules-drawer-toggle-button {
   position: absolute;
   top: 50%;
-  z-index: 1001;
+  z-index: 1000;
   height: 60px;
   width: 30px;
   padding: 0;
   border-radius: 5px 0 0 5px;
-  border: none;
+  background-color: #002140;
+  color: white;
+  border: unset;
   /* same transition timing as drawer */
-  transition: right 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.rules-drawer-toggle-button:active,
+.rules-drawer-toggle-button:focus,
+.rules-drawer-toggle-button:hover {
+  background-color: #002140;
+  color: white;
 }
 
 .rules-drawer-toggle-button.collapsed {

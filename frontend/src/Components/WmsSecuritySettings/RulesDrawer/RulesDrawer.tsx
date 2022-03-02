@@ -1,4 +1,4 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Button, Drawer } from 'antd';
 import OlMap from 'ol/Map';
 import { default as React, ReactElement, useEffect, useRef, useState } from 'react';
@@ -49,11 +49,7 @@ export const RulesDrawer = ({
         ref={buttonRef}
         className={`rules-drawer-toggle-button ${isVisible ? 'expanded' : 'collapsed'}`}
         onClick={toggleVisible}
-        icon={(
-          <FontAwesomeIcon
-            icon={['fas', isVisible ? 'angle-double-right' : 'angle-double-left']}
-          />
-        )}
+        icon={isVisible ? <RightOutlined/> : <LeftOutlined />}
       />
       <Drawer
         placement='right'

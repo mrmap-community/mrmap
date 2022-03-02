@@ -19,7 +19,6 @@ import { BottomDrawer } from '../Shared/BottomDrawer/BottomDrawer';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
 import { LayerSettingsForm } from './LayerSettingsForm/LayerSettingsForm';
 import './MapContextEditor.css';
-import { MapContextLayerRepoForm } from './MapContextLayerRepoForm/MapContextLayerRepoForm';
 import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
 import { MapContextSettings } from './MapContextSettings/MapContextSettings';
 import { SearchTable } from './SearchTable/SearchTable';
@@ -298,7 +297,7 @@ export const MapContextEditor = (): ReactElement => {
               <div
                 className='mapcontext-layertree-header'
               >
-                <span><FontAwesomeIcon icon={faLayerGroup}/>&nbsp;&nbsp;&nbsp;Layers</span>
+                <span><FontAwesomeIcon icon={faLayerGroup}/>&nbsp;&nbsp;&nbsp;Ebenen</span>
                 <Space>
                   <Tooltip title='Create new layer group'>
                     <Button
@@ -351,13 +350,13 @@ export const MapContextEditor = (): ReactElement => {
             onChange={activeKey => setActiveTab(activeKey)}
           >
             <TabPane
-              tab={<span><InfoCircleOutlined />Map settings</span>}
+              tab={<span><InfoCircleOutlined />Karteneinstellungen</span>}
               key='mapSettings'
             >
               <MapContextSettings id={id}/>
             </TabPane>
             <TabPane
-              tab={<span><SettingOutlined />Layer settings</span>}
+              tab={<span><SettingOutlined />Ebeneneinstellungen</span>}
               key='layerSettings'
               disabled={!id || !selectedLayer}
             >
@@ -366,7 +365,7 @@ export const MapContextEditor = (): ReactElement => {
                 titleInputRef={layerTitleInputRef}
               />
             </TabPane>
-            <TabPane
+            {/* <TabPane
               tab={<span><SettingOutlined />Layer settings (schema-based)</span>}
               key='layerSettings2'
               disabled={!id || !selectedLayer}
@@ -375,9 +374,9 @@ export const MapContextEditor = (): ReactElement => {
                 layerGroup={olLayerGroup}
                 selectedLayer={selectedLayer}
               />
-            </TabPane>
+            </TabPane> */}
             <TabPane
-              tab={<span><SearchOutlined />Dataset search</span>}
+              tab={<span><SearchOutlined />Inhalte finden &amp; hinzufügen</span>}
               key='datasetSearch'
               disabled={!id}
             >

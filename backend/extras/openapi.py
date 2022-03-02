@@ -98,6 +98,22 @@ class CustomAutoSchema(AutoSchema):
     Extend DRF's openapi.AutoSchema for JSON:API serialization.
     """
 
+    def _get_sort_parameters(self, path, method):
+        """
+        sort parameter: https://jsonapi.org/format/#fetching-sorting
+        """
+
+        if hasattr(self.view, "ordering_fields") and self.view.ordering_fields:
+            if isinstance(self.view.ordering_fields, str) and self.view.ordering_fields == "__all__":
+                # TODO: append all fields
+                pass
+            elif isinstance(self.view.ordering_fields, list):
+                for field_name in self.view.ordering_fields:
+                    # TODO: append all fields
+                    pass
+
+        return [{"$ref": "#/components/parameters/sort"}]
+
     def get_components(self, path, method):
         """
         Return components with their properties from the serializer.

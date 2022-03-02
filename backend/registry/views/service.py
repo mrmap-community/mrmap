@@ -173,6 +173,7 @@ class LayerViewSetMixin(
         "reference_systems": ["reference_systems"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    ordering_fields = ["scale_max"]
 
     def get_queryset(self):
         qs = super().get_queryset()

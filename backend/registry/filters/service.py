@@ -1,5 +1,4 @@
 from django.utils.translation import gettext_lazy as _
-from django_filters.filters import CharFilter
 from django_filters.filterset import FilterSet
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)

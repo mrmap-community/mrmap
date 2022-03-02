@@ -226,11 +226,10 @@ export const MapContextLayerTree = ({
             moveRemoveStep = evt;
           }
         }));
-
       }
 
-      olListenerKeys.push (baseLayer.on('change', (evt: any) => {
-        console.log('change detected', evt);
+      olListenerKeys.push (baseLayer.on('propertychange', (evt: any) => {
+        console.log('property change detected', evt);
         setNodeTitleRenderer( () =>  (layer: BaseLayer) => renderNodeTitle(layer) );
       }));
     };

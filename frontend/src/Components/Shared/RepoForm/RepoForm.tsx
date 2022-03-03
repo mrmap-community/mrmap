@@ -142,19 +142,19 @@ const RepoForm = ({
   onSuccess = null,
   ...passThroughProps
 }: RepoFormProps): ReactElement => {
-  const operationId = useRef(resourceId ? 'update'+resourceType : 'add'+resourceType);
+  const operationId = resourceId ? 'update'+resourceType : 'add'+resourceType;
   const [
     remoteOperation,
     {
       response: remoteOperationResponse,
       error: remoteOperationError,
       api: remoteOperationApi
-    }] = useOperationMethod(operationId.current);
+    }] = useOperationMethod(operationId);
 
   const [getRemoteResource, { response: resourceResponse }] = useOperationMethod('get'+resourceType);
 
   const [columns, setColumns] = useState<ProFormColumnsType[]>([]);
-  const [description, setDescription] = useState<string>(operationId.current);
+  const [description, setDescription] = useState<string>(operationId);
 
   const _resourceId = useRef(resourceId);
 
@@ -197,7 +197,7 @@ const RepoForm = ({
     if (axiosError && axiosError?.response?.status !== 400) {
       notification.error({
         message: 'Something went wrong while trying to send data',
-        description: `used OperationId: ${operationId.current} ${axiosError.message}`,
+        description: `used OperationId: ${operationId} ${axiosError.message}`,
         duration: 10
       });
     }
@@ -240,9 +240,9 @@ const RepoForm = ({
    * @description Hook to initial pro form with argumentColumns
    */
   useEffect(() => {
-    const operation = remoteOperationApi.getOperation(operationId.current);
+    const operation = remoteOperationApi.getOperation(operationId);
     const requestSchema = getRequestSchema(operation);
-    setDescription(operation?.description || operationId.current);
+    setDescription(operation?.description || operationId);
 
     if (requestSchema) {
       setColumns(augmentColumns(requestSchema));
@@ -251,7 +251,7 @@ const RepoForm = ({
   }, [remoteOperationApi, operationId]);
 
   async function onFinish(formData: any): Promise<boolean> {
-    const operation = remoteOperationApi.getOperation(operationId.current);
+    const operation = remoteOperationApi.getOperation(operationId);
     const requestSchema = getRequestSchema(operation);
     const attributes : any = {};
     const relationships : any = {} ;

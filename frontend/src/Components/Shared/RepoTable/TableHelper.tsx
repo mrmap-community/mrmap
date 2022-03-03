@@ -66,7 +66,7 @@ const augmentDateTimeColumn = (column: ProColumnType) : ProColumnType => {
   return column;
 };
 
-const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryParams: any) => {
+const mapOpenApiFilter = (column: ProColumnType, propSchema: any, queryParams: any) => {
   if (column.search && column.search.transform) {
     // manually defined mapping to query params
     return column;
@@ -103,12 +103,15 @@ const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryPar
   return column;
 };
 
-export const augmentColumnWithJsonSchema = (
+
+
+export const mapOpenApiSchemaToProTableColumn = (
   column: ProColumnType,
   propSchema: { type: string, format: string, title: string },
-  queryParams: Record<string, string>) : ProColumnType => {
+  queryParams: any) : ProColumnType => {
 
-  column.title = column.title || propSchema.title ||column.dataIndex;
+  column.title = column.title || propSchema.title || column.dataIndex;
+  const paramName = column.dataIndex as string;
 
   // https://procomponents.ant.design/components/schema#valuetype
   if (!column.valueType) {
@@ -151,8 +154,16 @@ export const augmentColumnWithJsonSchema = (
     //   showTitle: true,
     // };
   }
+  const sortableColumns: string[] = queryParams['sort']?.schema?.enum;
+  if (sortableColumns?.includes(paramName)){
+    column.sorter = true;
+  } else {
+    column.sorter = false;
+  }
+  
 
   if (!('sorter' in column) && column.valueType !== 'option') {
+    
     column.sorter = true;
   }
 
@@ -160,7 +171,7 @@ export const augmentColumnWithJsonSchema = (
     column = augmentDateTimeColumn(column);
   }
 
-  augmentSearchTransform(column, propSchema, queryParams);
+  mapOpenApiFilter(column, propSchema, queryParams);
   if ((!column.search || !column.search.transform) && column.valueType !== 'option') {
     column.search = false;
   }

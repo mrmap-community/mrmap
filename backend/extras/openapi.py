@@ -127,6 +127,10 @@ class CustomAutoSchema(AutoSchema):
                     sort_schema["enum"].append(format_field_name(field_name))
         return sort_params if sort_schema["enum"] else []
 
+    def get_filter_parameters(self, path, method):
+        parameters = super().get_filter_parameters(path, method)
+        return list(filter(lambda parameter: parameter['name'] != 'sort', parameters))
+
     def get_components(self, path, method):
         """
         Return components with their properties from the serializer.

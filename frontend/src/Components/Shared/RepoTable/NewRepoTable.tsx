@@ -10,7 +10,7 @@ import { useOperationMethod } from 'react-openapi-client';
 import { store } from '../../../Services/ReduxStore/Store';
 import { buildJsonApiPayload, getQueryParams } from '../../../Utils/JsonApiUtils';
 import RepoForm from '../RepoForm/RepoForm';
-import { augmentColumnWithJsonSchema, buildSearchTransformText } from './TableHelper';
+import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './TableHelper';
 
 export interface NestedLookup {
   paramName: string;
@@ -52,7 +52,7 @@ function augmentColumns (
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
   for (const propName in props) {
-    columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
+    columns[propName] = mapOpenApiSchemaToProTableColumn({ dataIndex: propName }, props[propName], queryParams);
     const columnHint = columnHints?.find(hint => hint.dataIndex === propName);
     if (columnHint){
       columns[propName].valueType = 'text';

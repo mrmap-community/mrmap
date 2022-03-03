@@ -111,6 +111,7 @@ class DatasetMetadataViewSet(ModelViewSet):
         "keywords__keyword": ["exact", "icontains", "contains"],
     }
     search_fields = ("title", "abstract", "keywords__keyword")
+    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
         "metadata_contact": ["metadata_contact"],
         "dataset_contact": ["dataset_contact"],

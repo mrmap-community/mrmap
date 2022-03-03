@@ -1,6 +1,6 @@
 import React, { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RepoTable, { RepoTableColumnType } from '../../../Shared/RepoTable/NewRepoTable';
+import RepoTable from '../../../Shared/RepoTable/NewRepoTable';
 
 export const RulesTable = ({
   wmsId,
@@ -10,26 +10,10 @@ export const RulesTable = ({
 
   const navigate = useNavigate();
 
-  const columns: RepoTableColumnType[] = [{
-    dataIndex: 'description',
-    title: 'Beschreibung',
-    sorter: false
-  },{
-    dataIndex: 'id',
-    hideInTable: true
-  },{
-    dataIndex: 'isAccessible',
-    hideInTable: true
-  },{
-    dataIndex: 'allowedArea',
-    hideInTable: true
-  }];
-
-  return (   
+  return (
     <RepoTable
       resourceTypes={['AllowedWebMapServiceOperation', 'WebMapService']}
       nestedLookups={[{ name: 'parent_lookup_secured_service', value: wmsId, in: 'path' }]}
-      columns={columns}
       options={{
         setting: false,
         density: false
@@ -37,6 +21,14 @@ export const RulesTable = ({
       pagination={false}
       onAddRecord={() => navigate(`/registry/services/wms/${wmsId}/security/rules/add`)}
       onEditRecord={(recordId) => navigate(`/registry/services/wms/${wmsId}/security/rules/${recordId}/edit`)}
+      search={false}
+      columnsState={{
+        value: {
+          allowedArea: { show: false },
+          id: { show: false },
+          stringRepresentation: { show: false }
+        }
+      }}
     />
   );
 };

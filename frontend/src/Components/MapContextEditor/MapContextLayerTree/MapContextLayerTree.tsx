@@ -3,13 +3,14 @@ import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { LayerTree } from '@terrestris/react-geo';
 import { LayerTreeProps } from '@terrestris/react-geo/dist/LayerTree/LayerTree';
 import { Space, Tooltip } from 'antd';
+import { getUid } from 'ol';
 import { CollectionEvent } from 'ol/Collection';
 import { EventsKey } from 'ol/events';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import OlMap from 'ol/Map';
 import { unByKey } from 'ol/Observable';
-import { default as React, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
+import { default as React, Key, ReactElement, ReactNode, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import './MapContextLayerTree.css';
 
@@ -67,7 +68,7 @@ const renderNodeTitle = (layer: BaseLayer): ReactNode => {
 /**
  * Layer tree that uses a (possibly nested) layer hierarchy from a given layer group.
  *
- * It reacts to events in the layer group (remove/add), updates the tree view and automatically synchronizes
+ * It watches the layer hierarchy for changes, updates the tree view and automatically synchronizes
  * changes to the MapContextLayer entities stored in the JSON:API backend.
  */
 export const MapContextLayerTree = ({
@@ -87,12 +88,18 @@ export const MapContextLayerTree = ({
   removeLayerInProgress: React.MutableRefObject<boolean>
 } & LayerTreeProps): ReactElement => {
 
-  // layer groups that we watch for changes and sync with the backend
-  const [watchedLayerGroups, setWatchedLayerGroups] = useState<LayerGroup[]>([]);
+  // layers that we watch for changes
+  const [watchedLayers, setWatchedLayers] = useState<BaseLayer[]>([]);
 
   // tracks the OpenLayer layer that is currently being added/updated via a backend call, so we can attach
   // the new/updated MapContextLayer to it later
   const layerBeingPersisted = useRef<BaseLayer>();
+
+  // setNodeTitleRenderer is used to trigger node re-rendering when a layer changes (e.g. title)
+  // this is a bit of a workaround, maybe a better solution can be added to react-geo LayerTree
+  const [nodeTitleRenderer, setNodeTitleRenderer] = useState<any>(() => renderNodeTitle);
+
+  const [expandedOlUids, setExpandedOlUids] = useState<string[]|Key[]>([]);
 
   const [
     addMapContextLayer,
@@ -121,17 +128,21 @@ export const MapContextLayerTree = ({
     }
   ] = useOperationMethod('updateMapContextLayer');
 
-  // init/update: initialize layer groups to watch
+  // init/update: initialize layers to watch
   useEffect(() => {
-    const nestedGroups = MapUtil
-      .getAllLayers(olLayerGroup)
-      .filter((l: BaseLayer) => l instanceof LayerGroup);
-    setWatchedLayerGroups([olLayerGroup, ...nestedGroups]);
+    setWatchedLayers([
+      olLayerGroup,
+      ...MapUtil.getAllLayers(olLayerGroup)
+    ]);
+    setExpandedOlUids([
+      getUid(olLayerGroup),
+      ...MapUtil.getAllLayers(olLayerGroup).map (layer => getUid(layer))
+    ]);
   }, [olLayerGroup]);
 
-  // init/update: ensure all watched layer groups have listeners
+  // init/update: ensure all watched layers have listeners
   useEffect(() => {
-    const registerLayerListeners = (groupLayer: LayerGroup) => {
+    const registerListeners = (baseLayer: BaseLayer) => {
 
       const onLayerAdd = (evt: CollectionEvent) => {
         const layer: BaseLayer = evt.element;
@@ -200,41 +211,48 @@ export const MapContextLayerTree = ({
         });
       };
 
-      const collection = groupLayer.getLayers();
-      olListenerKeys.push (collection.on('add', (evt: CollectionEvent) => {
-        if (!moveRemoveStep) {
-          // a normal add operation
-          onLayerAdd(evt);
-        } else {
-          // the second event of a move operation (remove + add)
-          onLayerMove(moveRemoveStep, evt);
-          moveRemoveStep = undefined;
-        }
-      }));
-      olListenerKeys.push (collection.on('remove', (evt: CollectionEvent) => {
-        if (removeLayerInProgress.current) {
-          // a normal remove operation
-          onLayerRemove(evt);
-          removeLayerInProgress.current = false;
-        } else {
-          // the first event of a move operation (remove + add)
-          moveRemoveStep = evt;
-        }
+      if (baseLayer instanceof LayerGroup) {
+        const collection = (baseLayer as LayerGroup).getLayers();
+        olListenerKeys.push (collection.on('add', (evt: CollectionEvent) => {
+          if (!moveRemoveStep) {
+            // a normal add operation
+            onLayerAdd(evt);
+          } else {
+            // the second event of a move operation (remove + add)
+            onLayerMove(moveRemoveStep, evt);
+            moveRemoveStep = undefined;
+          }
+        }));
+        olListenerKeys.push (collection.on('remove', (evt: CollectionEvent) => {
+          if (removeLayerInProgress.current) {
+            // a normal remove operation
+            onLayerRemove(evt);
+            removeLayerInProgress.current = false;
+          } else {
+            // the first event of a move operation (remove + add)
+            moveRemoveStep = evt;
+          }
+        }));
+      }
+
+      olListenerKeys.push (baseLayer.on('propertychange', (evt: any) => {
+        console.log('property change detected', evt);
+        setNodeTitleRenderer( () =>  (layer: BaseLayer) => renderNodeTitle(layer) );
       }));
     };
-    // OpenLayers collection events do not distinguish between remove and a remove followed by an add (move)
-    // so we track the remove step of a move operation
+    // OpenLayers collection events can not distinguish between remove and a remove followed by an add (move)
+    // so we track the remove step of a move operation ourselves
     let moveRemoveStep: CollectionEvent|undefined;
     const olListenerKeys: EventsKey[] = [];
-    watchedLayerGroups.forEach((group) => {
-      registerLayerListeners(group);
+    watchedLayers.forEach(layer => {
+      registerListeners(layer);
     });
     return ( () => {
       // add hook to remove listeners
       unByKey(olListenerKeys);
     });
   }, [
-    watchedLayerGroups,
+    watchedLayers,
     mapContextId,
     map,
     removeLayerInProgress,
@@ -251,11 +269,11 @@ export const MapContextLayerTree = ({
       const nestedGroups = MapUtil
         .getAllLayers(olLayerGroup)
         .filter((l: BaseLayer) => l instanceof LayerGroup);
-      setWatchedLayerGroups([olLayerGroup, ...nestedGroups]);
+      setWatchedLayers([olLayerGroup, ...nestedGroups]);
     }
   }, [
     addMapContextLayerResponse,
-    setWatchedLayerGroups,
+    setWatchedLayers,
     olLayerGroup
   ]);
 
@@ -265,11 +283,11 @@ export const MapContextLayerTree = ({
       const nestedGroups = MapUtil
         .getAllLayers(olLayerGroup)
         .filter((l: BaseLayer) => l instanceof LayerGroup);
-      setWatchedLayerGroups([olLayerGroup, ...nestedGroups]);
+      setWatchedLayers([olLayerGroup, ...nestedGroups]);
     }
   }, [
     deleteMapContextLayerResponse,
-    setWatchedLayerGroups,
+    setWatchedLayers,
     olLayerGroup
   ]);
 
@@ -286,7 +304,6 @@ export const MapContextLayerTree = ({
     // TODO warning for user
   }, [addMapContextLayerError, deleteMapContextLayerError, updateMapContextLayerError]);
 
-  // register listeners for layer group recursively
   const allowDrop = ({ dropNode, dropPosition }: {dropNode: any, dropPosition: any}) => {
     const layer = MapUtil.getLayerByOlUid(olLayerGroup, dropNode.key);
     // dropPosition: -1 (previous sibling)
@@ -307,7 +324,9 @@ export const MapContextLayerTree = ({
       allowDrop={allowDrop}
       map={map}
       layerGroup={olLayerGroup}
-      nodeTitleRenderer={renderNodeTitle}
+      nodeTitleRenderer={nodeTitleRenderer}
+      expandedKeys={expandedOlUids}
+      onExpand={expandedKeys => setExpandedOlUids(expandedKeys)}
       {...passThroughProps}
     />
   );

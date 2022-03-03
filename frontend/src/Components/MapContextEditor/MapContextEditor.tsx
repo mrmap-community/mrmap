@@ -1,16 +1,14 @@
-import { FolderAddOutlined, MinusCircleFilled, SearchOutlined, SettingFilled, SettingOutlined } from '@ant-design/icons';
+import { FolderAddOutlined, InfoCircleOutlined, MinusCircleFilled, SearchOutlined, SettingFilled, SettingOutlined } from '@ant-design/icons';
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { useMap } from '@terrestris/react-geo';
 import { Button, Space, Tabs, Tooltip } from 'antd';
-import { useForm } from 'antd/lib/form/Form';
 import { getUid } from 'ol';
 import BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
-import { AxiosResponse } from 'openapi-client-axios';
 import { default as React, ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
@@ -19,7 +17,7 @@ import { unpage } from '../../Utils/JsonApiUtils';
 import { AutoResizeMapComponent } from '../Shared/AutoResizeMapComponent/AutoResizeMapComponent';
 import { BottomDrawer } from '../Shared/BottomDrawer/BottomDrawer';
 import { LeftDrawer } from '../Shared/LeftDrawer/LeftDrawer';
-import RepoForm from '../Shared/RepoForm/RepoForm';
+import { LayerSettingsForm } from './LayerSettingsForm/LayerSettingsForm';
 import './MapContextEditor.css';
 import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
 import { MapContextSettings } from './MapContextSettings/MapContextSettings';
@@ -42,6 +40,12 @@ export const MapContextEditor = (): ReactElement => {
   const removeLayerInProgress = useRef(false);
 
   const addingDataset = useRef<any>();
+
+  const [bottomDrawerVisible, setBottomDrawerVisible] = useState(true);
+  const [activeTab, setActiveTab] = useState('mapSettings');
+
+
+  const layerTitleInputRef = useRef<any>();
 
   const [
     getMapContext,
@@ -277,15 +281,11 @@ export const MapContextEditor = (): ReactElement => {
     ]);
   };
 
-  const onLayerSettingsChanged = (response: AxiosResponse) => {
-    const layer: BaseLayer = MapUtil
-      .getAllLayers(olLayerGroup)
-      .filter((l: BaseLayer) => l.get('mapContextLayer').id === response.data.data.id)[0];
-    layer.set('mapContextLayer', response.data.data);
-    layer.changed();
+  const onOpenLayerSettings = () => {
+    setBottomDrawerVisible(true);
+    setActiveTab('layerSettings');
+    layerTitleInputRef.current?.focus();
   };
-
-  const [form] = useForm();
 
   return (
     <>
@@ -297,7 +297,7 @@ export const MapContextEditor = (): ReactElement => {
               <div
                 className='mapcontext-layertree-header'
               >
-                <span><FontAwesomeIcon icon={faLayerGroup}/>&nbsp;&nbsp;&nbsp;Layers</span>
+                <span><FontAwesomeIcon icon={faLayerGroup}/>&nbsp;&nbsp;&nbsp;Ebenen</span>
                 <Space>
                   <Tooltip title='Create new layer group'>
                     <Button
@@ -318,6 +318,7 @@ export const MapContextEditor = (): ReactElement => {
                     <Button
                       icon={<SettingFilled />}
                       size='middle'
+                      onClick={onOpenLayerSettings}
                       disabled={!selectedLayer}
                     />
                   </Tooltip>
@@ -338,20 +339,47 @@ export const MapContextEditor = (): ReactElement => {
         <AutoResizeMapComponent id='map' />
       </div>
       {
-        <BottomDrawer map={map}>
-          <Tabs tabPosition='left'>
-            <TabPane tab={<span><SettingOutlined />Map settings</span>} key='1'>
+        <BottomDrawer
+          map={map}
+          visible={bottomDrawerVisible}
+          onExpand={ expanded => setBottomDrawerVisible(!expanded) }
+        >
+          <Tabs
+            tabPosition='left'
+            activeKey={activeTab}
+            onChange={activeKey => setActiveTab(activeKey)}
+          >
+            <TabPane
+              tab={<span><InfoCircleOutlined />Karteneinstellungen</span>}
+              key='mapSettings'
+            >
               <MapContextSettings id={id}/>
             </TabPane>
-            <TabPane tab={<span><SettingOutlined />Layer settings</span>} key='2' disabled={!id || !selectedLayer}>
-              <RepoForm
-                resourceType='MapContextLayer'
-                resourceId={selectedLayer && selectedLayer.get('mapContextLayer').id}
-                form={form}
-                onSuccess={onLayerSettingsChanged}
+            <TabPane
+              tab={<span><SettingOutlined />Ebeneneinstellungen</span>}
+              key='layerSettings'
+              disabled={!id || !selectedLayer}
+            >
+              <LayerSettingsForm
+                selectedLayer={selectedLayer}
+                titleInputRef={layerTitleInputRef}
               />
             </TabPane>
-            <TabPane tab={<span><SearchOutlined />Dataset search</span>} key='3' disabled={!id}>
+            {/* <TabPane
+              tab={<span><SettingOutlined />Layer settings (schema-based)</span>}
+              key='layerSettings2'
+              disabled={!id || !selectedLayer}
+            >
+              <MapContextLayerRepoForm
+                layerGroup={olLayerGroup}
+                selectedLayer={selectedLayer}
+              />
+            </TabPane> */}
+            <TabPane
+              tab={<span><SearchOutlined />Inhalte finden &amp; hinzufügen</span>}
+              key='datasetSearch'
+              disabled={!id}
+            >
               <SearchTable addDatasetToMapAction={onAddDataset} />
             </TabPane>
           </Tabs>

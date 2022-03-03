@@ -6,7 +6,7 @@ import { notification } from 'antd';
 import { FormInstance, useForm } from 'antd/lib/form/Form';
 import { AxiosError, AxiosResponse } from 'openapi-client-axios';
 import { OpenAPIV3 } from 'openapi-types';
-import React, { ReactElement, useEffect, useState } from 'react';
+import React, { ReactElement, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { JsonApiErrorObject, JsonApiPrimaryData, ResourceIdentifierObject } from '../../../Repos/JsonApiRepo';
 import { buildJsonApiPayload } from '../../../Utils/JsonApiUtils';
@@ -150,11 +150,13 @@ const RepoForm = ({
       error: remoteOperationError,
       api: remoteOperationApi
     }] = useOperationMethod(operationId);
+
   const [getRemoteResource, { response: resourceResponse }] = useOperationMethod('get'+resourceType);
-  const [succeded, setSucceded] = useState<boolean>(false);
 
   const [columns, setColumns] = useState<ProFormColumnsType[]>([]);
   const [description, setDescription] = useState<string>(operationId);
+
+  const _resourceId = useRef(resourceId);
 
   const [form] = useForm(passThroughProps.form);
 
@@ -209,7 +211,7 @@ const RepoForm = ({
    */
   useEffect(() => {
     // TODO: this hook is rendering to often... fix it!
-    if (remoteOperationResponse && !succeded) {
+    if (remoteOperationResponse) {
       let message = 'unknown';
       switch(remoteOperationResponse.status){
       case 200:
@@ -226,12 +228,13 @@ const RepoForm = ({
       notification.success({
         message: message,
       });
-      setSucceded(true);
       if (onSuccess){
-        onSuccess(remoteOperationResponse, resourceId ? false: true);
+        onSuccess(remoteOperationResponse, _resourceId.current ? false: true);
       }
     }
-  }, [onSuccess, remoteOperationResponse, succeded, resourceId]);
+  // TODO check invocations of RepoForm and use useCallback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteOperationResponse, _resourceId]);
 
   /**
    * @description Hook to initial pro form with argumentColumns
@@ -279,7 +282,6 @@ const RepoForm = ({
       }
     }
 
-    setSucceded(false);
     const payload = buildJsonApiPayload(requestSchema.type.enum[0], resourceId, attributes, relationships);
     if (resourceId){
       remoteOperation(resourceId, payload);
@@ -304,4 +306,3 @@ const RepoForm = ({
 };
 
 export default RepoForm;
-

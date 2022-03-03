@@ -142,7 +142,16 @@ const RepoForm = ({
   onSuccess = null,
   ...passThroughProps
 }: RepoFormProps): ReactElement => {
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  
   const operationId = resourceId ? 'update'+resourceType : 'add'+resourceType;
+  
   const [
     remoteOperation,
     {
@@ -194,7 +203,7 @@ const RepoForm = ({
    */
   useEffect(() => {
     const axiosError = remoteOperationError as AxiosError;
-    if (axiosError && axiosError?.response?.status !== 400) {
+    if (axiosError && axiosError?.response?.status !== 400 && mounted.current) {
       notification.error({
         message: 'Something went wrong while trying to send data',
         description: `used OperationId: ${operationId} ${axiosError.message}`,
@@ -211,7 +220,7 @@ const RepoForm = ({
    */
   useEffect(() => {
     // TODO: this hook is rendering to often... fix it!
-    if (remoteOperationResponse) {
+    if (remoteOperationResponse && mounted.current) {
       let message = 'unknown';
       switch(remoteOperationResponse.status){
       case 200:

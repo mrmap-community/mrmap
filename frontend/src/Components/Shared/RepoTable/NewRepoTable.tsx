@@ -301,7 +301,7 @@ const RepoTable = ({
   /**
    * @description Builds the query and triggers the async call for the list
    */
-  const fetchData = useCallback((params: any, sorter?: Record<string, SortOrder>) => {
+  const fetchData = useCallback((params: any, sorter?: Record<string, SortOrder>) => {    
     const queryParams = [...nestedLookups];
     queryParams.push(...[
       { name: 'page[number]', value: params.current, in: 'query' },
@@ -316,7 +316,15 @@ const RepoTable = ({
     if (ordering){
       queryParams.push({ name: 'sort', value: ordering, in: 'query' });
     }
- 
+
+    // 'current' and 'pageSize' are reserved names in antd ProTable (and cannot be used for filtering)
+    delete params.current;
+    delete params.pageSize;
+    
+    for (const prop in params) {
+      queryParams.push({ name: prop, value: params[prop], in: 'query' });
+    }
+
     listResource(queryParams);
     return tableDataSource;
   }, [listResource, nestedLookups, tableDataSource]);

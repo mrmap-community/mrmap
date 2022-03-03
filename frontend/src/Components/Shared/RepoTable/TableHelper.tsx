@@ -119,6 +119,7 @@ export const mapOpenApiSchemaToProTableColumn = (
       switch (propSchema.format){
       case 'date-time':
         column.valueType = 'dateTime';
+        column = augmentDateTimeColumn(column);
         break;
       case 'uri':
         column.render = renderLink.bind(null, column.dataIndex as string) as any;
@@ -161,16 +162,6 @@ export const mapOpenApiSchemaToProTableColumn = (
     column.sorter = false;
   }
   
-
-  if (!('sorter' in column) && column.valueType !== 'option') {
-    
-    column.sorter = true;
-  }
-
-  if (column.valueType === 'dateTime') {
-    column = augmentDateTimeColumn(column);
-  }
-
   mapOpenApiFilter(column, propSchema, queryParams);
   if ((!column.search || !column.search.transform) && column.valueType !== 'option') {
     column.search = false;

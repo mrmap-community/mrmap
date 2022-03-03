@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-02 10:31+0100\n"
+"POT-Creation-Date: 2022-03-03 10:42+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -227,6 +227,10 @@ msgstr "Gruppe in denen dieser Nutzer Mitglied ist."
 #: accounts/serializers/users.py:41
 msgid "groups where this user shall be member of"
 msgstr "Gruppen in denen dieser Nutzer Mitglied sein soll."
+
+#: extras/openapi.py:115
+msgid "sort by column(s)"
+msgstr "sortiere nach Spalte(n)"
 
 #: notify/apps.py:9
 msgid "Notify"

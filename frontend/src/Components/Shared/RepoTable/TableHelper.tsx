@@ -8,6 +8,7 @@ import React, { ReactNode } from 'react';
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
 
+
 export const buildSearchTransformDateRange = (dataIndex: string) => {
   return (values: any[]): Record<string, string> => {
     const queryParams: Record<string, string> = {};
@@ -65,7 +66,7 @@ const augmentDateTimeColumn = (column: ProColumnType) : ProColumnType => {
   return column;
 };
 
-const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryParams: any) => {
+const mapOpenApiFilter = (column: ProColumnType, propSchema: any, queryParams: any) => {
   if (column.search && column.search.transform) {
     // manually defined mapping to query params
     return column;
@@ -80,22 +81,37 @@ const augmentSearchTransform = (column: ProColumnType, propSchema: any, queryPar
   }
   // try to derive mapping to query params automatically
   const name = column.dataIndex;
+
   if (column.valueType === 'text') {
     if (queryParams[`filter[${name}.icontains]`]) {
       column.search = {
         transform: buildSearchTransformText(`${name}`, 'icontains')
       };
     }
+  } else if (column.valueType === 'digit' || column.valueType === 'checkbox') {
+    if(queryParams[`filter[${name}]`]) {
+      column.search = {
+        transform: buildSearchTransformText(`${name}`)
+      };
+    }
+  } else if (column.valueType === undefined){
+    column.search = {
+      transform: buildSearchTransformText(`${name}`)
+    };
   }
+
   return column;
 };
 
-export const augmentColumnWithJsonSchema = (
+
+
+export const mapOpenApiSchemaToProTableColumn = (
   column: ProColumnType,
   propSchema: { type: string, format: string, title: string },
-  queryParams: Record<string, string>) : ProColumnType => {
+  queryParams: any) : ProColumnType => {
 
-  column.title = column.title || propSchema.title ||column.dataIndex;
+  column.title = column.title || propSchema.title || column.dataIndex;
+  const paramName = column.dataIndex as string;
 
   // https://procomponents.ant.design/components/schema#valuetype
   if (!column.valueType) {
@@ -103,6 +119,7 @@ export const augmentColumnWithJsonSchema = (
       switch (propSchema.format){
       case 'date-time':
         column.valueType = 'dateTime';
+        column = augmentDateTimeColumn(column);
         break;
       case 'uri':
         column.render = renderLink.bind(null, column.dataIndex as string) as any;
@@ -126,6 +143,9 @@ export const augmentColumnWithJsonSchema = (
     } else if (propSchema.type === 'number'){
       column.valueType = 'digit';
     } else if (propSchema.type === 'boolean') {
+      column.valueType = 'checkbox';
+      column.valueEnum = { true: { text: column.title } };
+      column.formItemProps = { label: '' };
       column.renderText = (text, record, index, action) => {
         return text ? <CheckCircleTwoTone twoToneColor='#52c41a'/>: <CloseCircleTwoTone twoToneColor='#eb2f96'/>;
       };
@@ -135,18 +155,16 @@ export const augmentColumnWithJsonSchema = (
     //   showTitle: true,
     // };
   }
-
-  if (!('sorter' in column) && column.valueType !== 'option') {
+  const sortableColumns: string[] = queryParams['sort']?.schema?.enum;
+  if (sortableColumns?.includes(paramName)){
     column.sorter = true;
+  } else {
+    column.sorter = false;
   }
-
-  if (column.valueType === 'dateTime') {
-    column = augmentDateTimeColumn(column);
-  }
-
-  augmentSearchTransform(column, propSchema, queryParams);
+  
+  mapOpenApiFilter(column, propSchema, queryParams);
   if ((!column.search || !column.search.transform) && column.valueType !== 'option') {
-    column.hideInSearch = true;
+    column.search = false;
   }
 
   return column;

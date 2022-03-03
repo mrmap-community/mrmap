@@ -3,6 +3,7 @@ from inspect import signature
 
 from django.conf import settings
 from django.urls import resolve
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers as drf_serializers
 from rest_framework.fields import empty
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -97,6 +98,38 @@ class CustomAutoSchema(AutoSchema):
     """
     Extend DRF's openapi.AutoSchema for JSON:API serialization.
     """
+
+    def _get_sort_parameters(self, path, method):
+        """
+        sort parameter: https://jsonapi.org/format/#fetching-sorting
+        """
+        sort_schema = {
+            "type": "string",
+            "uniqueItems": True,
+            "enum": []
+        }
+        sort_params = [{
+            "name": "sort",
+            "required": "false",
+            "in": "query",
+            "description": _("sort by column(s)"),
+            "schema": sort_schema
+        }]
+
+        if hasattr(self.view, "ordering_fields") and self.view.ordering_fields:
+            serializer = self.get_serializer(path, method)
+            if isinstance(self.view.ordering_fields, str) and self.view.ordering_fields == "__all__":
+                for field in serializer.fields.values():
+                    sort_schema["enum"].append(
+                        format_field_name(field.field_name))
+            elif isinstance(self.view.ordering_fields, list):
+                for field_name in self.view.ordering_fields:
+                    sort_schema["enum"].append(format_field_name(field_name))
+        return sort_params if sort_schema["enum"] else []
+
+    def get_filter_parameters(self, path, method):
+        parameters = super().get_filter_parameters(path, method)
+        return list(filter(lambda parameter: parameter['name'] != 'sort', parameters))
 
     def get_components(self, path, method):
         """

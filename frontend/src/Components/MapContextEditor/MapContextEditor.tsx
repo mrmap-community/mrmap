@@ -209,7 +209,7 @@ export const MapContextEditor = (): ReactElement => {
               renderingLayer: {
                 data: {
                   type: 'Layer',
-                  id: addingDataset.current.layers[0]
+                  id: addingDataset.current.relationships.selfPointingLayers.data[0].id
                 }
               }
             }
@@ -269,14 +269,14 @@ export const MapContextEditor = (): ReactElement => {
   };
 
   const onAddDataset = (dataset: any) => {
-    if (!dataset.layers || dataset.layers.length !== 1) {
+    const relatedLayers = dataset.relationships?.selfPointingLayers?.data;
+    if (!relatedLayers || relatedLayers.length !== 1) {
       alert(`Dataset ${dataset.id} does not have exactly one layer.`);
       return;
     }
     addingDataset.current = dataset;
-    const layerId = dataset.layers[0];
     getLayer([
-      { name: 'id', value: layerId, in: 'path' },
+      { name: 'id', value: relatedLayers[0].id, in: 'path' },
       { name: 'include', value: 'service.operationUrls', in: 'query' }
     ]);
   };

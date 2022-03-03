@@ -8,7 +8,3 @@ export interface ValidationPropsType {
 
 export type TooltipPropsType = TooltipProps & { icon: ReactNode }
 
-export interface NodeAttributesFormType {
-  name: string;
-  form: ReactNode;
-}

@@ -4,9 +4,25 @@ import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
 import { MPTTJsonApiTreeNodeType, TreeNodeType } from '../Components/Shared/TreeManager/TreeManagerTypes';
-import { CreateLayerOpts } from '../Components/TheMap/LayerManager/LayerManagerTypes';
 import { JsonApiPrimaryData, JsonApiResponse, ResourceIdentifierObject } from '../Repos/JsonApiRepo';
 import { LayerUtils } from './LayerUtils';
+
+type OlWMSServerType = 'ESRI' | 'GEOSERVER' | 'MAPSERVER' | 'QGIS';
+
+export interface CreateLayerOpts {
+  url: string;
+  version: '1.1.1' | '1.3.0';
+  format: 'image/jpeg' | 'image/png';
+  layers: string;
+  visible: boolean;
+  serverType?: OlWMSServerType;
+  layerId?: string | number;
+  legendUrl: string;
+  title: string;
+  description?: string;
+  properties: Record<string, string>;
+  extent?: any[]
+}
 
 const layerUtils = new LayerUtils();
 

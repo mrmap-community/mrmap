@@ -5,12 +5,12 @@ import { Button, Drawer, Modal, notification, Space, TablePaginationConfig, Tool
 import { SortOrder } from 'antd/lib/table/interface';
 import { ParamsArray } from 'openapi-client-axios';
 import { OpenAPIV3 } from 'openapi-types';
-import React, { MutableRefObject, ReactElement, useEffect, useRef, useState } from 'react';
+import React, { ReactElement, useCallback, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { store } from '../../../Services/ReduxStore/Store';
 import { buildJsonApiPayload, getQueryParams } from '../../../Utils/JsonApiUtils';
 import RepoForm from '../RepoForm/RepoForm';
-import { augmentColumnWithJsonSchema, buildSearchTransformText } from './TableHelper';
+import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './TableHelper';
 
 export interface NestedLookup {
   paramName: string;
@@ -26,8 +26,6 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
     columns?: RepoTableColumnType[]
     additionalActions?: (text: any, record:any) => void
     defaultActions?: string[]
-    /** Reference to table actions for custom triggering */
-    actionRef?: MutableRefObject<RepoActionType> | ((actions: RepoActionType) => void)
     /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
     onAddRecord?: () => void
     /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
@@ -54,7 +52,7 @@ function augmentColumns (
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns:any = {};
   for (const propName in props) {
-    columns[propName] = augmentColumnWithJsonSchema({ dataIndex: propName }, props[propName], queryParams);
+    columns[propName] = mapOpenApiSchemaToProTableColumn({ dataIndex: propName }, props[propName], queryParams);
     const columnHint = columnHints?.find(hint => hint.dataIndex === propName);
     if (columnHint){
       columns[propName].valueType = 'text';
@@ -80,50 +78,58 @@ function augmentColumns (
   return Object.values(columns);
 }
 
-
 const RepoTable = ({
   resourceTypes,
   nestedLookups = [],
   columns = undefined,
   additionalActions = undefined,
   defaultActions = ['edit', 'delete'],
-  actionRef = undefined,
   onAddRecord = undefined,
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
-  const jsonPointer = 'reactClient/tables/'+resourceTypes[0];
+
+  const _defaultActions = useRef(defaultActions);
+  const jsonPointer: string = 'reactClient/tables/'+resourceTypes[0];
+  const nestedResourceListLookup: string = 'list'+resourceTypes.join('By');
 
   const currentUser = store.getState().currentUser.user;
   const settings: any = useRef(currentUser.attributes?.settings);
-
   const [
     columnsStateMap,
     setColumnsStateMap
   ] = useState<Record<string, ColumnsState>>(settings.current[jsonPointer] || {});
 
-  const nestedResourceListLookup: string = 'list'+resourceTypes.join('By');
-
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
   const [header, setHeader] = useState<string>('TODO');
 
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
-  const [addResourceDrawerVisible, setAddResourceDrawerVisible] = useState<boolean>(false);
-  const [editResourceDrawerVisible, setEditResourceDrawerVisible] = useState<boolean>(false);
-  const [selectedForEdit, setSelectedForEdit] = useState<string | number>();
+  const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
+  const [selectedForEdit, setSelectedForEdit] = useState<string>('');
+  const closeRightDrawer = useCallback(() => {
+    setRightDrawerVisible(false);
+    setSelectedForEdit('');
+  }, []);
 
   // eslint-disable-next-line max-len
-  const [listResource, { loading: listLoading, error: listError, response: listResponse, api }] = useOperationMethod(nestedResourceListLookup);
-  const [deleteResource, { error: deleteError }] = useOperationMethod('delete'+resourceTypes[0]);
+  const [
+    listResource, 
+    { loading: listLoading, error: listError, response: listResponse, api }
+  ] = useOperationMethod(nestedResourceListLookup);
+  const [
+    deleteResource, 
+    { error: deleteError }
+  ] = useOperationMethod('delete'+resourceTypes[0]);
+  const [
+    updateUser, 
+    { response: updateUserResponse }
+  ] = useOperationMethod('updateUser');
 
-  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
-
-  const tableDataSourceInit = {
+  const [tableDataSource, setTableDataSource] = useState<any>({
     data: [],
     success: true,
     total: 0
-  };
-  const [tableDataSource, setTableDataSource] = useState<any>(tableDataSourceInit);
+  });
   const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
 
   const actions = useRef<RepoActionType>();
@@ -150,17 +156,16 @@ const RepoTable = ({
           onEditRecord(row.id);
         }else {
           setSelectedForEdit(row.id);
-          setEditResourceDrawerVisible(true);
+          setRightDrawerVisible(true);
         }
       }
     };
-    if (typeof actionRef === 'function') {
-      actionRef(actions.current);
-    } else if (actionRef) {
-      actionRef.current = actions.current;
-    }
+    
   };
 
+  /**
+   * @description Updates currentUser settings on response
+   */
   useEffect(() => {
     if (updateUserResponse){
       store.dispatch({
@@ -170,6 +175,9 @@ const RepoTable = ({
     }
   }, [updateUserResponse]);
 
+  /**
+   * @description Updates columeStateMap on user settings
+   */
   useEffect(() => {
     if (columnsStateMap){
       const _settings = { ...settings.current };
@@ -181,7 +189,9 @@ const RepoTable = ({
     }
   }, [columnsStateMap, settings, currentUser.id, jsonPointer, updateUser]);
 
-
+  /**
+   * @description Handles errors on row delete 
+   */
   useEffect(() => {
     if (deleteError) {
       notification.error({ message: 'Something went wrong. Can\'t delete resource.' });
@@ -203,20 +213,19 @@ const RepoTable = ({
       }
 
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
+      
       if (!_augmentedColumns.some(column => column.key === 'actions')) {
-
         _augmentedColumns.push({
           key: 'operation',
           title: 'Aktionen',
           valueType: 'option',
           fixed: 'right',
-
           render: (text: any, record: any) => {
             return (
               <>
                 <Space size='small'>
                   { // todo: check if user has permission also
-                    defaultActions.includes('edit') && api.getOperation('update'+resourceTypes[0]) ?
+                    _defaultActions.current.includes('edit') && api.getOperation('update'+resourceTypes[0]) ?
                       <Tooltip
                         title={ 'Edit' }>
                         <Button
@@ -228,7 +237,7 @@ const RepoTable = ({
                       </Tooltip>
                       : null}
                   { // todo: check if user has permission also
-                    defaultActions.includes('delete') && api.getOperation('delete'+resourceTypes[0]) ?
+                    _defaultActions.current.includes('delete') && api.getOperation('delete'+resourceTypes[0]) ?
                       <Tooltip
                         title={ 'Delete' }>
                         <Button
@@ -254,6 +263,9 @@ const RepoTable = ({
     return () => { isMounted = false; }; // componentWillUnmount handler
   },[additionalActions, columns, api, resourceTypes, nestedResourceListLookup]);
 
+  /**
+   * @description Handles list response and fills the table with data
+   */
   useEffect(() => {
     if (listResponse) {
       const records = listResponse.data.data === undefined ? [] : listResponse.data.data;
@@ -289,7 +301,9 @@ const RepoTable = ({
 
   }, [listError, listResponse]);
 
-  // fetches data in format expected by antd ProTable component
+  /**
+   * @description Builds the query and triggers the async call for the list
+   */
   function fetchData (params: any, sorter?: Record<string, SortOrder>) {
     const queryParams = [...nestedLookups];
     queryParams.push(...[
@@ -338,12 +352,12 @@ const RepoTable = ({
                 key='primary'
                 onClick={!onAddRecord ?
                   () => {
-                    setAddResourceDrawerVisible(true);
+                    setRightDrawerVisible(true);
                   }
                   : () => {onAddRecord(); }
                 }
               >
-                <PlusOutlined />Neu
+                <PlusOutlined />New
               </Button>: null
           ]
           }
@@ -367,27 +381,16 @@ const RepoTable = ({
         />
       )}
       <Drawer
-        title={`Add a new ${header}`}
+        title={selectedForEdit ? `Edit ${header}`: `Add a new ${header}`}
         placement='right'
-        visible={addResourceDrawerVisible}
-        onClose={()=>{setAddResourceDrawerVisible(false);}}
+        visible={rightDrawerVisible}
+        onClose={()=>{closeRightDrawer();}}
       >
         <RepoForm 
           resourceType={resourceTypes[0]}
-          onSuccess={()=>{setAddResourceDrawerVisible(false);}} 
-        />
-      </Drawer>
-      <Drawer
-        title={`edit ${header}`}
-        placement='right'
-        visible={editResourceDrawerVisible}
-        onClose={()=>{setEditResourceDrawerVisible(false);}}
-
-      >
-        <RepoForm
-          resourceType={resourceTypes[0]}
           resourceId={selectedForEdit}
-          onSuccess={()=>{setEditResourceDrawerVisible(false);}}/>
+          onSuccess={()=>{closeRightDrawer();}} 
+        />
       </Drawer>
     </>
 

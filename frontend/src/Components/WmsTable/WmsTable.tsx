@@ -1,14 +1,13 @@
 import { LockFilled, UnlockFilled } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
-import React, { useRef } from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import RepoTable, { RepoActionType } from '../Shared/RepoTable/NewRepoTable';
+import RepoTable from '../Shared/RepoTable/NewRepoTable';
 
 
 const WmsTable = (): JSX.Element => {
-  const actionRef = useRef<RepoActionType>();
   const navigate = useNavigate();
-  const additionalActions = (text: any, record:any): React.ReactNode => {
+  const additionalActions = useCallback((text: any, record:any): React.ReactNode => {
     return (
       <Tooltip 
         title={ record.allowedOperations > 0 ? `Zugriffsregeln: ${record.allowedOperations}` : 'Zugriff unbeschränkt' }>
@@ -23,12 +22,12 @@ const WmsTable = (): JSX.Element => {
         </Button>
       </Tooltip>
     );
-  };
+  },[navigate],
+  );
 
   return <RepoTable
     resourceTypes={['WebMapService']}
     additionalActions={additionalActions}
-    actionRef={actionRef as any}
   />;
 };
 

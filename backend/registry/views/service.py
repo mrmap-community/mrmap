@@ -83,6 +83,7 @@ class WebMapServiceViewSet(
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
 
@@ -173,6 +174,8 @@ class LayerViewSetMixin(
         "reference_systems": ["reference_systems"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    ordering_fields = ["id", "title", "abstract",
+                       "hits", "scale_max", "scale_min", "date_stamp"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -289,6 +292,7 @@ class WebFeatureServiceViewSet(
     }
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
 
@@ -344,7 +348,7 @@ class FeatureTypeViewSetMixin(
     serializer_class = FeatureTypeSerializer
     filterset_class = FeatureTypeFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
-
+    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
@@ -409,6 +413,7 @@ class CatalougeServiceViewSet(
         "create": CatalougeServiceCreateSerializer,
     }
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
 

@@ -306,7 +306,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 STATIC_URL = "/backend/static/"
-STATIC_ROOT = "/var/www/mrmap/static/"
+STATIC_ROOT = "/var/www/mrmap/backend/"
 STATICFILES_DIRS = [BASE_DIR + "/MrMap/static"]
 
 # static is used for localdev + runserver

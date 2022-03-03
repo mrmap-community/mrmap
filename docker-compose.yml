@@ -29,8 +29,8 @@ services:
       - mrmap-internal
   nginx:
     build:
-      context: ./backend
-      dockerfile: ../docker/nginx/Dockerfile
+      context: ./docker/nginx
+      dockerfile: ./Dockerfile
     ports:
       - "80:80"
       - "443:443"
@@ -41,7 +41,7 @@ services:
         target: /etc/nginx/conf.d/default.conf
       - type: volume
         source: mrmap-static
-        target: /var/www/mrmap/static
+        target: /var/www/mrmap
     networks:
       - mrmap-internal
     extra_hosts:
@@ -82,7 +82,7 @@ services:
         target: /opt/mrmap
       - type: volume
         source: mrmap-static
-        target: /var/www/mrmap/static
+        target: /var/www/mrmap
       - type: volume
         source: mrmap-media
         target: /var/mrmap/media

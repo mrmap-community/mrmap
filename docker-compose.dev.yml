@@ -143,6 +143,9 @@ services:
       /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n db-calc -Q db-calc"
 
   nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: ./DevDockerfile
     volumes:
       - type: bind
         source: ./docker/nginx/mrmap.dev.conf

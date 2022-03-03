@@ -105,6 +105,7 @@ services:
     build:
       args:
         MRMAP_PRODUCTION: "False"
+    container_name: backend-dev
     env_file:
       - docker/backend/.mrmap.env
       - docker/backend/.mrmap.dev.env
@@ -143,6 +144,10 @@ services:
       /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -n db-calc -Q db-calc"
 
   nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: ./DevDockerfile
+    container_name: nginx-dev
     volumes:
       - type: bind
         source: ./docker/nginx/mrmap.dev.conf

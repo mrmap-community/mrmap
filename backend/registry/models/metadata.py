@@ -14,8 +14,7 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOrigin, MetadataOriginEnum,
                                      MetadataRelationEnum,
                                      ReferenceSystemPrefixEnum)
-from registry.managers.metadata import (IsoMetadataManager, KeywordManager,
-                                        LicenceManager)
+from registry.managers.metadata import IsoMetadataManager, KeywordManager
 from registry.models.document import MetadataDocumentModelMixin
 from registry.xmlmapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
@@ -91,8 +90,6 @@ class Licence(models.Model):
     description = models.TextField()
     description_url = models.URLField(null=True)
     is_open_data = models.BooleanField(default=False)
-
-    objects = LicenceManager()
 
     def __str__(self):
         return "{} ({})".format(self.identifier, self.name)

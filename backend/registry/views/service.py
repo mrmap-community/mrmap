@@ -384,12 +384,11 @@ class NestedFeatureTypeViewSet(
     """
 
 
-class CatalougeServiceViewSet(
+class CatalougeServiceViewSetMixin(
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
-    ModelViewSet,
 ):
     """ Endpoints for resource `CatalougeService`
 
@@ -430,3 +429,17 @@ class CatalougeServiceViewSet(
                 "user_pk": request.user.pk,
             }
         }
+
+
+class CatalougeServiceViewSet(
+    CatalougeServiceViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedCatalougeServiceViewSet(
+    CatalougeServiceViewSetMixin,
+    NestedModelViewSet
+):
+    pass

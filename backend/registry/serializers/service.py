@@ -276,7 +276,7 @@ class WebFeatureServiceSerializer(
 
     featuretypes = ResourceRelatedField(
         queryset=FeatureType.objects,
-        many=True,  # necessary for M2M fields & reverse FK fields
+        many=True,
         related_link_view_name="registry:wfs-featuretypes-list",
         related_link_url_kwarg="parent_lookup_service",
     )

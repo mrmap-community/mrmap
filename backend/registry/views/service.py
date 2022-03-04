@@ -11,8 +11,7 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import (DatasetMetadata, Keyword,
-                                      ReferenceSystem, Style)
+from registry.models.metadata import Keyword, ReferenceSystem, Style
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalougeService,
                                      WebFeatureServiceOperationUrl,

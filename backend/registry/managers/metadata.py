@@ -4,7 +4,6 @@ from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 from registry.enums.metadata import MetadataOrigin
 from simple_history.models import HistoricalRecords
 

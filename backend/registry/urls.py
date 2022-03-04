@@ -87,7 +87,7 @@ router = ExtendedSimpleRouter()
           .register(r'layers', service_views.NestedLayerViewSet, basename='datasetmetadata-layers', parents_query_lookups=['dataset_metadata_relation__dataset_metadata']),
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
           .register(r'featuretypes', service_views.NestedFeatureTypeViewSet, basename='datasetmetadata-featuretypes', parents_query_lookups=['dataset_metadata_relation__dataset_metadata']),
-    
+
     # security
     router.register(r'security/wms-authentication', security_views.WebMapServiceAuthenticationViewSet, basename='wmsauth'),
     router.register(r'security/wms-operations', security_views.WebMapServiceOperationViewSet, basename='wmsoperation'),

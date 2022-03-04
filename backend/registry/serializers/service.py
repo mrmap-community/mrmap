@@ -342,6 +342,18 @@ class WebFeatureServiceCreateSerializer(ModelSerializer):
         )
 
 
+class CatalougeServiceOperationUrlSerializer(ModelSerializer):
+
+    url = SerializerMethodField()
+
+    class Meta:
+        model = CatalougeServiceOperationUrl
+        fields = "__all__"
+
+    def get_url(self, instance):
+        return instance.get_url(request=self.context["request"])
+
+
 class CatalougeServiceCreateSerializer(ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
@@ -402,7 +414,7 @@ class CatalougeServiceSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        "operation_urls": WebFeatureServiceOperationUrlSerializer,
+        "operation_urls": CatalougeServiceOperationUrlSerializer,
     }
 
     class Meta:

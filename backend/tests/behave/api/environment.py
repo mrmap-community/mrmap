@@ -30,6 +30,8 @@ def before_feature(context, feature):
         fixtures.extend(['test_wfs.json', 'test_keywords.json'])
     elif 'HarvestingJob' in feature.name:
         fixtures.extend(['test_csw.json'])
+    elif 'CatalougeService' in feature.name:
+        fixtures.extend(['test_keywords.json', 'test_csw.json', ])
 
     elif 'WebMapService' in feature.name:
         fixtures.extend(['test_wms.json', 'test_keywords.json'])

@@ -14,6 +14,7 @@ from registry.models import (FeatureType, Layer, WebFeatureService,
 from registry.models.metadata import Keyword, ReferenceSystem, Style
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalougeService,
+                                     CatalougeServiceOperationUrl,
                                      WebFeatureServiceOperationUrl,
                                      WebMapServiceOperationUrl)
 from registry.serializers.service import (CatalougeServiceCreateSerializer,
@@ -412,6 +413,10 @@ class CatalougeServiceViewSetMixin(
         "create": CatalougeServiceCreateSerializer,
     }
     search_fields = ("id", "title", "abstract", "keywords__keyword")
+    filter_fields = {
+        'title': ['exact', 'icontains', 'contains'],
+        'abstract': ['exact', 'icontains', 'contains']
+    }
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
@@ -452,7 +457,7 @@ class CatalougeServiceViewSetMixin(
             qs = qs.prefetch_related(
                 Prefetch(
                     "operation_urls",
-                    queryset=WebFeatureServiceOperationUrl.objects.only(
+                    queryset=CatalougeServiceOperationUrl.objects.only(
                         "id", "service_id"),
                 )
             )

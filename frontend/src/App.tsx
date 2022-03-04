@@ -12,7 +12,6 @@ import LayerTable from './Components/LayerTable/LayerTable';
 import { Login } from './Components/LoginForm/LoginForm';
 import { Logout } from './Components/Logout/Logout';
 import { MapContextEditor } from './Components/MapContextEditor/MapContextEditor';
-import { MapContextForm } from './Components/MapContextForm/MapContextForm';
 import MapContextTable from './Components/MapContextTable/MapContextTable';
 import { NavMenu } from './Components/NavMenu/NavMenu';
 import { PageNotFound } from './Components/PageNotFound/PageNotFound';
@@ -171,16 +170,6 @@ export default function App (): JSX.Element {
           <Route
             path='/registry/mapcontexts/:id/edit'
             element={<MapContextEditor />}
-            // @ts-ignore
-            exact
-          />
-          <Route
-            path='/registry/mapcontexts-old/add'
-            element={<MapContextForm />}
-          />
-          <Route
-            path='/registry/mapcontexts-old/:id/edit'
-            element={<MapContextForm />}
             // @ts-ignore
             exact
           />

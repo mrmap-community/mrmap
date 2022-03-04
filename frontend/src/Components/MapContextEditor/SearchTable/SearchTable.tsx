@@ -10,10 +10,11 @@ export const SearchTable = ({
 }): ReactElement => {
 
   const getDatasetMetadataColumnActions = (text: any, record:any) => {
+    const relatedLayers = record.relationships?.selfPointingLayers?.data;
     return (
       <>
         <Button
-          disabled={record.layers.length === 0 || !record.layers}
+          disabled={!relatedLayers || relatedLayers.length === 0}
           size='small'
           type='primary'
           onClick={ () => { addDatasetToMapAction(record); } }

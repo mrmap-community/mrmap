@@ -11,7 +11,8 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import Keyword, ReferenceSystem, Style
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      ReferenceSystem, Style)
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalougeService,
                                      WebFeatureServiceOperationUrl,
@@ -429,6 +430,34 @@ class CatalougeServiceViewSetMixin(
                 "user_pk": request.user.pk,
             }
         }
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+        # TODO:
+        # if not include or "datasetMetadata" not in include:
+        #     qs = qs.prefetch_related(
+        #         Prefetch(
+        #             "dataset_metadata",
+        #             queryset=DatasetMetadata.objects.only(
+        #                 "id",
+        #                 "service_id",
+        #             )
+        #         ),
+        #     )
+        if not include or "keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "operationUrls" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "operation_urls",
+                    queryset=WebFeatureServiceOperationUrl.objects.only(
+                        "id", "service_id"),
+                )
+            )
+        return qs
 
 
 class CatalougeServiceViewSet(

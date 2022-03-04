@@ -29,7 +29,6 @@ router = ExtendedSimpleRouter()
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'allowed-wms-operations', security_views.NestedAllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
 
-
     # web feature service
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'featuretypes', service_views.NestedFeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
@@ -46,9 +45,15 @@ router = ExtendedSimpleRouter()
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'allowed-wms-operations', security_views.NestedAllowedWebFeatureServiceOperationViewSet, basename='wfs-allowedwmsoperation', parents_query_lookups=['secured_service']),
 
-
     # catalouge service
-    router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw'),
+    router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw')
+          .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='csw-datasetmetadata', parents_query_lookups=['self_pointing_catalouge_service']),
+    router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw')
+          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='csw-keywords', parents_query_lookups=['ogcservice_metadata']),
+    router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw')
+          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-service-contact', parents_query_lookups=['service_contact_catalougeservice_metadata']),
+    router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw')
+          .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-metadata-contact', parents_query_lookups=['metadata_contact_catalougeservice_metadata']),
 
     # harvesting
     router.register(r'harvesting/harvesting-jobs', harvesting_views.HarvestingJobViewSet, basename='harvestingjob'),
@@ -83,7 +88,6 @@ router = ExtendedSimpleRouter()
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
           .register(r'featuretypes', service_views.NestedFeatureTypeViewSet, basename='datasetmetadata-featuretypes', parents_query_lookups=['dataset_metadata_relation__dataset_metadata']),
     
-
     # security
     router.register(r'security/wms-authentication', security_views.WebMapServiceAuthenticationViewSet, basename='wmsauth'),
     router.register(r'security/wms-operations', security_views.WebMapServiceOperationViewSet, basename='wmsoperation'),

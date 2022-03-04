@@ -127,7 +127,7 @@ class NestedStyleViewSet(
     pass
 
 
-class DatasetMetadataViewSet(ModelViewSet):
+class DatasetMetadataViewSetMixin:
     schema = CustomAutoSchema(
         tags=["DatasetMetadata"],
     )
@@ -227,6 +227,20 @@ class DatasetMetadataViewSet(ModelViewSet):
                 )
             )
         return qs
+
+
+class DatasetMetadataViewSet(
+        DatasetMetadataViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedDatasetMetadataViewSet(
+    DatasetMetadataViewSetMixin,
+    NestedModelViewSet
+):
+    pass
 
 
 class MetadataContactViewSetMixin():

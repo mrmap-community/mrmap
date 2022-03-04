@@ -33,9 +33,9 @@ def before_feature(context, feature):
     elif 'CatalougeService' in feature.name:
         fixtures.extend(['test_keywords.json', 'test_csw.json', ])
 
-    elif 'WebMapService' in feature.name:
+    elif ('WebMapService' in feature.name or 'Layer' in feature.name):
         fixtures.extend(['test_wms.json', 'test_keywords.json'])
-    elif 'WebFeatureService' in feature.name:
+    elif ('WebFeatureService' in feature.name or 'Featuretype' in feature.name):
         fixtures.extend(['test_wfs.json', 'test_keywords.json'])
     elif 'BackgroundProcess' in feature.name:
         fixtures.extend(['test_background.json'])

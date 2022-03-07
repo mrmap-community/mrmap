@@ -5,16 +5,18 @@ from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer)
 from MrMap.validators import validate_get_capablities_uri
-from registry.models.metadata import (Keyword, MetadataContact,
-                                      ReferenceSystem, Style)
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, ReferenceSystem, Style)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
-from registry.models.service import (CatalougeService, FeatureType, Layer,
-                                     WebFeatureService,
+from registry.models.service import (CatalougeService,
+                                     CatalougeServiceOperationUrl, FeatureType,
+                                     Layer, WebFeatureService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapService, WebMapServiceOperationUrl)
-from registry.serializers.metadata import (KeywordSerializer,
+from registry.serializers.metadata import (DatasetMetadataSerializer,
+                                           KeywordSerializer,
                                            MetadataContactSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
@@ -41,6 +43,7 @@ class WebMapServiceOperationUrlSerializer(ModelSerializer):
 
 class LayerSerializer(
         StringRepresentationSerializer,
+        HistoryInformationSerializer,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layer-detail",
@@ -96,6 +99,8 @@ class LayerSerializer(
         "service.operation_urls": WebMapServiceOperationUrlSerializer,
         "styles": StyleSerializer,
         "keywords": KeywordSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
         # TODO: "reference_systems": ReferenceSystemSerializer
     }
 
@@ -117,7 +122,6 @@ class WebMapServiceSerializer(
     url = HyperlinkedIdentityField(
         view_name="registry:wms-detail",
     )
-
     layers = ResourceRelatedField(
         model=Layer,
         many=True,  # necessary for M2M fields & reverse FK fields
@@ -125,7 +129,6 @@ class WebMapServiceSerializer(
         related_link_url_kwarg="parent_lookup_service",
         read_only=True,
     )
-
     service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name="registry:wms-service-contact-list",
@@ -142,7 +145,6 @@ class WebMapServiceSerializer(
         related_link_view_name="registry:wms-keywords-list",
         related_link_url_kwarg="parent_lookup_ogcservice_metadata",
     )
-
     allowed_operations = ResourceRelatedField(
         queryset=AllowedWebMapServiceOperation.objects,
         many=True,
@@ -150,7 +152,6 @@ class WebMapServiceSerializer(
         related_link_url_kwarg="parent_lookup_secured_service",
         # meta_attrs={'keyword_count': 'count'}
     )
-
     operation_urls = ResourceRelatedField(
         label=_("operation urls"),
         help_text=_("this are the urls to use for the ogc operations."),
@@ -219,6 +220,7 @@ class WebFeatureServiceOperationUrlSerializer(ModelSerializer):
 
 class FeatureTypeSerializer(
         StringRepresentationSerializer,
+        HistoryInformationSerializer,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -257,6 +259,8 @@ class FeatureTypeSerializer(
         "service": "registry.serializers.service.WebFeatureServiceSerializer",
         "service.operation_urls": WebFeatureServiceOperationSerializer,
         "keywords": KeywordSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
         # TODO: "reference_systems": ReferenceSystemSerializer
     }
 
@@ -276,7 +280,7 @@ class WebFeatureServiceSerializer(
 
     featuretypes = ResourceRelatedField(
         queryset=FeatureType.objects,
-        many=True,  # necessary for M2M fields & reverse FK fields
+        many=True,
         related_link_view_name="registry:wfs-featuretypes-list",
         related_link_url_kwarg="parent_lookup_service",
     )
@@ -340,6 +344,18 @@ class WebFeatureServiceCreateSerializer(ModelSerializer):
         )
 
 
+class CatalougeServiceOperationUrlSerializer(ModelSerializer):
+
+    url = SerializerMethodField()
+
+    class Meta:
+        model = CatalougeServiceOperationUrl
+        fields = "__all__"
+
+    def get_url(self, instance):
+        return instance.get_url(request=self.context["request"])
+
+
 class CatalougeServiceCreateSerializer(ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
@@ -358,10 +374,50 @@ class CatalougeServiceCreateSerializer(ModelSerializer):
 
 class CatalougeServiceSerializer(
         StringRepresentationSerializer,
+        HistoryInformationSerializer,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
     )
+    dataset_metadata = ResourceRelatedField(
+        queryset=DatasetMetadata.objects,
+        many=True,
+        related_link_view_name="registry:csw-datasetmetadata-list",
+        related_link_url_kwarg="parent_lookup_self_pointing_catalouge_service",
+    )
+    service_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name="registry:csw-service-contact-list",
+        related_link_url_kwarg="parent_lookup_service_contact_catalougeservice_metadata",
+    )
+    metadata_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name="registry:csw-metadata-contact-list",
+        related_link_url_kwarg="parent_lookup_metadata_contact_catalougeservice_metadata",
+    )
+    keywords = ResourceRelatedField(
+        queryset=Keyword.objects,
+        many=True,
+        related_link_view_name="registry:csw-keywords-list",
+        related_link_url_kwarg="parent_lookup_ogcservice_metadata",
+    )
+    operation_urls = ResourceRelatedField(
+        label=_("operation urls"),
+        help_text=_("this are the urls to use for the ogc operations."),
+        model=CatalougeServiceOperationUrl,
+        many=True,
+        read_only=True,
+    )
+
+    included_serializers = {
+        "dataset_metadata": DatasetMetadataSerializer,
+        "service_contact": MetadataContactSerializer,
+        "metadata_contact": MetadataContactSerializer,
+        "keywords": KeywordSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
+        "operation_urls": CatalougeServiceOperationUrlSerializer,
+    }
 
     class Meta:
         model = CatalougeService

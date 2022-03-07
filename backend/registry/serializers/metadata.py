@@ -1,7 +1,7 @@
 from extras.serializers import StringRepresentationSerializer
-from registry.models.metadata import (DatasetMetadata, Keyword,
+from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
-from registry.models.service import FeatureType, Layer
+from registry.models.service import CatalougeService, FeatureType, Layer
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer
@@ -20,6 +20,19 @@ class KeywordSerializer(
         fields = "__all__"
 
 
+class LicenceSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name="registry:licence-detail",
+    )
+
+    class Meta:
+        model = Licence
+        fields = "__all__"
+
+
 class ReferenceSystemSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
@@ -31,7 +44,6 @@ class ReferenceSystemSerializer(
     class Meta:
         model = ReferenceSystem
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class StyleSerializer(
@@ -45,7 +57,6 @@ class StyleSerializer(
     class Meta:
         model = Style
         fields = "__all__"
-        meta_fields = ("string_representation",)
 
 
 class MetadataContactSerializer(
@@ -67,45 +78,48 @@ class DatasetMetadataSerializer(
 
     self_pointing_layers = ResourceRelatedField(
         queryset=Layer.objects,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        # TODO:
-        # related_link_view_name="registry:wms-layers-list",
-        # related_link_url_kwarg="parent_lookup_service",
-        # self_link_view_name="registry:wms-relationships",
+        many=True,
+        related_link_view_name="registry:datasetmetadata-layers-list",
+        related_link_url_kwarg="parent_lookup_dataset_metadata_relation__dataset_metadata",
     )
     self_pointing_feature_types = ResourceRelatedField(
         queryset=FeatureType.objects,
-        many=True,  # necessary for M2M fields & reverse FK fields
-        # TODO:
-        # related_link_view_name="registry:wms-layers-list",
-        # related_link_url_kwarg="parent_lookup_service",
-        # self_link_view_name="registry:wms-relationships",
+        many=True,
+        related_link_view_name="registry:datasetmetadata-featuretypes-list",
+        related_link_url_kwarg="parent_lookup_dataset_metadata_relation__dataset_metadata",
+    )
+    self_pointing_catalouge_service = ResourceRelatedField(
+        queryset=CatalougeService.objects,
+        many=True,
+        related_link_view_name="registry:datasetmetadata-csws-list",
+        related_link_url_kwarg="parent_lookup_dataset_metadata_relation__dataset_metadata",
     )
     dataset_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
-        # TODO:
-        # related_link_view_name='registry:wms-metadata-contact-list',
-        # related_link_url_kwarg='parent_lookup_metadata_contact_webmapservice_metadata'
+        related_link_view_name='registry:datasetmetadata-datasetcontact-list',
+        related_link_url_kwarg='parent_lookup_dataset_contact_metadata'
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
-        # TODO:
-        # related_link_view_name='registry:wms-metadata-contact-list',
-        # related_link_url_kwarg='parent_lookup_metadata_contact_webmapservice_metadata'
+        related_link_view_name='registry:datasetmetadata-metadatacontact-list',
+        related_link_url_kwarg='parent_lookup_metadata_contact_metadata'
+    )
+    licence = ResourceRelatedField(
+        queryset=Licence.objects,
+        related_link_view_name='registry:datasetmetadata-licence-list',
+        related_link_url_kwarg='parent_lookup_datasetmetadata'
     )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
-        # TODO:
-        # related_link_view_name='registry:wms-keywords-list',
-        # related_link_url_kwarg='parent_lookup_ogcservice_metadata',
+        related_link_view_name='registry:datasetmetadata-keywords-list',
+        related_link_url_kwarg='parent_lookup_datasetmetadata_metadata'
     )
     reference_systems = ResourceRelatedField(
         queryset=ReferenceSystem.objects,
         many=True,
-        # TODO:
-        # related_link_view_name='registry:wms-keywords-list',
-        # related_link_url_kwarg='parent_lookup_ogcservice_metadata',
+        related_link_view_name='registry:datasetmetadata-referencesystems-list',
+        related_link_url_kwarg='parent_lookup_dataset_metadata'
     )
 
     included_serializers = {

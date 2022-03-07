@@ -157,6 +157,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 class CatalougeService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
     capabilities = CatalougeServiceCapabilitiesManager()
+    objects = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("catalouge service")
@@ -802,6 +803,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         ),
     )
     change_log = HistoricalRecords(related_name="change_logs")
+    objects = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("feature type")

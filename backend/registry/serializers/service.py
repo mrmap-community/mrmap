@@ -224,6 +224,7 @@ class WebFeatureServiceOperationUrlSerializer(ModelSerializer):
 
 class FeatureTypeSerializer(
         StringRepresentationSerializer,
+        HistoryInformationSerializer,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -262,6 +263,8 @@ class FeatureTypeSerializer(
         "service": "registry.serializers.service.WebFeatureServiceSerializer",
         "service.operation_urls": WebFeatureServiceOperationSerializer,
         "keywords": KeywordSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
         # TODO: "reference_systems": ReferenceSystemSerializer
     }
 

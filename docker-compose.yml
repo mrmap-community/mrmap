@@ -29,8 +29,8 @@ services:
       - mrmap-internal
   nginx:
     build:
-      context: ./frontend
-      dockerfile: ../docker/nginx/Dockerfile
+      context: ./
+      dockerfile: ./docker/nginx/Dockerfile
     ports:
       - "80:80"
       - "443:443"

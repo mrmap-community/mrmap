@@ -122,7 +122,6 @@ class WebMapServiceSerializer(
     url = HyperlinkedIdentityField(
         view_name="registry:wms-detail",
     )
-
     layers = ResourceRelatedField(
         model=Layer,
         many=True,  # necessary for M2M fields & reverse FK fields
@@ -130,7 +129,6 @@ class WebMapServiceSerializer(
         related_link_url_kwarg="parent_lookup_service",
         read_only=True,
     )
-
     service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name="registry:wms-service-contact-list",
@@ -147,7 +145,6 @@ class WebMapServiceSerializer(
         related_link_view_name="registry:wms-keywords-list",
         related_link_url_kwarg="parent_lookup_ogcservice_metadata",
     )
-
     allowed_operations = ResourceRelatedField(
         queryset=AllowedWebMapServiceOperation.objects,
         many=True,
@@ -155,7 +152,6 @@ class WebMapServiceSerializer(
         related_link_url_kwarg="parent_lookup_secured_service",
         # meta_attrs={'keyword_count': 'count'}
     )
-
     operation_urls = ResourceRelatedField(
         label=_("operation urls"),
         help_text=_("this are the urls to use for the ogc operations."),

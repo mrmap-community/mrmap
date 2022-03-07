@@ -43,6 +43,7 @@ class WebMapServiceOperationUrlSerializer(ModelSerializer):
 
 class LayerSerializer(
         StringRepresentationSerializer,
+        HistoryInformationSerializer,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layer-detail",
@@ -98,6 +99,8 @@ class LayerSerializer(
         "service.operation_urls": WebMapServiceOperationUrlSerializer,
         "styles": StyleSerializer,
         "keywords": KeywordSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
         # TODO: "reference_systems": ReferenceSystemSerializer
     }
 

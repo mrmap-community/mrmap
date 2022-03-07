@@ -200,17 +200,6 @@
         }
     },
     {
-        "model": "registry.datasetmetadata",
-        "pk": "9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e",
-        "fields": {
-            "date_stamp": "2013-03-16T17:41:28+00:00",
-            "title": "dataset1",
-            "abstract": "dataset1",
-            "dataset_contact": "1",
-            "metadata_contact": "1"
-        }
-    },
-    {
         "model": "registry.datasetmetadatarelation",
         "pk": 1,
         "fields": {

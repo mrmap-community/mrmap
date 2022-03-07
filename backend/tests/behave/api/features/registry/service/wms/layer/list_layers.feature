@@ -1,4 +1,3 @@
-@qwertz
 Feature: Layer List Endpoint
     As an API client,
     I want to search for layer,

@@ -24,6 +24,29 @@
         }
     },
     {
+        "model": "registry.historicallayer",
+        "pk": "639cb553-8c30-4e72-a38d-10351ce81cf1",
+        "fields": {
+            "id": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "node1",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
+            "scale_min": 1,
+            "scale_max": 1000,
+            "origin": "capabilities",
+            "title": "node1",
+            "is_queryable": true,
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
         "model": "registry.metadatacontact",
         "pk": "1",
         "fields": {

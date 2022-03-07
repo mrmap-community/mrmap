@@ -307,15 +307,6 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 STATIC_URL = "/backend/static/"
 STATIC_ROOT = "/var/www/mrmap/backend/"
-STATICFILES_DIRS = [BASE_DIR + "/MrMap/static"]
-
-# static is used for localdev + runserver
-if os.path.exists(BASE_DIR + "/static"):
-    STATICFILES_DIRS.append(BASE_DIR + "/static")
-
-# /tmp/static is used in docker container
-if os.path.exists("/tmp/static"):
-    STATICFILES_DIRS.append("/tmp/static")
 
 WSGI_APPLICATION = "MrMap.wsgi.application"
 ASGI_APPLICATION = "MrMap.asgi.application"

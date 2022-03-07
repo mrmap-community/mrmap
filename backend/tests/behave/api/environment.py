@@ -43,7 +43,7 @@ def before_feature(context, feature):
         or 'CatalougeService' in feature.name
     ):
         fixtures.extend(
-            ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json'])
+            ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json', 'test_datasetmetadata_relations.json'])
     elif 'BackgroundProcess' in feature.name:
         fixtures.extend(['test_background.json'])
 

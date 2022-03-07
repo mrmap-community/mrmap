@@ -21,8 +21,6 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# build python dependencies    
-COPY ./requirements.txt ./requirements.dev.txt /
 RUN /usr/local/bin/python -m pip install --upgrade pip && \
     pip install -r requirements.txt && \
     pip install -r requirements.dev.txt && \

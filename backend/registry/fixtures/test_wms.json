@@ -158,7 +158,12 @@
             "tree_id": 1,
             "level": 0,
             "lft": 1,
-            "rght": 15
+            "rght": 15,
+            "keywords": [
+                [
+                    "meteorology"
+                ]
+            ]
         }
     },
     {
@@ -254,12 +259,7 @@
             "tree_id": 1,
             "level": 1,
             "lft": 12,
-            "rght": 15,
-            "keywords": [
-                [
-                    "meteorology"
-                ]
-            ]
+            "rght": 15
         }
     },
     {
@@ -331,7 +331,7 @@
         "model": "registry.style",
         "pk": 1,
         "fields": {
-            "layer": "05977f90-3bd9-4017-95e1-5252735d213f",
+            "layer": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
             "name": "style node 1",
             "title": "style node 1"
         }

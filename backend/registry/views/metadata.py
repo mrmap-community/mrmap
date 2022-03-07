@@ -2,11 +2,12 @@ from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
-from registry.models.metadata import (DatasetMetadata, Keyword,
+from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalougeService, FeatureType, Layer
 from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            KeywordSerializer,
+                                           LicenceSerializer,
                                            MetadataContactSerializer,
                                            ReferenceSystemSerializer,
                                            StyleSerializer)
@@ -34,6 +35,33 @@ class KeywordViewSet(
 
 class NestedKeywordViewSet(
     KeywordViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class LicenceViewSetMixin():
+    schema = CustomAutoSchema(
+        tags=["Licence"],
+    )
+    queryset = Licence.objects.all()
+    serializer_class = LicenceSerializer
+    filterset_fields = {
+        "name": ["exact", "icontains", "contains"],
+        "identifier": ["exact", "icontains", "contains"],
+    }
+    search_fields = ("name", "identifier")
+
+
+class LicenceViewSet(
+    LicenceViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedLicenceViewSet(
+    LicenceViewSetMixin,
     NestedModelViewSet
 ):
     pass
@@ -99,7 +127,7 @@ class NestedStyleViewSet(
     pass
 
 
-class DatasetMetadataViewSet(ModelViewSet):
+class DatasetMetadataViewSetMixin:
     schema = CustomAutoSchema(
         tags=["DatasetMetadata"],
     )
@@ -199,6 +227,20 @@ class DatasetMetadataViewSet(ModelViewSet):
                 )
             )
         return qs
+
+
+class DatasetMetadataViewSet(
+        DatasetMetadataViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedDatasetMetadataViewSet(
+    DatasetMetadataViewSetMixin,
+    NestedModelViewSet
+):
+    pass
 
 
 class MetadataContactViewSetMixin():

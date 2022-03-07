@@ -24,6 +24,27 @@
         }
     },
     {
+        "model": "registry.historicalfeaturetype",
+        "pk": "27350543-a76d-4a43-be24-954eca0847df",
+        "fields": {
+            "id": "efba476a-d3ff-44f8-a0db-7f2c811f7247",
+            "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "wfs1-node1",
+            "bbox_lat_lon": "SRID=4326;POLYGON ((7.174072265624999 52.11325243469631, 8.85498046875 52.11325243469631, 8.85498046875 53.14677033085082, 7.174072265624999 53.14677033085082, 7.174072265624999 52.11325243469631))",
+            "origin": "capabilities",
+            "title": "wfs1-node1",
+            "abstract": "wfs1-node1",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "efba476a-d3ff-44f8-a0db-7f2c811f7247",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
         "model": "registry.metadatacontact",
         "pk": "1",
         "fields": {}
@@ -33,7 +54,7 @@
         "pk": "1",
         "fields": {
             "method": "Get",
-            "url": "http://example.com/wms?",
+            "url": "http://example.com/wfs?",
             "operation": "GetFeature",
             "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
         }
@@ -64,10 +85,16 @@
         "fields": {
             "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "identifier": "node1",
+            "identifier": "wfs1-node1",
             "bbox_lat_lon": "SRID=4326;POLYGON ((7.174072265624999 52.11325243469631, 8.85498046875 52.11325243469631, 8.85498046875 53.14677033085082, 7.174072265624999 53.14677033085082, 7.174072265624999 52.11325243469631))",
             "origin": "capabilities",
-            "title": "node1"
+            "title": "wfs1-node1",
+            "abstract": "wfs1-node1",
+            "keywords": [
+                [
+                    "meteorology"
+                ]
+            ]
         }
     },
     {
@@ -111,7 +138,7 @@
         "pk": "2",
         "fields": {
             "method": "Get",
-            "url": "http://example.com/wms?",
+            "url": "http://example.com/wfs?",
             "operation": "GetFeature",
             "service": "72bda0a1-a808-48ba-ab1d-bf03081263df"
         }
@@ -137,10 +164,11 @@
         "fields": {
             "service": "72bda0a1-a808-48ba-ab1d-bf03081263df",
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "identifier": "node1",
+            "identifier": "wfs2-node1",
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
-            "title": "node1"
+            "title": "wfs2-node1",
+            "abstract": "wfs2-node1"
         }
     }
 ]

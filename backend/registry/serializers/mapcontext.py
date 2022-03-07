@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
@@ -7,7 +8,8 @@ from registry.serializers.service import LayerSerializer
 from rest_framework.fields import CharField, IntegerField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 ModelSerializer)
+                                                 ModelSerializer,
+                                                 SerializerMethodField)
 
 
 class MapContextLayerSerializer(
@@ -94,6 +96,9 @@ class MapContextDefaultSerializer(
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontext-detail',
     )
+    ogc_mapcontext_url = SerializerMethodField(
+        read_only=True,
+    )
     map_context_layers = ResourceRelatedField(
         queryset=MapContextLayer.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
@@ -111,6 +116,9 @@ class MapContextDefaultSerializer(
         # to set the map_context_layer_count attribute on a frech object, so that the map_context_layers field will not raise an AttributeError
         instance.map_context_layer_count = 0
         return instance
+
+    def get_ogc_mapcontext_url(self, instance):
+        return reverse('ows-context-detail', args=[instance.pk])
 
 
 class MapContextIncludeSerializer(

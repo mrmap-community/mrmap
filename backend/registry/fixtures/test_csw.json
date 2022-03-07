@@ -1,5 +1,74 @@
 [
     {
+        "model": "registry.historicalcatalougeservice",
+        "pk": "639cb553-8c30-4e72-a38d-10351ce81cf1",
+        "fields": {
+            "id": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
+            "title": "CSW1",
+            "abstract": "abstract1",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
+        "model": "registry.historicalcatalougeservice",
+        "pk": "e9d333e3-d475-4205-9586-7e85c7cbd3c1",
+        "fields": {
+            "id": "3df586c6-b89b-4ce5-980a-12dc3ca23df2",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
+            "title": "CSW2",
+            "abstract": "abstract2",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "3df586c6-b89b-4ce5-980a-12dc3ca23df2",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
+        "model": "registry.historicalcatalougeservice",
+        "pk": "4dd51e1c-df5c-424b-8acd-ec55b87aefd5",
+        "fields": {
+            "id": "57cf66c2-3bde-49ad-b76e-bae49da57516",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
+            "title": "CSW3",
+            "abstract": "abstract3",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "57cf66c2-3bde-49ad-b76e-bae49da57516",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
         "model": "registry.metadatacontact",
         "pk": "1",
         "fields": {}
@@ -88,7 +157,8 @@
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
-            "title": "CSW",
+            "title": "CSW1",
+            "abstract": "abstract1",
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1"
@@ -102,7 +172,8 @@
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
-            "title": "CSW",
+            "title": "CSW2",
+            "abstract": "abstract2",
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1"
@@ -116,10 +187,16 @@
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
-            "title": "CSW",
+            "title": "CSW3",
+            "abstract": "abstract3",
             "service_url": "",
             "service_contact": "1",
-            "metadata_contact": "1"
+            "metadata_contact": "1",
+            "keywords": [
+                [
+                    "meteorology"
+                ]
+            ]
         }
     },
     {

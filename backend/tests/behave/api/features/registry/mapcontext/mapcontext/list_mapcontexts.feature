@@ -17,9 +17,33 @@ Feature: MapContext List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.[0].relationships.mapContextLayers.meta.count" with value "5"
 
-    Scenario: Can retrieve list with included map context layers
+    Scenario: Can search by title
+        Given I set a queryparam "filter[search]" with value "MapContext1"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+
+    Scenario: Can search by abstract
+        Given I set a queryparam "filter[search]" with value "MapContext1"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+
+    Scenario: Can filter by title
+        Given I set a queryparam "filter[title.icontains]" with value "MapContext1"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+
+    Scenario: Can filter by abstract
+        Given I set a queryparam "filter[abstract.icontains]" with value "MapContext1"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+
+    Scenario: Can include mapContextLayers
         Given I set a queryparam "include" with value "mapContextLayers"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included"
+        Then I expect that response json has an attribute "included.[0].type" with value "MapContextLayer"
         Then I expect that response json has an attribute "data.[0].relationships.mapContextLayers.meta.count" with value "5"

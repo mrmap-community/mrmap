@@ -263,3 +263,17 @@ class NestedMetadataContactViewSet(
     NestedModelViewSet
 ):
     pass
+
+
+class ServiceContactViewSet(
+    MetadataContactViewSetMixin,
+    ModelViewSet
+):
+    resource_name = 'ServiceContact'
+
+
+class NestedServiceContactViewSet(
+    MetadataContactViewSetMixin,
+    NestedModelViewSet
+):
+    resource_name = 'ServiceContact'

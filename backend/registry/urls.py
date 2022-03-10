@@ -15,9 +15,9 @@ router = ExtendedSimpleRouter()
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'layers', service_views.NestedLayerViewSet, basename='wms-layers', parents_query_lookups=['service']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wms-service-contact', parents_query_lookups=['service_contact_webmapservice_metadata']),
+          .register(r'service-contact', metadata_views.NestedServiceContactViewSet, basename='wms-service-contact', parents_query_lookups=['service_contact_webmapservice_metadata']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wms-metadata-contact', parents_query_lookups=['metadata_contact_webmapservice_metadata']),
+          .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='wms-metadata-contact', parents_query_lookups=['metadata_contact_webmapservice_metadata']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wms-keywords', parents_query_lookups=['ogcservice_metadata']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
@@ -33,9 +33,9 @@ router = ExtendedSimpleRouter()
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'featuretypes', service_views.NestedFeatureTypeViewSet, basename='wfs-featuretypes', parents_query_lookups=['service']),
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-service-contact', parents_query_lookups=['service_contact_webfeatureservice_metadata']),
+          .register(r'service-contact', metadata_views.NestedServiceContactViewSet, basename='wfs-service-contact', parents_query_lookups=['service_contact_webfeatureservice_metadata']),
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
-          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-metadata-contact', parents_query_lookups=['metadata_contact_webfeatureservice_metadata']),
+          .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-metadata-contact', parents_query_lookups=['metadata_contact_webfeatureservice_metadata']),
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wfs-keywords', parents_query_lookups=['ogcservice_metadata']),
     router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
@@ -51,7 +51,7 @@ router = ExtendedSimpleRouter()
     router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='csw-keywords', parents_query_lookups=['ogcservice_metadata']),
     router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw')
-          .register(r'service-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-service-contact', parents_query_lookups=['service_contact_catalougeservice_metadata']),
+          .register(r'service-contact', metadata_views.NestedServiceContactViewSet, basename='csw-service-contact', parents_query_lookups=['service_contact_catalougeservice_metadata']),
     router.register(r'csw', service_views.CatalougeServiceViewSet, basename='csw')
           .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-metadata-contact', parents_query_lookups=['metadata_contact_catalougeservice_metadata']),
 

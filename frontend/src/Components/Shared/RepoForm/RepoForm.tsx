@@ -115,24 +115,25 @@ function getRequestSchema(operation: any): any{
 function setFormErrors(form: FormInstance, error: AxiosError) {
   const jsonApiErrors: JsonApiErrorObject[] = error?.response?.data?.errors;
   const fieldDatas: any[] = [];
-
-  jsonApiErrors.forEach(jsonApiError => {
-    const fieldName = jsonApiError.source?.pointer?.split('/').pop();
-    if (fieldName){
-      const exists = fieldDatas.some(fieldData => {
-        if (fieldData.name === fieldName) {
-          fieldData.errors.push(jsonApiError.detail);
-          return true;
+  if (jsonApiErrors){
+    jsonApiErrors.forEach(jsonApiError => {
+      const fieldName = jsonApiError.source?.pointer?.split('/').pop();
+      if (fieldName){
+        const exists = fieldDatas.some(fieldData => {
+          if (fieldData.name === fieldName) {
+            fieldData.errors.push(jsonApiError.detail);
+            return true;
+          }
+          return false;
+        });
+        if (!exists){
+          fieldDatas.push({ name: fieldName, errors: [jsonApiError.detail], help: undefined });
         }
-        return false;
-      });
-      if (!exists){
-        fieldDatas.push({ name: fieldName, errors: [jsonApiError.detail], help: undefined });
       }
+    });
+    if (fieldDatas) {
+      form.setFields(fieldDatas);
     }
-  });
-  if (fieldDatas) {
-    form.setFields(fieldDatas);
   }
 }
 

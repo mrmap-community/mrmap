@@ -16,6 +16,11 @@ from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 
+################################################################
+# Logger settings
+################################################################
+ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
+
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -44,6 +49,7 @@ INSTALLED_APPS = [
     "django.forms",  # for debug_toolbar and rest api html page
     "django_extensions",
     "captcha",
+    "corsheaders",
     "rest_framework",
     "rest_framework_gis",
     "rest_framework_json_api",
@@ -62,6 +68,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -151,6 +158,10 @@ ALLOWED_HOSTS = os.environ.get(
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
     CORS_ALLOWED_ORIGINS = os.environ.get(
         "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+else:
+    ROOT_LOGGER.warning(
+        "all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
+    CORS_ALLOW_ALL_ORIGINS = True
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -382,10 +393,7 @@ ERROR_MASK_VAL = (
 ERROR_MASK_TXT = (
     "Error during mask creation! \nCheck the configuration of security_mask.map!"
 )
-################################################################
-# Logger settings
-################################################################
-ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
+
 
 LOG_DIR = os.environ.get(
     "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")

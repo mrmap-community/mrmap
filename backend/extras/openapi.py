@@ -110,7 +110,7 @@ class CustomAutoSchema(AutoSchema):
         }
         sort_params = [{
             "name": "sort",
-            "required": "false",
+            "required": False,
             "in": "query",
             "description": _("sort by column(s)"),
             "schema": sort_schema

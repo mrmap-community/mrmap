@@ -277,3 +277,17 @@ class NestedServiceContactViewSet(
     NestedModelViewSet
 ):
     resource_name = 'ServiceContact'
+
+
+class DatasetContactViewSet(
+    MetadataContactViewSetMixin,
+    ModelViewSet
+):
+    resource_name = 'DatasetContact'
+
+
+class NestedDatasetContactViewSet(
+    MetadataContactViewSetMixin,
+    NestedModelViewSet
+):
+    resource_name = 'DatasetContact'

@@ -369,6 +369,9 @@ class CustomAutoSchema(AutoSchema):
                 # Ensure django gettext_lazy is rendered correctly
                 schema["title"] = str(field.label)
             self.map_field_validators(field, schema)
+            if schema.get("pattern", None):
+                # FIXME: there a invalid regex patterns which results in runtime errors on swagger ui
+                del schema["pattern"]
 
             if field.field_name in list(getattr(serializer.Meta, "meta_fields", list())):
                 meta[format_field_name(field.field_name)] = schema

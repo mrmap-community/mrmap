@@ -76,7 +76,7 @@ router = ExtendedSimpleRouter()
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
           .register(r'licence', metadata_views.NestedLicenceViewSet, basename='datasetmetadata-licence', parents_query_lookups=['datasetmetadata']),
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
-          .register(r'dataset-contact', metadata_views.NestedMetadataContactViewSet, basename='datasetmetadata-datasetcontact', parents_query_lookups=['dataset_contact_metadata']),
+          .register(r'dataset-contact', metadata_views.NestedDatasetContactViewSet, basename='datasetmetadata-datasetcontact', parents_query_lookups=['dataset_contact_metadata']),
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
           .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='datasetmetadata-metadatacontact', parents_query_lookups=['metadata_contact_metadata']),
     router.register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')

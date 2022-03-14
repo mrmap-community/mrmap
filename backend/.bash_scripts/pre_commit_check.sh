@@ -70,4 +70,6 @@ fi
 
 rm /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak
 
+python /opt/mrmap/manage.py compilemessages --locale=de
+
 exit $EXIT

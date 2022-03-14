@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-14 11:26+0100\n"
+"POT-Creation-Date: 2022-03-14 15:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -51,14 +51,10 @@ msgid "The given uri is not valid cause there is no service parameter."
 msgstr "Die URI ist ungültig, da kein 'service' Parameter enthalten ist."
 
 #: MrMap/validators.py:150
-#, fuzzy
-#| msgid "Directory indexes are not allowed here."
 msgid "Empty geometry collections are not allowed."
 msgstr "Verzeichnisindizes sind hier nicht erlaubt."
 
 #: accounts/apps.py:8
-#, fuzzy
-#| msgid "Account"
 msgid "Accounts"
 msgstr "Account"
 
@@ -87,8 +83,6 @@ msgid "Postal code"
 msgstr "Postleitzahl"
 
 #: accounts/models/groups.py:46 registry/models/metadata.py:140
-#, fuzzy
-#| msgid "Address"
 msgid "Address type"
 msgstr "Adresse"
 
@@ -106,14 +100,10 @@ msgstr "Land"
 
 #: accounts/models/groups.py:91 notify/models.py:35
 #: registry/models/mapcontext.py:278 registry/models/security.py:236
-#, fuzzy
-#| msgid "Description"
 msgid "description"
 msgstr "Beschreibung"
 
 #: accounts/models/groups.py:92
-#, fuzzy
-#| msgid "The organization you are requesting"
 msgid "Describe what this organization representing"
 msgstr "Die angefragte Organisation"
 
@@ -126,38 +116,26 @@ msgid "Organizations"
 msgstr "Organisationen"
 
 #: accounts/models/groups.py:165
-#, fuzzy
-#| msgid "New organization"
 msgid "requesting organization"
 msgstr "Neue Organisation"
 
 #: accounts/models/groups.py:171
-#, fuzzy
-#| msgid "Delete organization"
 msgid "requested organization"
 msgstr "Organisation entfernen"
 
 #: accounts/models/groups.py:176
-#, fuzzy
-#| msgid "Accept"
 msgid "accepted"
 msgstr "Akzeptieren"
 
 #: accounts/models/groups.py:185
-#, fuzzy
-#| msgid "Pending requests"
 msgid "Pending publish request"
 msgstr "Ausstehende Anfragen"
 
 #: accounts/models/groups.py:186
-#, fuzzy
-#| msgid "Pending requests"
 msgid "Pending publish requests"
 msgstr "Ausstehende Anfragen"
 
 #: accounts/models/groups.py:200
-#, fuzzy
-#| msgid "A group wants to publish for your organization."
 msgid " can already publish for "
 msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
 
@@ -179,8 +157,6 @@ msgstr ""
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
 #: accounts/models/users.py:39
-#, fuzzy
-#| msgid "General settings"
 msgid "settings"
 msgstr "Allgemeine Einstellungen"
 
@@ -203,20 +179,14 @@ msgid "token"
 msgstr "token"
 
 #: accounts/serializers/auth.py:33 registry/models/security.py:34
-#, fuzzy
-#| msgid "Username"
 msgid "username"
 msgstr "Nutzername"
 
 #: accounts/serializers/auth.py:36 registry/models/security.py:39
-#, fuzzy
-#| msgid "Password"
 msgid "password"
 msgstr "Passwort"
 
 #: accounts/serializers/users.py:20 accounts/serializers/users.py:40
-#, fuzzy
-#| msgid "Group"
 msgid "groups"
 msgstr "Gruppen"
 
@@ -237,32 +207,22 @@ msgid "Notify"
 msgstr "Benachrichtigung"
 
 #: notify/models.py:20
-#, fuzzy
-#| msgid "Created on"
 msgid "Created DateTime"
 msgstr "Erstellt am"
 
 #: notify/models.py:21
-#, fuzzy
-#| msgid "the datetime when the first thread was created"
 msgid "Datetime field when the process was created in UTC"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
 #: notify/models.py:26
-#, fuzzy
-#| msgid "Phase"
 msgid "phase"
 msgstr "Phase"
 
 #: notify/models.py:27
-#, fuzzy
-#| msgid "Current state of the task being run"
 msgid "Current phase of the process"
 msgstr "Aktueller Status der Teilaufgabe."
 
 #: notify/models.py:31
-#, fuzzy
-#| msgid "Address"
 msgid "process type"
 msgstr "Adresse"
 
@@ -271,8 +231,6 @@ msgid "tells you what kind of process this is"
 msgstr "beschreibt, welche Art von Prozess dies ist"
 
 #: notify/models.py:36
-#, fuzzy
-#| msgid "a short description what this group is for."
 msgid "Human readable description of what this process does"
 msgstr "Eine Kurzbeschreibung für was diese Gruppe genutzt wird."
 
@@ -285,14 +243,10 @@ msgid "Background Processes"
 msgstr "Hintergrundprozesse"
 
 #: notify/serializers.py:44
-#, fuzzy
-#| msgid "Pending tasks"
 msgid "pending threads"
 msgstr "Laufende Prozesse"
 
 #: notify/serializers.py:45
-#, fuzzy
-#| msgid "Your account is currently not activated"
 msgid "count of currently pending threads"
 msgstr "Dieser Account ist nicht aktiviert"
 
@@ -301,8 +255,6 @@ msgid "running threads"
 msgstr "laufende Teilaufgaben"
 
 #: notify/serializers.py:49
-#, fuzzy
-#| msgid "Your account is currently not activated"
 msgid "count of currently running threads"
 msgstr "Dieser Account ist nicht aktiviert"
 
@@ -319,14 +271,10 @@ msgid "failed threads"
 msgstr "fehlerhafte Teilaufgaben"
 
 #: notify/serializers.py:57
-#, fuzzy
-#| msgid "Your account is currently not activated"
 msgid "count of currently failed threads"
 msgstr "Dieser Account ist nicht aktiviert"
 
 #: notify/serializers.py:60
-#, fuzzy
-#| msgid "Date of creation"
 msgid "date created"
 msgstr "Erstellt am"
 
@@ -335,8 +283,6 @@ msgid "the datetime when the first thread was created"
 msgstr "Zeitpunkt der zuerst erstellten Teilaufgabe"
 
 #: notify/serializers.py:64
-#, fuzzy
-#| msgid "Progress"
 msgid "progress"
 msgstr "Fortschritt"
 
@@ -347,14 +293,10 @@ msgstr ""
 "Teilaufgaben von 0 bis 100"
 
 #: notify/serializers.py:68
-#, fuzzy
-#| msgid "Status"
 msgid "status"
 msgstr "Status"
 
 #: notify/serializers.py:69
-#, fuzzy
-#| msgid "the current progress aggregated from all threads from 0 to 100"
 msgid "the current status, aggregated from all threads."
 msgstr ""
 "Der aktuelle Fortschritt kumuliert aus allen Fortschritten aller "
@@ -399,8 +341,6 @@ msgstr ""
 
 #: registry/models/conformity.py:140 registry/models/harvest.py:24
 #: registry/models/service.py:456 registry/models/service.py:780
-#, fuzzy
-#| msgid "Service"
 msgid "service"
 msgstr "Dienst"
 
@@ -411,8 +351,6 @@ msgstr "Der Dienst der von dieser Überprüfung betroffen ist."
 #: registry/models/conformity.py:151 registry/models/metadata.py:759
 #: registry/models/monitoring.py:157 registry/models/monitoring.py:185
 #: registry/models/service.py:525
-#, fuzzy
-#| msgid "Layer:"
 msgid "layer"
 msgstr "Ebene:"
 
@@ -422,8 +360,6 @@ msgstr "Die Ebene die von dieser Überprüfung betroffen ist."
 
 #: registry/models/conformity.py:163 registry/models/metadata.py:767
 #: registry/models/service.py:809 registry/models/service.py:899
-#, fuzzy
-#| msgid "Featuretype:"
 msgid "feature type"
 msgstr "Featuretype:"
 
@@ -433,14 +369,10 @@ msgstr "Der Merkmalstyp der von dieser Überprüfung betroffen ist. "
 
 #: registry/models/conformity.py:175 registry/models/metadata.py:688
 #: registry/models/metadata.py:689 registry/models/metadata.py:775
-#, fuzzy
-#| msgid "Dataset Metadata"
 msgid "dataset metadata"
 msgstr "Datensatz Metadaten"
 
 #: registry/models/conformity.py:176
-#, fuzzy
-#| msgid "Dataset metadata edited"
 msgid "the dataset metadata targeted by this check"
 msgstr "Datensatz Metadaten bearbeitet"
 
@@ -453,26 +385,18 @@ msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
 #: registry/models/harvest.py:25
-#, fuzzy
-#| msgid "the layer for that this style is for."
 msgid "the csw for that this job is running"
 msgstr "Die Ebene für diesen Stil"
 
 #: registry/models/harvest.py:31
-#, fuzzy
-#| msgid "resolution type"
 msgid "record type"
 msgstr "Auflösungstyp"
 
 #: registry/models/harvest.py:32
-#, fuzzy
-#| msgid "total count of records which will be harvested by this job"
 msgid "the type of the record, which shall be harvested."
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
 #: registry/models/harvest.py:37
-#, fuzzy
-#| msgid "Postal code"
 msgid "total records"
 msgstr "Postleitzahl"
 
@@ -481,8 +405,6 @@ msgid "total count of records which will be harvested by this job"
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
 #: registry/models/harvest.py:46
-#, fuzzy
-#| msgid "Timestamp"
 msgid "date started"
 msgstr "Zeitpunkt"
 
@@ -491,8 +413,6 @@ msgid "timestamp of start"
 msgstr "Zeitstempel des Startzeitpunktes"
 
 #: registry/models/harvest.py:52
-#, fuzzy
-#| msgid "Date Done"
 msgid "date done"
 msgstr "Beendet am"
 
@@ -505,22 +425,16 @@ msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
 #: registry/models/harvest.py:112
-#, fuzzy
-#| msgid "log response"
 msgid "response"
 msgstr "Antworten protokollieren"
 
 #: registry/models/harvest.py:114
-#, fuzzy
-#| msgid "Shows the health status of the resource."
 msgid "the content of the http response"
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
 #: registry/models/mapcontext.py:25 registry/models/mapcontext.py:272
 #: registry/models/metadata.py:51 registry/models/metadata.py:350
 #: registry/serializers/mapcontext.py:20
-#, fuzzy
-#| msgid "Title"
 msgid "title"
 msgstr "Titel"
 
@@ -529,8 +443,6 @@ msgid "a short descriptive title for this map context"
 msgstr "Eine kurzer beschreibender Titel für diesen MapContext"
 
 #: registry/models/mapcontext.py:31
-#, fuzzy
-#| msgid "Language"
 msgid "language"
 msgstr "Sprache"
 
@@ -539,8 +451,6 @@ msgid "language of context document"
 msgstr "Sprache des Dokuments"
 
 #: registry/models/mapcontext.py:37 registry/models/metadata.py:353
-#, fuzzy
-#| msgid "Abstract"
 msgid "abstract"
 msgstr "Beschreibung"
 
@@ -605,8 +515,6 @@ msgid "A preview image for the Map Context Layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
 #: registry/models/mapcontext.py:169 registry/models/mapcontext.py:235
-#, fuzzy
-#| msgid "Rendering layer"
 msgid "rendering active"
 msgstr "Darstellungsebene"
 
@@ -627,8 +535,6 @@ msgid "an identifying name for this map context layer"
 msgstr "Ein identifizierender Name für diese MapContext Ebene"
 
 #: registry/models/mapcontext.py:279
-#, fuzzy
-#| msgid "a short descriptive title for this map context layer"
 msgid "a short description for this map context layer"
 msgstr "Eine Kurzbeschreibung des Titels für diesen MapContext Ebene"
 
@@ -641,8 +547,6 @@ msgid "You can use this field to pre filter possible Layer selection."
 msgstr "Sie können diese Feld nutzen, um die Ebenenauswahl einschränken."
 
 #: registry/models/metadata.py:28
-#, fuzzy
-#| msgid "Mime types:"
 msgid "mime type"
 msgstr "Formattypen:"
 
@@ -651,8 +555,6 @@ msgid "The Internet Media Type"
 msgstr "Der Internet Medientype"
 
 #: registry/models/metadata.py:39
-#, fuzzy
-#| msgid "Created on"
 msgid "related layer"
 msgstr "Erstellt am"
 
@@ -661,8 +563,6 @@ msgid "the layer for that this style is for."
 msgstr "Die Ebene für diesen Stil"
 
 #: registry/models/metadata.py:46 registry/models/metadata.py:745
-#, fuzzy
-#| msgid "Username"
 msgid "name"
 msgstr "Nutzername"
 
@@ -692,8 +592,6 @@ msgid "the size of the image in pixels"
 msgstr "Die Größe des Bild in pixeln"
 
 #: registry/models/metadata.py:73 registry/models/service.py:282
-#, fuzzy
-#| msgid "Service type"
 msgid "internet mime type"
 msgstr "Diensttyp"
 
@@ -702,8 +600,6 @@ msgid "the mime type of the remote legend url"
 msgstr "Der Medientyp der gegenseitigen Legendenurl"
 
 #: registry/models/metadata.py:78
-#, fuzzy
-#| msgid "Created on"
 msgid "related style"
 msgstr "Erstellt am"
 
@@ -716,14 +612,10 @@ msgid "Name"
 msgstr "Name"
 
 #: registry/models/metadata.py:119
-#, fuzzy
-#| msgid "Delete organization"
 msgid "The name of the organization"
 msgstr "Organisation entfernen"
 
 #: registry/models/metadata.py:211
-#, fuzzy
-#| msgid "Download"
 msgid "download link"
 msgstr "Download"
 
@@ -740,8 +632,6 @@ msgid "the fetched content of the download url."
 msgstr "Der Inhalt der heruntergeladenen URL."
 
 #: registry/models/metadata.py:218
-#, fuzzy
-#| msgid "New resource"
 msgid "described resource"
 msgstr "Neue Ressource"
 
@@ -752,8 +642,6 @@ msgstr "Die UUID des beschriebenen Dienstes, Ebene oder Merkmaltypen."
 #: registry/models/metadata.py:275 registry/models/metadata.py:285
 #: registry/models/monitoring.py:143 registry/models/security.py:145
 #: registry/models/service.py:140 registry/serializers/service.py:54
-#, fuzzy
-#| msgid "Your registered Web Map Services"
 msgid "web map service"
 msgstr "Ihre registrierten Web Map Services"
 
@@ -766,14 +654,10 @@ msgstr ""
 "wurde im GetCapabilities Dokument gefunden."
 
 #: registry/models/metadata.py:296
-#, fuzzy
-#| msgid "Access constraints"
 msgid "access constraints"
 msgstr "Zugangsbeschränkungen"
 
 #: registry/models/metadata.py:297
-#, fuzzy
-#| msgid "Select categories for this resource."
 msgid "access constraints for the given resource."
 msgstr "Kategorien auswählen"
 
@@ -786,8 +670,6 @@ msgid "Costs and of terms of use for the given resource."
 msgstr "Kosten und Nutzungsbedingungen für die Ressource."
 
 #: registry/models/metadata.py:320
-#, fuzzy
-#| msgid "Timestamp"
 msgid "date stamp"
 msgstr "Zeitpunkt"
 
@@ -810,20 +692,14 @@ msgid ""
 msgstr "Gefundener Dateienidentifikator"
 
 #: registry/models/metadata.py:340 registry/models/metadata.py:489
-#, fuzzy
-#| msgid "Origins"
 msgid "origin"
 msgstr "Herkunft"
 
 #: registry/models/metadata.py:341
-#, fuzzy
-#| msgid "Health state of the ressource"
 msgid "Where the metadata record comes from."
 msgstr "Gesundheitszustand der Ressource"
 
 #: registry/models/metadata.py:346
-#, fuzzy
-#| msgid "Original"
 msgid "origin url"
 msgstr "Original"
 
@@ -877,8 +753,6 @@ msgstr "Wie offt dieser Metadatensatz angefragt wurde"
 
 #: registry/models/metadata.py:377 registry/serializers/service.py:60
 #: registry/serializers/service.py:240
-#, fuzzy
-#| msgid "Keywords"
 msgid "keywords"
 msgstr "Schlüsselwörter"
 
@@ -889,8 +763,6 @@ msgstr ""
 "Verbindung stehen."
 
 #: registry/models/metadata.py:405
-#, fuzzy
-#| msgid "Service Metadata"
 msgid "service contact"
 msgstr "Service Metadaten"
 
@@ -899,8 +771,6 @@ msgid "This is the contact for the service provider."
 msgstr "Dies ist der Kontakt des Dienstanbieters."
 
 #: registry/models/metadata.py:410
-#, fuzzy
-#| msgid "Metadata date"
 msgid "metadata contact"
 msgstr "Metadaten Datum"
 
@@ -927,14 +797,10 @@ msgstr ""
 "erstellt wurde."
 
 #: registry/models/metadata.py:598 registry/models/metadata.py:604
-#, fuzzy
-#| msgid "Contact"
 msgid "contact"
 msgstr "Kontakt"
 
 #: registry/models/metadata.py:599
-#, fuzzy
-#| msgid "The organization which provides the resource."
 msgid "this is the contact which provides this dataset."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
@@ -964,8 +830,6 @@ msgstr "Dieser Wert hängt von dem ausgewählten Auflösungstypen ab."
 
 #: registry/models/metadata.py:620 registry/models/service.py:417
 #: registry/serializers/service.py:90 registry/serializers/service.py:249
-#, fuzzy
-#| msgid "Coordinate reference system"
 msgid "reference systems"
 msgstr "Referenzsysteme"
 
@@ -974,8 +838,6 @@ msgid "format"
 msgstr "Format"
 
 #: registry/models/metadata.py:626
-#, fuzzy
-#| msgid "The organization for which the resource is registered."
 msgid "The format in which the described dataset is stored."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
@@ -984,8 +846,6 @@ msgid "charset"
 msgstr "Zeichensatz"
 
 #: registry/models/metadata.py:632
-#, fuzzy
-#| msgid "The group which registered the resource."
 msgid "The charset which is used by the stored data."
 msgstr "Die Gruppe, die diesen Dienst registriert hat"
 
@@ -1008,8 +868,6 @@ msgid "flag to signal if this "
 msgstr "Bit um dies zu signalisieren "
 
 #: registry/models/metadata.py:661 registry/models/service.py:526
-#, fuzzy
-#| msgid "Layers"
 msgid "layers"
 msgstr "Ebenen"
 
@@ -1021,8 +879,6 @@ msgstr ""
 "sind."
 
 #: registry/models/metadata.py:671 registry/models/service.py:810
-#, fuzzy
-#| msgid "Featuretypes"
 msgid "feature types"
 msgstr "Merkmalstypen"
 
@@ -1033,14 +889,10 @@ msgid ""
 msgstr "Alle Merksmalstypen, welche mit diesem Metadatensatz verknüpft sind."
 
 #: registry/models/metadata.py:681
-#, fuzzy
-#| msgid "Services"
 msgid "services"
 msgstr "Dienste"
 
 #: registry/models/metadata.py:682
-#, fuzzy
-#| msgid "Select a group for which this resource shall be registered."
 msgid "all services from which this dataset was harvested."
 msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
 
@@ -1057,8 +909,6 @@ msgid "measurement units specifier"
 msgstr "Maßeinheitenspezifizierer"
 
 #: registry/models/metadata.py:750
-#, fuzzy
-#| msgid "Spatial extent"
 msgid "extent"
 msgstr "Räumliche Ausdehnung"
 
@@ -1079,8 +929,6 @@ msgid "the related feature type of this dimension entity"
 msgstr "Der verknüpfte Merkmalstyp des Dimensionseintrages"
 
 #: registry/models/metadata.py:776
-#, fuzzy
-#| msgid "Health state of the ressource"
 msgid "the related dataset metadata of this dimension entity"
 msgstr "Gesundheitszustand der Ressource"
 
@@ -1093,8 +941,6 @@ msgid "the related dimension where this interval was found."
 msgstr "Die vernüpfte Dimension des Intervals."
 
 #: registry/models/monitoring.py:24
-#, fuzzy
-#| msgid "Result"
 msgid "Task Result"
 msgstr "Ergebnis"
 
@@ -1103,20 +949,14 @@ msgid "The result of the celery task"
 msgstr "Das Resultat der celery Aufgabe"
 
 #: registry/models/monitoring.py:29
-#, fuzzy
-#| msgid "Health state"
 msgid "HTTP status code"
 msgstr "Gesundheitszustand"
 
 #: registry/models/monitoring.py:30
-#, fuzzy
-#| msgid "Shows the health status of the resource."
 msgid "The http status code of the response"
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
 #: registry/models/monitoring.py:35
-#, fuzzy
-#| msgid "Message"
 msgid "error message"
 msgstr "Nachricht"
 
@@ -1125,8 +965,6 @@ msgid "The error message of the http response or other error description"
 msgstr "Die Fehlermeldung der HTTP Antwort oder eine andere Fehlerbeschreibung"
 
 #: registry/models/monitoring.py:40
-#, fuzzy
-#| msgid "Monitored resource"
 msgid "monitored uri"
 msgstr "Überwachte Ressource"
 
@@ -1135,26 +973,18 @@ msgid "This is the url which was monitored"
 msgstr "Die url die überwacht wurde"
 
 #: registry/models/monitoring.py:46
-#, fuzzy
-#| msgid "Delete organization"
 msgid "request duration"
 msgstr "Organisation entfernen"
 
 #: registry/models/monitoring.py:47
-#, fuzzy
-#| msgid "Health state of the ressource"
 msgid "elapsed time of the request"
 msgstr "Gesundheitszustand der Ressource"
 
 #: registry/models/monitoring.py:92
-#, fuzzy
-#| msgid "Service updated"
 msgid "needs update"
 msgstr "Dienst aktualisiert"
 
 #: registry/models/monitoring.py:93
-#, fuzzy
-#| msgid "This is no capabilities document."
 msgid "signals if the ogc capabilities document has any changes"
 msgstr "Das ist kein Capabilities Dokument."
 
@@ -1167,8 +997,6 @@ msgid "this is the layer which shall be monitored"
 msgstr "Die zu überwachende Ebene"
 
 #: registry/models/security.py:35
-#, fuzzy
-#| msgid "Service needs authentication"
 msgid "the username used for the authentication."
 msgstr "Dienst benötigt Authentifizierung"
 
@@ -1179,8 +1007,6 @@ msgstr ""
 "soll."
 
 #: registry/models/security.py:45
-#, fuzzy
-#| msgid "Authentication type"
 msgid "authentication type"
 msgstr "Authentifizierungstyp"
 
@@ -1196,8 +1022,6 @@ msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
 #: registry/models/security.py:160 registry/models/security.py:175
 #: registry/models/service.py:153 registry/serializers/service.py:232
-#, fuzzy
-#| msgid "Your registered Web Feature Services"
 msgid "web feature service"
 msgstr "Ihre registrierten Web Feature Services"
 
@@ -1206,8 +1030,6 @@ msgid "a short description what this allowed operation controls."
 msgstr "Eine Kurzbeschreibung für was diese erlaubte Funktion steht."
 
 #: registry/models/security.py:269 registry/models/security.py:326
-#, fuzzy
-#| msgid "Subscribed services"
 msgid "secured service"
 msgstr "Abonnierte Dienste"
 
@@ -1228,8 +1050,6 @@ msgstr ""
 "gewähltenEbene sind ebenfals abgesichert."
 
 #: registry/models/security.py:334
-#, fuzzy
-#| msgid "Edit featuretype"
 msgid "secured feature types"
 msgstr "Featuretyp bearbeiten"
 
@@ -1275,20 +1095,14 @@ msgstr ""
 "%(url)s>hier</a>"
 
 #: registry/models/security.py:428 registry/models/security.py:439
-#, fuzzy
-#| msgid "General settings"
 msgid "proxy settings"
 msgstr "Allgemeine Einstellungen"
 
 #: registry/models/security.py:429 registry/models/security.py:440
-#, fuzzy
-#| msgid "the base url of the service"
 msgid "the security proxy settings for this service."
 msgstr "Die Basis-URL des Dienstes."
 
 #: registry/models/service.py:50
-#, fuzzy
-#| msgid "Last activities"
 msgid "is active?"
 msgstr "Letzte Aktivitäten"
 
@@ -1301,8 +1115,6 @@ msgstr ""
 "deaktiviert ist, kann er nicht über MrMap angefragt werden."
 
 #: registry/models/service.py:68
-#, fuzzy
-#| msgid "OGC Version"
 msgid "version"
 msgstr "OGC Version"
 
@@ -1319,26 +1131,18 @@ msgid "the base url of the service"
 msgstr "Die Basis-URL des Dienstes."
 
 #: registry/models/service.py:141
-#, fuzzy
-#| msgid "Your registered Web Map Services"
 msgid "web map services"
 msgstr "Ihre registrierten Web Map Services"
 
 #: registry/models/service.py:154
-#, fuzzy
-#| msgid "Your registered Web Feature Services"
 msgid "web feature services"
 msgstr "Ihre registrierten Web Feature Services"
 
 #: registry/models/service.py:163
-#, fuzzy
-#| msgid "Parent Service"
 msgid "catalouge service"
 msgstr "Zugehöriger Dienst"
 
 #: registry/models/service.py:164
-#, fuzzy
-#| msgid "Parent Service"
 msgid "catalouge services"
 msgstr "Zugehöriger Dienst"
 
@@ -1355,8 +1159,6 @@ msgid "the url for this operation"
 msgstr "Die URL für diese Operation."
 
 #: registry/models/service.py:273
-#, fuzzy
-#| msgid "Allowed area"
 msgid "operation"
 msgstr "Erlaubte Bereiche"
 
@@ -1369,38 +1171,26 @@ msgid "all available mime types of the remote url"
 msgstr "Alle verfügbaren Medientypen für diese URL"
 
 #: registry/models/service.py:314
-#, fuzzy
-#| msgid "Parent service"
 msgid "related web map service"
 msgstr "Übergeordneter Dienst"
 
 #: registry/models/service.py:315
-#, fuzzy
-#| msgid "the service for that this url can be used for."
 msgid "the web map service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
 #: registry/models/service.py:334
-#, fuzzy
-#| msgid "Parent service"
 msgid "related web feature service"
 msgstr "Übergeordneter Dienst"
 
 #: registry/models/service.py:336
-#, fuzzy
-#| msgid "the service for that this url can be used for."
 msgid "the web feature service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
 #: registry/models/service.py:355
-#, fuzzy
-#| msgid "Parent Service"
 msgid "related catalouge service"
 msgstr "Zugehöriger Dienst"
 
 #: registry/models/service.py:356
-#, fuzzy
-#| msgid "the service for that this url can be used for."
 msgid "the catalouge service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
@@ -1415,8 +1205,6 @@ msgstr ""
 "identifiziert."
 
 #: registry/models/service.py:402
-#, fuzzy
-#| msgid "Bounding box"
 msgid "bounding box"
 msgstr "Räumliche Ausdehnung"
 
@@ -1443,20 +1231,14 @@ msgid "the extras service where this element is part of"
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
 #: registry/models/service.py:466
-#, fuzzy
-#| msgid "Parent Layer"
 msgid "parent layer"
 msgstr "Gehört zu Ebene"
 
 #: registry/models/service.py:467
-#, fuzzy
-#| msgid "Interfaces of the layer for "
 msgid "the ancestor of this layer."
 msgstr "Schnittstellen des Layers für "
 
 #: registry/models/service.py:472
-#, fuzzy
-#| msgid "is Queryable"
 msgid "is queryable"
 msgstr "Abfragbar"
 
@@ -1469,8 +1251,6 @@ msgstr ""
 "Aus dem Capabilities-XML übernommen."
 
 #: registry/models/service.py:481
-#, fuzzy
-#| msgid "Is opaque"
 msgid "is opaque"
 msgstr "Durchsichtig"
 
@@ -1483,8 +1263,6 @@ msgstr ""
 "oder nicht. Aus dem Capabilities-XML übernommen."
 
 #: registry/models/service.py:490
-#, fuzzy
-#| msgid "Is cascaded"
 msgid "is cascaded"
 msgstr "Kaskadiert"
 
@@ -1512,8 +1290,6 @@ msgstr ""
 "Ergebnisformate angenommen die unterstützt werden."
 
 #: registry/models/service.py:800
-#, fuzzy
-#| msgid "Edit featuretype"
 msgid "describe feature type"
 msgstr "Featuretyp bearbeiten"
 
@@ -1526,26 +1302,18 @@ msgid "related feature type of this element"
 msgstr "Verknüpfte Merkmaltypen des Element"
 
 #: registry/models/service.py:906
-#, fuzzy
-#| msgid "Featuretype tile contains"
 msgid "feature type element"
 msgstr "Featuretype Titel enthält"
 
 #: registry/models/service.py:907
-#, fuzzy
-#| msgid "Featuretype tile contains"
 msgid "feature type elements"
 msgstr "Featuretype Titel enthält"
 
 #: registry/serializers/harvesting.py:24
-#, fuzzy
-#| msgid "the base url of the service"
 msgid "There is an existing harvesting job for this service."
 msgstr "Die Basis-URL des Dienstes."
 
 #: registry/serializers/mapcontext.py:34
-#, fuzzy
-#| msgid "Description"
 msgid "position"
 msgstr "Beschreibung"
 
@@ -1564,8 +1332,6 @@ msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
 #: registry/serializers/service.py:55
-#, fuzzy
-#| msgid "the extras service where this element is part of"
 msgid "the web map service, where this layer is part of."
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
@@ -1586,96 +1352,65 @@ msgid "minimal scale"
 msgstr "Minimale Skalierung"
 
 #: registry/serializers/service.py:76
-#, fuzzy
-#| msgid "scale minimum value"
 msgid "the minimum scale value."
 msgstr "minimaler Maßstabswert"
 
 #: registry/serializers/service.py:79
-#, fuzzy
-#| msgid "scale maximum value"
 msgid "maximum scale"
 msgstr "maximaler Maßstabswert"
 
 #: registry/serializers/service.py:80
-#, fuzzy
-#| msgid "scale maximum value"
 msgid "the maximum scale value."
 msgstr "maximaler Maßstabswert"
 
 #: registry/serializers/service.py:82
-#, fuzzy
-#| msgid "Style"
 msgid "styles"
 msgstr "Style"
 
 #: registry/serializers/service.py:83
-#, fuzzy
-#| msgid "Interfaces of the layer for "
 msgid "related styles of this layer."
 msgstr "Schnittstellen des Layers für "
 
 #: registry/serializers/service.py:91
-#, fuzzy
-#| msgid "all reference systems which this element supports"
 msgid "available reference systems of this layer."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
 #: registry/serializers/service.py:156 registry/serializers/service.py:306
 #: registry/serializers/service.py:405
-#, fuzzy
-#| msgid "Allowed area"
 msgid "operation urls"
 msgstr "Erlaubte Bereiche"
 
 #: registry/serializers/service.py:157 registry/serializers/service.py:307
 #: registry/serializers/service.py:406
-#, fuzzy
-#| msgid "the url for this operation"
 msgid "this are the urls to use for the ogc operations."
 msgstr "Die URL für diese Operation."
 
 #: registry/serializers/service.py:181
-#, fuzzy
-#| msgid "Capabilities"
 msgid "get capabilities url"
 msgstr "Capabilities"
 
 #: registry/serializers/service.py:182
-#, fuzzy
-#| msgid "Capabilities"
 msgid "a valid get capabilities url."
 msgstr "Capabilities"
 
 #: registry/serializers/service.py:188
-#, fuzzy
-#| msgid "Authentication type"
 msgid "authentication credentials"
 msgstr "Authentifizierungstyp"
 
 #: registry/serializers/service.py:189
-#, fuzzy
-#| msgid ""
-#| "the optional authentication type and credentials to request the service."
 msgid "Optional authentication credentials to request the remote service."
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
 #: registry/serializers/service.py:192
-#, fuzzy
-#| msgid "Owner"
 msgid "owner"
 msgstr "Besitzer"
 
 #: registry/serializers/service.py:193
-#, fuzzy
-#| msgid "Select for which organization you'd like to register the service."
 msgid "The selected organization grants all rights on the registered service."
 msgstr ""
 "Wählen Sie die Organisation aus, für die der Dienst registriert werden soll."
 
 #: registry/serializers/service.py:196
-#, fuzzy
-#| msgid "Restore metadata"
 msgid "collect metadata records"
 msgstr "Metadaten wiederherstellen"
 
@@ -1688,20 +1423,14 @@ msgstr ""
 "Metadatendokumente nach der Registrierung herunter."
 
 #: registry/serializers/service.py:234
-#, fuzzy
-#| msgid "the extras service where this element is part of"
 msgid "the web feature service, where this featuretype is part of."
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
 #: registry/serializers/service.py:241
-#, fuzzy
-#| msgid "keywords help to find layers by matching keywords."
 msgid "keywords help to find featuretypes by matching keywords."
 msgstr "Schlagwörter helfen, um Ebenen anhand gleicher zu finden."
 
 #: registry/serializers/service.py:250
-#, fuzzy
-#| msgid "all reference systems which this element supports"
 msgid "available reference systems of this featuretype."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
@@ -1717,2993 +1446,9 @@ msgid "The validation state is unknown."
 msgstr "Der Überprüfungszustand ist unbekannt"
 
 #: registry/settings.py:32
-#, fuzzy
-#| msgid "This resource is active."
 msgid "The resource is valid."
 msgstr "Diese Ressource ist aktiviert."
 
 #: registry/settings.py:33
-#, fuzzy
-#| msgid "This resource is deactivated."
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
-
-#~ msgid "Explanations: <br>"
-#~ msgstr "Erklärungen: <br>"
-
-#, fuzzy
-#~| msgid "the base url of the service"
-#~ msgid "the capabilities url of the ogc service"
-#~ msgstr "Die Basis-URL des Dienstes."
-
-#~ msgid "Is tree leaf"
-#~ msgstr "Ist Baumblatt"
-
-#~ msgid ""
-#~ "Set if this map context layer is a layer withattributes (leaf) or it "
-#~ "defines a group of layers like a folder (not leaf)."
-#~ msgstr ""
-#~ "Legt fest, ob diese MapContextLayer eine Ebene mit Attributen (Blatt) ist "
-#~ "oder eine Gruppe von Ebenen wie einen Ordner definiert (kein Blatt)."
-
-#~ msgid ""
-#~ "Select the service you want to subscribe. When you edit an existing "
-#~ "subscription, you can not change this selection."
-#~ msgstr ""
-#~ "Wählen Sie den Dienst aus, den Sie abonnieren wollen. Falls Sie ein "
-#~ "bestehendes Abonnemment bearbeiten, kann diese Auswahl nicht geändert "
-#~ "werden."
-
-#~ msgid "Notify on update"
-#~ msgstr "Bei Update informieren"
-
-#~ msgid "Sends an e-mai if the service has been updated."
-#~ msgstr "Schickt eine E-Mail, falls der Dienst aktualisiert wird."
-
-#, fuzzy
-#~| msgid "Notify on metadata changes"
-#~ msgid "Notify on metadata edit"
-#~ msgstr "Bei Metadatenänderungen informieren"
-
-#~ msgid "Sends an e-mai if the service's metadata has been changed."
-#~ msgstr ""
-#~ "Schickt eine E-Mail, falls die Metadaten des Dienstes geändert wurden."
-
-#, fuzzy
-#~| msgid "Notify on access changes"
-#~ msgid "Notify on access edit"
-#~ msgstr "Bei Zugangsänderungen informieren"
-
-#~ msgid "Sends an e-mai if the service's access has been changed."
-#~ msgstr "Schickt eine E-Mail, falls der Zugang zum Dienst geändert wurde."
-
-#~ msgid "The timestamp of the creation date of this object."
-#~ msgstr "Der Zeitstempel an dem das Objekt erstellt wurde."
-
-#, fuzzy
-#~| msgid "Created on"
-#~ msgid "Created by"
-#~ msgstr "Erstellt am"
-
-#~ msgid "The user who has created this object."
-#~ msgstr "Der Benutzer der dieses Objekt erstellt hat."
-
-#, fuzzy
-#~| msgid "The organization which provides the resource."
-#~ msgid "The organization which is the owner of this object."
-#~ msgstr "Die Organisation, welche den Dienst anbietet."
-
-#~ msgid "Last modified at"
-#~ msgstr "zuletzt verändert am"
-
-#~ msgid "The timestamp of the last modification of this object"
-#~ msgstr "Der Zeitstempel an dem dieses Objekt zuletzt verändert wurde."
-
-#~ msgid "Last modified by"
-#~ msgstr "Zuletzt geändert von"
-
-#~ msgid "The last user who has modified this object."
-#~ msgstr "Der Benutzer der dieses Objekt zuletzt verändert hat."
-
-#, fuzzy
-#~| msgid "Service"
-#~ msgid "Service url"
-#~ msgstr "Dienst"
-
-#~ msgid "this shall be the full get capabilities request url."
-#~ msgstr "Dies sollte die vollständige GetCapabilities url sein."
-
-#~ msgid "Description"
-#~ msgstr "Beschreibung"
-
-#~ msgid "Describe what this acls shall allow."
-#~ msgstr "Beschreiben Sie was diese Berechtigungsliste erlauben soll."
-
-#, fuzzy
-#~| msgid "Access constraints"
-#~ msgid "Accessible access control lists"
-#~ msgstr "Zugangsbeschränkungen"
-
-#~ msgid ""
-#~ "Select which acls's shall be accessible with the configured permissions."
-#~ msgstr ""
-#~ "Wählen Sie die Berechtigungslisten für die konfigurierten Berechtigungen "
-#~ "aus."
-
-#, fuzzy
-#~| msgid "Delete organization"
-#~ msgid "Accessible organizations"
-#~ msgstr "Organisation entfernen"
-
-#~ msgid ""
-#~ "Select which organizations shall be accessible with the configured "
-#~ "permissions."
-#~ msgstr ""
-#~ "Wählen Sie die Organisation aus, welche durch die konfigurierten "
-#~ "Berechtigungenzugriff erhalten sollen."
-
-#, fuzzy
-#~| msgid "Access Constraints"
-#~ msgid "Access Control List"
-#~ msgstr "Zugangsbeschränkungen"
-
-#, fuzzy
-#~| msgid "Access Constraints"
-#~ msgid "Access Control Lists"
-#~ msgstr "Zugangsbeschränkungen"
-
-#~ msgid ""
-#~ "Organization administrators can administrate all objects which are owned "
-#~ "by the organization it self"
-#~ msgstr ""
-#~ "Organisations Administratoren können alle Objekte administrieren, welche "
-#~ "diese Organisation besitzt."
-
-#~ msgid ""
-#~ "Organization members can view all objects which are owned by the "
-#~ "organization it self"
-#~ msgstr ""
-#~ "Organisations Mitglieder können alle Objekte einsehen, welche diese "
-#~ "Organisation besitzt."
-
-#~ msgid ""
-#~ "Service administrators can perform all actions for all resources which "
-#~ "are owned by the organization it self"
-#~ msgstr ""
-#~ "Dienst Administratoren können alle aktionen für die entsprechenden "
-#~ "Dienste einer Organisation ausführen."
-
-#~ msgid "Describe what this jobs does."
-#~ msgstr "Beschreiben Sie was diese Aufgabe macht."
-
-#, fuzzy
-#~| msgid "Health state"
-#~ msgid "task state"
-#~ msgstr "Gesundheitszustand"
-
-#~ msgid ""
-#~ "auto start collecting task after successful registering which register "
-#~ "all linked metadata records found in the GetCapabilities document."
-#~ msgstr ""
-#~ "Automatisches starten der Teilaufgabe zum erfassen aller verknüpften "
-#~ "Metadatensätze, welche im GetCapabilities Dokument gefunden werden."
-
-#, fuzzy
-#~| msgid "Registration for other organization"
-#~ msgid "Registration for organization"
-#~ msgstr "Registriere für andere Organisation"
-
-#, fuzzy
-#~| msgid "Service needs authentication"
-#~ msgid "service authentication"
-#~ msgstr "Dienst benötigt Authentifizierung"
-
-#~ msgid "Check this field"
-#~ msgstr "Feld prüfen"
-
-#, fuzzy
-#~| msgid "Allowed area"
-#~ msgid "Allowed permissions"
-#~ msgstr "Erlaubte Bereiche"
-
-#~ msgid "Details"
-#~ msgstr "Einzelheiten"
-
-#~ msgid "If you provide add functionality you need to define `add_perm` param"
-#~ msgstr ""
-#~ "Wenn Sie die hinzufügen Funktionalität verwenden, müssen Sie das Attribut "
-#~ "`add_perm` setzen."
-
-#~ msgid "You must provide a username if you joice any authentication method."
-#~ msgstr ""
-#~ "Setzen Sie einen Benutzernamen, wenn Sie eine Authentifizierungsmethode "
-#~ "ausgewählt haben."
-
-#~ msgid "You must provide a password if you joice any authentication method."
-#~ msgstr ""
-#~ "Setzen Sie ein Passwort, wenn Sie eine Authentifizierungsmethode "
-#~ "ausgewählt haben."
-
-#~ msgid "Save"
-#~ msgstr "Speichern"
-
-#~ msgid "Loading..."
-#~ msgstr "Laden..."
-
-#~ msgid "Capabilities"
-#~ msgstr "Capabilities"
-
-#, fuzzy
-#~| msgid "Metadata restored to original"
-#~ msgid "See current or original:"
-#~ msgstr "Metadaten auf Originalzustand wiederhergestellt"
-
-#~ msgid "Original"
-#~ msgstr "Original"
-
-#~ msgid "Current"
-#~ msgstr "Aktuell"
-
-#~ msgid "Metadata"
-#~ msgstr "Metadaten"
-
-#, fuzzy
-#~| msgid "Your metadata datasets"
-#~ msgid "Show metadata as:"
-#~ msgstr "Ihre Metadaten Datensätze"
-
-#~ msgid "XML"
-#~ msgstr "XML"
-
-#~ msgid "HTML"
-#~ msgstr "HTML"
-
-#, fuzzy
-#~| msgid "Health state of the ressource"
-#~ msgid "Deactivate the resource"
-#~ msgstr "Gesundheitszustand der Ressource"
-
-#, fuzzy
-#~| msgid "Health state of the ressource"
-#~ msgid "Activate the resource"
-#~ msgstr "Gesundheitszustand der Ressource"
-
-#, fuzzy
-#~| msgid "Name of resource"
-#~ msgid "Update this resource"
-#~ msgstr "Ressourcenname"
-
-#, fuzzy
-#~| msgid "Select categories for this resource."
-#~ msgid "Run monitoring task for this resource"
-#~ msgstr "Kategorien auswählen"
-
-#, fuzzy
-#~| msgid "Show elements"
-#~ msgid "Elements"
-#~ msgstr "Zeige Elemente"
-
-#~ msgid "Datasets"
-#~ msgstr "Datensätze"
-
-#~ msgid "Forbidden"
-#~ msgstr "Verboten"
-
-#, fuzzy
-#~| msgid "Mr. Map logo"
-#~ msgid "Mr. Map can\\"
-#~ msgstr "Mr. Map Logo"
-
-#~ msgid "Irritated Mr. Map"
-#~ msgstr "Irritierter Mr. Map"
-
-#~ msgid "Back to home"
-#~ msgstr "Zurück zur Startseite"
-
-#, fuzzy
-#~| msgid "No XML found."
-#~ msgid "Not Found"
-#~ msgstr "Kein XML gefunden."
-
-#~ msgid "Mr. Map can`t find the page you are looking for"
-#~ msgstr "Mr. Map kann die angeforderte Seite nicht finden"
-
-#~ msgid "Oh no!"
-#~ msgstr "Oh nein!"
-
-#~ msgid "Mr. Map can`t find it!"
-#~ msgstr "Mr. Map kann sie nicht finden!"
-
-#~ msgid "Internal Server Error "
-#~ msgstr "Interner Serverfehler"
-
-#~ msgid "Mr. Map seems to be ill!"
-#~ msgstr "Mr. Map scheint krank zu sein!"
-
-#~ msgid "Ill Mr. Map"
-#~ msgstr "Kranker Mr. Map"
-
-#~ msgid "Oh dear!"
-#~ msgstr "Oh je!"
-
-#~ msgid "Mr. Map seems to be ill and can`t work at the moment."
-#~ msgstr ""
-#~ "Mr. Map scheint krank zu sein, weshalb er gerade nicht arbeiten kann."
-
-#~ msgid "We are doing our best to get him healthy again!"
-#~ msgstr "We arbeiten daran ihn wieder fit zu machen!"
-
-#, fuzzy
-#~| msgid "Created on"
-#~ msgid "created by"
-#~ msgstr "Erstellt am"
-
-#, fuzzy
-#~| msgid "None"
-#~ msgid "on"
-#~ msgstr "Nichts"
-
-#, fuzzy
-#~| msgid "Do you really want to delete this dataset?"
-#~ msgid "Are you sure you want to delete"
-#~ msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
-
-#~ msgid "Delete"
-#~ msgstr "Löschen"
-
-#~ msgid "Search"
-#~ msgstr "Suchen"
-
-#~ msgid "Filter the table"
-#~ msgstr "Tabelle filtern"
-
-#~ msgid "Dismiss all filters"
-#~ msgstr "Filter verwerfen"
-
-#~ msgid "Go to step "
-#~ msgstr "Gehe zu Schritt "
-
-#, fuzzy
-#~| msgid "Delete"
-#~ msgid "Delete this "
-#~ msgstr "Löschen"
-
-#, fuzzy
-#~| msgid "Add new group"
-#~ msgid "Add new "
-#~ msgstr "Neue Gruppe hinzufügen"
-
-#~ msgid "Dismiss"
-#~ msgstr "Abbrechen"
-
-#~ msgid "Step"
-#~ msgstr "Schritt"
-
-#~ msgid "Go to the first step"
-#~ msgstr "Gehe zum ersten Schritt"
-
-#~ msgid "Go one step backward"
-#~ msgstr "Gehe einen Schritt zurück"
-
-#~ msgid "Go to the next step"
-#~ msgstr "Gehe zum nächsten Schritt"
-
-#~ msgid "Go to the last step"
-#~ msgstr "Gehe zum letzten Schritt"
-
-#~ msgid "Change language"
-#~ msgstr "Sprache wechseln"
-
-#~ msgid "Docs"
-#~ msgstr "Doku"
-
-#~ msgid "REST"
-#~ msgstr "REST"
-
-#~ msgid "REST DOCS"
-#~ msgstr "REST Dokumentation"
-
-#~ msgid "Code"
-#~ msgstr "Code"
-
-#~ msgid "Mr. Map logo"
-#~ msgstr "Mr. Map Logo"
-
-#~ msgid "Dashboard"
-#~ msgstr "Dashboard"
-
-#~ msgid "Pending requests"
-#~ msgstr "Ausstehende Anfragen"
-
-#, fuzzy
-#~| msgid "Publisher Requests"
-#~ msgid "Publish requests"
-#~ msgstr "Veröffentlichungsanfragen"
-
-#, fuzzy
-#~| msgid "Publisher Requests"
-#~ msgid "New Publish request"
-#~ msgstr "Veröffentlichungsanfragen"
-
-#, fuzzy
-#~| msgid "Your registered Web Map Services"
-#~ msgid "Web Map Service"
-#~ msgstr "Ihre registrierten Web Map Services"
-
-#~ msgid "WMS"
-#~ msgstr "WMS"
-
-#, fuzzy
-#~| msgid "Registered for"
-#~ msgid "Register new service"
-#~ msgstr "Registriert für"
-
-#~ msgid "Layers"
-#~ msgstr "Ebenen"
-
-#, fuzzy
-#~| msgid "Your registered Web Feature Services"
-#~ msgid "Web Feature Service"
-#~ msgstr "Ihre registrierten Web Feature Services"
-
-#~ msgid "WFS"
-#~ msgstr "WFS"
-
-#, fuzzy
-#~| msgid "Featuretypes"
-#~ msgid "Feature types"
-#~ msgstr "Featuretypen"
-
-#, fuzzy
-#~| msgid "Featuretype tile contains"
-#~ msgid "Feature type elements"
-#~ msgstr "Featuretype Titel enthält"
-
-#, fuzzy
-#~| msgid "Parent Service"
-#~ msgid "Catalogue Service"
-#~ msgstr "Zugehöriger Dienst"
-
-#~ msgid "CSW"
-#~ msgstr "CSW"
-
-#, fuzzy
-#~| msgid "Coupled dataset metadata"
-#~ msgid "Create new dataset metadata"
-#~ msgstr "Zugehörige Datensatz Metadaten"
-
-#~ msgid "Map Contexts"
-#~ msgstr "MapContexts"
-
-#, fuzzy
-#~| msgid "Coupled dataset metadata"
-#~ msgid "Create new map context"
-#~ msgstr "Zugehörige Datensatz Metadaten"
-
-#~ msgid "Security"
-#~ msgstr "Absicherung"
-
-#, fuzzy
-#~| msgid "Service needs authentication"
-#~ msgid "Service authentication"
-#~ msgstr "Dienst benötigt Authentifizierung"
-
-#, fuzzy
-#~| msgid "Service needs authentication"
-#~ msgid "External authentications"
-#~ msgstr "Dienst benötigt Authentifizierung"
-
-#, fuzzy
-#~| msgid "Service needs authentication"
-#~ msgid "New external authentication"
-#~ msgstr "Dienst benötigt Authentifizierung"
-
-#~ msgid "Security Proxy"
-#~ msgstr "Sicherheitsproxy"
-
-#, fuzzy
-#~| msgid "General settings"
-#~ msgid "Service proxy settings"
-#~ msgstr "Allgemeine Einstellungen"
-
-#, fuzzy
-#~| msgid "General settings"
-#~ msgid "New proxy setting"
-#~ msgstr "Allgemeine Einstellungen"
-
-#~ msgid "Service Access Groups"
-#~ msgstr "Dienstzugriffsgruppen"
-
-#, fuzzy
-#~| msgid "Restrict access"
-#~ msgid "New service access group"
-#~ msgstr "Zugriff beschränken"
-
-#, fuzzy
-#~| msgid "Allowed area"
-#~ msgid "Allowed Operations"
-#~ msgstr "Erlaubte Bereiche"
-
-#, fuzzy
-#~| msgid "Allowed area"
-#~ msgid "New allowed operation"
-#~ msgstr "Erlaubte Bereiche"
-
-#, fuzzy
-#~| msgid "Service type version"
-#~ msgid "Service request logging"
-#~ msgstr "Diensttypversion"
-
-#~ msgid "Logs"
-#~ msgstr "Protokolle"
-
-#, fuzzy
-#~| msgid "Last monitoring runs"
-#~ msgid "Monitoring"
-#~ msgstr "Letzte Checks"
-
-#~ msgid "Runs"
-#~ msgstr "Läufe"
-
-#, fuzzy
-#~| msgid "New group"
-#~ msgid "New run"
-#~ msgstr "Neue Gruppe"
-
-#~ msgid "Results"
-#~ msgstr "Ergebnisse"
-
-#, fuzzy
-#~| msgid "Health state"
-#~ msgid "Health states"
-#~ msgstr "Gesundheitszustand"
-
-#~ msgid "Jobs"
-#~ msgstr "Aufträge"
-
-#~ msgid "Tasks"
-#~ msgstr "Aufgaben"
-
-#~ msgid "Acl\\"
-#~ msgstr "Acl\\"
-
-#~ msgid "Acls"
-#~ msgstr "Acls"
-
-#, fuzzy
-#~| msgid "Pending tasks"
-#~ msgid "There are open jobs"
-#~ msgstr "Laufende Prozesse"
-
-#~ msgid "Logout"
-#~ msgstr "Ausloggen"
-
-#~ msgid "Login"
-#~ msgstr "Anmelden"
-
-#~ msgid "Sign up"
-#~ msgstr "Registrieren"
-
-#~ msgid "Reset password"
-#~ msgstr "Passwort zurücksetzen"
-
-#~ msgid "Show"
-#~ msgstr "Anzeigen"
-
-#~ msgid "Switch the items per page"
-#~ msgstr "Treffer pro Seite ändern"
-
-#~ msgid "entries"
-#~ msgstr "Einträge"
-
-#~ msgid "Sort the table descending by column "
-#~ msgstr "Tabelle absteigend sortieren nach Spalte "
-
-#~ msgid "Reset current sorting to the default way"
-#~ msgstr "Setze Sortierung zurück"
-
-#~ msgid "Sort the table ascending by column "
-#~ msgstr "Tabelle aufsteigend sortieren nach Spalte "
-
-#, fuzzy
-#~| msgid "Show link"
-#~ msgid "Showing"
-#~ msgstr "Zeige Link"
-
-#~ msgid "of"
-#~ msgstr "von"
-
-#~ msgid "previous"
-#~ msgstr "Zurück"
-
-#~ msgid "next"
-#~ msgstr "Nächste"
-
-#~ msgid "Publish request created"
-#~ msgstr "Anfrage gestellt"
-
-#~ msgid "Service registered"
-#~ msgstr "Dienst registriert"
-
-#~ msgid "Service removed"
-#~ msgstr "Dienst entfernt"
-
-#, python-format
-#~ msgid "%(title)s edited"
-#~ msgstr "%(title)s geändert"
-
-#, fuzzy, python-format
-#~| msgid "This resource is deactivated."
-#~ msgid "Resource %(title)s activated"
-#~ msgstr "Diese Ressource ist deaktiviert."
-
-#~ msgid "Service {} activated"
-#~ msgstr "Dienst {} aktiviert"
-
-#, fuzzy, python-format
-#~| msgid "This resource is deactivated."
-#~ msgid "Resource %(title)s deactivated"
-#~ msgstr "Diese Ressource ist deaktiviert."
-
-#~ msgid "Service {} deactivated"
-#~ msgstr "Dienst {} deaktiviert"
-
-#~ msgid "Service metadata restored"
-#~ msgstr "Dienst Metadaten zurückgesetzt"
-
-#~ msgid "Group edited"
-#~ msgstr "Gruppe bearbeitet"
-
-#~ msgid "Dataset metadata edited"
-#~ msgstr "Datensatz Metadaten bearbeitet"
-
-#~ msgid "The parameter '{}' is invalid."
-#~ msgstr "Der Parameter '{}' ist ungültig."
-
-#~ msgid "The input was not valid."
-#~ msgstr "Eine Eingabe ist ungültig"
-
-#~ msgid "Username or password incorrect"
-#~ msgstr "Nutzername oder Passwort falsch"
-
-#~ msgid "Registration failed due to missing form data."
-#~ msgstr "Registrierung aufgrund fehlender Formulardaten fehlgeschlagen."
-
-#~ msgid "Account updated successfully!"
-#~ msgstr "Account aktualisiert!"
-
-#~ msgid "You have been logged out."
-#~ msgstr "Sie wurden ausgeloggt."
-
-#~ msgid "Your activation link was invalid. Please contact an administrator."
-#~ msgstr ""
-#~ "Ihr Aktivierungslink war ungültig. Kontaktieren Sie einen Administrator."
-
-#~ msgid "Your account was not activated in time. Please register again."
-#~ msgstr ""
-#~ "Ihr Account wurde nicht rechtzeitig aktiviert. Bitte registrieren Sie "
-#~ "sich erneut."
-
-#~ msgid ""
-#~ "An activation link for your account was sent. Please check your e-mails!"
-#~ msgstr "Ein Aktivierungslink für Ihren Account wurde per E-Mail versendet."
-
-#~ msgid "This e-mail is not known"
-#~ msgstr "Diese E-Mail Adresse ist nicht bekannt"
-
-#~ msgid "Successfully logged out!"
-#~ msgstr "Erfolgreich ausgeloggt"
-
-#~ msgid "The e-mail address was not valid"
-#~ msgstr "Die E-Mail Adresse ist ungültig"
-
-#~ msgid "Password successfully changed!"
-#~ msgstr "Passwort erfolgreich geändert!"
-
-#~ msgid "Old password was wrong!"
-#~ msgstr "Altes Passwort war falsch!"
-
-#~ msgid "Passwords didn't match!"
-#~ msgstr "Passwörter stimmen nicht überein"
-
-#~ msgid "A new password has been sent. Please check your e-mails!"
-#~ msgstr "Ein neues Passwort wurde per E-Mail an Sie gesendet."
-
-#~ msgid "Session timeout. You have been logged out."
-#~ msgstr "Sitzung abgelaufen. Sie wurden ausgeloggt."
-
-#~ msgid "Timeout while loading '{}'!"
-#~ msgstr "Zeitüberschreitung während '{}' geladen wurde!"
-
-#~ msgid "You do not have permissions for this!"
-#~ msgstr "Sie haben hierzu keine Berechtigung!"
-
-#~ msgid "Resource is owned by another group. Access denied."
-#~ msgstr "Ressource gehört einer anderen Gruppe. Zugriff verweigert."
-
-#~ msgid "Requesting user is not member of the group. Access denied."
-#~ msgstr "Anfragender Nutzer ist kein Gruppenmitglied. Zugriff verweigert."
-
-#~ msgid "Requesting user is not member of the organization. Access denied."
-#~ msgstr ""
-#~ "Anfragender Nutzer ist kein Organisationsmitglied. Zugriff verweigert."
-
-#~ msgid "Metadata restored to original"
-#~ msgstr "Metadaten auf Originalzustand wiederhergestellt"
-
-#~ msgid "Metadata editing successful"
-#~ msgstr "Metadaten erfolgreich editiert"
-
-#~ msgid "Metadata added successful"
-#~ msgstr "Metadaten erfolgreich editiert"
-
-#~ msgid "Metadata is original. Reset aborted."
-#~ msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
-
-#~ msgid ""
-#~ "You have to turn off the secured access before you can turn off the proxy."
-#~ msgstr ""
-#~ "Der abgesicherte Zugriff muss abgeschaltet werden, bevor der Proxy "
-#~ "deaktiviert werden darf."
-
-#~ msgid "The requested resource could not be found."
-#~ msgstr "Die angeforderte Ressource konnte nicht gefunden werden."
-
-#~ msgid "The requested resource does not exist or you are not the owner."
-#~ msgstr "Die angeforderte Ressource existiert nicht oder gehört Ihnen nicht."
-
-#~ msgid "The request was not activated in time. Request was deleted."
-#~ msgstr ""
-#~ "Die Anfrage wurde nicht rechtzeitig bearbeitet. Anfrage wurde gelöscht."
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "Publish request from <strong>%(group)s</strong> has been sent to the "
-#~| "organization <strong>%(organization)s</strong>"
-#~ msgid ""
-#~ "Publish request from <strong>%(from_organization)s</strong> has been sent "
-#~ "to the organization <strong>%(to_organization)s</strong>"
-#~ msgstr ""
-#~ "Veröffentlichungsanfrage der Gruppe <strong>%(group)s</strong> wurde and "
-#~ "die Organization  <strong>%(organization)s</strong> gesendet"
-
-#, fuzzy
-#~| msgid "Publish request has been sent to the organization!"
-#~ msgid "Publish request has been <strong>accepted</strong>."
-#~ msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
-
-#, fuzzy
-#~| msgid "Publish request has been sent to the organization!"
-#~ msgid "Publish request has been <strong>denied</strong>."
-#~ msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
-
-#~ msgid "Your group already is a publisher for this organization!"
-#~ msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
-
-#~ msgid ""
-#~ "You cannot be a publisher to your group's own organization! You publish "
-#~ "by default like this."
-#~ msgstr ""
-#~ "Sie können keine Veröffentlichungsrechte für die Gruppe Ihrer "
-#~ "Organisation beantragen. Sie veröffentlichen standardmäßig für diese "
-#~ "Organisation."
-
-#~ msgid "Your group already has sent a request. Please be patient!"
-#~ msgstr ""
-#~ "Ihre Gruppe hat bereits eine Anfrage gesendet. Bitte gedulden Sie sich!"
-
-#~ msgid "Publishing permission of {} for {} removed."
-#~ msgstr "Veröffentlichungsrechte von {} für {} entfernt."
-
-#~ msgid ""
-#~ "Publish permission removing denied. You are not a member of the "
-#~ "organization nor a member of the publishing group!"
-#~ msgstr ""
-#~ "Veröffentlichungsrechte Entferung abgelehnt. Sie sind weder Mitglied der "
-#~ "Organisation, noch ein Mitglied der veröffentlichenden Gruppe"
-
-#~ msgid "An organization can not be parent to itself!"
-#~ msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
-
-#~ msgid "This organization is owned by another user. Action denied."
-#~ msgstr "Diese Organisation gehört einem anderen Nutzer. Aktion abgebrochen."
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "Organization <strong>%(organization_name)s</strong> was <strong>edited</"
-#~| "strong> successfully."
-#~ msgid ""
-#~ "Organization <strong>%(name)s</strong> was <strong>edited</strong> "
-#~ "successfully."
-#~ msgstr ""
-#~ "Organisation <strong>%(organization_name)s</strong> wurde erfolgreich "
-#~ "<strong>geändert</strong>."
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "Organization <strong>%(organization_name)s</strong> was <strong>created</"
-#~| "strong> successfully."
-#~ msgid ""
-#~ "Organization <strong>%(name)s</strong> was <strong>created</strong> "
-#~ "successfully."
-#~ msgstr ""
-#~ "Organisation <strong>%(organization_name)s</strong> wurde erfolgreich "
-#~ "<strong>erstellt</strong>."
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "Organization <strong>%(organization_name)s</strong> was <strong>deleted</"
-#~| "strong> successfully."
-#~ msgid ""
-#~ "Organization <strong>%(name)s</strong> was <strong>deleted</strong> "
-#~ "successfully."
-#~ msgstr ""
-#~ "Organisation <strong>%(organization_name)s</strong> wurde erfolgreich "
-#~ "<strong>erstellt</strong>."
-
-#, fuzzy
-#~| msgid "The service registration for '{}' was canceled"
-#~ msgid "{} for resource '{}' was canceled."
-#~ msgstr "Die Diensteregistrierung für '{}' wurde abgebrochen."
-
-#, fuzzy, python-format
-#~| msgid "Organization {} successfully deleted."
-#~ msgid "Resource <strong>%(name)s</strong> was successfully deleted."
-#~ msgstr "Organisation {} gelöscht."
-
-#~ msgid "The service registration for '{}' was canceled"
-#~ msgstr "Die Diensteregistrierung für '{}' wurde abgebrochen."
-
-#~ msgid ""
-#~ "You tried to update a service to another service type. This is not "
-#~ "possible!"
-#~ msgstr ""
-#~ "Sie versuchen einen Dienst auf einen anderen Diensttypen zu "
-#~ "aktualisieren. Das ist nicht möglich!"
-
-#~ msgid ""
-#~ "The provided capabilities document is not different from the currently "
-#~ "registered. Update canceled!"
-#~ msgstr ""
-#~ "Das Capabilities Dokument unterscheidet sich nicht vom aktuell "
-#~ "registrierten. Update abgebrochen!"
-
-#~ msgid ""
-#~ "The service could not be registered. Please check your metadata and "
-#~ "contact an administrator."
-#~ msgstr ""
-#~ "Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die "
-#~ "Metadaten und kontaktieren Sie einen Administrator."
-
-#~ msgid "The requested layer could not be found."
-#~ msgstr "Der angefragte Layer konnte nicht gefunden werden."
-
-#~ msgid "The requested service could not be found."
-#~ msgstr "Der angeforderte Dienst konnte nicht gefunden werden."
-
-#~ msgid "423 - The requested resource is currently disabled."
-#~ msgstr "423 - Die angeforderte Ressource ist aktuell deaktiviert."
-
-#~ msgid ""
-#~ "The requested capabilities are currently unavailable. Add 'fallback=true' "
-#~ "to your query if you want a cached document."
-#~ msgstr ""
-#~ "Die angeforderten Capabilities sind zur Zeit nicht verfügbar. Fügen Sie "
-#~ "'fallback=true' zu Ihrem Request hinzu um ein alternatives Dokument zu "
-#~ "erhalten."
-
-#~ msgid "No root layer could be found for this service!"
-#~ msgstr "Keine Root Ebene für diesen Dienst gefunden!"
-
-#~ msgid ""
-#~ "There are multiple secured operations for one metadata. Please contact an "
-#~ "administator."
-#~ msgstr ""
-#~ "Es existieren verschiedene abgesicherte Einstellungen für diesen Dienst. "
-#~ "Kontaktieren Sie einen Administrator."
-
-#~ msgid "You have no permission to access this resource."
-#~ msgstr "Sie haben keine Berechtigung um auf diese Ressource zuzugreifen!"
-
-#~ msgid ""
-#~ "The resource is authenticated externally. Proxy can not be deactivated."
-#~ msgstr ""
-#~ "Die Ressource erfordert eine externe Authentifizierung. Der Proxy kann "
-#~ "nicht deaktiviert werden."
-
-#~ msgid "Proxy must be activated to be logged!"
-#~ msgstr "Proxy muss aktiviert sein um protokollieren zu können!"
-
-#~ msgid "Proxy must be enabled if service shall stay secured!"
-#~ msgstr "Proxy muss aktiviert sein wenn der Dienst abgesichert bleiben soll!"
-
-#~ msgid "The requested operation is not supported by this resource."
-#~ msgstr "Diese Operation wird von der Ressource nicht unterstützt."
-
-#~ msgid ""
-#~ "The requested uri seems to be broken. Please inform an administrator."
-#~ msgstr ""
-#~ "Die angefragte URI scheint nicht defekt zu sein. Bitte informieren Sie "
-#~ "einen Administrator."
-
-#~ msgid "This setting is only available for the top level element."
-#~ msgstr ""
-#~ "Diese Einstellung ist nur für Elemente der obersten Ebene verfügbar."
-
-#~ msgid "Incomplete request: REQUEST parameter missing."
-#~ msgstr "Unvollständige Anfrage: REQUEST Parameter fehlt."
-
-#~ msgid "Incomplete request: VERSION parameter missing."
-#~ msgstr "Unvollständige Anfrage: VERSION Parameter fehlt."
-
-#~ msgid "Incomplete request: SERVICE parameter missing."
-#~ msgstr "Unvollständige Anfrage: SERVICE Parameter fehlt."
-
-#~ msgid ""
-#~ "Login credentials for external authentication could not be decrypted. The "
-#~ "key is missing. Please inform an administrator."
-#~ msgstr ""
-#~ "Logindaten für externe Authentifizierung konnten nicht entschlüsselt "
-#~ "werden. Der Schlüssel fehlt. Bitte informieren Sie einen Administrator"
-
-#~ msgid ""
-#~ "Login credentials for external authentication could not be decrypted. The "
-#~ "key is wrong. Please inform an administrator."
-#~ msgstr ""
-#~ "Logindaten für externe Authentifizierung konnten nicht entschlüsselt "
-#~ "werden. Der Schlüssel ist falsch. Bitte informieren Sie einen "
-#~ "Administrator"
-
-#~ msgid ""
-#~ "No logable outputformat given. Logable formats are {}. \n"
-#~ "Alternatively remove the OUTPUTFORMAT parameter from your request."
-#~ msgstr ""
-#~ "Kein protokollierbares Ausgabeformat angegeben. Mögliche Formate sind "
-#~ "{}. \n"
-#~ "Alternativ entfernen Sie den OUTPUTFORMAT Parameter aus Ihrem Request."
-
-#~ msgid ""
-#~ "Multiple feature queries in a single request detected. Please use one "
-#~ "query per request."
-#~ msgstr ""
-#~ "Mehrere Features in einer einzigen Abfrage entdeckt. Bitte fragen Sie "
-#~ "genau ein Feature pro Request an."
-
-#~ msgid ""
-#~ "There are several service metadata documents for this service. Please "
-#~ "contact an administrator."
-#~ msgstr ""
-#~ "Es existieren mehrere Service Metadaten Dokumente für diesen Dienst. "
-#~ "Keine Eindeutigkeit feststellbar. Kontaktieren Sie einen Administrator."
-
-#~ msgid "'{}' was invalid."
-#~ msgstr "'{}' ist ungültig."
-
-#~ msgid "Access for '{}' changed successfully."
-#~ msgstr "Zugang für '{}' erfolgreich bearbeitet!"
-
-#~ msgid "2D-Points must hold two values for x and y."
-#~ msgstr "2D-Punkte müssen zwei Werte, für x und y, haben."
-
-#~ msgid "Inserted email address is unknown."
-#~ msgstr "E-Mail Adresse ist unbekannt."
-
-#~ msgid "Subscription edited successfully."
-#~ msgstr "Abonnement erfolgreich bearbeitet!"
-
-#~ msgid "Subscription could not be edited."
-#~ msgstr "Abonnement konnte nicht bearbeitet werden."
-
-#~ msgid "Subscription for '{}' was removed."
-#~ msgstr "Abonnement für '{}' gelöscht."
-
-#, fuzzy
-#~| msgid "Organization {} successfully created."
-#~ msgid "Subscription sucessfully created."
-#~ msgstr "Organisation {} erstellt."
-
-#~ msgid "'{}' already subscribed."
-#~ msgstr "'{}' bereits abonniert."
-
-#, fuzzy
-#~| msgid "Organization {} successfully deleted."
-#~ msgid "Subscription successfully deleted."
-#~ msgstr "Organisation {} gelöscht."
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "Group <strong>%(name)s</strong> was <strong>edited</strong> successfully."
-#~ msgid ""
-#~ "Map Context <strong>%(title)s</strong> was <strong>edited</strong> "
-#~ "successfully."
-#~ msgstr ""
-#~ "Gruppe <strong>%(name)s</strong> wurde erfolgreich <strong>geändert</"
-#~ "strong>."
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "Group <strong>%(name)s</strong> was <strong>created</strong> "
-#~| "successfully."
-#~ msgid ""
-#~ "Map Context <strong>%(title)s</strong> was <strong>created</strong> "
-#~ "successfully."
-#~ msgstr ""
-#~ "Gruppe <strong>%(name)s</strong> wurde erfolgreich <strong>erstellt</"
-#~ "strong>."
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "Group <strong>%(name)s</strong> was <strong>deleted</strong> "
-#~| "successfully."
-#~ msgid ""
-#~ "Map Context <strong>%(title)s</strong> was <strong>deleted</strong> "
-#~ "successfully."
-#~ msgstr ""
-#~ "Gruppe <strong>%(name)s</strong> wurde erfolgreich <strong>gelöscht</"
-#~ "strong>."
-
-#, python-format
-#~ msgid "%(user)s has been invited to %(group)s"
-#~ msgstr "%(user)s wurde zur Gruppe %(group)s eingeladen"
-
-#, fuzzy
-#~| msgid "Last monitoring runs"
-#~ msgid "Monitoring run scheduled."
-#~ msgstr "Letzte Checks"
-
-#, fuzzy, python-format
-#~| msgid "Organization {} successfully deleted."
-#~ msgid "<strong>%(role)s</strong> successfully edited."
-#~ msgstr "Organisation {} gelöscht."
-
-#, python-format
-#~ msgid "Harvest run for %(metadata)s scheduled."
-#~ msgstr "Harvest für %(metadata)s geplant."
-
-#, fuzzy, python-format
-#~| msgid "Organization {} successfully deleted."
-#~ msgid "<strong>%(name)s</strong> successfully edited."
-#~ msgstr "Organisation {} gelöscht."
-
-#, fuzzy, python-format
-#~| msgid "Organization {} successfully deleted."
-#~ msgid "<strong>%(name)s</strong> successfully created."
-#~ msgstr "Organisation {} gelöscht."
-
-#~ msgid ""
-#~ "You need to define a depending model class by setting the depending_model "
-#~ "attribute."
-#~ msgstr ""
-#~ "Sie müssen die abhängige Model klasse definieren. Dies können Sie mit dem "
-#~ "Attribut depending_model tun."
-
-#~ msgid "Actions"
-#~ msgstr "Aktionen"
-
-#, fuzzy, python-format
-#~| msgid "Organization {} successfully created."
-#~ msgid "Successfully created %(obj)s"
-#~ msgstr "Organisation {} erstellt."
-
-#, fuzzy, python-format
-#~| msgid "Successfully logged out!"
-#~ msgid "Successfully deleted %(obj)s"
-#~ msgstr "Erfolgreich ausgeloggt"
-
-#, fuzzy
-#~| msgid "Edit"
-#~ msgid "Edit "
-#~ msgstr "Bearbeiten"
-
-#, fuzzy, python-format
-#~| msgid "Successfully logged out!"
-#~ msgid "Successfully updated %(obj)s"
-#~ msgstr "Erfolgreich ausgeloggt"
-
-#, fuzzy
-#~| msgid "Parent Layer"
-#~ msgid "parent task"
-#~ msgstr "Gehört zu Ebene"
-
-#~ msgid "the parent task of this sub task"
-#~ msgstr "Die übergeordnet Aufgabe dieser Teilaufgabe."
-
-#~ msgid "New task scheduled"
-#~ msgstr "Neue Aufgabe geplant"
-
-#~ msgid "Task done"
-#~ msgstr "Aufgabe erledigt"
-
-#~ msgid "details"
-#~ msgstr "Einzelheiten"
-
-#~ msgid "Execution time"
-#~ msgstr "Ausführungsdauer"
-
-#~ msgid "Task is pending"
-#~ msgstr "Aufgabe steht aus"
-
-#~ msgid "Task is running"
-#~ msgstr "Aufgabe wird bearbeitet"
-
-#, fuzzy
-#~| msgid "Dataset successfully deleted."
-#~ msgid "Task successfully done"
-#~ msgstr "Datensatz erfolgreich gelöscht."
-
-#~ msgid "Task unexpected stopped"
-#~ msgstr "Aufgabe unerwartet beendet"
-
-#~ msgid "Started at"
-#~ msgstr "Gestartet am"
-
-#~ msgid "Done at"
-#~ msgstr "Erledigt am"
-
-#, fuzzy
-#~| msgid "Monitored resource"
-#~ msgid "Monitoring result"
-#~ msgstr "Überwachte Ressource"
-
-#~ msgid "Health state"
-#~ msgstr "Gesundheitszustand"
-
-#, fuzzy
-#~| msgid "Organization"
-#~ msgid "Operation"
-#~ msgstr "Organisation"
-
-#~ msgid "Service"
-#~ msgstr "Dienst"
-
-#~ msgid "Time dimension"
-#~ msgstr "Zeit Ebenen"
-
-#~ msgid "Search for layers with time dimension in given datetime range."
-#~ msgstr ""
-#~ "Suche nach Ebenen mit einer Zeit Ebene zwischen dem ausgewählten Bereich."
-
-#~ msgid ""
-#~ "Search for feature types with time dimension in given datetime range."
-#~ msgstr ""
-#~ "Suche nach Merkmalstypen mit einer Zeit Ebene zwischen dem ausgewählten "
-#~ "Bereich."
-
-#~ msgid "Abstract"
-#~ msgstr "Beschreibung"
-
-#~ msgid ""
-#~ "Select the users which shall be member of this access group. If you "
-#~ "select AnonymousUser, all users are allowed."
-#~ msgstr ""
-#~ "Wählen Sie einen Nutzer der zu dieser Zugriffsgruppe hinzugefügt werden "
-#~ "soll. Wenn Sie den Benutzer AnonymousUser auswählen, sind alle Benutzer "
-#~ "erlaubt."
-
-#, fuzzy
-#~| msgid "Users"
-#~ msgid "users"
-#~ msgstr "Nutzer"
-
-#, fuzzy
-#~| msgid "New resource"
-#~ msgid "Checked services"
-#~ msgstr "Neue Ressource"
-
-#, fuzzy
-#~| msgid "New resource"
-#~ msgid "Checked layers"
-#~ msgstr "Neue Ressource"
-
-#, fuzzy
-#~| msgid "Edit featuretype"
-#~ msgid "Checked feature types"
-#~ msgstr "Featuretyp bearbeiten"
-
-#, fuzzy
-#~| msgid "Coupled dataset metadata"
-#~ msgid "Checked dataset metadatas"
-#~ msgstr "Zugehörige Datensatz Metadaten"
-
-#, fuzzy
-#~| msgid "Last monitoring runs"
-#~ msgid "Monitoring run"
-#~ msgstr "Letzte Checks"
-
-#, fuzzy
-#~| msgid "Last monitoring runs"
-#~ msgid "Monitoring runs"
-#~ msgstr "Letzte Checks"
-
-#~ msgid "Layer"
-#~ msgstr "Ebene:"
-
-#, fuzzy
-#~| msgid "Featuretype:"
-#~ msgid "Feature Type"
-#~ msgstr "Featuretype:"
-
-#, fuzzy
-#~| msgid "Last monitoring runs"
-#~ msgid "Monitoring results"
-#~ msgstr "Letzte Checks"
-
-#, fuzzy
-#~| msgid "Last monitoring runs"
-#~ msgid "Monitoring Runs"
-#~ msgstr "Letzte Checks"
-
-#, python-brace-format
-#~ msgid ""
-#~ "The resource <span class=\"font-italic text-info\">'{monitoring_result."
-#~ "monitored_uri}'</span> did response an exception.<br> "
-#~ msgstr ""
-#~ "Die Ressource <span class=\"font-italic text-info\">'{monitoring_result."
-#~ "monitored_uri}'</span> antwortete mit einer Exception.<br> "
-
-#, python-brace-format
-#~ msgid ""
-#~ "The resource <span class=\"font-italic text-info\">'{monitoring_result."
-#~ "monitored_uri}'</span> did not response.<br> "
-#~ msgstr ""
-#~ "Die Ressource <span class=\"font-italic text-info\">'{monitoring_result."
-#~ "monitored_uri}'</span> hat nicht geantwortet.<br> "
-
-#, fuzzy
-#~| msgid ""
-#~| "The average response time for 1 week statistic is too high.<br> <strong "
-#~| "class=\"text-danger\">{self.average_response_time_1w."
-#~| "total_seconds()*1000} ms</strong> is greater than threshold <strong "
-#~| "class=\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
-#~ msgid ""
-#~ "The average response time for 1 week statistic is too high.<br> <strong "
-#~ "class=\"text-danger\">{self.average_response_time_1w.total_seconds() * "
-#~ "1000} ms</strong> is greater than threshold <strong class=\"text-danger"
-#~ "\">{CRITICAL_RESPONSE_TIME} ms</strong>."
-#~ msgstr ""
-#~ "Die durchschnittliche Antwortzeit im Zeitraum 1 Woche ist zu hoch.<br> "
-#~ "<strong class=\"text-danger\">{self.average_response_time_1w."
-#~ "total_seconds()*1000} ms</strong> ist höher als der Grenzwert <strong "
-#~ "class=\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
-
-#~ msgid ""
-#~ "The average response time for 1 week statistic is too high.<br> <strong "
-#~ "class=\"text-danger\">{self.average_response_time_1w.total_seconds() * "
-#~ "1000} ms</strong> is greater than threshold <strong class=\"text-danger"
-#~ "\">{WARNING_RESPONSE_TIME} ms</strong>."
-#~ msgstr ""
-#~ "Die durchschnittliche Antwortzeit im Zeitraum 1 Woche ist zu hoch.<br> "
-#~ "<strong class=\"text-danger\">{self.average_response_time_1w."
-#~ "total_seconds()*1000} ms</strong> ist höher als der Grenzwert <strong "
-#~ "class=\"text-danger\">{CRITICAL_RESPONSE_TIME} ms</strong>."
-
-#~ msgid ""
-#~ "The state of this resource is <strong class=\"text-danger\">critical</"
-#~ "strong>.<br>"
-#~ msgstr ""
-#~ "Der Status dieser Ressource ist <strong class=\"text-danger\">kritisch</"
-#~ "strong>.<br>"
-
-#~ msgid ""
-#~ "This resource has some <strong class=\"text-warning\">warnings</strong>."
-#~ "<br>"
-#~ msgstr ""
-#~ "Für diese Ressource liegen <strong class=\"text-warning\">Warnungen</"
-#~ "strong><br> vor."
-
-#~ msgid "Everthing is <strong class=\"text-success\">OK</strong>.<br>"
-#~ msgstr "Alles <strong class=\"text-success\">OK</strong>.<br>"
-
-#~ msgid "Reason"
-#~ msgstr "Grund"
-
-#~ msgid "the service which uses this credentials."
-#~ msgstr "Der Dienst welcher diese Anmeldedaten nutzt."
-
-#~ msgid "username can't be leave empty."
-#~ msgstr "Benutzername darf nicht leer bleiben."
-
-#~ msgid "password can't be leave empty."
-#~ msgstr "Passwort darf nicht leer bleiben."
-
-#~ msgid "auth type can't be leave empty."
-#~ msgstr "Authentifizierungtyp darf nichtleer bleiben."
-
-#~ msgid "the configured service for this proxy settings"
-#~ msgstr "Der konfigurierte Dienst für diese Proxyeinstellung."
-
-#~ msgid "type"
-#~ msgstr "Typ"
-
-#~ msgid "the concrete type name of the service type."
-#~ msgstr "Der Typ des Dienstes"
-
-#, fuzzy
-#~| msgid "Service type"
-#~ msgid "service type"
-#~ msgstr "Diensttyp"
-
-#~ msgid "the concrete type and version of the service."
-#~ msgstr "Der Typ und die Version des Dienstes."
-
-#, fuzzy
-#~| msgid "Parent service"
-#~ msgid "parent service"
-#~ msgstr "Übergeordneter Dienst"
-
-#~ msgid "Latest check"
-#~ msgstr "Letzte Überprüfung"
-
-#, fuzzy
-#~| msgid "No XML output format available"
-#~ msgid "No Conformity Check available"
-#~ msgstr "Kein XML OutputFormat verfügbar"
-
-#~ msgid "Resources"
-#~ msgstr "Ressourcen"
-
-#, fuzzy
-#~| msgid "Related objects"
-#~ msgid "Related results"
-#~ msgstr "Gehört zu"
-
-#, fuzzy
-#~| msgid "Resources"
-#~ msgid "Resource"
-#~ msgstr "Ressourcen"
-
-#, fuzzy
-#~| msgid "Reason"
-#~ msgid "Reasons"
-#~ msgstr "Grund"
-
-#~ msgid "The resource title"
-#~ msgstr "Ressourcentitel"
-
-#~ msgid "Shows whether the resource is active or not."
-#~ msgstr "Zeigt an ob die Ressource aktiv ist oder nicht"
-
-#~ msgid ""
-#~ "Shows whether the resource is only accessible for certain groups and/or "
-#~ "in certain areas."
-#~ msgstr ""
-#~ "Zeigt an ob die Ressource nur für ausgewählte Gruppen und/oder in "
-#~ "ausgewählten Bereichen verfügbar ist."
-
-#~ msgid ""
-#~ "Shows whether the resource needs authentication to its origin server."
-#~ msgstr ""
-#~ "Zeigt an ob die Ressource eine Nutzerauthentifizierung am Ursprungsserver "
-#~ "benötigt."
-
-#~ msgid "The resource version"
-#~ msgstr "Ressourcenversion"
-
-#~ msgid "The organization which provides the resource."
-#~ msgstr "Die Organisation, welche den Dienst anbietet."
-
-#~ msgid "The group which registered the resource."
-#~ msgstr "Die Gruppe, die diesen Dienst registriert hat"
-
-#~ msgid "The organization for which the resource is registered."
-#~ msgstr "Die Organisation für welche der Dienst registriert wurde."
-
-#~ msgid "The registration date."
-#~ msgstr "Registrierungsdatum"
-
-#~ msgid "Performable Actions"
-#~ msgstr "Ausführbare Aktionen"
-
-#~ msgid ""
-#~ "Shows the status of the resource. You can see active state, secured "
-#~ "access state and secured externally state."
-#~ msgstr ""
-#~ "Zeigt den Status der Ressource an. Sie können den aktiven Status, den "
-#~ "gesicherten Zugriffsstatus und den gesicherten externen Status anzeigen."
-
-#, fuzzy
-#~| msgid "Shows the health status of the resource."
-#~ msgid "Shows the validation status of the resource"
-#~ msgstr "Zeigt den Gesundheitszustand der Ressource."
-
-#, fuzzy, python-brace-format
-#~| msgid "Something went wrong while monitoring {metadata}"
-#~ msgid "Something went wrong while monitoring {resource}"
-#~ msgstr "Etwas ging schief beim überprüfen von {metadata}"
-
-#~ msgid " Catalogue Web Service"
-#~ msgstr " Katalogdienst"
-
-#, fuzzy
-#~| msgid "Your group already is a publisher for this organization!"
-#~ msgid "All organizations which can publish for this organization"
-#~ msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
-
-#~ msgid "I'm not a robot"
-#~ msgstr "Ich bin kein Roboter"
-
-#~ msgid "Username is already taken. Try another."
-#~ msgstr "Nutzername ist bereits vergeben. Versuchen Sie etwas anderes."
-
-#~ msgid "All known organizations."
-#~ msgstr "Verfügbare Organisationen"
-
-#~ msgid "Last activities"
-#~ msgstr "Letzte Aktivitäten"
-
-#~ msgid "No activities"
-#~ msgstr "Keine Aktivitäten"
-
-#~ msgid "Activity performed by"
-#~ msgstr "Durchgeführt von "
-
-#~ msgid "All"
-#~ msgstr "Alle"
-
-#~ msgid "All registered resources"
-#~ msgstr "Alle registrierten Ressourcen"
-
-#~ msgid "Your metadata datasets"
-#~ msgstr "Ihre Metadaten Datensätze"
-
-#~ msgid "New"
-#~ msgstr "Neu"
-
-#, fuzzy
-#~| msgid "Your metadata datasets"
-#~ msgid "Your map contexts"
-#~ msgstr "Ihre Metadaten Datensätze"
-
-#~ msgid "Your registered Web Feature Services"
-#~ msgstr "Ihre registrierten Web Feature Services"
-
-#~ msgid "Your registered Web Map Services"
-#~ msgstr "Ihre registrierten Web Map Services"
-
-#~ msgid "No requests"
-#~ msgstr "Keine Anfragen"
-
-#~ msgid "invited you to a group."
-#~ msgstr "hat Sie zu einer Gruppe eingeladen."
-
-#~ msgid "Invitation to"
-#~ msgstr "Einladung für"
-
-#~ msgid "Valid until "
-#~ msgstr "Gültig bis "
-
-#~ msgid "A group wants to publish for your organization."
-#~ msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
-
-#~ msgid "Publishing by"
-#~ msgstr "Veröffentlichungen durch"
-
-#~ msgid "Subscriptions"
-#~ msgstr "Abonnements"
-
-#~ msgid "New Subscription"
-#~ msgstr "Neues Abonnement"
-
-#~ msgid "Welcome"
-#~ msgstr "Willkommen"
-
-#~ msgid ""
-#~ "\n"
-#~ "            Your account was activated successfully. You will be "
-#~ "redirected to the login page in <span id=\"seconds-counter\"></span> "
-#~ "seconds. If you don't want to wait, click on Mr. Map!\n"
-#~ "            "
-#~ msgstr ""
-#~ "\n"
-#~ "        Ihr Account wurde erfolgreich aktiviert. Sie werden zur Login "
-#~ "Seite in <span id=\"seconds-counter\"></span> Sekunden weitergeleitet. "
-#~ "Falls Sie nicht warten wollen klicken Sie einfach auf Mr. Map!\n"
-#~ "        "
-
-#~ msgid "Sign in"
-#~ msgstr "Anmelden"
-
-#~ msgid "Don`t have an account?"
-#~ msgstr "Kein Account?"
-
-#~ msgid "Forgot your password?"
-#~ msgstr "Passwort vergessen?"
-
-#~ msgid "Profile"
-#~ msgstr "Profil"
-
-#~ msgid "Change password"
-#~ msgstr "Passwort ändern"
-
-#, fuzzy
-#~| msgid "Edit layer"
-#~ msgid "Edit profile"
-#~ msgstr "Ebene bearbeiten"
-
-#~ msgid "Manage subscriptions"
-#~ msgstr "Abonnements verwalten"
-
-#~ msgid "Firstname"
-#~ msgstr "Vorname"
-
-#~ msgid "Lastname"
-#~ msgstr "Nachname"
-
-#~ msgid "Email"
-#~ msgstr "Email"
-
-#~ msgid "Joined"
-#~ msgstr "Beigetreten"
-
-#~ msgid "Newsletter subscribed"
-#~ msgstr "Newsletter abonniert"
-
-#~ msgid "Participate in surveys"
-#~ msgstr "An Umfragen teilnehmen"
-
-#~ msgid "Services subscribed"
-#~ msgstr "Dienste abonniert"
-
-#, fuzzy
-#~| msgid "Publishers"
-#~ msgid "Publishers "
-#~ msgstr "Veröffentlicher"
-
-#~ msgid "Accept request"
-#~ msgstr "Anfrage akzeptieren"
-
-#, fuzzy
-#~| msgid "Deny the request"
-#~ msgid "Deny request"
-#~ msgstr "Anfrage ablehnen"
-
-#, fuzzy
-#~| msgid "Successfully logged out!"
-#~ msgid "Successfully signed in."
-#~ msgstr "Erfolgreich ausgeloggt"
-
-#~ msgid "Sign in for Mr. Map"
-#~ msgstr "Melden Sie sich für Mr. Map an"
-
-#~ msgid ""
-#~ "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy "
-#~ "eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam "
-#~ "voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet "
-#~ "clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit "
-#~ "amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam "
-#~ "nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, "
-#~ "sed diam voluptua. At vero eos et accusam et justo duo dolores et ea "
-#~ "rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum "
-#~ "dolor sit amet. "
-#~ msgstr ""
-#~ "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy "
-#~ "eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam "
-#~ "voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet "
-#~ "clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit "
-#~ "amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam "
-#~ "nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, "
-#~ "sed diam voluptua. At vero eos et accusam et justo duo dolores et ea "
-#~ "rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum "
-#~ "dolor sit amet. "
-
-#, fuzzy
-#~| msgid "Group '{}' successfully edited."
-#~ msgid "Profile successfully edited."
-#~ msgstr "Gruppe '{}' erfolgreich bearbeitet."
-
-#, fuzzy
-#~| msgid "Sign up"
-#~ msgid "Signup"
-#~ msgstr "Registrieren"
-
-#, fuzzy
-#~| msgid "Subscriptions"
-#~ msgid "Add subscription"
-#~ msgstr "Abonnements"
-
-#, fuzzy, python-brace-format
-#~| msgid ""
-#~| "Remove Subscription for service <strong>{subscription.metadata}</strong>"
-#~ msgid "Update subscription for <strong>{self.object.metadata}</strong>"
-#~ msgstr ""
-#~ "Lösche Abonnement für Dienst <strong>{subscription.metadata}</strong>"
-
-#, fuzzy
-#~| msgid "New Subscription"
-#~ msgid "Delete subscription"
-#~ msgstr "Neues Abonnement"
-
-#, fuzzy
-#~| msgid "Service Metadata"
-#~ msgid "service metadata"
-#~ msgstr "Service Metadaten"
-
-#, fuzzy
-#~| msgid "Service metadata restored"
-#~ msgid "the service metadata targeted by this check"
-#~ msgstr "Dienst Metadaten zurückgesetzt"
-
-#, fuzzy
-#~| msgid "Restore metadata"
-#~ msgid "layer metadata"
-#~ msgstr "Metadaten wiederherstellen"
-
-#~ msgid "the layer metadata targeted by this check"
-#~ msgstr "Die Ebene die von dieser Überprüfung betroffen ist."
-
-#, fuzzy
-#~| msgid "Restore metadata"
-#~ msgid "feature type metadata"
-#~ msgstr "Metadaten wiederherstellen"
-
-#~ msgid "the feature type metadata targeted by this check"
-#~ msgstr ""
-#~ "Der Merkmalstyp Metadatensatz der von dieser Überprüfung betroffen ist."
-
-#, fuzzy
-#~| msgid "Show harvested"
-#~ msgid "harvest result"
-#~ msgstr "Zeige Harvests"
-
-#~ msgid ""
-#~ "to determine errors while harvesting process. Get linked iso metadata "
-#~ "from parsed capabilities result is also a harvesting process."
-#~ msgstr "Um Fehler während des Ernteprozesses zu erkennen."
-
-#~ msgid "todo"
-#~ msgstr "todo"
-
-#, fuzzy
-#~| msgid "Subscribed services"
-#~ msgid "described service"
-#~ msgstr "Abonnierte Dienste"
-
-#~ msgid "choice the service you want to describe with this metadata"
-#~ msgstr ""
-#~ "Wählen Sie den Dienst aus, welcher mit diesem Metadatensatz beschrieben "
-#~ "werden soll."
-
-#~ msgid "choice the layer you want to describe with this metadata"
-#~ msgstr ""
-#~ "Wählen Sie die Ebene, welche Sie mit diesem Metadatensatz beschreiben "
-#~ "wollen."
-
-#, fuzzy
-#~| msgid "Edit featuretype"
-#~ msgid "described feature type"
-#~ msgstr "Featuretyp bearbeiten"
-
-#~ msgid "choice the feature type you want to describe with this metadata"
-#~ msgstr ""
-#~ "Wählen Sie den Merkmaltypen, welchen Sie mit deiesem Metadatensatz "
-#~ "beschreieben wollen."
-
-#~ msgid "Title"
-#~ msgstr "Titel"
-
-#~ msgid "Service Metadata"
-#~ msgstr "Service Metadaten"
-
-#, fuzzy
-#~| msgid "Metadata"
-#~ msgid "Layer Metadata"
-#~ msgstr "Metadaten"
-
-#, fuzzy
-#~| msgid "Service Metadata"
-#~ msgid "Feature Type Metadata"
-#~ msgstr "Service Metadaten"
-
-#, fuzzy
-#~| msgid "close"
-#~ msgid "Close"
-#~ msgstr "Schließen"
-
-#, fuzzy
-#~| msgid "Scale range"
-#~ msgid "Save changes"
-#~ msgstr "Zoomstufen"
-
-#~ msgid "Click to open filter options"
-#~ msgstr "Klicken für Filteroptionen"
-
-#~ msgid "Filter table"
-#~ msgstr "Tabelle filtern"
-
-#~ msgid "Choice a date with the calender"
-#~ msgstr "Datum auswählen"
-
-#~ msgid "Form"
-#~ msgstr "Formular"
-
-#~ msgid "Password must have at least one lowercase letter"
-#~ msgstr "Passwort muss mindestens einen Kleinbuchstaben haben."
-
-#~ msgid "Password must have at least one Uppercase letter"
-#~ msgstr "Passwort muss mindestens einen Großbuchstaben haben."
-
-#~ msgid "Password must have at least one digit"
-#~ msgstr "Passwort muss mindestens eine Ziffer haben."
-
-#~ msgid "Special or non printable characters are not allowed"
-#~ msgstr "Spezielle Symbole sind nicht erlaubt"
-
-#~ msgid "Wizard"
-#~ msgstr "Formular-Assistent"
-
-#~ msgid "API"
-#~ msgstr "API"
-
-#~ msgid "Open the API"
-#~ msgstr "API öffnen"
-
-#~ msgid "Open API"
-#~ msgstr "API öffnen"
-
-#~ msgid "Open"
-#~ msgstr "Öffnen"
-
-#~ msgid "API Token"
-#~ msgstr "API Token"
-
-#~ msgid "Manage access token"
-#~ msgstr "Zugangstoken verwalten"
-
-#~ msgid "Generate and save a new access token"
-#~ msgstr "Einen neuen Zugangstoken generieren und speichern"
-
-#~ msgid "Generate"
-#~ msgstr "Generieren"
-
-#, fuzzy
-#~| msgid "Organization"
-#~ msgid "Validation"
-#~ msgstr "Organisation"
-
-#~ msgid "Administrator"
-#~ msgstr "Administrator"
-
-#~ msgid ""
-#~ "Permission group. Holds user which are allowed to perform any action."
-#~ msgstr ""
-#~ "Berechtigungsgruppe. Gruppiert Nutzer die alle Funktionen nutzen können."
-
-#~ msgid "public_role"
-#~ msgstr "public_role"
-
-#~ msgid "Public"
-#~ msgstr "Öffentlich"
-
-#~ msgid ""
-#~ "The public group. Used to create access for secured resources to external "
-#~ "users. Every user is member of this group by default."
-#~ msgstr ""
-#~ "Die öffentliche Gruppe. Ermöglicht Zugang zu abgesicherten Diensten für "
-#~ "externe Nutzer. Jeder interne Nutzer ist standardmäßig Teil dieser Gruppe."
-
-#~ msgid "New organization"
-#~ msgstr "Neue Organisation"
-
-#~ msgid "Edit organization"
-#~ msgstr "Bearbeite Organisation"
-
-#~ msgid "Delete organization"
-#~ msgstr "Organisation entfernen"
-
-#, fuzzy
-#~| msgid "Publishes for"
-#~ msgid " Publish for list"
-#~ msgstr "Veröffentlicht für"
-
-#, fuzzy
-#~| msgid "Publisher Requests"
-#~ msgid "Publish request"
-#~ msgstr "Veröffentlichungsanfragen"
-
-#, fuzzy, python-brace-format
-#~| msgid "A group wants to publish for your organization."
-#~ msgid "{group} can already publish for Organization."
-#~ msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
-
-#~ msgid "Task canceled."
-#~ msgstr " Aufgabe abgebrochen."
-
-#, fuzzy
-#~| msgid "Do you really want to delete this dataset?"
-#~ msgid "Are you sure you want to delete "
-#~ msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
-
-#~ msgid "Structure"
-#~ msgstr "Struktur"
-
-#~ msgid "Group Administrator"
-#~ msgstr "Gruppenadministrator"
-
-#~ msgid "Permission group. Holds users which are allowed to manage groups."
-#~ msgstr "Berechtigungsgruppe. Gruppiert Nutzer die Gruppen verwalten können."
-
-#~ msgid "Organization Administrator"
-#~ msgstr "Organisationsadministrator"
-
-#~ msgid ""
-#~ "Permission group. Holds users which are allowed to manage organizations."
-#~ msgstr ""
-#~ "Berechtigungsgruppe. Gruppiert Nutzer die Organisationen verwalten können."
-
-#~ msgid "Editor"
-#~ msgstr "Editor"
-
-#~ msgid ""
-#~ "Permission group. Holds users which are allowed to edit metadata or "
-#~ "activate resources."
-#~ msgstr ""
-#~ "Berechtigungsgruppe. Gruppiert Nutzer die Metadaten editieren oder "
-#~ "Ressourcen aktivieren können."
-
-#~ msgid "Controller"
-#~ msgstr "Controller"
-
-#~ msgid ""
-#~ "Permission group. Holds users which are allowed to access and download "
-#~ "logs or generate an API token."
-#~ msgstr ""
-#~ "Berechtigungsgruppe. Gruppiert Nutzer die Protokolle einsehen und "
-#~ "herunterladen oder API Token generien können."
-
-#~ msgid "Resource Administrator"
-#~ msgstr "Ressourcenadministrator"
-
-#~ msgid ""
-#~ "Permission group. Holds users which are allowed to manage resource. This "
-#~ "includes e.g. registration or removing of services and managing publisher "
-#~ "requests."
-#~ msgstr ""
-#~ "Berechtigungsgruppe. Gruppiert Nutzer die Ressourcen verwalten können. "
-#~ "Das beinhaltet z.B. das Registrieren oder Löschen von Diensten und "
-#~ "verwalten von Veröffentlichungsrechten."
-
-#~ msgid "A group can not be parent to itself!"
-#~ msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
-
-#~ msgid "This group is owned by another user. Action denied."
-#~ msgstr "Diese Gruppe gehört einem anderen Nutzer. Aktion abgebrochen."
-
-#~ msgid "No 'request' parameter provided."
-#~ msgstr "Kein 'request' Parameter."
-
-#, python-format
-#~ msgid "Monitoring run for %(metadatas)s scheduled."
-#~ msgstr "Überprüfung für %(metadatas)s geplant."
-
-#~ msgid "Actions you can perform"
-#~ msgstr "Ausführbare Aktionen"
-
-#~ msgid "No XML found."
-#~ msgstr "Kein XML gefunden."
-
-#~ msgid "No get records URL available"
-#~ msgstr "Keine GetRecords URL verfügbar"
-
-#~ msgid ""
-#~ "Harvest failed: Code {}\n"
-#~ "{}"
-#~ msgstr ""
-#~ "Harvest fehlgeschlagen: Code {} \n"
-#~ "{}"
-
-#~ msgid ""
-#~ "Response is not a valid xml: \n"
-#~ "{}"
-#~ msgstr ""
-#~ "Response ist kein valides XML: \n"
-#~ "{}"
-
-#~ msgid "Harvest response is missing important data!"
-#~ msgstr "Harvest Antwort fehlen wichtige Daten!"
-
-#~ msgid "Harvesting first {} of {}. Time remaining: {}"
-#~ msgstr "Die ersten {} von {} werden geerntet. Verbleibende Zeit: {}"
-
-#~ msgid ""
-#~ "Processing harvested results for the first {} of {}. Time remaining: {}"
-#~ msgstr ""
-#~ "Verarbeite geerntete Resultate für die ersten {} von {}. Verbleibende "
-#~ "Zeit: {}"
-
-#~ msgid "Language Code"
-#~ msgstr "Sprachcode"
-
-#~ msgid "Licence"
-#~ msgstr "Lizenz"
-
-#~ msgid "Categories"
-#~ msgstr "Kategorien"
-
-#~ msgid "Edit the title."
-#~ msgstr "Titel bearbeiten."
-
-#~ msgid "Edit the description. Keep it short and simple."
-#~ msgstr "Beschreibung bearbeiten. Halten Sie sie konkret und knapp."
-
-#~ msgid "Edit the language which the metadata is represented."
-#~ msgstr "Sprache des Metadatensatzes ändern"
-
-#~ msgid "Edit the access constraints."
-#~ msgstr "Zugangsbeschränkungen bearbeiten."
-
-#~ msgid "Select categories for this resource."
-#~ msgstr "Kategorien auswählen"
-
-#~ msgid "Character Encoding"
-#~ msgstr "Zeichenkodierung"
-
-#~ msgid "Metadata creation date"
-#~ msgstr "Erstelldatum der Metadaten"
-
-#~ msgid "Create with group"
-#~ msgstr "Erstelle mit Gruppe"
-
-#~ msgid "Terms of use"
-#~ msgstr "Nutzungsbedingungen"
-
-#~ msgid "Maintenance and update frequency"
-#~ msgstr "Wartungs- und Aktualisierungshäufigkeit"
-
-#~ msgid "Lineage Statement"
-#~ msgstr "Infos zur Historie"
-
-#~ msgid ""
-#~ "Select an other Organization to overwrite the original. You can select "
-#~ "your organization and the ones you are allowed to publish for."
-#~ msgstr ""
-#~ "Wählen Sie eine andere Organisation aus um die originale zu "
-#~ "überschreiben. Sie können Ihre Organisation wählen sowie die, für welche "
-#~ "Sie veröffentlichen dürfen."
-
-#~ msgid "Use proxy"
-#~ msgstr "Proxy verwenden"
-
-#~ msgid "Log proxy activity"
-#~ msgstr "Proxy Protokollierung"
-
-#, fuzzy
-#~| msgid "Activate to reroute all traffic for this service on MrMap"
-#~ msgid "Activate to reroute all traffic for this service on MrMap."
-#~ msgstr ""
-#~ "Aktivieren um alle Anfragen für diesen Dienst über Mr.Map umzuleiten"
-
-#, fuzzy
-#~| msgid "Activate to log every traffic activity for this service"
-#~ msgid "Activate to log every traffic activity for this service."
-#~ msgstr ""
-#~ "Aktivieren um alle Anfragen und Antworten für diesen Dienst zu "
-#~ "protokollieren"
-
-#~ msgid "Activate to restrict access on this service"
-#~ msgstr "Aktivieren um Zugriff auf diesen Dienst einzuschränken"
-
-#~ msgid "Log proxy or restrict access without using proxy is'nt possible!"
-#~ msgstr ""
-#~ "Proxy Protokollierung oder Einschränkung des Zugriffs nicht möglich ohne "
-#~ "Proxy Aktivierung!"
-
-#~ msgid "Access allowed"
-#~ msgstr "Zugriff erlaubt"
-
-#~ msgid "Access restricted spatially"
-#~ msgstr "Zugriff räumlich eingeschränkt"
-
-#~ msgid "Click to open the detail view of <strong>{}</strong>"
-#~ msgstr "Öffnet Detailansicht für <strong>{}</strong>."
-
-#~ msgid "This is the anonymous public user group."
-#~ msgstr "Dies ist die öffentliche Gruppe für Nicht-MrMap Nutzer."
-
-#~ msgid "Click to open the detail view of <strong>{}</strong>."
-#~ msgstr "Öffnet Detailansicht für <strong>{}</strong>."
-
-#, python-brace-format
-#~ msgid "Edit access for group <strong>{record.name}</strong>"
-#~ msgstr "Bearbeite Zugriff für Gruppe <strong>{record.name}</strong>"
-
-#~ msgid "Access Editor"
-#~ msgstr "Zugriffs Editor"
-
-#~ msgid "Service:"
-#~ msgstr "Dienst: "
-
-#~ msgid "Service Detail View"
-#~ msgstr "Dienst Detailansicht"
-
-#~ msgid "Edit group access"
-#~ msgstr "Gruppenzugriff bearbeiten"
-
-#~ msgid "Dataset successfully deleted."
-#~ msgstr "Datensatz erfolgreich gelöscht."
-
-#, fuzzy
-#~| msgid "Remove"
-#~ msgid "Remove "
-#~ msgstr "Löschen"
-
-#, fuzzy
-#~| msgid "Restore metadata"
-#~ msgid "Restore "
-#~ msgstr "Metadaten wiederherstellen"
-
-#, fuzzy
-#~| msgid "Do you really want to restore this metadata?"
-#~ msgid "Do you really want to restore Metadata?"
-#~ msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
-
-#, fuzzy
-#~| msgid "Restrict access"
-#~ msgid "restrict"
-#~ msgstr "Zugriff beschränken"
-
-#, fuzzy
-#~| msgid "Generate"
-#~ msgid "general"
-#~ msgstr "Generieren"
-
-#~ msgid "Select one or multiple resources which become checked."
-#~ msgstr "Wählen Sie eine oder mehrere Ressourcen zur Überprüfung aus."
-
-#, fuzzy
-#~| msgid "New group"
-#~ msgid " New run"
-#~ msgstr "Neue Gruppe"
-
-#, fuzzy
-#~| msgid "General health state"
-#~ msgid "Related health state"
-#~ msgstr "Allgemeiner Gesundheitszustand"
-
-#~ msgid "results"
-#~ msgstr "Ergebnisse"
-
-#~ msgid "This is a warning reason."
-#~ msgstr "Dies ist ein Warnungsgrund."
-
-#~ msgid "This is a critical reason."
-#~ msgstr "Das ist ein kritischer Grund."
-
-#~ msgid ""
-#~ "This check runs without getting state relevant results, cause the service "
-#~ "needs an authentication for this request."
-#~ msgstr ""
-#~ "Dieser Check konnte kein eindeutiges Ergebnis erhalten, da der Dienst für "
-#~ "diese Anfrage eine Authentifizierung am Server benötigt."
-
-#~ msgid "Good standing health."
-#~ msgstr "Guter Gesundheitszustand"
-
-#, fuzzy
-#~| msgid "Last monitoring runs"
-#~ msgid "New monitoring run"
-#~ msgstr "Letzte Checks"
-
-#~ msgid "Validation {\"succeeded\" if run.passed else \"failed\"}"
-#~ msgstr ""
-#~ "Überprüfung {\"erfolgreich\" if run.passed else \"fehlgeschlagen\"} "
-
-#, python-brace-format
-#~ msgid "for <a href=\"{href}\">"
-#~ msgstr "für <a href=\"{href}\">"
-
-#~ msgid "Validation aborted"
-#~ msgstr "Überprüfung abgebrochen"
-
-#, python-brace-format
-#~ msgid "for <a href=\"resource/detail/{metadata.id}\">"
-#~ msgstr "für <a href=\"resource/detail/{metadata.id}\">"
-
-#~ msgid "Search in a date range."
-#~ msgstr "Im Zeitfenster suchen."
-
-#~ msgid "Show layers"
-#~ msgstr "Zeige Ebenen"
-
-#~ msgid "Related objects"
-#~ msgstr "Gehört zu"
-
-#~ msgid "Layer title contains"
-#~ msgstr "Ebenen Titel enthält"
-
-#~ msgid "Resource URL"
-#~ msgstr "Ressourcen URL"
-
-#~ msgid "In case of a OGC service you may provide the GetCapabilities url."
-#~ msgstr "Für einen OGC Dienst geben Sie die GetCapabilities URL an."
-
-#~ msgid "OGC Request"
-#~ msgstr "OGC Request"
-
-#~ msgid "OGC Service"
-#~ msgstr "OGC Dienst"
-
-#~ msgid "URI"
-#~ msgstr "URI"
-
-#~ msgid "Registration with group"
-#~ msgstr "Registriere mit Gruppe"
-
-#~ msgid "Select a group for which this resource shall be registered."
-#~ msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
-
-#~ msgid ""
-#~ "If you need to register for another organization, select the group which "
-#~ "has the publisher rights and select the organization in here."
-#~ msgstr ""
-#~ "Falls Sie für eine andere Organisation registrieren wollen, wählen Sie "
-#~ "die Gruppe, die Veröffentlichungsrechte hat und wählen Sie anschließend "
-#~ "hier die jeweilige Organisation aus."
-
-#~ msgid "No other"
-#~ msgstr "Keine"
-
-#~ msgid "Keep custom metadata"
-#~ msgstr "Behalte benutzerdefinierte Metadaten"
-
-#~ msgid ""
-#~ "There are still pending update requests from user '{}' for this service."
-#~ msgstr ""
-#~ "Es läuft bereits eine Aktualisierung für diesen Dienst von Nutzer '{}'."
-
-#~ msgid "---"
-#~ msgstr "---"
-
-#~ msgid "Select the old layer name, if this new layer was just renamed."
-#~ msgstr ""
-#~ "Wählen Sie den alten Elementnamen, falls diese neue Ebene nur umbenannt "
-#~ "wurde."
-
-#~ msgid ""
-#~ "Select the old featuretype name, if this new featuretype was just renamed."
-#~ msgstr ""
-#~ "Wählen Sie den alten Elementnamen, falls dieses neue Feature nur "
-#~ "umbenannt wurde."
-
-#, fuzzy
-#~| msgid "New Resource"
-#~ msgid " New Resource"
-#~ msgstr "Neue Ressource"
-
-#, fuzzy
-#~| msgid "Add New Dataset"
-#~ msgid " New Dataset"
-#~ msgstr "Neuer Datensatz"
-
-#~ msgid "Type"
-#~ msgstr "Typ"
-
-#, fuzzy
-#~| msgid "Harvest with group"
-#~ msgid "Harvest catalogue"
-#~ msgstr "Harvest mit Gruppe"
-
-#~ msgid "Task failed unexpected. See error log for details."
-#~ msgstr ""
-#~ "Aufgabe unerwartet beendet. Sehen Sie den Fehler-Bericht für einzelheiten."
-
-#~ msgid "Health"
-#~ msgstr "Gesundheit"
-
-#~ msgid "Last harvest"
-#~ msgstr "Letzte Harvest"
-
-#~ msgid "Collected harvest records"
-#~ msgstr "Gesammelte Harvest Einträge"
-
-#, fuzzy
-#~| msgid "every {}"
-#~ msgid "Never"
-#~ msgstr "jede {}"
-
-#, fuzzy, python-brace-format
-#~| msgid ""
-#~| "Click to open the detail view of related service <strong>{metadata."
-#~| "title} [{metadata.id}]\"</strong>"
-#~ msgid ""
-#~ "Click to open the detail view of related {kind_of_resource} "
-#~ "<strong>{metadata.title} [{metadata.id}]\"</strong>"
-#~ msgstr ""
-#~ "Öffnet die Detailansicht des zugehörigen Dienstes <strong>{metadata."
-#~ "title} [{metadata.id}]</strong>"
-
-#~ msgid "Bbox lat lon"
-#~ msgstr "Begrenzungsrahmen Breite Länge"
-
-#~ msgid "Scale range"
-#~ msgstr "Zoomstufen"
-
-#~ msgid "No keywords provided"
-#~ msgstr "Keine Schlüsselwörter verfügbar"
-
-#~ msgid "No spatial data provided!"
-#~ msgstr "Keine geographischen Daten verfügbar!"
-
-#, fuzzy
-#~| msgid "No additional reference systems provided"
-#~ msgid "No default reference system provided"
-#~ msgstr "Keine weiteren Referenzsysteme verfügbar"
-
-#~ msgid "No additional reference systems provided"
-#~ msgstr "Keine weiteren Referenzsysteme verfügbar"
-
-#~ msgid "Shows all child layer of current WMS."
-#~ msgstr "Zeigt alle Unterebenen des aktuellen WMS."
-
-#~ msgid "Shows all featuretypes of current WFS."
-#~ msgstr "Zeigt alle Features des aktuellen WFS."
-
-#~ msgid "Shows all coupled metadata of current service."
-#~ msgstr "Zeigt alle verknüpften Metadaten des aktuellen Dienstes."
-
-#~ msgid "Shows all logs for a service."
-#~ msgstr "Zeigt alle Protokolle für einen Dienst."
-
-#~ msgid "Deactivate"
-#~ msgstr "Deaktivieren"
-
-#~ msgid "Activate"
-#~ msgstr "Aktivieren"
-
-#~ msgid "Harvest"
-#~ msgstr "Harvest"
-
-#~ msgid "Update"
-#~ msgstr "Aktualisieren"
-
-#~ msgid "Edit"
-#~ msgstr "Bearbeiten"
-
-#~ msgid "Access"
-#~ msgstr "Zugriff"
-
-#~ msgid "Remove"
-#~ msgstr "Löschen"
-
-#~ msgid "Last update on"
-#~ msgstr "Aktualisiert am"
-
-#, fuzzy
-#~| msgid "Valid until "
-#~ msgid "Validity"
-#~ msgstr "Gültig bis "
-
-#~ msgid "Validation is running..."
-#~ msgstr "Überprüfung wird ausgeführt"
-
-#~ msgid "Hits"
-#~ msgstr "Aufrufe"
-
-#~ msgid "Online resource"
-#~ msgstr "Onlineresource"
-
-#~ msgid "Access secured"
-#~ msgstr "Zugriff abgesichert"
-
-#~ msgid "Responsible Person"
-#~ msgstr "Ansprechpartner"
-
-#~ msgid "Post code"
-#~ msgstr "Postleitzahl"
-
-#~ msgid "Add New Dataset"
-#~ msgstr "Neuer Datensatz"
-
-#~ msgid "Download the current table as csv file."
-#~ msgstr "Gefilterte Tabelle als CSV herunterladen"
-
-#~ msgid "CSV"
-#~ msgstr "CSV"
-
-#~ msgid "You are about to update this service."
-#~ msgstr "Sie sind dabei diesen Dienst aktualisieren."
-
-#~ msgid ""
-#~ "Please read the info and help texts on this page very carefully and only "
-#~ "proceed if you know what you are doing."
-#~ msgstr ""
-#~ "Bitte lesen Sie die Info- und Hilfetexte auf dieser Seite gründlich und "
-#~ "fahren Sie bitte nur dann fort, wenn Sie wissen, was Sie tun."
-
-#~ msgid "New-Layers"
-#~ msgstr "Neue Ebenen"
-
-#~ msgid "New-Featuretypes"
-#~ msgstr "Neue Featuretypen"
-
-#~ msgid "Removed-Layers"
-#~ msgstr "Entfernte Ebenen"
-
-#~ msgid "Removed-Featuretypes"
-#~ msgstr "Entfernte Featuretypen"
-
-#~ msgid "Updated-Layers"
-#~ msgstr "Aktualisierte Featuretypen"
-
-#~ msgid "Updated-Featuretypes"
-#~ msgstr "Aktualisierte Featuretypen"
-
-#~ msgid "New elements could just be already known elements, but renamed."
-#~ msgstr ""
-#~ "Neue Elemente könnten bereits bekannte Elemente sein - allerdings "
-#~ "umbenannt!"
-
-#~ msgid ""
-#~ "In this case: Select for every renamed \"new\" element the old one from "
-#~ "the related list."
-#~ msgstr ""
-#~ "In diesem Fall: Wählen Sie für jedes umbenannte \"neue\" Element das alte "
-#~ "aus der zugehörigen Liste."
-
-#~ msgid "If the element is really new, just leave the empty selection."
-#~ msgstr ""
-#~ "Sollte das Element hingegen tatsächlich neu sein, lassen Sie die Auswahl "
-#~ "einfach leer."
-
-#~ msgid "all"
-#~ msgstr "Alle"
-
-#~ msgid "Continue"
-#~ msgstr "Weiter"
-
-#~ msgid ""
-#~ "These elements will be removed, since they do not exist in the service "
-#~ "anymore."
-#~ msgstr ""
-#~ "Diese Elemente werden entfernt, da sie nicht mehr in diesem Dienst "
-#~ "existieren."
-
-#~ msgid ""
-#~ "It is possible, that one of these elements was simply renamed. If so, go "
-#~ "up to the new elements and read the help text."
-#~ msgstr ""
-#~ "Es ist möglich, dass eins dieser Elemente nur umbenannt wurde. Falls dem "
-#~ "so ist, gehen Sie zur Übersicht neuer Elemente und lesen Sie dort den "
-#~ "Hilfetext."
-
-#~ msgid ""
-#~ "These elements still exist in the service and will be updated normally."
-#~ msgstr ""
-#~ "Diese Elemente existieren nach wie vor im Dienst und werden aktualisiert."
-
-#~ msgid "Open in new tab"
-#~ msgstr "Öffne in neuem Tab"
-
-#~ msgid "Subscribe to keep updated"
-#~ msgstr "Abonnieren um auf dem aktuellensten Stand zu bleiben"
-
-#~ msgid "Subscribe"
-#~ msgstr "Abonnieren"
-
-#~ msgid "Responsible organization for publishing"
-#~ msgstr "Veröffentlichende Organisation"
-
-#~ msgid "Responsible organization for publishing for "
-#~ msgstr "Veröffentlicht durch"
-
-#~ msgid "Responsible organization for service"
-#~ msgstr "Verantwortlich für Dienst"
-
-#~ msgid "Responsible organization for service for "
-#~ msgstr "Verantwortlich für Dienst von"
-
-#~ msgid "Contact address"
-#~ msgstr "Adresse"
-
-#~ msgid "Data/Service provider"
-#~ msgstr "Daten-/Dienstanbieter"
-
-#~ msgid "Data/Service provider of the dataset for "
-#~ msgstr "Daten-/Dienstanbieter des Datensatzes für "
-
-#~ msgid "Responsible party name"
-#~ msgstr "Verantwortliche Organisation:"
-
-#~ msgid "Metadata provider"
-#~ msgstr "Metadatenanbieter"
-
-#~ msgid "Metadata provider of the dataset for "
-#~ msgstr "Metadatenanbieter für den Datensatz von "
-
-#~ msgid "Metadata point of contact name"
-#~ msgstr "Metadaten Kontaktdaten Name"
-
-#~ msgid "Metadata point of contact email"
-#~ msgstr "Metadaten Kontaktdaten E-Mail"
-
-#~ msgid "Interfaces of the dataset for "
-#~ msgstr "Schnittstellen des Datensatzes für "
-
-#~ msgid "Show document"
-#~ msgstr "Zeige Dokument"
-
-#~ msgid "Overview of the dataset for "
-#~ msgstr "Überblick über Datensatz für "
-
-#~ msgid "Kind of resource"
-#~ msgstr "Onlineresource"
-
-#~ msgid "Properties of the dataset for "
-#~ msgstr "Eigenschaften des Datensatzes für "
-
-#~ msgid "Topic category"
-#~ msgstr "Kategorie"
-
-#~ msgid "No categories provided!"
-#~ msgstr "Keine Kategorien vorhanden!"
-
-#~ msgid "Keyword value"
-#~ msgstr "Schlüsselwörter"
-
-#~ msgid "No keywords provided!"
-#~ msgstr "Keine Schlüsselwörter vorhanden!"
-
-#~ msgid "Extend in geographic Coordinates"
-#~ msgstr "Ausdehnung in geografischen Koordinaten"
-
-#~ msgid "Temporal extent from"
-#~ msgstr "Zeitliche Ausdehnung von"
-
-#~ msgid "Temporal extent to"
-#~ msgstr "Zeitliche Ausdehnung bis"
-
-#~ msgid "Date of publication"
-#~ msgstr "Veröffentlicht am"
-
-#~ msgid "No date of publication provided!"
-#~ msgstr "Kein Datum verügbar!"
-
-#~ msgid "Date of last revision"
-#~ msgstr "Letzte Revision am"
-
-#~ msgid "No date of last revision provided!"
-#~ msgstr "Kein Datum verügbar!"
-
-#~ msgid "Date of creation"
-#~ msgstr "Erstellt am"
-
-#~ msgid "No date of creation provided!"
-#~ msgstr "Kein Datum verfügbar!"
-
-#~ msgid "Encoding"
-#~ msgstr "Zeichenkodierung"
-
-#~ msgid "Terms of use of the dataset "
-#~ msgstr "Nutzungsbedingungen für den Datensatz "
-
-#~ msgid "Fees"
-#~ msgstr "Gebühren:"
-
-#~ msgid "Interfaces informations for "
-#~ msgstr "Schnittstelleninformationen für "
-
-#~ msgid "Original Capabilities"
-#~ msgstr "Original Capabilities"
-
-#~ msgid "Quality informations for "
-#~ msgstr "Qualitätsinformationen für "
-
-#~ msgid "Availability"
-#~ msgstr "Verfügbarkeit"
-
-#~ msgid "Terms of use informations for "
-#~ msgstr "Nutzungsbedingungen für "
-
-#~ msgid "Public access restrictions"
-#~ msgstr "Einschränkung des öffentlichen Zugriffs"
-
-#~ msgid "Information about costs/fees/licenses"
-#~ msgstr "Kosten/Gebühren/Lizenzen"
-
-#~ msgid "Interfaces of the featuretype for "
-#~ msgstr "Schnittstellen des Featuretypes für "
-
-#~ msgid "Overview of the featuretype for "
-#~ msgstr "Überblick für den Featuretype für "
-
-#~ msgid "Name of resource"
-#~ msgstr "Ressourcenname"
-
-#~ msgid "Properties of the featuretype for "
-#~ msgstr "Eigenschaften des Featuretype für "
-
-#~ msgid "is access secured"
-#~ msgstr "Zugriff eingeschränkt"
-
-#~ msgid "Coordinate Reference System"
-#~ msgstr "Referenzsystem"
-
-#~ msgid "Dataschema"
-#~ msgstr "Datenschema"
-
-#~ msgid "Type of geometry"
-#~ msgstr "Geometrietyp"
-
-#~ msgid "Overview of the wfs for "
-#~ msgstr "Überblick WFS für "
-
-#~ msgid "Overview of the layer for "
-#~ msgstr "Überblick Layer für "
-
-#~ msgid "Child Layers"
-#~ msgstr "Unterebenen"
-
-#~ msgid "Properties of the layer for "
-#~ msgstr "Eigenschaften der Ebene für "
-
-#~ msgid "Is available"
-#~ msgstr "Verfügbar"
-
-#~ msgid "Overview of the wms for "
-#~ msgstr "Überblick WMS für "
-
-#~ msgid "Root layer"
-#~ msgstr "Rootebene"
-
-#~ msgid "Properties of the wms for "
-#~ msgstr "Eigenschaften des WMS für "
-
-#~ msgid "Click to switch to overview tab"
-#~ msgstr "Klicken Sie hier, um zur Registerkarte Übersicht zu wechseln"
-
-#~ msgid "Overview"
-#~ msgstr "Übersicht"
-
-#~ msgid "Click to switch to properties tab"
-#~ msgstr "Klicken Sie hier, um zur Registerkarte Eigenschaften zu wechseln"
-
-#~ msgid "Properties"
-#~ msgstr "Eigenschaften"
-
-#~ msgid "Click to switch to contact tab"
-#~ msgstr "Klicken Sie hier, um zur Registerkarte Kontakt zu wechseln"
-
-#~ msgid "Click to switch to terms of use tab"
-#~ msgstr ""
-#~ "Klicken Sie hier, um zur Registerkarte Nutzungsbedingungen zu wechseln"
-
-#~ msgid "Terms Of Use"
-#~ msgstr "Nutzungsbedingungen"
-
-#~ msgid "Click to switch to interface tab"
-#~ msgstr ""
-#~ "Klicken Sie hier, um zur Registerkarte Benutzeroberfläche zu wechseln"
-
-#~ msgid "Interfaces"
-#~ msgstr "Schnittstellen"
-
-#~ msgid "Click to switch to quality tab"
-#~ msgstr "Klicken Sie hier, um zur Registerkarte Qualität zu wechseln"
-
-#~ msgid "Quality"
-#~ msgstr "Qualität"
-
-#~ msgid "Click to switch to interfaces tab"
-#~ msgstr "Klicken Sie hier, um zur Registerkarte Schnittstellen zu wechseln"
-
-#~ msgid "Next"
-#~ msgstr "Weiter"
-
-#, fuzzy
-#~| msgid "Restore metadata"
-#~ msgid "Customize the metadata file"
-#~ msgstr "Metadaten wiederherstellen"
-
-#, fuzzy
-#~| msgid "Health state of the ressource"
-#~ msgid "Customize the security access of the resource"
-#~ msgstr "Gesundheitszustand der Ressource"
-
-#, fuzzy
-#~| msgid "Name of resource"
-#~ msgid "Remove this resource"
-#~ msgstr "Ressourcenname"
-
-#, fuzzy
-#~| msgid "Edit metadata"
-#~ msgid "Edit Metadata"
-#~ msgstr "Bearbeite Metadaten"
-
-#, fuzzy
-#~| msgid "Edit access"
-#~ msgid "Edit Access"
-#~ msgstr "Bearbeite Zugriff"
-
-#, fuzzy
-#~| msgid "Pending tasks"
-#~ msgid " Pending tasks"
-#~ msgstr "Laufende Prozesse"
-
-#~ msgid " WMS"
-#~ msgstr "WMS"
-
-#~ msgid " WFS"
-#~ msgstr "WFS"
-
-#~ msgid " CSW"
-#~ msgstr "CSW"
-
-#, fuzzy
-#~| msgid "Datasets"
-#~ msgid " Dataset"
-#~ msgstr "Datensätze"
-
-#, fuzzy
-#~| msgid "Deactivate"
-#~ msgid "Deactivate service"
-#~ msgstr "Deaktivieren"
-
-#, fuzzy
-#~| msgid "Activate"
-#~ msgid "Activate service"
-#~ msgstr "Aktivieren"
-
-#~ msgid " XML"
-#~ msgstr "XML"
-
-#, fuzzy
-#~| msgid "HTML"
-#~ msgid " HTML"
-#~ msgstr "HTML"
-
-#, fuzzy
-#~| msgid "Logs"
-#~ msgid " Logs"
-#~ msgstr "Protokolle"
-
-#, fuzzy
-#~| msgid "Export as GeoJSON"
-#~ msgid " Export as"
-#~ msgstr "Exportiere als GeoJSON"
-
-#~ msgid "Members"
-#~ msgstr "Mitglieder"
-
-#~ msgid "Parent group"
-#~ msgstr "Untergruppe von"
-
-#~ msgid "Circular configuration of parent groups detected."
-#~ msgstr "Schleifenkonfiguration für eltern Gruppe festgestellt."
-
-#~ msgid "Group"
-#~ msgstr "Gruppen"
-
-#~ msgid "Select your group for which you want to request publisher rights"
-#~ msgstr ""
-#~ "Wählen Sie eine Ihrer Gruppen, für welche Sie Veröffentlichungsrechte "
-#~ "anfordern wollen"
-
-#~ msgid "Publishers"
-#~ msgstr "Veröffentlicher"
-
-#~ msgid "Create group"
-#~ msgstr "Erstelle mit Gruppe"
-
-#~ msgid ""
-#~ "If set, a group will be automatically created for this organization. "
-#~ "Groups are needed for e.g. registration of services."
-#~ msgstr ""
-#~ "Wenn gesetzt, dann wird eine Gruppe für diese Organisation automatisch "
-#~ "erstellt. Gruppen werden für die Registrierung von Diensten benötigt."
-
-#~ msgid "{} group"
-#~ msgstr "{} Gruppe"
-
-#~ msgid "Group {} successfully created."
-#~ msgstr "Gruppe '{}' erfolgreich erstellt."
-
-#~ msgid "You have to confirm the checkbox."
-#~ msgstr "Sie müssen die Checkbox anwählen."
-
-#~ msgid "Organization {} successfully deleted."
-#~ msgstr "Organisation {} gelöscht."
-
-#~ msgid "Password again"
-#~ msgstr "Passwort wiederholen"
-
-#~ msgid "Passwords do not match."
-#~ msgstr "Passwörter stimmen nicht überein."
-
-#~ msgid "Organization name"
-#~ msgstr "Organisationsname"
-
-#~ msgid "Configure a inheritance structure for this Organization"
-#~ msgstr "Konfigurieren Sie eine Vererbungsstruktur für diese Organisation"
-
-#, fuzzy
-#~| msgid "Generate"
-#~ msgid "autogenerated"
-#~ msgstr "Generieren"
-
-#, fuzzy
-#~| msgid "The organization which provides the resource."
-#~ msgid "Autogenerated organizations are resolved from registered resources."
-#~ msgstr "Die Organisation, welche den Dienst anbietet."
-
-#~ msgid "Circular configuration of parent organization detected."
-#~ msgstr "Schleifenkonfiguration für eltern Organisation festgestellt."
-
-#, fuzzy
-#~| msgid "Add new organization"
-#~ msgid " new organization"
-#~ msgstr "Neue Organisation hinzufügen"
-
-#, fuzzy
-#~| msgid "Become publisher"
-#~ msgid " become publisher"
-#~ msgstr "Veröffentlichungsrechte anfragen"
-
-#~ msgid " edit"
-#~ msgstr " bearbeiten"
-
-#, fuzzy, python-brace-format
-#~| msgid ""
-#~| "Become publisher for organization <strong>{record.organization_name} "
-#~| "[{record.id}]</strong>"
-#~ msgid ""
-#~ "Become publisher for organization <strong>{self.organization_name} [{self."
-#~ "id}]</strong>"
-#~ msgstr ""
-#~ "Veröffentlicher für Organisation <strong>{record.organization_name} "
-#~ "[{record.id}]</strong> werden"
-
-#, fuzzy, python-brace-format
-#~| msgid ""
-#~| "Edit <strong>{record.organization_name} [{record.id}]</strong> "
-#~| "organization"
-#~ msgid ""
-#~ "Edit <strong>{self.organization_name} [{self.id}]</strong> organization"
-#~ msgstr ""
-#~ "Bearbeite Organisation <strong>{record.organization_name} [{record.id}]</"
-#~ "strong>"
-
-#, fuzzy
-#~| msgid "Remove"
-#~ msgid " remove"
-#~ msgstr "Löschen"
-
-#, fuzzy, python-brace-format
-#~| msgid ""
-#~| "Remove <strong>{record.organization_name} [{record.id}]</strong> "
-#~| "organization"
-#~ msgid ""
-#~ "Remove <strong>{self.organization_name} [{self.id}]</strong> organization"
-#~ msgstr ""
-#~ "Lösche Organisation <strong>{record.organization_name} [{record.id}]</"
-#~ "strong>"
-
-#~ msgid "Groups"
-#~ msgstr "Gruppen"
-
-#~ msgid "you must define created_by to save new instances"
-#~ msgstr "Sie müssen das Feld `created_by` ausfüllen."
-
-#~ msgid ""
-#~ "Group {} is an important extras group and therefore can not be removed."
-#~ msgstr ""
-#~ "Gruppe {} ist eine bedeutende Hauptgruppe und kann daher nicht gelöscht "
-#~ "werden."
-
-#, fuzzy
-#~| msgid "New group"
-#~ msgid " New group"
-#~ msgstr "Neue Gruppe"
-
-#, fuzzy
-#~| msgid "Edit"
-#~ msgid " Edit"
-#~ msgstr "Bearbeiten"
-
-#, fuzzy, python-brace-format
-#~| msgid "Edit <strong>{}</strong>"
-#~ msgid "Edit <strong>{self.name}</strong>"
-#~ msgstr "Bearbeite <strong>{}</strong>"
-
-#, fuzzy
-#~| msgid "Delete"
-#~ msgid " Delete"
-#~ msgstr "Löschen"
-
-#, fuzzy, python-brace-format
-#~| msgid "Remove <strong>{}</strong> group"
-#~ msgid "Remove <strong>{self.name}</strong>"
-#~ msgstr "Lösche <strong>{}</strong> Gruppe"
-
-#, fuzzy
-#~| msgid "December"
-#~ msgid " become member"
-#~ msgstr "Dezember"
-
-#, fuzzy, python-brace-format
-#~| msgid "Remove publisher <strong>{}</strong>"
-#~ msgid "Become member of  <strong>{self.name}</strong>"
-#~ msgstr "Entferne Veröffentlicher <strong>{}</strong>"
-
-#, fuzzy
-#~| msgid "Leave group"
-#~ msgid " leave group"
-#~ msgstr "Verlasse Gruppe"
-
-#, fuzzy
-#~| msgid "Become publisher"
-#~ msgid "Become rights to publish"
-#~ msgstr "Veröffentlichungsrechte anfragen"
-
-#, fuzzy
-#~| msgid "Pending requests"
-#~ msgid " pending requests"
-#~ msgstr "Ausstehende Anfragen"
-
-#, fuzzy, python-brace-format
-#~| msgid "Pending requests"
-#~ msgid "see pending requests for {self}"
-#~ msgstr "Ausstehende Anfragen"
-
-#, fuzzy
-#~| msgid "Organization"
-#~ msgid "organization"
-#~ msgstr "Organisation"
-
-#, fuzzy
-#~| msgid "Publisher Requests"
-#~ msgid " new publisher request"
-#~ msgstr "Veröffentlichungsanfragen"
-
-#~ msgid "Invited user"
-#~ msgstr "Eingeladene Nutzer"
-
-#, fuzzy
-#~| msgid "invited you to a group."
-#~ msgid "Invite this user to a selected group."
-#~ msgstr "hat Sie zu einer Gruppe eingeladen."
-
-#, fuzzy
-#~| msgid "Edit group"
-#~ msgid "to group"
-#~ msgstr "Bearbeite Gruppe"
-
-#, fuzzy
-#~| msgid "invited you to a group."
-#~ msgid "Invite the selected user to this group."
-#~ msgstr "hat Sie zu einer Gruppe eingeladen."
-
-#~ msgid "Pending group invitation"
-#~ msgstr "Ausstehende Gruppeneinladung"
-
-#~ msgid "Pending group invitations"
-#~ msgstr "Ausstehende Gruppeneinladungen"
-
-#, fuzzy
-#~| msgid "Add new organization"
-#~ msgid " new group invitation"
-#~ msgstr "Neue Organisation hinzufügen"
-
-#, fuzzy
-#~| msgid "Remove"
-#~ msgid " Remove"
-#~ msgstr "Löschen"
-
-#, fuzzy, python-brace-format
-#~| msgid ""
-#~| "Remove <strong>{record.organization_name} [{record.id}]</strong> "
-#~| "organization"
-#~ msgid ""
-#~ "Remove <strong>{record}</strong> from <strong>{self.organization}</strong>"
-#~ msgstr ""
-#~ "Lösche Organisation <strong>{record.organization_name} [{record.id}]</"
-#~ "strong>"
-
-#, fuzzy
-#~| msgid "Accept"
-#~ msgid " accept"
-#~ msgstr "Akzeptieren"
-
-#~ msgid " deny"
-#~ msgstr " verweigern"
-
-#~ msgid "Shows all groups which are configured in your Mr. Map environment."
-#~ msgstr "Zeigt alle Gruppen, zu denen Sie gehören."
-
-#~ msgid "Click to open the detail view of the organization"
-#~ msgstr "Klicken für die Detailansicht der Organisation"
-
-#~ msgid "Inherited Permissions"
-#~ msgstr "Geerbte Berechtigungen"
-
-#~ msgid ""
-#~ "Shows all organizations which are configured in your Mr. Map environment."
-#~ msgstr "Zeigt alle verfügbaren Organisationen."
-
-#, fuzzy, python-brace-format
-#~| msgid "Remove group <strong>{group}</strong>"
-#~ msgid "Remove <strong>{record}</strong> from <strong>{self.group}</strong>"
-#~ msgstr "Lösche Gruppe <strong>{group}</strong>"
-
-#~ msgid " Invite"
-#~ msgstr " einladen"
-
-#, fuzzy, python-brace-format
-#~| msgid "Edit <strong>{}</strong>"
-#~ msgid "Invite <strong>{record}</strong>"
-#~ msgstr "Bearbeite <strong>{}</strong>"
-
-#, fuzzy
-#~| msgid "Members"
-#~ msgid "Members "
-#~ msgstr "Mitglieder"
-
-#, fuzzy
-#~| msgid "Publishes for"
-#~ msgid "Publish rights for "
-#~ msgstr "Veröffentlicht für"
-
-#, fuzzy
-#~| msgid "Members"
-#~ msgid " Members"
-#~ msgstr "Mitglieder"
-
-#~ msgid "New group"
-#~ msgstr "Neue Gruppe"
-
-#~ msgid "Delete group"
-#~ msgstr "Lösche Gruppe"
-
-#~ msgid "Edit group"
-#~ msgstr "Bearbeite Gruppe"
-
-#, fuzzy
-#~| msgid "Group Administrator"
-#~ msgid "Group invitation request "
-#~ msgstr "Gruppenadministrator"
-
-#, python-brace-format
-#~ msgid "{user} is already member of this group."
-#~ msgstr "{user} ist bereit Mitglied dieser Gruppe."
-
-#, fuzzy
-#~| msgid "Accept the request"
-#~ msgid "Accept invitation request"
-#~ msgstr "Anfrage akzeptieren"
-
-#, fuzzy
-#~| msgid "New group"
-#~ msgid "New Group"
-#~ msgstr "Neue Gruppe"
-
-#, fuzzy
-#~| msgid "New organization"
-#~ msgid "New Organization"
-#~ msgstr "Neue Organisation"
-
-#, fuzzy
-#~| msgid "Group organization"
-#~ msgid "Group invitations"
-#~ msgstr "Gruppen Organisation"
-
-#~ msgid "New Group invitation request"
-#~ msgstr "Neue Gruppeneinladung"
-
-#~ msgid "Choice a date and time with the calender"
-#~ msgstr "Datum und Uhrzeit auswählen"
-
-#~ msgid "Import GML3 or GeoJSON"
-#~ msgstr "Importiere GML3 oder GeoJSON"
-
-#~ msgid "Load geometry"
-#~ msgstr "Geometrie laden"
-
-#~ msgid "Export as GeoJSON"
-#~ msgstr "Exportiere als GeoJSON"
-
-#~ msgid "Actions to perform"
-#~ msgstr "Aktionen"
-
-#~ msgid "Groups and organizations"
-#~ msgstr "Gruppen und Organisationen"
-
-#~ msgid "Your groups"
-#~ msgstr "Ihre Gruppen"

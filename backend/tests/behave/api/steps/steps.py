@@ -2,7 +2,7 @@ import json
 from unittest.mock import Mock, patch
 
 from behave import given, step, then
-from registry.models.security import AllowedWebMapServiceOperation
+from django.http import SimpleCookie
 from rest_framework.authtoken.models import Token
 
 
@@ -118,3 +118,10 @@ def step_impl(context, func_name, module_name):
 # @then('I expect that the function "{func_name}" of the module "{module_name}" was called with')
 # def step_impl(context, func_name, module_name, args, kwargs):
 #     callvalues = dict(context.text)
+
+
+@given('I set the cookie "{cookie_name}" with value "{cookie_value}"')
+def step_impl(context, cookie_name, cookie_value):
+    if not context.client.cookies:
+        context.client.cookies = SimpleCookie()
+    context.client.cookies[cookie_name] = cookie_value

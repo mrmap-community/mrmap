@@ -71,5 +71,4 @@ def after_scenario(context, scenario):
 
 def after_step(context, step):
     if step.status == Status.failed and hasattr(context, 'response') and context.response:
-        pass
-        # print(context.response.content)
+        print(context.response.content)

@@ -1,4 +1,4 @@
-coverage==6.1
+coverage==6.3.2
 behave-django==1.4.0
 flake8==4.0.1
 watchdog[watchmedo]==2.1.6

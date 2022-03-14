@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_gis",
     "rest_framework_json_api",
-    "django_celery_beat",
+    # "django_celery_beat", wait for v 2.2.2... 2.2.1 is not compatible with django 4.0
     "django_celery_results",
     "django_filters",
     "simple_history",
@@ -255,7 +255,7 @@ CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+# CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"  #  wait for v 2.2.2... 2.2.1 is not compatible with django 4.0
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_DEFAULT_QUEUE = "default"

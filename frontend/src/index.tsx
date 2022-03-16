@@ -1,4 +1,5 @@
 import { ConfigProvider } from 'antd';
+import 'antd/dist/antd.css';
 import deDE from 'antd/lib/locale/de_DE';
 import { AxiosRequestConfig } from 'axios';
 import 'moment/locale/de'; // needed for german date formats in antd date components
@@ -7,10 +8,12 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { OpenAPIProvider } from 'react-openapi-client';
 import { Provider } from 'react-redux';
+import { BrowserRouter as Router } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
 import { store } from './Services/ReduxStore/Store';
+
 
 const defaultConfig: AxiosRequestConfig = {
   baseURL: '/',
@@ -27,8 +30,11 @@ ReactDOM.render(
       definition='/api/schema/' 
       axiosConfigDefaults={defaultConfig}>
       <ConfigProvider locale={deDE}>
-        <App />
+        <Router>
+          <App />
+        </Router>
       </ConfigProvider>
+      
     </OpenAPIProvider>
   </Provider>,
 

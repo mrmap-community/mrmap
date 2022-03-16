@@ -2,7 +2,7 @@ import { LockFilled, UnlockFilled } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import RepoTable from '../Shared/RepoTable/NewRepoTable';
+import RepoTable from '../../Components/Shared/RepoTable/NewRepoTable';
 
 
 const WmsTable = (): JSX.Element => {

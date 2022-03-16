@@ -103,7 +103,6 @@ export const NavMenu = ({
       >
         <Link to='/logout'>Logout ({currentUser.attributes.username})</Link>
       </Menu.Item>
-      
     </Menu>
   );
 };

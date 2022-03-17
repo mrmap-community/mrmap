@@ -59,6 +59,15 @@ services:
       - type: bind
         source: ./frontend/public
         target: /opt/mrmap/public
+      - type: bind
+        source: ./frontend/config
+        target: /opt/mrmap/config
+      - type: bind
+        source: ./frontend/mock
+        target: /opt/mrmap/mock
+      - type: bind
+        source: ./frontend/tests
+        target: /opt/mrmap/tests
     networks:
       - mrmap-internal
     env_file:

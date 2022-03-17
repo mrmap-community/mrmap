@@ -1,0 +1,41 @@
+import SchemaTable from '@/components/SchemaTable';
+import { LockFilled, UnlockFilled } from '@ant-design/icons';
+import { PageContainer } from '@ant-design/pro-layout';
+import { Button, Tooltip } from 'antd';
+import React, { ReactElement, useCallback } from 'react';
+
+
+const WmsTable = (): ReactElement => {
+    console.log('HUHU');
+  const additionalActions = useCallback((text: any, record:any): React.ReactNode => {
+    const allowedOperations = record.relationships?.allowedOperations?.meta?.count;
+    return (
+      <Tooltip 
+        title={ allowedOperations > 0 ? `Zugriffsregeln: ${allowedOperations}` : 'Zugriff unbeschränkt' }>
+        <Button
+          size='small'
+          style={{ borderColor: 'gold', color: 'gold' }}
+          icon={allowedOperations > 0 ? <LockFilled/> : <UnlockFilled/>}
+          onClick={ () => {
+              // TODO: replace by umi Link
+            //navigate(`/registry/services/wms/${record.id}/security`);
+          }}
+        >
+        </Button>
+      </Tooltip>
+    );
+  },[],
+  );
+
+  return (
+  <PageContainer>
+    Hello World
+    <SchemaTable
+    resourceTypes={['WebMapService']}
+    additionalActions={additionalActions}
+  />
+  </PageContainer>
+  );
+};
+
+export default WmsTable;

@@ -3,7 +3,6 @@ import { defineConfig } from 'umi';
 import defaultSettings from './defaultSettings';
 import routes from './routes';
 
-
 const { REACT_APP_ENV } = process.env;
 
 export default defineConfig({
@@ -49,9 +48,11 @@ export default defineConfig({
   },
   // Fast Refresh 热更新
   fastRefresh: {},
-  
+
   nodeModulesTransform: { type: 'none' },
-  mfsu: {},
-  webpack5: {},
+  // Workaround for "ResolverError: Error downloading https://localhost/api/schema/"
+  // Analysis so far: when mfsu/webpack5 option is present, @apidevtools/json-schema-ref-parser will not get the correct https polyfill
+  // mfsu: {},
+  // webpack5: {},
   exportStatic: {},
 });

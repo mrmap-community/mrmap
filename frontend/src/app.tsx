@@ -8,46 +8,44 @@ import { OpenAPIProvider } from 'react-openapi-client';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
+
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
-/** 获取用户信息比较慢的时候会展示一个 loading */
-export const initialStateConfig = {
-  loading: <PageLoading />,
-};
 
 /**
- * @see  https://umijs.org/zh-CN/plugins/plugin-initial-state
- * */
+ * This function will be executed once at the start of the application.
+ * <p>
+ * The return value is available globally via <code>useModel('@@initialState')</code>.
+ * <p>
+ * @see https://umijs.org/zh-CN/plugins/plugin-initial-state
+ */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
   currentUser?: any;
   loading?: boolean;
   fetchUserInfo?: () => Promise<any | undefined>;
 }> {
-
-  async function fetchCurrentUser(options?: Record<string, any>) {
-    return request<{
-      data: any; // TODO: jsonapi response object as type
-    }>('/api/v1/accounts/who-am-i/', {
-      method: 'GET',
-      ...(options || {}),
-    });
-  }
-  console.log('initial state called');
-  console.log(history);
   const fetchUserInfo = async () => {
     try {
-      const msg = await fetchCurrentUser();
-      console.log(msg);
-      return msg.data;
+      const msg = await request<{
+        data: any; // TODO: jsonapi response object as type
+      }>('/api/v1/accounts/who-am-i/', {
+        method: 'GET',
+      });
+      // who-am-i returns an AnonymousUser if no session can be found
+      if (msg.data.attributes?.username !== 'AnonymousUser') {
+        // TODO AvatarDropdown component supports avatar image, do we want this in our model?
+        msg.data.attributes.avatar =
+          'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
+        return msg.data;
+      }
     } catch (error) {
       history.push(loginPath);
     }
     return undefined;
   };
-  // 如果是登录页面，不执行
+  // if this is not the login page, try to fetch user and set currentUser
   if (history.location.pathname !== loginPath) {
-    
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
@@ -61,7 +59,12 @@ export async function getInitialState(): Promise<{
   };
 }
 
-// ProLayout 支持的api https://procomponents.ant.design/components/layout
+/** When obtaining the initial state is slow, this loading indicator will be visible. */
+export const initialStateConfig = {
+  loading: <PageLoading />,
+};
+
+// ProLayout api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   return {
     rightContentRender: () => <RightContent />,
@@ -72,7 +75,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     // footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
-      // 如果没有登录，重定向到 login
+      // if not logged in, redirect to login page
       if (!initialState?.currentUser && location.pathname !== loginPath) {
         history.push(loginPath);
       }
@@ -86,15 +89,14 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           <Link key="github" to="https://github.com/mrmap-community/mrmap" target="_blank">
             <GithubFilled />
             <span>Git</span>
-          </Link>
-          
+          </Link>,
         ]
       : [],
     menuHeaderRender: undefined,
-    // 自定义 403 页面
+    // custom 403 page
     // unAccessible: <div>unAccessible</div>,
-    // 增加一个 loading 的状态
     childrenRender: (children, props) => {
+      // add a loading state
       // if (initialState?.loading) return <PageLoading />;
       return (
         <>
@@ -123,14 +125,14 @@ const defaultConfig: AxiosRequestConfig = {
   xsrfCookieName: 'csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
   headers: {
-    'Content-Type': 'application/vnd.api+json'
-  }
+    'Content-Type': 'application/vnd.api+json',
+  },
 };
 
 export function rootContainer(container: any) {
-  return <OpenAPIProvider 
-    definition='/api/schema/'
-    axiosConfigDefaults={defaultConfig}>
-      { container }
-  </OpenAPIProvider>
+  return (
+    <OpenAPIProvider definition="/api/schema/" axiosConfigDefaults={defaultConfig}>
+      {container}
+    </OpenAPIProvider>
+  );
 }

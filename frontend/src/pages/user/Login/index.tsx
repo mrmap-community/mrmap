@@ -23,7 +23,7 @@ const LoginMessage: React.FC<{
 );
 
 const Login: React.FC = (): ReactElement => {
-  const {initialState, setInitialState } = useModel('@@initialState');
+  const { initialState, setInitialState } = useModel('@@initialState');
 
   const [
     createLoginRequest,
@@ -34,68 +34,17 @@ const Login: React.FC = (): ReactElement => {
   const intl = useIntl();
 
   const fetchUserInfo = async () => {
-    // const userInfo = await initialState?.fetchUserInfo?.();
-    // TODO replace dummy value
-    const userInfo = {
-      name: 'mrmap',
-      avatar: 'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png',
-      userid: '00000001',
-      email: 'antdesign@alipay.com',
-      signature: '海纳百川，有容乃大',
-      title: '交互专家',
-      group: '蚂蚁金服－某某某事业群－某某平台部－某某技术部－UED',
-      tags: [
-        {
-          key: '0',
-          label: '很有想法的',
-        },
-        {
-          key: '1',
-          label: '专注设计',
-        },
-        {
-          key: '2',
-          label: '辣~',
-        },
-        {
-          key: '3',
-          label: '大长腿',
-        },
-        {
-          key: '4',
-          label: '川妹子',
-        },
-        {
-          key: '5',
-          label: '海纳百川',
-        },
-      ],
-      notifyCount: 12,
-      unreadCount: 11,
-      country: 'China',
-      access: 'admin',
-      geographic: {
-        province: {
-          label: '浙江省',
-          key: '330000',
-        },
-        city: {
-          label: '杭州市',
-          key: '330100',
-        },
-      },
-      address: '西湖区工专路 77 号',
-      phone: '0752-268888888',
-    };
+    const userInfo = await initialState?.fetchUserInfo?.();
     if (userInfo) {
-      await setInitialState((s: any) => ({
+      console.log(userInfo);
+      await setInitialState((s) => ({
         ...s,
         currentUser: userInfo,
       }));
     }
   };
 
-  const onFinish = async (values: any) => {
+  const handleSubmit = async (values: any) => {
     const jsonApiPayload: RequestPayload = {
       data: {
         type: 'LoginRequest',
@@ -104,16 +53,17 @@ const Login: React.FC = (): ReactElement => {
     };
     try {
       console.log('Logging in ', jsonApiPayload);
-      const res = await createLoginRequest(undefined, jsonApiPayload);
-      console.log('Ok', res);
-      if (res.status === 200) {
+      const msg = await createLoginRequest(undefined, jsonApiPayload);
+      console.log('Ok', msg);
+      if (msg.status === 200) {
         const defaultLoginSuccessMessage = intl.formatMessage({
           id: 'pages.login.success',
-          defaultMessage: '登录成功！',
+          defaultMessage: 'Login succesful！',
         });
         message.success(defaultLoginSuccessMessage);
         await fetchUserInfo();
         if (!history) return;
+        /** Redirect to the page specified by redirect parameter */
         const { query } = history.location;
         const { redirect } = query as { redirect: string };
         history.push(redirect || '/');
@@ -124,6 +74,11 @@ const Login: React.FC = (): ReactElement => {
       console.log(loginError);
       console.log(loginLoading);
       console.log(loginResponse);
+      const defaultLoginFailureMessage = intl.formatMessage({
+        id: 'pages.login.failure',
+        defaultMessage: 'Login failed, please try again!',
+      });
+      message.error(defaultLoginFailureMessage);
     }
   };
 
@@ -146,7 +101,9 @@ const Login: React.FC = (): ReactElement => {
           initialValues={{
             autoLogin: true,
           }}
-          onFinish={onFinish}
+          onFinish={async (values) => {
+            await handleSubmit(values);
+          }}
         >
           {loginError && (
             <LoginMessage

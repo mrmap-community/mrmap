@@ -23,7 +23,7 @@ const LoginMessage: React.FC<{
 );
 
 const Login: React.FC = (): ReactElement => {
-  const { setInitialState } = useModel('@@initialState');
+  const {initialState, setInitialState } = useModel('@@initialState');
 
   const [
     createLoginRequest,
@@ -88,14 +88,14 @@ const Login: React.FC = (): ReactElement => {
       phone: '0752-268888888',
     };
     if (userInfo) {
-      await setInitialState((s) => ({
+      await setInitialState((s: any) => ({
         ...s,
         currentUser: userInfo,
       }));
     }
   };
 
-  const onFinish = async (values: API.LoginParams) => {
+  const onFinish = async (values: any) => {
     const jsonApiPayload: RequestPayload = {
       data: {
         type: 'LoginRequest',

@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Tag, message } from 'antd';
+import { message, Tag } from 'antd';
 import { groupBy } from 'lodash';
 import moment from 'moment';
+import { useEffect, useState } from 'react';
 import { useModel, useRequest } from 'umi';
-import { getNotices } from '@/services/ant-design-pro/api';
-
-import NoticeIcon from './NoticeIcon';
 import styles from './index.less';
+import NoticeIcon from './NoticeIcon';
+
 
 export type GlobalHeaderRightProps = {
   fetchingNotices?: boolean;
@@ -14,7 +13,7 @@ export type GlobalHeaderRightProps = {
   onNoticeClear?: (tabName?: string) => void;
 };
 
-const getNoticeData = (notices: API.NoticeIconItem[]): Record<string, API.NoticeIconItem[]> => {
+const getNoticeData = (notices: any[]): Record<string, any[]> => {
   if (!notices || notices.length === 0 || !Array.isArray(notices)) {
     return {};
   }
@@ -54,7 +53,7 @@ const getNoticeData = (notices: API.NoticeIconItem[]): Record<string, API.Notice
   return groupBy(newNotices, 'type');
 };
 
-const getUnreadData = (noticeData: Record<string, API.NoticeIconItem[]>) => {
+const getUnreadData = (noticeData: Record<string, any[]>) => {
   const unreadMsg: Record<string, number> = {};
   Object.keys(noticeData).forEach((key) => {
     const value = noticeData[key];
@@ -73,8 +72,8 @@ const getUnreadData = (noticeData: Record<string, API.NoticeIconItem[]>) => {
 const NoticeIconView: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState || {};
-  const [notices, setNotices] = useState<API.NoticeIconItem[]>([]);
-  const { data } = useRequest(getNotices);
+  const [notices, setNotices] = useState<any[]>([]);
+  const { data } = useRequest(()=> {console.log('notice todo')});
 
   useEffect(() => {
     setNotices(data || []);

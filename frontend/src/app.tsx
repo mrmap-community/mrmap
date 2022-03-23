@@ -1,18 +1,15 @@
-import Footer from '@/components/Footer';
 import RightContent from '@/components/RightContent';
-import { BookOutlined, LinkOutlined } from '@ant-design/icons';
+import { GithubFilled, LinkOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-layout';
 import { PageLoading, SettingDrawer } from '@ant-design/pro-layout';
 import type { AxiosRequestConfig } from 'axios';
 import React from 'react';
 import { OpenAPIProvider } from 'react-openapi-client';
 import type { RunTimeLayoutConfig } from 'umi';
-import { history, Link } from 'umi';
+import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
-import { currentUser as queryCurrentUser } from './services/ant-design-pro/api';
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
-
 /** 获取用户信息比较慢的时候会展示一个 loading */
 export const initialStateConfig = {
   loading: <PageLoading />,
@@ -23,13 +20,25 @@ export const initialStateConfig = {
  * */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
-  currentUser?: API.CurrentUser;
+  currentUser?: any;
   loading?: boolean;
-  fetchUserInfo?: () => Promise<API.CurrentUser | undefined>;
+  fetchUserInfo?: () => Promise<any | undefined>;
 }> {
+
+  async function fetchCurrentUser(options?: Record<string, any>) {
+    return request<{
+      data: any; // TODO: jsonapi response object as type
+    }>('/api/v1/accounts/who-am-i/', {
+      method: 'GET',
+      ...(options || {}),
+    });
+  }
+  console.log('initial state called');
+  console.log(history);
   const fetchUserInfo = async () => {
     try {
-      const msg = await queryCurrentUser();
+      const msg = await fetchCurrentUser();
+      console.log(msg);
       return msg.data;
     } catch (error) {
       history.push(loginPath);
@@ -38,6 +47,7 @@ export async function getInitialState(): Promise<{
   };
   // 如果是登录页面，不执行
   if (history.location.pathname !== loginPath) {
+    
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
@@ -59,7 +69,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     waterMarkProps: {
       content: initialState?.currentUser?.name,
     },
-    footerRender: () => <Footer />,
+    // footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
       // 如果没有登录，重定向到 login
@@ -69,14 +79,15 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     },
     links: isDev
       ? [
-          <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
+          <Link key="openapi" to="/api/schema/" target="_blank">
             <LinkOutlined />
-            <span>OpenAPI 文档</span>
+            <span>OpenAPI Schema</span>
           </Link>,
-          <Link to="/~docs" key="docs">
-            <BookOutlined />
-            <span>业务组件文档</span>
-          </Link>,
+          <Link key="github" to="https://github.com/mrmap-community/mrmap" target="_blank">
+            <GithubFilled />
+            <span>Git</span>
+          </Link>
+          
         ]
       : [],
     menuHeaderRender: undefined,
@@ -93,7 +104,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
               disableUrlParams
               settings={initialState?.settings}
               onSettingChange={(settings) => {
-                setInitialState((preInitialState) => ({
+                setInitialState((preInitialState: any) => ({
                   ...preInitialState,
                   settings,
                 }));

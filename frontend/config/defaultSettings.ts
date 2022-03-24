@@ -14,7 +14,7 @@ const Settings: LayoutSettings & {
   colorWeak: false,
   title: 'Mr. Map',
   pwa: false,
-  logo: 'logo.png',
+  logo: '/logo.png',
   iconfontUrl: '',
 };
 

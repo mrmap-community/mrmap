@@ -65,7 +65,6 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
       />
     </span>
   );
-  console.log(initialState);
 
   if (deleteLoginLoading || !initialState || !initialState.currentUser?.data?.attributes?.username) {
     return loading;

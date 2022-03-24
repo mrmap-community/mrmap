@@ -2,12 +2,13 @@ import SchemaTable from '@/components/SchemaTable';
 import { LockFilled, UnlockFilled } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
 import { Button, Tooltip } from 'antd';
-import React, { ReactElement, useCallback } from 'react';
+import type { ReactElement } from 'react';
+import React, { useCallback } from 'react';
 
 
 const WmsTable = (): ReactElement => {
     console.log('HUHU');
-  const additionalActions = useCallback((text: any, record:any): React.ReactNode => {
+  const additionalActions = useCallback((text: any, record: any): React.ReactNode => {
     const allowedOperations = record.relationships?.allowedOperations?.meta?.count;
     return (
       <Tooltip 
@@ -20,8 +21,7 @@ const WmsTable = (): ReactElement => {
               // TODO: replace by umi Link
             //navigate(`/registry/services/wms/${record.id}/security`);
           }}
-        >
-        </Button>
+         />
       </Tooltip>
     );
   },[],

@@ -1,13 +1,16 @@
 import { DeleteFilled, EditFilled, PlusOutlined } from '@ant-design/icons';
-import { ActionType, ColumnsState, default as ProTable, ProColumnType, ProTableProps } from '@ant-design/pro-table';
+import type { ActionType, ColumnsState, ProColumnType, ProTableProps } from '@ant-design/pro-table';
+import { default as ProTable } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
-import { Button, Drawer, Modal, notification, Space, TablePaginationConfig, Tooltip } from 'antd';
-import { SortOrder } from 'antd/lib/table/interface';
-import { ParamsArray } from 'openapi-client-axios';
-import { OpenAPIV3 } from 'openapi-types';
-import React, { ReactElement, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import type { TablePaginationConfig } from 'antd';
+import { Button, Drawer, Modal, notification, Space, Tooltip } from 'antd';
+import type { SortOrder } from 'antd/lib/table/interface';
+import type { ParamsArray } from 'openapi-client-axios';
+import type { OpenAPIV3 } from 'openapi-types';
+import type { ReactElement, ReactNode } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
-import { buildJsonApiPayload, getQueryParams } from '../Utils/jsonapi';
+import { getQueryParams } from '../Utils/jsonapi';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
 export interface NestedLookup {
@@ -21,7 +24,7 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
     nestedLookups?: ParamsArray
     /** Optional column definitions, automatically augmented and merged with the repository schema */
     columns?: RepoTableColumnType[]
-    additionalActions?: (text: any, record:any) => void
+    additionalActions?: (text: any, record: any) => void
     defaultActions?: string[]
     /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
     onAddRecord?: () => void
@@ -31,7 +34,7 @@ export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'
 
 export type RepoTableColumnType = ProColumnType & {
   /** Optional mapping of query form values to repo filter params */
-  toFilterParams?: (value: any) => { [key: string]: string; }
+  toFilterParams?: (value: any) => Record<string, string>
 }
 
 function augmentColumns (
@@ -40,7 +43,7 @@ function augmentColumns (
   columnHints: ProColumnType[] | undefined): ProColumnType[] {
 
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
-  const columns:any = {};
+  const columns: any = {};
   for (const propName in props) {
     columns[propName] = mapOpenApiSchemaToProTableColumn({ dataIndex: propName }, props[propName], queryParams);
     const columnHint = columnHints?.find(hint => hint.dataIndex === propName);
@@ -53,7 +56,7 @@ function augmentColumns (
   }
 
   if (queryParams['filter[search]']) {
-    columns['search'] = {
+    columns.search = {
       dataIndex: 'search',
       title: 'Suchbegriffe',
       valueType: 'text',
@@ -237,10 +240,10 @@ const RepoTable = ({
 
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
-    let isMounted = true;
-
+    console.log('__--___');
     const queryParams = getQueryParams(api, nestedResourceListLookup);
     const operation = api.getOperation(nestedResourceListLookup);
+    console.log(operation);
 
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
@@ -248,9 +251,7 @@ const RepoTable = ({
       if (responseSchema.properties?.data.items.title){
         setHeader(responseSchema.properties?.data.items.title);
       }
-
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
-      
       if (!_augmentedColumns.some(column => column.key === 'actions')) {
         _augmentedColumns.push({
           key: 'operation',
@@ -262,10 +263,10 @@ const RepoTable = ({
           }
         });
       }
-      isMounted && setAugmentedColumns(_augmentedColumns);
+      setAugmentedColumns(_augmentedColumns);
+      
     }
 
-    return () => { isMounted = false; }; // componentWillUnmount handler
   },[additionalActions, columns, api, nestedResourceListLookup, defaultActionButtons]);
 
   /**
@@ -292,9 +293,11 @@ const RepoTable = ({
       };
       setTableDataSource(dataSource);
       setPaginationConfig({ total: dataSource.total });
+    } else if (!listError && !listLoading) {
+      //fetchData();
     }
 
-  }, [listError, listResponse]);
+  }, [listError, listLoading, listResponse]);
 
   /**
    * @description Builds the query and triggers the async call for the list

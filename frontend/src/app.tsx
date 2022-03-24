@@ -6,7 +6,7 @@ import type { AxiosRequestConfig } from 'axios';
 import React from 'react';
 import { OpenAPIProvider } from 'react-openapi-client';
 import type { RunTimeLayoutConfig } from 'umi';
-import { history, Link, request } from 'umi';
+import { history, Link } from 'umi';
 import defaultSettings from '../config/defaultSettings';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -21,40 +21,9 @@ const loginPath = '/user/login';
  */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
-  currentUser?: any;
-  loading?: boolean;
-  fetchUserInfo?: () => Promise<any | undefined>;
 }> {
-  const fetchUserInfo = async () => {
-    try {
-      const msg = await request<{
-        data: any; // TODO: jsonapi response object as type
-      }>('/api/v1/accounts/who-am-i/', {
-        method: 'GET',
-      });
-      // who-am-i returns an AnonymousUser if no session can be found
-      if (msg.data.attributes?.username !== 'AnonymousUser') {
-        // TODO AvatarDropdown component supports avatar image, do we want this in our model?
-        msg.data.attributes.avatar =
-          'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
-        return msg;
-      }
-    } catch (error) {
-      history.push(loginPath);
-    }
-    return undefined;
-  };
-  // if this is not the login page, try to fetch user and set currentUser
-  if (history.location.pathname !== loginPath) {
-    const currentUser = await fetchUserInfo();
-    return {
-      fetchUserInfo,
-      currentUser,
-      settings: defaultSettings,
-    };
-  }
+
   return {
-    fetchUserInfo,
     settings: defaultSettings,
   };
 }
@@ -130,9 +99,11 @@ const defaultConfig: AxiosRequestConfig = {
 };
 
 export function rootContainer(container: any) {
+
   return (
-    <OpenAPIProvider definition="/api/schema/" axiosConfigDefaults={defaultConfig}>
-      {container}
+    <OpenAPIProvider definition="/api/schema/" axiosConfigDefaults={defaultConfig} >
+        {container}
+      
     </OpenAPIProvider>
   );
 }

@@ -25,10 +25,16 @@
     component: './Welcome',
   },
   {
-    name: 'list.table-list',
-    icon: 'table',
-    path: '/registry/webmapservices',
-    component: './Registry/WebMapServices',
+    name: 'registry',
+    icon: 'database',
+    routes :[
+      {
+        name: 'list.table-list',
+        icon: 'table',
+        path: '/registry/webmapservices',
+        component: './Registry/WebMapServices'
+      }
+    ]
   },
   {
     path: '/',

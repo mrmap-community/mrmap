@@ -4,7 +4,7 @@ import { LoginForm, ProFormCheckbox, ProFormText } from '@ant-design/pro-form';
 import { Alert, message } from 'antd';
 import type { RequestPayload } from 'openapi-client-axios';
 import type { ReactElement } from 'react';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { FormattedMessage, history, SelectLang, useIntl, useModel } from 'umi';
 import styles from './index.less';
@@ -23,70 +23,82 @@ const LoginMessage: React.FC<{
 );
 
 const Login: React.FC = (): ReactElement => {
-  const { initialState, setInitialState } = useModel('@@initialState');
-
+  const intl = useIntl();
+  const { setInitialState } = useModel('@@initialState');
   const [
     createLoginRequest,
-    { loading: loginLoading, error: loginError, response: loginResponse },
+    { error: loginError, response: loginResponse },
   ] = useOperationMethod('addLoginRequest');
-  const [getCurrentUser] = useOperationMethod('getCurrentUser');
-
-  const intl = useIntl();
-
-  const fetchUserInfo = async () => {
-    const userInfo = await initialState?.fetchUserInfo?.();
-    if (userInfo) {
-      console.log(userInfo);
-      await setInitialState((s) => ({
+  const [
+    getCurrentUser,
+    {error: currentUserError, response: currentUserResponse}
+  ] = useOperationMethod('getCurrentUser');
+  
+  /**
+   * @description handles successfully login process; redirects to the last page
+   */
+  useEffect(()=> {
+    if(currentUserResponse && currentUserResponse.status === 200){
+      const defaultLoginSuccessMessage = intl.formatMessage({
+        id: 'pages.login.success',
+        defaultMessage: 'Login succesful！',
+      });
+      message.success(defaultLoginSuccessMessage);
+      setInitialState((s: any) => ({
         ...s,
-        currentUser: userInfo,
+        currentUser: currentUserResponse.data
       }));
-    }
-  };
-
-  const handleSubmit = async (values: any) => {
-    const jsonApiPayload: RequestPayload = {
-      data: {
-        type: 'LoginRequest',
-        attributes: values,
-      },
-    };
-    try {
-      console.log('Logging in ', jsonApiPayload);
-      const msg = await createLoginRequest(undefined, jsonApiPayload);
-      console.log('Ok', msg);
-      if (msg.status === 200) {
-        const defaultLoginSuccessMessage = intl.formatMessage({
-          id: 'pages.login.success',
-          defaultMessage: 'Login succesful！',
-        });
-        message.success(defaultLoginSuccessMessage);
-        await fetchUserInfo();
-        if (!history) return;
+      
+      if (history) {
         /** Redirect to the page specified by redirect parameter */
         const { query } = history.location;
         const { redirect } = query as { redirect: string };
-        history.push(redirect || '/');
-        return;
+        setTimeout(() => {
+          history.push(redirect || '/');
+        });
       }
-    } catch (error) {
-      console.log(error);
-      console.log(loginError);
-      console.log(loginLoading);
-      console.log(loginResponse);
+    }
+  }, [currentUserResponse, intl, setInitialState]);
+
+  /**
+   * @description triggers get current user request if login was successfully
+   */
+  useEffect(()=> {
+    if (loginResponse && loginResponse.status === 200){
+      getCurrentUser();
+    }
+  }, [getCurrentUser, intl, loginResponse]);
+
+  /**
+   * @description handles errors on login processing
+   */
+  useEffect(() => {
+    if (loginError || currentUserError){
       const defaultLoginFailureMessage = intl.formatMessage({
         id: 'pages.login.failure',
         defaultMessage: 'Login failed, please try again!',
       });
       message.error(defaultLoginFailureMessage);
     }
-  };
-
-  useEffect(() => {
-    if (loginResponse && loginResponse.status === 200) {
-      getCurrentUser();
-    }
-  }, [loginResponse, getCurrentUser]);
+  }, [intl, loginError, currentUserError]);
+  
+  /**
+   * @description callback function to start login processing
+   */
+  const onFinish = useCallback((values: any) => {
+    const jsonApiPayload: RequestPayload = {
+      data: {
+        type: 'LoginRequest',
+        attributes: {
+          username: values.username,
+          password: values.password
+        },
+      },
+    };
+    createLoginRequest(undefined, jsonApiPayload);
+  },
+  [createLoginRequest]
+  );
 
   return (
     <div className={styles.container}>
@@ -102,7 +114,7 @@ const Login: React.FC = (): ReactElement => {
             autoLogin: true,
           }}
           onFinish={async (values) => {
-            await handleSubmit(values);
+            onFinish(values);
           }}
         >
           {loginError && (

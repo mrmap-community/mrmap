@@ -1,9 +1,9 @@
 import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Menu, Spin } from 'antd';
+import { Avatar, Menu, message, Spin } from 'antd';
 import { stringify } from 'querystring';
-import type { MenuInfo } from 'rc-menu/lib/interface';
-import React, { useCallback } from 'react';
-import { history, request, useModel } from 'umi';
+import React, { useEffect } from 'react';
+import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
+import { history, useIntl, useModel } from 'umi';
 import HeaderDropdown from '../HeaderDropdown';
 import styles from './index.less';
 
@@ -11,45 +11,48 @@ export type GlobalHeaderRightProps = {
   menu?: boolean;
 };
 
-/**
- * Logout on the backend and change to the login page
- */
-const logout = async () => {
-  console.log('logging out');
-  const msg = await request<{
-    data: any; // TODO: jsonapi response object as type
-  }>('/api/v1/accounts/logout/', {
-    method: 'DELETE',
-  });
-  console.log(msg);
-  const { query = {}, pathname } = history.location;
-  const { redirect } = query;
-  // Note: There may be security issues, please note
-  if (window.location.pathname !== '/user/login' && !redirect) {
-    history.replace({
-      pathname: '/user/login',
-      search: stringify({
-        redirect: pathname,
-      }),
-    });
-  }
-};
 
 const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
+  const intl = useIntl();
   const { initialState, setInitialState } = useModel('@@initialState');
+  const [
+    deleteLogin,
+    { loading: deleteLoginLoading, error: deleteLoginError, response: deleteLoginResponse },
+  ] = useOperationMethod('deleteLogout');
 
-  const onMenuClick = useCallback(
-    (event: MenuInfo) => {
-      const { key } = event;
-      if (key === 'logout') {
-        setInitialState((s: any) => ({ ...s, currentUser: undefined }));
-        logout();
-        return;
+  useEffect(() => {
+    if (deleteLoginResponse && deleteLoginResponse.status === 200){
+      setInitialState((s: any) => ({ ...s, currentUser: undefined }));
+      const { query = {}, pathname } = history.location;
+      const { redirect } = query;
+      // Note: There may be security issues, please note
+      if (window.location.pathname !== '/user/login' && !redirect) {
+        setTimeout(() => {
+          history.replace({
+            pathname: '/user/login',
+            search: stringify({
+              redirect: pathname,
+            }),
+          });
+        });
       }
-      history.push(`/account/${key}`);
-    },
-    [setInitialState],
-  );
+      const defaultLoginSuccessMessage = intl.formatMessage({
+        id: 'pages.logout.success',
+        defaultMessage: 'Logout succesful！',
+      });
+      message.success(defaultLoginSuccessMessage);
+    }
+  }, [deleteLoginResponse, intl, setInitialState]);
+
+  useEffect(() => {
+    if (deleteLoginError){
+      const defaultLoginFailureMessage = intl.formatMessage({
+        id: 'pages.logout.failure',
+        defaultMessage: 'Logout failed, please try again!',
+      });
+      message.error(defaultLoginFailureMessage);
+    }
+  }, [deleteLoginError, intl]);
 
   const loading = (
     <span className={`${styles.action} ${styles.account}`}>
@@ -63,18 +66,12 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
     </span>
   );
 
-  if (!initialState) {
-    return loading;
-  }
-
-  const { currentUser } = initialState;
-
-  if (!currentUser || !currentUser.data?.attributes?.username) {
+  if (deleteLoginLoading || !initialState || !initialState.currentUser?.data?.attributes?.username) {
     return loading;
   }
 
   const menuHeaderDropdown = (
-    <Menu className={styles.menu} selectedKeys={[]} onClick={onMenuClick}>
+    <Menu className={styles.menu} selectedKeys={[]}>
       {menu && (
         <Menu.Item key="center">
           <UserOutlined />
@@ -89,7 +86,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
       )}
       {menu && <Menu.Divider />}
 
-      <Menu.Item key="logout">
+      <Menu.Item key="logout" onClick={() => {deleteLogin();}}>
         <LogoutOutlined />
         Log out
       </Menu.Item>
@@ -101,10 +98,10 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
         <Avatar
           size="small"
           className={styles.avatar}
-          src={currentUser?.data?.attributes?.avatar}
+          src={initialState.currentUser?.data?.attributes?.avatar}
           alt="avatar"
         />
-        <span className={`${styles.name} anticon`}>{currentUser?.data?.attributes?.username}</span>
+        <span className={`${styles.name} anticon`}>{initialState.currentUser?.data?.attributes?.username}</span>
       </span>
     </HeaderDropdown>
   );

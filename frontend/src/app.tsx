@@ -37,7 +37,7 @@ export async function getInitialState(): Promise<{
         // TODO AvatarDropdown component supports avatar image, do we want this in our model?
         msg.data.attributes.avatar =
           'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
-        return msg.data;
+        return msg;
       }
     } catch (error) {
       history.push(loginPath);

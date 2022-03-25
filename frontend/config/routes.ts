@@ -1,4 +1,13 @@
-﻿export default [
+﻿import { HeartOutlined, SmileOutlined } from '@ant-design/icons';
+import type { MenuDataItem } from '@ant-design/pro-layout';
+
+const IconMap = {
+  smile: SmileOutlined,
+  heart: HeartOutlined
+};
+
+
+const defaultMenus = [
   {
     path: '/user',
     layout: false,
@@ -29,8 +38,8 @@
     icon: 'database',
     routes :[
       {
-        name: 'list.table-list',
-        icon: 'table',
+        name: 'wms',
+        icon: 'smile',
         path: '/registry/webmapservices',
         component: './Registry/WebMapServices'
       }
@@ -44,3 +53,15 @@
     component: './404',
   },
 ];
+
+
+
+export const loopMenuItem = (menus: MenuDataItem[]): MenuDataItem[] =>
+  menus.map(({ icon, routes, ...item }) => ({
+    ...item,
+    icon: icon && IconMap[icon as string],
+    routes: routes && loopMenuItem(routes),
+  }));
+
+
+export default defaultMenus;

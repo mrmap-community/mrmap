@@ -1,5 +1,10 @@
 export default {
   'menu.welcome': 'Welcome',
+  'menu.registry': 'Registry',
+  'menu.registry.wms': 'WebMapServices',
+
+
+  
   'menu.more-blocks': 'More Blocks',
   'menu.home': 'Home',
   'menu.admin': 'Admin',

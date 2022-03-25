@@ -8,6 +8,7 @@ import { OpenAPIProvider } from 'react-openapi-client';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
+import defaultMenus, { loopMenuItem } from '../config/routes';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
@@ -115,6 +116,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         }
     },
     menuHeaderRender: undefined,
+    menu: loopMenuItem(defaultMenus),
     // custom 403 page
     // unAccessible: <div>unAccessible</div>,
     childrenRender: (children, props) => {

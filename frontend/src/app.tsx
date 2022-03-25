@@ -6,7 +6,7 @@ import type { AxiosRequestConfig } from 'axios';
 import React from 'react';
 import { OpenAPIProvider } from 'react-openapi-client';
 import type { RunTimeLayoutConfig } from 'umi';
-import { history, Link } from 'umi';
+import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -21,9 +21,41 @@ const loginPath = '/user/login';
  */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
+  currentUser?: any;
+  loading?: boolean;
+  fetchUserInfo?: () => Promise<any | undefined>;
 }> {
+  const fetchUserInfo = async () => {
+    try {
+      const msg = await request<{
+        data: any; // TODO: jsonapi response object as type
+      }>('/api/v1/accounts/who-am-i/', {
+        method: 'GET',
+      });
+      // who-am-i returns an AnonymousUser if no session can be found
+      if (msg.data.attributes?.username !== 'AnonymousUser') {
+        // TODO AvatarDropdown component supports avatar image, do we want this in our model?
+        msg.data.attributes.avatar =
+          'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
+        return msg;
+      }
+    } catch (error) {
+      history.push(loginPath);
+    }
+    return undefined;
+  };
+  // if this is not the login page, try to fetch user and set currentUser
+  if (history.location.pathname !== loginPath) {
+    const currentUser = await fetchUserInfo();
+    return {
+      fetchUserInfo,
+      currentUser,
+      settings: defaultSettings,
+    };
+  }
 
   return {
+    fetchUserInfo,
     settings: defaultSettings,
   };
 }
@@ -38,17 +70,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
   return {
     rightContentRender: () => <RightContent />,
     disableContentMargin: false,
-    waterMarkProps: {
-      content: initialState?.currentUser?.name,
-    },
     // footerRender: () => <Footer />,
-    onPageChange: () => {
-      const { location } = history;
-      // if not logged in, redirect to login page
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
-        history.push(loginPath);
-      }
-    },
     links: isDev
       ? [
           <Link key="openapi" to="/api/schema/" target="_blank">
@@ -61,6 +83,15 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           </Link>,
         ]
       : [],
+    onPageChange: () => {
+        const { location } = history;
+        const username = initialState?.currentUser?.data?.attributes?.username;
+        const isAuthenticated = username === 'AnonymousUser' ? false: username === undefined ? false: true;
+        // if not logged in, redirect to login page
+        if (!isAuthenticated && location.pathname !== loginPath) {
+          history.push(loginPath);
+        }
+    },
     menuHeaderRender: undefined,
     // custom 403 page
     // unAccessible: <div>unAccessible</div>,
@@ -103,7 +134,6 @@ export function rootContainer(container: any) {
   return (
     <OpenAPIProvider definition="/api/schema/" axiosConfigDefaults={defaultConfig} >
         {container}
-      
     </OpenAPIProvider>
   );
 }

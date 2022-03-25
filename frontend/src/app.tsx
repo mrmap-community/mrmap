@@ -11,6 +11,14 @@ import defaultSettings from '../config/defaultSettings';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
+const axiosConfig: AxiosRequestConfig = {
+  baseURL: '/',
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
+  headers: {
+    'Content-Type': 'application/vnd.api+json',
+  },
+};
 
 /**
  * This function will be executed once at the start of the application.
@@ -24,7 +32,18 @@ export async function getInitialState(): Promise<{
   currentUser?: any;
   loading?: boolean;
   fetchUserInfo?: () => Promise<any | undefined>;
+  schema: any; // TODO: openapi schema object
 }> {
+  // as initial state we need the remote openapi schema to pass it to the OpenAPIProvider component
+  const fetchSchema = async () => {
+    try {
+      return await request('/api/schema/', {method: 'GET'});
+    } catch (error) {
+      console.log('can not load schema');
+    }
+  };
+  const openApiSchema = await fetchSchema();
+
   const fetchUserInfo = async () => {
     try {
       const msg = await request<{
@@ -46,17 +65,20 @@ export async function getInitialState(): Promise<{
   };
   // if this is not the login page, try to fetch user and set currentUser
   if (history.location.pathname !== loginPath) {
+
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
       currentUser,
       settings: defaultSettings,
+      schema: openApiSchema
     };
   }
 
   return {
     fetchUserInfo,
     settings: defaultSettings,
+    schema: openApiSchema
   };
 }
 
@@ -99,41 +121,23 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
       return (
-        <>
-          {children}
-          {!props.location?.pathname?.includes('/login') && (
-            <SettingDrawer
-              disableUrlParams
-              settings={initialState?.settings}
-              onSettingChange={(settings) => {
-                setInitialState((preInitialState: any) => ({
-                  ...preInitialState,
-                  settings,
-                }));
-              }}
-            />
-          )}
-        </>
+          <OpenAPIProvider definition={initialState.schema} axiosConfigDefaults={axiosConfig} >
+            {children}
+            {!props.location?.pathname?.includes('/login') && (
+              <SettingDrawer
+                disableUrlParams
+                settings={initialState?.settings}
+                onSettingChange={(settings) => {
+                  setInitialState((preInitialState: any) => ({
+                    ...preInitialState,
+                    settings,
+                  }));
+                }}
+              />
+            )}
+          </OpenAPIProvider>
       );
     },
     ...initialState?.settings,
   };
 };
-
-const defaultConfig: AxiosRequestConfig = {
-  baseURL: '/',
-  xsrfCookieName: 'csrftoken',
-  xsrfHeaderName: 'X-CSRFToken',
-  headers: {
-    'Content-Type': 'application/vnd.api+json',
-  },
-};
-
-export function rootContainer(container: any) {
-
-  return (
-    <OpenAPIProvider definition="/api/schema/" axiosConfigDefaults={defaultConfig} >
-        {container}
-    </OpenAPIProvider>
-  );
-}

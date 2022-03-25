@@ -8,8 +8,8 @@ import type { SortOrder } from 'antd/lib/table/interface';
 import type { ParamsArray } from 'openapi-client-axios';
 import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useOperationMethod } from 'react-openapi-client';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import { getQueryParams } from '../Utils/jsonapi';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
@@ -102,11 +102,10 @@ const RepoTable = ({
     setRightDrawerVisible(false);
     setSelectedForEdit('');
   }, []);
-
-  // eslint-disable-next-line max-len
+  const { api } = useContext(OpenAPIContext);
   const [
     listResource, 
-    { loading: listLoading, error: listError, response: listResponse, api }
+    { loading: listLoading, error: listError, response: listResponse }
   ] = useOperationMethod(nestedResourceListLookup);
   const [
     deleteResource, 

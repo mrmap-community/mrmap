@@ -7,7 +7,6 @@ import React, { useCallback } from 'react';
 
 
 const WmsTable = (): ReactElement => {
-    console.log('HUHU');
   const additionalActions = useCallback((text: any, record: any): React.ReactNode => {
     const allowedOperations = record.relationships?.allowedOperations?.meta?.count;
     return (
@@ -29,7 +28,6 @@ const WmsTable = (): ReactElement => {
 
   return (
   <PageContainer>
-    Hello World
     <SchemaTable
     resourceTypes={['WebMapService']}
     additionalActions={additionalActions}

@@ -1,10 +1,9 @@
 export default {
   'menu.welcome': 'Welcome',
   'menu.registry': 'Registry',
-  'menu.registry.wms': 'WebMapServices',
+  'menu.registry.wms': 'Map services (WMS)',
+  'menu.registry.wfs': 'Feature services (WFS)',
 
-
-  
   'menu.more-blocks': 'More Blocks',
   'menu.home': 'Home',
   'menu.admin': 'Admin',

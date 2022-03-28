@@ -1,7 +1,6 @@
 import { PageContainer } from '@ant-design/pro-layout';
 import { Alert, Card, Typography } from 'antd';
-import React, { useContext } from 'react';
-import { OpenAPIContext } from 'react-openapi-client/OpenAPIProvider';
+import React from 'react';
 import { FormattedMessage, useIntl } from 'umi';
 import styles from './Welcome.less';
 
@@ -15,8 +14,6 @@ const CodePreview: React.FC = ({ children }) => (
 
 const Welcome: React.FC = () => {
   const intl = useIntl();
-  const api = useContext(OpenAPIContext);
-  console.log('welcome api context', api);
   return (
     <PageContainer>
       <Card>

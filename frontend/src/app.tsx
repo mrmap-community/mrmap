@@ -2,7 +2,6 @@ import RightContent from '@/components/RightContent';
 import { GithubFilled, LinkOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-layout';
 import { SettingDrawer } from '@ant-design/pro-layout';
-import type { AxiosRequestConfig } from 'axios';
 import React from 'react';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
@@ -13,14 +12,6 @@ import RootContainer from './components/RootContainer';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
-const axiosConfig: AxiosRequestConfig = {
-  baseURL: '/',
-  xsrfCookieName: 'csrftoken',
-  xsrfHeaderName: 'X-CSRFToken',
-  headers: {
-    'Content-Type': 'application/vnd.api+json',
-  },
-};
 
 /**
  * This function will be executed once at the start of the application.
@@ -73,11 +64,6 @@ export async function getInitialState(): Promise<{
   };
 }
 
-// /** When obtaining the initial state is slow, this loading indicator will be visible. */
-// export const initialStateConfig = {
-//   loading: <PageLoading />,
-// };
-
 // ProLayout api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   return {
@@ -117,20 +103,20 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       // if (initialState?.loading) return <PageLoading />;
       return (
         <>
-            {children}
-            {!props.location?.pathname?.includes('/login') && (
-              <SettingDrawer
-                disableUrlParams
-                settings={initialState?.settings}
-                onSettingChange={(settings) => {
-                  setInitialState((preInitialState: any) => ({
-                    ...preInitialState,
-                    settings,
-                  }));
-                }}
-              />
-            )}
-            </>
+          {children}
+          {!props.location?.pathname?.includes('/login') && (
+            <SettingDrawer
+              disableUrlParams
+              settings={initialState?.settings}
+              onSettingChange={(settings) => {
+                setInitialState((preInitialState: any) => ({
+                  ...preInitialState,
+                  settings,
+                }));
+              }}
+            />
+          )}
+        </>
       );
     },
     

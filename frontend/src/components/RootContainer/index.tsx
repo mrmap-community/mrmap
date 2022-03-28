@@ -36,7 +36,6 @@ const RootContainer: React.FC = (props: any) => {
     }, []);
 
     if (schema){
-        console.log('root', schema);
         return (
             <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig} >
                 {props.children}

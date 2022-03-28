@@ -23,6 +23,7 @@ class LoginRequestView(generics.GenericAPIView):
     http_method_names = ['post', 'head', 'options']
     resource_name = "LoginRequest"
     serializer_class = LoginSerializer
+    authentication_classes = []
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

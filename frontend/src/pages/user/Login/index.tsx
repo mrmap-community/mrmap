@@ -4,8 +4,8 @@ import { LoginForm, ProFormCheckbox, ProFormText } from '@ant-design/pro-form';
 import { Alert, message } from 'antd';
 import type { RequestPayload } from 'openapi-client-axios';
 import type { ReactElement } from 'react';
-import React, { useCallback, useEffect } from 'react';
-import { useOperationMethod } from 'react-openapi-client';
+import React, { useCallback, useContext, useEffect } from 'react';
+import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import { FormattedMessage, history, SelectLang, useIntl, useModel } from 'umi';
 import styles from './index.less';
 
@@ -25,6 +25,8 @@ const LoginMessage: React.FC<{
 const Login: React.FC = (): ReactElement => {
   const intl = useIntl();
   const { setInitialState } = useModel('@@initialState');
+  const {api} = useContext(OpenAPIContext);
+  console.log(api);
   const [
     createLoginRequest,
     { error: loginError, response: loginResponse },

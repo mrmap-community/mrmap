@@ -1,7 +1,8 @@
-import React from 'react';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Card, Alert, Typography } from 'antd';
-import { useIntl, FormattedMessage } from 'umi';
+import { Alert, Card, Typography } from 'antd';
+import React, { useContext } from 'react';
+import { OpenAPIContext } from 'react-openapi-client/OpenAPIProvider';
+import { FormattedMessage, useIntl } from 'umi';
 import styles from './Welcome.less';
 
 const CodePreview: React.FC = ({ children }) => (
@@ -14,7 +15,8 @@ const CodePreview: React.FC = ({ children }) => (
 
 const Welcome: React.FC = () => {
   const intl = useIntl();
-
+  const api = useContext(OpenAPIContext);
+  console.log('welcome api context', api);
   return (
     <PageContainer>
       <Card>

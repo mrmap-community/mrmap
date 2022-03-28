@@ -1,10 +1,20 @@
-﻿import { HeartOutlined, SmileOutlined } from '@ant-design/icons';
+﻿import { CrownOutlined, HeartOutlined, SmileOutlined } from "@ant-design/icons";
 import type { MenuDataItem } from '@ant-design/pro-layout';
+import React from 'react';
+
 
 const IconMap = {
-  smile: SmileOutlined,
-  heart: HeartOutlined
+  smile: <SmileOutlined />,
+  heart: <HeartOutlined />,
+  crown: <CrownOutlined />
 };
+
+export const loopMenuItem = (menus: MenuDataItem[]): MenuDataItem[] =>
+  menus.map(({ icon, routes, ...item }) => ({
+    ...item,
+    icon: icon && IconMap[icon as string],
+    routes: routes && loopMenuItem(routes),
+  }));
 
 
 const defaultMenus = [
@@ -39,7 +49,7 @@ const defaultMenus = [
     routes :[
       {
         name: 'wms',
-        icon: 'smile',
+        icon: 'crown',
         path: '/registry/webmapservices',
         component: './Registry/WebMapServices'
       }
@@ -54,14 +64,6 @@ const defaultMenus = [
   },
 ];
 
-
-
-export const loopMenuItem = (menus: MenuDataItem[]): MenuDataItem[] =>
-  menus.map(({ icon, routes, ...item }) => ({
-    ...item,
-    icon: icon && IconMap[icon as string],
-    routes: routes && loopMenuItem(routes),
-  }));
 
 
 export default defaultMenus;

@@ -1,7 +1,8 @@
 import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Menu, message, Spin } from 'antd';
 import { stringify } from 'querystring';
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
+import { OpenAPIContext } from 'react-openapi-client/OpenAPIProvider';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { history, useIntl, useModel } from 'umi';
 import HeaderDropdown from '../HeaderDropdown';
@@ -17,8 +18,11 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   const { initialState, setInitialState } = useModel('@@initialState');
   const [
     deleteLogin,
-    { loading: deleteLoginLoading, error: deleteLoginError, response: deleteLoginResponse },
+    { loading: deleteLoginLoading, error: deleteLoginError, response: deleteLoginResponse , api: deleteLoginApi},
   ] = useOperationMethod('deleteLogout');
+
+  const api = useContext(OpenAPIContext);
+  console.log('context api', api);
 
   useEffect(() => {
     if (deleteLoginResponse && deleteLoginResponse.status === 200){
@@ -86,7 +90,11 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
       )}
       {menu && <Menu.Divider />}
 
-      <Menu.Item key="logout" onClick={() => {deleteLogin();}}>
+      <Menu.Item key="logout" onClick={
+        () => {
+          deleteLogin();
+        }
+        }>
         <LogoutOutlined />
         Log out
       </Menu.Item>

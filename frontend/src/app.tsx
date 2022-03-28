@@ -1,14 +1,15 @@
 import RightContent from '@/components/RightContent';
 import { GithubFilled, LinkOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-layout';
-import { PageLoading, SettingDrawer } from '@ant-design/pro-layout';
+import { SettingDrawer } from '@ant-design/pro-layout';
 import type { AxiosRequestConfig } from 'axios';
 import React from 'react';
-import { OpenAPIProvider } from 'react-openapi-client';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
 import defaultMenus, { loopMenuItem } from '../config/routes';
+import RootContainer from './components/RootContainer';
+
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
@@ -33,17 +34,7 @@ export async function getInitialState(): Promise<{
   currentUser?: any;
   loading?: boolean;
   fetchUserInfo?: () => Promise<any | undefined>;
-  schema: any; // TODO: openapi schema object
 }> {
-  // as initial state we need the remote openapi schema to pass it to the OpenAPIProvider component
-  const fetchSchema = async () => {
-    try {
-      return await request('/api/schema/', {method: 'GET'});
-    } catch (error) {
-      console.log('can not load schema');
-    }
-  };
-  const openApiSchema = await fetchSchema();
 
   const fetchUserInfo = async () => {
     try {
@@ -72,21 +63,20 @@ export async function getInitialState(): Promise<{
       fetchUserInfo,
       currentUser,
       settings: defaultSettings,
-      schema: openApiSchema
     };
   }
 
   return {
     fetchUserInfo,
     settings: defaultSettings,
-    schema: openApiSchema
+
   };
 }
 
-/** When obtaining the initial state is slow, this loading indicator will be visible. */
-export const initialStateConfig = {
-  loading: <PageLoading />,
-};
+// /** When obtaining the initial state is slow, this loading indicator will be visible. */
+// export const initialStateConfig = {
+//   loading: <PageLoading />,
+// };
 
 // ProLayout api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
@@ -115,15 +105,18 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           history.push(loginPath);
         }
     },
-    menuHeaderRender: undefined,
+    //menuHeaderRender: undefined,
     menu: loopMenuItem(defaultMenus),
     // custom 403 page
+    // subMenuItemRender: (_, dom) => <div>pre {dom}</div>,
+    // menuItemRender: (item, dom) => <div>{item.icon} {dom}</div>,
+    menuProps: {forceSubMenuRender: true},
     // unAccessible: <div>unAccessible</div>,
     childrenRender: (children, props) => {
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
       return (
-          <OpenAPIProvider definition={initialState.schema} axiosConfigDefaults={axiosConfig} >
+        <>
             {children}
             {!props.location?.pathname?.includes('/login') && (
               <SettingDrawer
@@ -137,9 +130,18 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
                 }}
               />
             )}
-          </OpenAPIProvider>
+            </>
       );
     },
+    
+    
     ...initialState?.settings,
   };
 };
+
+
+export function rootContainer(container: any) {
+  console.log('rootContainer');
+  
+  return <RootContainer >{container}</RootContainer>;
+}

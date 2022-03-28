@@ -10,6 +10,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
+import SchemaForm from '../SchemaForm';
 import { getQueryParams } from '../Utils/jsonapi';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
@@ -18,41 +19,45 @@ export interface NestedLookup {
   paramValue: string | number;
 }
 
-export interface RepoTableProps extends Omit<ProTableProps<any,any>, 'actionRef'> {
-    /** Repository that defines the schema and offers CRUD operations */
-    resourceTypes: string[]
-    nestedLookups?: ParamsArray
-    /** Optional column definitions, automatically augmented and merged with the repository schema */
-    columns?: RepoTableColumnType[]
-    additionalActions?: (text: any, record: any) => void
-    defaultActions?: string[]
-    /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
-    onAddRecord?: () => void
-    /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
-    onEditRecord?: (recordId: number | string) => void
+export interface RepoTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
+  /** Repository that defines the schema and offers CRUD operations */
+  resourceTypes: string[];
+  nestedLookups?: ParamsArray;
+  /** Optional column definitions, automatically augmented and merged with the repository schema */
+  columns?: RepoTableColumnType[];
+  additionalActions?: (text: any, record: any) => void;
+  defaultActions?: string[];
+  /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
+  onAddRecord?: () => void;
+  /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
+  onEditRecord?: (recordId: number | string) => void;
 }
 
 export type RepoTableColumnType = ProColumnType & {
   /** Optional mapping of query form values to repo filter params */
-  toFilterParams?: (value: any) => Record<string, string>
-}
+  toFilterParams?: (value: any) => Record<string, string>;
+};
 
-function augmentColumns (
+function augmentColumns(
   resourceSchema: any,
   queryParams: any,
-  columnHints: ProColumnType[] | undefined): ProColumnType[] {
-
+  columnHints: ProColumnType[] | undefined,
+): ProColumnType[] {
   const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
   const columns: any = {};
   for (const propName in props) {
-    columns[propName] = mapOpenApiSchemaToProTableColumn({ dataIndex: propName }, props[propName], queryParams);
-    const columnHint = columnHints?.find(hint => hint.dataIndex === propName);
-    if (columnHint){
+    columns[propName] = mapOpenApiSchemaToProTableColumn(
+      { dataIndex: propName },
+      props[propName],
+      queryParams,
+    );
+    const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
+    if (columnHint) {
       columns[propName].valueType = 'text';
-      for (const [key, value] of Object.entries(columnHint)){
+      for (const [key, value] of Object.entries(columnHint)) {
         columns[propName][key] = value;
       }
-    } 
+    }
   }
 
   if (queryParams['filter[search]']) {
@@ -62,9 +67,9 @@ function augmentColumns (
       valueType: 'text',
       hideInTable: true,
       hideInSearch: false,
-      search : {
-        transform : buildSearchTransformText('search')
-      }
+      search: {
+        transform: buildSearchTransformText('search'),
+      },
     };
   }
   return Object.values(columns);
@@ -80,17 +85,15 @@ const RepoTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
-  console.log('HUHU2');
   const _defaultActions = useRef(defaultActions);
-  const jsonPointer: string = 'reactClient/tables/'+resourceTypes[0];
-  const nestedResourceListLookup: string = 'list'+resourceTypes.join('By');
+  const jsonPointer: string = 'reactClient/tables/' + resourceTypes[0];
+  const nestedResourceListLookup: string = 'list' + resourceTypes.join('By');
 
   //const currentUser = store.getState().currentUser.user;
-  const settings: any = useRef({jsonPointer: 'something'});
-  const [
-    columnsStateMap,
-    setColumnsStateMap
-  ] = useState<Record<string, ColumnsState>>(settings.current[jsonPointer] || {});
+  const settings: any = useRef({ jsonPointer: 'something' });
+  const [columnsStateMap, setColumnsStateMap] = useState<Record<string, ColumnsState>>(
+    settings.current[jsonPointer] || {},
+  );
 
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
   const [header, setHeader] = useState<string>('TODO');
@@ -103,110 +106,122 @@ const RepoTable = ({
     setSelectedForEdit('');
   }, []);
   const { api } = useContext(OpenAPIContext);
-  const [
-    listResource, 
-    { loading: listLoading, error: listError, response: listResponse }
-  ] = useOperationMethod(nestedResourceListLookup);
-  const [
-    deleteResource, 
-    { error: deleteError }
-  ] = useOperationMethod('delete'+resourceTypes[0]);
-  const [
-    updateUser, 
-    { response: updateUserResponse }
-  ] = useOperationMethod('updateUser');
+  const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
+    useOperationMethod(nestedResourceListLookup);
+  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes[0]);
+  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
 
   const [tableDataSource, setTableDataSource] = useState<any>({
     data: [],
     success: true,
-    total: 0
+    total: 0,
   });
   const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
 
   const proTableActions = useRef<ActionType>();
 
   const addRowAction = useCallback(() => {
-    return !onAddRecord ?
-      () => {setRightDrawerVisible(true);}
-      : () => {onAddRecord();};
+    return !onAddRecord
+      ? () => {
+          setRightDrawerVisible(true);
+        }
+      : () => {
+          onAddRecord();
+        };
   }, [onAddRecord]);
 
   const addRowButton = useCallback((): ReactNode => {
-    return api.getOperation('add'+resourceTypes[0])?
-      <Button
-        type='primary'
-        key='primary'
-        onClick={addRowAction()}
-      >
-        <PlusOutlined />New
-      </Button>: null;
+    return api.getOperation('add' + resourceTypes[0]) ? (
+      <Button type="primary" key="primary" onClick={addRowAction()}>
+        <PlusOutlined />
+        New
+      </Button>
+    ) : null;
   }, [addRowAction, api, resourceTypes]);
 
-  const deleteRowButton = useCallback((row: any): ReactNode => {
-    return <Tooltip
-      title={ 'Delete' }>
-      <Button
-        style={{ borderColor: 'red', color: 'red' }}
-        type='default'
-        icon={<DeleteFilled/>}
-        size='small'
-        onClick={() => {
-          const modal = Modal.confirm({
-            title: 'Delete record',
-            content: `Do you want to delete the record with id ${row.id}?`,
-            onOk: () => {
-              modal.update(prevConfig => ({
-                ...prevConfig,
-                confirmLoading: true
-              }));
-              deleteResource(row.id);
-              proTableActions.current?.reload();
-            }
-          });
-        }}
-      />
-    </Tooltip>;
-  }, [deleteResource]);
+  const deleteRowButton = useCallback(
+    (row: any): ReactNode => {
+      return (
+        <Tooltip title={'Delete'}>
+          <Button
+            style={{ borderColor: 'red', color: 'red' }}
+            type="default"
+            icon={<DeleteFilled />}
+            size="small"
+            onClick={() => {
+              const modal = Modal.confirm({
+                title: 'Delete record',
+                content: `Do you want to delete the record with id ${row.id}?`,
+                onOk: () => {
+                  modal.update((prevConfig) => ({
+                    ...prevConfig,
+                    confirmLoading: true,
+                  }));
+                  deleteResource(row.id);
+                  proTableActions.current?.reload();
+                },
+              });
+            }}
+          />
+        </Tooltip>
+      );
+    },
+    [deleteResource],
+  );
 
-  const editRowButton = useCallback((row: any): ReactNode => {
-    return <Tooltip
-      title={ 'Edit' }>
-      <Button
-        size='small'
-        icon={<EditFilled/>}
-        style={{ borderColor: 'gold', color: 'gold' }}
-        onClick={() => {
-          if (onEditRecord){
-            onEditRecord(row.id);
-          }else {
-            setSelectedForEdit(row.id);
-            setRightDrawerVisible(true);
+  const editRowButton = useCallback(
+    (row: any): ReactNode => {
+      return (
+        <Tooltip title={'Edit'}>
+          <Button
+            size="small"
+            icon={<EditFilled />}
+            style={{ borderColor: 'gold', color: 'gold' }}
+            onClick={() => {
+              if (onEditRecord) {
+                onEditRecord(row.id);
+              } else {
+                setSelectedForEdit(row.id);
+                setRightDrawerVisible(true);
+              }
+            }}
+          />
+        </Tooltip>
+      );
+    },
+    [onEditRecord],
+  );
+
+  const defaultActionButtons = useCallback(
+    (text: any, record: any): ReactNode => {
+      return (
+        <Space size="small">
+          {
+            // todo: check if user has permission also
+            _defaultActions.current.includes('edit') &&
+            api.getOperation('update' + resourceTypes[0])
+              ? editRowButton(record)
+              : null
           }
-        }}
-      />
-    </Tooltip>;
-  }, [onEditRecord]);
-
-  const defaultActionButtons = useCallback((text: any, record: any): ReactNode => {
-    return <Space size='small'>
-      { // todo: check if user has permission also
-        _defaultActions.current.includes('edit') && api.getOperation('update'+resourceTypes[0]) ?
-          editRowButton(record)
-          : null}
-      { // todo: check if user has permission also
-        _defaultActions.current.includes('delete') && api.getOperation('delete'+resourceTypes[0]) ?
-          deleteRowButton(record)
-          : null}
-      {additionalActions ? additionalActions(text, record) : null}
-    </Space>;
-      
-  }, [additionalActions, api, deleteRowButton, editRowButton, resourceTypes]);
+          {
+            // todo: check if user has permission also
+            _defaultActions.current.includes('delete') &&
+            api.getOperation('delete' + resourceTypes[0])
+              ? deleteRowButton(record)
+              : null
+          }
+          {additionalActions ? additionalActions(text, record) : null}
+        </Space>
+      );
+    },
+    [additionalActions, api, deleteRowButton, editRowButton, resourceTypes],
+  );
 
   /**
    * @description Updates currentUser settings on response
    */
   useEffect(() => {
-    if (updateUserResponse){
+    if (updateUserResponse) {
       // store.dispatch({
       //   type: 'currentUser/updateSettings',
       //   payload: updateUserResponse.data.data.attributes.settings
@@ -218,7 +233,7 @@ const RepoTable = ({
    * @description Updates columeStateMap on user settings
    */
   useEffect(() => {
-    if (columnsStateMap){
+    if (columnsStateMap) {
       const _settings = { ...settings.current };
       _settings[jsonPointer] = columnsStateMap;
       // updateUser(
@@ -229,11 +244,11 @@ const RepoTable = ({
   }, [columnsStateMap, settings, jsonPointer, updateUser]);
 
   /**
-   * @description Handles errors on row delete 
+   * @description Handles errors on row delete
    */
   useEffect(() => {
     if (deleteError) {
-      notification.error({ message: 'Something went wrong. Can\'t delete resource.' });
+      notification.error({ message: "Something went wrong. Can't delete resource." });
     }
   }, [deleteError]);
 
@@ -247,11 +262,11 @@ const RepoTable = ({
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
     if (responseSchema) {
-      if (responseSchema.properties?.data.items.title){
+      if (responseSchema.properties?.data.items.title) {
         setHeader(responseSchema.properties?.data.items.title);
       }
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
-      if (!_augmentedColumns.some(column => column.key === 'actions')) {
+      if (!_augmentedColumns.some((column) => column.key === 'actions')) {
         _augmentedColumns.push({
           key: 'operation',
           title: 'Aktionen',
@@ -259,14 +274,12 @@ const RepoTable = ({
           fixed: 'right',
           render: (text: any, record: any) => {
             return defaultActionButtons(text, record);
-          }
+          },
         });
       }
       setAugmentedColumns(_augmentedColumns);
-      
     }
-
-  },[additionalActions, columns, api, nestedResourceListLookup, defaultActionButtons]);
+  }, [additionalActions, columns, api, nestedResourceListLookup, defaultActionButtons]);
 
   /**
    * @description Handles list response and fills the table with data
@@ -280,54 +293,58 @@ const RepoTable = ({
           key: record.id,
           id: record.id,
           ...record.attributes,
-          relationships: { ...record.relationships }
+          relationships: { ...record.relationships },
         };
         data.push(row);
       });
-      
+
       const dataSource = {
         data: data,
         success: listError,
-        total: listResponse.data.meta.pagination.count
+        total: listResponse.data.meta.pagination.count,
       };
       setTableDataSource(dataSource);
       setPaginationConfig({ total: dataSource.total });
     } else if (!listError && !listLoading) {
       //fetchData();
     }
-
   }, [listError, listLoading, listResponse]);
 
   /**
    * @description Builds the query and triggers the async call for the list
    */
-  const fetchData = useCallback((params: any, sorter?: Record<string, SortOrder>) => {    
-    const queryParams = [...nestedLookups];
-    queryParams.push(...[
-      { name: 'page[number]', value: params.current, in: 'query' },
-      { name: 'page[size]', value: params.pageSize, in: 'query' },
-    ]);
+  const fetchData = useCallback(
+    (params: any, sorter?: Record<string, SortOrder>) => {
+      const queryParams = [...nestedLookups];
+      queryParams.push(
+        ...[
+          { name: 'page[number]', value: params.current, in: 'query' },
+          { name: 'page[size]', value: params.pageSize, in: 'query' },
+        ],
+      );
 
-    let ordering = '';
-    for (const prop in sorter) {
-      // TODO handle multi property ordering
-      ordering = (sorter[prop] === 'descend' ? '-' : '') + prop;
-    }
-    if (ordering){
-      queryParams.push({ name: 'sort', value: ordering, in: 'query' });
-    }
+      let ordering = '';
+      for (const prop in sorter) {
+        // TODO handle multi property ordering
+        ordering = (sorter[prop] === 'descend' ? '-' : '') + prop;
+      }
+      if (ordering) {
+        queryParams.push({ name: 'sort', value: ordering, in: 'query' });
+      }
 
-    // 'current' and 'pageSize' are reserved names in antd ProTable (and cannot be used for filtering)
-    delete params.current;
-    delete params.pageSize;
-    
-    for (const prop in params) {
-      queryParams.push({ name: prop, value: params[prop], in: 'query' });
-    }
+      // 'current' and 'pageSize' are reserved names in antd ProTable (and cannot be used for filtering)
+      delete params.current;
+      delete params.pageSize;
 
-    listResource(queryParams);
-    return tableDataSource;
-  }, [listResource, nestedLookups, tableDataSource]);
+      for (const prop in params) {
+        queryParams.push({ name: prop, value: params[prop], in: 'query' });
+      }
+
+      listResource(queryParams);
+      return tableDataSource;
+    },
+    [listResource, nestedLookups, tableDataSource],
+  );
 
   return (
     <>
@@ -342,38 +359,44 @@ const RepoTable = ({
           headerTitle={header}
           dateFormatter={false}
           pagination={paginationConfig}
-          toolBarRender={() => [addRowButton()]
-          }
+          toolBarRender={() => [addRowButton()]}
           columnsState={
-            passThroughProps.columnsState ?
-              passThroughProps.columnsState :
-              {
-                value: columnsStateMap,
-                onChange: setColumnsStateMap
-              }
+            passThroughProps.columnsState
+              ? passThroughProps.columnsState
+              : {
+                  value: columnsStateMap,
+                  onChange: setColumnsStateMap,
+                }
           }
-          search={ augmentedColumns.some((column: RepoTableColumnType) => {
-            return column.search && column.search.transform;
-          })
-            ? {
-              layout: 'vertical'
-            }
-            : false}
-
+          search={
+            augmentedColumns.some((column: RepoTableColumnType) => {
+              return column.search && column.search.transform;
+            })
+              ? {
+                  layout: 'vertical',
+                }
+              : false
+          }
           {...passThroughProps}
         />
       )}
       <Drawer
-        title={selectedForEdit ? `Edit ${selectedForEdit}`: `Add a new ${header}`}
-        placement='right'
+        title={selectedForEdit ? `Edit ${selectedForEdit}` : `Add a new ${header}`}
+        placement="right"
         visible={rightDrawerVisible}
-        onClose={()=>{closeRightDrawer();}}
+        onClose={() => {
+          closeRightDrawer();
+        }}
       >
-        todo
-        Hello World
+        <SchemaForm
+          resourceType={resourceTypes[0]}
+          resourceId={selectedForEdit}
+          onSuccess={() => {
+            closeRightDrawer();
+          }}
+        />
       </Drawer>
     </>
-
   );
 };
 

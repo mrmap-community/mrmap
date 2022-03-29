@@ -1,8 +1,9 @@
-import { PageLoading } from "@ant-design/pro-layout";
+
 import type { AxiosRequestConfig } from "openapi-client-axios";
 import { useEffect, useState } from "react";
-import { OpenAPIProvider } from "react-openapi-client";
+import { OpenAPIProvider } from "react-openapi-client/OpenAPIProvider";
 import { request } from 'umi';
+import PageLoading from "../PageLoading";
 
 const axiosConfig: AxiosRequestConfig = {
     baseURL: '/',
@@ -42,8 +43,11 @@ const RootContainer: React.FC = (props: any) => {
             </OpenAPIProvider>
         );
     }
-    return (          
-        <PageLoading />
+    return (      
+        <PageLoading 
+          title="Loading OpenAPI schema from backend..."
+          logo={<img alt="openapi logo" src="/openapi_logo.png" />}
+        />
     );
 
 

@@ -48,13 +48,18 @@ const defaultMenus = [
     routes: [
       {
         name: 'wms',
-        path: '/registry/webmapservices',
+        path: '/registry/wms',
         component: './Registry/WmsTable',
       },
       {
         name: 'wfs',
-        path: '/registry/webfeatureservices',
+        path: '/registry/wfs',
         component: './Registry/WfsTable',
+      },
+      {
+        name: 'csw',
+        path: '/registry/csw',
+        component: './Registry/CswTable',
       },
     ],
   },

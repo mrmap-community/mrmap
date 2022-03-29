@@ -3,7 +3,7 @@ export default {
   'menu.registry': 'Registration',
   'menu.registry.wms': 'Kartendienste (WMS)',
   'menu.registry.wfs': 'Datendienste (WFS)',
-
+  'menu.registry.csw': 'Katalogdienste (CSW)',
   'menu.more-blocks': 'More Blocks',
   'menu.home': 'Home',
   'menu.admin': 'Admin',

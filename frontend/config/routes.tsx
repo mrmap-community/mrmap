@@ -62,6 +62,11 @@ const defaultMenus = [
         component: './Registry/CswTable',
       },
       {
+        name: 'datasets',
+        path: '/registry/datasets',
+        component: './Registry/DatasetTable',
+      },
+      {
         name: 'layers',
         path: '/registry/layers',
         component: './Registry/LayerTable',

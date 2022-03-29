@@ -4,6 +4,7 @@ export default {
   'menu.registry.wms': 'Kartendienste (WMS)',
   'menu.registry.wfs': 'Datendienste (WFS)',
   'menu.registry.csw': 'Katalogdienste (CSW)',
+  'menu.registry.datasets': 'Datensätze',
   'menu.registry.layers': 'Kartenebenen (WMS/Raster)',
   'menu.registry.featuretypes': 'Datenebenen (WFS/Vektor)',
   'menu.registry.maps': 'Karten',

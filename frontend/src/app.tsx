@@ -112,7 +112,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
           {children}
           {!props.location?.pathname?.includes('/login') && (
             <SettingDrawer
-              disableUrlParams
+              enableDarkTheme
               settings={initialState?.settings}
               onSettingChange={(settings) => {
                 setInitialState((preInitialState: any) => ({

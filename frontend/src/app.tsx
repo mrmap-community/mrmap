@@ -7,6 +7,7 @@ import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
 import defaultMenus, { loopMenuItem } from '../config/routes';
+import PageLoading from './components/PageLoading';
 import RootContainer from './components/RootContainer';
 
 
@@ -63,6 +64,11 @@ export async function getInitialState(): Promise<{
 
   };
 }
+
+/** When obtaining user information is slow, a loading */
+export const initialStateConfig = {
+  loading: <PageLoading />,
+};
 
 // ProLayout api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {

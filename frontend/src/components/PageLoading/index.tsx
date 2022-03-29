@@ -5,7 +5,7 @@ import type { ReactElement } from "react";
 type PageLoadingProps = {
     title?: string;
     titleLevel?: 5 | 4 | 3 | 2 | 1 | undefined;
-    logo: ReactElement;
+    logo?: ReactElement;
 };
 
 const PageLoading = ({

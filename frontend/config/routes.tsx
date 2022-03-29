@@ -61,6 +61,21 @@ const defaultMenus = [
         path: '/registry/csw',
         component: './Registry/CswTable',
       },
+      {
+        name: 'layers',
+        path: '/registry/layers',
+        component: './Registry/LayerTable',
+      },
+      {
+        name: 'featuretypes',
+        path: '/registry/featuretypes',
+        component: './Registry/FeatureTypeTable',
+      },
+      {
+        name: 'maps',
+        path: '/registry/maps',
+        component: './Registry/MapTable',
+      },
     ],
   },
   {

@@ -1,7 +1,9 @@
 
+import { store } from '@/services/ReduxStore/Store';
 import type { AxiosRequestConfig } from "openapi-client-axios";
 import { useEffect, useState } from "react";
 import { OpenAPIProvider } from "react-openapi-client/OpenAPIProvider";
+import { Provider as ReduxProvider } from 'react-redux';
 import { request } from 'umi';
 import PageLoading from "../PageLoading";
 
@@ -38,9 +40,11 @@ const RootContainer: React.FC = (props: any) => {
 
     if (schema){
         return (
+          <ReduxProvider store={store}>
             <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig} >
                 {props.children}
             </OpenAPIProvider>
+          </ReduxProvider>
         );
     }
     return (      

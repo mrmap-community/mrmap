@@ -9,7 +9,7 @@ import defaultSettings from '../config/defaultSettings';
 import defaultMenus, { loopMenuItem } from '../config/routes';
 import PageLoading from './components/PageLoading';
 import RootContainer from './components/RootContainer';
-
+import WebSockets from './services/WebSockets';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
@@ -108,7 +108,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
       return (
-        <>
+        <WebSockets >
           {children}
           {!props.location?.pathname?.includes('/login') && (
             <SettingDrawer
@@ -122,18 +122,14 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
               }}
             />
           )}
-        </>
+        </WebSockets>
       );
     },
-    
-    
     ...initialState?.settings,
   };
 };
 
 
-export function rootContainer(container: any) {
-  console.log('rootContainer');
-  
+export function rootContainer(container: any) {  
   return <RootContainer >{container}</RootContainer>;
 }

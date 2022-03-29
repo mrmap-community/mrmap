@@ -1,12 +1,11 @@
-﻿import { CrownOutlined, HeartOutlined, SmileOutlined } from "@ant-design/icons";
+﻿import { CrownOutlined, HeartOutlined, SmileOutlined } from '@ant-design/icons';
 import type { MenuDataItem } from '@ant-design/pro-layout';
 import React from 'react';
-
 
 const IconMap = {
   smile: <SmileOutlined />,
   heart: <HeartOutlined />,
-  crown: <CrownOutlined />
+  crown: <CrownOutlined />,
 };
 
 export const loopMenuItem = (menus: MenuDataItem[]): MenuDataItem[] =>
@@ -15,7 +14,6 @@ export const loopMenuItem = (menus: MenuDataItem[]): MenuDataItem[] =>
     icon: icon && IconMap[icon as string],
     routes: routes && loopMenuItem(routes),
   }));
-
 
 const defaultMenus = [
   {
@@ -44,16 +42,46 @@ const defaultMenus = [
     component: './Welcome',
   },
   {
+    path: '/registry',
     name: 'registry',
     icon: 'database',
-    routes :[
+    routes: [
       {
         name: 'wms',
-        icon: 'crown',
-        path: '/registry/webmapservices',
-        component: './Registry/WebMapServices'
-      }
-    ]
+        path: '/registry/wms',
+        component: './Registry/WmsTable',
+      },
+      {
+        name: 'wfs',
+        path: '/registry/wfs',
+        component: './Registry/WfsTable',
+      },
+      {
+        name: 'csw',
+        path: '/registry/csw',
+        component: './Registry/CswTable',
+      },
+      {
+        name: 'datasets',
+        path: '/registry/datasets',
+        component: './Registry/DatasetTable',
+      },
+      {
+        name: 'layers',
+        path: '/registry/layers',
+        component: './Registry/LayerTable',
+      },
+      {
+        name: 'featuretypes',
+        path: '/registry/featuretypes',
+        component: './Registry/FeatureTypeTable',
+      },
+      {
+        name: 'maps',
+        path: '/registry/maps',
+        component: './Registry/MapTable',
+      },
+    ],
   },
   {
     path: '/',
@@ -63,7 +91,5 @@ const defaultMenus = [
     component: './404',
   },
 ];
-
-
 
 export default defaultMenus;

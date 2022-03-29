@@ -1,8 +1,8 @@
 {
-  "name": "ant-design-pro",
-  "version": "5.2.0",
+  "name": "mr-map-frontend",
+  "version": "0.9.0",
   "private": true,
-  "description": "An out-of-box UI solution for enterprise applications",
+  "description": "Frontend for Mr. Map, the registry for geospatial data, metadata, services and their describing documents.",
   "scripts": {
     "analyze": "cross-env ANALYZE=1 umi build",
     "build": "umi build",

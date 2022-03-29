@@ -96,7 +96,6 @@ const RepoTable = ({
   );
 
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
-  const [header, setHeader] = useState<string>('TODO');
 
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
@@ -262,9 +261,6 @@ const RepoTable = ({
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
     if (responseSchema) {
-      if (responseSchema.properties?.data.items.title) {
-        setHeader(responseSchema.properties?.data.items.title);
-      }
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
       if (!_augmentedColumns.some((column) => column.key === 'actions')) {
         _augmentedColumns.push({
@@ -356,7 +352,6 @@ const RepoTable = ({
           columns={augmentedColumns}
           scroll={{ x: true }}
           actionRef={proTableActions}
-          headerTitle={header}
           dateFormatter={false}
           pagination={paginationConfig}
           toolBarRender={() => [addRowButton()]}
@@ -381,7 +376,7 @@ const RepoTable = ({
         />
       )}
       <Drawer
-        title={selectedForEdit ? `Edit ${selectedForEdit}` : `Add a new ${header}`}
+        title={selectedForEdit ? `Edit ${selectedForEdit}` : `Add`}
         placement="right"
         visible={rightDrawerVisible}
         onClose={() => {

@@ -81,6 +81,14 @@ const defaultMenus = [
         path: '/registry/maps',
         component: './Registry/MapTable',
       },
+      {
+        path: '/registry/maps/add',
+        component: './Registry/MapContextEditor',
+      },
+      {
+        path: '/registry/maps/:id/edit',
+        component: './Registry/MapContextEditor',
+      },
     ],
   },
   {

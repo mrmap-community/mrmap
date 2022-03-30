@@ -75,7 +75,7 @@ function augmentColumns(
   return Object.values(columns);
 }
 
-const RepoTable = ({
+const SchemaTable = ({
   resourceTypes,
   nestedLookups = [],
   columns = undefined,
@@ -395,4 +395,4 @@ const RepoTable = ({
   );
 };
 
-export default RepoTable;
+export default SchemaTable;

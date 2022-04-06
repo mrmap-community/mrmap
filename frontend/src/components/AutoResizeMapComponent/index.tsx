@@ -1,7 +1,7 @@
 import { MapComponent, useMap } from '@terrestris/react-geo';
 import 'ol/ol.css';
 import type { ReactElement } from 'react';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 export const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => {
   const map = useMap();

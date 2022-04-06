@@ -15,7 +15,7 @@ import { useForm } from 'antd/lib/form/Form';
 import type { AxiosError, AxiosResponse } from 'openapi-client-axios';
 import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement } from 'react';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 
 type SchemaFormProps = {

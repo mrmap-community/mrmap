@@ -1,7 +1,6 @@
 import { Form, Input } from 'antd';
 import type { TooltipProps } from 'antd/lib/tooltip';
 import type { ReactElement, ReactNode } from 'react';
-import React from 'react';
 
 export interface ValidationPropsType {
   rules: any[];

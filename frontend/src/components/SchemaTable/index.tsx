@@ -8,7 +8,7 @@ import type { SortOrder } from 'antd/lib/table/interface';
 import type { ParamsArray } from 'openapi-client-axios';
 import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import SchemaForm from '../SchemaForm';
 import { getQueryParams } from '../Utils/jsonapi';

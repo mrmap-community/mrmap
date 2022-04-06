@@ -21,7 +21,6 @@ import MultiPolygon from 'ol/geom/MultiPolygon';
 import type Polygon from 'ol/geom/Polygon';
 import type OlMap from 'ol/Map';
 import type { ReactElement } from 'react';
-import React from 'react';
 import './AreaDigitizeToolbar.css';
 
 const geoJson = new GeoJSON();

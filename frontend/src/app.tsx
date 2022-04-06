@@ -2,7 +2,6 @@ import RightContent from '@/components/RightContent';
 import { GithubFilled, LinkOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-layout';
 import { SettingDrawer } from '@ant-design/pro-layout';
-import React from 'react';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
@@ -27,7 +26,6 @@ export async function getInitialState(): Promise<{
   loading?: boolean;
   fetchUserInfo?: () => Promise<any | undefined>;
 }> {
-
   const fetchUserInfo = async () => {
     try {
       const msg = await request<{
@@ -49,7 +47,6 @@ export async function getInitialState(): Promise<{
   };
   // if this is not the login page, try to fetch user and set currentUser
   if (history.location.pathname !== loginPath) {
-
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
@@ -61,7 +58,6 @@ export async function getInitialState(): Promise<{
   return {
     fetchUserInfo,
     settings: defaultSettings,
-
   };
 }
 
@@ -89,26 +85,27 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         ]
       : [],
     onPageChange: () => {
-        const { location } = history;
-        const username = initialState?.currentUser?.data?.attributes?.username;
-        const isAuthenticated = username === 'AnonymousUser' ? false: username === undefined ? false: true;
-        // if not logged in, redirect to login page
-        if (!isAuthenticated && location.pathname !== loginPath) {
-          history.push(loginPath);
-        }
+      const { location } = history;
+      const username = initialState?.currentUser?.data?.attributes?.username;
+      const isAuthenticated =
+        username === 'AnonymousUser' ? false : username === undefined ? false : true;
+      // if not logged in, redirect to login page
+      if (!isAuthenticated && location.pathname !== loginPath) {
+        history.push(loginPath);
+      }
     },
     //menuHeaderRender: undefined,
     menu: loopMenuItem(defaultMenus),
     // custom 403 page
     // subMenuItemRender: (_, dom) => <div>pre {dom}</div>,
     // menuItemRender: (item, dom) => <div>{item.icon} {dom}</div>,
-    menuProps: {forceSubMenuRender: true},
+    menuProps: { forceSubMenuRender: true },
     // unAccessible: <div>unAccessible</div>,
     childrenRender: (children, props) => {
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
       return (
-        <WebSockets >
+        <WebSockets>
           {children}
           {!props.location?.pathname?.includes('/login') && (
             <SettingDrawer
@@ -129,7 +126,6 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
   };
 };
 
-
-export function rootContainer(container: any) {  
-  return <RootContainer >{container}</RootContainer>;
+export function rootContainer(container: any) {
+  return <RootContainer>{container}</RootContainer>;
 }

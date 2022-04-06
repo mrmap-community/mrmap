@@ -1,6 +1,5 @@
 import SchemaTable from '@/components/SchemaTable';
 import type { ReactElement } from 'react';
-import React from 'react';
 import { history } from 'umi';
 
 export const RulesTable = ({ wmsId }: { wmsId: string }): ReactElement => {
@@ -13,9 +12,9 @@ export const RulesTable = ({ wmsId }: { wmsId: string }): ReactElement => {
         density: false,
       }}
       pagination={false}
-      onAddRecord={() => history.push(`/registry/services/wms/${wmsId}/security/rules/add`)}
+      onAddRecord={() => history.push(`/registry/wms/${wmsId}/security/rules/add`)}
       onEditRecord={(recordId: string | number) =>
-        history.push(`/registry/services/wms/${wmsId}/security/rules/${recordId}/edit`)
+        history.push(`/registry/wms/${wmsId}/security/rules/${recordId}/edit`)
       }
       search={false}
       columnsState={{

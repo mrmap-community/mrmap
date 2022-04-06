@@ -2,8 +2,11 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Button, Drawer } from 'antd';
 import type OlMap from 'ol/Map';
 import type { ReactElement } from 'react';
-import { default as React, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router';
+import { RuleForm } from './RuleForm/RuleForm';
 import './RulesDrawer.css';
+import { RulesTable } from './RulesTable/RulesTable';
 
 export interface RulesDrawerProps {
   wmsId: string;
@@ -22,6 +25,7 @@ export const RulesDrawer = ({
 }: RulesDrawerProps): ReactElement => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
+  const path = useLocation().pathname;
 
   // adjust padding of map div
   useEffect(() => {
@@ -40,6 +44,28 @@ export const RulesDrawer = ({
     buttonRef.current?.blur();
   };
 
+  let content;
+  if (path.endsWith('edit')) {
+    content = (
+      <RuleForm
+        wmsId={wmsId}
+        selectedLayerIds={selectedLayerIds}
+        setSelectedLayerIds={setSelectedLayerIds}
+        setIsRuleEditingActive={setIsRuleEditingActive}
+      />
+    );
+  } else if (path.endsWith('add')) {
+    content = (
+      <RuleForm
+        wmsId={wmsId}
+        selectedLayerIds={selectedLayerIds}
+        setSelectedLayerIds={setSelectedLayerIds}
+        setIsRuleEditingActive={setIsRuleEditingActive}
+      />
+    );
+  } else {
+    content = <RulesTable wmsId={wmsId} />;
+  }
   return (
     <>
       <Button
@@ -49,44 +75,7 @@ export const RulesDrawer = ({
         icon={isVisible ? <RightOutlined /> : <LeftOutlined />}
       />
       <Drawer placement="right" width={500} visible={isVisible} closable={false} mask={false}>
-        TODO routing to RuleTable/RuleForm
-        <br />- WMS Id:{wmsId}
-        <br />- Selected Layer ids: {selectedLayerIds}
-        <br />- setSelectedLayerIds: {setSelectedLayerIds}
-        <br />- setIsRuleEditingActive: {setIsRuleEditingActive}
-        <br />
-        {/* <Routes>
-          <Route
-            path='/'
-            element={(
-              <RulesTable
-                wmsId={wmsId}
-              />
-            )}
-          />
-          <Route
-            path='rules/add'
-            element={(
-              <RuleForm
-                wmsId={wmsId}
-                selectedLayerIds={selectedLayerIds}
-                setSelectedLayerIds={setSelectedLayerIds}
-                setIsRuleEditingActive={setIsRuleEditingActive}
-              />
-            )}
-          />
-          <Route
-            path='rules/:ruleId/edit'
-            element={(
-              <RuleForm
-                wmsId={wmsId}
-                selectedLayerIds={selectedLayerIds}
-                setSelectedLayerIds={setSelectedLayerIds}
-                setIsRuleEditingActive={setIsRuleEditingActive}
-              />
-            )}
-          />
-        </Routes> */}
+        {content}
       </Drawer>
     </>
   );

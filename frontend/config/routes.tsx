@@ -52,6 +52,12 @@ const defaultMenus = [
         component: './Registry/WmsTable',
       },
       {
+        name: 'wms',
+        path: '/registry/wms/:id/security',
+        component: './Registry/WmsSecuritySettings',
+        hideInMenu: true,
+      },
+      {
         name: 'wfs',
         path: '/registry/wfs',
         component: './Registry/WfsTable',

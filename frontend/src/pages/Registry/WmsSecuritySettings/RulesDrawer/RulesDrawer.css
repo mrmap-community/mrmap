@@ -1,0 +1,29 @@
+.rules-drawer-toggle-button {
+  position: absolute;
+  top: 50%;
+  z-index: 1000;
+  height: 60px;
+  width: 30px;
+  padding: 0;
+  border-radius: 5px 0 0 5px;
+  background-color: #002140;
+  color: white;
+  border: unset;
+  /* same transition timing as drawer */
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.rules-drawer-toggle-button:active,
+.rules-drawer-toggle-button:focus,
+.rules-drawer-toggle-button:hover {
+  background-color: #002140;
+  color: white;
+}
+
+.rules-drawer-toggle-button.collapsed {
+  right: 0px;
+}
+
+.rules-drawer-toggle-button.expanded {
+  right: 500px;
+}

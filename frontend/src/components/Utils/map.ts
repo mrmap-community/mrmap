@@ -1,6 +1,7 @@
 import type { Extent } from 'ol/extent';
 import Feature from 'ol/Feature';
 import Geometry from 'ol/geom/Geometry';
+import type BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import OlLayerTile from 'ol/layer/Tile';
 import OlMap from 'ol/Map';
@@ -31,6 +32,18 @@ export function zoomTo(
       padding: [100, 100, 100, 100],
     });
   }
+}
+
+export function getAllSubtreeLayers(root: BaseLayer): BaseLayer[] {
+  const layers: BaseLayer[] = [];
+  const addAllSubtreeLayers = (layer: BaseLayer) => {
+    layers.push(layer);
+    if (layer instanceof LayerGroup) {
+      layer.getLayers().forEach((childLayer) => addAllSubtreeLayers(childLayer));
+    }
+  };
+  addAllSubtreeLayers(root);
+  return layers;
 }
 
 //

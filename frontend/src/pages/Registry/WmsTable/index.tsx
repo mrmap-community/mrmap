@@ -15,7 +15,7 @@ const WmsTable = (): ReactElement => {
           allowedOperations > 0 ? `Zugriffsregeln: ${allowedOperations}` : 'Zugriff unbeschränkt'
         }
       >
-        <Link to={`/registry/services/wms/${record.id}/security`}>
+        <Link to={`/registry/wms/${record.id}/security`}>
           <Button
             size="small"
             style={{ borderColor: 'gold', color: 'gold' }}

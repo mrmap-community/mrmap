@@ -11,6 +11,8 @@ import {
   SettingFilled,
   SettingOutlined,
 } from '@ant-design/icons';
+import { faLayerGroup } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { useMap } from '@terrestris/react-geo';
 import { Button, Space, Tabs, Tooltip } from 'antd';
@@ -304,8 +306,6 @@ export const MapContextEditor = (): ReactElement => {
     return <></>;
   }
 
-  console.log('**** ', olLayerGroup);
-
   return (
     <>
       <div className="mapcontext-editor-layout">
@@ -314,7 +314,10 @@ export const MapContextEditor = (): ReactElement => {
             {olLayerGroup && (
               <div className="mapcontext-layertree-layout">
                 <div className="mapcontext-layertree-header">
-                  {/* <span>{faLayerGroup}&nbsp;&nbsp;&nbsp;Ebenen</span> */}
+                  <span>
+                    <FontAwesomeIcon icon={faLayerGroup} />
+                    &nbsp;&nbsp;&nbsp;Ebenen
+                  </span>
                   <span>&nbsp;&nbsp;&nbsp;Ebenen</span>
                   <Space>
                     <Tooltip title="Create new layer group">

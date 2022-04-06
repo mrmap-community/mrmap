@@ -2,7 +2,7 @@ import { InputField } from '@/components/InputField';
 import { screenToWgs84, wgs84ToScreen, zoomTo } from '@/components/Utils/map';
 import { useMap } from '@terrestris/react-geo';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
-import { Alert, Button, Form, notification, Select, Space, Spin } from 'antd';
+import { Alert, Button, Form, Select, Space, Spin } from 'antd';
 import { useForm } from 'antd/lib/form/Form';
 import { Feature } from 'ol';
 import GeoJSON from 'ol/format/GeoJSON';
@@ -12,7 +12,8 @@ import Polygon from 'ol/geom/Polygon';
 import type OlVectorLayer from 'ol/layer/Vector';
 import type OlVectorSource from 'ol/source/Vector';
 import type { ReactElement } from 'react';
-import { default as React, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { history } from 'umi';
 import { AllowedAreaTable } from './AllowedAreaTable/AllowedAreaTable';
@@ -34,17 +35,40 @@ export const RuleForm = ({
   setSelectedLayerIds,
   setIsRuleEditingActive,
 }: RuleFormProps): ReactElement => {
-  const { ruleId } = useParams<{ ruleId: string }>();
-  const [form] = useForm();
   const map = useMap();
+  const [form] = useForm();
+  const { ruleId } = useParams<{ ruleId: string }>();
 
-  const [layer, setLayer] = useState<OlVectorLayer<OlVectorSource<OlGeometry>>>();
+  const [digiLayer, setDigiLayer] = useState<OlVectorLayer<OlVectorSource<OlGeometry>>>();
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
   const [availableOps, setAvailableOps] = useState<typeof Option[]>([]);
   const [layerSelectionError, setLayerSelectionError] = useState<string>();
-  const [isSavingOrLoading, setIsSavingOrLoading] = useState(false);
 
-  // after mount, rule editing mode is active
+  const [listWmsOps, { response: listWmsOpsRes, loading: listWmsOpsLoading }] = useOperationMethod(
+    'listWebMapServiceOperation',
+  );
+  const [getAllowedWmsOp, { response: getAllowedWmsOpRes, loading: getAllowedWmsOpLoading }] =
+    useOperationMethod('getAllowedWebMapServiceOperation');
+  const [addAllowedWmsOp, { response: addAllowedWmsOpRes, loading: addAllowedWmsOpLoading }] =
+    useOperationMethod('addAllowedWebMapServiceOperation');
+  const [
+    updateAllowedWmsOp,
+    { response: updateAllowedWmsOpRes, loading: updateAllowedWmsOpLoading },
+  ] = useOperationMethod('updateAllowedWebMapServiceOperation');
+
+  // map becomes available -> get digi layer
+  useEffect(() => {
+    if (map) {
+      const layer = DigitizeUtil.getDigitizeLayer(map);
+      setDigiLayer(layer);
+      return () => {
+        layer.getSource()?.clear();
+      };
+    }
+    return undefined;
+  }, [map, digiLayer]);
+
+  // mount -> rule editing mode is set active
   useEffect(() => {
     setIsRuleEditingActive(true);
     return () => {
@@ -53,21 +77,86 @@ export const RuleForm = ({
     };
   }, [setIsRuleEditingActive]);
 
-  // get map digitize layer, fetch form data and initialize
+  // mount -> request WMS ops
   useEffect(() => {
-    let isMounted = true;
-    let digiLayer: OlVectorLayer<OlVectorSource<OlGeometry>>;
-    async function initAvailableWmsOps() {
-      const jsonApiResponse = await operation('listWebMapServiceOperation');
-      const wmsOps = jsonApiResponse.data.data.map((wmsOp: any) => (
+    listWmsOps();
+  }, [listWmsOps]);
+
+  // wmsId -> request allowed WMS op (rule)
+  useEffect(() => {
+    if (ruleId) {
+      getAllowedWmsOp([
+        {
+          name: 'id',
+          value: ruleId,
+          in: 'path',
+        },
+      ]);
+    }
+  }, [getAllowedWmsOp, ruleId]);
+
+  // WMS ops response -> init WMS ops dropdown
+  useEffect(() => {
+    if (listWmsOpsRes) {
+      const wmsOps = listWmsOpsRes.data.data.map((wmsOp: any) => (
         <Option value={wmsOp.id} key={wmsOp.id}>
           {wmsOp.id}
         </Option>
       ));
-      if (isMounted) {
-        setAvailableOps(wmsOps);
+      // TODO ensure not setting if component unmounted
+      setAvailableOps(wmsOps);
+    }
+  }, [listWmsOpsRes]);
+
+  // allowed WMS ops response
+  useEffect(() => {
+    if (map && digiLayer && getAllowedWmsOpRes) {
+      console.log('Got allowed WMS op response', getAllowedWmsOpRes);
+      const attrs = getAllowedWmsOpRes.data.data.attributes;
+      const rels = getAllowedWmsOpRes.data.data.relationships;
+      // set form fields
+      form.setFieldsValue({
+        description: attrs.description,
+        operations: rels.operations.data.map((o: any) => o.id),
+        groups: rels.allowedGroups.data.map((o: any) => o.id),
+      });
+      // set layers
+      setSelectedLayerIds(rels.securedLayers.data.map((o: any) => o.id));
+      // set area polygons and zoom map
+      if (attrs.allowedArea) {
+        const geom: any = geoJson.readGeometry(attrs.allowedArea);
+        geom.getPolygons().forEach((polygon: Polygon) => {
+          const feature = new Feature({
+            geometry: wgs84ToScreen(polygon),
+          });
+          digiLayer.getSource()?.addFeature(feature);
+        });
+        zoomTo(map, wgs84ToScreen(geom));
       }
     }
+  }, [form, digiLayer, map, setSelectedLayerIds, getAllowedWmsOpRes]);
+
+  // add allowed WMS ops response
+  useEffect(() => {
+    if (addAllowedWmsOpRes) {
+      // TODO check for 201 (CREATED)?
+      console.log('Got add allowed WMS ops response', addAllowedWmsOpRes);
+      history.push(`/registry/wms/${wmsId}/security`);
+    }
+  }, [addAllowedWmsOpRes, wmsId]);
+
+  // update allowed WMS ops response
+  useEffect(() => {
+    if (updateAllowedWmsOpRes) {
+      // TODO check for 200 (OK)?
+      console.log('Got add allowed WMS ops response', updateAllowedWmsOpRes);
+      history.push(`/registry/wms/${wmsId}/security`);
+    }
+  }, [updateAllowedWmsOpRes, wmsId]);
+
+  // get map digitize layer, fetch form data and initialize
+  useEffect(() => {
+    let isMounted = true;
     async function initAvailableGroups() {
       // TODO wait for backend fix and reactivate fetching below
       // const jsonApiResponse = await operation('List/api/v1/accounts/groups/');
@@ -83,57 +172,15 @@ export const RuleForm = ({
         setAvailableGroups(groups);
       }
     }
-    async function initFromExistingRule(id: string) {
-      const jsonApiResponse = await operation('getAllowedWebMapServiceOperation', [
-        {
-          in: 'path',
-          name: 'id',
-          value: String(id),
-        },
-      ]);
-      if (isMounted) {
-        const attrs = jsonApiResponse.data.data.attributes;
-        const rels = jsonApiResponse.data.data.relationships;
-        // set form fields
-        form.setFieldsValue({
-          description: attrs.description,
-          operations: rels.operations.data.map((o: any) => o.id),
-          groups: rels.allowedGroups.data.map((o: any) => o.id),
-        });
-        // set layers
-        setSelectedLayerIds(rels.securedLayers.data.map((o: any) => o.id));
-        // set area polygons and zoom map
-        if (attrs.allowedArea) {
-          const geom: any = geoJson.readGeometry(attrs.allowedArea);
-          geom.getPolygons().forEach((polygon: Polygon) => {
-            const feature = new Feature({
-              geometry: wgs84ToScreen(polygon),
-            });
-            digiLayer?.getSource()?.addFeature(feature);
-          });
-          if (map) {
-            zoomTo(map, wgs84ToScreen(geom));
-          }
-        }
-      }
-    }
     if (map) {
-      setIsSavingOrLoading(true);
-      digiLayer = DigitizeUtil.getDigitizeLayer(map);
-      setLayer(digiLayer);
-      initAvailableWmsOps();
       initAvailableGroups();
-      if (ruleId) {
-        initFromExistingRule(ruleId);
-      }
-      setIsSavingOrLoading(false);
     }
     return () => {
       isMounted = false;
       digiLayer?.getSource()?.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ruleId, map, form]);
+  }, [map, form]);
 
   const onFinish = async (values: any) => {
     if (selectedLayerIds.length === 0) {
@@ -145,7 +192,7 @@ export const RuleForm = ({
     // get GeoJson geometry from digitizing layer
     let allowedAreaGeoJson: string | null = null;
     const coords: any[] = [];
-    layer
+    digiLayer
       ?.getSource()
       ?.getFeatures()
       .forEach((feature) => {
@@ -175,28 +222,28 @@ export const RuleForm = ({
         },
       },
       securedLayers: {
-        data: selectedLayerIds.map((id) => {
+        data: selectedLayerIds.map((layerId) => {
           return {
             type: 'Layer',
-            id: id,
+            id: layerId,
           };
         }),
       },
       operations: {
-        data: values.operations.map((id: any) => {
+        data: values.operations.map((opId: any) => {
           return {
             type: 'WebMapServiceOperation',
-            id: id,
+            id: opId,
           };
         }),
       },
     };
     if (values.groups) {
       relationships.allowedGroups = {
-        data: values.groups.map((id: any) => {
+        data: values.groups.map((groupId: any) => {
           return {
             type: 'Group',
-            id: id,
+            id: groupId,
           };
         }),
       };
@@ -204,13 +251,8 @@ export const RuleForm = ({
 
     // perform create or partial update operation
     try {
-      setIsSavingOrLoading(true);
       if (ruleId) {
-        const response = await createOrUpdate(
-          'updateAllowedWebMapServiceOperation',
-          'AllowedWebMapServiceOperation',
-          attributes,
-          relationships,
+        updateAllowedWmsOp(
           [
             {
               in: 'path',
@@ -218,29 +260,41 @@ export const RuleForm = ({
               value: ruleId,
             },
           ],
-          ruleId,
+          {
+            data: {
+              type: 'AllowedWebMapServiceOperation',
+              id: ruleId,
+              attributes,
+              relationships,
+            },
+          },
         );
-        if (response.status !== 200) {
-          notification.error({ message: 'Unexpected response code' });
-          return;
-        }
+        // if (response.status !== 200) {
+        //   notification.error({ message: 'Unexpected response code' });
+        //   return;
+        // }
       } else {
-        const response = await createOrUpdate(
-          'addAllowedWebMapServiceOperation',
-          'AllowedWebMapServiceOperation',
-          attributes,
-          relationships,
-        );
-        if (response.status !== 201) {
-          notification.error({ message: 'Unexpected response code' });
-          return;
-        }
+        addAllowedWmsOp([], {
+          data: {
+            type: 'AllowedWebMapServiceOperation',
+            attributes,
+            relationships,
+          },
+        });
+        // if (response.status !== 201) {
+        //   notification.error({ message: 'Unexpected response code' });
+        //   return;
+        // }
       }
     } finally {
-      setIsSavingOrLoading(false);
     }
-    history.push(`/registry/services/wms/${wmsId}/security`);
   };
+
+  const isSavingOrLoading =
+    listWmsOpsLoading ||
+    getAllowedWmsOpLoading ||
+    addAllowedWmsOpLoading ||
+    updateAllowedWmsOpLoading;
 
   return (
     <Spin spinning={isSavingOrLoading}>
@@ -284,7 +338,7 @@ export const RuleForm = ({
             </Button>
             <Button
               htmlType="button"
-              onClick={() => history.push(`/registry/services/wms/${wmsId}/security`)}
+              onClick={() => history.push(`/registry/wms/${wmsId}/security`)}
             >
               Abbrechen
             </Button>

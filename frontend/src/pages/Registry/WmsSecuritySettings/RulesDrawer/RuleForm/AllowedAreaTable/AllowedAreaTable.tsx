@@ -6,7 +6,7 @@ import type Feature from 'ol/Feature';
 import type { default as Geometry } from 'ol/geom/Geometry';
 import type VectorSource from 'ol/source/Vector';
 import type { ReactElement } from 'react';
-import { default as React, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Area {
   key: string;
@@ -44,6 +44,7 @@ export const AllowedAreaTable = (): ReactElement => {
         };
       }
     }
+    return undefined;
   }, [map]);
 
   const columns = [

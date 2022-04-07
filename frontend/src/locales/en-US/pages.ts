@@ -1,6 +1,5 @@
 export default {
-  'pages.layouts.userLayout.title':
-    'Spatial Service Registry',
+  'pages.layouts.userLayout.title': 'Spatial Service Registry',
   'pages.login.accountLogin.tab': 'Account Login',
   'pages.login.accountLogin.errorMessage': 'Incorrect username/password(admin/ant.design)',
   'pages.login.failure': 'Login failed, please try again!',
@@ -67,4 +66,22 @@ export default {
   'pages.searchTable.tenThousand': '0000',
   'pages.searchTable.batchDeletion': 'bacth deletion',
   'pages.searchTable.batchApproval': 'batch approval',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.deleteAllAreas': 'Delete all areas',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.deleteArea': 'Delete area',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.drawPolygon': 'Draw polygon',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.drawRectangle': 'Draw rectangle',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.editArea': 'Edit area',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.exportAreas': 'Export GeoJSON',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importAreas': 'Import GML 3/GeoJSON',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorGeoJson':
+    'Error reading GeoJSON geometry',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorGml': 'Error reading GML 3 geometry',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorNotGeoJsonNorGml3':
+    'File seems neither to be GeoJSON nor GML 3',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorNotMultiPolygon':
+    'File does not contain a MultiPolygon',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorUnsupportedFormat':
+    'Unsupported format',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorUnsupportedGeometryType':
+    'Unsupported geometry type',
 };

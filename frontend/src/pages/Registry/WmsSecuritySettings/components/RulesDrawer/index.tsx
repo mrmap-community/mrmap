@@ -74,7 +74,15 @@ export const RulesDrawer = ({
         onClick={toggleVisible}
         icon={isVisible ? <RightOutlined /> : <LeftOutlined />}
       />
-      <Drawer placement="right" width={500} visible={isVisible} closable={false} mask={false}>
+      <Drawer
+        placement="right"
+        getContainer={false}
+        width={500}
+        visible={isVisible}
+        closable={false}
+        mask={false}
+        style={{ position: 'absolute', zIndex: 1, height: '100%' }}
+      >
         {content}
       </Drawer>
     </>

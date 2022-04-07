@@ -216,40 +216,38 @@ export const WmsSecuritySettings = (): ReactElement => {
   };
 
   return (
-    <>
-      <div className="wms-security-layout">
-        {map && (
-          <LeftDrawer map={map}>
-            <LayerTree
-              multiple
-              showLine
-              map={map}
-              draggable={false}
-              onSelect={onSelect}
-              selectedKeys={selectedOlUids}
-              filterFunction={(value: any) => {
-                return value.get('isSecurityLayer');
-              }}
-              expandedKeys={expandedOlUids}
-              switcherIcon={<></>}
-              /* workaround for node expansion bug: https://codesandbox.io/s/antd-reproduction-template-forked-zxzdf */
-              defaultExpandParent={false}
-            />
-          </LeftDrawer>
-        )}
-        <AutoResizeMapComponent id="map" />
-        {map && id && (
-          <RulesDrawer
+    <div className="wms-security-layout">
+      {map && (
+        <LeftDrawer map={map}>
+          <LayerTree
+            multiple
+            showLine
             map={map}
-            wmsId={id}
-            selectedLayerIds={selectedLayerIds}
-            setSelectedLayerIds={setSelectedLayerIds}
-            setIsRuleEditingActive={setIsRuleEditingActive}
+            draggable={false}
+            onSelect={onSelect}
+            selectedKeys={selectedOlUids}
+            filterFunction={(value: any) => {
+              return value.get('isSecurityLayer');
+            }}
+            expandedKeys={expandedOlUids}
+            switcherIcon={<></>}
+            /* workaround for node expansion bug: https://codesandbox.io/s/antd-reproduction-template-forked-zxzdf */
+            defaultExpandParent={false}
           />
-        )}
-        {map && isRuleEditingActive && <AreaDigitizeToolbar map={map} />}
-      </div>
-    </>
+        </LeftDrawer>
+      )}
+      <AutoResizeMapComponent id="map" />
+      {map && id && (
+        <RulesDrawer
+          map={map}
+          wmsId={id}
+          selectedLayerIds={selectedLayerIds}
+          setSelectedLayerIds={setSelectedLayerIds}
+          setIsRuleEditingActive={setIsRuleEditingActive}
+        />
+      )}
+      {map && isRuleEditingActive && <AreaDigitizeToolbar map={map} />}
+    </div>
   );
 };
 

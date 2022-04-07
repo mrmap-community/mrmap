@@ -66,4 +66,22 @@ export default {
   'pages.searchTable.tenThousand': '0000',
   'pages.searchTable.batchDeletion': 'bacth deletion',
   'pages.searchTable.batchApproval': 'batch approval',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.deleteAllAreas': 'Alle Bereiche löschen',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.deleteArea': 'Bereich löschen',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.drawPolygon': 'Polygon zeichnen',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.drawRectangle': 'Rechteck zeichnen',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.editArea': 'Bereich ändern',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.exportAreas': 'Export als GeoJSON',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importAreas': 'Import GML 3/GeoJSON',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorGeoJson':
+    'Fehler beim Lesen des GeoJSON',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorGml': 'Fehler beim Lesen des GML 3',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorNotGeoJsonNorGml3':
+    'Datei enthält weder GeoJSON noch GML 3',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorNotMultiPolygon':
+    'Datei enthält keine MultiPolygon-Geometrie',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorUnsupportedFormat':
+    'Nicht unterstütztes Dateiformat',
+  'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorUnsupportedGeometryType':
+    'Nicht unterstützter Geomtrietyp',
 };

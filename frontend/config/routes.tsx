@@ -55,16 +55,7 @@ const defaultMenus = [
         path: '/registry/wms/:id/security',
         component: './Registry/WmsSecuritySettings',
         hideInMenu: true,
-      },
-      {
-        path: '/registry/wms/:id/security/rules/:ruleId/edit',
-        component: './Registry/WmsSecuritySettings',
-        hideInMenu: true,
-      },
-      {
-        path: '/registry/wms/:id/security/rules/add',
-        component: './Registry/WmsSecuritySettings',
-        hideInMenu: true,
+        routes: [{ path: 'rules' }, { path: 'rules/:ruleId/edit' }, { path: 'rules/add' }],
       },
       {
         name: 'wfs',

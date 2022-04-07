@@ -13,8 +13,8 @@ import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router';
 import { getAllSubtreeLayers } from '../../../components/Utils/map';
-import { AreaDigitizeToolbar } from './AreaDigitizeToolbar/AreaDigitizeToolbar';
-import { RulesDrawer } from './RulesDrawer/RulesDrawer';
+import { AreaDigitizeToolbar } from './components/AreaDigitizeToolbar';
+import { RulesDrawer } from './components/RulesDrawer';
 import './WmsSecuritySettings.css';
 
 export const WmsSecuritySettings = (): ReactElement => {

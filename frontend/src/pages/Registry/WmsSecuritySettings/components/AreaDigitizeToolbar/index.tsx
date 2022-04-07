@@ -8,7 +8,7 @@ import {
   faVectorSquare,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import DigitizeButton from '@terrestris/react-geo/dist/Button/DigitizeButton/DigitizeButton';
+import { DeleteButton, DrawButton, ModifyButton } from '@terrestris/react-geo';
 import SimpleButton from '@terrestris/react-geo/dist/Button/SimpleButton/SimpleButton';
 import ToggleGroup from '@terrestris/react-geo/dist/Button/ToggleGroup/ToggleGroup';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
@@ -21,7 +21,7 @@ import MultiPolygon from 'ol/geom/MultiPolygon';
 import type Polygon from 'ol/geom/Polygon';
 import type OlMap from 'ol/Map';
 import type { ReactElement } from 'react';
-import './AreaDigitizeToolbar.css';
+import './index.css';
 
 const geoJson = new GeoJSON();
 const gml3 = new GML3();
@@ -121,9 +121,8 @@ export const AreaDigitizeToolbar = ({ map }: { map: OlMap }): ReactElement => {
   const tools = (
     <>
       <ToggleGroup orientation="horizontal">
-        <DigitizeButton
+        <DrawButton
           name="drawPolygon"
-          map={map}
           drawType="Polygon"
           icon={<FontAwesomeIcon icon={faDrawPolygon} />}
           pressedIcon={<FontAwesomeIcon icon={faDrawPolygon} />}
@@ -133,9 +132,8 @@ export const AreaDigitizeToolbar = ({ map }: { map: OlMap }): ReactElement => {
           tooltipProps={{}}
           pressed={false}
         />
-        <DigitizeButton
+        <DrawButton
           name="drawRectangle"
-          map={map}
           drawType="Rectangle"
           icon={<FontAwesomeIcon icon={faVectorSquare} />}
           pressedIcon={<FontAwesomeIcon icon={faVectorSquare} />}
@@ -145,10 +143,8 @@ export const AreaDigitizeToolbar = ({ map }: { map: OlMap }): ReactElement => {
           tooltipProps={{}}
           pressed={false}
         />
-        <DigitizeButton
+        <ModifyButton
           name="selectAndModify"
-          map={map}
-          editType="Edit"
           icon={<FontAwesomeIcon icon={faEdit} />}
           pressedIcon={<FontAwesomeIcon icon={faEdit} />}
           tooltip="Zeichenobjekte editieren"
@@ -157,10 +153,8 @@ export const AreaDigitizeToolbar = ({ map }: { map: OlMap }): ReactElement => {
           tooltipProps={{}}
           pressed={false}
         />
-        <DigitizeButton
+        <DeleteButton
           name="deleteFeature"
-          map={map}
-          editType="Delete"
           icon={<FontAwesomeIcon icon={faEraser} />}
           pressedIcon={<FontAwesomeIcon icon={faEraser} />}
           tooltip="Zeichenobjekt löschen"

@@ -58,7 +58,7 @@
     "@fortawesome/free-solid-svg-icons": "^6.1.1",
     "@fortawesome/react-fontawesome": "^0.1.18",
     "@reduxjs/toolkit": "1.7.1",
-    "@terrestris/react-geo": "^16.2.5",
+    "@terrestris/react-geo": "^16.4.0",
     "@types/react-redux": "^7.1.20",
     "@umijs/route-utils": "^2.0.0",
     "antd": "^4.18.0",

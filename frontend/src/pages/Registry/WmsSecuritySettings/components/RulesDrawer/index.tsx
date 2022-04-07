@@ -4,8 +4,8 @@ import type OlMap from 'ol/Map';
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
+import './index.css';
 import { RuleForm } from './RuleForm/RuleForm';
-import './RulesDrawer.css';
 import { RulesTable } from './RulesTable/RulesTable';
 
 export interface RulesDrawerProps {

@@ -1,4 +1,6 @@
+import { olMap } from '@/components/Utils/map';
 import '@testing-library/jest-dom/extend-expect';
+import { render } from '@testing-library/react';
 import { AreaDigitizeToolbar } from '.';
 
 describe('AreaDigitizeToolbar', () => {
@@ -6,11 +8,8 @@ describe('AreaDigitizeToolbar', () => {
     expect(AreaDigitizeToolbar).toBeDefined();
   });
 
-  // it('can be rendered', () => {
-  //   const { container } = render(
-  //     <AreaDigitizeToolbar
-  //       map={olMap}
-  //     />);
-  //   expect(container).toBeVisible();
-  // });
+  it('can be rendered', () => {
+    const { container } = render(<AreaDigitizeToolbar map={olMap} />);
+    expect(container).toBeVisible();
+  });
 });

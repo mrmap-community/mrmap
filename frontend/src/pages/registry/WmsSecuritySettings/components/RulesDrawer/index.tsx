@@ -81,7 +81,7 @@ export const RulesDrawer = ({
         visible={isVisible}
         closable={false}
         mask={false}
-        style={{ position: 'absolute', zIndex: 1, height: '100%' }}
+        style={{ zIndex: 1, height: '100%', marginTop: '48px' }}
       >
         {content}
       </Drawer>

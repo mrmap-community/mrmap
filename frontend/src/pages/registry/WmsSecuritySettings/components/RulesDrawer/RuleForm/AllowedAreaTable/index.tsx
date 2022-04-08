@@ -14,7 +14,7 @@ interface Area {
   feature: Feature<Geometry>;
 }
 
-export const AllowedAreaTable = (): ReactElement => {
+const AllowedAreaTable = (): ReactElement => {
   const map = useMap();
   const [dataSource, setDataSource] = useState<Area[]>([]);
 
@@ -74,3 +74,5 @@ export const AllowedAreaTable = (): ReactElement => {
     />
   );
 };
+
+export default AllowedAreaTable;

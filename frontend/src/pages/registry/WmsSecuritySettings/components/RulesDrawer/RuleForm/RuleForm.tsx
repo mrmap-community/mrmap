@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { history } from 'umi';
-import { AllowedAreaTable } from './AllowedAreaTable/AllowedAreaTable';
+import AllowedAreaTable from './AllowedAreaTable';
 
 const { Option } = Select;
 

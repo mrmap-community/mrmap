@@ -11,6 +11,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
+import { FormattedMessage } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
@@ -132,8 +133,10 @@ const SchemaTable = ({
   const addRowButton = useCallback((): ReactNode => {
     return api.getOperation('add' + resourceTypes[0]) ? (
       <Button type="primary" key="primary" onClick={addRowAction()}>
-        <PlusOutlined />
-        New
+        <Space>
+          <PlusOutlined />
+          <FormattedMessage id="component.schemaTable.new" defaultMessage="New" />
+        </Space>
       </Button>
     ) : null;
   }, [addRowAction, api, resourceTypes]);

@@ -1,6 +1,6 @@
 import { notification, Select } from 'antd';
 import type { ReactElement } from 'react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 
 export interface OptionData {

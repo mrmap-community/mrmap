@@ -27,7 +27,7 @@ import './index.css';
 const geoJson = new GeoJSON();
 const gml3 = new GML3();
 
-export const AreaDigitizeToolbar = ({ map }: { map: OlMap }): ReactElement => {
+const AreaDigitizeToolbar = ({ map }: { map: OlMap }): ReactElement => {
   const intl = useIntl();
 
   const getDrawingLayer = () => {
@@ -234,3 +234,5 @@ export const AreaDigitizeToolbar = ({ map }: { map: OlMap }): ReactElement => {
     </div>
   );
 };
+
+export default AreaDigitizeToolbar;

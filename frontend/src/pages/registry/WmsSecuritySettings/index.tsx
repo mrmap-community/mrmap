@@ -13,7 +13,7 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router';
-import { AreaDigitizeToolbar } from './components/AreaDigitizeToolbar';
+import AreaDigitizeToolbar from './components/AreaDigitizeToolbar';
 import { RulesDrawer } from './components/RulesDrawer';
 import './WmsSecuritySettings.css';
 

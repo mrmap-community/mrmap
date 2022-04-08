@@ -1,8 +1,8 @@
 import { AutoResizeMapComponent } from '@/components/AutoResizeMapComponent';
 import { BottomDrawer } from '@/components/BottomDrawer';
 import { LeftDrawer } from '@/components/LeftDrawer';
-import type { JsonApiPrimaryData, ResourceIdentifierObject } from '@/components/Utils/jsonapi';
-import { unpage } from '@/components/Utils/jsonapi';
+import type { JsonApiPrimaryData, ResourceIdentifierObject } from '@/utils/jsonapi';
+import { unpage } from '@/utils/jsonapi';
 import {
   FolderAddOutlined,
   InfoCircleOutlined,
@@ -22,7 +22,7 @@ import LayerGroup from 'ol/layer/Group';
 import ImageLayer from 'ol/layer/Image';
 import ImageWMS from 'ol/source/ImageWMS';
 import type { ReactElement } from 'react';
-import { default as React, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import { LayerSettingsForm } from './LayerSettingsForm/LayerSettingsForm';

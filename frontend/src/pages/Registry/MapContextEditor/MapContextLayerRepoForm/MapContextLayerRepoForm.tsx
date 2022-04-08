@@ -5,7 +5,7 @@ import type BaseLayer from 'ol/layer/Base';
 import type LayerGroup from 'ol/layer/Group';
 import type { AxiosResponse } from 'openapi-client-axios';
 import type { ReactElement } from 'react';
-import { default as React, useCallback } from 'react';
+import { useCallback } from 'react';
 
 interface MapContextLayerRepoFormProps {
   layerGroup?: LayerGroup;

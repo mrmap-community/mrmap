@@ -1,4 +1,4 @@
-import { olMap } from '@/components/Utils/map';
+import { olMap } from '@/utils/map';
 import '@testing-library/jest-dom/extend-expect';
 import { render } from '@testing-library/react';
 import { AreaDigitizeToolbar } from '.';

@@ -1,4 +1,4 @@
-import { screenToWgs84 } from '@/components/Utils/map';
+import { screenToWgs84 } from '@/utils/map';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import {
   faDrawPolygon,

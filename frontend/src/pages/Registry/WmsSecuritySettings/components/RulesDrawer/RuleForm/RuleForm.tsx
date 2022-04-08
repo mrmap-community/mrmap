@@ -1,5 +1,5 @@
 import { InputField } from '@/components/InputField';
-import { screenToWgs84, wgs84ToScreen, zoomTo } from '@/components/Utils/map';
+import { screenToWgs84, wgs84ToScreen, zoomTo } from '@/utils/map';
 import { useMap } from '@terrestris/react-geo';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
 import { Alert, Button, Form, Select, Space, Spin } from 'antd';

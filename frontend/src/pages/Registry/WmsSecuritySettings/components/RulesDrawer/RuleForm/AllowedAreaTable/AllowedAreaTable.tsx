@@ -1,4 +1,4 @@
-import { zoomTo } from '@/components/Utils/map';
+import { zoomTo } from '@/utils/map';
 import { useMap } from '@terrestris/react-geo';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
 import { Table } from 'antd';

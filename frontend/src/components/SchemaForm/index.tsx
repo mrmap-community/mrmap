@@ -3,8 +3,8 @@ import type {
   JsonApiErrorObject,
   JsonApiPrimaryData,
   ResourceIdentifierObject,
-} from '@/components/Utils/jsonapi';
-import { buildJsonApiPayload } from '@/components/Utils/jsonapi';
+} from '@/utils/jsonapi';
+import { buildJsonApiPayload } from '@/utils/jsonapi';
 import type { ProFieldValueType } from '@ant-design/pro-field';
 import type { ProFormColumnsType } from '@ant-design/pro-form';
 import { BetaSchemaForm } from '@ant-design/pro-form';

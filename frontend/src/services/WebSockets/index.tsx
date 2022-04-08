@@ -3,15 +3,17 @@ import type { ReactElement } from 'react';
 import { useEffect } from 'react';
 import useWebSocket from 'react-use-websocket';
 
-export default function WebSockets (props: any): ReactElement {
+export default function WebSockets(props: any): ReactElement {
   const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const hostname = window.location.hostname;
   const port = window.location.port;
   const defaultWsUrl = scheme + '://' + hostname + ':' + port + '/ws/default/';
 
   const lastMessage = useWebSocket(defaultWsUrl, {
-    shouldReconnect: () => { return true; },
-    reconnectInterval: 3000
+    shouldReconnect: () => {
+      return true;
+    },
+    reconnectInterval: 3000,
   });
 
   const handleMessage = (lastJsonMessage: any) => {
@@ -21,7 +23,7 @@ export default function WebSockets (props: any): ReactElement {
 
   useEffect(() => {
     if (lastMessage !== null && lastMessage.lastJsonMessage) {
-        handleMessage(lastMessage.lastJsonMessage);
+      handleMessage(lastMessage.lastJsonMessage);
     }
   }, [lastMessage]);
 

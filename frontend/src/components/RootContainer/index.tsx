@@ -1,4 +1,5 @@
 import { store } from '@/services/ReduxStore/Store';
+import { olMap } from '@/utils/map';
 import { MapContext } from '@terrestris/react-geo';
 import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
@@ -6,7 +7,6 @@ import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { Provider as ReduxProvider } from 'react-redux';
 import { request } from 'umi';
 import PageLoading from '../PageLoading';
-import { olMap } from '../Utils/map';
 
 const axiosConfig: AxiosRequestConfig = {
   baseURL: '/',

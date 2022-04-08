@@ -1,7 +1,6 @@
 import SchemaTable from '@/components/SchemaTable';
 import { Button } from 'antd';
 import type { ReactElement } from 'react';
-import React from 'react';
 
 export const SearchTable = ({
   addDatasetToMapAction = () => undefined,

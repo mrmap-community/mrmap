@@ -1,6 +1,7 @@
 import { AutoResizeMapComponent } from '@/components/AutoResizeMapComponent';
 import { LeftDrawer } from '@/components/LeftDrawer';
-import { unpage } from '@/components/Utils/jsonapi';
+import { unpage } from '@/utils/jsonapi';
+import { getAllSubtreeLayers } from '@/utils/map';
 import { SyncOutlined } from '@ant-design/icons';
 import { LayerTree, useMap } from '@terrestris/react-geo';
 import { getUid } from 'ol';
@@ -12,7 +13,6 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router';
-import { getAllSubtreeLayers } from '../../../components/Utils/map';
 import { AreaDigitizeToolbar } from './components/AreaDigitizeToolbar';
 import { RulesDrawer } from './components/RulesDrawer';
 import './WmsSecuritySettings.css';

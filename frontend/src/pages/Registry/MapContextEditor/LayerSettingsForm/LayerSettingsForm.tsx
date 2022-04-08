@@ -5,7 +5,7 @@ import { Button, Col, Divider, Form, Input, InputNumber, Row, Slider, Space, Swi
 import { useForm } from 'antd/lib/form/Form';
 import type BaseLayer from 'ol/layer/Base';
 import type { ReactElement, RefObject } from 'react';
-import { default as React, useEffect } from 'react';
+import { useEffect } from 'react';
 
 interface LayerSettingsFormProps {
   selectedLayer?: BaseLayer;

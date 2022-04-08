@@ -1,3 +1,4 @@
+import { getQueryParams } from '@/utils/jsonapi';
 import { DeleteFilled, EditFilled, PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ColumnsState, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import { default as ProTable } from '@ant-design/pro-table';
@@ -11,7 +12,6 @@ import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import SchemaForm from '../SchemaForm';
-import { getQueryParams } from '../Utils/jsonapi';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
 export interface NestedLookup {

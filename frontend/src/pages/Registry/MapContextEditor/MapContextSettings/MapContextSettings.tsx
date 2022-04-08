@@ -1,8 +1,8 @@
 import SchemaForm from '@/components/SchemaForm';
-import type { JsonApiPrimaryData } from '@/components/Utils/jsonapi';
+import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { useForm } from 'antd/lib/form/Form';
 import type { ReactElement } from 'react';
-import { default as React, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { history } from 'umi';
 

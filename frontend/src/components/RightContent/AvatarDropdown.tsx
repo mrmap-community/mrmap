@@ -11,17 +11,16 @@ export type GlobalHeaderRightProps = {
   menu?: boolean;
 };
 
-
 const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   const intl = useIntl();
   const { initialState, setInitialState } = useModel('@@initialState');
   const [
     deleteLogin,
-    { loading: deleteLoginLoading, error: deleteLoginError, response: deleteLoginResponse , api: deleteLoginApi},
+    { loading: deleteLoginLoading, error: deleteLoginError, response: deleteLoginResponse },
   ] = useOperationMethod('deleteLogout');
 
   useEffect(() => {
-    if (deleteLoginResponse && deleteLoginResponse.status === 200){
+    if (deleteLoginResponse && deleteLoginResponse.status === 200) {
       setInitialState((s: any) => ({ ...s, currentUser: undefined }));
       const { query = {}, pathname } = history.location;
       const { redirect } = query;
@@ -45,7 +44,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   }, [deleteLoginResponse, intl, setInitialState]);
 
   useEffect(() => {
-    if (deleteLoginError){
+    if (deleteLoginError) {
       const defaultLoginFailureMessage = intl.formatMessage({
         id: 'pages.logout.failure',
         defaultMessage: 'Logout failed, please try again!',
@@ -66,7 +65,11 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
     </span>
   );
 
-  if (deleteLoginLoading || !initialState || !initialState.currentUser?.data?.attributes?.username) {
+  if (
+    deleteLoginLoading ||
+    !initialState ||
+    !initialState.currentUser?.data?.attributes?.username
+  ) {
     return loading;
   }
 
@@ -86,11 +89,12 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
       )}
       {menu && <Menu.Divider />}
 
-      <Menu.Item key="logout" onClick={
-        () => {
+      <Menu.Item
+        key="logout"
+        onClick={() => {
           deleteLogin();
-        }
-        }>
+        }}
+      >
         <LogoutOutlined />
         Log out
       </Menu.Item>
@@ -105,7 +109,9 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
           src={initialState.currentUser?.data?.attributes?.avatar}
           alt="avatar"
         />
-        <span className={`${styles.name} anticon`}>{initialState.currentUser?.data?.attributes?.username}</span>
+        <span className={`${styles.name} anticon`}>
+          {initialState.currentUser?.data?.attributes?.username}
+        </span>
       </span>
     </HeaderDropdown>
   );

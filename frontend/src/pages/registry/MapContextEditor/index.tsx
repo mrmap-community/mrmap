@@ -231,7 +231,7 @@ export const MapContextEditor = (): ReactElement => {
       const parent: any = selectedLayer instanceof LayerGroup ? selectedLayer : olLayerGroup;
       parent.getLayers().push(olLayer);
     }
-  }, [olLayerGroup, getLayerResponse]);
+  }, [olLayerGroup, getLayerResponse, selectedLayer]);
 
   const onSelectLayer = (selectedKeys: any, info: any) => {
     if (map && info.selected) {

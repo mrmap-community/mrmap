@@ -19,6 +19,7 @@ export const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => 
         resizeObserver.unobserve(mapDiv);
       };
     }
+    return () => {};
   }, [map, id]);
 
   if (!map) {

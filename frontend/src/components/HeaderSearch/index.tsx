@@ -6,7 +6,6 @@ import useMergedState from 'rc-util/es/hooks/useMergedState';
 import React, { useRef } from 'react';
 import styles from './index.less';
 
-
 export type HeaderSearchProps = {
   onSearch?: (value?: string) => void;
   onChange?: (value?: string) => void;
@@ -31,7 +30,7 @@ const HeaderSearch: React.FC<HeaderSearchProps> = (props) => {
     ...restProps
   } = props;
 
-  const inputRef = useRef<Input | null>(null);
+  const inputRef = useRef<any | null>(null);
 
   const [value, setValue] = useMergedState<string | undefined>(defaultValue, {
     value: props.value,
@@ -74,7 +73,7 @@ const HeaderSearch: React.FC<HeaderSearchProps> = (props) => {
         className={inputClass}
         value={value}
         options={restProps.options}
-        onChange={setValue}
+        onChange={setValue as any}
       >
         <Input
           size="small"

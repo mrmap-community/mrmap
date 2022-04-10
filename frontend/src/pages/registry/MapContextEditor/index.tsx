@@ -172,6 +172,7 @@ export const MapContextEditor = (): ReactElement => {
         }
       };
     }
+    return () => {};
   }, [map, getMapContextResponse, getMapContextResponseApi]);
 
   // update: handle layer response (when adding a dataset)

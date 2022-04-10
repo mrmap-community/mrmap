@@ -135,6 +135,7 @@ export const WmsSecuritySettings = (): ReactElement => {
         }
       };
     }
+    return () => {};
   }, [getWMSResponse, listLayerApi, listLayerResponse, map]);
 
   console.log('id', id);

@@ -1,7 +1,7 @@
 ﻿import { CrownOutlined, HeartOutlined, SmileOutlined } from '@ant-design/icons';
 import type { MenuDataItem } from '@ant-design/pro-layout';
+//@ts-ignore
 import React from 'react';
-
 const IconMap = {
   smile: <SmileOutlined />,
   heart: <HeartOutlined />,

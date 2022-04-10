@@ -1,5 +1,4 @@
 import Collection from 'ol/Collection';
-import GML2 from 'ol/format/GML2';
 import type BaseLayer from 'ol/layer/Base';
 import LayerGroup from 'ol/layer/Group';
 import type ImageLayer from 'ol/layer/Image';
@@ -60,6 +59,7 @@ export class LayerUtils {
     if (requiredLayerGroup instanceof LayerGroup) {
       return requiredLayerGroup;
     }
+    return undefined;
   };
 
   private getLayerGroupByMrMapLayerId(
@@ -99,6 +99,7 @@ export class LayerUtils {
         collection.getLayerGroup();
       }
     }
+    return undefined;
   }
 
   public addLayerToGroupByGroupTitle(
@@ -131,53 +132,6 @@ export class LayerUtils {
       layerGroup.setLayers(new Collection(layerArray));
     } else {
       console.warn(`No layer group with the id ${id}, was found on the map`);
-    }
-  }
-
-  private getWMSFeatureInfoUrl(
-    olMap: OlMap,
-    layerSource: ImageWMS,
-    coordinates: [number, number],
-  ): string | undefined {
-    // all getFeatureInfo operation will be handled in EPSG:3857
-    const featureInfoUrl: string | undefined = layerSource.getFeatureInfoUrl(
-      coordinates,
-      //@ts-ignore
-      olMap.getView().getResolution(),
-      'EPSG:3857',
-      {
-        INFO_FORMAT: 'application/vnd.ogc.gml',
-      },
-    );
-    return featureInfoUrl;
-  }
-
-  private async resolveWMSPromise(url: string): Promise<any> {
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        //@ts-ignore
-        headers: {
-          'Content-Type': 'application/vnd.ogc.gml',
-          Referer: 'http://localhost:3000',
-        },
-      });
-      const textRes = await response.text();
-      const format = new GML2();
-      const fc = format.readFeatures(textRes);
-      let result;
-      fc.forEach((feature: any) => {
-        if (Object.getOwnPropertyNames(feature).length > 0) {
-          // TODO where to render the properties?
-          result = feature.getProperties();
-        } else {
-          result = 'not found';
-        }
-      });
-      return result;
-    } catch (error) {
-      //@ts-ignore
-      throw new Error(error);
     }
   }
 }

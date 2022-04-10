@@ -67,7 +67,13 @@ export const initialStateConfig = {
 };
 
 // ProLayout api https://procomponents.ant.design/components/layout
-export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+export const layout: RunTimeLayoutConfig = ({
+  initialState,
+  setInitialState,
+}: {
+  initialState: any;
+  setInitialState: any;
+}) => {
   return {
     rightContentRender: () => <RightContent />,
     disableContentMargin: false,

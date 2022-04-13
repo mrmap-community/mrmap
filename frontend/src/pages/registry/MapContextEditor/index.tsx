@@ -319,7 +319,6 @@ export const MapContextEditor = (): ReactElement => {
                     <FontAwesomeIcon icon={faLayerGroup} />
                     &nbsp;&nbsp;&nbsp;Ebenen
                   </span>
-                  <span>&nbsp;&nbsp;&nbsp;Ebenen</span>
                   <Space>
                     <Tooltip title="Create new layer group">
                       <Button

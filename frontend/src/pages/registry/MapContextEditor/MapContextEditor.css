@@ -20,6 +20,7 @@
 
 .mapcontext-layertree-layout {
   margin-left: -24px; /* to override parent's padding defined in site-layout class */
+  margin-right: -24px; /* to override parent's padding defined in site-layout class */
   margin-top: -24px; /* to override parent's padding defined in site-layout class */
   margin-bottom: -24px; /* to override parent's padding defined in site-layout class */
   width: calc(100% + 48px);

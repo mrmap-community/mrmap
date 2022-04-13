@@ -1,10 +1,11 @@
 
 import { backgroundProcessesSelectors } from '@/services/ReduxStore/Reducers/BackgroundProcesses';
 import { PauseCircleTwoTone } from '@ant-design/icons';
-import { List, Progress } from 'antd';
+import { Menu, Progress } from 'antd';
 import React, { useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useDispatch, useSelector } from 'react-redux';
+import styles from './index.less';
 
 export const ProgressList = (): JSX.Element => {
   const backgroundProcesses = useSelector(backgroundProcessesSelectors.selectAll);
@@ -66,20 +67,26 @@ export const ProgressList = (): JSX.Element => {
     }
   };
   return (
-
-    <List
-      dataSource={backgroundProcesses}
-      renderItem={item => (
-        <List.Item key={item.id}>
-          <List.Item.Meta
-            avatar={getStatus(item)}
-            title={item.attributes?.taskName?.includes('build_ogc_service')
-              ? 'Register new OGC Service' + item.id
-              : item.attributes?.taskName}
-            description={'lalalala'}
-          />
-        </List.Item>
-      )}
-    />
+    <Menu className={styles.menu} selectedKeys={[]}>
+      <Menu.Item>
+      <a target="_blank" rel="noopener noreferrer" href="https://www.antgroup.com">
+        1st menu item
+      </a>
+    </Menu.Item>
+    </Menu>
+    // <List
+    //   dataSource={backgroundProcesses}
+    //   renderItem={item => (
+    //     <List.Item key={item.id}>
+    //       <List.Item.Meta
+    //         avatar={getStatus(item)}
+    //         title={item.attributes?.taskName?.includes('build_ogc_service')
+    //           ? 'Register new OGC Service' + item.id
+    //           : item.attributes?.taskName}
+    //         description={'lalalala'}
+    //       />
+    //     </List.Item>
+    //   )}
+    // />
   );
 };

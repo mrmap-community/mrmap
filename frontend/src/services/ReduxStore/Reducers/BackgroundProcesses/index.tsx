@@ -1,20 +1,30 @@
 import { createAsyncThunk, createEntityAdapter, createSlice } from '@reduxjs/toolkit';
+import type { AxiosResponse } from 'openapi-client-axios';
+
+
 
 const reducerName = 'backgroundProcesses';
 
-export const fetchAll = createAsyncThunk<any, void, {state: any} >(
+export const fetchAll = createAsyncThunk<any, void, {state: any, extra: any} >(
   `${reducerName}/fetchAll`,
-  async (thunkApi, { getState }) => {
-    console.log('thunk', thunkApi);
-    console.log(getState);
-
-
+  async (arg, { getState, extra, rejectWithValue }) => {
+    
     const { loading } = getState().backgroundProcesses
+
     if (loading !== 'pending'){
       return;
     }
-    const response = await {data: []};
-    return response.data;
+
+    const client = await extra.api.getClient();
+    const operation: string = `list${reducerName.charAt(0).toUpperCase()}${reducerName.slice(1, -2)}`;
+    
+    let response: AxiosResponse;
+    try {
+      response = await client[operation]();
+    } catch (error: any) {
+      return rejectWithValue(error.response.data);
+    }
+    return response.data.data;
   }
 );
 
@@ -32,7 +42,7 @@ export const backgroundProcessesSlice = createSlice({
   initialState: backgroundProcessesAdapter.getInitialState({
     entities: [],
     loading: 'idle',
-    error: null,
+    error: {},
     initialized: false,
   }),
   reducers: {
@@ -60,6 +70,12 @@ export const backgroundProcessesSlice = createSlice({
       .addCase(fetchAll.pending, (state, action) => {
         if (state.loading == 'idle'){
           state.loading = 'pending';
+        }
+      })
+      .addCase(fetchAll.rejected, (state, action) => {
+        if (state.loading === 'pending'){
+          state.loading = 'rejected';
+          state.error = action.error;
         }
       })
   }

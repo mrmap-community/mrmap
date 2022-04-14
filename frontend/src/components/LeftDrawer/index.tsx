@@ -2,7 +2,7 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Button, Drawer } from 'antd';
 import type OlMap from 'ol/Map';
 import { default as React, useEffect, useRef, useState } from 'react';
-import './LeftDrawer.css';
+import './index.css';
 
 interface OwnProps {
   map?: OlMap;
@@ -10,6 +10,8 @@ interface OwnProps {
 }
 
 type LeftDrawerProps = OwnProps;
+
+const width = '500px';
 
 export const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -20,9 +22,9 @@ export const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
     if (map) {
       const mapDiv: any = document.querySelector(`#${map.getTarget()}`);
       if (!isVisible) {
-        mapDiv.style.paddingLeft = '0px';
+        mapDiv.style.paddingLeft = '0';
       } else {
-        mapDiv.style.paddingLeft = '500px';
+        mapDiv.style.paddingLeft = width;
       }
     }
   }, [map, isVisible]);
@@ -39,7 +41,7 @@ export const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
         className={'left-drawer-toggle-button'}
         type="primary"
         style={{
-          left: isVisible ? '500px' : 0,
+          left: isVisible ? width : 0,
         }}
         icon={isVisible ? <LeftOutlined /> : <RightOutlined />}
         onClick={toggleVisible}

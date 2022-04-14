@@ -1,10 +1,9 @@
-import { store } from '@/services/ReduxStore/Store';
+import StoreProvider from '@/services/ReduxStore/Store';
 import { olMap } from '@/utils/map';
 import { MapContext } from '@terrestris/react-geo';
 import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
-import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
-import { Provider as ReduxProvider } from 'react-redux';
+import { OpenAPIProvider } from 'react-openapi-client';
 import { request } from 'umi';
 import PageLoading from '../PageLoading';
 
@@ -25,6 +24,8 @@ const fetchSchema = async () => {
   }
 };
 
+
+
 /**
  * Workaround to init openapi provider before child containers are rendered
  * TODO: check if this can be simplyfied
@@ -41,11 +42,11 @@ const RootContainer: React.FC = (props: any) => {
 
   if (schema) {
     return (
-      <ReduxProvider store={store}>
-        <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+      <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+        <StoreProvider>
           <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
-        </OpenAPIProvider>
-      </ReduxProvider>
+        </StoreProvider>
+      </OpenAPIProvider>
     );
   }
   return (

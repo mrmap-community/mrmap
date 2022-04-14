@@ -1,8 +1,7 @@
-import { backgroundProcessesSelectors } from '@/services/ReduxStore/Reducers/BackgroundProcesses';
+import { backgroundProcessesSelectors, fetchAll } from '@/services/ReduxStore/Reducers/BackgroundProcesses';
 import { HourglassOutlined, PauseCircleTwoTone } from '@ant-design/icons';
 import { Menu, Progress } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { useOperationMethod } from 'react-openapi-client';
 import { useDispatch, useSelector } from 'react-redux';
 import HeaderDropdown from '../HeaderDropdown';
 import styles from './index.less';
@@ -10,8 +9,6 @@ import styles from './index.less';
 export type GlobalHeaderRightProps = {
   menu?: boolean;
 };
-
-
 
 const getStatus = (backgroundProcess: any): any => {
   switch (backgroundProcess.attributes?.status) {
@@ -31,28 +28,17 @@ const getStatus = (backgroundProcess: any): any => {
 };
 
 const BackgroundProcessDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
-  
-  const backgroundProcesses = useSelector(backgroundProcessesSelectors.selectAll);
-  const [listBackgroundProcess, { response: listBackgroundProcessResponse }] = useOperationMethod('listBackgroundProcess');
   const dispatch = useDispatch();
+  const entries = useSelector(backgroundProcessesSelectors.selectAll);
+  const {loading, error, initialized} = useSelector((state: any) => state.backgroundProcesses);
+
   const [menuItems, setMenuItems] = useState<any[]>([]);
 
   useEffect(() => {
-    if (listBackgroundProcessResponse){
-        dispatch({
-            type: 'backgroundProcesses/set', 
-            payload: listBackgroundProcessResponse.data.data
-        });
-    }
-  }, [dispatch, listBackgroundProcessResponse]);
-
-  useEffect(() => {
-      if (backgroundProcesses.length === 0 && !listBackgroundProcessResponse){
-        listBackgroundProcess();
-        console.log('not initialized - fetching data...', backgroundProcesses);
+    if (entries.length === 0 && loading === 'idle' && !error && !initialized){
+        dispatch(fetchAll());
       } else {
-        console.log('data', backgroundProcesses)
-        const menus = Object.entries(backgroundProcesses).map((key) => {
+        const menus = Object.entries(entries).map((key) => {
           return (
             <Menu.Item key={key[0]}>
               {getStatus(key[0])}
@@ -62,9 +48,7 @@ const BackgroundProcessDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) =
         setMenuItems(menus);
       }
     
-  }, [backgroundProcesses, listBackgroundProcess, listBackgroundProcessResponse]);
-
-  
+  }, [dispatch, entries, error, initialized, loading]);
 
   
 

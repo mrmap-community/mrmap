@@ -1,13 +1,28 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { useContext } from 'react';
+import { OpenAPIContext } from 'react-openapi-client/OpenAPIProvider';
+import { Provider as ReduxProvider } from 'react-redux';
 import backgroundProcessReducer from '../Reducers/BackgroundProcesses';
 
-export const store = configureStore({
-  reducer: {
-    backgroundProcesses: backgroundProcessReducer,
-  },
-});
+const StoreProvider: React.FC = (props: any) => {
+  const { api } = useContext(OpenAPIContext);
+  const store = configureStore({
+    reducer: {
+      backgroundProcesses: backgroundProcessReducer,
+    },
+    middleware: getDefaultMiddleware =>
+      getDefaultMiddleware({
+        thunk: {
+          extraArgument: {
+            api: api
+          }
+        }
+      })
+  });
+  return (
+  <ReduxProvider store={store}>
+    {props.children}
+  </ReduxProvider>)
+};
 
-// Infer the `RootState` and `AppDispatch` types from the store itself
-export type RootState = ReturnType<typeof store.getState>;
-// Inferred type: {posts: PostsState, comments: CommentsState, users: UsersState}
-export type AppDispatch = typeof store.dispatch;
+export default StoreProvider;

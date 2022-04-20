@@ -15,7 +15,7 @@ import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router';
 import AreaDigitizeToolbar from './components/AreaDigitizeToolbar';
 import { RulesDrawer } from './components/RulesDrawer';
-import './WmsSecuritySettings.css';
+import './index.css';
 
 export const WmsSecuritySettings = (): ReactElement => {
   const map = useMap();

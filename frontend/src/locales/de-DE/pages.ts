@@ -84,4 +84,20 @@ export default {
     'Nicht unterstütztes Dateiformat',
   'pages.wmsSecuritySettings.areaDigitizeToolbar.importErrorUnsupportedGeometryType':
     'Nicht unterstützter Geomtrietyp',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.allowedAreaLabel': 'Zulässiger Bereich',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.allowedWmsOperationsPlaceholder':
+    'Erlaubte WMS Operationen',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.cancel': 'Abbrechen',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.descriptionLabel': 'Beschreibung',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.descriptionPlaceholder':
+    'Kurze Beschreibung der Sicherheitsregel',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.descriptionRequired':
+    'Bitte geben Sie eine Beschreibung ein.',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.groupsLabel': 'Gruppen',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.operationsLabel': 'Operationen',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.operationsRequired':
+    'Bitte wählen Sie mindestens eine Operation aus.',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.layerRequired':
+    'Bitte wählen Sie mindestens eine Ebene aus.',
+  'pages.wmsSecuritySettings.rulesDrawer.ruleForm.save': 'Speichern',
 };

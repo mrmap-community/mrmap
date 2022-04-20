@@ -1,11 +1,11 @@
-.mapcontext-layertree-node {
+.mapeditor-layertree-node {
   display: flex;
   justify-content: space-between;
   flex-direction: row;
 }
 
-.mapcontext-layertree-node-title,
-.mapcontext-layertree-node-actions {
+.mapeditor-layertree-node-title,
+.mapeditor-layertree-node-actions {
   display: flex;
   flex-direction: row;
   align-items: stretch;

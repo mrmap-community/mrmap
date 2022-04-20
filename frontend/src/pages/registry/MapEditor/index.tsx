@@ -309,12 +309,12 @@ const MapEditor = (): ReactElement => {
 
   return (
     <>
-      <div className="mapcontext-editor-layout">
+      <div className="mapeditor-layout">
         {id && (
           <LeftDrawer map={map}>
             {olLayerGroup && (
-              <div className="mapcontext-layertree-layout">
-                <div className="mapcontext-layertree-header">
+              <div className="mapeditor-layertree-layout">
+                <div className="mapeditor-layertree-header">
                   <span>
                     <FontAwesomeIcon icon={faLayerGroup} />
                     &nbsp;&nbsp;&nbsp;Ebenen

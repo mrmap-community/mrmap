@@ -23,8 +23,8 @@ const renderNodeTitle = (intl: IntlShape, layer: BaseLayer): ReactNode => {
   const hasRenderingLayer = mapContextLayer.relationships?.renderingLayer?.data;
   const hasSelectionLayer = mapContextLayer.relationships?.selectionLayer?.data;
   return (
-    <div className="mapcontext-layertree-node">
-      <div className="mapcontext-layertree-node-title">
+    <div className="mapeditor-layertree-node">
+      <div className="mapeditor-layertree-node-title">
         <Space>
           <Tooltip
             title={

@@ -26,8 +26,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import LayerSettingsForm from './components/LayerSettingsForm';
-import MapContextLayerTree from './components/MapContextLayerTree';
 import MapContextSettings from './components/MapContextSettings';
+import MapEditorLayerTree from './components/MapEditorLayerTree';
 import SearchTable from './components/SearchTable';
 import './index.css';
 
@@ -345,7 +345,7 @@ const MapContextEditor = (): ReactElement => {
                     </Tooltip>
                   </Space>
                 </div>
-                <MapContextLayerTree
+                <MapEditorLayerTree
                   mapContextId={id}
                   map={map}
                   olLayerGroup={olLayerGroup}

@@ -2,6 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import MapUtil from '@terrestris/ol-util/dist/MapUtil/MapUtil';
 import { LayerTree } from '@terrestris/react-geo';
 import type { LayerTreeProps } from '@terrestris/react-geo/dist/LayerTree/LayerTree';
+import type { IntlShape } from '@umijs/plugin-locale/node_modules/react-intl';
 import { Space, Tooltip } from 'antd';
 import { getUid } from 'ol';
 import type { CollectionEvent } from 'ol/Collection';
@@ -13,9 +14,10 @@ import { unByKey } from 'ol/Observable';
 import type { Key, ReactElement, ReactNode } from 'react';
 import { default as React, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
+import { useIntl } from 'umi';
 import './index.css';
 
-const renderNodeTitle = (layer: BaseLayer): ReactNode => {
+const renderNodeTitle = (intl: IntlShape, layer: BaseLayer): ReactNode => {
   const mapContextLayer = layer.get('mapContextLayer');
   const hasMetadata = mapContextLayer.relationships?.datasetMetadata?.data;
   const hasRenderingLayer = mapContextLayer.relationships?.renderingLayer?.data;
@@ -24,7 +26,13 @@ const renderNodeTitle = (layer: BaseLayer): ReactNode => {
     <div className="mapcontext-layertree-node">
       <div className="mapcontext-layertree-node-title">
         <Space>
-          <Tooltip title={hasMetadata ? 'Dataset Metadata is set' : 'Dataset Metadata is not set'}>
+          <Tooltip
+            title={
+              hasMetadata
+                ? intl.formatMessage({ id: 'pages.mapEditor.layerTree.metadataRecordIsSet' })
+                : intl.formatMessage({ id: 'pages.mapEditor.layerTree.metadataRecordIsNotSet' })
+            }
+          >
             <span className="fa-layers fa-fw">
               <FontAwesomeIcon icon="file" />
               {!hasMetadata && (
@@ -36,7 +44,11 @@ const renderNodeTitle = (layer: BaseLayer): ReactNode => {
             </span>
           </Tooltip>
           <Tooltip
-            title={hasRenderingLayer ? 'Rendering layer is set' : 'Rendering layer is not set'}
+            title={
+              hasRenderingLayer
+                ? intl.formatMessage({ id: 'pages.mapEditor.layerTree.viewLayerIsSet' })
+                : intl.formatMessage({ id: 'pages.mapEditor.layerTree.viewLayerIsNotSet' })
+            }
           >
             {hasRenderingLayer ? (
               <FontAwesomeIcon icon="eye" />
@@ -45,7 +57,11 @@ const renderNodeTitle = (layer: BaseLayer): ReactNode => {
             )}
           </Tooltip>
           <Tooltip
-            title={hasSelectionLayer ? 'Selection layer is set' : 'Selection layer is not set'}
+            title={
+              hasSelectionLayer
+                ? intl.formatMessage({ id: 'pages.mapEditor.layerTree.selectionLayerIsSet' })
+                : intl.formatMessage({ id: 'pages.mapEditor.layerTree.selectionLayerIsNotSet' })
+            }
           >
             <span className="fa-layers fa-fw">
               <FontAwesomeIcon icon="crosshairs" />
@@ -70,7 +86,7 @@ const renderNodeTitle = (layer: BaseLayer): ReactNode => {
  * It watches the layer hierarchy for changes, updates the tree view and automatically synchronizes
  * changes to the MapContextLayer entities stored in the JSON:API backend.
  */
-const MapContextLayerTree = ({
+const MapEditorLayerTree = ({
   mapContextId,
   map,
   olLayerGroup,
@@ -86,6 +102,8 @@ const MapContextLayerTree = ({
   /** True, if a remove operation has been invoked (needed to distinguish between remove and move operations). */
   removeLayerInProgress: React.MutableRefObject<boolean>;
 } & LayerTreeProps): ReactElement => {
+  const intl = useIntl();
+
   // layers that we watch for changes
   const [watchedLayers, setWatchedLayers] = useState<BaseLayer[]>([]);
 
@@ -95,7 +113,9 @@ const MapContextLayerTree = ({
 
   // setNodeTitleRenderer is used to trigger node re-rendering when a layer changes (e.g. title)
   // this is a bit of a workaround, maybe a better solution can be added to react-geo LayerTree
-  const [nodeTitleRenderer, setNodeTitleRenderer] = useState<any>(() => renderNodeTitle);
+  const [nodeTitleRenderer, setNodeTitleRenderer] = useState<any>(() =>
+    renderNodeTitle.bind(null, intl),
+  );
 
   const [expandedOlUids, setExpandedOlUids] = useState<string[] | Key[]>([]);
 
@@ -137,6 +157,9 @@ const MapContextLayerTree = ({
 
   // init/update: ensure all watched layers have listeners
   useEffect(() => {
+    if (!intl) {
+      return;
+    }
     // OpenLayers collection events can not distinguish between remove and a remove followed by an add (move)
     // so we track the remove step of a move operation ourselves
     let moveRemoveStep: CollectionEvent | undefined;
@@ -241,7 +264,7 @@ const MapContextLayerTree = ({
       olListenerKeys.push(
         baseLayer.on('propertychange', (evt: any) => {
           console.log('property change detected', evt);
-          setNodeTitleRenderer(() => (layer: BaseLayer) => renderNodeTitle(layer));
+          setNodeTitleRenderer(() => (layer: BaseLayer) => renderNodeTitle(intl, layer));
         }),
       );
     };
@@ -260,6 +283,7 @@ const MapContextLayerTree = ({
     addMapContextLayer,
     deleteMapContextLayer,
     updateMapContextLayer,
+    intl,
   ]);
 
   // addMapContext backend call succeeded
@@ -329,4 +353,4 @@ const MapContextLayerTree = ({
   );
 };
 
-export default MapContextLayerTree;
+export default MapEditorLayerTree;

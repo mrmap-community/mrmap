@@ -25,6 +25,7 @@ import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'umi';
 import LayerSettingsForm from './components/LayerSettingsForm';
 import MapEditorLayerTree from './components/MapEditorLayerTree';
 import MapSettingsForm from './components/MapSettingsForm';
@@ -36,6 +37,7 @@ const { TabPane } = Tabs;
 const MapEditor = (): ReactElement => {
   const { id } = useParams<{ id: string }>();
   const map = useMap();
+  const intl = useIntl();
 
   // we use this OpenLayers layer group as the source of truth, each layer / group has the corresponding JSON:API
   // MapContextLayer entity attached to it (property 'mapContextLayer')
@@ -252,7 +254,12 @@ const MapEditor = (): ReactElement => {
         .some(
           (l: BaseLayer) =>
             l.get('mapContextLayer').attributes.title ===
-            (i === 1 ? 'New Layer Group' : `New Layer Group (${i})`),
+            (i === 1
+              ? intl.formatMessage({ id: 'pages.mapEditor.index.newLayerGroup' })
+              : intl.formatMessage(
+                  { id: 'pages.mapEditor.index.newLayerGroupWithNumber' },
+                  { num: i },
+                )),
         );
     };
     while (groupNameTaken(free)) {
@@ -264,7 +271,13 @@ const MapEditor = (): ReactElement => {
         mapContextLayer: {
           type: 'MapContextLayer',
           attributes: {
-            title: free === 1 ? 'New Layer Group' : `New Layer Group (${free})`,
+            title:
+              free === 1
+                ? intl.formatMessage({ id: 'pages.mapEditor.index.newLayerGroup' })
+                : intl.formatMessage(
+                    { id: 'pages.mapEditor.index.newLayerGroupWithNumber' },
+                    { num: free },
+                  ),
           },
         },
       },
@@ -317,17 +330,22 @@ const MapEditor = (): ReactElement => {
                 <div className="mapeditor-layertree-header">
                   <span>
                     <FontAwesomeIcon icon={faLayerGroup} />
-                    &nbsp;&nbsp;&nbsp;Ebenen
+                    &nbsp;&nbsp;&nbsp;
+                    <FormattedMessage id="pages.mapEditor.index.layers" />
                   </span>
                   <Space>
-                    <Tooltip title="Create new layer group">
+                    <Tooltip
+                      title={intl.formatMessage({ id: 'pages.mapEditor.index.createLayerGroup' })}
+                    >
                       <Button
                         icon={<FolderAddOutlined />}
                         size="middle"
                         onClick={onCreateLayerGroup}
                       />
                     </Tooltip>
-                    <Tooltip title="Delete layer">
+                    <Tooltip
+                      title={intl.formatMessage({ id: 'pages.mapEditor.index.deleteLayer' })}
+                    >
                       <Button
                         icon={<MinusCircleFilled />}
                         size="middle"
@@ -335,7 +353,9 @@ const MapEditor = (): ReactElement => {
                         disabled={!selectedLayer}
                       />
                     </Tooltip>
-                    <Tooltip title="Layer settings">
+                    <Tooltip
+                      title={intl.formatMessage({ id: 'pages.mapEditor.index.layerSettings' })}
+                    >
                       <Button
                         icon={<SettingFilled />}
                         size="middle"
@@ -375,7 +395,7 @@ const MapEditor = (): ReactElement => {
               tab={
                 <span>
                   <InfoCircleOutlined />
-                  Karteneinstellungen
+                  <FormattedMessage id="pages.mapEditor.index.mapSettings" />
                 </span>
               }
               key="mapSettings"
@@ -386,7 +406,7 @@ const MapEditor = (): ReactElement => {
               tab={
                 <span>
                   <SettingOutlined />
-                  Ebeneneinstellungen
+                  <FormattedMessage id="pages.mapEditor.index.layerSettings" />
                 </span>
               }
               key="layerSettings"
@@ -394,21 +414,11 @@ const MapEditor = (): ReactElement => {
             >
               <LayerSettingsForm selectedLayer={selectedLayer} titleInputRef={layerTitleInputRef} />
             </TabPane>
-            {/* <TabPane
-              tab={<span><SettingOutlined />Layer settings (schema-based)</span>}
-              key='layerSettings2'
-              disabled={!id || !selectedLayer}
-            >
-              <MapContextLayerRepoForm
-                layerGroup={olLayerGroup}
-                selectedLayer={selectedLayer}
-              />
-            </TabPane> */}
             <TabPane
               tab={
                 <span>
                   <SearchOutlined />
-                  Inhalte finden &amp; hinzufügen
+                  <FormattedMessage id="pages.mapEditor.index.searchAndAdd" />
                 </span>
               }
               key="datasetSearch"

@@ -29,6 +29,14 @@ export default {
   'pages.admin.subPage.title': 'This page can only be viewed by Admin',
   'pages.admin.subPage.alertMessage':
     'Umi ui is now released, welcome to use npm run ui to start the experience.',
+  'pages.mapEditor.index.createLayerGroup': 'Neue Ebenengruppe anlegen',
+  'pages.mapEditor.index.deleteLayer': 'Ebene löschen',
+  'pages.mapEditor.index.layers': 'Kartenebenen',
+  'pages.mapEditor.index.layerSettings': 'Ebeneneinstellungen',
+  'pages.mapEditor.index.mapSettings': 'Karteneinstellungen',
+  'pages.mapEditor.index.newLayerGroup': 'Neue Gruppe',
+  'pages.mapEditor.index.newLayerGroupWithNumber': 'Neue Gruppe ({num})',
+  'pages.mapEditor.index.searchAndAdd': 'Inhalte finden & hinzufügen',
   'pages.mapEditor.layerSettingsForm.descriptionLabel': 'Beschreibung',
   'pages.mapEditor.layerSettingsForm.descriptionPlaceholder':
     'Eine Kurzbeschreibung für diese Kartenebene',

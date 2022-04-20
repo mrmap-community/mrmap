@@ -12,7 +12,7 @@ interface LayerSettingsFormProps {
   titleInputRef: RefObject<any>;
 }
 
-export const LayerSettingsForm = ({
+const LayerSettingsForm = ({
   selectedLayer,
   titleInputRef,
 }: LayerSettingsFormProps): ReactElement => {
@@ -170,3 +170,5 @@ export const LayerSettingsForm = ({
     </Form>
   );
 };
+
+export default LayerSettingsForm;

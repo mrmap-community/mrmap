@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { history } from 'umi';
 
-export const MapContextSettings = ({ id }: { id: string | undefined }): ReactElement => {
+const MapContextSettings = ({ id }: { id: string | undefined }): ReactElement => {
   const [form] = useForm();
 
   const [
@@ -57,3 +57,5 @@ export const MapContextSettings = ({ id }: { id: string | undefined }): ReactEle
     />
   );
 };
+
+export default MapContextSettings;

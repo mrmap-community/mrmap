@@ -25,15 +25,15 @@ import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
+import LayerSettingsForm from './components/LayerSettingsForm';
+import MapContextLayerTree from './components/MapContextLayerTree';
+import MapContextSettings from './components/MapContextSettings';
+import SearchTable from './components/SearchTable';
 import './index.css';
-import { LayerSettingsForm } from './LayerSettingsForm/LayerSettingsForm';
-import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
-import { MapContextSettings } from './MapContextSettings/MapContextSettings';
-import { SearchTable } from './SearchTable/SearchTable';
 
 const { TabPane } = Tabs;
 
-export const MapContextEditor = (): ReactElement => {
+const MapContextEditor = (): ReactElement => {
   const { id } = useParams<{ id: string }>();
   const map = useMap();
 

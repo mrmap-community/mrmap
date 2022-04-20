@@ -12,7 +12,7 @@ interface MapContextLayerRepoFormProps {
   selectedLayer?: BaseLayer;
 }
 
-export const MapContextLayerRepoForm = ({
+const MapContextLayerRepoForm = ({
   layerGroup,
   selectedLayer,
 }: MapContextLayerRepoFormProps): ReactElement => {
@@ -39,3 +39,5 @@ export const MapContextLayerRepoForm = ({
     />
   );
 };
+
+export default MapContextLayerRepoForm;

@@ -13,7 +13,7 @@ import { unByKey } from 'ol/Observable';
 import type { Key, ReactElement, ReactNode } from 'react';
 import { default as React, useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
-import './MapContextLayerTree.css';
+import './index.css';
 
 const renderNodeTitle = (layer: BaseLayer): ReactNode => {
   const mapContextLayer = layer.get('mapContextLayer');
@@ -70,7 +70,7 @@ const renderNodeTitle = (layer: BaseLayer): ReactNode => {
  * It watches the layer hierarchy for changes, updates the tree view and automatically synchronizes
  * changes to the MapContextLayer entities stored in the JSON:API backend.
  */
-export const MapContextLayerTree = ({
+const MapContextLayerTree = ({
   mapContextId,
   map,
   olLayerGroup,
@@ -328,3 +328,5 @@ export const MapContextLayerTree = ({
     />
   );
 };
+
+export default MapContextLayerTree;

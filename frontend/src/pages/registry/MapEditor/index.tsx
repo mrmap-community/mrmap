@@ -26,14 +26,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
 import LayerSettingsForm from './components/LayerSettingsForm';
-import MapContextSettings from './components/MapContextSettings';
 import MapEditorLayerTree from './components/MapEditorLayerTree';
+import MapSettingsForm from './components/MapSettingsForm';
 import SearchTable from './components/SearchTable';
 import './index.css';
 
 const { TabPane } = Tabs;
 
-const MapContextEditor = (): ReactElement => {
+const MapEditor = (): ReactElement => {
   const { id } = useParams<{ id: string }>();
   const map = useMap();
 
@@ -380,7 +380,7 @@ const MapContextEditor = (): ReactElement => {
               }
               key="mapSettings"
             >
-              <MapContextSettings id={id} />
+              <MapSettingsForm id={id} />
             </TabPane>
             <TabPane
               tab={
@@ -423,4 +423,4 @@ const MapContextEditor = (): ReactElement => {
   );
 };
 
-export default MapContextEditor;
+export default MapEditor;

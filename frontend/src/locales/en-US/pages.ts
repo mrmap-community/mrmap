@@ -29,6 +29,24 @@ export default {
   'pages.admin.subPage.title': 'This page can only be viewed by Admin',
   'pages.admin.subPage.alertMessage':
     'Umi ui is now released, welcome to use npm run ui to start the experience.',
+  'pages.mapEditor.layerSettingsForm.descriptionLabel': 'Description',
+  'pages.mapEditor.layerSettingsForm.descriptionPlaceholder':
+    'A short description of this map layer',
+  'pages.mapEditor.layerSettingsForm.dimensionRange': 'Scale range',
+  'pages.mapEditor.layerSettingsForm.fromMap': 'From map',
+  'pages.mapEditor.layerSettingsForm.linkedResources': 'Linked resources',
+  'pages.mapEditor.layerSettingsForm.maxResolutionLabel': 'Maximum scale',
+  'pages.mapEditor.layerSettingsForm.metadata': 'Description',
+  'pages.mapEditor.layerSettingsForm.metadataSetLabel': 'Metadata record',
+  'pages.mapEditor.layerSettingsForm.metadataSetPlaceholder':
+    'Metadata record linked to this layer',
+  'pages.mapEditor.layerSettingsForm.minResolutionLabel': 'Minimum scale',
+  'pages.mapEditor.layerSettingsForm.selectionLayerLabel':
+    'Selection layer (WMS-Layer / WFS-FeatureType)',
+  'pages.mapEditor.layerSettingsForm.titleLabel': 'Title',
+  'pages.mapEditor.layerSettingsForm.titlePlaceholder': 'An identifying name for this map layer',
+  'pages.mapEditor.layerSettingsForm.viewLayerLabel': 'View layer (WMS-Layer)',
+  'pages.mapEditor.layerSettingsForm.viewLayerStyle': 'Rendering style',
   'pages.searchTable.createForm.newRule': 'New Rule',
   'pages.searchTable.updateForm.ruleConfig': 'Rule configuration',
   'pages.searchTable.updateForm.basicConfig': 'Basic Information',

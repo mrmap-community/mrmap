@@ -29,6 +29,25 @@ export default {
   'pages.admin.subPage.title': 'This page can only be viewed by Admin',
   'pages.admin.subPage.alertMessage':
     'Umi ui is now released, welcome to use npm run ui to start the experience.',
+  'pages.mapEditor.layerSettingsForm.descriptionLabel': 'Beschreibung',
+  'pages.mapEditor.layerSettingsForm.descriptionPlaceholder':
+    'Eine Kurzbeschreibung für diese Kartenebene',
+  'pages.mapEditor.layerSettingsForm.dimensionRange': 'Maßstabsbereich',
+  'pages.mapEditor.layerSettingsForm.fromMap': 'Aus Karte',
+  'pages.mapEditor.layerSettingsForm.linkedResources': 'Verknüpfte Ressourcen',
+  'pages.mapEditor.layerSettingsForm.maxResolutionLabel': 'Maximaler Maßstabswert',
+  'pages.mapEditor.layerSettingsForm.metadata': 'Beschreibende Informationen',
+  'pages.mapEditor.layerSettingsForm.metadataSetLabel': 'Metadatensatz',
+  'pages.mapEditor.layerSettingsForm.metadataSetPlaceholder':
+    'Der mit dieser Ebene verknüpfte Metadatensatz',
+  'pages.mapEditor.layerSettingsForm.minResolutionLabel': 'Minimaler Maßstabswert',
+  'pages.mapEditor.layerSettingsForm.selectionLayerLabel':
+    'Selektionsebene (WMS-Layer / WFS-FeatureType)',
+  'pages.mapEditor.layerSettingsForm.titleLabel': 'Title',
+  'pages.mapEditor.layerSettingsForm.titlePlaceholder':
+    'Ein identifizierender Name für diese Kartenebene',
+  'pages.mapEditor.layerSettingsForm.viewLayerLabel': 'Darstellungsebene (WMS-Layer)',
+  'pages.mapEditor.layerSettingsForm.viewLayerStyle': 'Darstellungsstil',
   'pages.searchTable.createForm.newRule': 'New Rule',
   'pages.searchTable.updateForm.ruleConfig': 'Rule configuration',
   'pages.searchTable.updateForm.basicConfig': 'Basic Information',

@@ -2,8 +2,8 @@ import RightDrawer from '@/components/RightDrawer';
 import type OlMap from 'ol/Map';
 import type { ReactElement } from 'react';
 import { useLocation } from 'react-router';
-import RuleForm from './RuleForm';
-import RulesTable from './RulesTable';
+import RuleForm from '../RuleForm';
+import RulesTable from '../RulesTable';
 
 export interface RulesDrawerProps {
   wmsId: string;

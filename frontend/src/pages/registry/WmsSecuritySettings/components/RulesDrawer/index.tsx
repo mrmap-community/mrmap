@@ -1,4 +1,4 @@
-import { RightDrawer } from '@/components/RightDrawer';
+import RightDrawer from '@/components/RightDrawer';
 import type OlMap from 'ol/Map';
 import type { ReactElement } from 'react';
 import { useLocation } from 'react-router';

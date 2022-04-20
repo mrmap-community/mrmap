@@ -1,6 +1,6 @@
-import { AutoResizeMapComponent } from '@/components/AutoResizeMapComponent';
-import { BottomDrawer } from '@/components/BottomDrawer';
-import { LeftDrawer } from '@/components/LeftDrawer';
+import AutoResizeMapComponent from '@/components/AutoResizeMapComponent';
+import BottomDrawer from '@/components/BottomDrawer';
+import LeftDrawer from '@/components/LeftDrawer';
 import type { JsonApiPrimaryData, ResourceIdentifierObject } from '@/utils/jsonapi';
 import { unpage } from '@/utils/jsonapi';
 import {

@@ -17,7 +17,7 @@ type BottomDrawerProps = OwnProps;
 
 const height = '650px';
 
-export const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visible, onExpand }) => {
+const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visible, onExpand }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
@@ -74,3 +74,5 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visib
     </>
   );
 };
+
+export default BottomDrawer;

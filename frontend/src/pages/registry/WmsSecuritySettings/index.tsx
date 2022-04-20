@@ -1,5 +1,5 @@
-import { AutoResizeMapComponent } from '@/components/AutoResizeMapComponent';
-import { LeftDrawer } from '@/components/LeftDrawer';
+import AutoResizeMapComponent from '@/components/AutoResizeMapComponent';
+import LeftDrawer from '@/components/LeftDrawer';
 import { unpage } from '@/utils/jsonapi';
 import { getAllSubtreeLayers } from '@/utils/map';
 import { SyncOutlined } from '@ant-design/icons';

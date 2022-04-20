@@ -12,7 +12,7 @@ interface RightDrawerProps {
 
 const width = '500px';
 
-export const RightDrawer = ({ map, children }: RightDrawerProps): ReactElement => {
+const RightDrawer = ({ map, children }: RightDrawerProps): ReactElement => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
 
@@ -55,3 +55,5 @@ export const RightDrawer = ({ map, children }: RightDrawerProps): ReactElement =
     </>
   );
 };
+
+export default RightDrawer;

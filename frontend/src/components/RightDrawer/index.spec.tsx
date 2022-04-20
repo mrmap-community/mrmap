@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/extend-expect';
-import { RightDrawer } from '.';
+import RightDrawer from '.';
 
 describe('RightDrawer', () => {
   it('is defined', () => {

@@ -13,7 +13,7 @@ type LeftDrawerProps = OwnProps;
 
 const width = '500px';
 
-export const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
+const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
 
@@ -60,3 +60,5 @@ export const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
     </>
   );
 };
+
+export default LeftDrawer;

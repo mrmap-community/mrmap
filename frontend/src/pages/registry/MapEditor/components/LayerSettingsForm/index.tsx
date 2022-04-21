@@ -1,4 +1,4 @@
-import { InputField } from '@/components/InputField';
+import InputField from '@/components/InputField';
 import { LinkOutlined } from '@ant-design/icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Col, Divider, Form, Input, InputNumber, Row, Slider, Space, Switch } from 'antd';

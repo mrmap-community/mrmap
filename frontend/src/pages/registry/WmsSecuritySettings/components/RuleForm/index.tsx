@@ -1,4 +1,4 @@
-import { InputField } from '@/components/InputField';
+import InputField from '@/components/InputField';
 import { screenToWgs84, wgs84ToScreen, zoomTo } from '@/utils/map';
 import { useMap } from '@terrestris/react-geo';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';

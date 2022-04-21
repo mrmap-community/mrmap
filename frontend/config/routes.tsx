@@ -98,6 +98,12 @@ const defaultMenus = [
     ],
   },
   {
+    path: '/jobs',
+    name: 'jobs',
+    icon: 'database',
+    component: 'jobs'
+  },
+  {
     path: '/',
     redirect: '/welcome',
   },

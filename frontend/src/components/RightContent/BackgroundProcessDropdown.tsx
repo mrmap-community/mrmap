@@ -36,7 +36,9 @@ const BackgroundProcessDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) =
 
   useEffect(() => {
     if (entries.length === 0 && loading === 'idle' && !initialized){
-        dispatch(fetchAll());
+      console.log('fetching');
+  
+      dispatch(fetchAll());
       } else {
         const menus = Object.entries(entries).map((key) => {
           return (

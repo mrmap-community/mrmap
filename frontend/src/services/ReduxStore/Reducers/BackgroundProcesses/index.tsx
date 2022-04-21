@@ -8,6 +8,8 @@ const reducerName = 'backgroundProcesses';
 export const fetchAll = createAsyncThunk<any, void, {state: any, extra: any} >(
   `${reducerName}/fetchAll`,
   async (arg, { getState, extra, rejectWithValue }) => {
+
+    console.log('huhu');
     
     const { loading } = getState().backgroundProcesses
 

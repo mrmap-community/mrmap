@@ -1,9 +1,7 @@
 export default {
-  'pages.admin.subPage.title': 'This page can only be viewed by Admin',
-  'pages.admin.subPage.alertMessage':
-    'Umi ui is now released, welcome to use npm run ui to start the experience.',
+  'pages.404.backHome': 'Back home',
+  'pages.404.subtitle': 'Something went wrong... this page does not exist.',
   'pages.cswTable.runHarvesting': 'Run harvesting',
-  'pages.getCaptchaSecondText': 'sec(s)',
   'pages.layouts.userLayout.title': 'Spatial Service Registry',
   'pages.login.accountLogin.tab': 'Account Login',
   'pages.login.accountLogin.errorMessage': 'Incorrect username / password',
@@ -13,9 +11,6 @@ export default {
   'pages.login.username.required': 'Please input your username.',
   'pages.login.password.placeholder': 'Passwort',
   'pages.login.password.required': 'Please input your password.',
-  'pages.login.rememberMe': 'Remember me',
-  'pages.login.forgotPassword': 'Forgot Password ?',
-  'pages.login.submit': 'Login',
   'pages.mapEditor.index.createLayerGroup': 'Create new layer group',
   'pages.mapEditor.index.deleteLayer': 'Delete layer',
   'pages.mapEditor.index.layers': 'Map layers',

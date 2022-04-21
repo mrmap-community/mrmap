@@ -4,22 +4,26 @@ import { PageContainer } from '@ant-design/pro-layout';
 import { Button, Tooltip } from 'antd';
 import type { ReactElement } from 'react';
 import React, { useCallback } from 'react';
-import { Link } from 'umi';
+import { Link, useIntl } from 'umi';
 
 const CswTable = (): ReactElement => {
-  const additionalActions = useCallback((text: any, record: any): React.ReactNode => {
-    return (
-      <Tooltip title={'run harvesting'}>
-        <Link to={`/registry/services/csw/${record.id}/TODO`}>
-          <Button
-            size="small"
-            style={{ borderColor: 'blue', color: 'blue' }}
-            icon={<CloudDownloadOutlined />}
-          />
-        </Link>
-      </Tooltip>
-    );
-  }, []);
+  const intl = useIntl();
+  const additionalActions = useCallback(
+    (text: any, record: any): React.ReactNode => {
+      return (
+        <Tooltip title={intl.formatMessage({ id: 'pages.cswTable.runHarvesting' })}>
+          <Link to={`/registry/services/csw/${record.id}/TODO`}>
+            <Button
+              size="small"
+              style={{ borderColor: 'blue', color: 'blue' }}
+              icon={<CloudDownloadOutlined />}
+            />
+          </Link>
+        </Tooltip>
+      );
+    },
+    [intl],
+  );
   return (
     <PageContainer>
       <SchemaTable resourceTypes={['CatalougeService']} additionalActions={additionalActions} />

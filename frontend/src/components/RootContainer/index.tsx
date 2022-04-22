@@ -18,10 +18,16 @@ const axiosConfig: AxiosRequestConfig = {
   },
 };
 
-const fetchSchema = async (langCode: string) => {
-  console.log('currentLocal', langCode);
+const fetchSchema = async () => {
+  try {
+    return await request('/api/schema/', { method: 'GET'});
+  } catch (error) {
+  }
+};
+
+const setDjangoLanguageCookie = () => {
   let lang;
-  switch(langCode){
+  switch(getLocale()){
     case 'de-DE':
       lang = 'de';
       break;
@@ -30,12 +36,7 @@ const fetchSchema = async (langCode: string) => {
       lang = 'en';
       break;
   }
-  console.log('lang', lang);
-  try {
-    return await request('/api/schema/', { method: 'GET', headers: { 'django_language': lang } });
-  } catch (error) {
-    console.log('can not load schema');
-  }
+  document.cookie = `django_language=${lang};path=/`;
 };
 
 /**
@@ -44,10 +45,12 @@ const fetchSchema = async (langCode: string) => {
  */
 const RootContainer: React.FC = (props: any) => {
   const [schema, setSchema] = useState();
-  
+
   useEffect(() => {
+    setDjangoLanguageCookie();
+    
     const fetchSchemaAsync = async () => {
-      setSchema(await fetchSchema(getLocale()));
+      setSchema(await fetchSchema());
     };
     fetchSchemaAsync();
   }, []);

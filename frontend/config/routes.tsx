@@ -89,11 +89,11 @@ const defaultMenus = [
       },
       {
         path: '/registry/maps/add',
-        component: './registry/MapContextEditor',
+        component: './registry/MapEditor',
       },
       {
         path: '/registry/maps/:id/edit',
-        component: './registry/MapContextEditor',
+        component: './registry/MapEditor',
       },
     ],
   },

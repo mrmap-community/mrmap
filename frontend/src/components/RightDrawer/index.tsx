@@ -1,19 +1,18 @@
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Button, Drawer } from 'antd';
 import type OlMap from 'ol/Map';
-import { default as React, useEffect, useRef, useState } from 'react';
+import type { ReactElement } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './index.css';
 
-interface OwnProps {
+interface RightDrawerProps {
   map?: OlMap;
   children?: JSX.Element;
 }
 
-type LeftDrawerProps = OwnProps;
-
 const width = '500px';
 
-const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
+const RightDrawer = ({ map, children }: RightDrawerProps): ReactElement => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(true);
 
@@ -22,9 +21,9 @@ const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
     if (map) {
       const mapDiv: any = document.querySelector(`#${map.getTarget()}`);
       if (!isVisible) {
-        mapDiv.style.paddingLeft = '0';
+        mapDiv.style.paddingRight = '0';
       } else {
-        mapDiv.style.paddingLeft = width;
+        mapDiv.style.paddingRight = width;
       }
     }
   }, [map, isVisible]);
@@ -38,22 +37,18 @@ const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
     <>
       <Button
         ref={buttonRef}
-        className={'left-drawer-toggle-button'}
-        type="primary"
-        style={{
-          left: isVisible ? width : 0,
-        }}
-        icon={isVisible ? <LeftOutlined /> : <RightOutlined />}
+        className={`rules-drawer-toggle-button ${isVisible ? 'expanded' : 'collapsed'}`}
         onClick={toggleVisible}
+        icon={isVisible ? <RightOutlined /> : <LeftOutlined />}
       />
       <Drawer
-        placement="left"
+        placement="right"
         getContainer={false}
+        width={500}
         visible={isVisible}
         closable={false}
         mask={false}
-        width={500}
-        style={{ position: 'absolute', zIndex: 1, height: '100%' }}
+        style={{ zIndex: 1, height: '100%', marginTop: '48px' }}
       >
         {children}
       </Drawer>
@@ -61,4 +56,4 @@ const LeftDrawer: React.FC<LeftDrawerProps> = ({ map, children }) => {
   );
 };
 
-export default LeftDrawer;
+export default RightDrawer;

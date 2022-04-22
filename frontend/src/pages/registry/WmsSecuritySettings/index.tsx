@@ -1,5 +1,5 @@
-import { AutoResizeMapComponent } from '@/components/AutoResizeMapComponent';
-import { LeftDrawer } from '@/components/LeftDrawer';
+import AutoResizeMapComponent from '@/components/AutoResizeMapComponent';
+import LeftDrawer from '@/components/LeftDrawer';
 import { unpage } from '@/utils/jsonapi';
 import { getAllSubtreeLayers } from '@/utils/map';
 import { SyncOutlined } from '@ant-design/icons';
@@ -15,7 +15,7 @@ import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router';
 import AreaDigitizeToolbar from './components/AreaDigitizeToolbar';
 import { RulesDrawer } from './components/RulesDrawer';
-import './WmsSecuritySettings.css';
+import './index.css';
 
 export const WmsSecuritySettings = (): ReactElement => {
   const map = useMap();

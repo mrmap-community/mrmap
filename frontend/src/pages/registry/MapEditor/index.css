@@ -1,4 +1,4 @@
-.mapcontext-editor-layout {
+.mapeditor-layout {
   display: flex;
   width: calc(
     100% + 48px
@@ -13,19 +13,15 @@
   max-height: calc(100vh);
 }
 
-#map {
-  height: 100%;
-  width: 100%;
-}
-
-.mapcontext-layertree-layout {
+.mapeditor-layertree-layout {
   margin-left: -24px; /* to override parent's padding defined in site-layout class */
+  margin-right: -24px; /* to override parent's padding defined in site-layout class */
   margin-top: -24px; /* to override parent's padding defined in site-layout class */
   margin-bottom: -24px; /* to override parent's padding defined in site-layout class */
   width: calc(100% + 48px);
 }
 
-.mapcontext-layertree-header {
+.mapeditor-layertree-header {
   background-color: #002140;
   color: rgba(255, 255, 255, 0.65);
   line-height: 35px;
@@ -34,4 +30,9 @@
   padding: 10px;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+
+#map {
+  height: 100%;
+  width: 100%;
 }

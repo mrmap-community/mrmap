@@ -5,8 +5,9 @@ import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { Provider as ReduxProvider } from 'react-redux';
-import { request } from 'umi';
+import { getLocale, request } from 'umi';
 import PageLoading from '../PageLoading';
+
 
 const axiosConfig: AxiosRequestConfig = {
   baseURL: '/',
@@ -17,9 +18,21 @@ const axiosConfig: AxiosRequestConfig = {
   },
 };
 
-const fetchSchema = async () => {
+const fetchSchema = async (langCode: string) => {
+  console.log('currentLocal', langCode);
+  let lang;
+  switch(langCode){
+    case 'de-DE':
+      lang = 'de';
+      break;
+    case 'en-US':
+    default:
+      lang = 'en';
+      break;
+  }
+  console.log('lang', lang);
   try {
-    return await request('/api/schema/', { method: 'GET' });
+    return await request('/api/schema/', { method: 'GET', headers: { 'django_language': lang } });
   } catch (error) {
     console.log('can not load schema');
   }
@@ -31,10 +44,10 @@ const fetchSchema = async () => {
  */
 const RootContainer: React.FC = (props: any) => {
   const [schema, setSchema] = useState();
-
+  
   useEffect(() => {
     const fetchSchemaAsync = async () => {
-      setSchema(await fetchSchema());
+      setSchema(await fetchSchema(getLocale()));
     };
     fetchSchemaAsync();
   }, []);

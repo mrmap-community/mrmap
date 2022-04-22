@@ -3,7 +3,7 @@ import { Avatar, Menu, message, Spin } from 'antd';
 import { stringify } from 'querystring';
 import React, { useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
-import { history, useIntl, useModel } from 'umi';
+import { FormattedMessage, history, useIntl, useModel } from 'umi';
 import HeaderDropdown from '../HeaderDropdown';
 import styles from './index.less';
 
@@ -35,21 +35,17 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
           });
         });
       }
-      const defaultLoginSuccessMessage = intl.formatMessage({
-        id: 'pages.logout.success',
-        defaultMessage: 'Logout succesful！',
+      const logoutSuccessMessage = intl.formatMessage({
+        id: 'component.rightContent.logoutSuccesful',
       });
-      message.success(defaultLoginSuccessMessage);
+      message.success(logoutSuccessMessage);
     }
   }, [deleteLoginResponse, intl, setInitialState]);
 
   useEffect(() => {
     if (deleteLoginError) {
-      const defaultLoginFailureMessage = intl.formatMessage({
-        id: 'pages.logout.failure',
-        defaultMessage: 'Logout failed, please try again!',
-      });
-      message.error(defaultLoginFailureMessage);
+      const logoutFailedMessage = intl.formatMessage({ id: 'component.rightContent.logoutFailed' });
+      message.error(logoutFailedMessage);
     }
   }, [deleteLoginError, intl]);
 
@@ -96,7 +92,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
         }}
       >
         <LogoutOutlined />
-        Log out
+        <FormattedMessage id="component.rightContent.logout" />
       </Menu.Item>
     </Menu>
   );

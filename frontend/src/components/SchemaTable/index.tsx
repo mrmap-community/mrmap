@@ -11,7 +11,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
-import { FormattedMessage } from 'umi';
+import { FormattedMessage, useIntl } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
@@ -86,6 +86,7 @@ const SchemaTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
+  const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
   const jsonPointer: string = 'reactClient/tables/' + resourceTypes[0];
   const nestedResourceListLookup: string = 'list' + resourceTypes.join('By');
@@ -135,7 +136,7 @@ const SchemaTable = ({
       <Button type="primary" key="primary" onClick={addRowAction()}>
         <Space>
           <PlusOutlined />
-          <FormattedMessage id="component.schemaTable.new" defaultMessage="New" />
+          <FormattedMessage id="component.schemaTable.new" />
         </Space>
       </Button>
     ) : null;
@@ -152,8 +153,11 @@ const SchemaTable = ({
             size="small"
             onClick={() => {
               const modal = Modal.confirm({
-                title: 'Delete record',
-                content: `Do you want to delete the record with id ${row.id}?`,
+                title: intl.formatMessage({ id: 'component.schemaTable.deleteRowTitle' }),
+                content: intl.formatMessage(
+                  { id: 'component.schemaTable.deleteRowText' },
+                  { row: row.id },
+                ),
                 onOk: () => {
                   modal.update((prevConfig) => ({
                     ...prevConfig,
@@ -168,7 +172,7 @@ const SchemaTable = ({
         </Tooltip>
       );
     },
-    [deleteResource],
+    [deleteResource, intl],
   );
 
   const editRowButton = useCallback(
@@ -379,7 +383,11 @@ const SchemaTable = ({
         />
       )}
       <Drawer
-        title={selectedForEdit ? `Edit ${selectedForEdit}` : `Add`}
+        title={
+          selectedForEdit
+            ? intl.formatMessage({ id: 'component.schemaTable.edit' }, { title: selectedForEdit })
+            : intl.formatMessage({ id: 'component.schemaTable.create' })
+        }
         placement="right"
         visible={rightDrawerVisible}
         onClose={() => {

@@ -1,6 +1,6 @@
 import Footer from '@/components/Footer';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { LoginForm, ProFormCheckbox, ProFormText } from '@ant-design/pro-form';
+import { LoginForm, ProFormText } from '@ant-design/pro-form';
 import { Alert, message } from 'antd';
 import type { RequestPayload } from 'openapi-client-axios';
 import type { ReactElement } from 'react';
@@ -26,30 +26,23 @@ const Login: React.FC = (): ReactElement => {
   const intl = useIntl();
   const { setInitialState } = useModel('@@initialState');
 
-  const [
-    createLoginRequest,
-    { error: loginError, response: loginResponse },
-  ] = useOperationMethod('addLoginRequest');
-  const [
-    getCurrentUser,
-    {error: currentUserError, response: currentUserResponse}
-  ] = useOperationMethod('getCurrentUser');
-  
+  const [createLoginRequest, { error: loginError, response: loginResponse }] =
+    useOperationMethod('addLoginRequest');
+  const [getCurrentUser, { error: currentUserError, response: currentUserResponse }] =
+    useOperationMethod('getCurrentUser');
+
   /**
    * @description handles successfully login process; redirects to the last page
    */
-  useEffect(()=> {
-    if(currentUserResponse && currentUserResponse.status === 200){
-      const defaultLoginSuccessMessage = intl.formatMessage({
-        id: 'pages.login.success',
-        defaultMessage: 'Login succesful！',
-      });
+  useEffect(() => {
+    if (currentUserResponse && currentUserResponse.status === 200) {
+      const defaultLoginSuccessMessage = intl.formatMessage({ id: 'pages.login.success' });
       message.success(defaultLoginSuccessMessage);
       setInitialState((s: any) => ({
         ...s,
-        currentUser: currentUserResponse.data
+        currentUser: currentUserResponse.data,
       }));
-      
+
       if (history) {
         /** Redirect to the page specified by redirect parameter */
         const { query } = history.location;
@@ -64,8 +57,8 @@ const Login: React.FC = (): ReactElement => {
   /**
    * @description triggers get current user request if login was successfully
    */
-  useEffect(()=> {
-    if (loginResponse && loginResponse.status === 200){
+  useEffect(() => {
+    if (loginResponse && loginResponse.status === 200) {
       getCurrentUser();
     }
   }, [getCurrentUser, intl, loginResponse]);
@@ -74,31 +67,29 @@ const Login: React.FC = (): ReactElement => {
    * @description handles errors on login processing
    */
   useEffect(() => {
-    if (loginError || currentUserError){
-      const defaultLoginFailureMessage = intl.formatMessage({
-        id: 'pages.login.failure',
-        defaultMessage: 'Login failed, please try again!',
-      });
+    if (loginError || currentUserError) {
+      const defaultLoginFailureMessage = intl.formatMessage({ id: 'pages.login.failure' });
       message.error(defaultLoginFailureMessage);
     }
   }, [intl, loginError, currentUserError]);
-  
+
   /**
    * @description callback function to start login processing
    */
-  const onFinish = useCallback((values: any) => {
-    const jsonApiPayload: RequestPayload = {
-      data: {
-        type: 'LoginRequest',
-        attributes: {
-          username: values.username,
-          password: values.password
+  const onFinish = useCallback(
+    (values: any) => {
+      const jsonApiPayload: RequestPayload = {
+        data: {
+          type: 'LoginRequest',
+          attributes: {
+            username: values.username,
+            password: values.password,
+          },
         },
-      },
-    };
-    createLoginRequest(undefined, jsonApiPayload);
-  },
-  [createLoginRequest]
+      };
+      createLoginRequest(undefined, jsonApiPayload);
+    },
+    [createLoginRequest],
   );
 
   return (
@@ -109,7 +100,6 @@ const Login: React.FC = (): ReactElement => {
       <div className={styles.content}>
         <LoginForm
           logo={<img alt="mr. map logo" src="/logo.png" />}
-          //title="Mr. Map"
           subTitle={intl.formatMessage({ id: 'pages.layouts.userLayout.title' })}
           initialValues={{
             autoLogin: true,
@@ -120,10 +110,7 @@ const Login: React.FC = (): ReactElement => {
         >
           {loginError && (
             <LoginMessage
-              content={intl.formatMessage({
-                id: 'pages.login.accountLogin.errorMessage',
-                defaultMessage: '账户或密码错误(admin/ant.design)',
-              })}
+              content={intl.formatMessage({ id: 'pages.login.accountLogin.errorMessage' })}
             />
           )}
 
@@ -133,19 +120,11 @@ const Login: React.FC = (): ReactElement => {
               size: 'large',
               prefix: <UserOutlined className={styles.prefixIcon} />,
             }}
-            placeholder={intl.formatMessage({
-              id: 'pages.login.username.placeholder',
-              defaultMessage: '用户名: admin or user',
-            })}
+            placeholder={intl.formatMessage({ id: 'pages.login.username.placeholder' })}
             rules={[
               {
                 required: true,
-                message: (
-                  <FormattedMessage
-                    id="pages.login.username.required"
-                    defaultMessage="请输入用户名!"
-                  />
-                ),
+                message: <FormattedMessage id="pages.login.username.required" />,
               },
             ]}
           />
@@ -155,39 +134,30 @@ const Login: React.FC = (): ReactElement => {
               size: 'large',
               prefix: <LockOutlined className={styles.prefixIcon} />,
             }}
-            placeholder={intl.formatMessage({
-              id: 'pages.login.password.placeholder',
-              defaultMessage: '密码: ant.design',
-            })}
+            placeholder={intl.formatMessage({ id: 'pages.login.password.placeholder' })}
             rules={[
               {
                 required: true,
-                message: (
-                  <FormattedMessage
-                    id="pages.login.password.required"
-                    defaultMessage="请输入密码！"
-                  />
-                ),
+                message: <FormattedMessage id="pages.login.password.required" />,
               },
             ]}
           />
-
-          <div
+          {/* <div
             style={{
               marginBottom: 24,
             }}
           >
             <ProFormCheckbox noStyle name="autoLogin">
-              <FormattedMessage id="pages.login.rememberMe" defaultMessage="自动登录" />
+              <FormattedMessage id="pages.login.rememberMe" />
             </ProFormCheckbox>
             <a
               style={{
                 float: 'right',
               }}
             >
-              <FormattedMessage id="pages.login.forgotPassword" defaultMessage="忘记密码" />
+              <FormattedMessage id="pages.login.forgotPassword" />
             </a>
-          </div>
+          </div> */}
         </LoginForm>
       </div>
       <Footer />

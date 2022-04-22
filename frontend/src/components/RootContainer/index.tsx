@@ -5,7 +5,7 @@ import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { Provider as ReduxProvider } from 'react-redux';
-import { getLocale, request } from 'umi';
+import { getLocale, request, useIntl } from 'umi';
 import PageLoading from '../PageLoading';
 
 
@@ -44,6 +44,7 @@ const setDjangoLanguageCookie = () => {
  * TODO: check if this can be simplyfied
  */
 const RootContainer: React.FC = (props: any) => {
+  const intl = useIntl();
   const [schema, setSchema] = useState();
 
   useEffect(() => {
@@ -66,7 +67,7 @@ const RootContainer: React.FC = (props: any) => {
   }
   return (
     <PageLoading
-      title="Loading OpenAPI schema from backend..."
+      title={intl.formatMessage({ id: 'component.rootContainer.loadingSchema' })}
       logo={<img alt="openapi logo" src="/openapi_logo.png" />}
     />
   );

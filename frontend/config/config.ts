@@ -10,12 +10,12 @@ export default defineConfig({
     hmr: true,
   },
   layout: {
-    // https://umijs.org/zh-CN/plugins/plugin-layout
+    // https://umijs.org/plugins/plugin-layout
     locale: true,
     siderWidth: 208,
     ...defaultSettings,
   },
-  // https://umijs.org/zh-CN/plugins/plugin-locale
+  // https://umijs.org/plugins/plugin-locale
   locale: {
     default: 'en-US',
     antd: true,
@@ -43,7 +43,7 @@ export default defineConfig({
   manifest: {
     basePath: '/',
   },
-  // Fast Refresh 热更新
+  // Fast Refresh (hot reload)
   fastRefresh: {},
 
   nodeModulesTransform: { type: 'none' },

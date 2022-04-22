@@ -4,15 +4,21 @@ import { PageContainer } from '@ant-design/pro-layout';
 import { Button, Tooltip } from 'antd';
 import type { ReactElement } from 'react';
 import React, { useCallback } from 'react';
-import { Link } from 'umi';
+import { Link, useIntl } from 'umi';
 
 const WmsTable = (): ReactElement => {
+  const intl = useIntl();
   const additionalActions = useCallback((text: any, record: any): React.ReactNode => {
     const allowedOperations = record.relationships?.allowedOperations?.meta?.count;
     return (
       <Tooltip
         title={
-          allowedOperations > 0 ? `Zugriffsregeln: ${allowedOperations}` : 'Zugriff unbeschränkt'
+          allowedOperations > 0
+            ? intl.formatMessage(
+                { id: 'pages.wmsTable.securityRuleCount' },
+                { num: allowedOperations },
+              )
+            : intl.formatMessage({ id: 'pages.wmsTable.noSecurityRules' })
         }
       >
         <Link to={`/registry/wms/${record.id}/security/rules`}>

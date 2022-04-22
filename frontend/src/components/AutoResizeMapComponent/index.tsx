@@ -3,7 +3,7 @@ import 'ol/ol.css';
 import type { ReactElement } from 'react';
 import { useEffect } from 'react';
 
-export const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => {
+const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => {
   const map = useMap();
 
   // automatically call map.updateSize() when mapDiv resizes
@@ -27,3 +27,5 @@ export const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => 
   }
   return <MapComponent id={id} map={map} />;
 };
+
+export default AutoResizeMapComponent;

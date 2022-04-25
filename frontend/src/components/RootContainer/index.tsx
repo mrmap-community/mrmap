@@ -1,9 +1,11 @@
 import { store } from '@/services/ReduxStore/Store';
+import { buildJsonApiPayload } from '@/utils/jsonapi';
 import { olMap } from '@/utils/map';
 import { MapContext } from '@terrestris/react-geo';
 import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
+import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { Provider as ReduxProvider } from 'react-redux';
 import { getLocale, request, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
@@ -39,6 +41,35 @@ const setDjangoLanguageCookie = () => {
   document.cookie = `django_language=${lang};path=/`;
 };
 
+
+const UserSettingsHandler: React.FC = (props: any) => {
+  const { initialState, setInitialState } = useModel('@@initialState');
+
+  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
+
+  useEffect(() => {
+    if (updateUserResponse && updateUserResponse.status === 200){
+      setInitialState((s: any) => ({
+        ...s,
+        currentUser: updateUserResponse.data
+      }));
+    }
+    
+  }, [setInitialState, updateUserResponse]);
+
+  useEffect(() => {
+    if (initialState?.currentUser){
+      console.log('initial state updated', initialState);
+      updateUser(
+        [{ name: 'id', value: initialState.currentUser.id, in: 'path' }],
+        buildJsonApiPayload('User', initialState.currentUser.id, { settings: initialState.settings })
+      );
+    }
+  }, [initialState, updateUser]);
+  
+  return (props.children);
+}
+
 /**
  * Workaround to init openapi provider before child containers are rendered
  * TODO: check if this can be simplyfied
@@ -46,15 +77,6 @@ const setDjangoLanguageCookie = () => {
 const RootContainer: React.FC = (props: any) => {
   const intl = useIntl();
   const [schema, setSchema] = useState();
-  const { initialState, setInitialState } = useModel('@@initialState');
-
-  useEffect(() => {
-    if (initialState.currentUser?.settings){
-      console.log(initialState.currentUser?.settings);
-    }
-
-  }, [initialState.currentUser?.settings]);
-
 
   useEffect(() => {
     setDjangoLanguageCookie();
@@ -69,7 +91,9 @@ const RootContainer: React.FC = (props: any) => {
     return (
       <ReduxProvider store={store}>
         <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-          <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
+          <UserSettingsHandler>
+            <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
+          </UserSettingsHandler>
         </OpenAPIProvider>
       </ReduxProvider>
     );

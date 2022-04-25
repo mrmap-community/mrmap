@@ -94,7 +94,7 @@ const SchemaTable = ({
   const { initialState, setInitialState } = useModel('@@initialState');
 
   const [columnsStateMap, setColumnsStateMap] = useState<Record<string, ColumnsState>>(
-    initialState?.currentUser?.settings[jsonPointer.current] || {},
+    initialState?.currentUser?.settings?.[jsonPointer.current] || {},
   );
 
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
@@ -228,18 +228,16 @@ const SchemaTable = ({
    */
   useEffect(() => {
     if (columnsStateMap) {
-      const settings = initialState.currentUser.settings;
+      const settings = initialState?.settings || {};
       settings[jsonPointer.current] = columnsStateMap;
+
 
       setInitialState((s: any) => ({
         ...s,
-        currentUser: {
-          ...initialState.currentUser, 
-          settings: settings
-        },
+        settings
       }));
     }
-  }, [columnsStateMap, initialState.currentUser, setInitialState]);
+  }, [columnsStateMap, setInitialState]);
 
   /**
    * @description Handles errors on row delete

@@ -11,7 +11,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
-import { FormattedMessage, useIntl } from 'umi';
+import { FormattedMessage, useIntl, useModel } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
@@ -88,13 +88,13 @@ const SchemaTable = ({
 }: RepoTableProps): ReactElement => {
   const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
-  const jsonPointer: string = 'reactClient/tables/' + resourceTypes[0];
+  const jsonPointer = useRef('reactClient/tables/' + resourceTypes[0]);
   const nestedResourceListLookup: string = 'list' + resourceTypes.join('By');
+  
+  const { initialState, setInitialState } = useModel('@@initialState');
 
-  //const currentUser = store.getState().currentUser.user;
-  const settings: any = useRef({ jsonPointer: 'something' });
   const [columnsStateMap, setColumnsStateMap] = useState<Record<string, ColumnsState>>(
-    settings.current[jsonPointer] || {},
+    initialState?.currentUser?.settings[jsonPointer.current] || {},
   );
 
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
@@ -110,7 +110,6 @@ const SchemaTable = ({
   const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
     useOperationMethod(nestedResourceListLookup);
   const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes[0]);
-  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
 
   const [tableDataSource, setTableDataSource] = useState<any>({
     data: [],
@@ -223,31 +222,24 @@ const SchemaTable = ({
     [additionalActions, api, deleteRowButton, editRowButton, resourceTypes],
   );
 
-  /**
-   * @description Updates currentUser settings on response
-   */
-  useEffect(() => {
-    if (updateUserResponse) {
-      // store.dispatch({
-      //   type: 'currentUser/updateSettings',
-      //   payload: updateUserResponse.data.data.attributes.settings
-      // });
-    }
-  }, [updateUserResponse]);
 
   /**
    * @description Updates columeStateMap on user settings
    */
   useEffect(() => {
     if (columnsStateMap) {
-      const _settings = { ...settings.current };
-      _settings[jsonPointer] = columnsStateMap;
-      // updateUser(
-      //   [{ name: 'id', value: currentUser.id, in: 'path' }],
-      //   buildJsonApiPayload('User', currentUser.id, { settings: _settings })
-      // );
+      const settings = initialState.currentUser.settings;
+      settings[jsonPointer.current] = columnsStateMap;
+
+      setInitialState((s: any) => ({
+        ...s,
+        currentUser: {
+          ...initialState.currentUser, 
+          settings: settings
+        },
+      }));
     }
-  }, [columnsStateMap, settings, jsonPointer, updateUser]);
+  }, [columnsStateMap, initialState.currentUser, setInitialState]);
 
   /**
    * @description Handles errors on row delete

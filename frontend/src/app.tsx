@@ -26,6 +26,7 @@ export async function getInitialState(): Promise<{
   loading?: boolean;
   fetchUserInfo?: () => Promise<any | undefined>;
 }> {
+  console.log('huhu');
   const fetchUserInfo = async () => {
     try {
       const msg = await request<{

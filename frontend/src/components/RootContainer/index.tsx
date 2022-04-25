@@ -5,7 +5,7 @@ import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { Provider as ReduxProvider } from 'react-redux';
-import { getLocale, request, useIntl } from 'umi';
+import { getLocale, request, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
 
 
@@ -46,6 +46,15 @@ const setDjangoLanguageCookie = () => {
 const RootContainer: React.FC = (props: any) => {
   const intl = useIntl();
   const [schema, setSchema] = useState();
+  const { initialState, setInitialState } = useModel('@@initialState');
+
+  useEffect(() => {
+    if (initialState.currentUser?.settings){
+      console.log(initialState.currentUser?.settings);
+    }
+
+  }, [initialState.currentUser?.settings]);
+
 
   useEffect(() => {
     setDjangoLanguageCookie();

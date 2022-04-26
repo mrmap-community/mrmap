@@ -13,8 +13,7 @@ export type GlobalHeaderRightProps = {
 
 const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   const intl = useIntl();
-  const { initialState, setInitialState } = useModel('@@initialState');
-  console.log(initialState);
+  const { initialState:  { currentUser = undefined} = {}, setInitialState } = useModel('@@initialState');
 
   const [
     deleteLogin,
@@ -23,7 +22,13 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
 
   useEffect(() => {
     if (deleteLoginResponse && deleteLoginResponse.status === 200) {
-      setInitialState((s: any) => ({ ...s, currentUser: undefined }));
+      setInitialState((s: any) => (
+          { ...s, 
+            currentUser: undefined,
+            userInfoResponse: undefined
+          }
+        )
+      );
       const { query = {}, pathname } = history.location;
       const { redirect } = query;
       // Note: There may be security issues, please note
@@ -65,8 +70,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
 
   if (
     deleteLoginLoading ||
-    !initialState ||
-    !initialState.currentUser?.data?.attributes?.username
+    !currentUser?.attributes?.username
   ) {
     return loading;
   }
@@ -104,11 +108,11 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
         <Avatar
           size="small"
           className={styles.avatar}
-          src={initialState.currentUser?.data?.attributes?.avatar}
+          src={currentUser?.attributes?.avatar}
           alt="avatar"
         />
         <span className={`${styles.name} anticon`}>
-          {initialState.currentUser?.data?.attributes?.username}
+          {currentUser?.attributes?.username}
         </span>
       </span>
     </HeaderDropdown>

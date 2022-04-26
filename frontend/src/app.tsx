@@ -16,14 +16,17 @@ const loginPath = '/user/login';
 
 const fetchUserInfo = async () => {
   try {
-    const response = await request<{
-      data: JsonApiResponse;
-    }>('/api/v1/accounts/who-am-i/', {
+    const response = await request<JsonApiResponse>('/api/v1/accounts/who-am-i/', {
       method: 'GET',
     });
-    response.data.attributes.avatar =
-        'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
-    return response.data;
+    const currentUser = response?.data as JsonApiPrimaryData;
+    if (currentUser?.attributes){
+      currentUser.attributes.avatar =
+      'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
+    }
+    response.data = currentUser;
+    
+    return response;
   } catch (error) {
     history.push(loginPath);
   }
@@ -38,17 +41,22 @@ const fetchUserInfo = async () => {
  * @see https://umijs.org/zh-CN/plugins/plugin-initial-state
  */
 export async function getInitialState(): Promise<{
-  settings?: Partial<LayoutSettings>;
+  settings?: Partial<LayoutSettings>; // TODO: table settings.... etc...
+  userInfoResponse?: JsonApiResponse;
   currentUser?: JsonApiPrimaryData;
+  isAuthenticated: boolean;
   loading?: boolean;
-  fetchUserInfo?: () => Promise<JsonApiPrimaryData | undefined>;
+  fetchUserInfo?: () => Promise<JsonApiResponse | undefined>;
 }> {
-    const currentUser = await fetchUserInfo();
-    console.log(currentUser);
+    const response = await fetchUserInfo();
+    const currentUser = response?.data as JsonApiPrimaryData;
+    const isAuthenticated = (currentUser?.attributes.username !== 'AnonymousUser') ? true : false;
     return {
-      fetchUserInfo,
-      currentUser,
-      settings: (currentUser.data.attributes.username !== 'AnonymousUser') ? currentUser.data.attributes.settings: defaultSettings,
+      fetchUserInfo: fetchUserInfo,
+      userInfoResponse: response,
+      currentUser: currentUser,
+      isAuthenticated: isAuthenticated,
+      settings: isAuthenticated ? currentUser?.attributes.settings: defaultSettings,
     };
 }
 
@@ -81,17 +89,15 @@ export const layout: RunTimeLayoutConfig = ({
           </Link>,
         ]
       : [],
-    // onPageChange: () => {
-    //   const { location } = history;
-    //   console.log();
-    //   const username = initialState?.currentUser?.data?.attributes?.username;
-    //   const isAuthenticated =
-    //     username === 'AnonymousUser' ? false : username === undefined ? false : true;
-    //   // if not logged in, redirect to login page
-    //   if (!isAuthenticated && location.pathname !== loginPath) {
-    //     history.push(loginPath);
-    //   }
-    // },
+    onPageChange: (location) => {
+      // if not logged in, redirect to login page
+      if (!initialState.isAuthenticated && location?.pathname !== loginPath) {
+        history.push(loginPath);
+      }
+      if (initialState.isAuthenticated && location?.pathname === loginPath){
+        history.push("/");
+      }
+    },
     //menuHeaderRender: undefined,
     menu: loopMenuItem(defaultMenus),
     // custom 403 page

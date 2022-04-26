@@ -52,7 +52,8 @@ const UserSettingsHandler: React.FC = (props: any) => {
     if (updateUserResponse && updateUserResponse.status === 200){
       setInitialState((s: any) => ({
         ...s,
-        currentUser: updateUserResponse.data
+        userInfoResponse: updateUserResponse,
+        currentUser: updateUserResponse.data.data,
       }));
     }
     
@@ -60,11 +61,11 @@ const UserSettingsHandler: React.FC = (props: any) => {
 
   useEffect(() => {
     //FIXME: currently this will result in an initial patch, cause settings are set on getInitialState function...
-    if (currentUser?.data){
-      console.log(currentUser);
+    if (currentUser){
+      console.log('current user', currentUser);
       updateUser(
-        [{ name: 'id', value: currentUser.data.id, in: 'path' }],
-        buildJsonApiPayload('User', currentUser.data.id, { settings: settings })
+        [{ name: 'id', value: currentUser.id, in: 'path' }],
+        buildJsonApiPayload('User', currentUser.id, { settings: settings })
       );
     }
   }, [settings, updateUser]);

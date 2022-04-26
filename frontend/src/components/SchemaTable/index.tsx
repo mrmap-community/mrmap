@@ -230,8 +230,6 @@ const SchemaTable = ({
     if (columnsStateMap) {
       const settings = initialState?.settings || {};
       settings[jsonPointer.current] = columnsStateMap;
-
-
       setInitialState((s: any) => ({
         ...s,
         settings
@@ -250,11 +248,8 @@ const SchemaTable = ({
 
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
-    console.log('__--___');
     const queryParams = getQueryParams(api, nestedResourceListLookup);
     const operation = api.getOperation(nestedResourceListLookup);
-    console.log(operation);
-
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
     if (responseSchema) {

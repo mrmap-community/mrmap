@@ -43,32 +43,25 @@ const setDjangoLanguageCookie = () => {
 };
 
 
-const UserSettingsHandler: React.FC = (props: any) => {
-  const { initialState: { currentUser = undefined, settings = undefined } = {}, setInitialState } = useModel('@@initialState');
-
-  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
+const UserSettingsUpdater: React.FC = (props: any) => {
+  const { initialState, initialState: { currentUser = undefined, settings = undefined } = {} } = useModel('@@initialState');
+  const [updateUser, { error: updateUserError }] = useOperationMethod('updateUser');
 
   useEffect(() => {
-    if (updateUserResponse && updateUserResponse.status === 200){
-      setInitialState((s: any) => ({
-        ...s,
-        userInfoResponse: updateUserResponse,
-        currentUser: updateUserResponse.data.data,
-      }));
+    if (updateUserError){
+      console.log('can not update user settings');
     }
-    
-  }, [setInitialState, updateUserResponse]);
+  }, [updateUserError]);
 
   useEffect(() => {
     //FIXME: currently this will result in an initial patch, cause settings are set on getInitialState function...
     if (currentUser){
-      console.log('current user', currentUser);
       updateUser(
         [{ name: 'id', value: currentUser.id, in: 'path' }],
         buildJsonApiPayload('User', currentUser.id, { settings: settings })
       );
     }
-  }, [settings, updateUser]);
+  }, [initialState, updateUser]);
   
   return (props.children);
 }
@@ -96,11 +89,11 @@ const RootContainer: React.FC = (props: any) => {
       return (
         <ReduxProvider store={store}>
           <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-            <UserSettingsHandler>
+            <UserSettingsUpdater>
               <WebSockets>
                 <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
               </WebSockets>
-            </UserSettingsHandler>
+            </UserSettingsUpdater>
           </OpenAPIProvider>
         </ReduxProvider>
       );
@@ -108,9 +101,9 @@ const RootContainer: React.FC = (props: any) => {
       return (
         <ReduxProvider store={store}>
           <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-            <UserSettingsHandler>
+            <UserSettingsUpdater>
               {props.children}
-            </UserSettingsHandler>
+            </UserSettingsUpdater>
           </OpenAPIProvider>
         </ReduxProvider>
       );

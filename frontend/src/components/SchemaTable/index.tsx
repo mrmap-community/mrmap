@@ -91,10 +91,10 @@ const SchemaTable = ({
   const jsonPointer = useRef('reactClient/tables/' + resourceTypes[0]);
   const nestedResourceListLookup: string = 'list' + resourceTypes.join('By');
   
-  const { initialState, setInitialState } = useModel('@@initialState');
+  const { initialState: { settings = undefined } = {}, setInitialState } = useModel('@@initialState');
 
   const [columnsStateMap, setColumnsStateMap] = useState<Record<string, ColumnsState>>(
-    initialState?.currentUser?.settings?.[jsonPointer.current] || {},
+    settings?.[jsonPointer.current] || {},
   );
 
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
@@ -228,14 +228,15 @@ const SchemaTable = ({
    */
   useEffect(() => {
     if (columnsStateMap) {
-      const settings = initialState?.settings || {};
-      settings[jsonPointer.current] = columnsStateMap;
+      const newSettings = settings || {};
+      newSettings[jsonPointer.current] = columnsStateMap;
+      
       setInitialState((s: any) => ({
         ...s,
         settings
       }));
     }
-  }, [columnsStateMap, setInitialState]);
+  }, [columnsStateMap, setInitialState, settings]);
 
   /**
    * @description Handles errors on row delete

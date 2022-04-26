@@ -1,4 +1,5 @@
 import { store } from '@/services/ReduxStore/Store';
+import WebSockets from '@/services/WebSockets';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
 import { olMap } from '@/utils/map';
 import { MapContext } from '@terrestris/react-geo';
@@ -7,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { Provider as ReduxProvider } from 'react-redux';
-import { getLocale, request, useIntl, useModel } from 'umi';
+import { getLocale, request, useAccess, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
 
 
@@ -43,7 +44,7 @@ const setDjangoLanguageCookie = () => {
 
 
 const UserSettingsHandler: React.FC = (props: any) => {
-  const { initialState, setInitialState } = useModel('@@initialState');
+  const { initialState: { currentUser = undefined, settings = undefined } = {}, setInitialState } = useModel('@@initialState');
 
   const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
 
@@ -58,14 +59,15 @@ const UserSettingsHandler: React.FC = (props: any) => {
   }, [setInitialState, updateUserResponse]);
 
   useEffect(() => {
-    if (initialState?.currentUser){
-      console.log('initial state updated', initialState);
+    //FIXME: currently this will result in an initial patch, cause settings are set on getInitialState function...
+    if (currentUser?.data){
+      console.log(currentUser);
       updateUser(
-        [{ name: 'id', value: initialState.currentUser.id, in: 'path' }],
-        buildJsonApiPayload('User', initialState.currentUser.id, { settings: initialState.settings })
+        [{ name: 'id', value: currentUser.data.id, in: 'path' }],
+        buildJsonApiPayload('User', currentUser.data.id, { settings: settings })
       );
     }
-  }, [initialState, updateUser]);
+  }, [settings, updateUser]);
   
   return (props.children);
 }
@@ -77,6 +79,7 @@ const UserSettingsHandler: React.FC = (props: any) => {
 const RootContainer: React.FC = (props: any) => {
   const intl = useIntl();
   const [schema, setSchema] = useState();
+  const { isAuthenticated } = useAccess();
 
   useEffect(() => {
     setDjangoLanguageCookie();
@@ -88,22 +91,38 @@ const RootContainer: React.FC = (props: any) => {
   }, []);
 
   if (schema) {
+    if (isAuthenticated){
+      return (
+        <ReduxProvider store={store}>
+          <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+            <UserSettingsHandler>
+              <WebSockets>
+                <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
+              </WebSockets>
+            </UserSettingsHandler>
+          </OpenAPIProvider>
+        </ReduxProvider>
+      );
+    }else {
+      return (
+        <ReduxProvider store={store}>
+          <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+            <UserSettingsHandler>
+              {props.children}
+            </UserSettingsHandler>
+          </OpenAPIProvider>
+        </ReduxProvider>
+      );
+    }
+    
+  } else {
     return (
-      <ReduxProvider store={store}>
-        <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-          <UserSettingsHandler>
-            <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
-          </UserSettingsHandler>
-        </OpenAPIProvider>
-      </ReduxProvider>
+      <PageLoading
+        title={intl.formatMessage({ id: 'component.rootContainer.loadingSchema' })}
+        logo={<img alt="openapi logo" src="/openapi_logo.png" />}
+      />
     );
   }
-  return (
-    <PageLoading
-      title={intl.formatMessage({ id: 'component.rootContainer.loadingSchema' })}
-      logo={<img alt="openapi logo" src="/openapi_logo.png" />}
-    />
-  );
 };
 
 export default RootContainer;

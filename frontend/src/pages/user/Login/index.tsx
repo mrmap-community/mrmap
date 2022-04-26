@@ -40,7 +40,7 @@ const Login: React.FC = (): ReactElement => {
       message.success(defaultLoginSuccessMessage);
       setInitialState((s: any) => ({
         ...s,
-        currentUser: currentUserResponse.data,
+        currentUser: currentUserResponse,
       }));
 
       if (history) {

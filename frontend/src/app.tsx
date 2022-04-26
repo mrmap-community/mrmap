@@ -8,10 +8,27 @@ import defaultSettings from '../config/defaultSettings';
 import defaultMenus, { loopMenuItem } from '../config/routes';
 import PageLoading from './components/PageLoading';
 import RootContainer from './components/RootContainer';
-import WebSockets from './services/WebSockets';
+import type { JsonApiPrimaryData, JsonApiResponse } from './utils/jsonapi';
+
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
+
+const fetchUserInfo = async () => {
+  try {
+    const response = await request<{
+      data: JsonApiResponse;
+    }>('/api/v1/accounts/who-am-i/', {
+      method: 'GET',
+    });
+    response.data.attributes.avatar =
+        'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
+    return response.data;
+  } catch (error) {
+    history.push(loginPath);
+  }
+  return undefined;
+};
 
 /**
  * This function will be executed once at the start of the application.
@@ -22,44 +39,17 @@ const loginPath = '/user/login';
  */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
-  currentUser?: any;
+  currentUser?: JsonApiPrimaryData;
   loading?: boolean;
-  fetchUserInfo?: () => Promise<any | undefined>;
+  fetchUserInfo?: () => Promise<JsonApiPrimaryData | undefined>;
 }> {
-  console.log('huhu');
-  const fetchUserInfo = async () => {
-    try {
-      const msg = await request<{
-        data: any; // TODO: jsonapi response object as type
-      }>('/api/v1/accounts/who-am-i/', {
-        method: 'GET',
-      });
-      // who-am-i returns an AnonymousUser if no session can be found
-      if (msg.data.attributes?.username !== 'AnonymousUser') {
-        // TODO AvatarDropdown component supports avatar image, do we want this in our model?
-        msg.data.attributes.avatar =
-          'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
-        return msg;
-      }
-    } catch (error) {
-      history.push(loginPath);
-    }
-    return undefined;
-  };
-  // if this is not the login page, try to fetch user and set currentUser
-  if (history.location.pathname !== loginPath) {
     const currentUser = await fetchUserInfo();
+    console.log(currentUser);
     return {
       fetchUserInfo,
       currentUser,
-      settings: defaultSettings,
+      settings: (currentUser.data.attributes.username !== 'AnonymousUser') ? currentUser.data.attributes.settings: defaultSettings,
     };
-  }
-
-  return {
-    fetchUserInfo,
-    settings: defaultSettings,
-  };
 }
 
 /** When obtaining user information is slow, a loading */
@@ -91,16 +81,17 @@ export const layout: RunTimeLayoutConfig = ({
           </Link>,
         ]
       : [],
-    onPageChange: () => {
-      const { location } = history;
-      const username = initialState?.currentUser?.data?.attributes?.username;
-      const isAuthenticated =
-        username === 'AnonymousUser' ? false : username === undefined ? false : true;
-      // if not logged in, redirect to login page
-      if (!isAuthenticated && location.pathname !== loginPath) {
-        history.push(loginPath);
-      }
-    },
+    // onPageChange: () => {
+    //   const { location } = history;
+    //   console.log();
+    //   const username = initialState?.currentUser?.data?.attributes?.username;
+    //   const isAuthenticated =
+    //     username === 'AnonymousUser' ? false : username === undefined ? false : true;
+    //   // if not logged in, redirect to login page
+    //   if (!isAuthenticated && location.pathname !== loginPath) {
+    //     history.push(loginPath);
+    //   }
+    // },
     //menuHeaderRender: undefined,
     menu: loopMenuItem(defaultMenus),
     // custom 403 page
@@ -111,8 +102,7 @@ export const layout: RunTimeLayoutConfig = ({
     childrenRender: (children, props) => {
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
-      return (
-        <WebSockets>
+      return (<>
           {children}
           {!props.location?.pathname?.includes('/login') && (
             <SettingDrawer
@@ -126,7 +116,7 @@ export const layout: RunTimeLayoutConfig = ({
               }}
             />
           )}
-        </WebSockets>
+          </>
       );
     },
     ...initialState?.settings,

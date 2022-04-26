@@ -14,6 +14,8 @@ export type GlobalHeaderRightProps = {
 const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   const intl = useIntl();
   const { initialState, setInitialState } = useModel('@@initialState');
+  console.log(initialState);
+
   const [
     deleteLogin,
     { loading: deleteLoginLoading, error: deleteLoginError, response: deleteLoginResponse },

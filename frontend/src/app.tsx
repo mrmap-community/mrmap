@@ -8,10 +8,30 @@ import defaultSettings from '../config/defaultSettings';
 import defaultMenus, { loopMenuItem } from '../config/routes';
 import PageLoading from './components/PageLoading';
 import RootContainer from './components/RootContainer';
-import WebSockets from './services/WebSockets';
+import type { JsonApiPrimaryData, JsonApiResponse } from './utils/jsonapi';
+
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
+
+const fetchUserInfo = async () => {
+  try {
+    const response = await request<JsonApiResponse>('/api/v1/accounts/who-am-i/', {
+      method: 'GET',
+    });
+    const currentUser = response?.data as JsonApiPrimaryData;
+    if (currentUser?.attributes){
+      currentUser.attributes.avatar =
+      'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
+    }
+    response.data = currentUser;
+    
+    return response;
+  } catch (error) {
+    history.push(loginPath);
+  }
+  return undefined;
+};
 
 /**
  * This function will be executed once at the start of the application.
@@ -21,44 +41,23 @@ const loginPath = '/user/login';
  * @see https://umijs.org/zh-CN/plugins/plugin-initial-state
  */
 export async function getInitialState(): Promise<{
-  settings?: Partial<LayoutSettings>;
-  currentUser?: any;
+  settings?: Partial<LayoutSettings>; // TODO: table settings.... etc...
+  userInfoResponse?: JsonApiResponse;
+  currentUser?: JsonApiPrimaryData;
+  isAuthenticated: boolean;
   loading?: boolean;
-  fetchUserInfo?: () => Promise<any | undefined>;
+  fetchUserInfo?: () => Promise<JsonApiResponse | undefined>;
 }> {
-  const fetchUserInfo = async () => {
-    try {
-      const msg = await request<{
-        data: any; // TODO: jsonapi response object as type
-      }>('/api/v1/accounts/who-am-i/', {
-        method: 'GET',
-      });
-      // who-am-i returns an AnonymousUser if no session can be found
-      if (msg.data.attributes?.username !== 'AnonymousUser') {
-        // TODO AvatarDropdown component supports avatar image, do we want this in our model?
-        msg.data.attributes.avatar =
-          'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
-        return msg;
-      }
-    } catch (error) {
-      history.push(loginPath);
-    }
-    return undefined;
-  };
-  // if this is not the login page, try to fetch user and set currentUser
-  if (history.location.pathname !== loginPath) {
-    const currentUser = await fetchUserInfo();
+    const response = await fetchUserInfo();
+    const currentUser = response?.data as JsonApiPrimaryData;
+    const isAuthenticated = (currentUser?.attributes.username !== 'AnonymousUser') ? true : false;
     return {
-      fetchUserInfo,
-      currentUser,
-      settings: defaultSettings,
+      fetchUserInfo: fetchUserInfo,
+      userInfoResponse: response,
+      currentUser: currentUser,
+      isAuthenticated: isAuthenticated,
+      settings: isAuthenticated ? currentUser?.attributes.settings: defaultSettings,
     };
-  }
-
-  return {
-    fetchUserInfo,
-    settings: defaultSettings,
-  };
 }
 
 /** When obtaining user information is slow, a loading */
@@ -90,14 +89,13 @@ export const layout: RunTimeLayoutConfig = ({
           </Link>,
         ]
       : [],
-    onPageChange: () => {
-      const { location } = history;
-      const username = initialState?.currentUser?.data?.attributes?.username;
-      const isAuthenticated =
-        username === 'AnonymousUser' ? false : username === undefined ? false : true;
+    onPageChange: (location) => {
       // if not logged in, redirect to login page
-      if (!isAuthenticated && location.pathname !== loginPath) {
+      if (!initialState.isAuthenticated && location?.pathname !== loginPath) {
         history.push(loginPath);
+      }
+      if (initialState.isAuthenticated && location?.pathname === loginPath){
+        history.push("/");
       }
     },
     //menuHeaderRender: undefined,
@@ -110,8 +108,7 @@ export const layout: RunTimeLayoutConfig = ({
     childrenRender: (children, props) => {
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
-      return (
-        <WebSockets>
+      return (<>
           {children}
           {!props.location?.pathname?.includes('/login') && (
             <SettingDrawer
@@ -125,7 +122,7 @@ export const layout: RunTimeLayoutConfig = ({
               }}
             />
           )}
-        </WebSockets>
+          </>
       );
     },
     ...initialState?.settings,

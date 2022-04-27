@@ -91,12 +91,12 @@ export const layout: RunTimeLayoutConfig = ({
       : [],
     onPageChange: (location) => {
       // if not logged in, redirect to login page
-      if (!initialState.isAuthenticated && location?.pathname !== loginPath) {
-        history.push(loginPath);
-      }
-      if (initialState.isAuthenticated && location?.pathname === loginPath){
-        history.push("/");
-      }
+      // if (!initialState.isAuthenticated) {
+      //   history.push(loginPath);
+      // }
+      // if (initialState.isAuthenticated && location?.pathname === loginPath){
+      //   history.push("/");
+      // }
     },
     //menuHeaderRender: undefined,
     menu: loopMenuItem(defaultMenus),

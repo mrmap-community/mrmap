@@ -1,14 +1,11 @@
 import { store } from '@/services/ReduxStore/Store';
-import WebSockets from '@/services/WebSockets';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
-import { olMap } from '@/utils/map';
-import { MapContext } from '@terrestris/react-geo';
 import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { Provider as ReduxProvider } from 'react-redux';
-import { getLocale, request, useAccess, useIntl, useModel } from 'umi';
+import { getLocale, request, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
 
 
@@ -73,7 +70,6 @@ const UserSettingsUpdater: React.FC = (props: any) => {
 const RootContainer: React.FC = (props: any) => {
   const intl = useIntl();
   const [schema, setSchema] = useState();
-  const { isAuthenticated } = useAccess();
 
   useEffect(() => {
     setDjangoLanguageCookie();
@@ -84,31 +80,16 @@ const RootContainer: React.FC = (props: any) => {
     fetchSchemaAsync();
   }, []);
 
-  if (schema) {
-    if (isAuthenticated){
-      return (
-        <ReduxProvider store={store}>
-          <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-            <UserSettingsUpdater>
-              <WebSockets>
-                <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
-              </WebSockets>
-            </UserSettingsUpdater>
-          </OpenAPIProvider>
-        </ReduxProvider>
-      );
-    }else {
-      return (
-        <ReduxProvider store={store}>
-          <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-            <UserSettingsUpdater>
-              {props.children}
-            </UserSettingsUpdater>
-          </OpenAPIProvider>
-        </ReduxProvider>
-      );
-    }
-    
+  if (schema) {    
+    return (
+      <ReduxProvider store={store}>
+        <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+          <UserSettingsUpdater>
+            {props.children}
+          </UserSettingsUpdater>
+        </OpenAPIProvider>
+      </ReduxProvider>
+    );    
   } else {
     return (
       <PageLoading

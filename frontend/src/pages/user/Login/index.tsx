@@ -50,7 +50,7 @@ const Login: React.FC = (): ReactElement => {
         const { redirect } = query as { redirect: string };
         setTimeout(() => {
           history.push(redirect || '/');
-        });
+        }, 1000);
       }
     }
   }, [currentUserResponse, intl, setInitialState]);

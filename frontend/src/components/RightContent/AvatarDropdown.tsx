@@ -39,7 +39,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
             search: stringify({
               redirect: pathname,
             }),
-          });
+          }, 1000);
         });
       }
       const logoutSuccessMessage = intl.formatMessage({

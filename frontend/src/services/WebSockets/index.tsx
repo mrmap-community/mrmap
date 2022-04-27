@@ -8,7 +8,7 @@ export default function WebSockets(props: any): ReactElement {
   const hostname = window.location.hostname;
   const port = window.location.port;
   const defaultWsUrl = scheme + '://' + hostname + ':' + port + '/ws/default/';
-  
+
   const { lastJsonMessage } = useWebSocket(defaultWsUrl, {
     shouldReconnect: () => {
       return true;
@@ -17,7 +17,7 @@ export default function WebSockets(props: any): ReactElement {
   });
 
   useEffect(() => {
-    if (lastJsonMessage !== null ) {
+    if (lastJsonMessage !== null) {
       store.dispatch(lastJsonMessage);
     }
   }, [lastJsonMessage]);

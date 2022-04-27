@@ -1,7 +1,7 @@
 .mapeditor-layertree-node {
   display: flex;
-  justify-content: space-between;
   flex-direction: row;
+  justify-content: space-between;
 }
 
 .mapeditor-layertree-node-title,

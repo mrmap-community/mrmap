@@ -90,8 +90,9 @@ const SchemaTable = ({
   const _defaultActions = useRef(defaultActions);
   const jsonPointer = useRef('reactClient/tables/' + resourceTypes[0]);
   const nestedResourceListLookup: string = 'list' + resourceTypes.join('By');
-  
-  const { initialState: { settings = undefined } = {}, setInitialState } = useModel('@@initialState');
+
+  const { initialState: { settings = undefined } = {}, setInitialState } =
+    useModel('@@initialState');
 
   const [columnsStateMap, setColumnsStateMap] = useState<Record<string, ColumnsState>>(
     settings?.[jsonPointer.current] || {},
@@ -222,7 +223,6 @@ const SchemaTable = ({
     [additionalActions, api, deleteRowButton, editRowButton, resourceTypes],
   );
 
-
   /**
    * @description Updates columeStateMap on user settings
    */
@@ -230,10 +230,10 @@ const SchemaTable = ({
     if (columnsStateMap) {
       const newSettings = settings || {};
       newSettings[jsonPointer.current] = columnsStateMap;
-      
+
       setInitialState((s: any) => ({
         ...s,
-        settings
+        settings,
       }));
     }
   }, [columnsStateMap, setInitialState, settings]);

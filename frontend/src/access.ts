@@ -1,15 +1,13 @@
-import type { JsonApiDocument, JsonApiPrimaryData } from "./utils/jsonapi";
+import type { JsonApiPrimaryData } from './utils/jsonapi';
 
 /**
  * @see https://umijs.org/zh-CN/plugins/plugin-access
  * */
-export default function access(initialState: { currentUser?: JsonApiDocument } | undefined) {
+export default function access(initialState: { currentUser?: JsonApiPrimaryData } | undefined) {
   const { currentUser } = initialState ?? {};
-
-  const userData = currentUser?.data as JsonApiPrimaryData;
-
   return {
-    isAuthenticated: (userData && userData?.attributes?.username !== 'AnonymousUser') ? true : false,
-    isSuperuser: (userData && userData?.attributes?.isSuperuser === true) ? true : false,
+    isAuthenticated:
+      currentUser && currentUser?.attributes?.username !== 'AnonymousUser' ? true : false,
+    isSuperuser: currentUser && currentUser?.attributes?.isSuperuser === true ? true : false,
   };
 }

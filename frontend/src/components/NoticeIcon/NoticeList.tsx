@@ -3,7 +3,6 @@ import classNames from 'classnames';
 import React from 'react';
 import styles from './NoticeList.less';
 
-
 export type NoticeIconTabProps = {
   count?: number;
   showClear?: boolean;

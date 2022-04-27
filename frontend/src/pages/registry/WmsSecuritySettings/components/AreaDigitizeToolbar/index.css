@@ -3,17 +3,17 @@
 }
 
 .tools-container {
-  display: flex;
-  align-items: center;
   position: absolute;
   bottom: 55px;
   left: 50%;
-  -webkit-transform: translateX(-50%);
-  transform: translateX(-50%);
+  z-index: 1001; /* ant-drawer has 1000 */
+  display: flex;
+  align-items: center;
   background: #fff;
   border: solid 1px #e0e0e0;
   border-radius: 2px;
-  z-index: 1001; /* ant-drawer has 1000 */
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
 }
 
 .tools-container button {
@@ -24,19 +24,19 @@
 }
 
 .tools-container .ant-btn-primary:focus {
+  color: unset;
   background: unset;
   border-color: unset;
-  color: unset;
 }
 
 .tools-container .ant-btn-primary:hover {
+  color: unset;
   background: #e0e0e0;
   border-color: #e0e0e0;
-  color: unset;
 }
 
 .tools-container .btn-pressed {
+  color: black;
   background: #e0e0e0 !important;
   border-color: #e0e0e0 !important;
-  color: black;
 }

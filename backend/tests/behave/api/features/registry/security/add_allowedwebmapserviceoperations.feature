@@ -149,7 +149,7 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
             }
             """
         When I send the request with POST method
-        Then I expect the response status is 401
+        Then I expect the response status is 403
 
     Scenario: Can't add incomplete subtrees of secured layers
         Given I am logged in as User1 with password User1

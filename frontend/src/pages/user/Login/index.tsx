@@ -41,7 +41,7 @@ const Login: React.FC = (): ReactElement => {
       setInitialState((s: any) => ({
         ...s,
         userInfoResponse: currentUserResponse,
-        currentUser: currentUserResponse.data.data
+        currentUser: currentUserResponse.data.data,
       }));
 
       if (history) {
@@ -50,7 +50,7 @@ const Login: React.FC = (): ReactElement => {
         const { redirect } = query as { redirect: string };
         setTimeout(() => {
           history.push(redirect || '/');
-        });
+        }, 1000);
       }
     }
   }, [currentUserResponse, intl, setInitialState]);

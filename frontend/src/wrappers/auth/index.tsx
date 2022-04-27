@@ -7,11 +7,11 @@ export default (props: any) => {
   const { isAuthenticated } = useAccess();
   if (isAuthenticated) {
     return (
-        <WebSockets>
-            <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
-        </WebSockets>
+      <WebSockets>
+        <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
+      </WebSockets>
     );
   } else {
     return <Redirect to="/user/login" />;
   }
-}
+};

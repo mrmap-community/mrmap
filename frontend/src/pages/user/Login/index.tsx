@@ -41,7 +41,7 @@ const Login: React.FC = (): ReactElement => {
       setInitialState((s: any) => ({
         ...s,
         userInfoResponse: currentUserResponse,
-        currentUser: currentUserResponse.data.data
+        currentUser: currentUserResponse.data.data,
       }));
 
       if (history) {

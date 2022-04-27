@@ -10,7 +10,6 @@ import PageLoading from './components/PageLoading';
 import RootContainer from './components/RootContainer';
 import type { JsonApiPrimaryData, JsonApiResponse } from './utils/jsonapi';
 
-
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
 
@@ -20,12 +19,12 @@ const fetchUserInfo = async () => {
       method: 'GET',
     });
     const currentUser = response?.data as JsonApiPrimaryData;
-    if (currentUser?.attributes){
+    if (currentUser?.attributes) {
       currentUser.attributes.avatar =
-      'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
+        'https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png';
     }
     response.data = currentUser;
-    
+
     return response;
   } catch (error) {
     history.push(loginPath);
@@ -48,16 +47,16 @@ export async function getInitialState(): Promise<{
   loading?: boolean;
   fetchUserInfo?: () => Promise<JsonApiResponse | undefined>;
 }> {
-    const response = await fetchUserInfo();
-    const currentUser = response?.data as JsonApiPrimaryData;
-    const isAuthenticated = (currentUser?.attributes.username !== 'AnonymousUser') ? true : false;
-    return {
-      fetchUserInfo: fetchUserInfo,
-      userInfoResponse: response,
-      currentUser: currentUser,
-      isAuthenticated: isAuthenticated,
-      settings: isAuthenticated ? currentUser?.attributes.settings: defaultSettings,
-    };
+  const response = await fetchUserInfo();
+  const currentUser = response?.data as JsonApiPrimaryData;
+  const isAuthenticated = currentUser?.attributes.username !== 'AnonymousUser' ? true : false;
+  return {
+    fetchUserInfo: fetchUserInfo,
+    userInfoResponse: response,
+    currentUser: currentUser,
+    isAuthenticated: isAuthenticated,
+    settings: isAuthenticated ? currentUser?.attributes.settings : defaultSettings,
+  };
 }
 
 /** When obtaining user information is slow, a loading */
@@ -108,7 +107,8 @@ export const layout: RunTimeLayoutConfig = ({
     childrenRender: (children, props) => {
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
-      return (<>
+      return (
+        <>
           {children}
           {!props.location?.pathname?.includes('/login') && (
             <SettingDrawer
@@ -122,7 +122,7 @@ export const layout: RunTimeLayoutConfig = ({
               }}
             />
           )}
-          </>
+        </>
       );
     },
     ...initialState?.settings,

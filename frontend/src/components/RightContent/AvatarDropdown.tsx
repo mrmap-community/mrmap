@@ -13,7 +13,8 @@ export type GlobalHeaderRightProps = {
 
 const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   const intl = useIntl();
-  const { initialState:  { currentUser = undefined} = {}, setInitialState } = useModel('@@initialState');
+  const { initialState: { currentUser = undefined } = {}, setInitialState } =
+    useModel('@@initialState');
 
   const [
     deleteLogin,
@@ -22,25 +23,19 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
 
   useEffect(() => {
     if (deleteLoginResponse && deleteLoginResponse.status === 200) {
-      setInitialState((s: any) => (
-          { ...s, 
-            currentUser: undefined,
-            userInfoResponse: undefined
-          }
-        )
-      );
+      setInitialState((s: any) => ({ ...s, currentUser: undefined, userInfoResponse: undefined }));
       const { query = {}, pathname } = history.location;
       const { redirect } = query;
       // Note: There may be security issues, please note
       if (window.location.pathname !== '/user/login' && !redirect) {
-        setTimeout(() => {
-          history.replace({
+        history.replace(
+          {
             pathname: '/user/login',
             search: stringify({
               redirect: pathname,
             }),
-          }, 1000);
-        });
+          },
+        );
       }
       const logoutSuccessMessage = intl.formatMessage({
         id: 'component.rightContent.logoutSuccesful',
@@ -68,10 +63,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
     </span>
   );
 
-  if (
-    deleteLoginLoading ||
-    !currentUser?.attributes?.username
-  ) {
+  if (deleteLoginLoading || !currentUser?.attributes?.username) {
     return loading;
   }
 
@@ -111,9 +103,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
           src={currentUser?.attributes?.avatar}
           alt="avatar"
         />
-        <span className={`${styles.name} anticon`}>
-          {currentUser?.attributes?.username}
-        </span>
+        <span className={`${styles.name} anticon`}>{currentUser?.attributes?.username}</span>
       </span>
     </HeaderDropdown>
   );

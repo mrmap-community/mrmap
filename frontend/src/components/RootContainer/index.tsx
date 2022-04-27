@@ -8,26 +8,24 @@ import { Provider as ReduxProvider } from 'react-redux';
 import { getLocale, request, useAccess, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
 
-
 const axiosConfig: AxiosRequestConfig = {
   baseURL: '/',
   xsrfCookieName: 'csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
   headers: {
     'Content-Type': 'application/vnd.api+json',
-  }
+  },
 };
 
 const fetchSchema = async () => {
   try {
-    return await request('/api/schema/', { method: 'GET'});
-  } catch (error) {
-  }
+    return await request('/api/schema/', { method: 'GET' });
+  } catch (error) {}
 };
 
 const setDjangoLanguageCookie = () => {
   let lang;
-  switch(getLocale()){
+  switch (getLocale()) {
     case 'de-DE':
       lang = 'de';
       break;
@@ -39,29 +37,29 @@ const setDjangoLanguageCookie = () => {
   document.cookie = `django_language=${lang};path=/SameSite=None;secure`;
 };
 
-
 const UserSettingsUpdater: React.FC = (props: any) => {
-  const { initialState, initialState: { currentUser = undefined, settings = undefined } = {} } = useModel('@@initialState');
+  const { initialState, initialState: { currentUser = undefined, settings = undefined } = {} } =
+    useModel('@@initialState');
   const { isAuthenticated } = useAccess();
   const [updateUser, { error: updateUserError }] = useOperationMethod('updateUser');
 
   useEffect(() => {
-    if (updateUserError){
+    if (updateUserError) {
       console.log('can not update user settings');
     }
   }, [updateUserError]);
 
   useEffect(() => {
-    if (currentUser && isAuthenticated){
+    if (currentUser && isAuthenticated) {
       updateUser(
         [{ name: 'id', value: currentUser.id, in: 'path' }],
-        buildJsonApiPayload('User', currentUser.id, { settings: settings })
+        buildJsonApiPayload('User', currentUser.id, { settings: settings }),
       );
     }
   }, [currentUser, initialState, isAuthenticated, settings, updateUser]);
-  
-  return (props.children);
-}
+
+  return props.children;
+};
 
 /**
  * Workaround to init openapi provider before child containers are rendered
@@ -73,23 +71,21 @@ const RootContainer: React.FC = (props: any) => {
 
   useEffect(() => {
     setDjangoLanguageCookie();
-    
+
     const fetchSchemaAsync = async () => {
       setSchema(await fetchSchema());
     };
     fetchSchemaAsync();
   }, []);
 
-  if (schema) {    
+  if (schema) {
     return (
       <ReduxProvider store={store}>
         <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-          <UserSettingsUpdater>
-            {props.children}
-          </UserSettingsUpdater>
+          <UserSettingsUpdater>{props.children}</UserSettingsUpdater>
         </OpenAPIProvider>
       </ReduxProvider>
-    );    
+    );
   } else {
     return (
       <PageLoading

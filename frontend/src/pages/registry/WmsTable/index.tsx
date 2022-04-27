@@ -30,7 +30,7 @@ const WmsTable = (): ReactElement => {
         </Link>
       </Tooltip>
     );
-  }, []);
+  }, [intl]);
   return (
     <PageContainer>
       <SchemaTable resourceTypes={['WebMapService']} additionalActions={additionalActions} />

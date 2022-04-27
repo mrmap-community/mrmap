@@ -52,14 +52,13 @@ const UserSettingsUpdater: React.FC = (props: any) => {
   }, [updateUserError]);
 
   useEffect(() => {
-    //FIXME: currently this will result in an initial patch, cause settings are set on getInitialState function...
     if (currentUser && isAuthenticated){
       updateUser(
         [{ name: 'id', value: currentUser.id, in: 'path' }],
         buildJsonApiPayload('User', currentUser.id, { settings: settings })
       );
     }
-  }, [initialState, updateUser]);
+  }, [currentUser, initialState, isAuthenticated, settings, updateUser]);
   
   return (props.children);
 }

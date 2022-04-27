@@ -89,15 +89,15 @@ export const layout: RunTimeLayoutConfig = ({
           </Link>,
         ]
       : [],
-    onPageChange: (location) => {
-      // if not logged in, redirect to login page
-      // if (!initialState.isAuthenticated) {
-      //   history.push(loginPath);
-      // }
-      // if (initialState.isAuthenticated && location?.pathname === loginPath){
-      //   history.push("/");
-      // }
-    },
+    // onPageChange: (location) => {
+    //   // if not logged in, redirect to login page
+    //   // if (!initialState.isAuthenticated) {
+    //   //   history.push(loginPath);
+    //   // }
+    //   // if (initialState.isAuthenticated && location?.pathname === loginPath){
+    //   //   history.push("/");
+    //   // }
+    // },
     //menuHeaderRender: undefined,
     menu: loopMenuItem(defaultMenus),
     // custom 403 page

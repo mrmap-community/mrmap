@@ -15,7 +15,7 @@ const axiosConfig: AxiosRequestConfig = {
   xsrfHeaderName: 'X-CSRFToken',
   headers: {
     'Content-Type': 'application/vnd.api+json',
-  },
+  }
 };
 
 const fetchSchema = async () => {

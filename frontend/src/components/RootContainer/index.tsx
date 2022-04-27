@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { Provider as ReduxProvider } from 'react-redux';
-import { getLocale, request, useIntl, useModel } from 'umi';
+import { getLocale, request, useAccess, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
 
 
@@ -36,12 +36,13 @@ const setDjangoLanguageCookie = () => {
       lang = 'en';
       break;
   }
-  document.cookie = `django_language=${lang};path=/`;
+  document.cookie = `django_language=${lang};path=/SameSite=None;secure`;
 };
 
 
 const UserSettingsUpdater: React.FC = (props: any) => {
   const { initialState, initialState: { currentUser = undefined, settings = undefined } = {} } = useModel('@@initialState');
+  const { isAuthenticated } = useAccess();
   const [updateUser, { error: updateUserError }] = useOperationMethod('updateUser');
 
   useEffect(() => {
@@ -52,7 +53,7 @@ const UserSettingsUpdater: React.FC = (props: any) => {
 
   useEffect(() => {
     //FIXME: currently this will result in an initial patch, cause settings are set on getInitialState function...
-    if (currentUser){
+    if (currentUser && isAuthenticated){
       updateUser(
         [{ name: 'id', value: currentUser.id, in: 'path' }],
         buildJsonApiPayload('User', currentUser.id, { settings: settings })

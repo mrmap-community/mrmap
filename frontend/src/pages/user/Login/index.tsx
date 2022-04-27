@@ -6,7 +6,7 @@ import type { RequestPayload } from 'openapi-client-axios';
 import type { ReactElement } from 'react';
 import React, { useCallback, useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
-import { FormattedMessage, history, SelectLang, useIntl, useModel } from 'umi';
+import { FormattedMessage, history, SelectLang, useAccess, useIntl, useModel } from 'umi';
 import styles from './index.less';
 
 const LoginMessage: React.FC<{
@@ -26,10 +26,15 @@ const Login: React.FC = (): ReactElement => {
   const intl = useIntl();
   const { setInitialState } = useModel('@@initialState');
 
-  const [createLoginRequest, { error: loginError, response: loginResponse }] =
-    useOperationMethod('addLoginRequest');
-  const [getCurrentUser, { error: currentUserError, response: currentUserResponse }] =
-    useOperationMethod('getCurrentUser');
+  const [
+    createLoginRequest,
+    { error: loginError, response: loginResponse, loading: loginLoading },
+  ] = useOperationMethod('addLoginRequest');
+  const [
+    getCurrentUser,
+    { error: currentUserError, response: currentUserResponse, loading: currentUserLoading },
+  ] = useOperationMethod('getCurrentUser');
+  const { isAuthenticated } = useAccess();
 
   /**
    * @description handles successfully login process; redirects to the last page
@@ -43,17 +48,17 @@ const Login: React.FC = (): ReactElement => {
         userInfoResponse: currentUserResponse,
         currentUser: currentUserResponse.data.data,
       }));
-
-      if (history) {
-        /** Redirect to the page specified by redirect parameter */
-        const { query } = history.location;
-        const { redirect } = query as { redirect: string };
-        setTimeout(() => {
-          history.push(redirect || '/');
-        }, 1000);
-      }
     }
   }, [currentUserResponse, intl, setInitialState]);
+
+  useEffect(() => {
+    if (isAuthenticated && history) {
+      /** Redirect to the page specified by redirect parameter */
+      const { query } = history.location;
+      const { redirect } = query as { redirect: string };
+      history.push(redirect || '/');
+    }
+  }, [isAuthenticated]);
 
   /**
    * @description triggers get current user request if login was successfully
@@ -93,6 +98,8 @@ const Login: React.FC = (): ReactElement => {
     [createLoginRequest],
   );
 
+  const isLoggingIn = loginLoading || currentUserLoading;
+
   return (
     <div className={styles.container}>
       <div className={styles.lang} data-lang>
@@ -108,13 +115,21 @@ const Login: React.FC = (): ReactElement => {
           onFinish={async (values) => {
             onFinish(values);
           }}
+          submitter={{
+            submitButtonProps: {
+              loading: isLoggingIn,
+              size: 'large',
+              style: {
+                width: '100%',
+              },
+            },
+          }}
         >
           {loginError && (
             <LoginMessage
               content={intl.formatMessage({ id: 'pages.login.accountLogin.errorMessage' })}
             />
           )}
-
           <ProFormText
             name="username"
             fieldProps={{
@@ -128,6 +143,7 @@ const Login: React.FC = (): ReactElement => {
                 message: <FormattedMessage id="pages.login.username.required" />,
               },
             ]}
+            disabled={isLoggingIn}
           />
           <ProFormText.Password
             name="password"
@@ -142,23 +158,8 @@ const Login: React.FC = (): ReactElement => {
                 message: <FormattedMessage id="pages.login.password.required" />,
               },
             ]}
+            disabled={isLoggingIn}
           />
-          {/* <div
-            style={{
-              marginBottom: 24,
-            }}
-          >
-            <ProFormCheckbox noStyle name="autoLogin">
-              <FormattedMessage id="pages.login.rememberMe" />
-            </ProFormCheckbox>
-            <a
-              style={{
-                float: 'right',
-              }}
-            >
-              <FormattedMessage id="pages.login.forgotPassword" />
-            </a>
-          </div> */}
         </LoginForm>
       </div>
       <Footer />

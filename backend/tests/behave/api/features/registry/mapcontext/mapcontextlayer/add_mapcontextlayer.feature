@@ -16,10 +16,16 @@ Feature: MapContextLayer Add Endpoint
                     },
                     "relationships": {
                         "parent": {
-                            "data": { "type": "MapContextLayer", "id": "8"}
+                            "data": {
+                                "type": "MapContextLayer",
+                                "id": "8"
+                            }
                         },
                         "mapContext": {
-                            "data": { "type": "MapContext", "id": "2"}
+                            "data": {
+                                "type": "MapContext",
+                                "id": "2"
+                            }
                         }
                     }
                 }
@@ -33,4 +39,4 @@ Feature: MapContextLayer Add Endpoint
 
     Scenario: Can't add as anonymous user
         When I send the request with POST method
-        Then I expect the response status is 401
+        Then I expect the response status is 403

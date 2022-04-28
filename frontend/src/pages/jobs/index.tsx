@@ -2,10 +2,9 @@ import SchemaTable from '@/components/SchemaTable';
 import { CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, SmallDashOutlined, SyncOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
 import { Tag } from 'antd';
-import type { ReactElement } from 'react';
 import React from 'react';
 
-const BackgroundProcessesTable = (): ReactElement => {
+const BackgroundProcessesTable = (): React.ReactElement => {
   return (
     <PageContainer>
       <SchemaTable 
@@ -18,7 +17,6 @@ const BackgroundProcessesTable = (): ReactElement => {
                 {
                   type: 'progress',
                   status: item.status === 'successed' ? 'success': item.status === 'failed' ? 'exception': 'active'
-
                 }
               ),
             },
@@ -37,7 +35,6 @@ const BackgroundProcessesTable = (): ReactElement => {
                   case 'unknown':
                   default:
                     return <Tag icon={<QuestionCircleOutlined />} color="default">unknown</Tag>
-
                 }
               }
             }

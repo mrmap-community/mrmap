@@ -52,6 +52,7 @@ function augmentColumns(
       props[propName],
       queryParams,
     );
+    // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
     const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
     if (columnHint) {
       columns[propName].valueType = 'text';
@@ -256,6 +257,7 @@ const SchemaTable = ({
     if (responseSchema) {
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
       if (!_augmentedColumns.some((column) => column.key === 'actions')) {
+        // TODO: title shall be translated
         _augmentedColumns.push({
           key: 'operation',
           title: 'Aktionen',

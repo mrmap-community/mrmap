@@ -8,6 +8,7 @@ export default {
   'menu.registry.layers': 'Kartenebenen (WMS/Raster)',
   'menu.registry.featuretypes': 'Datenebenen (WFS/Vektor)',
   'menu.registry.maps': 'Karten',
+  'menu.jobs': 'Prozesse',
   'menu.more-blocks': 'More Blocks',
   'menu.home': 'Home',
   'menu.admin': 'Admin',

@@ -17,6 +17,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
+import { useIntl } from 'umi';
 
 type SchemaFormProps = {
   resourceType: string;
@@ -152,6 +153,7 @@ const SchemaForm = ({
   onSuccess = null,
   ...passThroughProps
 }: SchemaFormProps): ReactElement => {
+  const intl = useIntl();
   const mounted = useRef(false);
   useEffect(() => {
     mounted.current = true;
@@ -233,13 +235,22 @@ const SchemaForm = ({
       let message = 'unknown';
       switch (remoteOperationResponse.status) {
         case 200:
-          message = `Successfully updated ${remoteOperationResponse.data?.data?.attributes?.stringRepresentation}`;
+          message = intl.formatMessage(
+            { id: 'component.schemaForm.updateSuccessful' },
+            { resource: remoteOperationResponse.data?.data?.attributes?.stringRepresentation },
+          );
           break;
         case 201:
-          message = `Successfully created ${remoteOperationResponse.data?.data?.attributes?.stringRepresentation}`;
+          message = intl.formatMessage(
+            { id: 'component.schemaForm.createSuccessful' },
+            { resource: remoteOperationResponse.data?.data?.attributes?.stringRepresentation },
+          );
           break;
         case 202:
-          message = `Successfully accepted background creation job for resource ${remoteOperationResponse.request?.data?.data.type}`;
+          message = intl.formatMessage(
+            { id: 'component.schemaForm.backgroundCreationStarted' },
+            { resourceType: remoteOperationResponse.data?.data?.type },
+          );
           break;
       }
       notification.success({

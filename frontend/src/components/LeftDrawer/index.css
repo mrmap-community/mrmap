@@ -1,18 +1,19 @@
-.bottom-drawer-toggle-button {
+.left-drawer-toggle-button {
   position: absolute;
-  left: 50%;
+  top: 50%;
   z-index: 1000;
-  width: 60px;
+  width: 30px;
+  height: 60px;
   padding: 0;
   background-color: #002140;
   border: unset;
-  border-radius: 5px 5px 0 0;
+  border-radius: 0 5px 5px 0;
   /* same transition timing as drawer */
   transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.bottom-drawer-toggle-button:active,
-.bottom-drawer-toggle-button:focus,
-.bottom-drawer-toggle-button:hover {
+.left-drawer-toggle-button:active,
+.left-drawer-toggle-button:focus,
+.left-drawer-toggle-button:hover {
   background-color: #002140;
 }

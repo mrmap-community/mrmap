@@ -2,12 +2,12 @@ import { Form, Input } from 'antd';
 import type { TooltipProps } from 'antd/lib/tooltip';
 import type { ReactElement, ReactNode } from 'react';
 
-export interface ValidationPropsType {
+interface ValidationPropsType {
   rules: any[];
   hasFeedback: boolean;
 }
 
-export type TooltipPropsType = TooltipProps & { icon: ReactNode };
+type TooltipPropsType = TooltipProps & { icon: ReactNode };
 
 interface InputFieldProps {
   allowClear?: boolean;
@@ -22,7 +22,7 @@ interface InputFieldProps {
   type?: 'email' | 'number' | 'password' | 'text' | 'textarea';
 }
 
-export const InputField = ({
+const InputField = ({
   allowClear = false,
   disabled = false,
   placeholder = '',
@@ -56,3 +56,5 @@ export const InputField = ({
     </Form.Item>
   );
 };
+
+export default InputField;

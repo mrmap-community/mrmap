@@ -6,7 +6,6 @@ import { useModel, useRequest } from 'umi';
 import styles from './index.less';
 import NoticeIcon from './NoticeIcon';
 
-
 export type GlobalHeaderRightProps = {
   fetchingNotices?: boolean;
   onNoticeVisibleChange?: (visible: boolean) => void;
@@ -73,7 +72,9 @@ const NoticeIconView: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const { currentUser } = initialState || {};
   const [notices, setNotices] = useState<any[]>([]);
-  const { data } = useRequest(()=> {console.log('notice todo')});
+  const { data } = useRequest(() => {
+    console.log('notice todo');
+  });
 
   useEffect(() => {
     setNotices(data || []);
@@ -104,43 +105,43 @@ const NoticeIconView: React.FC = () => {
         return notice;
       }),
     );
-    message.success(`${'清空了'} ${title}`);
+    message.success(`${'Cleared'} ${title}`);
   };
 
   return (
     <NoticeIcon
       className={styles.action}
-      count={currentUser && currentUser.unreadCount}
+      count={currentUser && currentUser.attributes.unreadCount}
       onItemClick={(item) => {
         changeReadState(item.id!);
       }}
       onClear={(title: string, key: string) => clearReadState(title, key)}
       loading={false}
-      clearText="清空"
-      viewMoreText="查看更多"
-      onViewMore={() => message.info('Click on view more')}
+      clearText="Clear"
+      viewMoreText="View more"
+      onViewMore={() => message.info('Clicked on view more')}
       clearClose
     >
       <NoticeIcon.Tab
         tabKey="notification"
         count={unreadMsg.notification}
         list={noticeData.notification}
-        title="通知"
-        emptyText="你已查看所有通知"
+        title="Notification"
+        emptyText="You have viewed all notifications"
         showViewMore
       />
       <NoticeIcon.Tab
         tabKey="message"
         count={unreadMsg.message}
         list={noticeData.message}
-        title="消息"
-        emptyText="您已读完所有消息"
+        title="Message"
+        emptyText="You have viewed all messages"
         showViewMore
       />
       <NoticeIcon.Tab
         tabKey="event"
-        title="待办"
-        emptyText="你已完成所有待办"
+        title="Event"
+        emptyText="You have viewed all events"
         count={unreadMsg.event}
         list={noticeData.event}
         showViewMore

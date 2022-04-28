@@ -39,4 +39,4 @@ Feature: MapContextLayer Update Endpoint
             }
             """
         When I send the request with PATCH method
-        Then I expect the response status is 401
+        Then I expect the response status is 403

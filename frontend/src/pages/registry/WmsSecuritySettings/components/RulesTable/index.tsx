@@ -2,7 +2,7 @@ import SchemaTable from '@/components/SchemaTable';
 import type { ReactElement } from 'react';
 import { history } from 'umi';
 
-export const RulesTable = ({ wmsId }: { wmsId: string }): ReactElement => {
+const RulesTable = ({ wmsId }: { wmsId: string }): ReactElement => {
   return (
     <SchemaTable
       resourceTypes={['AllowedWebMapServiceOperation', 'WebMapService']}
@@ -27,3 +27,5 @@ export const RulesTable = ({ wmsId }: { wmsId: string }): ReactElement => {
     />
   );
 };
+
+export default RulesTable;

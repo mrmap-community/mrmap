@@ -1,11 +1,13 @@
+import type { JsonApiPrimaryData } from './utils/jsonapi';
+
 /**
  * @see https://umijs.org/zh-CN/plugins/plugin-access
  * */
-export default function access(initialState: { currentUser?: any } | undefined) {
+export default function access(initialState: { currentUser?: JsonApiPrimaryData } | undefined) {
   const { currentUser } = initialState ?? {};
-  
-  // TODO: just example of how to provide permissions 
   return {
-    canAdmin: currentUser && currentUser.access === 'admin',
+    isAuthenticated:
+      currentUser && currentUser?.attributes?.username !== 'AnonymousUser' ? true : false,
+    isSuperuser: currentUser && currentUser?.attributes?.isSuperuser === true ? true : false,
   };
 }

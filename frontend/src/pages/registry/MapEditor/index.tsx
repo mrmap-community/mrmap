@@ -1,6 +1,6 @@
-import { AutoResizeMapComponent } from '@/components/AutoResizeMapComponent';
-import { BottomDrawer } from '@/components/BottomDrawer';
-import { LeftDrawer } from '@/components/LeftDrawer';
+import AutoResizeMapComponent from '@/components/AutoResizeMapComponent';
+import BottomDrawer from '@/components/BottomDrawer';
+import LeftDrawer from '@/components/LeftDrawer';
 import type { JsonApiPrimaryData, ResourceIdentifierObject } from '@/utils/jsonapi';
 import { unpage } from '@/utils/jsonapi';
 import {
@@ -25,17 +25,19 @@ import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
-import { LayerSettingsForm } from './LayerSettingsForm/LayerSettingsForm';
-import './MapContextEditor.css';
-import { MapContextLayerTree } from './MapContextLayerTree/MapContextLayerTree';
-import { MapContextSettings } from './MapContextSettings/MapContextSettings';
-import { SearchTable } from './SearchTable/SearchTable';
+import { FormattedMessage, useIntl } from 'umi';
+import LayerSettingsForm from './components/LayerSettingsForm';
+import MapEditorLayerTree from './components/MapEditorLayerTree';
+import MapSettingsForm from './components/MapSettingsForm';
+import SearchTable from './components/SearchTable';
+import './index.css';
 
 const { TabPane } = Tabs;
 
-export const MapContextEditor = (): ReactElement => {
+const MapEditor = (): ReactElement => {
   const { id } = useParams<{ id: string }>();
   const map = useMap();
+  const intl = useIntl();
 
   // we use this OpenLayers layer group as the source of truth, each layer / group has the corresponding JSON:API
   // MapContextLayer entity attached to it (property 'mapContextLayer')
@@ -252,7 +254,12 @@ export const MapContextEditor = (): ReactElement => {
         .some(
           (l: BaseLayer) =>
             l.get('mapContextLayer').attributes.title ===
-            (i === 1 ? 'New Layer Group' : `New Layer Group (${i})`),
+            (i === 1
+              ? intl.formatMessage({ id: 'pages.mapEditor.index.newLayerGroup' })
+              : intl.formatMessage(
+                  { id: 'pages.mapEditor.index.newLayerGroupWithNumber' },
+                  { num: i },
+                )),
         );
     };
     while (groupNameTaken(free)) {
@@ -264,7 +271,13 @@ export const MapContextEditor = (): ReactElement => {
         mapContextLayer: {
           type: 'MapContextLayer',
           attributes: {
-            title: free === 1 ? 'New Layer Group' : `New Layer Group (${free})`,
+            title:
+              free === 1
+                ? intl.formatMessage({ id: 'pages.mapEditor.index.newLayerGroup' })
+                : intl.formatMessage(
+                    { id: 'pages.mapEditor.index.newLayerGroupWithNumber' },
+                    { num: free },
+                  ),
           },
         },
       },
@@ -309,26 +322,30 @@ export const MapContextEditor = (): ReactElement => {
 
   return (
     <>
-      <div className="mapcontext-editor-layout">
+      <div className="mapeditor-layout">
         {id && (
           <LeftDrawer map={map}>
             {olLayerGroup && (
-              <div className="mapcontext-layertree-layout">
-                <div className="mapcontext-layertree-header">
+              <div className="mapeditor-layertree-layout">
+                <div className="mapeditor-layertree-header">
                   <span>
                     <FontAwesomeIcon icon={faLayerGroup} />
-                    &nbsp;&nbsp;&nbsp;Ebenen
+                    &nbsp;&nbsp;&nbsp;
+                    <FormattedMessage id="pages.mapEditor.index.layers" />
                   </span>
-                  <span>&nbsp;&nbsp;&nbsp;Ebenen</span>
                   <Space>
-                    <Tooltip title="Create new layer group">
+                    <Tooltip
+                      title={intl.formatMessage({ id: 'pages.mapEditor.index.createLayerGroup' })}
+                    >
                       <Button
                         icon={<FolderAddOutlined />}
                         size="middle"
                         onClick={onCreateLayerGroup}
                       />
                     </Tooltip>
-                    <Tooltip title="Delete layer">
+                    <Tooltip
+                      title={intl.formatMessage({ id: 'pages.mapEditor.index.deleteLayer' })}
+                    >
                       <Button
                         icon={<MinusCircleFilled />}
                         size="middle"
@@ -336,7 +353,9 @@ export const MapContextEditor = (): ReactElement => {
                         disabled={!selectedLayer}
                       />
                     </Tooltip>
-                    <Tooltip title="Layer settings">
+                    <Tooltip
+                      title={intl.formatMessage({ id: 'pages.mapEditor.index.layerSettings' })}
+                    >
                       <Button
                         icon={<SettingFilled />}
                         size="middle"
@@ -346,7 +365,7 @@ export const MapContextEditor = (): ReactElement => {
                     </Tooltip>
                   </Space>
                 </div>
-                <MapContextLayerTree
+                <MapEditorLayerTree
                   mapContextId={id}
                   map={map}
                   olLayerGroup={olLayerGroup}
@@ -376,18 +395,18 @@ export const MapContextEditor = (): ReactElement => {
               tab={
                 <span>
                   <InfoCircleOutlined />
-                  Karteneinstellungen
+                  <FormattedMessage id="pages.mapEditor.index.mapSettings" />
                 </span>
               }
               key="mapSettings"
             >
-              <MapContextSettings id={id} />
+              <MapSettingsForm id={id} />
             </TabPane>
             <TabPane
               tab={
                 <span>
                   <SettingOutlined />
-                  Ebeneneinstellungen
+                  <FormattedMessage id="pages.mapEditor.index.layerSettings" />
                 </span>
               }
               key="layerSettings"
@@ -395,21 +414,11 @@ export const MapContextEditor = (): ReactElement => {
             >
               <LayerSettingsForm selectedLayer={selectedLayer} titleInputRef={layerTitleInputRef} />
             </TabPane>
-            {/* <TabPane
-              tab={<span><SettingOutlined />Layer settings (schema-based)</span>}
-              key='layerSettings2'
-              disabled={!id || !selectedLayer}
-            >
-              <MapContextLayerRepoForm
-                layerGroup={olLayerGroup}
-                selectedLayer={selectedLayer}
-              />
-            </TabPane> */}
             <TabPane
               tab={
                 <span>
                   <SearchOutlined />
-                  Inhalte finden &amp; hinzufügen
+                  <FormattedMessage id="pages.mapEditor.index.searchAndAdd" />
                 </span>
               }
               key="datasetSearch"
@@ -424,4 +433,4 @@ export const MapContextEditor = (): ReactElement => {
   );
 };
 
-export default MapContextEditor;
+export default MapEditor;

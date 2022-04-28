@@ -2,7 +2,7 @@ import { DownOutlined, UpOutlined } from '@ant-design/icons';
 import { Button, Drawer } from 'antd';
 import type OlMap from 'ol/Map';
 import React, { useEffect, useRef, useState } from 'react';
-import './BottomDrawer.css';
+import './index.css';
 
 interface OwnProps {
   map?: OlMap;
@@ -15,7 +15,9 @@ interface OwnProps {
 
 type BottomDrawerProps = OwnProps;
 
-export const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visible, onExpand }) => {
+const height = '650px';
+
+const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visible, onExpand }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
@@ -30,9 +32,9 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visib
     if (map) {
       const mapDiv: any = document.querySelector(`#${map.getTarget()}`);
       if (!isVisible) {
-        mapDiv.style.paddingBottom = '0px';
+        mapDiv.style.paddingBottom = '0';
       } else {
-        mapDiv.style.paddingBottom = '500px';
+        mapDiv.style.paddingBottom = height;
       }
     }
   }, [map, isVisible]);
@@ -53,7 +55,7 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visib
         className={'bottom-drawer-toggle-button'}
         type="primary"
         style={{
-          bottom: isVisible ? '650px' : 0,
+          bottom: isVisible ? height : 0,
         }}
         icon={isVisible ? <DownOutlined /> : <UpOutlined />}
         onClick={toggleVisible}
@@ -64,7 +66,7 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visib
         visible={isVisible}
         closable={false}
         mask={false}
-        height={'650px'}
+        height={height}
         style={{ zIndex: 1001 }}
       >
         {children}
@@ -72,3 +74,5 @@ export const BottomDrawer: React.FC<BottomDrawerProps> = ({ map, children, visib
     </>
   );
 };
+
+export default BottomDrawer;

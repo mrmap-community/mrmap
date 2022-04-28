@@ -1,4 +1,4 @@
-import { InputField } from '@/components/InputField';
+import InputField from '@/components/InputField';
 import { screenToWgs84, wgs84ToScreen, zoomTo } from '@/utils/map';
 import { useMap } from '@terrestris/react-geo';
 import { DigitizeUtil } from '@terrestris/react-geo/dist/Util/DigitizeUtil';
@@ -15,8 +15,8 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client';
 import { useParams } from 'react-router-dom';
-import { history } from 'umi';
-import AllowedAreaTable from './AllowedAreaTable';
+import { FormattedMessage, history, useIntl } from 'umi';
+import AllowedAreaTable from '../AllowedAreaTable';
 
 const { Option } = Select;
 
@@ -29,7 +29,7 @@ interface RuleFormProps {
   setIsRuleEditingActive: (isActive: boolean) => void;
 }
 
-export const RuleForm = ({
+const RuleForm = ({
   wmsId,
   selectedLayerIds,
   setSelectedLayerIds,
@@ -38,6 +38,7 @@ export const RuleForm = ({
   const map = useMap();
   const [form] = useForm();
   const { ruleId } = useParams<{ ruleId: string }>();
+  const intl = useIntl();
 
   const [digiLayer, setDigiLayer] = useState<OlVectorLayer<OlVectorSource<OlGeometry>>>();
   const [availableGroups, setAvailableGroups] = useState<typeof Option[]>([]);
@@ -111,7 +112,6 @@ export const RuleForm = ({
   // allowed WMS ops response
   useEffect(() => {
     if (map && digiLayer && getAllowedWmsOpRes) {
-      console.log('Got allowed WMS op response', getAllowedWmsOpRes);
       const attrs = getAllowedWmsOpRes.data.data.attributes;
       const rels = getAllowedWmsOpRes.data.data.relationships;
       // set form fields
@@ -140,7 +140,6 @@ export const RuleForm = ({
   useEffect(() => {
     if (addAllowedWmsOpRes) {
       // TODO check for 201 (CREATED)?
-      console.log('Got add allowed WMS ops response', addAllowedWmsOpRes);
       history.push(`/registry/wms/${wmsId}/security`);
     }
   }, [addAllowedWmsOpRes, wmsId]);
@@ -149,7 +148,6 @@ export const RuleForm = ({
   useEffect(() => {
     if (updateAllowedWmsOpRes) {
       // TODO check for 200 (OK)?
-      console.log('Got add allowed WMS ops response', updateAllowedWmsOpRes);
       history.push(`/registry/wms/${wmsId}/security`);
     }
   }, [updateAllowedWmsOpRes, wmsId]);
@@ -184,7 +182,12 @@ export const RuleForm = ({
 
   const onFinish = async (values: any) => {
     if (selectedLayerIds.length === 0) {
-      setLayerSelectionError('At least one layer needs to be selected.');
+      setLayerSelectionError(
+        intl.formatMessage({
+          id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.layerRequired',
+          defaultMessage: 'Please select at least one layer.',
+        }),
+      );
       return;
     }
     setLayerSelectionError(undefined);
@@ -300,30 +303,81 @@ export const RuleForm = ({
     <Spin spinning={isSavingOrLoading}>
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <InputField
-          label="Description"
           name="description"
-          placeholder="Short description of the security rule"
+          label={intl.formatMessage({
+            id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.descriptionLabel',
+            defaultMessage: 'Description',
+          })}
+          placeholder={intl.formatMessage({
+            id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.descriptionPlaceholder',
+            defaultMessage: 'Short description of the security rule',
+          })}
           validation={{
-            rules: [{ required: true, message: 'Please input a description!' }],
+            rules: [
+              {
+                required: true,
+                message: intl.formatMessage({
+                  id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.descriptionRequired',
+                  defaultMessage: 'Please input a description.',
+                }),
+              },
+            ],
             hasFeedback: false,
           }}
         />
-        <Form.Item label="Groups" name="groups">
-          <Select mode="multiple" allowClear placeholder="Groups">
+        <Form.Item
+          name="groups"
+          label={intl.formatMessage({
+            id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.groupsLabel',
+            defaultMessage: 'Groups',
+          })}
+        >
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder={intl.formatMessage({
+              id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.groupsLabel',
+              defaultMessage: 'Groups',
+            })}
+          >
             {availableGroups}
           </Select>
         </Form.Item>
         <Form.Item
-          label="Operations"
           name="operations"
+          label={intl.formatMessage({
+            id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.operationsLabel',
+            defaultMessage: 'Operations',
+          })}
           required={true}
-          rules={[{ required: true, message: 'At least one operation must be selected!' }]}
+          rules={[
+            {
+              required: true,
+              message: intl.formatMessage({
+                id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.operationsRequired',
+                defaultMessage: 'Please select at least one operation.',
+              }),
+            },
+          ]}
         >
-          <Select mode="multiple" allowClear placeholder="Allowed WMS operations">
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder={intl.formatMessage({
+              id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.allowedWmsOperationsPlaceholder',
+              defaultMessage: 'Allowed WMS operations',
+            })}
+          >
             {availableOps}
           </Select>
         </Form.Item>
-        <Form.Item label="Allowed area" name="area">
+        <Form.Item
+          name="area"
+          label={intl.formatMessage({
+            id: 'pages.wmsSecuritySettings.rulesDrawer.ruleForm.allowedAreaLabel',
+            defaultMessage: 'Allowed area',
+          })}
+        >
           <AllowedAreaTable />
         </Form.Item>
         {layerSelectionError && (
@@ -334,13 +388,19 @@ export const RuleForm = ({
         <Form.Item>
           <Space>
             <Button type="primary" htmlType="submit">
-              Speichern
+              <FormattedMessage
+                id="pages.wmsSecuritySettings.rulesDrawer.ruleForm.save"
+                defaultMessage="Save"
+              />
             </Button>
             <Button
               htmlType="button"
               onClick={() => history.push(`/registry/wms/${wmsId}/security`)}
             >
-              Abbrechen
+              <FormattedMessage
+                id="pages.wmsSecuritySettings.rulesDrawer.ruleForm.cancel"
+                defaultMessage="Cancel"
+              />
             </Button>
           </Space>
         </Form.Item>
@@ -348,3 +408,5 @@ export const RuleForm = ({
     </Spin>
   );
 };
+
+export default RuleForm;

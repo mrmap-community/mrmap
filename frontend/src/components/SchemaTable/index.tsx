@@ -11,7 +11,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
-import { FormattedMessage } from 'umi';
+import { FormattedMessage, useIntl, useModel } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
 
@@ -86,14 +86,16 @@ const SchemaTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
+  const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
-  const jsonPointer: string = 'reactClient/tables/' + resourceTypes[0];
+  const jsonPointer = useRef('reactClient/tables/' + resourceTypes[0]);
   const nestedResourceListLookup: string = 'list' + resourceTypes.join('By');
 
-  //const currentUser = store.getState().currentUser.user;
-  const settings: any = useRef({ jsonPointer: 'something' });
+  const { initialState: { settings = undefined } = {}, setInitialState } =
+    useModel('@@initialState');
+
   const [columnsStateMap, setColumnsStateMap] = useState<Record<string, ColumnsState>>(
-    settings.current[jsonPointer] || {},
+    settings?.[jsonPointer.current] || {},
   );
 
   const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
@@ -109,7 +111,6 @@ const SchemaTable = ({
   const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
     useOperationMethod(nestedResourceListLookup);
   const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes[0]);
-  const [updateUser, { response: updateUserResponse }] = useOperationMethod('updateUser');
 
   const [tableDataSource, setTableDataSource] = useState<any>({
     data: [],
@@ -135,7 +136,7 @@ const SchemaTable = ({
       <Button type="primary" key="primary" onClick={addRowAction()}>
         <Space>
           <PlusOutlined />
-          <FormattedMessage id="component.schemaTable.new" defaultMessage="New" />
+          <FormattedMessage id="component.schemaTable.new" />
         </Space>
       </Button>
     ) : null;
@@ -152,8 +153,11 @@ const SchemaTable = ({
             size="small"
             onClick={() => {
               const modal = Modal.confirm({
-                title: 'Delete record',
-                content: `Do you want to delete the record with id ${row.id}?`,
+                title: intl.formatMessage({ id: 'component.schemaTable.deleteRowTitle' }),
+                content: intl.formatMessage(
+                  { id: 'component.schemaTable.deleteRowText' },
+                  { row: row.id },
+                ),
                 onOk: () => {
                   modal.update((prevConfig) => ({
                     ...prevConfig,
@@ -168,7 +172,7 @@ const SchemaTable = ({
         </Tooltip>
       );
     },
-    [deleteResource],
+    [deleteResource, intl],
   );
 
   const editRowButton = useCallback(
@@ -220,30 +224,19 @@ const SchemaTable = ({
   );
 
   /**
-   * @description Updates currentUser settings on response
-   */
-  useEffect(() => {
-    if (updateUserResponse) {
-      // store.dispatch({
-      //   type: 'currentUser/updateSettings',
-      //   payload: updateUserResponse.data.data.attributes.settings
-      // });
-    }
-  }, [updateUserResponse]);
-
-  /**
    * @description Updates columeStateMap on user settings
    */
   useEffect(() => {
     if (columnsStateMap) {
-      const _settings = { ...settings.current };
-      _settings[jsonPointer] = columnsStateMap;
-      // updateUser(
-      //   [{ name: 'id', value: currentUser.id, in: 'path' }],
-      //   buildJsonApiPayload('User', currentUser.id, { settings: _settings })
-      // );
+      const newSettings = settings || {};
+      newSettings[jsonPointer.current] = columnsStateMap;
+
+      setInitialState((s: any) => ({
+        ...s,
+        settings,
+      }));
     }
-  }, [columnsStateMap, settings, jsonPointer, updateUser]);
+  }, [columnsStateMap, setInitialState, settings]);
 
   /**
    * @description Handles errors on row delete
@@ -258,7 +251,6 @@ const SchemaTable = ({
   useEffect(() => {
     const queryParams = getQueryParams(api, nestedResourceListLookup);
     const operation = api.getOperation(nestedResourceListLookup);
-
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
     if (responseSchema) {
@@ -377,7 +369,11 @@ const SchemaTable = ({
         />
       )}
       <Drawer
-        title={selectedForEdit ? `Edit ${selectedForEdit}` : `Add`}
+        title={
+          selectedForEdit
+            ? intl.formatMessage({ id: 'component.schemaTable.edit' }, { title: selectedForEdit })
+            : intl.formatMessage({ id: 'component.schemaTable.create' })
+        }
         placement="right"
         visible={rightDrawerVisible}
         onClose={() => {

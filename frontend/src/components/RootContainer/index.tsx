@@ -1,10 +1,10 @@
 import StoreProvider from '@/services/ReduxStore/Store';
-import { olMap } from '@/utils/map';
-import { MapContext } from '@terrestris/react-geo';
+import { buildJsonApiPayload } from '@/utils/jsonapi';
 import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
-import { OpenAPIProvider } from 'react-openapi-client';
-import { request } from 'umi';
+import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
+import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
+import { getLocale, request, useAccess, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
 
 const axiosConfig: AxiosRequestConfig = {
@@ -19,9 +19,45 @@ const axiosConfig: AxiosRequestConfig = {
 const fetchSchema = async () => {
   try {
     return await request('/api/schema/', { method: 'GET' });
-  } catch (error) {
-    console.log('can not load schema');
+  } catch (error) {}
+};
+
+const setDjangoLanguageCookie = () => {
+  let lang;
+  switch (getLocale()) {
+    case 'de-DE':
+      lang = 'de';
+      break;
+    case 'en-US':
+    default:
+      lang = 'en';
+      break;
   }
+  document.cookie = `django_language=${lang};path=/SameSite=None;secure`;
+};
+
+const UserSettingsUpdater: React.FC = (props: any) => {
+  const { initialState, initialState: { currentUser = undefined, settings = undefined } = {} } =
+    useModel('@@initialState');
+  const { isAuthenticated } = useAccess();
+  const [updateUser, { error: updateUserError }] = useOperationMethod('updateUser');
+
+  useEffect(() => {
+    if (updateUserError) {
+      console.log('can not update user settings');
+    }
+  }, [updateUserError]);
+
+  useEffect(() => {
+    if (currentUser && isAuthenticated) {
+      updateUser(
+        [{ name: 'id', value: currentUser.id, in: 'path' }],
+        buildJsonApiPayload('User', currentUser.id, { settings: settings }),
+      );
+    }
+  }, [currentUser, initialState, isAuthenticated, settings, updateUser]);
+
+  return props.children;
 };
 
 
@@ -31,9 +67,12 @@ const fetchSchema = async () => {
  * TODO: check if this can be simplyfied
  */
 const RootContainer: React.FC = (props: any) => {
+  const intl = useIntl();
   const [schema, setSchema] = useState();
 
   useEffect(() => {
+    setDjangoLanguageCookie();
+
     const fetchSchemaAsync = async () => {
       setSchema(await fetchSchema());
     };
@@ -42,19 +81,20 @@ const RootContainer: React.FC = (props: any) => {
 
   if (schema) {
     return (
-      <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-        <StoreProvider>
-          <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
-        </StoreProvider>
-      </OpenAPIProvider>
+      <StoreProvider>
+        <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+          <UserSettingsUpdater>{props.children}</UserSettingsUpdater>
+        </OpenAPIProvider>
+      </StoreProvider>
+    );
+  } else {
+    return (
+      <PageLoading
+        title={intl.formatMessage({ id: 'component.rootContainer.loadingSchema' })}
+        logo={<img alt="openapi logo" src="/openapi_logo.png" />}
+      />
     );
   }
-  return (
-    <PageLoading
-      title="Loading OpenAPI schema from backend..."
-      logo={<img alt="openapi logo" src="/openapi_logo.png" />}
-    />
-  );
 };
 
 export default RootContainer;

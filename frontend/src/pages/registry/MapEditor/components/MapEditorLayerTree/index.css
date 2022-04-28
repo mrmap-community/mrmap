@@ -1,0 +1,12 @@
+.mapeditor-layertree-node {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.mapeditor-layertree-node-title,
+.mapeditor-layertree-node-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}

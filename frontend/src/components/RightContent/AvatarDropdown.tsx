@@ -3,7 +3,7 @@ import { Avatar, Menu, message, Spin } from 'antd';
 import { stringify } from 'querystring';
 import React, { useEffect } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
-import { history, useIntl, useModel } from 'umi';
+import { FormattedMessage, history, useIntl, useModel } from 'umi';
 import HeaderDropdown from '../HeaderDropdown';
 import styles from './index.less';
 
@@ -13,7 +13,9 @@ export type GlobalHeaderRightProps = {
 
 const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   const intl = useIntl();
-  const { initialState, setInitialState } = useModel('@@initialState');
+  const { initialState: { currentUser = undefined } = {}, setInitialState } =
+    useModel('@@initialState');
+
   const [
     deleteLogin,
     { loading: deleteLoginLoading, error: deleteLoginError, response: deleteLoginResponse },
@@ -21,35 +23,31 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
 
   useEffect(() => {
     if (deleteLoginResponse && deleteLoginResponse.status === 200) {
-      setInitialState((s: any) => ({ ...s, currentUser: undefined }));
+      setInitialState((s: any) => ({ ...s, currentUser: undefined, userInfoResponse: undefined }));
       const { query = {}, pathname } = history.location;
       const { redirect } = query;
       // Note: There may be security issues, please note
       if (window.location.pathname !== '/user/login' && !redirect) {
-        setTimeout(() => {
-          history.replace({
+        history.replace(
+          {
             pathname: '/user/login',
             search: stringify({
               redirect: pathname,
             }),
-          });
-        });
+          },
+        );
       }
-      const defaultLoginSuccessMessage = intl.formatMessage({
-        id: 'pages.logout.success',
-        defaultMessage: 'Logout succesful！',
+      const logoutSuccessMessage = intl.formatMessage({
+        id: 'component.rightContent.logoutSuccesful',
       });
-      message.success(defaultLoginSuccessMessage);
+      message.success(logoutSuccessMessage);
     }
   }, [deleteLoginResponse, intl, setInitialState]);
 
   useEffect(() => {
     if (deleteLoginError) {
-      const defaultLoginFailureMessage = intl.formatMessage({
-        id: 'pages.logout.failure',
-        defaultMessage: 'Logout failed, please try again!',
-      });
-      message.error(defaultLoginFailureMessage);
+      const logoutFailedMessage = intl.formatMessage({ id: 'component.rightContent.logoutFailed' });
+      message.error(logoutFailedMessage);
     }
   }, [deleteLoginError, intl]);
 
@@ -65,11 +63,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
     </span>
   );
 
-  if (
-    deleteLoginLoading ||
-    !initialState ||
-    !initialState.currentUser?.data?.attributes?.username
-  ) {
+  if (deleteLoginLoading || !currentUser?.attributes?.username) {
     return loading;
   }
 
@@ -96,7 +90,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
         }}
       >
         <LogoutOutlined />
-        Log out
+        <FormattedMessage id="component.rightContent.logout" />
       </Menu.Item>
     </Menu>
   );
@@ -106,12 +100,10 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
         <Avatar
           size="small"
           className={styles.avatar}
-          src={initialState.currentUser?.data?.attributes?.avatar}
+          src={currentUser?.attributes?.avatar}
           alt="avatar"
         />
-        <span className={`${styles.name} anticon`}>
-          {initialState.currentUser?.data?.attributes?.username}
-        </span>
+        <span className={`${styles.name} anticon`}>{currentUser?.attributes?.username}</span>
       </span>
     </HeaderDropdown>
   );

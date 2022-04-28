@@ -10,7 +10,7 @@ export default function WebSockets(props: any): ReactElement {
   const defaultWsUrl = scheme + '://' + hostname + ':' + port + '/ws/default/';
   const dispatch = useDispatch();
 
-  const lastMessage = useWebSocket(defaultWsUrl, {
+  const { lastJsonMessage } = useWebSocket(defaultWsUrl, {
     shouldReconnect: () => {
       return true;
     },
@@ -18,11 +18,10 @@ export default function WebSockets(props: any): ReactElement {
   });
 
   useEffect(() => {
-    if (lastMessage !== null && lastMessage.lastJsonMessage) {
-      // TODO: check if the schema matches
-      dispatch(lastMessage.lastJsonMessage);
+    if (lastJsonMessage !== null) {
+      dispatch(lastJsonMessage);
     }
-  }, [dispatch, lastMessage]);
+  }, [dispatch, lastJsonMessage]);
 
   return props.children;
 }

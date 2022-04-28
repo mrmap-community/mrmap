@@ -2,7 +2,7 @@ import SchemaTable from '@/components/SchemaTable';
 import { Button } from 'antd';
 import type { ReactElement } from 'react';
 
-export const SearchTable = ({
+const SearchTable = ({
   addDatasetToMapAction = () => undefined,
 }: {
   addDatasetToMapAction?: (dataset: any) => void;
@@ -50,3 +50,5 @@ export const SearchTable = ({
     />
   );
 };
+
+export default SearchTable;

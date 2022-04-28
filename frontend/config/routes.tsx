@@ -40,6 +40,9 @@ const defaultMenus = [
     name: 'welcome',
     icon: 'smile',
     component: './Welcome',
+    wrappers: [
+      '@/wrappers/auth',
+    ],
   },
   {
     path: '/registry',
@@ -50,50 +53,80 @@ const defaultMenus = [
         name: 'wms',
         path: '/registry/wms',
         component: './registry/WmsTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         path: '/registry/wms/:id/security',
         component: './registry/WmsSecuritySettings',
         hideInMenu: true,
         routes: [{ path: 'rules' }, { path: 'rules/:ruleId/edit' }, { path: 'rules/add' }],
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         name: 'wfs',
         path: '/registry/wfs',
         component: './registry/WfsTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         name: 'csw',
         path: '/registry/csw',
         component: './registry/CswTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         name: 'datasets',
         path: '/registry/datasets',
         component: './registry/DatasetTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         name: 'layers',
         path: '/registry/layers',
         component: './registry/LayerTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         name: 'featuretypes',
         path: '/registry/featuretypes',
         component: './registry/FeatureTypeTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         name: 'maps',
         path: '/registry/maps',
         component: './registry/MapTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         path: '/registry/maps/add',
-        component: './registry/MapContextEditor',
+        component: './registry/MapEditor',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
       {
         path: '/registry/maps/:id/edit',
-        component: './registry/MapContextEditor',
+        component: './registry/MapEditor',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
       },
     ],
   },
@@ -106,6 +139,9 @@ const defaultMenus = [
   {
     path: '/',
     redirect: '/welcome',
+    wrappers: [
+      '@/wrappers/auth',
+    ],
   },
   {
     component: './404',

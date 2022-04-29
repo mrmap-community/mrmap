@@ -33,7 +33,7 @@ const setDjangoLanguageCookie = () => {
       lang = 'en';
       break;
   }
-  document.cookie = `django_language=${lang};path=/SameSite=None;secure`;
+  document.cookie = `django_language=${lang};path=/;SameSite=None;secure`;
 };
 
 const UserSettingsUpdater: React.FC = (props: any) => {

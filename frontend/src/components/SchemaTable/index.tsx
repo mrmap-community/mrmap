@@ -333,17 +333,18 @@ const SchemaTable = ({
    * @description Update handler if there is message received by websocket hook
    */
      useEffect(() => {
-      if (tableData?.length > 0){
+      if (tableData?.length > 0 && lastResourceMessage?.payload?.id){
         const existsInCurrentTableView = tableData.findIndex((element: JsonApiPrimaryData) => element.id === lastResourceMessage.payload.id)
         // This is an known element, so we can update it with the received payload
-        // FIXME: delete event does not send payload... so we need to handle this differently
-        if (existsInCurrentTableView !== -1){
+        if (existsInCurrentTableView !== -1 && !lastResourceMessage.type.includes('/delete')){
           const newData = [...tableData];
           newData[existsInCurrentTableView] = transformJsonApiPrimaryDataToRow(lastResourceMessage.payload);
           setTableData(newData);
         } else {
-          // this element does not exists in the current table view... 
+          // this element does not exists in the current table view or was deleted... 
           // for now we simply refresh the table to become the correct data for the current table view
+          // This will result in silly reload beahavoir 
+          // TODO: think about to handle this better...
           proTableActions.current?.reload();
         }
       }

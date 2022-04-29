@@ -336,6 +336,7 @@ const SchemaTable = ({
       if (tableData?.length > 0){
         const existsInCurrentTableView = tableData.findIndex((element: JsonApiPrimaryData) => element.id === lastResourceMessage.payload.id)
         // This is an known element, so we can update it with the received payload
+        // FIXME: delete event does not send payload... so we need to handle this differently
         if (existsInCurrentTableView !== -1){
           const newData = [...tableData];
           newData[existsInCurrentTableView] = transformJsonApiPrimaryDataToRow(lastResourceMessage.payload);

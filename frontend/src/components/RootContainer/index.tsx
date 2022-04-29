@@ -1,4 +1,3 @@
-import StoreProvider from '@/services/ReduxStore/Store';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
 import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
@@ -81,11 +80,9 @@ const RootContainer: React.FC = (props: any) => {
 
   if (schema) {
     return (
-      <StoreProvider>
-        <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-          <UserSettingsUpdater>{props.children}</UserSettingsUpdater>
-        </OpenAPIProvider>
-      </StoreProvider>
+      <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+        <UserSettingsUpdater>{props.children}</UserSettingsUpdater>
+      </OpenAPIProvider>
     );
   } else {
     return (

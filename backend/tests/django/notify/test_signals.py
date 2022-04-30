@@ -76,7 +76,7 @@ class SignalsTestCase(TransactionTestCase):
         response = await communicator.receive_json_from()
         self.assertEqual(response['payload']['type'], "BackgroundProcess")
         self.assertEqual(response['payload']['id'], str(background_process.pk))
-        self.assertEqual(response['type'], "backgroundProcesses/add")
+        self.assertEqual(response['type'], "backgroundProcesses/created")
 
         # if a thread is updated, we shall receive a update event
         await self.create_thread(background_process)
@@ -86,7 +86,7 @@ class SignalsTestCase(TransactionTestCase):
         response = await communicator.receive_json_from()
         self.assertEqual(response['payload']['type'], "BackgroundProcess")
         self.assertEqual(response['payload']['id'], str(background_process.pk))
-        self.assertEqual(response['type'], "backgroundProcesses/update")
+        self.assertEqual(response['type'], "backgroundProcesses/updated")
 
         # Close
         await communicator.disconnect()

@@ -80,12 +80,12 @@ def update_background_process_listeners_on_task_result_save_delete(**kwargs):
     else:
         return
     try:
-        task_result = kwargs['instance']
+        task_result: TaskResult = kwargs['instance']
         if not task_result.processes.exists():
             return
         reducer_action = build_action_payload(
             request=request,
-            instance=task_result.processes.all()[0],
+            instance=task_result.processes.process_info()[0],
             resource_type="BackgroundProcess",
             reducer_name="backgroundProcesses",
             serializer_cls=BackgroundProcessSerializer,

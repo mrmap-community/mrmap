@@ -1,10 +1,8 @@
-import { store } from '@/services/ReduxStore/Store';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
 import type { AxiosRequestConfig } from 'openapi-client-axios';
 import { useEffect, useState } from 'react';
 import { OpenAPIProvider } from 'react-openapi-client/OpenAPIProvider';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
-import { Provider as ReduxProvider } from 'react-redux';
 import { getLocale, request, useAccess, useIntl, useModel } from 'umi';
 import PageLoading from '../PageLoading';
 
@@ -34,7 +32,7 @@ const setDjangoLanguageCookie = () => {
       lang = 'en';
       break;
   }
-  document.cookie = `django_language=${lang};path=/SameSite=None;secure`;
+  document.cookie = `django_language=${lang};path=/;SameSite=None;secure`;
 };
 
 const UserSettingsUpdater: React.FC = (props: any) => {
@@ -61,6 +59,8 @@ const UserSettingsUpdater: React.FC = (props: any) => {
   return props.children;
 };
 
+
+
 /**
  * Workaround to init openapi provider before child containers are rendered
  * TODO: check if this can be simplyfied
@@ -80,11 +80,9 @@ const RootContainer: React.FC = (props: any) => {
 
   if (schema) {
     return (
-      <ReduxProvider store={store}>
-        <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
-          <UserSettingsUpdater>{props.children}</UserSettingsUpdater>
-        </OpenAPIProvider>
-      </ReduxProvider>
+      <OpenAPIProvider definition={schema} axiosConfigDefaults={axiosConfig}>
+        <UserSettingsUpdater>{props.children}</UserSettingsUpdater>
+      </OpenAPIProvider>
     );
   } else {
     return (

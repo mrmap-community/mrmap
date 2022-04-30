@@ -1,3 +1,4 @@
+import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { CheckCircleTwoTone, CloseCircleTwoTone } from '@ant-design/icons';
 import type { ProColumnType } from '@ant-design/pro-table';
 import Text from 'antd/lib/typography/Text';
@@ -186,4 +187,13 @@ export const mapOpenApiSchemaToProTableColumn = (
   }
 
   return column;
+};
+
+export const transformJsonApiPrimaryDataToRow = (data: JsonApiPrimaryData) => {
+  return {
+    key: data.id,
+    id: data.id,
+    ...data.attributes,
+    relationships: { ...data.relationships },
+  };
 };

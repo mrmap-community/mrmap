@@ -1,3 +1,5 @@
+import { useDefaultWebSocket } from '@/services/WebSockets';
+import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { getQueryParams } from '@/utils/jsonapi';
 import { DeleteFilled, EditFilled, PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ColumnsState, ProColumnType, ProTableProps } from '@ant-design/pro-table';
@@ -13,7 +15,7 @@ import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import { FormattedMessage, useIntl, useModel } from 'umi';
 import SchemaForm from '../SchemaForm';
-import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn } from './utils';
+import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn, transformJsonApiPrimaryDataToRow } from './utils';
 
 export interface NestedLookup {
   paramName: string;
@@ -52,6 +54,7 @@ function augmentColumns(
       props[propName],
       queryParams,
     );
+    // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
     const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
     if (columnHint) {
       columns[propName].valueType = 'text';
@@ -86,6 +89,10 @@ const SchemaTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
+  
+  const {lastResourceMessage} = useDefaultWebSocket(resourceTypes);
+  
+  
   const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
   const jsonPointer = useRef('reactClient/tables/' + resourceTypes[0]);
@@ -112,11 +119,7 @@ const SchemaTable = ({
     useOperationMethod(nestedResourceListLookup);
   const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes[0]);
 
-  const [tableDataSource, setTableDataSource] = useState<any>({
-    data: [],
-    success: true,
-    total: 0,
-  });
+  const [tableData, setTableData] = useState<JsonApiPrimaryData[]>([]);
   const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
 
   const proTableActions = useRef<ActionType>();
@@ -223,6 +226,8 @@ const SchemaTable = ({
     [additionalActions, api, deleteRowButton, editRowButton, resourceTypes],
   );
 
+
+
   /**
    * @description Updates columeStateMap on user settings
    */
@@ -256,6 +261,7 @@ const SchemaTable = ({
     if (responseSchema) {
       const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
       if (!_augmentedColumns.some((column) => column.key === 'actions')) {
+        // TODO: title shall be translated
         _augmentedColumns.push({
           key: 'operation',
           title: 'Aktionen',
@@ -276,24 +282,13 @@ const SchemaTable = ({
   useEffect(() => {
     if (listResponse) {
       const records = listResponse.data.data === undefined ? [] : listResponse.data.data;
-      const data: any = [];
+      const newData: JsonApiPrimaryData[] = [];
       records.forEach((record: any) => {
-        const row = {
-          key: record.id,
-          id: record.id,
-          ...record.attributes,
-          relationships: { ...record.relationships },
-        };
-        data.push(row);
+        newData.push(transformJsonApiPrimaryDataToRow(record));
       });
 
-      const dataSource = {
-        data: data,
-        success: listError,
-        total: listResponse.data.meta.pagination.count,
-      };
-      setTableDataSource(dataSource);
-      setPaginationConfig({ total: dataSource.total });
+      setTableData(newData);
+      setPaginationConfig({ total: newData.length });
     } else if (!listError && !listLoading) {
       //fetchData();
     }
@@ -329,18 +324,38 @@ const SchemaTable = ({
         queryParams.push({ name: prop, value: params[prop], in: 'query' });
       }
 
-      listResource(queryParams);
-      return tableDataSource;
+      return listResource(queryParams);
     },
-    [listResource, nestedLookups, tableDataSource],
+    [listResource, nestedLookups],
   );
+
+  /**
+   * @description Update handler if there is message received by websocket hook
+   */
+     useEffect(() => {
+      if (tableData?.length > 0 && lastResourceMessage?.payload?.id){
+        const existsInCurrentTableView = tableData.findIndex((element: JsonApiPrimaryData) => element.id === lastResourceMessage.payload.id)
+        // This is an known element, so we can update it with the received payload
+        if (existsInCurrentTableView !== -1 && !lastResourceMessage.type.includes('/delete')){
+          const newData = [...tableData];
+          newData[existsInCurrentTableView] = transformJsonApiPrimaryDataToRow(lastResourceMessage.payload);
+          setTableData(newData);
+        } else {
+          // this element does not exists in the current table view or was deleted... 
+          // for now we simply refresh the table to become the correct data for the current table view
+          // This will result in silly reload beahavoir 
+          // TODO: think about to handle this better...
+          proTableActions.current?.reload();
+        }
+      }
+    }, [lastResourceMessage]);
 
   return (
     <>
       {augmentedColumns.length > 0 && (
         <ProTable
           request={fetchData}
-          dataSource={tableDataSource.data}
+          dataSource={tableData}
           loading={listLoading}
           columns={augmentedColumns}
           scroll={{ x: true }}

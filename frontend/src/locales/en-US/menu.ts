@@ -8,6 +8,7 @@ export default {
   'menu.registry.layers': 'Map layers (WMS)',
   'menu.registry.featuretypes': 'Feature types (WFS)',
   'menu.registry.maps': 'Maps',
+  'menu.jobs': 'Processes',
   'menu.more-blocks': 'More Blocks',
   'menu.home': 'Home',
   'menu.admin': 'Admin',

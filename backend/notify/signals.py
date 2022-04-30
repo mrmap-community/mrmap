@@ -1,51 +1,27 @@
-import json
 from logging import Logger
-from typing import OrderedDict
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.conf import settings
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django_celery_results.models import TaskResult
-from rest_framework_json_api.renderers import JSONRenderer
 from simple_history.models import HistoricalRecords
 
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
+from notify.utils import build_action_payload, send_msg
 
 logger: Logger = settings.ROOT_LOGGER
 
 
-def build_action_payload(request, instance):
-    background_process = BackgroundProcess.objects.process_info().get(pk=instance.pk)
-
-    action = json.loads('{}')
-
-    if request and (not hasattr(request, "query_params") or not request.query_params):
-        request.query_params = OrderedDict()
-    task_serializer = BackgroundProcessSerializer(
-        instance=background_process, **{"context": {"request": request}})
-    renderer = JSONRenderer()
-
-    class DummyView(object):
-        resource_name = "BackgroundProcess"
-
-    rendered_data = renderer.render(
-        data=task_serializer.data,
-        renderer_context={"view": DummyView(), "request": request}
-    )
-
-    action.update(
-        {"payload": json.loads(rendered_data.decode("utf-8"))["data"]}
-    )
-
-    return action
+def log_exception(exception):
+    # errors while building messages and sending messages shall be ignored
+    logger.warning("can't send websocket message")
+    if settings.DEBUG:
+        logger.exception(exception, stack_info=True, exc_info=True)
 
 
 @receiver(post_delete, sender=BackgroundProcess, dispatch_uid='update_BackgroundProcess_listeners_on_post_delete')
-@receiver(post_save, sender=BackgroundProcess, dispatch_uid='update_BackgroundProcess_listeners_on_post_save')
-def update_background_process_listeners_on_background_process_save_delete(**kwargs):
+def update_background_process_listeners_on_background_process_delete(**kwargs):
     """
     Send the information to the channel group when a BackgroundProcess is created/modified
     """
@@ -56,31 +32,41 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
     try:
         reducer_action = build_action_payload(
             request=request,
-            instance=kwargs['instance']
+            instance=BackgroundProcess.objects.process_info().get(
+                pk=kwargs['instance'].pk),
+            resource_type="BackgroundProcess",
+            reducer_name="backgroundProcesses",
+            serializer_cls=BackgroundProcessSerializer,
+            action="delete"
         )
-
-        if 'created' in kwargs:
-            if kwargs['created']:
-                # post_save signal --> new BackgroundProcess object
-                reducer_action.update({"type": "backgroundProcesses/add"})
-            else:
-                reducer_action.update({"type": "backgroundProcesses/update"})
-        else:
-            # post_delete signal
-            reducer_action.update({"type": "backgroundProcesses/remove"})
-
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "default",
-            {
-                "type": "send.msg",
-                        "json": reducer_action,
-            },
-        )
+        send_msg(msg=reducer_action)
     except Exception as e:
-        # errors while building messages and sending messages shall be ignored
-        logger.warning("can't send websocket message")
-        logger.exception(e, stack_info=True, exc_info=True)
+        log_exception(e)
+
+
+@receiver(post_save, sender=BackgroundProcess, dispatch_uid='update_BackgroundProcess_listeners_on_post_save')
+def update_background_process_listeners_on_background_process_save_delete(**kwargs):
+    """
+    Send the information to the channel group when a BackgroundProcess is created/modified
+    """
+    if hasattr(HistoricalRecords.context, "request"):
+        request = HistoricalRecords.context.request
+    else:
+        return
+    try:
+        background_process = BackgroundProcess.objects.process_info().get(
+            pk=kwargs['instance'].pk)
+        reducer_action = build_action_payload(
+            request=request,
+            instance=background_process,
+            resource_type="BackgroundProcess",
+            reducer_name="backgroundProcesses",
+            serializer_cls=BackgroundProcessSerializer,
+            action="created" if kwargs.get("created", False) else "updated"
+        )
+        send_msg(msg=reducer_action)
+    except Exception as e:
+        log_exception(e)
 
 
 @receiver(post_delete, sender=TaskResult, dispatch_uid='update_BackgroundProcess_listeners_on_post_delete_TaskResult')
@@ -94,25 +80,17 @@ def update_background_process_listeners_on_task_result_save_delete(**kwargs):
     else:
         return
     try:
-        task_result = kwargs['instance']
+        task_result: TaskResult = kwargs['instance']
         if not task_result.processes.exists():
             return
-        background_process = task_result.processes.all()[0]
         reducer_action = build_action_payload(
             request=request,
-            instance=background_process
+            instance=task_result.processes.process_info()[0],
+            resource_type="BackgroundProcess",
+            reducer_name="backgroundProcesses",
+            serializer_cls=BackgroundProcessSerializer,
+            action="updated"
         )
-        reducer_action.update({"type": "backgroundProcesses/update"})
-
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "default",
-            {
-                "type": "send.msg",
-                        "json": reducer_action,
-            },
-        )
+        send_msg(msg=reducer_action)
     except Exception as e:
-        # errors while building messages and sending messages shall be ignored
-        logger.warning("can't send websocket message")
-        logger.exception(e, stack_info=True, exc_info=True)
+        log_exception(e)

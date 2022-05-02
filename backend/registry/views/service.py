@@ -159,15 +159,17 @@ class WebMapServiceViewSet(
                 ancestors.sort(key=lambda element: element.lft, reverse=True)
                 layer.ancestors = ancestors
 
-    def get_serializer(self, data, *args, **kwargs):
-        if isinstance(data, Iterable):
-            for item in data:
-                self.add_ancestors_to_layers(item)
-        else:
-            self.add_ancestors_to_layers(data)
-        return super().get_serializer(data, *args, **kwargs)
+    def get_serializer(self, data=None, *args, **kwargs):
+        if self.request.method != 'POST':
+            if isinstance(data, Iterable):
+                for item in data:
+                    self.add_ancestors_to_layers(item)
+            else:
+                self.add_ancestors_to_layers(data)
+        return super().get_serializer(data=data, *args, **kwargs) if data else super().get_serializer(*args, **kwargs)
 
-
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
 class LayerViewSetMixin(
     HistoryInformationViewSetMixin,

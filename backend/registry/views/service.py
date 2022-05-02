@@ -1,3 +1,6 @@
+from multiprocessing.dummy import Array
+from typing import Iterable
+
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
@@ -70,6 +73,7 @@ class WebMapServiceViewSet(
                     "styles",
                     "reference_systems",
                 ),
+                
             ),
         ],
         "keywords": ["keywords"],
@@ -145,6 +149,24 @@ class WebMapServiceViewSet(
                 )
             )
         return qs
+    
+    def add_ancestors_to_layers(self, wms):
+        include = self.request.GET.get("include", None)
+        if include and "layers" in include:
+            all_layers = wms.layers.all()
+            for layer in all_layers:
+                ancestors = list(filter(lambda element: (layer.rght > element.rght & layer.lft < element.lft ), all_layers))
+                ancestors.sort(key=lambda element: element.lft, reverse=True)
+                layer.ancestors = ancestors
+
+    def get_serializer(self, data, *args, **kwargs):
+        if isinstance(data, Iterable):
+            for item in data:
+                self.add_ancestors_to_layers(item)
+        else:
+            self.add_ancestors_to_layers(data)
+        return super().get_serializer(data, *args, **kwargs)
+
 
 
 class LayerViewSetMixin(

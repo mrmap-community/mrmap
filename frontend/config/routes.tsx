@@ -67,6 +67,15 @@ const defaultMenus = [
         ],
       },
       {
+        path: '/registry/wms/:id/details',
+        component: './registry/WmsDetail',
+        hideInMenu: true,
+        //routes: [{ path: 'rules' }, { path: 'rules/:ruleId/edit' }, { path: 'rules/add' }],
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      },
+      {
         name: 'wfs',
         path: '/registry/wfs',
         component: './registry/WfsTable',

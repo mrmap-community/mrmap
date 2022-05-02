@@ -73,7 +73,7 @@ class WebMapServiceViewSet(
                     "styles",
                     "reference_systems",
                 ),
-                
+
             ),
         ],
         "keywords": ["keywords"],
@@ -149,27 +149,28 @@ class WebMapServiceViewSet(
                 )
             )
         return qs
-    
+
     def add_ancestors_to_layers(self, wms):
         include = self.request.GET.get("include", None)
         if include and "layers" in include:
             all_layers = wms.layers.all()
             for layer in all_layers:
-                ancestors = list(filter(lambda element: (layer.rght > element.rght & layer.lft < element.lft ), all_layers))
+                ancestors = list(filter(lambda element: (
+                    layer.rght > element.rght & layer.lft < element.lft), all_layers))
                 ancestors.sort(key=lambda element: element.lft, reverse=True)
                 layer.ancestors = ancestors
 
-    def get_serializer(self, data=None, *args, **kwargs):
-        if self.request.method != 'POST':
-            if isinstance(data, Iterable):
-                for item in data:
-                    self.add_ancestors_to_layers(item)
-            else:
-                self.add_ancestors_to_layers(data)
-        return super().get_serializer(data=data, *args, **kwargs) if data else super().get_serializer(*args, **kwargs)
+    def get_serializer(self, *args, **kwargs):
+        if self.request:
+            if self.request.method != 'POST':
+                if isinstance(args[0], Iterable):
+                    for item in args[0]:
+                        self.add_ancestors_to_layers(item)
+                else:
+                    self.add_ancestors_to_layers(args[0])
 
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        return super().get_serializer(*args, **kwargs)
+
 
 class LayerViewSetMixin(
     HistoryInformationViewSetMixin,

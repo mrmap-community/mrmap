@@ -1,4 +1,5 @@
 import SchemaForm from '@/components/SchemaForm';
+import SchemaTable from '@/components/SchemaTable';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
 import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined } from '@ant-design/icons';
@@ -79,8 +80,11 @@ const WmsDetails = (): ReactElement => {
     const [ treeData, setTreeData] = useState<Node[]>();
 
     const [selectedForEdit, setSelectedForEdit] = useState<JsonApiPrimaryData>();
-
     const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
+
+    const [selectedForDataset, setSelectedForDataset] = useState<JsonApiPrimaryData>();
+    const [bottomDrawerVisible, setBottomDrawerVisible] = useState<boolean>(false);
+
 
 
     const isLoading = getWMSLoading || updateLayerLoading;
@@ -134,6 +138,11 @@ const WmsDetails = (): ReactElement => {
                     size='small'
                     icon={<LinkOutlined />}
                     loading={isLoading}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedForDataset(node.raw);
+                        setBottomDrawerVisible(true);
+                    }}
                 />
             </Badge>
         );
@@ -215,6 +224,10 @@ const WmsDetails = (): ReactElement => {
         }
     };
 
+    useEffect(() => {
+        console.log('selectedForDataset', selectedForDataset);
+    }, [selectedForDataset]);
+
     return (
         <PageContainer>
             
@@ -224,9 +237,7 @@ const WmsDetails = (): ReactElement => {
                 title={`edit ${selectedForEdit?.attributes.stringRepresentation}`}
                 placement="right"
                 visible={rightDrawerVisible}
-                onClose={() => {
-                    setRightDrawerVisible(false);
-                }}
+                onClose={() => { setRightDrawerVisible(false);}}
             >
                 <SchemaForm
                     resourceType={selectedForEdit?.type || 'Layer'}
@@ -237,7 +248,18 @@ const WmsDetails = (): ReactElement => {
                     }}
                 />
             </Drawer>
-            
+            <Drawer
+                title={`linked dataset metadata records for ${selectedForDataset?.type}: ${selectedForDataset?.attributes.stringRepresentation}`}
+                placement="bottom"
+                visible={bottomDrawerVisible}
+                onClose={() => {setBottomDrawerVisible(false);}}
+                
+            >
+                <SchemaTable
+                    resourceTypes={{baseResourceType: "DatasetMetadata", nestedResource: selectedForDataset ? {type: selectedForDataset?.type, id: selectedForDataset?.id}: undefined }}
+                />
+
+            </Drawer>
         </PageContainer>
     );
 };

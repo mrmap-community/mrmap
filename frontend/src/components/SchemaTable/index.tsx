@@ -8,7 +8,7 @@ import '@ant-design/pro-table/dist/table.css';
 import type { TablePaginationConfig } from 'antd';
 import { Button, Drawer, Modal, notification, Space, Tooltip } from 'antd';
 import type { SortOrder } from 'antd/lib/table/interface';
-import type { ParamsArray } from 'openapi-client-axios';
+import type { ParameterObject } from 'openapi-client-axios';
 import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -22,10 +22,18 @@ export interface NestedLookup {
   paramValue: string | number;
 }
 
+export interface ResourceTypes {
+  baseResourceType: string;
+  nestedResource?: {
+    type: string;
+    id: string;
+  }
+
+}
+
 export interface RepoTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
   /** Repository that defines the schema and offers CRUD operations */
-  resourceTypes: string[];
-  nestedLookups?: ParamsArray;
+  resourceTypes: ResourceTypes;
   /** Optional column definitions, automatically augmented and merged with the repository schema */
   columns?: RepoTableColumnType[];
   additionalActions?: (text: any, record: any) => void;
@@ -81,7 +89,6 @@ function augmentColumns(
 
 const SchemaTable = ({
   resourceTypes,
-  nestedLookups = [],
   columns = undefined,
   additionalActions = undefined,
   defaultActions = ['edit', 'delete'],
@@ -89,14 +96,17 @@ const SchemaTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
-  
-  const {lastResourceMessage} = useDefaultWebSocket(resourceTypes);
-  
-  
+
+  const resourceTypesArray = [resourceTypes.baseResourceType];
+  if (resourceTypes.nestedResource){
+    resourceTypesArray.push(resourceTypes.nestedResource.type)
+  }
+
+  const {lastResourceMessage} = useDefaultWebSocket(resourceTypesArray);
   const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
-  const jsonPointer = useRef('reactClient/tables/' + resourceTypes[0]);
-  const nestedResourceListLookup: string = 'list' + resourceTypes.join('By');
+  const jsonPointer = useRef('reactClient/tables/' + resourceTypes.baseResourceType);
+  const listOperationId: string = 'list' + resourceTypesArray.join('By');
 
   const { initialState: { settings = undefined } = {}, setInitialState } =
     useModel('@@initialState');
@@ -116,8 +126,9 @@ const SchemaTable = ({
   }, []);
   const { api } = useContext(OpenAPIContext);
   const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
-    useOperationMethod(nestedResourceListLookup);
-  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes[0]);
+    useOperationMethod(listOperationId);
+  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes.baseResourceType);
+  
 
   const [tableData, setTableData] = useState<JsonApiPrimaryData[]>([]);
   const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
@@ -135,7 +146,7 @@ const SchemaTable = ({
   }, [onAddRecord]);
 
   const addRowButton = useCallback((): ReactNode => {
-    return api.getOperation('add' + resourceTypes[0]) ? (
+    return api.getOperation('add' + resourceTypes.baseResourceType) ? (
       <Button type="primary" key="primary" onClick={addRowAction()}>
         <Space>
           <PlusOutlined />
@@ -143,7 +154,7 @@ const SchemaTable = ({
         </Space>
       </Button>
     ) : null;
-  }, [addRowAction, api, resourceTypes]);
+  }, [addRowAction, api, resourceTypes.baseResourceType]);
 
   const deleteRowButton = useCallback(
     (row: any): ReactNode => {
@@ -226,8 +237,6 @@ const SchemaTable = ({
     [additionalActions, api, deleteRowButton, editRowButton, resourceTypes],
   );
 
-
-
   /**
    * @description Updates columeStateMap on user settings
    */
@@ -254,8 +263,8 @@ const SchemaTable = ({
 
   // augment / build columns from schema (and add delete action)
   useEffect(() => {
-    const queryParams = getQueryParams(api, nestedResourceListLookup);
-    const operation = api.getOperation(nestedResourceListLookup);
+    const queryParams = getQueryParams(api, listOperationId);
+    const operation = api.getOperation(listOperationId);
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
     if (responseSchema) {
@@ -274,7 +283,7 @@ const SchemaTable = ({
       }
       setAugmentedColumns(_augmentedColumns);
     }
-  }, [additionalActions, columns, api, nestedResourceListLookup, defaultActionButtons]);
+  }, [additionalActions, columns, api, listOperationId, defaultActionButtons]);
 
   /**
    * @description Handles list response and fills the table with data
@@ -299,13 +308,22 @@ const SchemaTable = ({
    */
   const fetchData = useCallback(
     (params: any, sorter?: Record<string, SortOrder>) => {
-      const queryParams = [...nestedLookups];
+      const queryParams = [];
       queryParams.push(
         ...[
           { name: 'page[number]', value: params.current, in: 'query' },
           { name: 'page[size]', value: params.pageSize, in: 'query' },
         ],
       );
+
+      if (resourceTypes.nestedResource){
+        const operation = api.getOperation(listOperationId);
+        const firstParam = operation?.parameters?.[0] as ParameterObject;
+        if (firstParam){
+          queryParams.push({ name: firstParam.name, value: resourceTypes.nestedResource.id, in: 'path' })
+
+        }
+      }
 
       let ordering = '';
       for (const prop in sorter) {
@@ -326,7 +344,7 @@ const SchemaTable = ({
 
       return listResource(queryParams);
     },
-    [listResource, nestedLookups],
+    [api, listResource, listOperationId, resourceTypes.nestedResource],
   );
 
   /**

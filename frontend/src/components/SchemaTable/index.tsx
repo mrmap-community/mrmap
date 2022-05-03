@@ -219,14 +219,14 @@ const SchemaTable = ({
           {
             // todo: check if user has permission also
             _defaultActions.current.includes('edit') &&
-            api.getOperation('update' + resourceTypes[0])
+            api.getOperation('update' + resourceTypes.baseResourceType)
               ? editRowButton(record)
               : null
           }
           {
             // todo: check if user has permission also
             _defaultActions.current.includes('delete') &&
-            api.getOperation('delete' + resourceTypes[0])
+            api.getOperation('delete' + resourceTypes.baseResourceType)
               ? deleteRowButton(record)
               : null
           }
@@ -414,7 +414,7 @@ const SchemaTable = ({
         }}
       >
         <SchemaForm
-          resourceType={resourceTypes[0]}
+          resourceType={resourceTypes.baseResourceType}
           resourceId={selectedForEdit}
           onSuccess={() => {
             closeRightDrawer();

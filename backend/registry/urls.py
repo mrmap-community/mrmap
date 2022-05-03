@@ -31,7 +31,7 @@ router = ExtendedSimpleRouter()
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
-          .register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='layer-datasetmetadata', parents_query_lookups=['self_pointing_layers']),  
+          .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='layer-datasetmetadata', parents_query_lookups=['self_pointing_layers']),  
 
     # web feature service
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')

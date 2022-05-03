@@ -7,7 +7,7 @@ import { PageContainer } from '@ant-design/pro-layout';
 import { Badge, Button, Collapse, Drawer, Select, Space, Switch, Tooltip } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
 import type { ReactElement, ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { useParams } from 'react-router';
 
@@ -18,8 +18,10 @@ interface Node {
     raw: JsonApiPrimaryData;
     title: string;
     children?: Node[] | undefined;
+    rawDescendants?: JsonApiPrimaryData[] | undefined;
     isLeaf: boolean
 };
+
 
 const getDescendants = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData) => {
     return nodes?.filter(
@@ -33,19 +35,25 @@ const getChildren = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryDat
     );
 };
 
+const isDescendantOf = (descendants: JsonApiPrimaryData[], key: any): boolean => {
+    return descendants.some((descendant: JsonApiPrimaryData) => {
+        return descendant.id === key;
+    })
+};
+
 const mapTreeData = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData): Node => {
-    const childNodes = getChildren(nodes, currentNode);
-    if (childNodes.length === 0){
+    const children = getChildren(nodes, currentNode);
+    if (children.length === 0){
         return {
             key: currentNode.id, 
             title: currentNode.attributes.stringRepresentation, 
             raw: currentNode,
-            isLeaf: true
+            isLeaf: true,
         }
     } else {
-        const children: Node[] = [];
-        childNodes.forEach((child: JsonApiPrimaryData) => {
-            children.push(
+        const childNodes: Node[] = [];
+        children.forEach((child: JsonApiPrimaryData) => {
+            childNodes.push(
                 mapTreeData(nodes, child)
             );
         });
@@ -54,7 +62,8 @@ const mapTreeData = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryDat
             title: currentNode.attributes.stringRepresentation, 
             raw: currentNode,
             isLeaf: false,
-            children: children
+            children: childNodes,
+            rawDescendants: getDescendants(nodes, currentNode)
         }
     }
 };
@@ -82,7 +91,7 @@ const WmsDetails = (): ReactElement => {
     const [ treeData, setTreeData ] = useState<Node[]>();
 
     const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
-    const [ selectedSearchKey, setSelectedSearchKey ] = useState();
+    const [ selectedSearchKey, setSelectedSearchKey ] = useState<string>();
 
     const [ selectedForEdit, setSelectedForEdit ] = useState<JsonApiPrimaryData>();
     const [ rightDrawerVisible, setRightDrawerVisible ] = useState<boolean>(false);
@@ -138,7 +147,7 @@ const WmsDetails = (): ReactElement => {
     }, [getWMSResponse]);
 
 
-    const genExtra = (node: Node): ReactNode => {
+    const genExtra = useCallback((node: Node): ReactNode => {
         const isActive = node?.raw?.attributes?.isActive;
         const datasetMetadataCount = node?.raw?.relationships?.datasetMetadata?.meta?.count;
         const datasetMetadataButton = (
@@ -209,13 +218,19 @@ const WmsDetails = (): ReactElement => {
                 </Tooltip>
             </Space>
         );
-    };
+    }, [isLoading, updateLayer]);
     
-    const getCollapseableTree = (node: Node) => {
+    const getCollapseableTree = useCallback((node: Node) => {
         if (node.children){
+
+            const showDescendants = selectedSearchKey && node.rawDescendants ? isDescendantOf([node.raw].concat(node.rawDescendants), selectedSearchKey): false;
+            
             return (
-                <Collapse >
-                    <Panel header={node.title} key={node.key} extra={genExtra(node)} >
+                <Collapse
+                    defaultActiveKey={showDescendants ? node.key: undefined}
+                    key={node.key}
+                >
+                    <Panel header={node.title} key={node.key} extra={genExtra(node)}>
                     {
                         node.children.map(
                             (child: Node) => {
@@ -228,16 +243,12 @@ const WmsDetails = (): ReactElement => {
             );
         } else {
             return (
-                <Collapse >
-                    <Panel header={node.title} key={node.key} extra={genExtra(node)} showArrow={!node.isLeaf} />
+                <Collapse key={node.key}>
+                    <Panel header={<Badge status='processing' count='0'>{node.title}</Badge>} key={node.key} extra={genExtra(node)} showArrow={!node.isLeaf} />
                 </Collapse>
             )
         }
-    };
-
-    useEffect(() => {
-        console.log('selectedForDataset', selectedForDataset);
-    }, [selectedForDataset]);
+    }, [genExtra, selectedSearchKey]);
 
     return (
         <PageContainer>
@@ -253,8 +264,7 @@ const WmsDetails = (): ReactElement => {
                     }
                 }
                 onSelect={
-                    (key)=>{
-                        console.log(key);
+                    (key: string)=>{
                         setSelectedSearchKey(key);
                     }
                 } 

@@ -238,6 +238,7 @@ const WmsDetails = (): ReactElement => {
                 placement="right"
                 visible={rightDrawerVisible}
                 onClose={() => { setRightDrawerVisible(false);}}
+                destroyOnClose={true}
             >
                 <SchemaForm
                     resourceType={selectedForEdit?.type || 'Layer'}
@@ -253,6 +254,7 @@ const WmsDetails = (): ReactElement => {
                 placement="bottom"
                 visible={bottomDrawerVisible}
                 onClose={() => {setBottomDrawerVisible(false);}}
+                destroyOnClose={true}
                 
             >
                 <SchemaTable

@@ -1,10 +1,11 @@
 import SchemaForm from '@/components/SchemaForm';
 import SchemaTable from '@/components/SchemaTable';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
-import { buildJsonApiPayload } from '@/utils/jsonapi';
+import { buildJsonApiPayload, getIncludesByType } from '@/utils/jsonapi';
 import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Badge, Button, Collapse, Drawer, Space, Switch, Tooltip } from 'antd';
+import { Badge, Button, Collapse, Drawer, Select, Space, Switch, Tooltip } from 'antd';
+import type { DefaultOptionType } from 'antd/lib/select';
 import type { ReactElement, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
@@ -58,9 +59,10 @@ const mapTreeData = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryDat
     }
 };
 
+
 const transformTreeData = (wms: JsonApiDocument): Node[] => {
-    const treeOrderedLayers = wms.included
-        .filter((item: JsonApiPrimaryData) => item.type === 'Layer')
+    const treeOrderedLayers = 
+        getIncludesByType(wms, 'Layer')
         .sort((a: JsonApiPrimaryData, b: JsonApiPrimaryData) => a.attributes.lft - b.attributes.lft);
     const rootNode = treeOrderedLayers[0];
     const children = getDescendants(treeOrderedLayers, rootNode);
@@ -77,15 +79,16 @@ const WmsDetails = (): ReactElement => {
         updateLayer,
         { loading: updateLayerLoading, response: updateLayerResponse}
     ] = useOperationMethod('updateLayer');
-    const [ treeData, setTreeData] = useState<Node[]>();
+    const [ treeData, setTreeData ] = useState<Node[]>();
 
-    const [selectedForEdit, setSelectedForEdit] = useState<JsonApiPrimaryData>();
-    const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
+    const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
+    const [ selectedSearchKey, setSelectedSearchKey ] = useState();
 
-    const [selectedForDataset, setSelectedForDataset] = useState<JsonApiPrimaryData>();
-    const [bottomDrawerVisible, setBottomDrawerVisible] = useState<boolean>(false);
+    const [ selectedForEdit, setSelectedForEdit ] = useState<JsonApiPrimaryData>();
+    const [ rightDrawerVisible, setRightDrawerVisible ] = useState<boolean>(false);
 
-
+    const [ selectedForDataset, setSelectedForDataset ] = useState<JsonApiPrimaryData>();
+    const [ bottomDrawerVisible, setBottomDrawerVisible ] = useState<boolean>(false);
 
     const isLoading = getWMSLoading || updateLayerLoading;
 
@@ -120,9 +123,17 @@ const WmsDetails = (): ReactElement => {
      * @description Transform jsonapi response to needed tree data
      */
     useEffect(() => {
-        if (getWMSResponse) {
+        if (getWMSResponse?.data) {
             const newTreeData = transformTreeData(getWMSResponse.data)
             setTreeData(newTreeData);
+            
+            const newSearchOptions = getIncludesByType(getWMSResponse.data, 'Layer').map((node: JsonApiPrimaryData) => {
+                return {
+                    value: node.id,
+                    label: node.attributes.stringRepresentation
+                }
+            })
+            setSearchOptions(newSearchOptions);
         }
     }, [getWMSResponse]);
 
@@ -204,7 +215,7 @@ const WmsDetails = (): ReactElement => {
         if (node.children){
             return (
                 <Collapse >
-                    <Panel header={node.title} key={node.key} extra={genExtra(node)}>
+                    <Panel header={node.title} key={node.key} extra={genExtra(node)} >
                     {
                         node.children.map(
                             (child: Node) => {
@@ -231,6 +242,25 @@ const WmsDetails = (): ReactElement => {
     return (
         <PageContainer>
             
+            <Select
+                showSearch
+                placeholder="Select a person"
+                optionFilterProp="label"
+                filterOption={
+                    (input, option) => {
+                        // TODO: label is a ReactNode...
+                        return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+                    }
+                }
+                onSelect={
+                    (key)=>{
+                        console.log(key);
+                        setSelectedSearchKey(key);
+                    }
+                } 
+                options={searchOptions}
+            />
+
             {treeData ? getCollapseableTree(treeData[0]): undefined}
 
             <Drawer

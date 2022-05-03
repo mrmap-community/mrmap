@@ -15,7 +15,7 @@ const WmsTable = (): ReactElement => {
         <>
         <Tooltip
           title='show details'
-        />
+        >
           <Link
            to={`/registry/wms/${record.id}/details`}>
              <Button
@@ -24,6 +24,7 @@ const WmsTable = (): ReactElement => {
              
              />
           </Link>
+        </Tooltip>
         <Tooltip
           title={
             allowedOperations > 0

@@ -1,8 +1,9 @@
+import SchemaForm from '@/components/SchemaForm';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
-import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, EditFilled } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Collapse, Switch, Tooltip, Tree } from 'antd';
+import { Button, Collapse, Drawer, Space, Switch, Tooltip } from 'antd';
 import type { ReactElement, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
@@ -10,16 +11,13 @@ import { useParams } from 'react-router';
 
 const { Panel } = Collapse;
 
-const { DirectoryTree } = Tree;
-
-
 interface Node {
     key: any;
     raw: JsonApiPrimaryData;
     title: string;
     children?: Node[] | undefined;
     isLeaf: boolean
-}
+};
 
 const getDescendants = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData) => {
     return nodes?.filter(
@@ -59,7 +57,6 @@ const mapTreeData = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryDat
     }
 };
 
-
 const transformTreeData = (wms: JsonApiDocument): Node[] => {
     const treeOrderedLayers = wms.included
         .filter((item: JsonApiPrimaryData) => item.type === 'Layer')
@@ -68,10 +65,6 @@ const transformTreeData = (wms: JsonApiDocument): Node[] => {
     const children = getDescendants(treeOrderedLayers, rootNode);
     return [mapTreeData(children, rootNode)];
 };
-
-
-
-
 
 const WmsDetails = (): ReactElement => {
     const { id } = useParams<{ id: string }>();
@@ -84,6 +77,13 @@ const WmsDetails = (): ReactElement => {
         { loading: updateLayerLoading, response: updateLayerResponse}
     ] = useOperationMethod('updateLayer');
     const [ treeData, setTreeData] = useState<Node[]>();
+
+    const [selectedForEdit, setSelectedForEdit] = useState<JsonApiPrimaryData>();
+
+    const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
+
+
+    const isLoading = getWMSLoading || updateLayerLoading;
 
     const getWebMapServiceParams = [
         {
@@ -126,7 +126,7 @@ const WmsDetails = (): ReactElement => {
     const genExtra = (node: Node): ReactNode => {
         const isActive = node?.raw?.attributes?.isActive;
         return (
-            <>
+            <Space size="small">
                 <Tooltip
                 title={
                     isActive
@@ -152,12 +152,27 @@ const WmsDetails = (): ReactElement => {
                                 )
                             }
                         }
-                        loading={getWMSLoading || updateLayerLoading}
-                        
-                        
+                        loading={isLoading}
                     />
                 </Tooltip>
-            </>
+                <Tooltip
+                title='edit metadata'
+                >
+                    <Button
+                        size='small'
+                        icon={<EditFilled />}
+                        style={{ borderColor: 'gold', color: 'gold' }}
+                        onClick={
+                            (event) => {
+                                event.stopPropagation();
+                                setRightDrawerVisible(true);
+                                setSelectedForEdit(node.raw);
+                            }
+                        }
+                        loading={isLoading}
+                    />
+                </Tooltip>
+            </Space>
         );
     };
     
@@ -179,7 +194,7 @@ const WmsDetails = (): ReactElement => {
         } else {
             return (
                 <Collapse >
-                    <Panel header={node.title} key={node.key} extra={genExtra(node)}/>
+                    <Panel header={node.title} key={node.key} extra={genExtra(node)} showArrow={!node.isLeaf} />
                 </Collapse>
             )
         }
@@ -187,18 +202,30 @@ const WmsDetails = (): ReactElement => {
 
     return (
         <PageContainer>
-            {/* <DirectoryTree
-                multiple
-                defaultExpandAll
-                // onSelect={onSelect}
-                // onExpand={onExpand}
-                treeData={treeData}
-                /> */}
             
             {treeData ? getCollapseableTree(treeData[0]): undefined}
+
+            <Drawer
+                title={`edit ${selectedForEdit?.attributes.stringRepresentation}`}
+                placement="right"
+                visible={rightDrawerVisible}
+                onClose={() => {
+                    setRightDrawerVisible(false);
+                }}
+            >
+                <SchemaForm
+                    resourceType={selectedForEdit?.type || 'Layer'}
+                    resourceId={selectedForEdit?.id}
+                    onSuccess={() => {
+                        setRightDrawerVisible(false);
+                        getWebMapService(getWebMapServiceParams);
+                    }}
+                />
+            </Drawer>
             
         </PageContainer>
     );
 };
 
 export default WmsDetails;
+

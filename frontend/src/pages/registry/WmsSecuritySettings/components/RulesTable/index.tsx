@@ -5,8 +5,7 @@ import { history } from 'umi';
 const RulesTable = ({ wmsId }: { wmsId: string }): ReactElement => {
   return (
     <SchemaTable
-      resourceTypes={['AllowedWebMapServiceOperation', 'WebMapService']}
-      nestedLookups={[{ name: 'parent_lookup_secured_service', value: wmsId, in: 'path' }]}
+      resourceTypes={{baseResourceType: 'AllowedWebMapServiceOperation', nestedResource: {type: 'WebMapService', id: wmsId}}}
       options={{
         setting: false,
         density: false,

@@ -5,7 +5,9 @@ import type { ReactElement } from 'react';
 const DatasetTable = (): ReactElement => {
   return (
     <PageContainer>
-      <SchemaTable resourceTypes={['DatasetMetadata']} />
+      <SchemaTable 
+        resourceTypes={{baseResourceType: 'DatasetMetadata'}} 
+      />
     </PageContainer>
   );
 };

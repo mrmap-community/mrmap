@@ -50,7 +50,10 @@ const WmsTable = (): ReactElement => {
   );
   return (
     <PageContainer>
-      <SchemaTable resourceTypes={['WebMapService']} additionalActions={additionalActions} />
+      <SchemaTable 
+        resourceTypes={{baseResourceType: 'WebMapService'}} 
+        additionalActions={additionalActions} 
+      />
     </PageContainer>
   );
 };

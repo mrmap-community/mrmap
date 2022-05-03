@@ -5,7 +5,9 @@ import type { ReactElement } from 'react';
 const FeatureTypeTable = (): ReactElement => {
   return (
     <PageContainer>
-      <SchemaTable resourceTypes={['FeatureType']} />
+      <SchemaTable 
+        resourceTypes={{baseResourceType: 'FeatureType'}} 
+      />
     </PageContainer>
   );
 };

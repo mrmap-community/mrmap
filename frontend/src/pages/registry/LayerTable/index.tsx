@@ -5,7 +5,9 @@ import type { ReactElement } from 'react';
 const LayerTable = (): ReactElement => {
   return (
     <PageContainer>
-      <SchemaTable resourceTypes={['Layer']} />
+      <SchemaTable 
+        resourceTypes={{baseResourceType: 'Layer'}} 
+      />
     </PageContainer>
   );
 };

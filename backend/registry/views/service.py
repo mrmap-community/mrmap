@@ -72,6 +72,7 @@ class WebMapServiceViewSet(
                     "keywords",
                     "styles",
                     "reference_systems",
+                    "dataset_metadata"
                 ),
 
             ),

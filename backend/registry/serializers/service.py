@@ -1,3 +1,5 @@
+from importlib.resources import Resource
+
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _
@@ -63,6 +65,15 @@ class LayerSerializer(
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-keywords-list",
         related_link_url_kwarg="parent_lookup_layer",
+    )
+
+    dataset_metadata = ResourceRelatedField(
+        label=_("dataset metadata"),
+        help_text=_("related dataset metadata objects"),
+        queryset=DatasetMetadata.objects,
+        many=True,
+        related_link_view_name="registry:layer-datasetmetadata-list",
+        related_link_url_kwarg="parent_lookup_self_pointing_layers",
     )
 
     # FIXME: prefetch ancestors for the following fields, cause otherwise this results in extra db transactions...

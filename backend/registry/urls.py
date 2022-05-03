@@ -20,14 +20,18 @@ router = ExtendedSimpleRouter()
           .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='wms-metadata-contact', parents_query_lookups=['metadata_contact_webmapservice_metadata']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wms-keywords', parents_query_lookups=['ogcservice_metadata']),
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
+          .register(r'allowed-wms-operations', security_views.NestedAllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
+    
+    # layer
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
           .register(r'styles', metadata_views.NestedStyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
     router.register(r'layers', service_views.LayerViewSet, basename='featuretype')
           .register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet, basename='layer-referencesystems', parents_query_lookups=['layer']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
-    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
-          .register(r'allowed-wms-operations', security_views.NestedAllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
+    router.register(r'layers', service_views.LayerViewSet, basename='layer')
+          .register(r'dataset-metadata', metadata_views.DatasetMetadataViewSet, basename='layer-datasetmetadata', parents_query_lookups=['self_pointing_layers']),  
 
     # web feature service
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')

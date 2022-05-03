@@ -1,9 +1,9 @@
 import SchemaForm from '@/components/SchemaForm';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
-import { CheckOutlined, CloseOutlined, EditFilled } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Button, Collapse, Drawer, Space, Switch, Tooltip } from 'antd';
+import { Badge, Button, Collapse, Drawer, Space, Switch, Tooltip } from 'antd';
 import type { ReactElement, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
@@ -99,7 +99,7 @@ const WmsDetails = (): ReactElement => {
         {
             in: 'query',
             name: 'fields[Layer]',
-            value: 'string_representation,lft,rght,level,is_active'
+            value: 'string_representation,lft,rght,level,is_active,dataset_metadata'
         }
     ];
     
@@ -125,8 +125,23 @@ const WmsDetails = (): ReactElement => {
 
     const genExtra = (node: Node): ReactNode => {
         const isActive = node?.raw?.attributes?.isActive;
+        const datasetMetadataCount = node?.raw?.relationships?.datasetMetadata?.meta?.count;
+        const datasetMetadataButton = (
+            <Badge 
+                count={datasetMetadataCount}
+                size={'small'}>
+                <Button
+                    size='small'
+                    icon={<LinkOutlined />}
+                    loading={isLoading}
+                />
+            </Badge>
+        );
         return (
             <Space size="small">
+                {datasetMetadataCount > 0 ? datasetMetadataButton: <></>}
+                
+
                 <Tooltip
                 title={
                     isActive

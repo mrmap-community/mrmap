@@ -89,6 +89,11 @@ const WmsDetails = (): ReactElement => {
         updateLayer,
         { loading: updateLayerLoading, response: updateLayerResponse}
     ] = useOperationMethod('updateLayer');
+    const [
+        updateWms,
+        { loading: updateWmsLoading, response: updateWmsResponse}
+    ] = useOperationMethod('updateWebMapService');
+
     const [ treeData, setTreeData ] = useState<Node[]>();
 
     const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
@@ -100,7 +105,7 @@ const WmsDetails = (): ReactElement => {
     const [ selectedForDataset, setSelectedForDataset ] = useState<JsonApiPrimaryData>();
     const [ bottomDrawerVisible, setBottomDrawerVisible ] = useState<boolean>(false);
 
-    const isLoading = getWMSLoading || updateLayerLoading;
+    const isLoading = getWMSLoading || updateLayerLoading || updateWmsLoading;
 
     const getWebMapServiceParams = [
         {
@@ -127,7 +132,7 @@ const WmsDetails = (): ReactElement => {
         if (!getWMSLoading){
             getWebMapService(getWebMapServiceParams);
         }
-    }, [updateLayerResponse]);
+    }, [updateLayerResponse, updateWmsResponse]);
 
     /**
      * @description Transform jsonapi response to needed tree data
@@ -185,7 +190,11 @@ const WmsDetails = (): ReactElement => {
                             (checked, event) => {
                                 // If you don't want click extra trigger collapse, you can prevent this:
                                 event.stopPropagation();
-                                updateLayer(
+                                let func = updateLayer;
+                                if (resource.type === 'WebMapService'){
+                                    func = updateWms;
+                                }
+                                func(
                                     [{
                                         in: 'path',
                                         name: 'id',

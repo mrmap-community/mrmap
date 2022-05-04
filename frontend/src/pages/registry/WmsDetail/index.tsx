@@ -263,26 +263,27 @@ const WmsDetails = (): ReactElement => {
             <Card 
                 title={wms?.attributes?.stringRepresentation}
                 extra={
-                    <>
-                    <Select
-                        showSearch
-                        placeholder="Search Layer"
-                        optionFilterProp="label"
-                        filterOption={
-                            (input, option) => {
-                                // TODO: label is a ReactNode...
-                                return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+                    <Space size={'large'}>
+                        <Select
+                            showSearch
+                            placeholder="Search Layer"
+                            optionFilterProp="label"
+                            filterOption={
+                                (input, option) => {
+                                    // TODO: label is a ReactNode...
+                                    return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+                                }
                             }
-                        }
-                        onSelect={
-                            (key: string)=>{
-                                setSelectedSearchKey(key);
-                            }
-                        } 
-                        options={searchOptions}
-                    />
-                    {wms ? genExtra(wms): undefined}
-                    </>
+                            onSelect={
+                                (key: string)=>{
+                                    setSelectedSearchKey(key);
+                                }
+                            } 
+                            options={searchOptions}
+                        />
+
+                        {wms ? genExtra(wms): undefined}
+                    </Space>
                 }
                 loading={!getWMSResponse}
 

@@ -2,15 +2,16 @@ import SchemaForm from '@/components/SchemaForm';
 import SchemaTable from '@/components/SchemaTable';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload, getIncludesByType } from '@/utils/jsonapi';
-import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined, SearchOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Badge, Button, Card, Collapse, Drawer, Select, Space, Switch, Tooltip } from 'antd';
+import { Badge, Button, Card, Collapse, Drawer, Select, Space, Switch, Tooltip, Typography } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { useParams } from 'react-router';
 
+const { Text } = Typography;
 const { Panel } = Collapse;
 
 interface Node {
@@ -95,6 +96,7 @@ const WmsDetails = (): ReactElement => {
     ] = useOperationMethod('updateWebMapService');
 
     const [ treeData, setTreeData ] = useState<Node[]>();
+    const [ collapseableTree, setCollapseableTree ] = useState<ReactElement>();
 
     const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
     const [ selectedSearchKey, setSelectedSearchKey ] = useState<string>();
@@ -229,16 +231,18 @@ const WmsDetails = (): ReactElement => {
     }, [isLoading, updateLayer]);
     
     const getCollapseableTree = useCallback((node: Node) => {
+        const title = selectedSearchKey === node.key ? <Text strong={true}><SearchOutlined /> {node.title}</Text> : node.title;
+
         if (node.children){
 
             const showDescendants = selectedSearchKey && node.rawDescendants ? isDescendantOf([node.raw].concat(node.rawDescendants), selectedSearchKey): false;
-            
             return (
                 <Collapse
                     defaultActiveKey={showDescendants ? node.key: undefined}
                     key={node.key}
+                    
                 >
-                    <Panel header={node.title} key={node.key} extra={genExtra(node.raw)}>
+                    <Panel header={title} key={node.key} extra={genExtra(node.raw)}>
                     {
                         node.children.map(
                             (child: Node) => {
@@ -252,11 +256,17 @@ const WmsDetails = (): ReactElement => {
         } else {
             return (
                 <Collapse key={node.key}>
-                    <Panel header={<Badge status='processing' count='0'>{node.title}</Badge>} key={node.key} extra={genExtra(node.raw)} showArrow={!node.isLeaf} />
+                    <Panel header={title} key={node.key} extra={genExtra(node.raw)} showArrow={!node.isLeaf} />
                 </Collapse>
             )
         }
     }, [genExtra, selectedSearchKey]);
+
+    useEffect(() => {
+        if (treeData){
+            setCollapseableTree(getCollapseableTree(treeData[0]));
+        }
+    }, [getCollapseableTree, treeData, selectedSearchKey]);
 
     return (
         <PageContainer>
@@ -265,7 +275,10 @@ const WmsDetails = (): ReactElement => {
                 extra={
                     <Space size={'large'}>
                         <Select
-                            showSearch
+                            allowClear={true}
+                            showSearch={true}
+                            style={{ width: '100%'}}
+                            dropdownMatchSelectWidth={false}
                             placeholder="Search Layer"
                             optionFilterProp="label"
                             filterOption={
@@ -276,19 +289,24 @@ const WmsDetails = (): ReactElement => {
                             }
                             onSelect={
                                 (key: string)=>{
+                                    setCollapseableTree(undefined);
                                     setSelectedSearchKey(key);
                                 }
                             } 
+                            onDeselect={()=>{
+                                setCollapseableTree(undefined);
+                                setSelectedSearchKey('');
+                            }}
                             options={searchOptions}
                         />
 
                         {wms ? genExtra(wms): undefined}
                     </Space>
                 }
-                loading={!getWMSResponse}
+                loading={!getWMSResponse || !collapseableTree}
 
             >
-                {treeData ? getCollapseableTree(treeData[0]): undefined}
+                {collapseableTree}
             </Card>
             
             <Drawer

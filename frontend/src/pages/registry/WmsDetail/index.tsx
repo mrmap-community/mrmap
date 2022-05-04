@@ -4,7 +4,7 @@ import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload, getIncludesByType } from '@/utils/jsonapi';
 import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Badge, Button, Collapse, Drawer, Select, Space, Switch, Tooltip } from 'antd';
+import { Badge, Button, Card, Collapse, Drawer, Select, Space, Switch, Tooltip } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -82,8 +82,9 @@ const WmsDetails = (): ReactElement => {
     const { id } = useParams<{ id: string }>();
     const [
         getWebMapService, 
-        { loading: getWMSLoading, response: getWMSResponse }
+        { loading: getWMSLoading, response: getWMSResponse, error: getWMSError }
     ] = useOperationMethod('getWebMapService');
+    const wms: JsonApiPrimaryData = getWMSResponse?.data?.data;
     const [
         updateLayer,
         { loading: updateLayerLoading, response: updateLayerResponse}
@@ -147,9 +148,9 @@ const WmsDetails = (): ReactElement => {
     }, [getWMSResponse]);
 
 
-    const genExtra = useCallback((node: Node): ReactNode => {
-        const isActive = node?.raw?.attributes?.isActive;
-        const datasetMetadataCount = node?.raw?.relationships?.datasetMetadata?.meta?.count;
+    const genExtra = useCallback((resource: JsonApiPrimaryData): ReactNode => {
+        const isActive = resource?.attributes?.isActive;
+        const datasetMetadataCount = resource?.relationships?.datasetMetadata?.meta?.count;
         const datasetMetadataButton = (
             <Badge 
                 count={datasetMetadataCount}
@@ -160,7 +161,7 @@ const WmsDetails = (): ReactElement => {
                     loading={isLoading}
                     onClick={(event) => {
                         event.stopPropagation();
-                        setSelectedForDataset(node.raw);
+                        setSelectedForDataset(resource);
                         setBottomDrawerVisible(true);
                     }}
                 />
@@ -169,8 +170,6 @@ const WmsDetails = (): ReactElement => {
         return (
             <Space size="small">
                 {datasetMetadataCount > 0 ? datasetMetadataButton: <></>}
-                
-
                 <Tooltip
                 title={
                     isActive
@@ -190,9 +189,9 @@ const WmsDetails = (): ReactElement => {
                                     [{
                                         in: 'path',
                                         name: 'id',
-                                        value: String(node.key),
+                                        value: String(resource.id),
                                     }], 
-                                    buildJsonApiPayload(node.raw.type, node.key, {isActive: checked })
+                                    buildJsonApiPayload(resource.type, resource.id, {isActive: checked })
                                 )
                             }
                         }
@@ -210,7 +209,7 @@ const WmsDetails = (): ReactElement => {
                             (event) => {
                                 event.stopPropagation();
                                 setRightDrawerVisible(true);
-                                setSelectedForEdit(node.raw);
+                                setSelectedForEdit(resource);
                             }
                         }
                         loading={isLoading}
@@ -230,7 +229,7 @@ const WmsDetails = (): ReactElement => {
                     defaultActiveKey={showDescendants ? node.key: undefined}
                     key={node.key}
                 >
-                    <Panel header={node.title} key={node.key} extra={genExtra(node)}>
+                    <Panel header={node.title} key={node.key} extra={genExtra(node.raw)}>
                     {
                         node.children.map(
                             (child: Node) => {
@@ -244,7 +243,7 @@ const WmsDetails = (): ReactElement => {
         } else {
             return (
                 <Collapse key={node.key}>
-                    <Panel header={<Badge status='processing' count='0'>{node.title}</Badge>} key={node.key} extra={genExtra(node)} showArrow={!node.isLeaf} />
+                    <Panel header={<Badge status='processing' count='0'>{node.title}</Badge>} key={node.key} extra={genExtra(node.raw)} showArrow={!node.isLeaf} />
                 </Collapse>
             )
         }
@@ -252,27 +251,36 @@ const WmsDetails = (): ReactElement => {
 
     return (
         <PageContainer>
-            
-            <Select
-                showSearch
-                placeholder="Select a person"
-                optionFilterProp="label"
-                filterOption={
-                    (input, option) => {
-                        // TODO: label is a ReactNode...
-                        return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
-                    }
+            <Card 
+                title={wms?.attributes?.stringRepresentation}
+                extra={
+                    <>
+                    <Select
+                        showSearch
+                        placeholder="Search Layer"
+                        optionFilterProp="label"
+                        filterOption={
+                            (input, option) => {
+                                // TODO: label is a ReactNode...
+                                return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+                            }
+                        }
+                        onSelect={
+                            (key: string)=>{
+                                setSelectedSearchKey(key);
+                            }
+                        } 
+                        options={searchOptions}
+                    />
+                    {wms ? genExtra(wms): undefined}
+                    </>
                 }
-                onSelect={
-                    (key: string)=>{
-                        setSelectedSearchKey(key);
-                    }
-                } 
-                options={searchOptions}
-            />
+                loading={!getWMSResponse}
 
-            {treeData ? getCollapseableTree(treeData[0]): undefined}
-
+            >
+                {treeData ? getCollapseableTree(treeData[0]): undefined}
+            </Card>
+            
             <Drawer
                 title={`edit ${selectedForEdit?.attributes.stringRepresentation}`}
                 placement="right"

@@ -142,6 +142,9 @@ const WmsDetails = (): ReactElement => {
      * @description Generate extra ui components like edit button for given json:api resource
      */
          const genExtra = useCallback((resource: JsonApiPrimaryData): ReactNode => {
+            if (!resource){
+                return <></>
+            }
             const isActive = resource?.attributes?.isActive;
             const datasetMetadataCount = resource?.relationships?.datasetMetadata?.meta?.count;
             const datasetMetadataButton = (
@@ -161,7 +164,7 @@ const WmsDetails = (): ReactElement => {
                 </Badge>
             );
             return (
-                <Space size="small">
+                <Space size="small" key={`space-${resource.id}`}>
                     {datasetMetadataCount > 0 ? datasetMetadataButton: <></>}
                     <Tooltip
                     title={
@@ -323,7 +326,7 @@ const WmsDetails = (): ReactElement => {
                                 options={searchOptions}
                                 key={'layer-search-select'}
                             />,
-                            <>{wms ? genExtra(wms): undefined}</>
+                            <Space key={'service-extras'}>{genExtra(wms)}</Space>
                     ]
                 }
 

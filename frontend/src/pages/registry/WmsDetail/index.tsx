@@ -11,7 +11,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { useParams } from 'react-router';
-import { history } from 'umi';
+import { history, useIntl } from 'umi';
 
 const { Text } = Typography;
 const { Panel } = Collapse;
@@ -88,6 +88,7 @@ const WmsDetails = (): ReactElement => {
     /**
      * page hooks
      */
+    const intl = useIntl();
     const { id } = useParams<{ id: string }>();
     const [ treeData, setTreeData ] = useState<Node[]>();
     const [ collapseableTree, setCollapseableTree ] = useState<ReactElement>();
@@ -299,14 +300,21 @@ const WmsDetails = (): ReactElement => {
         <PageContainer
             header={
                 {
-                    title: `Details of ${wms?.attributes?.stringRepresentation}`,
+                    title: intl.formatMessage(
+                        { id: 'pages.wmsDetail.pageTitle' },
+                        { label: wms?.attributes?.stringRepresentation },
+                      ),
                     extra: [
                             <Select
                                 allowClear={true}
                                 showSearch={true}
                                 style={{ width: '100%'}}
                                 dropdownMatchSelectWidth={false}
-                                placeholder="Search Layer"
+                                placeholder={
+                                    intl.formatMessage(
+                                        { id: 'pages.wmsDetail.searchLayer' }
+                                    )
+                                }
                                 optionFilterProp="label"
                                 filterOption={
                                     (input, option) => {
@@ -336,7 +344,12 @@ const WmsDetails = (): ReactElement => {
         > 
             {collapseableTree}   
             <Drawer
-                title={`edit ${selectedForEdit?.attributes.stringRepresentation}`}
+                title={
+                    intl.formatMessage(
+                        { id: 'pages.wmsDetail.editRessource' },
+                        { type: selectedForEdit?.type, label: selectedForEdit?.attributes.stringRepresentation },
+                    )
+                }
                 placement="right"
                 visible={rightDrawerVisible}
                 onClose={() => { setRightDrawerVisible(false);}}
@@ -352,7 +365,12 @@ const WmsDetails = (): ReactElement => {
                 />
             </Drawer>
             <Drawer
-                title={`linked dataset metadata records for ${selectedForDataset?.type}: ${selectedForDataset?.attributes.stringRepresentation}`}
+                title={
+                    intl.formatMessage(
+                        { id: 'pages.wmsDetail.linkedDatasetMetadata' },
+                        { type: selectedForDataset?.type, label: selectedForDataset?.attributes.stringRepresentation },
+                    )
+                }
                 placement="bottom"
                 visible={bottomDrawerVisible}
                 onClose={() => {setBottomDrawerVisible(false);}}

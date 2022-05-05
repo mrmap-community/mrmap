@@ -14,12 +14,11 @@ const WmsTable = (): ReactElement => {
       return (
         <>
         <Tooltip
-          title='show details'
+          title={intl.formatMessage({ id: 'pages.wmsTable.showDetails' })}
         >
           <Link
            to={`/registry/wms/${record.id}/details`}>
              <Button
-              //type={'primary'}
               size='small'
               style={{ borderColor: 'blue', color: 'blue' }}
               icon={<InfoCircleOutlined />}

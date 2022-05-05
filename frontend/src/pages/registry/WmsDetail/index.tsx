@@ -6,7 +6,7 @@ import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined, SearchOutlined 
 import { PageContainer } from '@ant-design/pro-layout';
 import { Badge, Button, Collapse, Drawer, Select, Space, Switch, Tooltip, Typography } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
-import type { AxiosError } from 'openapi-client-axios';
+import type { AxiosError, ParamsArray } from 'openapi-client-axios';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
@@ -23,8 +23,11 @@ interface Node {
     children?: Node[] | undefined;
     rawDescendants?: JsonApiPrimaryData[] | undefined;
     isLeaf: boolean
-};
+}
 
+interface NodeOptionType extends DefaultOptionType {
+    label: string;
+}
 
 const getDescendants = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData) => {
     return nodes?.filter(
@@ -82,15 +85,26 @@ const transformTreeData = (wms: JsonApiDocument): Node[] => {
 };
 
 const WmsDetails = (): ReactElement => {
+    /**
+     * page hooks
+     */
     const { id } = useParams<{ id: string }>();
+    const [ treeData, setTreeData ] = useState<Node[]>();
+    const [ collapseableTree, setCollapseableTree ] = useState<ReactElement>();
+    const [ searchOptions, setSearchOptions ] = useState<NodeOptionType[]>([]);
+    const [ selectedSearchKey, setSelectedSearchKey ] = useState<string>();
+    const [ selectedForEdit, setSelectedForEdit ] = useState<JsonApiPrimaryData>();
+    const [ rightDrawerVisible, setRightDrawerVisible ] = useState<boolean>(false);
+    const [ selectedForDataset, setSelectedForDataset ] = useState<JsonApiPrimaryData>();
+    const [ bottomDrawerVisible, setBottomDrawerVisible ] = useState<boolean>(false);
+
+    /**
+     * Api hooks
+     */
     const [
         getWebMapService, 
-        { loading: getWMSLoading, response: getWMSResponse, data, error: getWMSError }
-    ] = useOperationMethod('getWebMapService');
-    const getWMSAxiosError = getWMSError as AxiosError;
-
-    
-    const wms: JsonApiPrimaryData = getWMSResponse?.data?.data;
+        { loading: getWMSLoading, response: getWMSResponse, error: getWMSError }
+    ] = useOperationMethod('getWebMapService');    
     const [
         updateLayer,
         { loading: updateLayerLoading, response: updateLayerResponse}
@@ -100,21 +114,13 @@ const WmsDetails = (): ReactElement => {
         { loading: updateWmsLoading, response: updateWmsResponse}
     ] = useOperationMethod('updateWebMapService');
 
-    const [ treeData, setTreeData ] = useState<Node[]>();
-    const [ collapseableTree, setCollapseableTree ] = useState<ReactElement>();
-
-    const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
-    const [ selectedSearchKey, setSelectedSearchKey ] = useState<string>();
-
-    const [ selectedForEdit, setSelectedForEdit ] = useState<JsonApiPrimaryData>();
-    const [ rightDrawerVisible, setRightDrawerVisible ] = useState<boolean>(false);
-
-    const [ selectedForDataset, setSelectedForDataset ] = useState<JsonApiPrimaryData>();
-    const [ bottomDrawerVisible, setBottomDrawerVisible ] = useState<boolean>(false);
-
-    const isLoading = getWMSLoading || updateLayerLoading || updateWmsLoading;
-
-    const getWebMapServiceParams = [
+    /**
+     * derived constants
+     */
+    const getWMSAxiosError = getWMSError as AxiosError;
+    const wms: JsonApiPrimaryData = getWMSResponse?.data?.data;
+    const isLoading: boolean = getWMSLoading || updateLayerLoading || updateWmsLoading;
+    const getWebMapServiceParams: ParamsArray = [
         {
             in: 'path',
             name: 'id',
@@ -131,9 +137,124 @@ const WmsDetails = (): ReactElement => {
             value: 'string_representation,lft,rght,level,is_active,dataset_metadata'
         }
     ];
+
+        /**
+     * @description Generate extra ui components like edit button for given json:api resource
+     */
+         const genExtra = useCallback((resource: JsonApiPrimaryData): ReactNode => {
+            const isActive = resource?.attributes?.isActive;
+            const datasetMetadataCount = resource?.relationships?.datasetMetadata?.meta?.count;
+            const datasetMetadataButton = (
+                <Badge 
+                    count={datasetMetadataCount}
+                    size={'small'}>
+                    <Button
+                        size='small'
+                        icon={<LinkOutlined />}
+                        loading={isLoading}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedForDataset(resource);
+                            setBottomDrawerVisible(true);
+                        }}
+                    />
+                </Badge>
+            );
+            return (
+                <Space size="small">
+                    {datasetMetadataCount > 0 ? datasetMetadataButton: <></>}
+                    <Tooltip
+                    title={
+                        isActive
+                        ? 'deactivate'
+                        : 'activate'
+                    }
+                    >
+                        <Switch
+                            checkedChildren={<CheckOutlined />}
+                            unCheckedChildren={<CloseOutlined />}
+                            defaultChecked={isActive}
+                            onClick={
+                                (checked, event) => {
+                                    // If you don't want click extra trigger collapse, you can prevent this:
+                                    event.stopPropagation();
+                                    let func = updateLayer;
+                                    if (resource.type === 'WebMapService'){
+                                        func = updateWms;
+                                    }
+                                    func(
+                                        [{
+                                            in: 'path',
+                                            name: 'id',
+                                            value: String(resource.id),
+                                        }], 
+                                        buildJsonApiPayload(resource.type, resource.id, {isActive: checked })
+                                    )
+                                }
+                            }
+                            loading={isLoading}
+                            key={`activate-switch-${resource.id}`}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                    title='edit metadata'
+                    >
+                        <Button
+                            size='small'
+                            icon={<EditFilled />}
+                            style={{ borderColor: 'gold', color: 'gold' }}
+                            onClick={
+                                (event) => {
+                                    event.stopPropagation();
+                                    setRightDrawerVisible(true);
+                                    setSelectedForEdit(resource);
+                                }
+                            }
+                            loading={isLoading}
+                            key={`edit-btn-${resource.id}`}
+                        />
+                    </Tooltip>
+                </Space>
+            );
+        }, [isLoading, updateLayer, updateWms]);
+        
+        /**
+         * @description Generate nested Collapse components from given node
+         */
+        const getCollapseableTree = useCallback((node: Node) => {
+            const title = selectedSearchKey === node.key ? <Text strong={true}><SearchOutlined /> {node.title}</Text> : node.title;
+    
+            if (node.children){
+    
+                const showDescendants = selectedSearchKey && node.rawDescendants ? isDescendantOf([node.raw].concat(node.rawDescendants), selectedSearchKey): false;
+                return (
+                    <Collapse
+                        defaultActiveKey={showDescendants ? node.key: undefined}
+                        key={node.key}
+                        
+                    >
+                        <Panel header={title} key={node.key} extra={genExtra(node.raw)}>
+                        {
+                            node.children.map(
+                                (child: Node) => {
+                                    return (getCollapseableTree(child))
+                                }
+                            )
+                        }
+                        </Panel>
+                    </Collapse>
+                );
+            } else {
+                return (
+                    <Collapse key={node.key}>
+                        <Panel header={title} key={node.key} extra={genExtra(node.raw)} showArrow={!node.isLeaf} />
+                    </Collapse>
+                )
+            }
+        }, [genExtra, selectedSearchKey]);
     
     /**
-     * @description Initial hook to receive the service
+     * @description hook to receive the service on initial or any update layer or wms object
      */
     useEffect(() => {
         if (!getWMSLoading){
@@ -142,17 +263,16 @@ const WmsDetails = (): ReactElement => {
     }, [updateLayerResponse, updateWmsResponse]);
 
     /**
-     * @description Transform jsonapi response to needed tree data
+     * @description Transform jsonapi response to needed tree data and provide search options
      */
     useEffect(() => {
         if (getWMSAxiosError?.response?.status === 404){
             history.push('/404');
         }
         if (getWMSResponse?.data) {
-            const newTreeData = transformTreeData(getWMSResponse.data)
-            setTreeData(newTreeData);
+            setTreeData(transformTreeData(getWMSResponse.data));
             
-            const newSearchOptions = getIncludesByType(getWMSResponse.data, 'Layer').map((node: JsonApiPrimaryData) => {
+            const newSearchOptions: NodeOptionType[] = getIncludesByType(getWMSResponse.data, 'Layer').map((node: JsonApiPrimaryData) => {
                 return {
                     value: node.id,
                     label: node.attributes.stringRepresentation
@@ -162,116 +282,9 @@ const WmsDetails = (): ReactElement => {
         }
     }, [getWMSResponse, getWMSAxiosError]);
 
-
-    const genExtra = useCallback((resource: JsonApiPrimaryData): ReactNode => {
-        const isActive = resource?.attributes?.isActive;
-        const datasetMetadataCount = resource?.relationships?.datasetMetadata?.meta?.count;
-        const datasetMetadataButton = (
-            <Badge 
-                count={datasetMetadataCount}
-                size={'small'}>
-                <Button
-                    size='small'
-                    icon={<LinkOutlined />}
-                    loading={isLoading}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedForDataset(resource);
-                        setBottomDrawerVisible(true);
-                    }}
-                />
-            </Badge>
-        );
-        return (
-            <Space size="small">
-                {datasetMetadataCount > 0 ? datasetMetadataButton: <></>}
-                <Tooltip
-                title={
-                    isActive
-                    ? 'deactivate'
-                    : 'activate'
-                }
-                >
-                    <Switch
-                        checkedChildren={<CheckOutlined />}
-                        unCheckedChildren={<CloseOutlined />}
-                        defaultChecked={isActive}
-                        onClick={
-                            (checked, event) => {
-                                // If you don't want click extra trigger collapse, you can prevent this:
-                                event.stopPropagation();
-                                let func = updateLayer;
-                                if (resource.type === 'WebMapService'){
-                                    func = updateWms;
-                                }
-                                func(
-                                    [{
-                                        in: 'path',
-                                        name: 'id',
-                                        value: String(resource.id),
-                                    }], 
-                                    buildJsonApiPayload(resource.type, resource.id, {isActive: checked })
-                                )
-                            }
-                        }
-                        loading={isLoading}
-                        key={`activate-switch-${resource.id}`}
-                    />
-                </Tooltip>
-                <Tooltip
-                title='edit metadata'
-                >
-                    <Button
-                        size='small'
-                        icon={<EditFilled />}
-                        style={{ borderColor: 'gold', color: 'gold' }}
-                        onClick={
-                            (event) => {
-                                event.stopPropagation();
-                                setRightDrawerVisible(true);
-                                setSelectedForEdit(resource);
-                            }
-                        }
-                        loading={isLoading}
-                        key={`edit-btn-${resource.id}`}
-                    />
-                </Tooltip>
-            </Space>
-        );
-    }, [isLoading, updateLayer]);
-    
-    const getCollapseableTree = useCallback((node: Node) => {
-        const title = selectedSearchKey === node.key ? <Text strong={true}><SearchOutlined /> {node.title}</Text> : node.title;
-
-        if (node.children){
-
-            const showDescendants = selectedSearchKey && node.rawDescendants ? isDescendantOf([node.raw].concat(node.rawDescendants), selectedSearchKey): false;
-            return (
-                <Collapse
-                    defaultActiveKey={showDescendants ? node.key: undefined}
-                    key={node.key}
-                    
-                >
-                    <Panel header={title} key={node.key} extra={genExtra(node.raw)}>
-                    {
-                        node.children.map(
-                            (child: Node) => {
-                                return (getCollapseableTree(child))
-                            }
-                        )
-                    }
-                    </Panel>
-                </Collapse>
-            );
-        } else {
-            return (
-                <Collapse key={node.key}>
-                    <Panel header={title} key={node.key} extra={genExtra(node.raw)} showArrow={!node.isLeaf} />
-                </Collapse>
-            )
-        }
-    }, [genExtra, selectedSearchKey]);
-
+    /**
+     * @description Call getCollapseableTree on treeData or selectedSearchKey changed to rerender Collapse tree
+     */
     useEffect(() => {
         if (treeData){
             setCollapseableTree(getCollapseableTree(treeData[0]));
@@ -293,7 +306,6 @@ const WmsDetails = (): ReactElement => {
                                 optionFilterProp="label"
                                 filterOption={
                                     (input, option) => {
-                                        // TODO: label is a ReactNode...
                                         return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
                                     }
                                 }
@@ -317,10 +329,8 @@ const WmsDetails = (): ReactElement => {
             }
             loading={!getWMSResponse || !collapseableTree}
             
-        >
-          
-            {collapseableTree}
-            
+        > 
+            {collapseableTree}   
             <Drawer
                 title={`edit ${selectedForEdit?.attributes.stringRepresentation}`}
                 placement="right"

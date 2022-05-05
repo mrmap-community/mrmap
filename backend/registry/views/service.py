@@ -1,4 +1,3 @@
-from multiprocessing.dummy import Array
 from typing import Iterable
 
 from django.db.models.query import Prefetch

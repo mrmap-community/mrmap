@@ -551,10 +551,9 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     def get_value_from_ancestor(self, attr_name: str) -> tuple:
         """Return a tuple of a boolean, if this layers has prefetched ancestors and as second value of the tuple the first founded value or None"""
         if hasattr(self, 'ancestors'):
-            return True, next((getattr(ancestor, attr_name) for ancestor in self.ancestors if getattr(ancestor, attr_name) != None), None)
+            return True, next((getattr(ancestor, attr_name) for ancestor in self.ancestors if getattr(ancestor, attr_name) is not None), None)
         else:
             return False, None
-
 
     @cached_property
     def get_scale_min(self) -> float:
@@ -623,7 +622,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             return self.bbox_lat_lon
         else:
             has_prefetched_ancestors, inherited_bbox = self.get_value_from_ancestor('bbox_lat_lon')
-            return inherited_bbox if  has_prefetched_ancestors else (
+            return inherited_bbox if has_prefetched_ancestors else (
                 self.get_ancestors()
                 .exclude(bbox_lat_lon=None)
                 .values_list("bbox_lat_lon", flat=True)
@@ -650,7 +649,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             return self.reference_systems.all()
         from registry.models import \
             ReferenceSystem  # to avoid circular import errors
-    
+
         return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct(
             "code", "prefix"
         )

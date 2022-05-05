@@ -1,5 +1,3 @@
-from importlib.resources import Resource
-
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _

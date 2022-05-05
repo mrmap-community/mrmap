@@ -331,7 +331,7 @@ const WmsDetails = (): ReactElement => {
                 visible={bottomDrawerVisible}
                 onClose={() => {setBottomDrawerVisible(false);}}
                 destroyOnClose={true}
-                
+                size={'large'}
             >
                 <SchemaTable
                     resourceTypes={{baseResourceType: "DatasetMetadata", nestedResource: selectedForDataset ? {type: selectedForDataset?.type, id: selectedForDataset?.id}: undefined }}

@@ -19,7 +19,9 @@ const WmsTable = (): ReactElement => {
           <Link
            to={`/registry/wms/${record.id}/details`}>
              <Button
+              //type={'primary'}
               size='small'
+              style={{ borderColor: 'blue', color: 'blue' }}
               icon={<InfoCircleOutlined />}
              
              />

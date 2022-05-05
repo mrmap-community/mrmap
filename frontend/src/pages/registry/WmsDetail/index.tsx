@@ -260,6 +260,7 @@ const WmsDetails = (): ReactElement => {
         if (!getWMSLoading){
             getWebMapService(getWebMapServiceParams);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [updateLayerResponse, updateWmsResponse]);
 
     /**

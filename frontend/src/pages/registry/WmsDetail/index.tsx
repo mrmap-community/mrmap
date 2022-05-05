@@ -4,12 +4,14 @@ import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload, getIncludesByType } from '@/utils/jsonapi';
 import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined, SearchOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
-import { Badge, Button, Card, Collapse, Drawer, Select, Space, Switch, Tooltip, Typography } from 'antd';
+import { Badge, Button, Collapse, Drawer, Select, Space, Switch, Tooltip, Typography } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
+import type { AxiosError } from 'openapi-client-axios';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
 import { useParams } from 'react-router';
+import { history } from 'umi';
 
 const { Text } = Typography;
 const { Panel } = Collapse;
@@ -83,8 +85,11 @@ const WmsDetails = (): ReactElement => {
     const { id } = useParams<{ id: string }>();
     const [
         getWebMapService, 
-        { loading: getWMSLoading, response: getWMSResponse, error: getWMSError }
+        { loading: getWMSLoading, response: getWMSResponse, data, error: getWMSError }
     ] = useOperationMethod('getWebMapService');
+    const getWMSAxiosError = getWMSError as AxiosError;
+
+    
     const wms: JsonApiPrimaryData = getWMSResponse?.data?.data;
     const [
         updateLayer,
@@ -140,6 +145,9 @@ const WmsDetails = (): ReactElement => {
      * @description Transform jsonapi response to needed tree data
      */
     useEffect(() => {
+        if (getWMSAxiosError?.response?.status === 404){
+            history.push('/404');
+        }
         if (getWMSResponse?.data) {
             const newTreeData = transformTreeData(getWMSResponse.data)
             setTreeData(newTreeData);
@@ -152,7 +160,7 @@ const WmsDetails = (): ReactElement => {
             })
             setSearchOptions(newSearchOptions);
         }
-    }, [getWMSResponse]);
+    }, [getWMSResponse, getWMSAxiosError]);
 
 
     const genExtra = useCallback((resource: JsonApiPrimaryData): ReactNode => {
@@ -207,6 +215,7 @@ const WmsDetails = (): ReactElement => {
                             }
                         }
                         loading={isLoading}
+                        key={`activate-switch-${resource.id}`}
                     />
                 </Tooltip>
                 <Tooltip
@@ -224,6 +233,7 @@ const WmsDetails = (): ReactElement => {
                             }
                         }
                         loading={isLoading}
+                        key={`edit-btn-${resource.id}`}
                     />
                 </Tooltip>
             </Space>
@@ -269,45 +279,47 @@ const WmsDetails = (): ReactElement => {
     }, [getCollapseableTree, treeData, selectedSearchKey]);
 
     return (
-        <PageContainer>
-            <Card 
-                title={wms?.attributes?.stringRepresentation}
-                extra={
-                    <Space size={'large'}>
-                        <Select
-                            allowClear={true}
-                            showSearch={true}
-                            style={{ width: '100%'}}
-                            dropdownMatchSelectWidth={false}
-                            placeholder="Search Layer"
-                            optionFilterProp="label"
-                            filterOption={
-                                (input, option) => {
-                                    // TODO: label is a ReactNode...
-                                    return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+        <PageContainer
+            header={
+                {
+                    title: `Details of ${wms?.attributes?.stringRepresentation}`,
+                    extra: [
+                            <Select
+                                allowClear={true}
+                                showSearch={true}
+                                style={{ width: '100%'}}
+                                dropdownMatchSelectWidth={false}
+                                placeholder="Search Layer"
+                                optionFilterProp="label"
+                                filterOption={
+                                    (input, option) => {
+                                        // TODO: label is a ReactNode...
+                                        return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+                                    }
                                 }
-                            }
-                            onSelect={
-                                (key: string)=>{
+                                onSelect={
+                                    (key: string)=>{
+                                        setCollapseableTree(undefined);
+                                        setSelectedSearchKey(key);
+                                    }
+                                } 
+                                onDeselect={()=>{
                                     setCollapseableTree(undefined);
-                                    setSelectedSearchKey(key);
-                                }
-                            } 
-                            onDeselect={()=>{
-                                setCollapseableTree(undefined);
-                                setSelectedSearchKey('');
-                            }}
-                            options={searchOptions}
-                        />
-
-                        {wms ? genExtra(wms): undefined}
-                    </Space>
+                                    setSelectedSearchKey('');
+                                }}
+                                options={searchOptions}
+                                key={'layer-search-select'}
+                            />,
+                            <>{wms ? genExtra(wms): undefined}</>
+                    ]
                 }
-                loading={!getWMSResponse || !collapseableTree}
 
-            >
-                {collapseableTree}
-            </Card>
+            }
+            loading={!getWMSResponse || !collapseableTree}
+            
+        >
+          
+            {collapseableTree}
             
             <Drawer
                 title={`edit ${selectedForEdit?.attributes.stringRepresentation}`}

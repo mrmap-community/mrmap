@@ -164,11 +164,15 @@ class WebMapServiceViewSet(
     def get_serializer(self, *args, **kwargs):
         if self.request:
             if self.request.method != 'POST':
-                if isinstance(args[0], Iterable):
-                    for item in args[0]:
-                        self.add_ancestors_to_layers(item)
-                else:
-                    self.add_ancestors_to_layers(args[0])
+                try:
+                    if isinstance(args[0], Iterable):
+                        for item in args[0]:
+                            self.add_ancestors_to_layers(item)
+                    else:
+                        self.add_ancestors_to_layers(args[0])
+                except IndexError:
+                    # happens on 404
+                    pass
 
         return super().get_serializer(*args, **kwargs)
 

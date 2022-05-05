@@ -139,123 +139,123 @@ const WmsDetails = (): ReactElement => {
         }
     ];
 
-        /**
+     /**
      * @description Generate extra ui components like edit button for given json:api resource
      */
-         const genExtra = useCallback((resource: JsonApiPrimaryData): ReactNode => {
-            if (!resource){
-                return <></>
-            }
-            const isActive = resource?.attributes?.isActive;
-            const datasetMetadataCount = resource?.relationships?.datasetMetadata?.meta?.count;
-            const datasetMetadataButton = (
-                <Badge 
-                    count={datasetMetadataCount}
-                    size={'small'}>
+    const genExtra = useCallback((resource: JsonApiPrimaryData): ReactNode => {
+        if (!resource){
+            return <></>
+        }
+        const isActive = resource?.attributes?.isActive;
+        const datasetMetadataCount = resource?.relationships?.datasetMetadata?.meta?.count;
+        const datasetMetadataButton = (
+            <Badge 
+                count={datasetMetadataCount}
+                size={'small'}>
+                <Button
+                    size='small'
+                    icon={<LinkOutlined />}
+                    loading={isLoading}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedForDataset(resource);
+                        setBottomDrawerVisible(true);
+                    }}
+                />
+            </Badge>
+        );
+        return (
+            <Space size="small" key={`space-${resource.id}`}>
+                {datasetMetadataCount > 0 ? datasetMetadataButton: <></>}
+                <Tooltip
+                title={
+                    isActive
+                    ? 'deactivate'
+                    : 'activate'
+                }
+                >
+                    <Switch
+                        checkedChildren={<CheckOutlined />}
+                        unCheckedChildren={<CloseOutlined />}
+                        defaultChecked={isActive}
+                        onClick={
+                            (checked, event) => {
+                                // If you don't want click extra trigger collapse, you can prevent this:
+                                event.stopPropagation();
+                                let func = updateLayer;
+                                if (resource.type === 'WebMapService'){
+                                    func = updateWms;
+                                }
+                                func(
+                                    [{
+                                        in: 'path',
+                                        name: 'id',
+                                        value: String(resource.id),
+                                    }], 
+                                    buildJsonApiPayload(resource.type, resource.id, {isActive: checked })
+                                )
+                            }
+                        }
+                        loading={isLoading}
+                        key={`activate-switch-${resource.id}`}
+                    />
+                </Tooltip>
+                <Tooltip
+                title='edit metadata'
+                >
                     <Button
                         size='small'
-                        icon={<LinkOutlined />}
-                        loading={isLoading}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedForDataset(resource);
-                            setBottomDrawerVisible(true);
-                        }}
-                    />
-                </Badge>
-            );
-            return (
-                <Space size="small" key={`space-${resource.id}`}>
-                    {datasetMetadataCount > 0 ? datasetMetadataButton: <></>}
-                    <Tooltip
-                    title={
-                        isActive
-                        ? 'deactivate'
-                        : 'activate'
-                    }
-                    >
-                        <Switch
-                            checkedChildren={<CheckOutlined />}
-                            unCheckedChildren={<CloseOutlined />}
-                            defaultChecked={isActive}
-                            onClick={
-                                (checked, event) => {
-                                    // If you don't want click extra trigger collapse, you can prevent this:
-                                    event.stopPropagation();
-                                    let func = updateLayer;
-                                    if (resource.type === 'WebMapService'){
-                                        func = updateWms;
-                                    }
-                                    func(
-                                        [{
-                                            in: 'path',
-                                            name: 'id',
-                                            value: String(resource.id),
-                                        }], 
-                                        buildJsonApiPayload(resource.type, resource.id, {isActive: checked })
-                                    )
-                                }
+                        icon={<EditFilled />}
+                        style={{ borderColor: 'gold', color: 'gold' }}
+                        onClick={
+                            (event) => {
+                                event.stopPropagation();
+                                setRightDrawerVisible(true);
+                                setSelectedForEdit(resource);
                             }
-                            loading={isLoading}
-                            key={`activate-switch-${resource.id}`}
-                        />
-                    </Tooltip>
-                    <Tooltip
-                    title='edit metadata'
-                    >
-                        <Button
-                            size='small'
-                            icon={<EditFilled />}
-                            style={{ borderColor: 'gold', color: 'gold' }}
-                            onClick={
-                                (event) => {
-                                    event.stopPropagation();
-                                    setRightDrawerVisible(true);
-                                    setSelectedForEdit(resource);
-                                }
-                            }
-                            loading={isLoading}
-                            key={`edit-btn-${resource.id}`}
-                        />
-                    </Tooltip>
-                </Space>
-            );
-        }, [isLoading, updateLayer, updateWms]);
-        
-        /**
-         * @description Generate nested Collapse components from given node
-         */
-        const getCollapseableTree = useCallback((node: Node) => {
-            const title = selectedSearchKey === node.key ? <Text strong={true}><SearchOutlined /> {node.title}</Text> : node.title;
-    
-            if (node.children){
-    
-                const showDescendants = selectedSearchKey && node.rawDescendants ? isDescendantOf([node.raw].concat(node.rawDescendants), selectedSearchKey): false;
-                return (
-                    <Collapse
-                        defaultActiveKey={showDescendants ? node.key: undefined}
-                        key={node.key}
-                        
-                    >
-                        <Panel header={title} key={node.key} extra={genExtra(node.raw)}>
-                        {
-                            node.children.map(
-                                (child: Node) => {
-                                    return (getCollapseableTree(child))
-                                }
-                            )
                         }
-                        </Panel>
-                    </Collapse>
-                );
-            } else {
-                return (
-                    <Collapse key={node.key}>
-                        <Panel header={title} key={node.key} extra={genExtra(node.raw)} showArrow={!node.isLeaf} />
-                    </Collapse>
-                )
-            }
-        }, [genExtra, selectedSearchKey]);
+                        loading={isLoading}
+                        key={`edit-btn-${resource.id}`}
+                    />
+                </Tooltip>
+            </Space>
+        );
+    }, [isLoading, updateLayer, updateWms]);
+        
+    /**
+     * @description Generate nested Collapse components from given node
+     */
+    const getCollapseableTree = useCallback((node: Node) => {
+        const title = selectedSearchKey === node.key ? <Text strong={true}><SearchOutlined /> {node.title}</Text> : node.title;
+
+        if (node.children){
+
+            const showDescendants = selectedSearchKey && node.rawDescendants ? isDescendantOf([node.raw].concat(node.rawDescendants), selectedSearchKey): false;
+            return (
+                <Collapse
+                    defaultActiveKey={showDescendants ? node.key: undefined}
+                    key={node.key}
+                    
+                >
+                    <Panel header={title} key={node.key} extra={genExtra(node.raw)}>
+                    {
+                        node.children.map(
+                            (child: Node) => {
+                                return (getCollapseableTree(child))
+                            }
+                        )
+                    }
+                    </Panel>
+                </Collapse>
+            );
+        } else {
+            return (
+                <Collapse key={node.key}>
+                    <Panel header={title} key={node.key} extra={genExtra(node.raw)} showArrow={!node.isLeaf} />
+                </Collapse>
+            )
+        }
+    }, [genExtra, selectedSearchKey]);
     
     /**
      * @description hook to receive the service on initial or any update layer or wms object

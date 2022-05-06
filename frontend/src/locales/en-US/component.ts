@@ -16,4 +16,7 @@ export default {
   'component.tagSelect.all': 'All',
   'component.tagSelect.collapse': 'Collapse',
   'component.tagSelect.expand': 'Expand',
+
+  'component.ressourceDetails.pageContainer.title': 'Details of {ressourceType}: {label}',
+
 };

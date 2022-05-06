@@ -15,4 +15,7 @@ export default {
   'component.tagSelect.all': 'Alle',
   'component.tagSelect.collapse': 'Einklappen',
   'component.tagSelect.expand': 'Expandieren',
+
+  'component.ressourceDetails.pageContainer.title': 'Details zu {ressourceType}: {label}',
+
 };

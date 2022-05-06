@@ -1,17 +1,16 @@
+import RessourceDetails from '@/components/RessourceDetails';
 import SchemaForm from '@/components/SchemaForm';
 import SchemaTable from '@/components/SchemaTable';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload, getIncludesByType } from '@/utils/jsonapi';
 import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined, SearchOutlined } from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-layout';
-import { Badge, Button, Collapse, Drawer, Select, Space, Switch, Tooltip, Typography } from 'antd';
+import { Badge, Button, Collapse, Drawer, Space, Switch, Tooltip, Typography } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
-import type { AxiosError, ParamsArray } from 'openapi-client-axios';
+import type { ParamsArray } from 'openapi-client-axios';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useOperationMethod } from 'react-openapi-client/useOperationMethod';
-import { useParams } from 'react-router';
-import { history, useIntl } from 'umi';
+import { useIntl } from 'umi';
 
 const { Text } = Typography;
 const { Panel } = Collapse;
@@ -89,7 +88,6 @@ const WmsDetails = (): ReactElement => {
      * page hooks
      */
     const intl = useIntl();
-    const { id } = useParams<{ id: string }>();
     const [ treeData, setTreeData ] = useState<Node[]>();
     const [ collapseableTree, setCollapseableTree ] = useState<ReactElement>();
     const [ searchOptions, setSearchOptions ] = useState<NodeOptionType[]>([]);
@@ -99,13 +97,12 @@ const WmsDetails = (): ReactElement => {
     const [ selectedForDataset, setSelectedForDataset ] = useState<JsonApiPrimaryData>();
     const [ bottomDrawerVisible, setBottomDrawerVisible ] = useState<boolean>(false);
 
+    const [ callGetRessource, setCallGetRessource ] = useState<boolean>(false);
+
     /**
      * Api hooks
      */
-    const [
-        getWebMapService, 
-        { loading: getWMSLoading, response: getWMSResponse, error: getWMSError }
-    ] = useOperationMethod('getWebMapService');    
+
     const [
         updateLayer,
         { loading: updateLayerLoading, response: updateLayerResponse}
@@ -115,18 +112,13 @@ const WmsDetails = (): ReactElement => {
         { loading: updateWmsLoading, response: updateWmsResponse}
     ] = useOperationMethod('updateWebMapService');
 
+    const isLoading = updateLayerLoading || updateWmsLoading;
+
+
     /**
      * derived constants
      */
-    const getWMSAxiosError = getWMSError as AxiosError;
-    const wms: JsonApiPrimaryData = getWMSResponse?.data?.data;
-    const isLoading: boolean = getWMSLoading || updateLayerLoading || updateWmsLoading;
     const getWebMapServiceParams: ParamsArray = [
-        {
-            in: 'path',
-            name: 'id',
-            value: String(id),
-        },
         {
             in: 'query',
             name: 'include',
@@ -225,7 +217,7 @@ const WmsDetails = (): ReactElement => {
     /**
      * @description Generate nested Collapse components from given node
      */
-    const getCollapseableTree = useCallback((node: Node) => {
+    const getCollapseableTree = useCallback((node: Node): ReactElement => {
         const title = selectedSearchKey === node.key ? <Text strong={true}><SearchOutlined /> {node.title}</Text> : node.title;
 
         if (node.children){
@@ -257,90 +249,49 @@ const WmsDetails = (): ReactElement => {
         }
     }, [genExtra, selectedSearchKey]);
     
-    /**
-     * @description hook to receive the service on initial or any update layer or wms object
-     */
-    useEffect(() => {
-        if (!getWMSLoading){
-            getWebMapService(getWebMapServiceParams);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [updateLayerResponse, updateWmsResponse]);
 
-    /**
-     * @description Transform jsonapi response to needed tree data and provide search options
-     */
-    useEffect(() => {
-        if (getWMSAxiosError?.response?.status === 404){
-            history.push('/404');
-        }
-        if (getWMSResponse?.data) {
-            setTreeData(transformTreeData(getWMSResponse.data));
-            
-            const newSearchOptions: NodeOptionType[] = getIncludesByType(getWMSResponse.data, 'Layer').map((node: JsonApiPrimaryData) => {
-                return {
-                    value: node.id,
-                    label: node.attributes.stringRepresentation
-                }
-            })
-            setSearchOptions(newSearchOptions);
-        }
-    }, [getWMSResponse, getWMSAxiosError]);
+    const onRessourceResponse = useCallback((ressource: JsonApiDocument) => {
+        console.log('ressource', ressource);
+        
+        setTreeData(transformTreeData(ressource));
+        const newSearchOptions: NodeOptionType[] = getIncludesByType(ressource, 'Layer').map((node: JsonApiPrimaryData) => {
+            return {
+                value: node.id,
+                label: node.attributes.stringRepresentation
+            }
+        })
+        setSearchOptions(newSearchOptions);
+    }, []);
+
+    
 
     /**
      * @description Call getCollapseableTree on treeData or selectedSearchKey changed to rerender Collapse tree
      */
     useEffect(() => {
         if (treeData){
+            console.log('new tree data', treeData);
             setCollapseableTree(getCollapseableTree(treeData[0]));
         }
     }, [getCollapseableTree, treeData, selectedSearchKey]);
 
-    return (
-        <PageContainer
-            header={
-                {
-                    title: intl.formatMessage(
-                        { id: 'pages.wmsDetail.pageTitle' },
-                        { label: wms?.attributes?.stringRepresentation },
-                      ),
-                    extra: [
-                            <Select
-                                allowClear={true}
-                                showSearch={true}
-                                style={{ width: '100%'}}
-                                dropdownMatchSelectWidth={false}
-                                placeholder={
-                                    intl.formatMessage(
-                                        { id: 'pages.wmsDetail.searchLayer' }
-                                    )
-                                }
-                                optionFilterProp="label"
-                                filterOption={
-                                    (input, option) => {
-                                        return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
-                                    }
-                                }
-                                onSelect={
-                                    (key: string)=>{
-                                        setCollapseableTree(undefined);
-                                        setSelectedSearchKey(key);
-                                    }
-                                } 
-                                onDeselect={()=>{
-                                    setCollapseableTree(undefined);
-                                    setSelectedSearchKey('');
-                                }}
-                                options={searchOptions}
-                                key={'layer-search-select'}
-                            />,
-                            <Space key={'service-extras'}>{genExtra(wms)}</Space>
-                    ]
-                }
 
-            }
-            loading={!getWMSResponse || !collapseableTree}
-            
+    useEffect(() => {
+        setCallGetRessource(true);
+    }, [updateLayerResponse, updateWmsResponse]);
+
+    useEffect(() => {
+        if (callGetRessource) {
+            setCallGetRessource(false);
+        }
+    }, [collapseableTree]);
+
+    return (
+        <RessourceDetails
+            resourceType='WebMapService'
+            additionalGetRessourceParams={getWebMapServiceParams}
+            onRessourceResponse={onRessourceResponse}
+            callGetRessource={callGetRessource}
         > 
             {collapseableTree}   
             <Drawer
@@ -360,7 +311,6 @@ const WmsDetails = (): ReactElement => {
                     resourceId={selectedForEdit?.id}
                     onSuccess={() => {
                         setRightDrawerVisible(false);
-                        getWebMapService(getWebMapServiceParams);
                     }}
                 />
             </Drawer>
@@ -382,7 +332,7 @@ const WmsDetails = (): ReactElement => {
                 />
 
             </Drawer>
-        </PageContainer>
+        </RessourceDetails>
     );
 };
 

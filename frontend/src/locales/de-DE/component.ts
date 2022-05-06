@@ -11,6 +11,7 @@ export default {
   'component.schemaTable.deleteRowTitle': 'Datensatz löschen',
   'component.schemaTable.edit': 'Bearbeiten von {title}',
   'component.schemaTable.new': 'Neu',
+  'component.schemaTable.details': 'Detailansicht',
   'component.tagSelect.all': 'Alle',
   'component.tagSelect.collapse': 'Einklappen',
   'component.tagSelect.expand': 'Expandieren',

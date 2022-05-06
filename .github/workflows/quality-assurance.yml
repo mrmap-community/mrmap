@@ -57,7 +57,7 @@ jobs:
           fetch-depth: 0
 
       - name: pull needed docker images
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull pre-commit-check
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull django-tests
 
       - name: Run unit tests
         run: |

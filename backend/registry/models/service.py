@@ -548,6 +548,13 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
+    def get_value_from_ancestor(self, attr_name: str) -> tuple:
+        """Return a tuple of a boolean, if this layers has prefetched ancestors and as second value of the tuple the first founded value or None"""
+        if hasattr(self, 'ancestors'):
+            return True, next((getattr(ancestor, attr_name) for ancestor in self.ancestors if getattr(ancestor, attr_name) is not None), None)
+        else:
+            return False, None
+
     @cached_property
     def get_scale_min(self) -> float:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
@@ -564,7 +571,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.scale_min:
             return self.scale_min
         else:
-            return (
+            has_prefetched_ancestors, inherited_scale_min = self.get_value_from_ancestor('scale_min')
+            return inherited_scale_min if has_prefetched_ancestors else (
                 self.get_ancestors()
                 .exclude(scale_min=None)
                 .values_list("scale_min", flat=True)
@@ -587,7 +595,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.scale_max:
             return self.scale_max
         else:
-            return (
+            has_prefetched_ancestors, inherited_scale_max = self.get_value_from_ancestor('scale_max')
+            return inherited_scale_max if has_prefetched_ancestors else (
                 self.get_ancestors()
                 .exclude(scale_max=None)
                 .values_list("scale_max", flat=True)
@@ -612,7 +621,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.bbox_lat_lon:
             return self.bbox_lat_lon
         else:
-            return (
+            has_prefetched_ancestors, inherited_bbox = self.get_value_from_ancestor('bbox_lat_lon')
+            return inherited_bbox if has_prefetched_ancestors else (
                 self.get_ancestors()
                 .exclude(bbox_lat_lon=None)
                 .values_list("bbox_lat_lon", flat=True)

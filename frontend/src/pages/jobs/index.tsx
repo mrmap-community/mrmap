@@ -7,8 +7,8 @@ import React from 'react';
 const BackgroundProcessesTable = (): React.ReactElement => {
   return (
     <PageContainer>
-      <SchemaTable 
-        resourceTypes={['BackgroundProcess']} 
+      <SchemaTable
+        resourceTypes={{baseResourceType: 'BackgroundProcess'}} 
         columns={
           [
             {

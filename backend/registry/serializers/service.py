@@ -65,6 +65,15 @@ class LayerSerializer(
         related_link_url_kwarg="parent_lookup_layer",
     )
 
+    dataset_metadata = ResourceRelatedField(
+        label=_("dataset metadata"),
+        help_text=_("related dataset metadata objects"),
+        queryset=DatasetMetadata.objects,
+        many=True,
+        related_link_view_name="registry:layer-datasetmetadata-list",
+        related_link_url_kwarg="parent_lookup_self_pointing_layers",
+    )
+
     # FIXME: prefetch ancestors for the following fields, cause otherwise this results in extra db transactions...
     bbox_lat_lon = GeometryField(
         source="get_bbox",

@@ -174,12 +174,12 @@ class CustomAutoSchema(AutoSchema):
             views = importlib.import_module(module_name)
             view_class = getattr(views, resolve_match.func.__name__)
             view_instance = view_class()
-            view_instance.action = 'list'
+            view_instance.action = action
             # print(self.view.request)
             # view_instance.request = clone_request(self.view.request, "get")
             parent_resource_name = get_resource_name(
                 context={"view": view_instance})
-            return f"list{resource_name}By{parent_resource_name}"
+            resource_name = f"{resource_name}By{parent_resource_name}"
 
         match (action):
             case "list":

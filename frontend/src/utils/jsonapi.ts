@@ -123,3 +123,8 @@ export function getQueryParams(api: OpenAPIClientAxios, operationId: string): an
   });
   return params;
 }
+
+
+export function getIncludesByType(response: JsonApiDocument, type: string): JsonApiPrimaryData[] {
+  return response.included.filter((item: JsonApiPrimaryData) => item.type === type)
+}

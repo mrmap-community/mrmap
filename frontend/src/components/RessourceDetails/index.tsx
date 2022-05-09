@@ -2,7 +2,7 @@ import type { JsonApiDocument, JsonApiPrimaryData } from "@/utils/jsonapi";
 import { PageContainer } from "@ant-design/pro-layout";
 import type { AxiosError, ParamsArray } from "openapi-client-axios";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useOperationMethod } from "react-openapi-client/useOperationMethod";
 import { history, useIntl, useParams } from 'umi';
 
@@ -11,7 +11,8 @@ interface RessourceDetailsProps {
     onRessourceResponse?: (ressource: JsonApiDocument) => void;
     resourceType: string;
     additionalGetRessourceParams?: ParamsArray;
-    callGetRessource?: boolean;
+    rebuild?: boolean;
+    //callGetRessource?: boolean;
     //callGetRessource?: (call: boolean) => void;
     //pageContainerExtra?
 }
@@ -21,14 +22,18 @@ const RessourceDetails = ({
     onRessourceResponse = undefined,
     resourceType,
     additionalGetRessourceParams = [],
-    callGetRessource = false,
+    rebuild = false,
+    //callGetRessource = false,
 }: RessourceDetailsProps): ReactElement => {
+
     /**
      * page hooks
      */
     const intl = useIntl();
     const { id } = useParams<{ id: string }>();
     const [ loading, setLoading ] = useState(true);
+    const [ isInitialized, setIsInitialized ] = useState(false);
+
     /**
      * Api hooks
      */
@@ -44,25 +49,23 @@ const RessourceDetails = ({
     const jsonApiResponse: JsonApiDocument = getRessourceResponse?.data;
     const ressource: JsonApiPrimaryData = getRessourceResponse?.data?.data;
 
-    const getRessourceParams: ParamsArray = [
+    const getRessourceParams = useCallback((): ParamsArray => {return [
         ...additionalGetRessourceParams,
         {
             in: 'path',
             name: 'id',
             value: String(id),
         }
-    ]
+    ]}, [additionalGetRessourceParams, id]);
 
     /**
      * @description hook to receive the resource on initial
      */
     useEffect(() => {
-        console.log('callGetRessource',callGetRessource);
-        if (!isRessourceLoading || !isRessourceLoading && callGetRessource){
-            getRessource(getRessourceParams);
+        if (!isRessourceLoading && !isInitialized || !isRessourceLoading && rebuild){
+            getRessource(getRessourceParams());
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [callGetRessource]);
+    }, [getRessource, getRessourceParams, isInitialized, isRessourceLoading, rebuild]);
 
 
     /**
@@ -79,8 +82,8 @@ const RessourceDetails = ({
      */
     useEffect(() => {
         if (jsonApiResponse && onRessourceResponse){
-            console.log('jsonApiResponse', jsonApiResponse);
             onRessourceResponse(jsonApiResponse);
+            setIsInitialized(true);
         }
     }, [onRessourceResponse, jsonApiResponse]);
 

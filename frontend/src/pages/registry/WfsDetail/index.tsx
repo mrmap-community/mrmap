@@ -1,4 +1,5 @@
 import { PageContainer } from "@ant-design/pro-layout";
+import { Select, Space } from "antd";
 import type { ReactElement } from "react";
 import { useIntl } from 'umi';
 
@@ -15,7 +16,7 @@ const WfsDetails = (): ReactElement => {
                 {
                     title: intl.formatMessage(
                         { id: 'pages.wmsDetail.pageTitle' },
-                        { label: wms?.attributes?.stringRepresentation },
+                        { label: 'todo' },
                       ),
                     extra: [
                             <Select
@@ -29,32 +30,32 @@ const WfsDetails = (): ReactElement => {
                                     )
                                 }
                                 optionFilterProp="label"
-                                filterOption={
-                                    (input, option) => {
-                                        return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
-                                    }
-                                }
-                                onSelect={
-                                    (key: string)=>{
-                                        setCollapseableTree(undefined);
-                                        setSelectedSearchKey(key);
-                                    }
-                                } 
-                                onDeselect={()=>{
-                                    setCollapseableTree(undefined);
-                                    setSelectedSearchKey('');
-                                }}
-                                options={searchOptions}
+                                // filterOption={
+                                //     (input, option) => {
+                                //         return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+                                //     }
+                                // }
+                                // onSelect={
+                                //     (key: string)=>{
+                                //         setCollapseableTree(undefined);
+                                //         setSelectedSearchKey(key);
+                                //     }
+                                // } 
+                                // onDeselect={()=>{
+                                //     setCollapseableTree(undefined);
+                                //     setSelectedSearchKey('');
+                                // }}
+                                // options={searchOptions}
                                 key={'layer-search-select'}
                             />,
-                            <Space key={'service-extras'}>{genExtra(wms)}</Space>
+                            <Space key={'service-extras'}>{}</Space>
                     ]
                 }
 
             }
-            loading={!getWMSResponse || !collapseableTree}
             
-        > 
+            
+         />
     );
 
 };

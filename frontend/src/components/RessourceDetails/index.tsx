@@ -6,15 +6,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useOperationMethod } from "react-openapi-client/useOperationMethod";
 import { history, useIntl, useParams } from 'umi';
 
-interface RessourceDetailsProps {
+export interface RessourceDetailsProps {
     children?: ReactNode | undefined
     onRessourceResponse?: (ressource: JsonApiDocument) => void;
     resourceType: string;
     additionalGetRessourceParams?: ParamsArray;
     rebuild?: boolean;
-    //callGetRessource?: boolean;
-    //callGetRessource?: (call: boolean) => void;
-    //pageContainerExtra?
 }
 
 const RessourceDetails = ({
@@ -23,7 +20,6 @@ const RessourceDetails = ({
     resourceType,
     additionalGetRessourceParams = [],
     rebuild = false,
-    //callGetRessource = false,
 }: RessourceDetailsProps): ReactElement => {
 
     /**

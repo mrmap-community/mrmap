@@ -1,61 +1,90 @@
-import { PageContainer } from "@ant-design/pro-layout";
-import { Select, Space } from "antd";
+import RessourceDetails from "@/components/RessourceDetails";
+import type { JsonApiDocument, JsonApiPrimaryData } from "@/utils/jsonapi";
+import { getIncludesByType } from "@/utils/jsonapi";
+import { Tree } from "antd";
+import type { DefaultOptionType } from 'antd/lib/select';
+import type { ParamsArray } from "openapi-client-axios";
 import type { ReactElement } from "react";
+import { useCallback, useState } from "react";
 import { useIntl } from 'umi';
+
+
+interface Node {
+    key: any;
+    raw: JsonApiPrimaryData;
+    title: string;
+    isLeaf: boolean
+}
+
+const transformTreeData = (wms: JsonApiDocument): Node[] => {
+    return getIncludesByType(wms, 'FeatureType').map((node) => {
+        return {
+            key: node.id, 
+            title: node.attributes.stringRepresentation, 
+            raw: node,
+            isLeaf: true,
+        }
+    });
+    
+};
 
 const WfsDetails = (): ReactElement => {
     /**
      * page hooks
      */
     const intl = useIntl();
+    const [ treeData, setTreeData ] = useState<Node[]>();
+    const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
 
+    const [ reFetchRessource, setRefetchRessource ] = useState<boolean>(false);
+
+
+    /**
+     * derived constants
+     */
+     const getWebFeatureServiceParams: ParamsArray = [
+        {
+            in: 'query',
+            name: 'include',
+            value: 'featuretypes',
+        },
+        {
+            in: 'query',
+            name: 'fields[FeatureType]',
+            value: 'string_representation,is_active,dataset_metadata'
+        }
+    ];
+
+    const onRessourceResponse = useCallback((ressource: JsonApiDocument) => {        
+        setRefetchRessource(false);
+        setTreeData(transformTreeData(ressource));
+
+        const newSearchOptions: DefaultOptionType[] = getIncludesByType(ressource, 'FeatureType').map((node: JsonApiPrimaryData) => {
+            return {
+                value: node.id,
+                label: node.attributes.stringRepresentation
+            }
+        })
+        setSearchOptions(newSearchOptions);
+    }, []);
     
     return (
-        <PageContainer
-            header={
-                {
-                    title: intl.formatMessage(
-                        { id: 'pages.wmsDetail.pageTitle' },
-                        { label: 'todo' },
-                      ),
-                    extra: [
-                            <Select
-                                allowClear={true}
-                                showSearch={true}
-                                style={{ width: '100%'}}
-                                dropdownMatchSelectWidth={false}
-                                placeholder={
-                                    intl.formatMessage(
-                                        { id: 'pages.wmsDetail.searchLayer' }
-                                    )
-                                }
-                                optionFilterProp="label"
-                                // filterOption={
-                                //     (input, option) => {
-                                //         return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
-                                //     }
-                                // }
-                                // onSelect={
-                                //     (key: string)=>{
-                                //         setCollapseableTree(undefined);
-                                //         setSelectedSearchKey(key);
-                                //     }
-                                // } 
-                                // onDeselect={()=>{
-                                //     setCollapseableTree(undefined);
-                                //     setSelectedSearchKey('');
-                                // }}
-                                // options={searchOptions}
-                                key={'layer-search-select'}
-                            />,
-                            <Space key={'service-extras'}>{}</Space>
-                    ]
-                }
-
-            }
-            
-            
-         />
+        <RessourceDetails
+            resourceType='WebFeatureService'
+            additionalGetRessourceParams={getWebFeatureServiceParams}
+            onRessourceResponse={onRessourceResponse}
+            rebuild={reFetchRessource}
+        >
+            <Tree
+                showLine={true}
+                //expandedKeys={expandedKeys}
+                //onExpand={onExpand}
+                //autoExpandParent={autoExpandParent}
+                //titleRender={getNodeTitle}
+                treeData={treeData}
+            />
+        
+        </RessourceDetails>
     );
 
 };

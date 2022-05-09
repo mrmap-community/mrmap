@@ -4,7 +4,7 @@ import SchemaTable from '@/components/SchemaTable';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
 import { buildJsonApiPayload, getIncludesByType } from '@/utils/jsonapi';
 import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined, SearchOutlined } from '@ant-design/icons';
-import { Badge, Button, Drawer, Select, Space, Switch, Tooltip, Tree } from 'antd';
+import { Badge, Button, Col, Drawer, Row, Select, Space, Switch, Tooltip, Tree } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
 import type { ParamsArray } from 'openapi-client-axios';
 import type { Key } from 'rc-tree/lib/interface';
@@ -239,6 +239,28 @@ const WmsDetails = (): ReactElement => {
         setAutoExpandParent(false);
     }, []);
 
+    const getNodeTitle = useCallback((node: Node) => {
+        const title = selectedSearchKey && node.key === selectedSearchKey ? (
+            <span>
+              <SearchOutlined style={{color: '#f50'}} />
+              <span style={{color: '#f50'}}>{node.title}</span>
+            </span>
+          ) : (
+            <span>{node.title}</span>
+          );
+        return (
+            <Row justify='space-between' style={{width: '100%'}}>
+                <Col span={8}>
+                    {title}
+                </Col>
+                 <Col span={8}>
+                    {genExtra(node.raw)}
+                 </Col>
+                
+            </Row>
+        )
+    },[genExtra, selectedSearchKey]);
+
 
     useEffect(() => {
         setRefetchRessource(true);
@@ -278,26 +300,7 @@ const WmsDetails = (): ReactElement => {
                 expandedKeys={expandedKeys}
                 onExpand={onExpand}
                 autoExpandParent={autoExpandParent}
-                titleRender={
-                    (node: Node) => {
-                        const title = selectedSearchKey && node.key === selectedSearchKey ? (
-                            <span>
-                              <SearchOutlined style={{color: '#f50'}} />
-                              <span style={{color: '#f50'}}>{node.title}</span>
-                            </span>
-                          ) : (
-                            <span>{node.title}</span>
-                          );
-                        return (
-                            <Space 
-                                align='end'
-                            >
-                                {title} 
-                                {genExtra(node.raw)}
-                            </Space>
-                        )
-                    }
-                }
+                titleRender={getNodeTitle}
                 treeData={treeData}
              />
              

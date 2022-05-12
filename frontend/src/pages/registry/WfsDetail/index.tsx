@@ -1,7 +1,6 @@
-import RessourceDetails from "@/components/RessourceDetails";
+import OgcServiceDetails from "@/components/RessourceDetails/OgcServiceDetails";
 import type { JsonApiDocument, JsonApiPrimaryData } from "@/utils/jsonapi";
 import { getIncludesByType } from "@/utils/jsonapi";
-import { Tree } from "antd";
 import type { DefaultOptionType } from 'antd/lib/select';
 import type { ParamsArray } from "openapi-client-axios";
 import type { ReactElement } from "react";
@@ -33,7 +32,7 @@ const WfsDetails = (): ReactElement => {
      * page hooks
      */
     const intl = useIntl();
-    const [ treeData, setTreeData ] = useState<Node[]>();
+    //const [ treeData, setTreeData ] = useState<Node[]>();
     const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
 
     const [ reFetchRessource, setRefetchRessource ] = useState<boolean>(false);
@@ -69,22 +68,12 @@ const WfsDetails = (): ReactElement => {
     }, []);
     
     return (
-        <RessourceDetails
+        <OgcServiceDetails
             resourceType='WebFeatureService'
             additionalGetRessourceParams={getWebFeatureServiceParams}
             onRessourceResponse={onRessourceResponse}
             rebuild={reFetchRessource}
-        >
-            <Tree
-                showLine={true}
-                //expandedKeys={expandedKeys}
-                //onExpand={onExpand}
-                //autoExpandParent={autoExpandParent}
-                //titleRender={getNodeTitle}
-                treeData={treeData}
-            />
-        
-        </RessourceDetails>
+         />
     );
 
 };

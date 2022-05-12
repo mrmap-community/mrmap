@@ -29,6 +29,7 @@ interface NodeOptionType extends DefaultOptionType {
 export interface OgcServiceDetailsProps extends RessourceDetailsProps {
     loading?: boolean;
     onActiveSwitchChange?: (checked: boolean, ressource: JsonApiPrimaryData) => void;
+    nodeRessourceType: string;
 }
 
 const getDescendants = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData) => {
@@ -84,6 +85,7 @@ const OgcServiceDetails = (
     {
         loading=false,
         onActiveSwitchChange = undefined,
+        nodeRessourceType,
         ...passThroughProps
     }: OgcServiceDetailsProps
 ): ReactElement => {
@@ -95,7 +97,7 @@ const OgcServiceDetails = (
     const [ flatNodeList, setFlatNodeList ] = useState<JsonApiPrimaryData[]>();
     const [ expandedKeys, setExpandedKeys ] = useState<Key[]>();
     const [ autoExpandParent, setAutoExpandParent ] = useState<boolean>();
-    const [ searchOptions, setSearchOptions ] = useState<NodeOptionType[]>([]);
+    const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
     const [ selectedSearchKey, setSelectedSearchKey ] = useState<string>();
 
     const [ selectedForEdit, setSelectedForEdit ] = useState<JsonApiPrimaryData>();
@@ -108,8 +110,7 @@ const OgcServiceDetails = (
     const [ reFetchRessource, setRefetchRessource ] = useState<boolean>(false);
 
 
-
-    const isLoading = loading || reFetchRessource;
+    const isLoading = loading || passThroughProps.rebuild;
 
 
     /**
@@ -221,6 +222,18 @@ const OgcServiceDetails = (
         )
     },[genExtra, selectedSearchKey]);
 
+    const onRessourceResponse = useCallback((ressource: JsonApiDocument) => {        
+        setRefetchRessource(false);
+        setTreeData(transformTreeData(ressource));
+
+        const newSearchOptions: DefaultOptionType[] = getIncludesByType(ressource, nodeRessourceType).map((node: JsonApiPrimaryData) => {
+            return {
+                value: node.id,
+                label: node.attributes.stringRepresentation
+            }
+        })
+        setSearchOptions(newSearchOptions);
+    }, [nodeRessourceType]);
 
     // useEffect(() => {
     //     setRefetchRessource(true);
@@ -228,11 +241,13 @@ const OgcServiceDetails = (
 
     return (
         <RessourceDetails
+            {...passThroughProps}
             //resourceType={passThroughProps.resourceType}
             //additionalGetRessourceParams={getWebMapServiceParams}
             //onRessourceResponse={onRessourceResponse}
+            //rebuild={reFetchRessource}
             rebuild={reFetchRessource}
-            {...passThroughProps}
+            
         > 
             <Select 
                 style={{ marginBottom: 8, width: '100%' }} 

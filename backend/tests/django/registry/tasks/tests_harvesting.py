@@ -1,5 +1,4 @@
 from pathlib import Path
-from unittest import skip
 from unittest.mock import mock_open, patch
 
 from django.test import TestCase
@@ -29,7 +28,6 @@ class HarvestingGetHitsTaskTest(TestCase):
 
     fixtures = ['test_csw.json']
 
-    @skip("test which test runs endless")
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
@@ -44,7 +42,6 @@ class HarvestingGetRecordsTaskTest(TestCase):
 
     fixtures = ['test_csw.json']
 
-    @skip("test which test runs endless")
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
@@ -60,7 +57,6 @@ class TemporaryMdMetadataFileToDbTaskTest(TestCase):
 
     fixtures = ['test_csw.json']
 
-    @skip("test which test runs endless")
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')

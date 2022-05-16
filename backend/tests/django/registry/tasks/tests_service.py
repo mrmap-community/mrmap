@@ -47,7 +47,6 @@ def side_effect(request):
 
 class BuildOgcServiceTaskTest(TestCase):
 
-    @skip("test which test runs endless")
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
@@ -75,7 +74,6 @@ class BuildOgcServiceTaskTest(TestCase):
         self.assertDictEqual(d1=task.result, d2=expected_result,
                              msg="Task result does not match expection.")
 
-    @skip("test which test runs endless")
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
@@ -106,7 +104,6 @@ class BuildOgcServiceTaskTest(TestCase):
         self.assertDictEqual(d1=result.result, d2=expected_result,
                              msg="Task result does not match expection.")
 
-    @skip("test which test runs endless")
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')

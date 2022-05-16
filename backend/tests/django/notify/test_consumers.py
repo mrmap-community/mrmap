@@ -1,4 +1,3 @@
-from unittest import skip
 
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase
@@ -16,7 +15,6 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         self.headers = [(b'origin', b'http://127.0.0.1:8000'), (b'cookie',
                                                                 self.client.cookies.output(header='', sep='; ').encode())]
 
-    # @skip("test which test runs endless")
     async def test_auth_on_default_consumer_without_user(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,
@@ -28,7 +26,6 @@ class PendingTaskConsumerTestCase(TransactionTestCase):
         # Close
         await communicator.disconnect()
 
-    # @skip("test which test runs endless")
     async def test_auth_on_default_consumer_with_user(self):
         # test connection established for authenticated user
         communicator = WebsocketCommunicator(application=application,

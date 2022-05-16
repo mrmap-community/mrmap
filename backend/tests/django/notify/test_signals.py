@@ -88,19 +88,25 @@ class SignalsTestCase(TransactionTestCase):
         # if a thread is updated, we shall receive a update event
         try:
             async with timeout(2):
+                print("try to create thread")
                 await self.create_thread(background_process)
+                print("thread successfully created")
         except asyncio.TimeoutError:
             raise AssertionError("can't create thread in time")
 
         try:
             async with timeout(2):
+                print("try to update thread")
                 await self.update_thread()
+                print("thread successfully updated")
         except asyncio.TimeoutError:
             raise AssertionError("can't update thread in time")
         
         try:
             async with timeout(2):
+                print("try to get background process")
                 background_process = await self.get_background_process(background_process.pk)
+                print("thread successfully fetched")
         except asyncio.TimeoutError:
             raise AssertionError("can't get background process in time")
         

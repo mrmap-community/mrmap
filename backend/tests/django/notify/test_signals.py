@@ -37,9 +37,8 @@ class SignalsTestCase(TransactionTestCase):
             process_type=ProcessNameEnum.REGISTERING.value,
             description="register a new service"
         )
-        background_process = BackgroundProcess.objects.process_info().get(
+        return BackgroundProcess.objects.process_info().get(
             pk=background_process.pk)
-        return background_process
 
     @sync_to_async
     def get_background_process(self, pk):

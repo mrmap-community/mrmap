@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest import skip
 
 from django.test import TestCase
 from registry.enums.service import HttpMethodEnum
@@ -10,6 +11,7 @@ from registry.xmlmapper.ogc.capabilities import get_parsed_service
 
 class WebMapServiceCapabilitiesManagerTest(TestCase):
 
+    @skip("test which test runs endless")
     def test_success(self):
         """Test that create_from_parsed_service manager function works correctly."""
 
@@ -25,6 +27,7 @@ class WebMapServiceCapabilitiesManagerTest(TestCase):
 
 class WebFeatureServiceCapabilitiesManagerTest(TestCase):
 
+    @skip("test which test runs endless")
     def test_success(self):
         """Test that create_from_parsed_service manager function works correctly."""
 
@@ -40,6 +43,7 @@ class WebFeatureServiceCapabilitiesManagerTest(TestCase):
 
 class CatalougeServiceCapabilitiesManagerTest(TestCase):
 
+    @skip("test which test runs endless")
     def test_success(self):
         """Test that create_from_parsed_service manager function works correctly."""
 

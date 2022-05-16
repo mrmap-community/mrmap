@@ -1,8 +1,8 @@
 import asyncio
 from typing import OrderedDict
 
-import async_timeout
 from asgiref.sync import sync_to_async
+from async_timeout import timeout
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase
 from django_celery_results.models import TaskResult
@@ -74,7 +74,7 @@ class SignalsTestCase(TransactionTestCase):
 
         # if a BackgroundProcess is created, we shall receive a create event
         try:
-            async with async_timeout(2):
+            async with timeout(2):
                 background_process = await self.create_background_process()
         except asyncio.TimeoutError:
             raise AssertionError("can't create background processes in time")

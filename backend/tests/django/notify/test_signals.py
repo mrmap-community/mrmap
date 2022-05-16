@@ -32,13 +32,16 @@ class SignalsTestCase(TransactionTestCase):
 
     @sync_to_async
     def create_background_process(self):
+        print("create_background_process")
         background_process = BackgroundProcess.objects.create(
             phase="started",
             process_type=ProcessNameEnum.REGISTERING.value,
             description="register a new service"
         )
+        print("created")
         background_process = BackgroundProcess.objects.process_info().get(
             pk=background_process.pk)
+        print("fetched with additional data")
         return background_process
 
     @sync_to_async

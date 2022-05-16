@@ -74,7 +74,9 @@ class SignalsTestCase(TransactionTestCase):
         # if a BackgroundProcess is created, we shall receive a create event
         try:
             async with timeout(2):
+                print("try to create background process")
                 background_process = await self.create_background_process()
+                print("background process successfully created")
         except asyncio.TimeoutError:
             raise AssertionError("can't create background processes in time")
 

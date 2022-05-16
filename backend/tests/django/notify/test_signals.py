@@ -1,5 +1,7 @@
+import asyncio
 from typing import OrderedDict
 
+import async_timeout
 from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase
@@ -71,12 +73,16 @@ class SignalsTestCase(TransactionTestCase):
         self.assertTrue(connected)
 
         # if a BackgroundProcess is created, we shall receive a create event
-        background_process = await self.create_background_process()
+        try:
+            async with async_timeout(2):
+                background_process = await self.create_background_process()
+        except asyncio.TimeoutError:
+            raise AssertionError("can't create background processes in time")
 
-        # response = await communicator.receive_json_from()
-        # self.assertEqual(response['payload']['type'], "BackgroundProcess")
-        # self.assertEqual(response['payload']['id'], str(background_process.pk))
-        # self.assertEqual(response['type'], "backgroundProcesses/created")
+        response = await communicator.receive_json_from()
+        self.assertEqual(response['payload']['type'], "BackgroundProcess")
+        self.assertEqual(response['payload']['id'], str(background_process.pk))
+        self.assertEqual(response['type'], "backgroundProcesses/created")
 
         # # if a thread is updated, we shall receive a update event
         # await self.create_thread(background_process)

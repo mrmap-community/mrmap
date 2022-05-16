@@ -1,6 +1,5 @@
 from io import BytesIO
 from pathlib import Path
-from unittest import skip
 from unittest.mock import patch
 
 from accounts.models.users import User
@@ -108,7 +107,6 @@ class WebMapServiceProxyTest(TestCase):
 
         return equal_size and equal_alphas and equal_content
 
-    @skip("test which test runs endless")
     @patch.object(
         target=WebMapServiceProxy,
         attribute="get_remote_response",
@@ -140,7 +138,6 @@ class WebMapServiceProxyTest(TestCase):
 
         self.assertTrue(self.are_images_equal(received_image, expected_image))
 
-    @skip("test which test runs endless")
     def test_unknown_layer_exception(self):
         self.client.login(username="User1", password="User1")
         self.query_params.update({"LAYERS": "qwertz"})
@@ -161,7 +158,6 @@ class WebMapServiceProxyTest(TestCase):
         self.assertEqual(etree.tostring(response_xml),
                          etree.tostring(expected_xml))
 
-    @skip("test which test runs endless")
     def test_forbidden_exception_if_one_requested_layer_is_not_enabled(self):
         self.query_params.update({"LAYERS": "node1"})
         response = self.client.get(
@@ -181,7 +177,6 @@ class WebMapServiceProxyTest(TestCase):
         self.assertEqual(etree.tostring(response_xml),
                          etree.tostring(expected_xml))
 
-    @skip("test which test runs endless")
     @patch.object(
         target=WebMapServiceProxy,
         attribute="get_remote_response",

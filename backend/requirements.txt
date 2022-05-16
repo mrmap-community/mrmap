@@ -1,8 +1,8 @@
-Django==4.0.3
+Django==4.0.4
 # adds runserver_plus
 django-extensions==3.1.5
 # adds history models
-django-simple-history==3.0.0
+django-simple-history==3.1.1
 # adds filtersets for use in views
 django-filter==21.1
 # adds object permissions
@@ -16,9 +16,9 @@ django-simple-captcha==0.5.17
 # adds password hashing algorithm argon2
 argon2-cffi==21.3.0
 # adds cors header middleware for django to configure wildcard cors
-django-cors-headers==3.11.0
+django-cors-headers==3.12.0
 # postgres sql adapter
-psycopg2-binary==2.9.3
+psycopg2-binary==3.0.14
 # adds class based xml mappers
 eulxml==1.1.3
 # library to process xml
@@ -26,11 +26,11 @@ lxml==4.8.0
 # ISO 8601 date/time parser
 isodate==0.6.1
 # Python Imaging Library to create security images for example
-Pillow==9.0.1
+Pillow==9.1.0
 # http client lib
 requests==2.27.1
 # adds possiblity to export csv, excle, ods...
-tablib==3.2.0
+tablib==3.2.1
 # YAML 1.1 parser
 PyYAML==6.0
 # wsgi application server

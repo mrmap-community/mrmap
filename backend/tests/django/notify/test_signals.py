@@ -30,7 +30,6 @@ class SignalsTestCase(TransactionTestCase):
 
         HistoricalRecords.context.request = dummy_request
 
-    @sync_to_async
     def create_background_process(self):
         background_process = BackgroundProcess.objects.create(
             phase="started",
@@ -40,18 +39,15 @@ class SignalsTestCase(TransactionTestCase):
         return BackgroundProcess.objects.process_info().get(
             pk=background_process.pk)
 
-    @sync_to_async
     def get_background_process(self, pk):
         return BackgroundProcess.objects.process_info().get(
             pk=pk)
 
-    @sync_to_async
     def create_thread(self, background_process):
         task_result = TaskResult.objects.create(task_id=123)
         task_result.processes.add(background_process)
         return task_result
 
-    @sync_to_async
     def update_thread(self):
         task_result = TaskResult.objects.get(task_id=123)
         task_result.status = "STARTED"
@@ -59,62 +55,45 @@ class SignalsTestCase(TransactionTestCase):
         task_result.save()
         return task_result
 
-    @sync_to_async
     def delete_pending_task(self):
         return TaskResult.objects.get(task_id=123).delete()
 
     async def test_signal_events_for_task_result(self):
-        # test connection established for authenticated user
-        communicator = WebsocketCommunicator(application=application,
-                                             path="/ws/default/",
-                                             headers=self.headers)
-        connected, exit_code = await communicator.connect()
-        self.assertTrue(connected)
-
-        # if a BackgroundProcess is created, we shall receive a create event
         try:
-            async with timeout(2):
-                print("try to create background process")
-                background_process = await self.create_background_process()
-                print("background process successfully created")
+            async with timeout(15):
+                # test connection established for authenticated user
+                communicator = WebsocketCommunicator(application=application,
+                                                     path="/ws/default/",
+                                                     headers=self.headers)
+                connected, exit_code = await communicator.connect()
+                self.assertTrue(connected)
+
+                # if a BackgroundProcess is created, we shall receive a create event
+                background_process = await sync_to_async(self.create_background_process, thread_sensitive=False)()
+
+                response = await communicator.receive_json_from()
+                self.assertEqual(response['payload']
+                                 ['type'], "BackgroundProcess")
+                self.assertEqual(response['payload']
+                                 ['id'], str(background_process.pk))
+                self.assertEqual(response['type'],
+                                 "backgroundProcesses/created")
+
+                # if a thread is updated, we shall receive a update event
+                await sync_to_async(self.create_thread, thread_sensitive=False)(background_process)
+                await sync_to_async(self.update_thread, thread_sensitive=False)()
+                await sync_to_async(self.get_background_process, thread_sensitive=False)(background_process.pk)
+
+                response = await communicator.receive_json_from()
+                self.assertEqual(response['payload']
+                                 ['type'], "BackgroundProcess")
+                self.assertEqual(response['payload']
+                                 ['id'], str(background_process.pk))
+                self.assertEqual(response['type'],
+                                 "backgroundProcesses/updated")
+
+                # Close
+                await communicator.disconnect()
         except asyncio.TimeoutError:
-            raise AssertionError("can't create background processes in time")
-
-        response = await communicator.receive_json_from()
-        self.assertEqual(response['payload']['type'], "BackgroundProcess")
-        self.assertEqual(response['payload']['id'], str(background_process.pk))
-        self.assertEqual(response['type'], "backgroundProcesses/created")
-
-        # if a thread is updated, we shall receive a update event
-        try:
-            async with timeout(2):
-                print("try to create thread")
-                await self.create_thread(background_process)
-                print("thread successfully created")
-        except asyncio.TimeoutError:
-            raise AssertionError("can't create thread in time")
-
-        try:
-            async with timeout(2):
-                print("try to update thread")
-                await self.update_thread()
-                print("thread successfully updated")
-        except asyncio.TimeoutError:
-            raise AssertionError("can't update thread in time")
-        
-        try:
-            async with timeout(2):
-                print("try to get background process")
-                background_process = await self.get_background_process(background_process.pk)
-                print("thread successfully fetched")
-        except asyncio.TimeoutError:
-            raise AssertionError("can't get background process in time")
-        
-
-        response = await communicator.receive_json_from()
-        self.assertEqual(response['payload']['type'], "BackgroundProcess")
-        self.assertEqual(response['payload']['id'], str(background_process.pk))
-        self.assertEqual(response['type'], "backgroundProcesses/updated")
-
-        # Close
-        await communicator.disconnect()
+            raise AssertionError(
+                "test_signal_events_for_task_result timed out")

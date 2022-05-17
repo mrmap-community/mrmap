@@ -3,13 +3,14 @@ import RessourceDetails from '@/components/RessourceDetails';
 import SchemaForm from '@/components/SchemaForm';
 import SchemaTable from '@/components/SchemaTable';
 import type { JsonApiDocument, JsonApiPrimaryData } from '@/utils/jsonapi';
-import { getIncludesByType } from '@/utils/jsonapi';
+import { buildJsonApiPayload, getIncludesByType } from '@/utils/jsonapi';
 import { CheckOutlined, CloseOutlined, EditFilled, LinkOutlined, SearchOutlined } from '@ant-design/icons';
 import { Badge, Button, Col, Drawer, Row, Select, Space, Switch, Tooltip, Tree } from 'antd';
 import type { DefaultOptionType } from 'antd/lib/select';
 import type { Key } from 'rc-tree/lib/interface';
 import type { ReactElement, ReactNode } from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useOperationMethod } from 'react-openapi-client';
 import { useIntl } from 'umi';
 
 
@@ -28,64 +29,15 @@ interface NodeOptionType extends DefaultOptionType {
 
 export interface OgcServiceDetailsProps extends RessourceDetailsProps {
     loading?: boolean;
-    onActiveSwitchChange?: (checked: boolean, ressource: JsonApiPrimaryData) => void;
     nodeRessourceType: string;
+    transformTreeData: (ogcService: JsonApiDocument) => Node[];
 }
-
-const getDescendants = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData) => {
-    return nodes?.filter(
-        (node: JsonApiPrimaryData) => node?.attributes?.lft > currentNode?.attributes?.lft && node?.attributes?.rght < currentNode?.attributes?.rght
-    );
-};
-
-const getChildren = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData) => {
-    return getDescendants(nodes, currentNode).filter(
-        (node: JsonApiPrimaryData) => node?.attributes?.level === currentNode?.attributes.level + 1
-    );
-};
-
-const mapTreeData = (nodes: JsonApiPrimaryData[], currentNode: JsonApiPrimaryData): Node => {
-    const children = getChildren(nodes, currentNode);
-    if (children.length === 0){
-        return {
-            key: currentNode.id, 
-            title: currentNode.attributes.stringRepresentation, 
-            raw: currentNode,
-            isLeaf: true,
-        }
-    } else {
-        const childNodes: Node[] = [];
-        children.forEach((child: JsonApiPrimaryData) => {
-            childNodes.push(
-                mapTreeData(nodes, child)
-            );
-        });
-        return {
-            key: currentNode.id, 
-            title: currentNode.attributes.stringRepresentation, 
-            raw: currentNode,
-            isLeaf: false,
-            children: childNodes,
-            rawDescendants: getDescendants(nodes, currentNode)
-        }
-    }
-};
-
-
-const transformTreeData = (wms: JsonApiDocument): Node[] => {
-    const treeOrderedLayers = 
-        getIncludesByType(wms, 'Layer')
-        .sort((a: JsonApiPrimaryData, b: JsonApiPrimaryData) => a.attributes.lft - b.attributes.lft);
-    const rootNode = treeOrderedLayers[0];
-    const children = getDescendants(treeOrderedLayers, rootNode);
-    return [mapTreeData(children, rootNode)];
-};
 
 const OgcServiceDetails = (
     {
         loading=false,
-        onActiveSwitchChange = undefined,
         nodeRessourceType,
+        transformTreeData,
         ...passThroughProps
     }: OgcServiceDetailsProps
 ): ReactElement => {
@@ -94,24 +46,43 @@ const OgcServiceDetails = (
      */
     const intl = useIntl();
     const [ treeData, setTreeData ] = useState<Node[]>();
+
+    // search feature
     const [ flatNodeList, setFlatNodeList ] = useState<JsonApiPrimaryData[]>();
     const [ expandedKeys, setExpandedKeys ] = useState<Key[]>();
     const [ autoExpandParent, setAutoExpandParent ] = useState<boolean>();
     const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
     const [ selectedSearchKey, setSelectedSearchKey ] = useState<string>();
 
+    // edit drawer feature
     const [ selectedForEdit, setSelectedForEdit ] = useState<JsonApiPrimaryData>();
     const [ rightDrawerVisible, setRightDrawerVisible ] = useState<boolean>(false);
+
+    // dataset list drawer
     const [ selectedForDataset, setSelectedForDataset ] = useState<JsonApiPrimaryData>();
-    
-    
     const [ bottomDrawerVisible, setBottomDrawerVisible ] = useState<boolean>(false);
-
+    
     const [ reFetchRessource, setRefetchRessource ] = useState<boolean>(false);
+    const [ 
+        updateNode, 
+        {
+            loading: updateNodeLoading, 
+            response: updateNodeResponse
+        } 
+    ] = useOperationMethod(`update${nodeRessourceType}`);
 
+    const isLoading = loading || passThroughProps.rebuild || updateNodeLoading || reFetchRessource;
 
-    const isLoading = loading || passThroughProps.rebuild;
-
+    const onActiveSwitchChange = useCallback((checked, ressource) => {
+        updateNode(
+            [{
+                in: 'path',
+                name: 'id',
+                value: String(ressource.id),
+            }], 
+            buildJsonApiPayload(ressource.type, ressource.id, {isActive: checked })
+        )
+    }, [updateNode]);
 
     /**
     * @description Generate extra ui components like edit button for given json:api resource
@@ -157,9 +128,8 @@ const OgcServiceDetails = (
                             (checked, event) => {
                                 // If you don't want click extra trigger collapse, you can prevent this:
                                 event.stopPropagation();
-                                if (onActiveSwitchChange){
-                                    onActiveSwitchChange(checked, resource);
-                                }
+                                onActiveSwitchChange(checked, resource);
+                                
                             }
                         }
                         loading={isLoading}
@@ -233,19 +203,18 @@ const OgcServiceDetails = (
             }
         })
         setSearchOptions(newSearchOptions);
-    }, [nodeRessourceType]);
+    }, [nodeRessourceType, transformTreeData]);
 
-    // useEffect(() => {
-    //     setRefetchRessource(true);
-    // }, [updateLayerResponse, updateWmsResponse]);
+    useEffect(() => {
+        setRefetchRessource(true);
+    }, [updateNodeResponse]);
 
     return (
         <RessourceDetails
             {...passThroughProps}
             //resourceType={passThroughProps.resourceType}
             //additionalGetRessourceParams={getWebMapServiceParams}
-            //onRessourceResponse={onRessourceResponse}
-            //rebuild={reFetchRessource}
+            onRessourceResponse={onRessourceResponse}
             rebuild={reFetchRessource}
             
         > 

@@ -1,11 +1,8 @@
 import OgcServiceDetails from "@/components/RessourceDetails/OgcServiceDetails";
 import type { JsonApiDocument, JsonApiPrimaryData } from "@/utils/jsonapi";
 import { getIncludesByType } from "@/utils/jsonapi";
-import type { DefaultOptionType } from 'antd/lib/select';
 import type { ParamsArray } from "openapi-client-axios";
 import type { ReactElement } from "react";
-import { useCallback, useState } from "react";
-import { useIntl } from 'umi';
 
 
 interface Node {
@@ -15,8 +12,8 @@ interface Node {
     isLeaf: boolean
 }
 
-const transformTreeData = (wms: JsonApiDocument): Node[] => {
-    return getIncludesByType(wms, 'FeatureType').map((node) => {
+const transformTreeData = (wfs: JsonApiDocument): Node[] => {
+    return getIncludesByType(wfs, 'FeatureType').map((node) => {
         return {
             key: node.id, 
             title: node.attributes.stringRepresentation, 
@@ -28,14 +25,6 @@ const transformTreeData = (wms: JsonApiDocument): Node[] => {
 };
 
 const WfsDetails = (): ReactElement => {
-    /**
-     * page hooks
-     */
-    const intl = useIntl();
-    //const [ treeData, setTreeData ] = useState<Node[]>();
-    const [ searchOptions, setSearchOptions ] = useState<DefaultOptionType[]>([]);
-
-    const [ reFetchRessource, setRefetchRessource ] = useState<boolean>(false);
 
 
     /**
@@ -54,26 +43,14 @@ const WfsDetails = (): ReactElement => {
         }
     ];
 
-    const onRessourceResponse = useCallback((ressource: JsonApiDocument) => {        
-        setRefetchRessource(false);
-        setTreeData(transformTreeData(ressource));
 
-        const newSearchOptions: DefaultOptionType[] = getIncludesByType(ressource, 'FeatureType').map((node: JsonApiPrimaryData) => {
-            return {
-                value: node.id,
-                label: node.attributes.stringRepresentation
-            }
-        })
-        setSearchOptions(newSearchOptions);
-    }, []);
-    
     return (
         <OgcServiceDetails
             resourceType='WebFeatureService'
             additionalGetRessourceParams={getWebFeatureServiceParams}
-            onRessourceResponse={onRessourceResponse}
-            rebuild={reFetchRessource}
-         />
+            nodeRessourceType={"FeatureType"}
+            transformTreeData={transformTreeData}
+        />
     );
 
 };

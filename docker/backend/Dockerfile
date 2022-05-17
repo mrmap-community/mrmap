@@ -19,7 +19,7 @@ RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r requirements.de
 ################################
 # MrMap Image
 ################################    
-FROM python:3.10.1-slim-bullseye as runtime-image
+FROM python:3.10.4-slim-bullseye as runtime-image
 ARG MRMAP_PRODUCTION
 COPY --from=compile-image /opt/venv /opt/venv
 

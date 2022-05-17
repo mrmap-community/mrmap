@@ -1,8 +1,8 @@
-Django==4.0.3
+Django==4.0.4
 # adds runserver_plus
 django-extensions==3.1.5
 # adds history models
-django-simple-history==3.0.0
+django-simple-history==3.1.1
 # adds filtersets for use in views
 django-filter==21.1
 # adds object permissions
@@ -16,7 +16,7 @@ django-simple-captcha==0.5.17
 # adds password hashing algorithm argon2
 argon2-cffi==21.3.0
 # adds cors header middleware for django to configure wildcard cors
-django-cors-headers==3.11.0
+django-cors-headers==3.12.0
 # postgres sql adapter
 psycopg2-binary==2.9.3
 # adds class based xml mappers
@@ -26,11 +26,11 @@ lxml==4.8.0
 # ISO 8601 date/time parser
 isodate==0.6.1
 # Python Imaging Library to create security images for example
-Pillow==9.0.1
+Pillow==9.1.0
 # http client lib
 requests==2.27.1
 # adds possiblity to export csv, excle, ods...
-tablib==3.2.0
+tablib==3.2.1
 # YAML 1.1 parser
 PyYAML==6.0
 # wsgi application server
@@ -40,7 +40,7 @@ uvicorn==0.17.6
 # adds rest based views
 djangorestframework==3.13.1
 # adds geojson filters
-djangorestframework-gis==0.18
+djangorestframework-gis==1.0
 # adds jsonapi implementation on top of django rest framework
 djangorestframework-jsonapi==5.0.0
 djangorestframework-jsonapi[django-filter]==5.0.0
@@ -49,14 +49,14 @@ drf-extensions==0.7.1
 # needed for openapi schema generation
 uritemplate==4.1.1
 # adds redis cache backed
-redis==4.1.4
+redis==4.3.1
 # adds background task processing 
-celery==5.2.3
+celery==5.2.6
 #django-celery-beat==2.2.1  # wait for v 2.2.2, cause 2.2.1 is not compatible with django 4.0
 # adds database results for celery tasks
-django-celery-results==2.3.0
+django-celery-results==2.3.1
 # adds websockets
-websockets==10.2
+websockets==10.3
 # adds websockets implementation for django
 channels==3.0.4
 # adds redis cache backend implementation for channels package

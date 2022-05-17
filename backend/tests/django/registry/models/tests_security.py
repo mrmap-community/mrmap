@@ -1,3 +1,4 @@
+
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.utils import IntegrityError
 from django.test import TestCase

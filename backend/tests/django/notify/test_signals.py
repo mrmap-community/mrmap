@@ -1,8 +1,8 @@
 import asyncio
 from typing import OrderedDict
 
-from asgiref.sync import sync_to_async
 from async_timeout import timeout
+from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase
 from django_celery_results.models import TaskResult
@@ -60,7 +60,7 @@ class SignalsTestCase(TransactionTestCase):
 
     async def test_signal_events_for_task_result(self):
         try:
-            async with timeout(15):
+            async with timeout(60):
                 # test connection established for authenticated user
                 communicator = WebsocketCommunicator(application=application,
                                                      path="/ws/default/",
@@ -69,7 +69,7 @@ class SignalsTestCase(TransactionTestCase):
                 self.assertTrue(connected)
 
                 # if a BackgroundProcess is created, we shall receive a create event
-                background_process = await sync_to_async(self.create_background_process, thread_sensitive=False)()
+                background_process = await database_sync_to_async(self.create_background_process, thread_sensitive=False)()
 
                 response = await communicator.receive_json_from()
                 self.assertEqual(response['payload']
@@ -80,9 +80,9 @@ class SignalsTestCase(TransactionTestCase):
                                  "backgroundProcesses/created")
 
                 # if a thread is updated, we shall receive a update event
-                await sync_to_async(self.create_thread, thread_sensitive=False)(background_process)
-                await sync_to_async(self.update_thread, thread_sensitive=False)()
-                await sync_to_async(self.get_background_process, thread_sensitive=False)(background_process.pk)
+                await database_sync_to_async(self.create_thread, thread_sensitive=False)(background_process)
+                await database_sync_to_async(self.update_thread, thread_sensitive=False)()
+                await database_sync_to_async(self.get_background_process, thread_sensitive=False)(background_process.pk)
 
                 response = await communicator.receive_json_from()
                 self.assertEqual(response['payload']

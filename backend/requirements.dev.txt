@@ -1,7 +1,7 @@
-coverage==6.3.2
+coverage==6.3.3
 behave-django==1.4.0
 flake8==4.0.1
-watchdog[watchmedo]==2.1.6
-debugpy==1.5.1
+watchdog[watchmedo]==2.1.8
+debugpy==1.6.0
 autopep8==1.6.0
-django-debug-toolbar==3.2.4
+django-debug-toolbar==3.4.0

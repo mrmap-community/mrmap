@@ -8,7 +8,7 @@ RUN npm install
 RUN npm run build
 
 
-FROM python:3.10.1-bullseye AS backend-build
+FROM python:3.10.4-bullseye AS backend-build
 
 WORKDIR /opt/mrmap
 

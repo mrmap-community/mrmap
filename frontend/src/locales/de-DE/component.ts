@@ -18,4 +18,8 @@ export default {
 
   'component.ressourceDetails.pageContainer.title': 'Details zu {ressourceType}: {label}',
 
+  'component.ogcservicedetails.linkedDatasetMetadata': 'Verknüfte Datensätze für {type}: {label}',
+  'component.ogcservicedetails.editRessource': 'Bearbeiten {type}: {label}',
+  'component.ogcservicedetails.search': 'Suchen',
+
 };

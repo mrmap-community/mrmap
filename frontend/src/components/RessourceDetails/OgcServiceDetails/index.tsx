@@ -224,7 +224,7 @@ const OgcServiceDetails = (
                 dropdownMatchSelectWidth={false}
                 placeholder={
                     intl.formatMessage(
-                        { id: 'pages.wmsDetail.searchLayer' }
+                        { id: 'component.ogcservicedetails.search' }
                     )
                 }
                 optionFilterProp="label"
@@ -248,7 +248,7 @@ const OgcServiceDetails = (
             <Drawer
                 title={
                     intl.formatMessage(
-                        { id: 'pages.wmsDetail.editRessource' },
+                        { id: 'component.ogcservicedetails.editRessource' },
                         { type: selectedForEdit?.type, label: selectedForEdit?.attributes.stringRepresentation },
                     )
                 }
@@ -269,7 +269,7 @@ const OgcServiceDetails = (
             <Drawer
                 title={
                     intl.formatMessage(
-                        { id: 'pages.wmsDetail.linkedDatasetMetadata' },
+                        { id: 'component.ogcservicedetails.linkedDatasetMetadata' },
                         { type: selectedForDataset?.type, label: selectedForDataset?.attributes.stringRepresentation },
                     )
                 }

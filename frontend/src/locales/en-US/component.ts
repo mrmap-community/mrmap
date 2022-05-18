@@ -11,7 +11,16 @@ export default {
   'component.schemaTable.deleteRowTitle': 'Delete record',
   'component.schemaTable.edit': 'Edit {title}',
   'component.schemaTable.new': 'New',
+  'component.schemaTable.details': 'show details',
+
   'component.tagSelect.all': 'All',
   'component.tagSelect.collapse': 'Collapse',
   'component.tagSelect.expand': 'Expand',
+
+  'component.ressourceDetails.pageContainer.title': 'Details of {ressourceType}: {label}',
+
+  'component.ogcservicedetails.linkedDatasetMetadata': 'Linked dataset metadata records for {type}: {label}',
+  'component.ogcservicedetails.editRessource': 'Edit {type}: {label}',
+  'component.ogcservicedetails.search': 'Search',
+
 };

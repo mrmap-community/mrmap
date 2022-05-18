@@ -123,10 +123,5 @@ export default {
   'pages.wmsSecuritySettings.rulesDrawer.ruleForm.save': 'Speichern',
   'pages.wmsTable.noSecurityRules': 'Unbeschränkter Zugriff',
   'pages.wmsTable.securityRuleCount': 'Anzahl Zugriffsregeln: {num}',
-  'pages.wmsTable.showDetails': 'Detailansicht',
-  'pages.wmsDetail.linkedDatasetMetadata': 'Verknüfte Datensätze für {type}: {label}',
-  'pages.wmsDetail.editRessource': 'Bearbeiten {type}: {label}',
-  'pages.wmsDetail.searchLayer': 'nach einer Ebene suchen',
-  'pages.wmsDetail.pageTitle': 'Details zu Kartendienst: {label}',
 
 };

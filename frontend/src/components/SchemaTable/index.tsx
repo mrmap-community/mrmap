@@ -1,7 +1,7 @@
 import { useDefaultWebSocket } from '@/services/WebSockets';
 import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { getQueryParams } from '@/utils/jsonapi';
-import { DeleteFilled, EditFilled, PlusOutlined } from '@ant-design/icons';
+import { DeleteFilled, EditFilled, InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ColumnsState, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import { default as ProTable } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
@@ -13,7 +13,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
-import { FormattedMessage, useIntl, useModel } from 'umi';
+import { FormattedMessage, Link, useIntl, useModel } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn, transformJsonApiPrimaryDataToRow } from './utils';
 
@@ -28,7 +28,6 @@ export interface ResourceTypes {
     type: string;
     id: string;
   }
-
 }
 
 export interface RepoTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
@@ -42,6 +41,7 @@ export interface RepoTableProps extends Omit<ProTableProps<any, any>, 'actionRef
   onAddRecord?: () => void;
   /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
   onEditRecord?: (recordId: number | string) => void;
+  detailsLink?: (row: any) => string;
 }
 
 export type RepoTableColumnType = ProColumnType & {
@@ -94,6 +94,7 @@ const SchemaTable = ({
   defaultActions = ['edit', 'delete'],
   onAddRecord = undefined,
   onEditRecord = undefined,
+  detailsLink = undefined,
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
 
@@ -156,85 +157,106 @@ const SchemaTable = ({
     ) : null;
   }, [addRowAction, api, resourceTypes.baseResourceType]);
 
+  const detailsButton = useCallback(
+    (row: any): ReactNode => {
+      if (!detailsLink){
+        return <></>
+      }
+      return (
+        <Tooltip    
+          title={intl.formatMessage({ id: 'component.schemaTable.details' })}
+        >
+          <Link to={detailsLink(row)}>
+            <Button
+              size='small'
+              style={{ borderColor: 'blue', color: 'blue' }}
+              icon={<InfoCircleOutlined />}
+            />
+          </Link>
+        </Tooltip>)
+    }, [detailsLink, intl]
+  );
+
   const deleteRowButton = useCallback(
     (row: any): ReactNode => {
-      return (
-        <Tooltip title={'Delete'}>
-          <Button
-            style={{ borderColor: 'red', color: 'red' }}
-            type="default"
-            icon={<DeleteFilled />}
-            size="small"
-            onClick={() => {
-              const modal = Modal.confirm({
-                title: intl.formatMessage({ id: 'component.schemaTable.deleteRowTitle' }),
-                content: intl.formatMessage(
-                  { id: 'component.schemaTable.deleteRowText' },
-                  { row: row.id },
-                ),
-                onOk: () => {
-                  modal.update((prevConfig) => ({
-                    ...prevConfig,
-                    confirmLoading: true,
-                  }));
-                  deleteResource(row.id);
-                  proTableActions.current?.reload();
-                },
-              });
-            }}
-          />
-        </Tooltip>
-      );
+      // todo: check if user has permission also
+      if (_defaultActions.current.includes('delete') &&
+          api.getOperation('delete' + resourceTypes.baseResourceType)) {
+          return (
+            <Tooltip title={'Delete'}>
+              <Button
+                style={{ borderColor: 'red', color: 'red' }}
+                type="default"
+                icon={<DeleteFilled />}
+                size="small"
+                onClick={() => {
+                  const modal = Modal.confirm({
+                    title: intl.formatMessage({ id: 'component.schemaTable.deleteRowTitle' }),
+                    content: intl.formatMessage(
+                      { id: 'component.schemaTable.deleteRowText' },
+                      { row: row.id },
+                    ),
+                    onOk: () => {
+                      modal.update((prevConfig) => ({
+                        ...prevConfig,
+                        confirmLoading: true,
+                      }));
+                      deleteResource(row.id);
+                      proTableActions.current?.reload();
+                    },
+                  });
+                }}
+              />
+            </Tooltip>);
+      } else {
+        return <></>
+      }
     },
-    [deleteResource, intl],
+    [api, deleteResource, intl, resourceTypes.baseResourceType],
   );
 
   const editRowButton = useCallback(
     (row: any): ReactNode => {
-      return (
-        <Tooltip title={'Edit'}>
-          <Button
-            size="small"
-            icon={<EditFilled />}
-            style={{ borderColor: 'gold', color: 'gold' }}
-            onClick={() => {
-              if (onEditRecord) {
-                onEditRecord(row.id);
-              } else {
-                setSelectedForEdit(row.id);
-                setRightDrawerVisible(true);
-              }
-            }}
-          />
-        </Tooltip>
-      );
+      // todo: check if user has permission also
+      if (_defaultActions.current.includes('edit') &&
+          api.getOperation('update' + resourceTypes.baseResourceType)) {
+            return (
+              <Tooltip title={'Edit'}>
+                <Button
+                  size="small"
+                  icon={<EditFilled />}
+                  style={{ borderColor: 'gold', color: 'gold' }}
+                  onClick={() => {
+                    if (onEditRecord) {
+                      onEditRecord(row.id);
+                    } else {
+                      setSelectedForEdit(row.id);
+                      setRightDrawerVisible(true);
+                    }
+                  }}
+                />
+              </Tooltip>
+            );
+      } else {
+        return <></>
+      }
+      
     },
-    [onEditRecord],
+    [api, onEditRecord, resourceTypes.baseResourceType],
   );
 
   const defaultActionButtons = useCallback(
     (text: any, record: any): ReactNode => {
       return (
         <Space size="small">
-          {
-            // todo: check if user has permission also
-            _defaultActions.current.includes('edit') &&
-            api.getOperation('update' + resourceTypes.baseResourceType)
-              ? editRowButton(record)
-              : null
-          }
-          {
-            // todo: check if user has permission also
-            _defaultActions.current.includes('delete') &&
-            api.getOperation('delete' + resourceTypes.baseResourceType)
-              ? deleteRowButton(record)
-              : null
-          }
+          {detailsButton(record)}
+          {editRowButton(record)}
+          {deleteRowButton(record)}
           {additionalActions ? additionalActions(text, record) : null}
         </Space>
       );
     },
-    [additionalActions, api, deleteRowButton, editRowButton, resourceTypes],
+    [additionalActions, deleteRowButton, detailsButton, editRowButton],
   );
 
   /**

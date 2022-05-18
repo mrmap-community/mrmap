@@ -11,7 +11,15 @@ export default {
   'component.schemaTable.deleteRowTitle': 'Datensatz löschen',
   'component.schemaTable.edit': 'Bearbeiten von {title}',
   'component.schemaTable.new': 'Neu',
+  'component.schemaTable.details': 'Detailansicht',
   'component.tagSelect.all': 'Alle',
   'component.tagSelect.collapse': 'Einklappen',
   'component.tagSelect.expand': 'Expandieren',
+
+  'component.ressourceDetails.pageContainer.title': 'Details zu {ressourceType}: {label}',
+
+  'component.ogcservicedetails.linkedDatasetMetadata': 'Verknüfte Datensätze für {type}: {label}',
+  'component.ogcservicedetails.editRessource': 'Bearbeiten {type}: {label}',
+  'component.ogcservicedetails.search': 'Suchen',
+
 };

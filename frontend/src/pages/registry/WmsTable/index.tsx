@@ -1,5 +1,5 @@
 import SchemaTable from '@/components/SchemaTable';
-import { InfoCircleOutlined, LockFilled, UnlockFilled } from '@ant-design/icons';
+import { LockFilled, UnlockFilled } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
 import { Button, Tooltip } from 'antd';
 import type { ReactElement } from 'react';
@@ -13,19 +13,6 @@ const WmsTable = (): ReactElement => {
       const allowedOperations = record.relationships?.allowedOperations?.meta?.count;
       return (
         <>
-        <Tooltip
-          title={intl.formatMessage({ id: 'pages.wmsTable.showDetails' })}
-        >
-          <Link
-           to={`/registry/wms/${record.id}/details`}>
-             <Button
-              size='small'
-              style={{ borderColor: 'blue', color: 'blue' }}
-              icon={<InfoCircleOutlined />}
-             
-             />
-          </Link>
-        </Tooltip>
         <Tooltip
           title={
             allowedOperations > 0
@@ -54,6 +41,7 @@ const WmsTable = (): ReactElement => {
       <SchemaTable 
         resourceTypes={{baseResourceType: 'WebMapService'}} 
         additionalActions={additionalActions} 
+        detailsLink={(row) => {return `/registry/wms/${row.id}/details`}}
       />
     </PageContainer>
   );

@@ -122,11 +122,5 @@ export default {
   'pages.wmsSecuritySettings.rulesDrawer.ruleForm.save': 'Save',
   'pages.wmsTable.noSecurityRules': 'Unrestricted access',
   'pages.wmsTable.securityRuleCount': 'Number of security rules: {num}',
-  'pages.wmsTable.showDetails': 'show details',
-  'pages.wmsDetail.linkedDatasetMetadata': 'Linked dataset metadata records for {type}: {label}',
-  'pages.wmsDetail.editRessource': 'Edit {type}: {label}',
-  'pages.wmsDetail.searchLayer': 'Search Layer',
-  'pages.wmsDetail.pageTitle': 'Details of WebMapService: {label}',
-
 
 };

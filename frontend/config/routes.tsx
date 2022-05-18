@@ -70,7 +70,6 @@ const defaultMenus = [
         path: '/registry/wms/:id/details',
         component: './registry/WmsDetail',
         hideInMenu: true,
-        //routes: [{ path: 'rules' }, { path: 'rules/:ruleId/edit' }, { path: 'rules/add' }],
         wrappers: [
           '@/wrappers/auth',
         ],
@@ -79,6 +78,14 @@ const defaultMenus = [
         name: 'wfs',
         path: '/registry/wfs',
         component: './registry/WfsTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      },
+      {
+        path: '/registry/wfs/:id/details',
+        component: './registry/WfsDetail',
+        hideInMenu: true,
         wrappers: [
           '@/wrappers/auth',
         ],

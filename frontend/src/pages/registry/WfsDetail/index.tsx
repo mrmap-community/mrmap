@@ -1,3 +1,4 @@
+import type { TreeNode } from "@/components/RessourceDetails/OgcServiceDetails";
 import OgcServiceDetails from "@/components/RessourceDetails/OgcServiceDetails";
 import type { JsonApiDocument, JsonApiPrimaryData } from "@/utils/jsonapi";
 import { getIncludesByType } from "@/utils/jsonapi";
@@ -5,14 +6,7 @@ import type { ParamsArray } from "openapi-client-axios";
 import type { ReactElement } from "react";
 
 
-interface Node {
-    key: any;
-    raw: JsonApiPrimaryData;
-    title: string;
-    isLeaf: boolean
-}
-
-const transformTreeData = (wfs: JsonApiDocument): Node[] => {
+const transformTreeData = (wfs: JsonApiDocument): TreeNode[] => {
     return getIncludesByType(wfs, 'FeatureType').map((node) => {
         return {
             key: node.id, 
@@ -23,6 +17,11 @@ const transformTreeData = (wfs: JsonApiDocument): Node[] => {
     });
     
 };
+
+const transformFlatNodeList = (wfs: JsonApiDocument): JsonApiPrimaryData[] => {
+    return getIncludesByType(wfs, 'FeatureType');
+};
+
 
 const WfsDetails = (): ReactElement => {
 
@@ -50,6 +49,7 @@ const WfsDetails = (): ReactElement => {
             additionalGetRessourceParams={getWebFeatureServiceParams}
             nodeRessourceType={"FeatureType"}
             transformTreeData={transformTreeData}
+            transformFlatNodeList={transformFlatNodeList}
         />
     );
 

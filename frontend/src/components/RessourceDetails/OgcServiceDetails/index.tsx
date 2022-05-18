@@ -14,23 +14,20 @@ import { useOperationMethod } from 'react-openapi-client';
 import { useIntl } from 'umi';
 
 
-interface Node {
+export interface TreeNode {
     key: any;
     raw: JsonApiPrimaryData;
     title: string;
-    children?: Node[] | undefined;
+    children?: TreeNode[] | undefined;
     rawDescendants?: JsonApiPrimaryData[] | undefined;
     isLeaf: boolean
-}
-
-interface NodeOptionType extends DefaultOptionType {
-    label: string;
 }
 
 export interface OgcServiceDetailsProps extends RessourceDetailsProps {
     loading?: boolean;
     nodeRessourceType: string;
-    transformTreeData: (ogcService: JsonApiDocument) => Node[];
+    transformTreeData: (ogcService: JsonApiDocument) => TreeNode[];
+    transformFlatNodeList: (ogcService: JsonApiDocument) => JsonApiPrimaryData[];
 }
 
 const OgcServiceDetails = (
@@ -38,6 +35,7 @@ const OgcServiceDetails = (
         loading=false,
         nodeRessourceType,
         transformTreeData,
+        transformFlatNodeList,
         ...passThroughProps
     }: OgcServiceDetailsProps
 ): ReactElement => {
@@ -45,7 +43,7 @@ const OgcServiceDetails = (
      * page hooks
      */
     const intl = useIntl();
-    const [ treeData, setTreeData ] = useState<Node[]>();
+    const [ treeData, setTreeData ] = useState<TreeNode[]>();
 
     // search feature
     const [ flatNodeList, setFlatNodeList ] = useState<JsonApiPrimaryData[]>();
@@ -170,7 +168,7 @@ const OgcServiceDetails = (
         setAutoExpandParent(false);
     }, []);
 
-    const getNodeTitle = useCallback((node: Node) => {
+    const getNodeTitle = useCallback((node: TreeNode) => {
         const title = selectedSearchKey && node.key === selectedSearchKey ? (
             <span>
               <SearchOutlined style={{color: '#f50'}} />
@@ -195,7 +193,7 @@ const OgcServiceDetails = (
     const onRessourceResponse = useCallback((ressource: JsonApiDocument) => {        
         setRefetchRessource(false);
         setTreeData(transformTreeData(ressource));
-
+        setFlatNodeList(transformFlatNodeList(ressource));
         const newSearchOptions: DefaultOptionType[] = getIncludesByType(ressource, nodeRessourceType).map((node: JsonApiPrimaryData) => {
             return {
                 value: node.id,
@@ -203,20 +201,18 @@ const OgcServiceDetails = (
             }
         })
         setSearchOptions(newSearchOptions);
-    }, [nodeRessourceType, transformTreeData]);
+    }, [nodeRessourceType, transformFlatNodeList, transformTreeData]);
 
     useEffect(() => {
         setRefetchRessource(true);
     }, [updateNodeResponse]);
 
+
     return (
         <RessourceDetails
             {...passThroughProps}
-            //resourceType={passThroughProps.resourceType}
-            //additionalGetRessourceParams={getWebMapServiceParams}
             onRessourceResponse={onRessourceResponse}
             rebuild={reFetchRessource}
-            
         > 
             <Select 
                 style={{ marginBottom: 8, width: '100%' }} 
@@ -234,7 +230,8 @@ const OgcServiceDetails = (
                 optionFilterProp="label"
                 filterOption={
                     (input, option) => {
-                        return option?.label?.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
+                        const label = option?.label as string;
+                        return label.toLocaleLowerCase().includes(input.toLocaleLowerCase()) ? true: false;
                     }
                 }
                 key={'layer-search-select'}
@@ -265,6 +262,7 @@ const OgcServiceDetails = (
                     resourceId={selectedForEdit?.id}
                     onSuccess={() => {
                         setRightDrawerVisible(false);
+                        setRefetchRessource(true);
                     }}
                 />
             </Drawer>

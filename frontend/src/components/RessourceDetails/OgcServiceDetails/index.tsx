@@ -243,6 +243,7 @@ const OgcServiceDetails = (
                 autoExpandParent={autoExpandParent}
                 titleRender={getNodeTitle}
                 treeData={treeData}
+                selectable={false}                
             />
              
             <Drawer

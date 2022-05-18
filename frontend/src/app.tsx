@@ -40,7 +40,7 @@ const fetchUserInfo = async () => {
  * @see https://umijs.org/zh-CN/plugins/plugin-initial-state
  */
 export async function getInitialState(): Promise<{
-  settings?: Partial<LayoutSettings>; // TODO: table settings.... etc...
+  settings?: Partial<LayoutSettings>;
   userInfoResponse?: JsonApiResponse;
   currentUser?: JsonApiPrimaryData;
   isAuthenticated: boolean;
@@ -55,7 +55,7 @@ export async function getInitialState(): Promise<{
     userInfoResponse: response,
     currentUser: currentUser,
     isAuthenticated: isAuthenticated,
-    settings: isAuthenticated ? currentUser?.attributes.settings : defaultSettings,
+    settings: isAuthenticated ? currentUser?.attributes.settings : {layout: defaultSettings},
   };
 }
 
@@ -113,11 +113,14 @@ export const layout: RunTimeLayoutConfig = ({
           {!props.location?.pathname?.includes('/login') && (
             <SettingDrawer
               enableDarkTheme
-              settings={initialState?.settings}
-              onSettingChange={(settings) => {
+              settings={initialState?.settings?.layout}
+              onSettingChange={(layoutSettings) => {
                 setInitialState((preInitialState: any) => ({
                   ...preInitialState,
-                  settings,
+                  settings: {
+                    ...preInitialState.settings,
+                    ['layout']: layoutSettings
+                  },
                 }));
               }}
             />
@@ -125,7 +128,7 @@ export const layout: RunTimeLayoutConfig = ({
         </>
       );
     },
-    ...initialState?.settings,
+    ...initialState?.settings?.layout,
   };
 };
 

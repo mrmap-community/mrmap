@@ -36,7 +36,7 @@ const setDjangoLanguageCookie = () => {
 };
 
 const UserSettingsUpdater: React.FC = (props: any) => {
-  const { initialState, initialState: { currentUser = undefined, settings = undefined } = {} } =
+  const { initialState: { currentUser = undefined, settings = undefined } = {} } =
     useModel('@@initialState');
   const { isAuthenticated } = useAccess();
   const [updateUser, { error: updateUserError }] = useOperationMethod('updateUser');
@@ -54,7 +54,7 @@ const UserSettingsUpdater: React.FC = (props: any) => {
         buildJsonApiPayload('User', currentUser.id, { settings: settings }),
       );
     }
-  }, [currentUser, initialState, isAuthenticated, settings, updateUser]);
+  }, [settings, updateUser]);
 
   return props.children;
 };

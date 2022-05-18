@@ -43,11 +43,18 @@ const Login: React.FC = (): ReactElement => {
     if (currentUserResponse && currentUserResponse.status === 200) {
       const defaultLoginSuccessMessage = intl.formatMessage({ id: 'pages.login.success' });
       message.success(defaultLoginSuccessMessage);
-      setInitialState((s: any) => ({
-        ...s,
-        userInfoResponse: currentUserResponse,
-        currentUser: currentUserResponse.data.data,
-      }));
+      setInitialState((currentState: any) => {
+        const newState = currentState;
+        if (currentUserResponse?.data?.data?.attributes?.settings) {
+          newState.settings = currentUserResponse?.data?.data?.attributes?.settings;
+        }
+        return ({
+          ...newState,
+          userInfoResponse: currentUserResponse,
+          currentUser: currentUserResponse.data.data,
+          
+        })
+      });
     }
   }, [currentUserResponse, intl, setInitialState]);
 

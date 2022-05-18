@@ -4,7 +4,7 @@ const Settings: LayoutSettings & {
   pwa?: boolean;
   logo?: string;
 } = {
-  navTheme: 'realDark',
+  navTheme: 'dark',
   // dawn blue
   primaryColor: '#1890ff',
   layout: 'mix',

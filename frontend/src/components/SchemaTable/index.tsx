@@ -283,6 +283,7 @@ const SchemaTable = ({
     }
   }, [deleteError]);
 
+  // augment / build columns from schema (and add delete action)
   const augmentedColumns = useMemo<ProColumns[]>(() => {
     const queryParams = getQueryParams(api, listOperationId);
     const operation = api.getOperation(listOperationId);
@@ -311,34 +312,6 @@ const SchemaTable = ({
     return schemaColumns
   }, [api, augmentColumns, columns, defaultActionButtons, intl, listOperationId]);
 
-  // // augment / build columns from schema (and add delete action)
-  // useEffect(() => {
-  //   const queryParams = getQueryParams(api, listOperationId);
-  //   const operation = api.getOperation(listOperationId);
-  //   const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
-  //   const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
-  //   if (responseSchema) {
-  //     const attributes = {
-  //       ...responseSchema.properties?.data?.items?.properties?.attributes?.properties,
-  //       ...responseSchema.properties?.data?.items?.properties?.relationships?.properties
-  //     };
-
-  //     const _augmentedColumns = augmentColumns(attributes, queryParams, columns);
-  //     if (!_augmentedColumns.some((column) => column.key === 'actions')) {
-  //       // TODO: title shall be translated
-  //       _augmentedColumns.push({
-  //         key: 'operation',
-  //         title: intl.formatMessage({ id: 'component.schemaTable.actionsColumnTitle' }),
-  //         valueType: 'option',
-  //         fixed: 'right',
-  //         render: (text: any, record: any) => {
-  //           return defaultActionButtons(text, record);
-  //         },
-  //       });
-  //     }
-  //     setAugmentedColumns(_augmentedColumns);
-  //   }
-  // }, [intl, additionalActions, columns, api, listOperationId, defaultActionButtons]);
 
   /**
    * @description Handles list response and fills the table with data

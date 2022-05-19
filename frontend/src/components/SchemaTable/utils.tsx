@@ -188,7 +188,6 @@ export const mapOpenApiSchemaToProTableColumn = (
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
-        console.log(_proTableRecord);
         const relatedDefinition: ResourceTypes = {
           baseResourceType: relationshipObject?.data?.[0]?.type,
           nestedResource: {

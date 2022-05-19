@@ -61,12 +61,15 @@ const SchemaTable = ({
   ...passThroughProps
 }: RepoTableProps): ReactElement => {
 
+  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
+
   const resourceTypesArray = [resourceTypes.baseResourceType];
   if (resourceTypes.nestedResource){
     resourceTypesArray.push(resourceTypes.nestedResource.type)
   }
 
   const {lastResourceMessage} = useDefaultWebSocket(resourceTypesArray);
+
   const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
   const jsonPointer = useRef('reactClient/tables/' + resourceTypes.baseResourceType);
@@ -80,24 +83,38 @@ const SchemaTable = ({
   );
 
 
-  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
+  /**
+   * @description state variables for right drawer
+   */
   const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
   const [selectedForEdit, setSelectedForEdit] = useState<string>('');
-  const closeRightDrawer = useCallback(() => {
-    setRightDrawerVisible(false);
-    setSelectedForEdit('');
-  }, []);
+
+
+  /**
+   * @description state variables for bottom drawer
+   */
+  const [bottomDrawerVisible, setBottomDrawerVisible] = useState<boolean>(false);
+  const [selectedForBottomDrawer, setSelectedForBottomDrawer] = useState<ResourceTypes>({baseResourceType: 'unknown'});
+
+
+  /**
+   * @description state variables for api calls
+   */
   const { api } = useContext(OpenAPIContext);
   const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
     useOperationMethod(listOperationId);
   const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes.baseResourceType);
   
 
+  /**
+   * @description state variables for protable
+   */
   const [tableData, setTableData] = useState<JsonApiPrimaryData[]>([]);
   const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
 
   const proTableActions = useRef<ActionType>();
 
+  
   const augmentColumns = useCallback((
     properties: any,
     queryParams: any,
@@ -105,10 +122,19 @@ const SchemaTable = ({
   ): ProColumns[] => {
     const schemaColumns: any = {};
     for (const propName in properties) {
+      const onRelationButtonClick = (relatedDefinition: ResourceTypes) => {
+        console.log('huhu');
+        console.log(relatedDefinition);
+        setSelectedForBottomDrawer(relatedDefinition);
+        setBottomDrawerVisible(true);
+
+      };
+
       schemaColumns[propName] = mapOpenApiSchemaToProTableColumn(
         { dataIndex: propName },
         properties[propName],
         queryParams,
+        onRelationButtonClick
       );
       // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
       const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
@@ -295,6 +321,7 @@ const SchemaTable = ({
         ...responseSchema.properties?.data?.items?.properties?.attributes?.properties,
         ...responseSchema.properties?.data?.items?.properties?.relationships?.properties
       };
+      
       schemaColumns.push(...augmentColumns(attributes, queryParams, columns));
       if (!schemaColumns.some((column) => column.key === 'actions')) {
         // TODO: title shall be translated
@@ -438,16 +465,32 @@ const SchemaTable = ({
         placement="right"
         visible={rightDrawerVisible}
         onClose={() => {
-          closeRightDrawer();
+          setRightDrawerVisible(false);
         }}
+        destroyOnClose={true}
       >
         <SchemaForm
           resourceType={resourceTypes.baseResourceType}
           resourceId={selectedForEdit}
           onSuccess={() => {
-            closeRightDrawer();
+            setRightDrawerVisible(false);
           }}
         />
+      </Drawer>
+      <Drawer
+        title={'related elements for TODO'}
+        placement='bottom'
+        size='large'
+        onClose={() => {
+          setBottomDrawerVisible(false);
+        }}
+        destroyOnClose={true}
+        visible={bottomDrawerVisible}
+      >
+        <SchemaTable
+          resourceTypes={selectedForBottomDrawer}
+          //defaultActions={[]}
+         />
       </Drawer>
     </>
   );

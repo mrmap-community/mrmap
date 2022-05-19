@@ -1,10 +1,12 @@
-import type { JsonApiPrimaryData } from '@/utils/jsonapi';
-import { CheckCircleTwoTone, CloseCircleTwoTone } from '@ant-design/icons';
+import type { JsonApiPrimaryData, ResourceLinkage } from '@/utils/jsonapi';
+import { CheckCircleTwoTone, CloseCircleTwoTone, LinkOutlined } from '@ant-design/icons';
 import type { ProColumnType } from '@ant-design/pro-table';
+import { Badge, Button } from 'antd';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import type { ReactNode } from 'react';
+import type { ResourceTypes } from '.';
 
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
@@ -123,6 +125,7 @@ export const mapOpenApiSchemaToProTableColumn = (
   proColumn: ProColumnType,
   propSchema: { type: string; format: string; title: string },
   queryParams: any,
+  onRelationButtonClick: (relatedDefinition: ResourceTypes) => void,
 ): ProColumnType => {
   let column = proColumn;
   column.title = column.title || propSchema.title || column.dataIndex;
@@ -171,25 +174,32 @@ export const mapOpenApiSchemaToProTableColumn = (
     } else if (propSchema.type === 'object'){
       // multiple relation field (m2n)
       column.valueType = 'textarea';
-      column.renderText = (text, record) => {
-        const _record = record as JsonApiPrimaryData;
-        if (column?.dataIndex){
-          const index = column.dataIndex as string;
-          const jsonApiRelation = _record.relationships?.[index];
-          return jsonApiRelation.data ? 1 : '-'
-        }
+      column.renderText = (relationshipObject, proTableRecord) => {
+        // const _record = record as JsonApiPrimaryData;
+        // if (column?.dataIndex){
+        //   const index = column.dataIndex as string;
+        //   const jsonApiRelation = _record.relationships?.[index];
+        //   return jsonApiRelation.data ? 1 : '-'
+        // }
         return '-'
       }
     } else if (propSchema.type === 'array'){
       // singe relation field (o2o)
       column.valueType = 'textarea';
-      column.renderText = (text, record) => {
-        const _record = record as JsonApiPrimaryData;
-        if (column?.dataIndex){
-          const index = column.dataIndex as string;
-          const jsonApiRelation = _record.relationships?.[index];
-          return jsonApiRelation?.meta?.count;
-        }
+      column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
+        const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
+        console.log(_proTableRecord);
+        const relatedDefinition: ResourceTypes = {
+          baseResourceType: relationshipObject?.data?.[0]?.type,
+          nestedResource: {
+            id: _proTableRecord.id,
+            type: _proTableRecord.type
+          }
+        };
+        return (
+        <Badge size='small' count={relationshipObject?.meta?.count}>
+          <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} onClick={() => {onRelationButtonClick(relatedDefinition)}}/>
+        </Badge>)
       }
     }
     // @ts-ignore
@@ -212,11 +222,17 @@ export const mapOpenApiSchemaToProTableColumn = (
   return column;
 };
 
+/**
+ * @description Transforms the given JsonApiPrimayData to a flat object which can be used by the antd pro table
+ * @param data 
+ * @returns 
+ */
 export const transformJsonApiPrimaryDataToRow = (data: JsonApiPrimaryData) => {
   return {
     key: data.id,
     id: data.id,
     ...data.attributes,
-    relationships: { ...data.relationships },
+    ...data.relationships,
+    _jsonApiPrimaryData: data
   };
 };

@@ -5,7 +5,6 @@ import { SettingDrawer } from '@ant-design/pro-layout';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
 import defaultSettings from '../config/defaultSettings';
-import defaultMenus, { loopMenuItem } from '../config/routes';
 import PageLoading from './components/PageLoading';
 import RootContainer from './components/RootContainer';
 import type { JsonApiPrimaryData, JsonApiResponse } from './utils/jsonapi';
@@ -98,7 +97,7 @@ export const layout: RunTimeLayoutConfig = ({
     //   // }
     // },
     //menuHeaderRender: undefined,
-    menu: loopMenuItem(defaultMenus),
+    //menu: loopMenuItem(defaultMenus),
     // custom 403 page
     // subMenuItemRender: (_, dom) => <div>pre {dom}</div>,
     // menuItemRender: (item, dom) => <div>{item.icon} {dom}</div>,

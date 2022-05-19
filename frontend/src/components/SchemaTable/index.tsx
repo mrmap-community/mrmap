@@ -16,7 +16,6 @@ import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import { FormattedMessage, Link, useIntl, useModel } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn, transformJsonApiPrimaryDataToRow } from './utils';
-
 export interface NestedLookup {
   paramName: string;
   paramValue: string | number;
@@ -63,10 +62,13 @@ const SchemaTable = ({
 
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
 
-  const resourceTypesArray = [resourceTypes.baseResourceType];
-  if (resourceTypes.nestedResource){
-    resourceTypesArray.push(resourceTypes.nestedResource.type)
-  }
+  const resourceTypesArray = useMemo(() => {
+    const list = [resourceTypes.baseResourceType];
+    if (resourceTypes.nestedResource){
+      list.push(resourceTypes.nestedResource.type)
+    }
+    return list;
+  }, [resourceTypes]);
 
   const {lastResourceMessage} = useDefaultWebSocket(resourceTypesArray);
 
@@ -88,14 +90,6 @@ const SchemaTable = ({
    */
   const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
   const [selectedForEdit, setSelectedForEdit] = useState<string>('');
-
-
-  /**
-   * @description state variables for bottom drawer
-   */
-  const [bottomDrawerVisible, setBottomDrawerVisible] = useState<boolean>(false);
-  const [selectedForBottomDrawer, setSelectedForBottomDrawer] = useState<ResourceTypes>({baseResourceType: 'unknown'});
-
 
   /**
    * @description state variables for api calls
@@ -122,19 +116,11 @@ const SchemaTable = ({
   ): ProColumns[] => {
     const schemaColumns: any = {};
     for (const propName in properties) {
-      const onRelationButtonClick = (relatedDefinition: ResourceTypes) => {
-        console.log('huhu');
-        console.log(relatedDefinition);
-        setSelectedForBottomDrawer(relatedDefinition);
-        setBottomDrawerVisible(true);
-
-      };
 
       schemaColumns[propName] = mapOpenApiSchemaToProTableColumn(
         { dataIndex: propName },
         properties[propName],
-        queryParams,
-        onRelationButtonClick
+        queryParams
       );
       // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
       const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
@@ -192,7 +178,7 @@ const SchemaTable = ({
         <Tooltip    
           title={intl.formatMessage({ id: 'component.schemaTable.details' })}
         >
-          <Link to={detailsLink(row)}>
+          <Link to={`${window.location.pathname}/${row.id}`}>
             <Button
               size='small'
               style={{ borderColor: 'blue', color: 'blue' }}
@@ -352,7 +338,7 @@ const SchemaTable = ({
       });
 
       setTableData(newData);
-      setPaginationConfig({ total: newData.length });
+      setPaginationConfig({ total: listResponse.data?.meta?.pagination?.count });
     } else if (!listError && !listLoading) {
       //fetchData();
     }
@@ -476,21 +462,6 @@ const SchemaTable = ({
             setRightDrawerVisible(false);
           }}
         />
-      </Drawer>
-      <Drawer
-        title={'related elements for TODO'}
-        placement='bottom'
-        size='large'
-        onClose={() => {
-          setBottomDrawerVisible(false);
-        }}
-        destroyOnClose={true}
-        visible={bottomDrawerVisible}
-      >
-        <SchemaTable
-          resourceTypes={selectedForBottomDrawer}
-          //defaultActions={[]}
-         />
       </Drawer>
     </>
   );

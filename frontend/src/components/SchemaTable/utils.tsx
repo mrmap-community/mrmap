@@ -6,7 +6,7 @@ import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import type { ReactNode } from 'react';
-import type { ResourceTypes } from '.';
+import { Link } from 'umi';
 
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
@@ -122,11 +122,10 @@ const mapOpenApiFilter = (column: ProColumnType, propSchema: any, queryParams: a
 };
 
 export const mapOpenApiSchemaToProTableColumn = (
-  proColumn: ProColumnType,
-  propSchema: { type: string; format: string; title: string },
-  queryParams: any,
-  onRelationButtonClick: (relatedDefinition: ResourceTypes) => void,
-): ProColumnType => {
+    proColumn: ProColumnType,
+    propSchema: { type: string; format: string; title: string },
+    queryParams: any
+  ): ProColumnType => {
   let column = proColumn;
   column.title = column.title || propSchema.title || column.dataIndex;
   const paramName = column.dataIndex as string;
@@ -188,16 +187,12 @@ export const mapOpenApiSchemaToProTableColumn = (
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
-        const relatedDefinition: ResourceTypes = {
-          baseResourceType: relationshipObject?.data?.[0]?.type,
-          nestedResource: {
-            id: _proTableRecord.id,
-            type: _proTableRecord.type
-          }
-        };
+
         return (
         <Badge size='small' count={relationshipObject?.meta?.count}>
-          <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} onClick={() => {onRelationButtonClick(relatedDefinition)}}/>
+          <Link to={`/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`}>
+            <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
+          </Link>
         </Badge>)
       }
     }

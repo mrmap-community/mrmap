@@ -45,14 +45,15 @@ const defaultMenus = [
     ],
   },
   {
-    path: '/registry',
+    //path: '/registry',
     name: 'registry',
     icon: 'database',
     routes: [
       {
         name: 'wms',
-        path: '/registry/wms',
+        path: '/WebMapService',
         component: './registry/WmsTable',
+        operationId: 'listWebMapService',
         wrappers: [
           '@/wrappers/auth',
         ],
@@ -67,7 +68,7 @@ const defaultMenus = [
         ],
       },
       {
-        path: '/registry/wms/:id/details',
+        path: '/WebMapService/:id',
         component: './registry/WmsDetail',
         hideInMenu: true,
         wrappers: [
@@ -75,15 +76,23 @@ const defaultMenus = [
         ],
       },
       {
+        path: '/WebMapService/:id/Layer',
+        component: './registry/LayerTable',
+        hideInMenu: true,
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      },
+      {
         name: 'wfs',
-        path: '/registry/wfs',
+        path: '/WebFeatureService',
         component: './registry/WfsTable',
         wrappers: [
           '@/wrappers/auth',
         ],
       },
       {
-        path: '/registry/wfs/:id/details',
+        path: '/WebFeatureService/:id',
         component: './registry/WfsDetail',
         hideInMenu: true,
         wrappers: [

@@ -41,7 +41,7 @@ const WmsTable = (): ReactElement => {
       <SchemaTable 
         resourceTypes={{baseResourceType: 'WebMapService'}} 
         additionalActions={additionalActions} 
-        detailsLink={(row) => {return `/registry/wms/${row.id}/details`}}
+        detailsLink={(row) => {return `/registry/wms/${row.id}`}}
       />
     </PageContainer>
   );

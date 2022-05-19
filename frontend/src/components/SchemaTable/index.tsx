@@ -2,7 +2,7 @@ import { useDefaultWebSocket } from '@/services/WebSockets';
 import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { getQueryParams } from '@/utils/jsonapi';
 import { DeleteFilled, EditFilled, InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import type { ActionType, ColumnsState, ProColumnType, ProTableProps } from '@ant-design/pro-table';
+import type { ActionType, ColumnsState, ProColumns, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import { default as ProTable } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
 import type { TablePaginationConfig } from 'antd';
@@ -11,7 +11,7 @@ import type { SortOrder } from 'antd/lib/table/interface';
 import type { ParameterObject } from 'openapi-client-axios';
 import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import { FormattedMessage, Link, useIntl, useModel } from 'umi';
 import SchemaForm from '../SchemaForm';
@@ -49,43 +49,6 @@ export type RepoTableColumnType = ProColumnType & {
   toFilterParams?: (value: any) => Record<string, string>;
 };
 
-function augmentColumns(
-  resourceSchema: any,
-  queryParams: any,
-  columnHints: ProColumnType[] | undefined,
-): ProColumnType[] {
-  const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
-  const columns: any = {};
-  for (const propName in props) {
-    columns[propName] = mapOpenApiSchemaToProTableColumn(
-      { dataIndex: propName },
-      props[propName],
-      queryParams,
-    );
-    // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
-    const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
-    if (columnHint) {
-      columns[propName].valueType = 'text';
-      for (const [key, value] of Object.entries(columnHint)) {
-        columns[propName][key] = value;
-      }
-    }
-  }
-
-  if (queryParams['filter[search]']) {
-    columns.search = {
-      dataIndex: 'search',
-      title: 'Suchbegriffe',
-      valueType: 'text',
-      hideInTable: true,
-      hideInSearch: false,
-      search: {
-        transform: buildSearchTransformText('search'),
-      },
-    };
-  }
-  return Object.values(columns);
-}
 
 const SchemaTable = ({
   resourceTypes,
@@ -116,7 +79,6 @@ const SchemaTable = ({
     settings?.[jsonPointer.current] || {},
   );
 
-  const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
 
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
   const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
@@ -135,6 +97,44 @@ const SchemaTable = ({
   const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
 
   const proTableActions = useRef<ActionType>();
+
+  const augmentColumns = useCallback((
+    properties: any,
+    queryParams: any,
+    columnHints: ProColumnType[] | undefined,
+  ): ProColumns[] => {
+    const schemaColumns: any = {};
+    for (const propName in properties) {
+      schemaColumns[propName] = mapOpenApiSchemaToProTableColumn(
+        { dataIndex: propName },
+        properties[propName],
+        queryParams,
+      );
+      // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
+      const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
+      if (columnHint) {
+        schemaColumns[propName].valueType = 'text';
+        for (const [key, value] of Object.entries(columnHint)) {
+          schemaColumns[propName][key] = value;
+        }
+      }
+    }
+  
+    if (queryParams['filter[search]']) {
+      schemaColumns.search = {
+        dataIndex: 'search',
+        title: intl.formatMessage({ id: 'component.schemaTable.searchColumn' }),
+        valueType: 'text',
+        hideInTable: true,
+        hideInSearch: false,
+        search: {
+          transform: buildSearchTransformText('search'),
+        },
+      };
+    }
+    return Object.values(schemaColumns);
+  }, [intl]);
+
 
   const addRowAction = useCallback(() => {
     return !onAddRecord
@@ -283,19 +283,23 @@ const SchemaTable = ({
     }
   }, [deleteError]);
 
-  // augment / build columns from schema (and add delete action)
-  useEffect(() => {
+  const augmentedColumns = useMemo<ProColumns[]>(() => {
     const queryParams = getQueryParams(api, listOperationId);
     const operation = api.getOperation(listOperationId);
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
+    const schemaColumns: ProColumns[] = []
     if (responseSchema) {
-      const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
-      if (!_augmentedColumns.some((column) => column.key === 'actions')) {
+      const attributes = {
+        ...responseSchema.properties?.data?.items?.properties?.attributes?.properties,
+        ...responseSchema.properties?.data?.items?.properties?.relationships?.properties
+      };
+      schemaColumns.push(...augmentColumns(attributes, queryParams, columns));
+      if (!schemaColumns.some((column) => column.key === 'actions')) {
         // TODO: title shall be translated
-        _augmentedColumns.push({
+        schemaColumns.push({
           key: 'operation',
-          title: 'Aktionen',
+          title: intl.formatMessage({ id: 'component.schemaTable.actionsColumnTitle' }),
           valueType: 'option',
           fixed: 'right',
           render: (text: any, record: any) => {
@@ -303,9 +307,38 @@ const SchemaTable = ({
           },
         });
       }
-      setAugmentedColumns(_augmentedColumns);
     }
-  }, [additionalActions, columns, api, listOperationId, defaultActionButtons]);
+    return schemaColumns
+  }, [api, augmentColumns, columns, defaultActionButtons, intl, listOperationId]);
+
+  // // augment / build columns from schema (and add delete action)
+  // useEffect(() => {
+  //   const queryParams = getQueryParams(api, listOperationId);
+  //   const operation = api.getOperation(listOperationId);
+  //   const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
+  //   const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
+  //   if (responseSchema) {
+  //     const attributes = {
+  //       ...responseSchema.properties?.data?.items?.properties?.attributes?.properties,
+  //       ...responseSchema.properties?.data?.items?.properties?.relationships?.properties
+  //     };
+
+  //     const _augmentedColumns = augmentColumns(attributes, queryParams, columns);
+  //     if (!_augmentedColumns.some((column) => column.key === 'actions')) {
+  //       // TODO: title shall be translated
+  //       _augmentedColumns.push({
+  //         key: 'operation',
+  //         title: intl.formatMessage({ id: 'component.schemaTable.actionsColumnTitle' }),
+  //         valueType: 'option',
+  //         fixed: 'right',
+  //         render: (text: any, record: any) => {
+  //           return defaultActionButtons(text, record);
+  //         },
+  //       });
+  //     }
+  //     setAugmentedColumns(_augmentedColumns);
+  //   }
+  // }, [intl, additionalActions, columns, api, listOperationId, defaultActionButtons]);
 
   /**
    * @description Handles list response and fills the table with data

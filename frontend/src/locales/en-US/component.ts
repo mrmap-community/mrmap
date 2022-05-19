@@ -12,6 +12,9 @@ export default {
   'component.schemaTable.edit': 'Edit {title}',
   'component.schemaTable.new': 'New',
   'component.schemaTable.details': 'show details',
+  'component.schemaTable.actionsColumnTitle': 'Actions',
+  'component.schemaTable.searchColumn': 'Search term',
+
 
   'component.tagSelect.all': 'All',
   'component.tagSelect.collapse': 'Collapse',

@@ -12,6 +12,9 @@ export default {
   'component.schemaTable.edit': 'Bearbeiten von {title}',
   'component.schemaTable.new': 'Neu',
   'component.schemaTable.details': 'Detailansicht',
+  'component.schemaTable.actionsColumnTitle': 'Aktionen',
+  'component.schemaTable.searchColumn': 'Suchbegriff',
+
   'component.tagSelect.all': 'Alle',
   'component.tagSelect.collapse': 'Einklappen',
   'component.tagSelect.expand': 'Expandieren',

@@ -168,6 +168,29 @@ export const mapOpenApiSchemaToProTableColumn = (
           <CloseCircleTwoTone twoToneColor="#eb2f96" />
         );
       };
+    } else if (propSchema.type === 'object'){
+      // multiple relation field (m2n)
+      column.valueType = 'textarea';
+      column.renderText = (text, record) => {
+        const _record = record as JsonApiPrimaryData;
+        if (column?.dataIndex){
+          const index = column.dataIndex as string;
+          const jsonApiRelation = _record.relationships?.[index];
+          return jsonApiRelation.data ? 1 : '-'
+        }
+        return '-'
+      }
+    } else if (propSchema.type === 'array'){
+      // singe relation field (o2o)
+      column.valueType = 'textarea';
+      column.renderText = (text, record) => {
+        const _record = record as JsonApiPrimaryData;
+        if (column?.dataIndex){
+          const index = column.dataIndex as string;
+          const jsonApiRelation = _record.relationships?.[index];
+          return jsonApiRelation?.meta?.count;
+        }
+      }
     }
     // @ts-ignore
     // column.ellipsis = {

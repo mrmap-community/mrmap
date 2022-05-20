@@ -1,4 +1,4 @@
-import type { JsonApiPrimaryData, ResourceLinkage } from '@/utils/jsonapi';
+import type { JsonApiPrimaryData, ResourceIdentifierObject, ResourceLinkage } from '@/utils/jsonapi';
 import { CheckCircleTwoTone, CloseCircleTwoTone, LinkOutlined } from '@ant-design/icons';
 import type { ProColumnType } from '@ant-design/pro-table';
 import { Badge, Button } from 'antd';
@@ -170,28 +170,26 @@ export const mapOpenApiSchemaToProTableColumn = (
           <CloseCircleTwoTone twoToneColor="#eb2f96" />
         );
       };
-    } else if (propSchema.type === 'object'){
-      // multiple relation field (m2n)
-      column.valueType = 'textarea';
-      column.renderText = (relationshipObject, proTableRecord) => {
-        // const _record = record as JsonApiPrimaryData;
-        // if (column?.dataIndex){
-        //   const index = column.dataIndex as string;
-        //   const jsonApiRelation = _record.relationships?.[index];
-        //   return jsonApiRelation.data ? 1 : '-'
-        // }
-        return '-'
-      }
-    } else if (propSchema.type === 'array'){
-      // singe relation field (o2o)
+    } else if (propSchema.type === 'array' || propSchema.type === 'object'){
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
+        let count: number = 0;
+        let relatedType;
+        if (propSchema.type === 'array'){
+          count = relationshipObject?.meta?.count;
+          relatedType = relationshipObject?.data?.[0]?.type;
+        } else {
+          const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
+          count = relationshipObject?.data ? 1 : 0;
+          relatedType = resourceObject?.type;
+        }
+
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
 
         return (
-        <Badge size='small' count={relationshipObject?.meta?.count}>
-          <Link to={`/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`}>
-            <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
+        <Badge size='small' count={count}>
+          <Link to={count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relatedType}`: ''}>
+            <Button disabled={count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
           </Link>
         </Badge>)
       }

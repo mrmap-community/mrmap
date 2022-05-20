@@ -68,6 +68,7 @@ const defaultMenus = [
         ],
       },
       {
+        name: 'wmsDetails',
         path: '/WebMapService/:id',
         component: './registry/WmsDetail',
         hideInMenu: true,
@@ -76,6 +77,7 @@ const defaultMenus = [
         ],
       },
       {
+        name: 'layers',
         path: '/WebMapService/:id/Layer',
         component: './registry/LayerTable',
         hideInMenu: true,

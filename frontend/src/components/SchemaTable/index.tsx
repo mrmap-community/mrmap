@@ -13,9 +13,11 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
-import { FormattedMessage, Link, useIntl, useModel } from 'umi';
+import { FormattedMessage, Link, useIntl, useModel, useParams } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn, transformJsonApiPrimaryDataToRow } from './utils';
+
+
 export interface NestedLookup {
   paramName: string;
   paramValue: string | number;
@@ -29,11 +31,11 @@ export interface ResourceTypes {
   }
 }
 
-export interface RepoTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
+export interface SchemaTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
   /** Repository that defines the schema and offers CRUD operations */
   resourceTypes: ResourceTypes;
   /** Optional column definitions, automatically augmented and merged with the repository schema */
-  columns?: RepoTableColumnType[];
+  columns?: SchemaTableColumnType[];
   additionalActions?: (text: any, record: any) => void;
   defaultActions?: string[];
   /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
@@ -43,7 +45,7 @@ export interface RepoTableProps extends Omit<ProTableProps<any, any>, 'actionRef
   detailsLink?: (row: any) => string;
 }
 
-export type RepoTableColumnType = ProColumnType & {
+export type SchemaTableColumnType = ProColumnType & {
   /** Optional mapping of query form values to repo filter params */
   toFilterParams?: (value: any) => Record<string, string>;
 };
@@ -58,23 +60,47 @@ const SchemaTable = ({
   onEditRecord = undefined,
   detailsLink = undefined,
   ...passThroughProps
-}: RepoTableProps): ReactElement => {
+}: SchemaTableProps): ReactElement => {
 
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
 
+  const { id } = useParams<{ id: string }>();
+
+  const _resourceTypes = useMemo(() => {
+    if (id){
+      const pathname = window.location.pathname;
+      const routes = pathname.split('/');
+      const indexOfId = routes.indexOf(id);
+      
+      if (resourceTypes.baseResourceType !== routes[indexOfId+1]) {
+        console.log('missmatching baseResourceType passed in by properties. ResourceType founded by route will be owerwrite it.');
+      }
+      
+      return {
+        baseResourceType: routes[indexOfId+1],
+        nestedResource: {
+          id: id,
+          type: routes[indexOfId-1]
+        }
+      };
+    } else {
+      return resourceTypes;
+    }
+  }, [id]);
+
   const resourceTypesArray = useMemo(() => {
-    const list = [resourceTypes.baseResourceType];
-    if (resourceTypes.nestedResource){
-      list.push(resourceTypes.nestedResource.type)
+    const list = [_resourceTypes.baseResourceType];
+    if (_resourceTypes.nestedResource){
+      list.push(_resourceTypes.nestedResource.type)
     }
     return list;
-  }, [resourceTypes]);
+  }, [_resourceTypes]);
 
   const {lastResourceMessage} = useDefaultWebSocket(resourceTypesArray);
 
   const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
-  const jsonPointer = useRef('reactClient/tables/' + resourceTypes.baseResourceType);
+  const jsonPointer = useRef('reactClient/tables/' + _resourceTypes.baseResourceType);
   const listOperationId: string = 'list' + resourceTypesArray.join('By');
 
   const { initialState: { settings = undefined } = {}, setInitialState } =
@@ -97,7 +123,7 @@ const SchemaTable = ({
   const { api } = useContext(OpenAPIContext);
   const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
     useOperationMethod(listOperationId);
-  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes.baseResourceType);
+  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + _resourceTypes.baseResourceType);
   
 
   /**
@@ -159,7 +185,7 @@ const SchemaTable = ({
   }, [onAddRecord]);
 
   const addRowButton = useCallback((): ReactNode => {
-    return api.getOperation('add' + resourceTypes.baseResourceType) ? (
+    return api.getOperation('add' + _resourceTypes.baseResourceType) ? (
       <Button type="primary" key="primary" onClick={addRowAction()}>
         <Space>
           <PlusOutlined />
@@ -167,7 +193,7 @@ const SchemaTable = ({
         </Space>
       </Button>
     ) : null;
-  }, [addRowAction, api, resourceTypes.baseResourceType]);
+  }, [addRowAction, api, _resourceTypes.baseResourceType]);
 
   const detailsButton = useCallback(
     (row: any): ReactNode => {
@@ -193,7 +219,7 @@ const SchemaTable = ({
     (row: any): ReactNode => {
       // todo: check if user has permission also
       if (_defaultActions.current.includes('delete') &&
-          api.getOperation('delete' + resourceTypes.baseResourceType)) {
+          api.getOperation('delete' + _resourceTypes.baseResourceType)) {
           return (
             <Tooltip title={'Delete'}>
               <Button
@@ -224,14 +250,14 @@ const SchemaTable = ({
         return <></>
       }
     },
-    [api, deleteResource, intl, resourceTypes.baseResourceType],
+    [api, deleteResource, intl, _resourceTypes.baseResourceType],
   );
 
   const editRowButton = useCallback(
     (row: any): ReactNode => {
       // todo: check if user has permission also
       if (_defaultActions.current.includes('edit') &&
-          api.getOperation('update' + resourceTypes.baseResourceType)) {
+          api.getOperation('update' + _resourceTypes.baseResourceType)) {
             return (
               <Tooltip title={'Edit'}>
                 <Button
@@ -254,7 +280,7 @@ const SchemaTable = ({
       }
       
     },
-    [api, onEditRecord, resourceTypes.baseResourceType],
+    [api, onEditRecord, _resourceTypes.baseResourceType],
   );
 
   const defaultActionButtons = useCallback(
@@ -357,11 +383,11 @@ const SchemaTable = ({
         ],
       );
 
-      if (resourceTypes.nestedResource){
+      if (_resourceTypes.nestedResource){
         const operation = api.getOperation(listOperationId);
         const firstParam = operation?.parameters?.[0] as ParameterObject;
         if (firstParam){
-          queryParams.push({ name: firstParam.name, value: resourceTypes.nestedResource.id, in: 'path' })
+          queryParams.push({ name: firstParam.name, value: _resourceTypes.nestedResource.id, in: 'path' })
 
         }
       }
@@ -385,7 +411,7 @@ const SchemaTable = ({
 
       return listResource(queryParams);
     },
-    [api, listResource, listOperationId, resourceTypes.nestedResource],
+    [api, listResource, listOperationId, _resourceTypes.nestedResource],
   );
 
   /**
@@ -431,7 +457,7 @@ const SchemaTable = ({
                 }
           }
           search={
-            augmentedColumns.some((column: RepoTableColumnType) => {
+            augmentedColumns.some((column: SchemaTableColumnType) => {
               return column.search && column.search.transform;
             })
               ? {
@@ -456,7 +482,7 @@ const SchemaTable = ({
         destroyOnClose={true}
       >
         <SchemaForm
-          resourceType={resourceTypes.baseResourceType}
+          resourceType={_resourceTypes.baseResourceType}
           resourceId={selectedForEdit}
           onSuccess={() => {
             setRightDrawerVisible(false);

@@ -170,26 +170,30 @@ export const mapOpenApiSchemaToProTableColumn = (
           <CloseCircleTwoTone twoToneColor="#eb2f96" />
         );
       };
+    } else if (propSchema.type === 'object'){
+      column.valueType = 'textarea';
+      column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
+        const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
+        if (relationshipObject?.data){
+          return (
+            <Badge size='small' count={1}>
+              <Link to={`/${resourceObject?.type}/${resourceObject?.id}`}>
+                <Button size='small' icon={<LinkOutlined />} />
+              </Link>
+            </Badge>)
+        } else {
+          return <Button size='small' icon={<LinkOutlined />} disabled={true} />
+        }
+
+      }
     } else if (propSchema.type === 'array' || propSchema.type === 'object'){
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
-        let count: number = 0;
-        let relatedType;
-        if (propSchema.type === 'array'){
-          count = relationshipObject?.meta?.count;
-          relatedType = relationshipObject?.data?.[0]?.type;
-        } else {
-          const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
-          count = relationshipObject?.data ? 1 : 0;
-          relatedType = resourceObject?.type;
-        }
-
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
-
         return (
-        <Badge size='small' count={count}>
-          <Link to={count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relatedType}`: ''}>
-            <Button disabled={count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
+        <Badge size='small' count={relationshipObject?.meta?.count}>
+          <Link to={relationshipObject?.meta?.count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`: ''}>
+            <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
           </Link>
         </Badge>)
       }

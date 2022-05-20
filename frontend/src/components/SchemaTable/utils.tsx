@@ -190,12 +190,22 @@ export const mapOpenApiSchemaToProTableColumn = (
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
+        if (relationshipObject?.meta?.count){
+          return (
+            <Badge size='small' count={relationshipObject?.meta?.count}>
+              <Link to={relationshipObject?.meta?.count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`: ''}>
+                <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
+              </Link>
+            </Badge>
+          ) 
+        }
         return (
-        <Badge size='small' count={relationshipObject?.meta?.count}>
-          <Link to={relationshipObject?.meta?.count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`: ''}>
-            <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
-          </Link>
-        </Badge>)
+          <Badge size='small' count={relationshipObject?.meta?.count}>
+            <Link to={relationshipObject?.meta?.count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`: ''}>
+              <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
+            </Link>
+          </Badge>
+        )
       }
     }
     // @ts-ignore

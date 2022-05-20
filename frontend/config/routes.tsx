@@ -53,7 +53,6 @@ const defaultMenus = [
         name: 'wms',
         path: '/WebMapService',
         component: './registry/WmsTable',
-        operationId: 'listWebMapService',
         wrappers: [
           '@/wrappers/auth',
         ],
@@ -80,6 +79,15 @@ const defaultMenus = [
         name: 'layers',
         path: '/WebMapService/:id/Layer',
         component: './registry/LayerTable',
+        hideInMenu: true,
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      },
+      {
+        name: 'keywords',
+        path: '/WebMapService/:id/Keyword',
+        component: './metadata/KeywordTable',
         hideInMenu: true,
         wrappers: [
           '@/wrappers/auth',
@@ -156,6 +164,20 @@ const defaultMenus = [
         ],
       },
     ],
+  },
+  {
+    name: 'metadata',
+    icon: 'database',
+    routes: [
+      {
+        name: 'keywords',
+        path: '/Keyword',
+        component: './metadata/KeywordTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      }
+    ]
   },
   {
     path: '/jobs',

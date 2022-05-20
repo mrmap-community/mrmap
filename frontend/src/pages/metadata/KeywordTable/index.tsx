@@ -2,17 +2,17 @@ import PageContainer from '@/components/PageContainer';
 import SchemaTable from '@/components/SchemaTable';
 import type { ReactElement } from 'react';
 
-const LayerTable = (): ReactElement => {
-
+const KeywordTable = (): ReactElement => {
+  console.log('huhu');
   return (
     <PageContainer
-      menuPaths={['registry']}
+      menuPaths={['metadata']}
     >
       <SchemaTable 
-        resourceTypes={{baseResourceType: 'Layer'}} 
+        resourceTypes={{baseResourceType: 'Keyword'}} 
       />
     </PageContainer>
   );
 };
 
-export default LayerTable;
+export default KeywordTable;

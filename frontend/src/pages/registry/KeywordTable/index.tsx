@@ -3,11 +3,8 @@ import SchemaTable from '@/components/SchemaTable';
 import type { ReactElement } from 'react';
 
 const KeywordTable = (): ReactElement => {
-  console.log('huhu');
   return (
-    <PageContainer
-      menuPaths={['metadata']}
-    >
+    <PageContainer>
       <SchemaTable 
         resourceTypes={{baseResourceType: 'Keyword'}} 
       />

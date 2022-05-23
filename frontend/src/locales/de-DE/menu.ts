@@ -1,20 +1,19 @@
 export default {
   'menu.welcome': 'Willkommen',
   'menu.registry': 'Registration',
-  'menu.registry.wms': 'Kartendienste (WMS)',
-  'menu.registry.wfs': 'Datendienste (WFS)',
+  'menu.registry.WebMapService': 'Kartendienste (WMS)',
+  'menu.registry.WebFeatureService': 'Datendienste (WFS)',
   'menu.registry.csw': 'Katalogdienste (CSW)',
   'menu.registry.datasets': 'Datensätze',
-  'menu.registry.wmsDetails': 'Baumansicht',
+  'menu.registry.WebMapServiceDetails': 'Baumansicht',
   'menu.registry.nestedLayerForWebMapService': 'Kartenebenen des Dienstes {id}',
-  'menu.registry.layers': 'Kartenebenen (WMS/Raster)',
-  'menu.registry.featuretypes': 'Datenebenen (WFS/Vektor)',
+  'menu.registry.Layer': 'Kartenebenen (WMS/Raster)',
+  'menu.registry.FeatureType': 'Datenebenen (WFS/Vektor)',
   
   'menu.registry.maps': 'Karten',
   
-  'menu.metadata': 'Metadata',
-  'menu.metadata.keywords': 'Schlagwörter',
-  'menu.metadata.nestedKeywordForWebMapService': 'Schlagwörter des Dienstes {id}',
+  'menu.registry.Keyword': 'Schlagwörter',
+  'menu.registry.nestedKeywordForWebMapService': 'Schlagwörter des Dienstes {id}',
   
   'menu.jobs': 'Prozesse',
   'menu.more-blocks': 'More Blocks',

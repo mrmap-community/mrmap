@@ -45,13 +45,13 @@ const defaultMenus = [
     ],
   },
   {
-    //path: '/registry',
+    path: '/registry',
     name: 'registry',
     icon: 'database',
     routes: [
       {
-        name: 'wms',
-        path: '/WebMapService',
+        name: 'WebMapService',
+        path: '/registry/WebMapService',
         component: './registry/WmsTable',
         wrappers: [
           '@/wrappers/auth',
@@ -67,8 +67,8 @@ const defaultMenus = [
         ],
       },
       {
-        name: 'wmsDetails',
-        path: '/WebMapService/:id',
+        name: 'WebMapServiceDetails',
+        path: '/registry/WebMapService/:id',
         component: './registry/WmsDetail',
         hideInMenu: true,
         wrappers: [
@@ -76,8 +76,8 @@ const defaultMenus = [
         ],
       },
       {
-        name: 'layers',
-        path: '/WebMapService/:id/Layer',
+        name: 'Layer',
+        path: '/registry/WebMapService/:id/Layer',
         component: './registry/LayerTable',
         hideInMenu: true,
         wrappers: [
@@ -85,23 +85,23 @@ const defaultMenus = [
         ],
       },
       {
-        path: '/WebMapService/:id/Keyword',
-        component: './metadata/KeywordTable',
+        path: '/registry/WebMapService/:id/Keyword',
+        component: './registry/KeywordTable',
         hideInMenu: true,
         wrappers: [
           '@/wrappers/auth',
         ],
       },
       {
-        name: 'wfs',
-        path: '/WebFeatureService',
+        name: 'WebFeatureService',
+        path: '/registry/WebFeatureService',
         component: './registry/WfsTable',
         wrappers: [
           '@/wrappers/auth',
         ],
       },
       {
-        path: '/WebFeatureService/:id',
+        path: '/registry/WebFeatureService/:id',
         component: './registry/WfsDetail',
         hideInMenu: true,
         wrappers: [
@@ -125,16 +125,16 @@ const defaultMenus = [
         ],
       },
       {
-        name: 'layers',
-        path: '/registry/layers',
+        name: 'Layer',
+        path: '/registry/Layer',
         component: './registry/LayerTable',
         wrappers: [
           '@/wrappers/auth',
         ],
       },
       {
-        name: 'featuretypes',
-        path: '/registry/featuretypes',
+        name: 'FeatureType',
+        path: '/registry/FeatureType',
         component: './registry/FeatureTypeTable',
         wrappers: [
           '@/wrappers/auth',
@@ -162,21 +162,15 @@ const defaultMenus = [
           '@/wrappers/auth',
         ],
       },
-    ],
-  },
-  {
-    name: 'metadata',
-    icon: 'database',
-    routes: [
       {
-        name: 'keywords',
-        path: '/Keyword',
-        component: './metadata/KeywordTable',
+        name: 'Keyword',
+        path: '/registry/Keyword',
+        component: './registry/KeywordTable',
         wrappers: [
           '@/wrappers/auth',
         ],
       }
-    ]
+    ],
   },
   {
     path: '/jobs',

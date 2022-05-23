@@ -37,9 +37,7 @@ const WmsTable = (): ReactElement => {
     [intl],
   );
   return (
-    <PageContainer
-      
-    >
+    <PageContainer>
       <SchemaTable 
         resourceTypes={{baseResourceType: 'WebMapService'}} 
         additionalActions={additionalActions} 

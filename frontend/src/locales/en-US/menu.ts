@@ -1,20 +1,18 @@
 export default {
   'menu.welcome': 'Welcome',
   'menu.registry': 'Registry',
-  'menu.registry.wms': 'Map services (WMS)',
-  'menu.registry.wfs': 'Feature services (WFS)',
+  'menu.registry.WebMapService': 'Map services (WMS)',
+  'menu.registry.WebFeatureService': 'Feature services (WFS)',
   'menu.registry.csw': 'Catalogue services (CSW)',
   'menu.registry.datasets': 'Datasets',
-  'menu.registry.wmsDetails': 'Treeview',
+  'menu.registry.WebMapServiceDetails': 'Treeview',
   'menu.registry.nestedLayerForWebMapService': 'Map layers of WebMapService {id}',
-  'menu.registry.layers': 'Map layers (WMS)',
-  'menu.registry.featuretypes': 'Feature types (WFS)',
-
+  'menu.registry.Layer': 'Map layers (WMS)',
+  'menu.registry.FeatureType': 'Feature types (WFS)',
   'menu.registry.maps': 'Maps',
 
-  'menu.metadata': 'Metadata',
-  'menu.metadata.keywords': 'Keywords',
-  'menu.metadata.nestedKeywordForWebMapService': 'Keywords of WebMapService {id}',
+  'menu.registry.Keyword': 'Keywords',
+  'menu.registry.nestedKeywordForWebMapService': 'Keywords of WebMapService {id}',
 
 
   'menu.jobs': 'Processes',

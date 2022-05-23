@@ -5,9 +5,7 @@ import type { ReactElement } from 'react';
 const LayerTable = (): ReactElement => {
 
   return (
-    <PageContainer
-      menuPaths={['registry']}
-    >
+    <PageContainer>
       <SchemaTable 
         resourceTypes={{baseResourceType: 'Layer'}} 
       />

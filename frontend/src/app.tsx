@@ -1,6 +1,6 @@
 import RightContent from '@/components/RightContent';
 import { GithubFilled, LinkOutlined } from '@ant-design/icons';
-import type { Settings as LayoutSettings } from '@ant-design/pro-layout';
+import type { MenuDataItem, Settings as LayoutSettings } from '@ant-design/pro-layout';
 import { SettingDrawer } from '@ant-design/pro-layout';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
@@ -72,6 +72,10 @@ export const layout: RunTimeLayoutConfig = ({
   setInitialState: any;
 }) => {
   return {
+    menuDataRender: (menuData: MenuDataItem[]) => {
+      console.log(menuData);
+      return menuData;
+    },
     rightContentRender: () => <RightContent />,
     disableContentMargin: false,
     // footerRender: () => <Footer />,

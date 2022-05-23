@@ -40,7 +40,7 @@ const UserSettingsUpdater: React.FC = (props: any) => {
     useModel('@@initialState');
   const { isAuthenticated } = useAccess();
   const [updateUser, { error: updateUserError }] = useOperationMethod('updateUser');
-
+  console.log(settings);
   useEffect(() => {
     if (updateUserError) {
       console.log('can not update user settings');

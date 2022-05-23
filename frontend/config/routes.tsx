@@ -15,6 +15,9 @@ export const loopMenuItem = (menus: MenuDataItem[]): MenuDataItem[] =>
     routes: routes && loopMenuItem(routes),
   }));
 
+
+
+
 const defaultMenus = [
   {
     path: '/user',
@@ -191,3 +194,18 @@ const defaultMenus = [
 ];
 
 export default defaultMenus;
+
+
+const traverseRoute = (route: MenuDataItem, name: string): MenuDataItem | undefined => {
+
+  if ( route.name === name ){
+    return route;
+  } else if ( route.routes && route.routes.length > 0 ){
+    return route.routes.find(_route => _route.name === name);
+  }
+    return undefined
+}
+
+export const findRouteByName = (name: string): MenuDataItem | undefined => {
+  return defaultMenus.find(route => traverseRoute(route, name));
+};

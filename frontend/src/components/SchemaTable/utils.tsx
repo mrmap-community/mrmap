@@ -190,6 +190,7 @@ export const mapOpenApiSchemaToProTableColumn = (
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
+
         if (relationshipObject?.meta?.count){
           return (
             <Badge size='small' count={relationshipObject?.meta?.count}>

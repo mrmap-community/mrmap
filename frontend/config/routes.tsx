@@ -85,7 +85,6 @@ const defaultMenus = [
         ],
       },
       {
-        name: 'keywords',
         path: '/WebMapService/:id/Keyword',
         component: './metadata/KeywordTable',
         hideInMenu: true,

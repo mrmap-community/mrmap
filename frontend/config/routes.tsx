@@ -82,7 +82,6 @@ const defaultMenus = [
       },
       {
         key: 'WebMapServiceNestedLayer',
-        name: 'WebMapServiceNestedLayer',
         path: '/registry/WebMapService/:id/Layer',
         component: './registry/LayerTable',
         hideInMenu: true,

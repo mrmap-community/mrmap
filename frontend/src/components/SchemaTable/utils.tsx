@@ -1,6 +1,6 @@
 import type { JsonApiPrimaryData, ResourceIdentifierObject, ResourceLinkage } from '@/utils/jsonapi';
 import { CheckCircleTwoTone, CloseCircleTwoTone, LinkOutlined } from '@ant-design/icons';
-import { MenuDataItem } from '@ant-design/pro-layout';
+import type { MenuDataItem } from '@ant-design/pro-layout';
 import type { ProColumnType } from '@ant-design/pro-table';
 import { Badge, Button } from 'antd';
 import Text from 'antd/lib/typography/Text';
@@ -179,7 +179,7 @@ export const mapOpenApiSchemaToProTableColumn = (
         const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
         if (relationshipObject?.data){
           const lookupKey = `${resourceObject.type}Details`;
-          const route = routes.find(route => route.key === lookupKey);
+          const route = routes.find(_route => _route.key === lookupKey);
           return (
             <Badge size='small' count={1}>
               {
@@ -201,7 +201,7 @@ export const mapOpenApiSchemaToProTableColumn = (
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
         const lookupKey = `${_proTableRecord.type}Nested${relationshipObject?.data?.[0]?.type}`;
-        const route = routes.find(route => route.key === lookupKey);
+        const route = routes.find(_route => _route.key === lookupKey);
         
         return (
           <Badge size='small' count={relationshipObject?.meta?.count} showZero >

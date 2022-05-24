@@ -6,7 +6,7 @@ export default {
   'menu.registry.csw': 'Katalogdienste (CSW)',
   'menu.registry.datasets': 'Datensätze',
   'menu.registry.WebMapServiceDetails': 'Baumansicht',
-  'menu.registry.nestedLayerForWebMapService': 'Kartenebenen des Dienstes {id}',
+  'menu.registry.WebMapServiceNestedLayer': 'Kartenebenen des Dienstes {id}',
   'menu.registry.Layer': 'Kartenebenen (WMS/Raster)',
   'menu.registry.FeatureType': 'Datenebenen (WFS/Vektor)',
   

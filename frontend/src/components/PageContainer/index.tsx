@@ -20,7 +20,7 @@ const PageContainer = (props: PageContainerProps): ReactElement => {
         if (id){
             const indexOfId = routes.indexOf(id);
             return intl.formatMessage(
-                { id: `menu.${routes[0]}.nested${routes[indexOfId+1]}For${routes[indexOfId-1]}` }, 
+                { id: `menu.${routes[0]}.${routes[indexOfId-1]}Nested${routes[indexOfId+1]}` }, 
                 { id: id}
             )
         } else {

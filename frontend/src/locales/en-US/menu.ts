@@ -6,7 +6,7 @@ export default {
   'menu.registry.csw': 'Catalogue services (CSW)',
   'menu.registry.datasets': 'Datasets',
   'menu.registry.WebMapServiceDetails': 'Treeview',
-  'menu.registry.nestedLayerForWebMapService': 'Map layers of WebMapService {id}',
+  'menu.registry.WebMapServiceNestedLayer': 'Map layers of WebMapService {id}',
   'menu.registry.Layer': 'Map layers (WMS)',
   'menu.registry.FeatureType': 'Feature types (WFS)',
   'menu.registry.maps': 'Maps',

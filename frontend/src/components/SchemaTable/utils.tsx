@@ -179,9 +179,7 @@ export const mapOpenApiSchemaToProTableColumn = (
         const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
         if (relationshipObject?.data){
           const lookupKey = `${resourceObject.type}Details`;
-          console.log('lookupKey', lookupKey);
           const route = routes.find(route => route.key === lookupKey);
-          console.log('found', route);
           return (
             <Badge size='small' count={1}>
               {

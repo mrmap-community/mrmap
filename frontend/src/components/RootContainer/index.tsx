@@ -71,7 +71,6 @@ const RootContainer: React.FC = (props: any) => {
   // Workaround to store routes as global accessable instance
   const {setRoutes} = useModel('routes', model => ({routes: model.routes, setRoutes: model.setRoutes}));
   if (props?.routes) {
-    console.log('routes', props?.routes);
     setRoutes(props.routes);
   }
 

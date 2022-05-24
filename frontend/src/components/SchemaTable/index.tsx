@@ -62,6 +62,8 @@ const SchemaTable = ({
   ...passThroughProps
 }: SchemaTableProps): ReactElement => {
 
+  const {flatRoutes} = useModel('routes');
+
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
 
   const { id } = useParams<{ id: string }>();
@@ -146,7 +148,8 @@ const SchemaTable = ({
       schemaColumns[propName] = mapOpenApiSchemaToProTableColumn(
         { dataIndex: propName },
         properties[propName],
-        queryParams
+        queryParams,
+        flatRoutes
       );
       // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
       const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);

@@ -1,6 +1,6 @@
 import RightContent from '@/components/RightContent';
 import { GithubFilled, LinkOutlined } from '@ant-design/icons';
-import type { MenuDataItem, Settings as LayoutSettings } from '@ant-design/pro-layout';
+import type { BasicLayoutProps, MenuDataItem, Settings as LayoutSettings } from '@ant-design/pro-layout';
 import { SettingDrawer } from '@ant-design/pro-layout';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
@@ -44,6 +44,7 @@ export async function getInitialState(): Promise<{
   currentUser?: JsonApiPrimaryData;
   isAuthenticated: boolean;
   loading?: boolean;
+  menuData?: MenuDataItem[];
   fetchUserInfo?: () => Promise<JsonApiResponse | undefined>;
 }> {
   const response = await fetchUserInfo();
@@ -55,6 +56,7 @@ export async function getInitialState(): Promise<{
     currentUser: currentUser,
     isAuthenticated: isAuthenticated,
     settings: isAuthenticated ? currentUser?.attributes.settings : {layout: defaultSettings},
+    
   };
 }
 
@@ -72,10 +74,6 @@ export const layout: RunTimeLayoutConfig = ({
   setInitialState: any;
 }) => {
   return {
-    menuDataRender: (menuData: MenuDataItem[]) => {
-      console.log(menuData);
-      return menuData;
-    },
     rightContentRender: () => <RightContent />,
     disableContentMargin: false,
     // footerRender: () => <Footer />,
@@ -107,7 +105,7 @@ export const layout: RunTimeLayoutConfig = ({
     // menuItemRender: (item, dom) => <div>{item.icon} {dom}</div>,
     menuProps: { forceSubMenuRender: true },
     // unAccessible: <div>unAccessible</div>,
-    childrenRender: (children, props) => {
+    childrenRender: (children: JSX.Element, props: BasicLayoutProps) => {
       // add a loading state
       // if (initialState?.loading) return <PageLoading />;
       return (

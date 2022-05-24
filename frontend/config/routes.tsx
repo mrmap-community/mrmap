@@ -53,6 +53,7 @@ const defaultMenus = [
     icon: 'database',
     routes: [
       {
+        key: 'WebMapServiceList',
         name: 'WebMapService',
         path: '/registry/WebMapService',
         component: './registry/WmsTable',
@@ -70,6 +71,7 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'WebMapServiceDetails',
         name: 'WebMapServiceDetails',
         path: '/registry/WebMapService/:id',
         component: './registry/WmsDetail',
@@ -89,6 +91,7 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'WebMapServiceNestedKeyword',
         path: '/registry/WebMapService/:id/Keyword',
         component: './registry/KeywordTable',
         hideInMenu: true,
@@ -97,6 +100,7 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'WebFeatureServiceList',
         name: 'WebFeatureService',
         path: '/registry/WebFeatureService',
         component: './registry/WfsTable',
@@ -105,6 +109,7 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'WebFeatureServiceDetails',
         path: '/registry/WebFeatureService/:id',
         component: './registry/WfsDetail',
         hideInMenu: true,
@@ -129,6 +134,7 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'LayerList',
         name: 'Layer',
         path: '/registry/Layer',
         component: './registry/LayerTable',
@@ -137,6 +143,7 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'FeatureTypeList',
         name: 'FeatureType',
         path: '/registry/FeatureType',
         component: './registry/FeatureTypeTable',
@@ -167,6 +174,7 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'KeywordList',
         name: 'Keyword',
         path: '/registry/Keyword',
         component: './registry/KeywordTable',

@@ -1,11 +1,13 @@
 import type { JsonApiPrimaryData, ResourceIdentifierObject, ResourceLinkage } from '@/utils/jsonapi';
 import { CheckCircleTwoTone, CloseCircleTwoTone, LinkOutlined } from '@ant-design/icons';
+import { MenuDataItem } from '@ant-design/pro-layout';
 import type { ProColumnType } from '@ant-design/pro-table';
 import { Badge, Button } from 'antd';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import type { ReactNode } from 'react';
+import { generatePath } from 'react-router';
 import { Link } from 'umi';
 
 // required for parsing of German dates
@@ -124,7 +126,8 @@ const mapOpenApiFilter = (column: ProColumnType, propSchema: any, queryParams: a
 export const mapOpenApiSchemaToProTableColumn = (
     proColumn: ProColumnType,
     propSchema: { type: string; format: string; title: string },
-    queryParams: any
+    queryParams: any,
+    routes: MenuDataItem[],
   ): ProColumnType => {
   let column = proColumn;
   column.title = column.title || propSchema.title || column.dataIndex;
@@ -175,39 +178,45 @@ export const mapOpenApiSchemaToProTableColumn = (
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
         if (relationshipObject?.data){
+          const lookupKey = `${resourceObject.type}Details`;
+          console.log('lookupKey', lookupKey);
+          const route = routes.find(route => route.key === lookupKey);
+          console.log('found', route);
           return (
             <Badge size='small' count={1}>
-              <Link to={`/${resourceObject?.type}/${resourceObject?.id}`}>
-                <Button size='small' icon={<LinkOutlined />} />
-              </Link>
+              {
+                route?.path ?
+                <Link to={generatePath(route?.path, { id: resourceObject.id })}>
+                  <Button size='small' icon={<LinkOutlined />} />
+                </Link> :
+                <Button disabled={true} size='small' icon={<LinkOutlined />} />
+              }
+              
             </Badge>)
         } else {
           return <Button size='small' icon={<LinkOutlined />} disabled={true} />
         }
 
       }
-    } else if (propSchema.type === 'array' || propSchema.type === 'object'){
+    } else if (propSchema.type === 'array'){
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
-        //const route = findRouteByName(`${_proTableRecord.type}Nested${relationshipObject?.data?.[0]?.type}`);
-        //console.log(route);
-        if (relationshipObject?.meta?.count){
-          return (
-            <Badge size='small' count={relationshipObject?.meta?.count}>
-              <Link to={relationshipObject?.meta?.count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`: ''}>
-                <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
-              </Link>
-            </Badge>
-          ) 
-        }
+        const lookupKey = `${_proTableRecord.type}Nested${relationshipObject?.data?.[0]?.type}`;
+        const route = routes.find(route => route.key === lookupKey);
+        
         return (
-          <Badge size='small' count={relationshipObject?.meta?.count}>
-            <Link to={relationshipObject?.meta?.count ? `/${_proTableRecord.type}/${_proTableRecord.id}/${relationshipObject?.data?.[0]?.type}`: ''}>
-              <Button disabled={relationshipObject?.meta?.count === 0 ? true : false} size='small' icon={<LinkOutlined />} />
-            </Link>
+          <Badge size='small' count={relationshipObject?.meta?.count} showZero >
+            {
+              relationshipObject?.meta?.count && route?.path ? 
+              <Link to={generatePath(route?.path, { id: _proTableRecord.id })}>
+                <Button size='small' icon={<LinkOutlined />} />
+              </Link> :
+              <Button disabled={true} size='small' icon={<LinkOutlined />} />
+            }
           </Badge>
         )
+
       }
     }
     // @ts-ignore

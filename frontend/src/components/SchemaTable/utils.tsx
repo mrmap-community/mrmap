@@ -175,7 +175,7 @@ export const mapOpenApiSchemaToProTableColumn = (
       };
     } else if (propSchema.type === 'object'){
       column.valueType = 'textarea';
-      column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
+      column.renderText = (relationshipObject: ResourceLinkage) => {
         const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
         if (relationshipObject?.data){
           const lookupKey = `${resourceObject.type}Details`;

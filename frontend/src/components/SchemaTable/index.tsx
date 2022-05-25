@@ -88,7 +88,7 @@ const SchemaTable = ({
     } else {
       return resourceTypes;
     }
-  }, [id]);
+  }, [id, resourceTypes]);
 
   const resourceTypesArray = useMemo(() => {
     const list = [_resourceTypes.baseResourceType];
@@ -179,7 +179,7 @@ const SchemaTable = ({
       };
     }
     return Object.values(schemaColumns);
-  }, [intl]);
+  }, [flatRoutes, intl]);
 
 
   const addRowAction = useCallback(() => {
@@ -442,6 +442,8 @@ const SchemaTable = ({
           proTableActions.current?.reload();
         }
       }
+    // only trigger the hook if lastResourceMessage are changing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lastResourceMessage]);
 
   return (

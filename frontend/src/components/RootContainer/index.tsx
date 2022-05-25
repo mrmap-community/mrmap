@@ -53,6 +53,8 @@ const UserSettingsUpdater: React.FC = (props: any) => {
         buildJsonApiPayload('User', currentUser.id, { settings: settings }),
       );
     }
+  // only trigger the hook if settings are changing
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, updateUser]);
 
   return props.children;

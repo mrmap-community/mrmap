@@ -70,9 +70,13 @@ const RootContainer: React.FC = (props: any) => {
 
   // Workaround to store routes as global accessable instance
   const {setRoutes} = useModel('routes', model => ({routes: model.routes, setRoutes: model.setRoutes}));
-  if (props?.routes) {
-    setRoutes(props.routes);
-  }
+  
+  useEffect(() => {
+    if (props?.routes) {
+      setRoutes(props.routes);
+    }
+  });
+  
 
   useEffect(() => {
     setDjangoLanguageCookie();

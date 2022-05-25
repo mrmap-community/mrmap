@@ -1,6 +1,6 @@
+import GenericPageContainer from '@/components/PageContainer';
 import SchemaTable from '@/components/SchemaTable';
 import { LockFilled, UnlockFilled } from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-layout';
 import { Button, Tooltip } from 'antd';
 import type { ReactElement } from 'react';
 import React, { useCallback } from 'react';
@@ -37,13 +37,12 @@ const WmsTable = (): ReactElement => {
     [intl],
   );
   return (
-    <PageContainer>
+    <GenericPageContainer>
       <SchemaTable 
         resourceTypes={{baseResourceType: 'WebMapService'}} 
         additionalActions={additionalActions} 
-        detailsLink={(row) => {return `/registry/wms/${row.id}/details`}}
       />
-    </PageContainer>
+    </GenericPageContainer>
   );
 };
 

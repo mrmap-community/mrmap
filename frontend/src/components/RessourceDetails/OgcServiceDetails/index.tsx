@@ -154,7 +154,7 @@ const OgcServiceDetails = (
                 </Tooltip>
             </Space>
         );
-    }, [isLoading]);
+    }, [isLoading, onActiveSwitchChange]);
            
     const search = useCallback((key) => {
         const keys = flatNodeList?.filter((node) => node?.id === key).map(node => node.id);

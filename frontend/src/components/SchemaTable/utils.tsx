@@ -1,10 +1,14 @@
-import type { JsonApiPrimaryData } from '@/utils/jsonapi';
-import { CheckCircleTwoTone, CloseCircleTwoTone } from '@ant-design/icons';
+import type { JsonApiPrimaryData, ResourceIdentifierObject, ResourceLinkage } from '@/utils/jsonapi';
+import { CheckCircleTwoTone, CloseCircleTwoTone, LinkOutlined } from '@ant-design/icons';
+import type { MenuDataItem } from '@ant-design/pro-layout';
 import type { ProColumnType } from '@ant-design/pro-table';
+import { Badge, Button } from 'antd';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import type { ReactNode } from 'react';
+import { generatePath } from 'react-router';
+import { Link } from 'umi';
 
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
@@ -120,10 +124,11 @@ const mapOpenApiFilter = (column: ProColumnType, propSchema: any, queryParams: a
 };
 
 export const mapOpenApiSchemaToProTableColumn = (
-  proColumn: ProColumnType,
-  propSchema: { type: string; format: string; title: string },
-  queryParams: any,
-): ProColumnType => {
+    proColumn: ProColumnType,
+    propSchema: { type: string; format: string; title: string },
+    queryParams: any,
+    routes: MenuDataItem[],
+  ): ProColumnType => {
   let column = proColumn;
   column.title = column.title || propSchema.title || column.dataIndex;
   const paramName = column.dataIndex as string;
@@ -168,6 +173,49 @@ export const mapOpenApiSchemaToProTableColumn = (
           <CloseCircleTwoTone twoToneColor="#eb2f96" />
         );
       };
+    } else if (propSchema.type === 'object'){
+      column.valueType = 'textarea';
+      column.renderText = (relationshipObject: ResourceLinkage) => {
+        const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
+        if (relationshipObject?.data){
+          const lookupKey = `${resourceObject.type}Details`;
+          const route = routes.find(_route => _route.key === lookupKey);
+          return (
+            <Badge size='small' count={1}>
+              {
+                route?.path ?
+                <Link to={generatePath(route?.path, { id: resourceObject.id })}>
+                  <Button size='small' icon={<LinkOutlined />} />
+                </Link> :
+                <Button disabled={true} size='small' icon={<LinkOutlined />} />
+              }
+              
+            </Badge>)
+        } else {
+          return <Button size='small' icon={<LinkOutlined />} disabled={true} />
+        }
+
+      }
+    } else if (propSchema.type === 'array'){
+      column.valueType = 'textarea';
+      column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
+        const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
+        const lookupKey = `${_proTableRecord.type}Nested${relationshipObject?.data?.[0]?.type}`;
+        const route = routes.find(_route => _route.key === lookupKey);
+        
+        return (
+          <Badge size='small' count={relationshipObject?.meta?.count} showZero >
+            {
+              relationshipObject?.meta?.count && route?.path ? 
+              <Link to={generatePath(route?.path, { id: _proTableRecord.id })}>
+                <Button size='small' icon={<LinkOutlined />} />
+              </Link> :
+              <Button disabled={true} size='small' icon={<LinkOutlined />} />
+            }
+          </Badge>
+        )
+
+      }
     }
     // @ts-ignore
     // column.ellipsis = {
@@ -189,11 +237,17 @@ export const mapOpenApiSchemaToProTableColumn = (
   return column;
 };
 
+/**
+ * @description Transforms the given JsonApiPrimayData to a flat object which can be used by the antd pro table
+ * @param data 
+ * @returns 
+ */
 export const transformJsonApiPrimaryDataToRow = (data: JsonApiPrimaryData) => {
   return {
     key: data.id,
     id: data.id,
     ...data.attributes,
-    relationships: { ...data.relationships },
+    ...data.relationships,
+    _jsonApiPrimaryData: data
   };
 };

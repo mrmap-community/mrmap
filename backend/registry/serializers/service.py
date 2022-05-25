@@ -62,7 +62,7 @@ class LayerSerializer(
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-keywords-list",
-        related_link_url_kwarg="parent_lookup_layer",
+        related_link_url_kwarg="parent_lookup_layer_metadata",
     )
 
     dataset_metadata = ResourceRelatedField(
@@ -152,7 +152,7 @@ class WebMapServiceSerializer(
         queryset=Keyword.objects,
         many=True,
         related_link_view_name="registry:wms-keywords-list",
-        related_link_url_kwarg="parent_lookup_ogcservice_metadata",
+        related_link_url_kwarg="parent_lookup_webmapservice_metadata",
     )
     allowed_operations = ResourceRelatedField(
         queryset=AllowedWebMapServiceOperation.objects,
@@ -251,7 +251,7 @@ class FeatureTypeSerializer(
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:featuretype-keywords-list",
-        related_link_url_kwarg="parent_lookup_featuretype",
+        related_link_url_kwarg="parent_lookup_featuretype_metadata",
     )
 
     reference_systems = ResourceRelatedField(
@@ -308,7 +308,7 @@ class WebFeatureServiceSerializer(
         queryset=Keyword.objects,
         many=True,
         related_link_view_name="registry:wfs-keywords-list",
-        related_link_url_kwarg="parent_lookup_ogcservice_metadata",
+        related_link_url_kwarg="parent_lookup_webfeatureservice_metadata",
     )
 
     operation_urls = ResourceRelatedField(
@@ -408,7 +408,7 @@ class CatalougeServiceSerializer(
         queryset=Keyword.objects,
         many=True,
         related_link_view_name="registry:csw-keywords-list",
-        related_link_url_kwarg="parent_lookup_ogcservice_metadata",
+        related_link_url_kwarg="parent_lookup_catalougeservice_metadata",
     )
     operation_urls = ResourceRelatedField(
         label=_("operation urls"),

@@ -21,6 +21,7 @@ export default defineConfig({
     antd: true,
     // default true, when it is true, will use `navigator.language` overwrite default
     baseNavigator: true,
+    
   },
   dynamicImport: {
     loading: '@ant-design/pro-layout/es/PageLoading',

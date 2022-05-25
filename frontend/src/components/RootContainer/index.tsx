@@ -40,7 +40,6 @@ const UserSettingsUpdater: React.FC = (props: any) => {
     useModel('@@initialState');
   const { isAuthenticated } = useAccess();
   const [updateUser, { error: updateUserError }] = useOperationMethod('updateUser');
-
   useEffect(() => {
     if (updateUserError) {
       console.log('can not update user settings');
@@ -54,6 +53,8 @@ const UserSettingsUpdater: React.FC = (props: any) => {
         buildJsonApiPayload('User', currentUser.id, { settings: settings }),
       );
     }
+  // only trigger the hook if settings are changing
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, updateUser]);
 
   return props.children;
@@ -68,6 +69,16 @@ const UserSettingsUpdater: React.FC = (props: any) => {
 const RootContainer: React.FC = (props: any) => {
   const intl = useIntl();
   const [schema, setSchema] = useState();
+
+  // Workaround to store routes as global accessable instance
+  const {setRoutes} = useModel('routes', model => ({routes: model.routes, setRoutes: model.setRoutes}));
+  
+  useEffect(() => {
+    if (props?.routes) {
+      setRoutes(props.routes);
+    }
+  });
+  
 
   useEffect(() => {
     setDjangoLanguageCookie();

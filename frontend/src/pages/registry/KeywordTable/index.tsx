@@ -2,15 +2,14 @@ import GenericPageContainer from '@/components/PageContainer';
 import SchemaTable from '@/components/SchemaTable';
 import type { ReactElement } from 'react';
 
-const LayerTable = (): ReactElement => {
-
+const KeywordTable = (): ReactElement => {
   return (
     <GenericPageContainer>
       <SchemaTable 
-        resourceTypes={{baseResourceType: 'Layer'}} 
+        resourceTypes={{baseResourceType: 'Keyword'}} 
       />
     </GenericPageContainer>
   );
 };
 
-export default LayerTable;
+export default KeywordTable;

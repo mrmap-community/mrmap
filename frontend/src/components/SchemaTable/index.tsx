@@ -2,7 +2,8 @@ import { useDefaultWebSocket } from '@/services/WebSockets';
 import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { getQueryParams } from '@/utils/jsonapi';
 import { DeleteFilled, EditFilled, InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import type { ActionType, ColumnsState, ProColumnType, ProTableProps } from '@ant-design/pro-table';
+import type { MenuDataItem } from '@ant-design/pro-layout';
+import type { ActionType, ColumnsState, ProColumns, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import { default as ProTable } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
 import type { TablePaginationConfig } from 'antd';
@@ -11,11 +12,13 @@ import type { SortOrder } from 'antd/lib/table/interface';
 import type { ParameterObject } from 'openapi-client-axios';
 import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
-import { FormattedMessage, Link, useIntl, useModel } from 'umi';
+import { generatePath } from 'react-router';
+import { FormattedMessage, Link, useIntl, useModel, useParams } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn, transformJsonApiPrimaryDataToRow } from './utils';
+
 
 export interface NestedLookup {
   paramName: string;
@@ -30,62 +33,24 @@ export interface ResourceTypes {
   }
 }
 
-export interface RepoTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
+export interface SchemaTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
   /** Repository that defines the schema and offers CRUD operations */
   resourceTypes: ResourceTypes;
   /** Optional column definitions, automatically augmented and merged with the repository schema */
-  columns?: RepoTableColumnType[];
+  columns?: SchemaTableColumnType[];
   additionalActions?: (text: any, record: any) => void;
   defaultActions?: string[];
   /** Path to navigate to for adding records (if omitted, drawer with schema-generated form will open) */
   onAddRecord?: () => void;
   /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
   onEditRecord?: (recordId: number | string) => void;
-  detailsLink?: (row: any) => string;
 }
 
-export type RepoTableColumnType = ProColumnType & {
+export type SchemaTableColumnType = ProColumnType & {
   /** Optional mapping of query form values to repo filter params */
   toFilterParams?: (value: any) => Record<string, string>;
 };
 
-function augmentColumns(
-  resourceSchema: any,
-  queryParams: any,
-  columnHints: ProColumnType[] | undefined,
-): ProColumnType[] {
-  const props = resourceSchema.properties?.data?.items?.properties?.attributes?.properties;
-  const columns: any = {};
-  for (const propName in props) {
-    columns[propName] = mapOpenApiSchemaToProTableColumn(
-      { dataIndex: propName },
-      props[propName],
-      queryParams,
-    );
-    // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
-    const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
-    if (columnHint) {
-      columns[propName].valueType = 'text';
-      for (const [key, value] of Object.entries(columnHint)) {
-        columns[propName][key] = value;
-      }
-    }
-  }
-
-  if (queryParams['filter[search]']) {
-    columns.search = {
-      dataIndex: 'search',
-      title: 'Suchbegriffe',
-      valueType: 'text',
-      hideInTable: true,
-      hideInSearch: false,
-      search: {
-        transform: buildSearchTransformText('search'),
-      },
-    };
-  }
-  return Object.values(columns);
-}
 
 const SchemaTable = ({
   resourceTypes,
@@ -94,19 +59,55 @@ const SchemaTable = ({
   defaultActions = ['edit', 'delete'],
   onAddRecord = undefined,
   onEditRecord = undefined,
-  detailsLink = undefined,
   ...passThroughProps
-}: RepoTableProps): ReactElement => {
+}: SchemaTableProps): ReactElement => {
 
-  const resourceTypesArray = [resourceTypes.baseResourceType];
-  if (resourceTypes.nestedResource){
-    resourceTypesArray.push(resourceTypes.nestedResource.type)
-  }
+  const {flatRoutes} = useModel('routes');
+
+  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
+
+  const { id } = useParams<{ id: string }>();
+
+  const _resourceTypes = useMemo(() => {
+    if (id){
+      const pathname = window.location.pathname;
+      const routes = pathname.split('/');
+      const indexOfId = routes.indexOf(id);
+      
+      if (resourceTypes.baseResourceType !== routes[indexOfId+1]) {
+        console.log('missmatching baseResourceType passed in by properties. ResourceType founded by route will be owerwrite it.');
+      }
+      
+      return {
+        baseResourceType: routes[indexOfId+1],
+        nestedResource: {
+          id: id,
+          type: routes[indexOfId-1]
+        }
+      };
+    } else {
+      return resourceTypes;
+    }
+  }, [id, resourceTypes]);
+
+  const resourceTypesArray = useMemo(() => {
+    const list = [_resourceTypes.baseResourceType];
+    if (_resourceTypes.nestedResource){
+      list.push(_resourceTypes.nestedResource.type)
+    }
+    return list;
+  }, [_resourceTypes]);
+
+  const detailRoute = useMemo<MenuDataItem | undefined>(() => {
+    const lookupKey = `${_resourceTypes.baseResourceType}Details`;
+    return flatRoutes.find((_route: MenuDataItem) => _route.key === lookupKey);
+  }, [_resourceTypes.baseResourceType, flatRoutes]);
 
   const {lastResourceMessage} = useDefaultWebSocket(resourceTypesArray);
+
   const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
-  const jsonPointer = useRef('reactClient/tables/' + resourceTypes.baseResourceType);
+  const jsonPointer = useRef('reactClient/tables/' + _resourceTypes.baseResourceType);
   const listOperationId: string = 'list' + resourceTypesArray.join('By');
 
   const { initialState: { settings = undefined } = {}, setInitialState } =
@@ -116,25 +117,70 @@ const SchemaTable = ({
     settings?.[jsonPointer.current] || {},
   );
 
-  const [augmentedColumns, setAugmentedColumns] = useState<any>([]);
 
-  // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
+  /**
+   * @description state variables for right drawer
+   */
   const [rightDrawerVisible, setRightDrawerVisible] = useState<boolean>(false);
   const [selectedForEdit, setSelectedForEdit] = useState<string>('');
-  const closeRightDrawer = useCallback(() => {
-    setRightDrawerVisible(false);
-    setSelectedForEdit('');
-  }, []);
+
+  /**
+   * @description state variables for api calls
+   */
   const { api } = useContext(OpenAPIContext);
   const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
     useOperationMethod(listOperationId);
-  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + resourceTypes.baseResourceType);
+  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + _resourceTypes.baseResourceType);
   
 
+  /**
+   * @description state variables for protable
+   */
   const [tableData, setTableData] = useState<JsonApiPrimaryData[]>([]);
   const [paginationConfig, setPaginationConfig] = useState<TablePaginationConfig>();
 
   const proTableActions = useRef<ActionType>();
+
+  
+  const augmentColumns = useCallback((
+    properties: any,
+    queryParams: any,
+    columnHints: ProColumnType[] | undefined,
+  ): ProColumns[] => {
+    const schemaColumns: any = {};
+    for (const propName in properties) {
+
+      schemaColumns[propName] = mapOpenApiSchemaToProTableColumn(
+        { dataIndex: propName },
+        properties[propName],
+        queryParams,
+        flatRoutes
+      );
+      // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
+      const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
+      if (columnHint) {
+        schemaColumns[propName].valueType = 'text';
+        for (const [key, value] of Object.entries(columnHint)) {
+          schemaColumns[propName][key] = value;
+        }
+      }
+    }
+  
+    if (queryParams['filter[search]']) {
+      schemaColumns.search = {
+        dataIndex: 'search',
+        title: intl.formatMessage({ id: 'component.schemaTable.searchColumn' }),
+        valueType: 'text',
+        hideInTable: true,
+        hideInSearch: false,
+        search: {
+          transform: buildSearchTransformText('search'),
+        },
+      };
+    }
+    return Object.values(schemaColumns);
+  }, [flatRoutes, intl]);
+
 
   const addRowAction = useCallback(() => {
     return !onAddRecord
@@ -147,7 +193,7 @@ const SchemaTable = ({
   }, [onAddRecord]);
 
   const addRowButton = useCallback((): ReactNode => {
-    return api.getOperation('add' + resourceTypes.baseResourceType) ? (
+    return api.getOperation('add' + _resourceTypes.baseResourceType) ? (
       <Button type="primary" key="primary" onClick={addRowAction()}>
         <Space>
           <PlusOutlined />
@@ -155,18 +201,19 @@ const SchemaTable = ({
         </Space>
       </Button>
     ) : null;
-  }, [addRowAction, api, resourceTypes.baseResourceType]);
+  }, [addRowAction, api, _resourceTypes.baseResourceType]);
 
   const detailsButton = useCallback(
-    (row: any): ReactNode => {
-      if (!detailsLink){
+    (row: JsonApiPrimaryData): ReactNode => {
+
+      if (!detailRoute?.path){
         return <></>
       }
       return (
         <Tooltip    
           title={intl.formatMessage({ id: 'component.schemaTable.details' })}
         >
-          <Link to={detailsLink(row)}>
+          <Link to={generatePath(detailRoute.path, { id: row.id })}>
             <Button
               size='small'
               style={{ borderColor: 'blue', color: 'blue' }}
@@ -174,14 +221,14 @@ const SchemaTable = ({
             />
           </Link>
         </Tooltip>)
-    }, [detailsLink, intl]
+    }, [detailRoute, intl]
   );
 
   const deleteRowButton = useCallback(
     (row: any): ReactNode => {
       // todo: check if user has permission also
       if (_defaultActions.current.includes('delete') &&
-          api.getOperation('delete' + resourceTypes.baseResourceType)) {
+          api.getOperation('delete' + _resourceTypes.baseResourceType)) {
           return (
             <Tooltip title={'Delete'}>
               <Button
@@ -212,14 +259,14 @@ const SchemaTable = ({
         return <></>
       }
     },
-    [api, deleteResource, intl, resourceTypes.baseResourceType],
+    [api, deleteResource, intl, _resourceTypes.baseResourceType],
   );
 
   const editRowButton = useCallback(
     (row: any): ReactNode => {
       // todo: check if user has permission also
       if (_defaultActions.current.includes('edit') &&
-          api.getOperation('update' + resourceTypes.baseResourceType)) {
+          api.getOperation('update' + _resourceTypes.baseResourceType)) {
             return (
               <Tooltip title={'Edit'}>
                 <Button
@@ -242,7 +289,7 @@ const SchemaTable = ({
       }
       
     },
-    [api, onEditRecord, resourceTypes.baseResourceType],
+    [api, onEditRecord, _resourceTypes.baseResourceType],
   );
 
   const defaultActionButtons = useCallback(
@@ -284,18 +331,24 @@ const SchemaTable = ({
   }, [deleteError]);
 
   // augment / build columns from schema (and add delete action)
-  useEffect(() => {
+  const augmentedColumns = useMemo<ProColumns[]>(() => {
     const queryParams = getQueryParams(api, listOperationId);
     const operation = api.getOperation(listOperationId);
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
+    const schemaColumns: ProColumns[] = []
     if (responseSchema) {
-      const _augmentedColumns = augmentColumns(responseSchema, queryParams, columns);
-      if (!_augmentedColumns.some((column) => column.key === 'actions')) {
+      const attributes = {
+        ...responseSchema.properties?.data?.items?.properties?.attributes?.properties,
+        ...responseSchema.properties?.data?.items?.properties?.relationships?.properties
+      };
+      
+      schemaColumns.push(...augmentColumns(attributes, queryParams, columns));
+      if (!schemaColumns.some((column) => column.key === 'actions')) {
         // TODO: title shall be translated
-        _augmentedColumns.push({
+        schemaColumns.push({
           key: 'operation',
-          title: 'Aktionen',
+          title: intl.formatMessage({ id: 'component.schemaTable.actionsColumnTitle' }),
           valueType: 'option',
           fixed: 'right',
           render: (text: any, record: any) => {
@@ -303,9 +356,10 @@ const SchemaTable = ({
           },
         });
       }
-      setAugmentedColumns(_augmentedColumns);
     }
-  }, [additionalActions, columns, api, listOperationId, defaultActionButtons]);
+    return schemaColumns
+  }, [api, augmentColumns, columns, defaultActionButtons, intl, listOperationId]);
+
 
   /**
    * @description Handles list response and fills the table with data
@@ -319,7 +373,7 @@ const SchemaTable = ({
       });
 
       setTableData(newData);
-      setPaginationConfig({ total: newData.length });
+      setPaginationConfig({ total: listResponse.data?.meta?.pagination?.count });
     } else if (!listError && !listLoading) {
       //fetchData();
     }
@@ -338,11 +392,11 @@ const SchemaTable = ({
         ],
       );
 
-      if (resourceTypes.nestedResource){
+      if (_resourceTypes.nestedResource){
         const operation = api.getOperation(listOperationId);
         const firstParam = operation?.parameters?.[0] as ParameterObject;
         if (firstParam){
-          queryParams.push({ name: firstParam.name, value: resourceTypes.nestedResource.id, in: 'path' })
+          queryParams.push({ name: firstParam.name, value: _resourceTypes.nestedResource.id, in: 'path' })
 
         }
       }
@@ -366,7 +420,7 @@ const SchemaTable = ({
 
       return listResource(queryParams);
     },
-    [api, listResource, listOperationId, resourceTypes.nestedResource],
+    [api, listResource, listOperationId, _resourceTypes.nestedResource],
   );
 
   /**
@@ -388,6 +442,8 @@ const SchemaTable = ({
           proTableActions.current?.reload();
         }
       }
+    // only trigger the hook if lastResourceMessage are changing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lastResourceMessage]);
 
   return (
@@ -412,7 +468,7 @@ const SchemaTable = ({
                 }
           }
           search={
-            augmentedColumns.some((column: RepoTableColumnType) => {
+            augmentedColumns.some((column: SchemaTableColumnType) => {
               return column.search && column.search.transform;
             })
               ? {
@@ -432,14 +488,15 @@ const SchemaTable = ({
         placement="right"
         visible={rightDrawerVisible}
         onClose={() => {
-          closeRightDrawer();
+          setRightDrawerVisible(false);
         }}
+        destroyOnClose={true}
       >
         <SchemaForm
-          resourceType={resourceTypes.baseResourceType}
+          resourceType={_resourceTypes.baseResourceType}
           resourceId={selectedForEdit}
           onSuccess={() => {
-            closeRightDrawer();
+            setRightDrawerVisible(false);
           }}
         />
       </Drawer>

@@ -145,10 +145,30 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'LayerNestedKeyword',
+        name: 'Keyword',
+        path: '/registry/Layer/:id/Keyword',
+        component: './registry/KeywordTable',
+        hideInMenu: true,
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      },
+      {
         key: 'FeatureTypeList',
         name: 'FeatureType',
         path: '/registry/FeatureType',
         component: './registry/FeatureTypeTable',
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      },
+      {
+        key: 'FeatureTypeNestedKeyword',
+        name: 'Keyword',
+        path: '/registry/FeatureType/:id/Keyword',
+        component: './registry/KeywordTable',
+        hideInMenu: true,
         wrappers: [
           '@/wrappers/auth',
         ],

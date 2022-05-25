@@ -62,7 +62,7 @@ class LayerSerializer(
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-keywords-list",
-        related_link_url_kwarg="parent_lookup_layer",
+        related_link_url_kwarg="parent_lookup_layer_metadata",
     )
 
     dataset_metadata = ResourceRelatedField(
@@ -251,7 +251,7 @@ class FeatureTypeSerializer(
         queryset=Keyword.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:featuretype-keywords-list",
-        related_link_url_kwarg="parent_lookup_featuretype",
+        related_link_url_kwarg="parent_lookup_featuretype_metadata",
     )
 
     reference_systems = ResourceRelatedField(

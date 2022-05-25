@@ -29,7 +29,7 @@ router = ExtendedSimpleRouter()
     router.register(r'layers', service_views.LayerViewSet, basename='featuretype')
           .register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet, basename='layer-referencesystems', parents_query_lookups=['layer']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
-          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer']),
+          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='layer-keywords', parents_query_lookups=['layer_metadata']),
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
           .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='layer-datasetmetadata', parents_query_lookups=['self_pointing_layers']),
 
@@ -42,10 +42,12 @@ router = ExtendedSimpleRouter()
           .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-metadata-contact', parents_query_lookups=['metadata_contact_webfeatureservice_metadata']),
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wfs-keywords', parents_query_lookups=['webfeatureservice_metadata']),
+    
+    # feature types
     router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
           .register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet, basename='featuretype-referencesystems', parents_query_lookups=['featuretype']),
     router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
-          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype']),
+          .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='featuretype-keywords', parents_query_lookups=['featuretype_metadata']),
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'allowed-wms-operations', security_views.NestedAllowedWebFeatureServiceOperationViewSet, basename='wfs-allowedwmsoperation', parents_query_lookups=['secured_service']),
 

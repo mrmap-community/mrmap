@@ -5,15 +5,11 @@ export default {
   'menu.registry.WebFeatureService': 'Datendienste (WFS)',
   'menu.registry.csw': 'Katalogdienste (CSW)',
   'menu.registry.datasets': 'Datensätze',
-  'menu.registry.WebMapServiceDetails': 'Baumansicht',
-  'menu.registry.WebMapServiceNestedLayer': 'Kartenebenen des Dienstes {id}',
+  'menu.registry.details': 'Details',
   'menu.registry.Layer': 'Kartenebenen (WMS/Raster)',
   'menu.registry.FeatureType': 'Datenebenen (WFS/Vektor)',
-  
   'menu.registry.maps': 'Karten',
-  
   'menu.registry.Keyword': 'Schlagwörter',
-  'menu.registry.nestedKeywordForWebMapService': 'Schlagwörter des Dienstes {id}',
   
   'menu.jobs': 'Prozesse',
   'menu.more-blocks': 'More Blocks',

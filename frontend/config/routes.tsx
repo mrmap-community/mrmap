@@ -72,7 +72,7 @@ const defaultMenus = [
       },
       {
         key: 'WebMapServiceDetails',
-        name: 'WebMapServiceDetails',
+        name: 'details',
         path: '/registry/WebMapService/:id',
         component: './registry/WmsDetail',
         hideInMenu: true,
@@ -82,6 +82,7 @@ const defaultMenus = [
       },
       {
         key: 'WebMapServiceNestedLayer',
+        name: 'Layer',
         path: '/registry/WebMapService/:id/Layer',
         component: './registry/LayerTable',
         hideInMenu: true,
@@ -91,6 +92,7 @@ const defaultMenus = [
       },
       {
         key: 'WebMapServiceNestedKeyword',
+        name: 'Keyword',
         path: '/registry/WebMapService/:id/Keyword',
         component: './registry/KeywordTable',
         hideInMenu: true,
@@ -109,6 +111,7 @@ const defaultMenus = [
       },
       {
         key: 'WebFeatureServiceDetails',
+        name: 'details',
         path: '/registry/WebFeatureService/:id',
         component: './registry/WfsDetail',
         hideInMenu: true,

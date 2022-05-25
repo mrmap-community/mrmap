@@ -128,7 +128,9 @@ export const layout: RunTimeLayoutConfig = ({
           )}
         </>
       );
+      
     },
+    
     ...initialState?.settings?.layout,
   };
 };

@@ -1,15 +1,15 @@
-import PageContainer from '@/components/PageContainer';
+import GenericPageContainer from '@/components/PageContainer';
 import SchemaTable from '@/components/SchemaTable';
 import type { ReactElement } from 'react';
 
 const LayerTable = (): ReactElement => {
 
   return (
-    <PageContainer>
+    <GenericPageContainer>
       <SchemaTable 
         resourceTypes={{baseResourceType: 'Layer'}} 
       />
-    </PageContainer>
+    </GenericPageContainer>
   );
 };
 

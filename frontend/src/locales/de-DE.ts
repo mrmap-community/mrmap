@@ -5,6 +5,7 @@ import pages from './de-DE/pages';
 import pwa from './de-DE/pwa';
 import settingDrawer from './de-DE/settingDrawer';
 import settings from './de-DE/settings';
+import title from './de-DE/title';
 
 export default {
   'navBar.lang': 'Sprachen',
@@ -14,6 +15,7 @@ export default {
   'app.copyright.produced': 'Mr. Map Gemeinschaft',
   ...globalHeader,
   ...menu,
+  ...title,
   ...settingDrawer,
   ...settings,
   ...pwa,

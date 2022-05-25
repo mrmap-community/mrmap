@@ -120,6 +120,16 @@ const defaultMenus = [
         ],
       },
       {
+        key: 'WebFeatureServiceNestedFeatureType',
+        name: 'FeatureType',
+        path: '/registry/WebFeatureService/:id/FeatureType',
+        component: './registry/FeatureTypeTable',
+        hideInMenu: true,
+        wrappers: [
+          '@/wrappers/auth',
+        ],
+      },
+      {
         name: 'csw',
         path: '/registry/csw',
         component: './registry/CswTable',

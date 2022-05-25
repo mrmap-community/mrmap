@@ -39,7 +39,6 @@ const WfsTable = (): ReactElement => {
       <SchemaTable 
         resourceTypes={{baseResourceType: 'WebFeatureService'}}
         additionalActions={additionalActions}
-        detailsLink={(row) => {return `/registry/wfs/${row.id}/details`}}
       />
     </PageContainer>
   );

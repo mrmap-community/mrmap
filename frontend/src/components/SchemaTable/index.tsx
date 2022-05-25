@@ -2,6 +2,7 @@ import { useDefaultWebSocket } from '@/services/WebSockets';
 import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { getQueryParams } from '@/utils/jsonapi';
 import { DeleteFilled, EditFilled, InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import type { MenuDataItem } from '@ant-design/pro-layout';
 import type { ActionType, ColumnsState, ProColumns, ProColumnType, ProTableProps } from '@ant-design/pro-table';
 import { default as ProTable } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
@@ -13,6 +14,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import type { ReactElement, ReactNode } from 'react';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
+import { generatePath } from 'react-router';
 import { FormattedMessage, Link, useIntl, useModel, useParams } from 'umi';
 import SchemaForm from '../SchemaForm';
 import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn, transformJsonApiPrimaryDataToRow } from './utils';
@@ -42,7 +44,6 @@ export interface SchemaTableProps extends Omit<ProTableProps<any, any>, 'actionR
   onAddRecord?: () => void;
   /** Function to invoke for editing records (if omitted, drawer with schema-generated form will open) */
   onEditRecord?: (recordId: number | string) => void;
-  detailsLink?: (row: any) => string;
 }
 
 export type SchemaTableColumnType = ProColumnType & {
@@ -58,7 +59,6 @@ const SchemaTable = ({
   defaultActions = ['edit', 'delete'],
   onAddRecord = undefined,
   onEditRecord = undefined,
-  detailsLink = undefined,
   ...passThroughProps
 }: SchemaTableProps): ReactElement => {
 
@@ -97,6 +97,11 @@ const SchemaTable = ({
     }
     return list;
   }, [_resourceTypes]);
+
+  const detailRoute = useMemo(() => {
+    const lookupKey = `${_resourceTypes.baseResourceType}Details`;
+    return flatRoutes.find((_route: MenuDataItem) => _route.key === lookupKey);
+  }, [_resourceTypes.baseResourceType, flatRoutes]);
 
   const {lastResourceMessage} = useDefaultWebSocket(resourceTypesArray);
 
@@ -199,15 +204,16 @@ const SchemaTable = ({
   }, [addRowAction, api, _resourceTypes.baseResourceType]);
 
   const detailsButton = useCallback(
-    (row: any): ReactNode => {
-      if (!detailsLink){
+    (row: JsonApiPrimaryData): ReactNode => {
+
+      if (!detailRoute.path){
         return <></>
       }
       return (
         <Tooltip    
           title={intl.formatMessage({ id: 'component.schemaTable.details' })}
         >
-          <Link to={`${window.location.pathname}/${row.id}`}>
+          <Link to={generatePath(detailRoute.path, { id: row.id })}>
             <Button
               size='small'
               style={{ borderColor: 'blue', color: 'blue' }}
@@ -215,7 +221,7 @@ const SchemaTable = ({
             />
           </Link>
         </Tooltip>)
-    }, [detailsLink, intl]
+    }, [detailRoute, intl]
   );
 
   const deleteRowButton = useCallback(

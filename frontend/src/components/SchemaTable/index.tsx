@@ -98,7 +98,7 @@ const SchemaTable = ({
     return list;
   }, [_resourceTypes]);
 
-  const detailRoute = useMemo(() => {
+  const detailRoute = useMemo<MenuDataItem | undefined>(() => {
     const lookupKey = `${_resourceTypes.baseResourceType}Details`;
     return flatRoutes.find((_route: MenuDataItem) => _route.key === lookupKey);
   }, [_resourceTypes.baseResourceType, flatRoutes]);
@@ -206,7 +206,7 @@ const SchemaTable = ({
   const detailsButton = useCallback(
     (row: JsonApiPrimaryData): ReactNode => {
 
-      if (!detailRoute.path){
+      if (!detailRoute?.path){
         return <></>
       }
       return (

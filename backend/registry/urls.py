@@ -42,7 +42,7 @@ router = ExtendedSimpleRouter()
           .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='wfs-metadata-contact', parents_query_lookups=['metadata_contact_webfeatureservice_metadata']),
     router.register(r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wfs-keywords', parents_query_lookups=['webfeatureservice_metadata']),
-    
+
     # feature types
     router.register(r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
           .register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet, basename='featuretype-referencesystems', parents_query_lookups=['featuretype']),

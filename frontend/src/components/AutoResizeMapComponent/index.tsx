@@ -12,6 +12,7 @@ const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => {
       map.setTarget(id);
       const mapDiv: any = document.querySelector(`#${id}`);
       const resizeObserver = new ResizeObserver(() => {
+        console.log('resize');
         map.updateSize();
       });
       resizeObserver.observe(mapDiv);

@@ -6,10 +6,11 @@ import { Badge, Button } from 'antd';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import type { Geometry } from 'geojson';
 import type { ReactNode } from 'react';
 import { generatePath } from 'react-router';
 import { Link } from 'umi';
-
+import ModalMap from '../CustomMap';
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
 
@@ -134,7 +135,7 @@ export const mapOpenApiSchemaToProTableColumn = (
   const paramName = column.dataIndex as string;
 
   // https://procomponents.ant.design/components/schema#valuetype
-  if (!column.valueType) {
+  if (column && !column.valueType) {
     if (propSchema.type === 'string') {
       switch (propSchema.format) {
         case 'date-time':
@@ -151,7 +152,22 @@ export const mapOpenApiSchemaToProTableColumn = (
           break;
         case 'geojson':
           // TODO: here should be a map component
-          column.valueType = 'textarea';
+          //console.log('col:', column);
+          column.renderText = (text: Geometry) => {            
+            return <ModalMap geom={text}/>
+          //   console.log('geom', text);
+          //return JSON.stringify(text);
+          //   return text;
+         };
+
+          // column.render = (entity: any, schema: any) => {
+          //   // console.log('entity', entity);
+          //   // console.log('schema', schema);
+          //   const geom: Polygon = entity; 
+          //   console.log('geom', geom);
+          //   return JSON.stringify(geom);
+          // };
+          //column.valueType = ;
           break;
         default:
           column.render = renderEllipsis.bind(null, column.dataIndex as string) as any;

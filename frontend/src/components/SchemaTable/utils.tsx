@@ -153,8 +153,9 @@ export const mapOpenApiSchemaToProTableColumn = (
         case 'geojson':
           // TODO: here should be a map component
           //console.log('col:', column);
-          column.renderText = (text: Geometry) => {            
-            return <ModalMap geom={text}/>
+          column.renderText = (text: Geometry) => {   
+            
+            return <ModalMap geom={text} />
           //   console.log('geom', text);
           //return JSON.stringify(text);
           //   return text;

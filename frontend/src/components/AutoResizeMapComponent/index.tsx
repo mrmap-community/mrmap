@@ -3,19 +3,26 @@ import 'ol/ol.css';
 import type { ReactElement } from 'react';
 import { useEffect } from 'react';
 
-const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => {
+const AutoResizeMapComponent = (
+    { id }: { id: string }
+  ): ReactElement => {
+    
   const map = useMap();
 
+  
   // automatically call map.updateSize() when mapDiv resizes
   useEffect(() => {
     if (map) {
       map.setTarget(id);
       const mapDiv: any = document.querySelector(`#${id}`);
+      
       const resizeObserver = new ResizeObserver(() => {
-        console.log('resize');
         map.updateSize();
       });
       resizeObserver.observe(mapDiv);
+      
+      
+      
       return () => {
         resizeObserver.unobserve(mapDiv);
       };
@@ -26,7 +33,16 @@ const AutoResizeMapComponent = ({ id }: { id: string }): ReactElement => {
   if (!map) {
     return <></>;
   }
-  return <MapComponent id={id} map={map} />;
+  return (
+
+    
+      <MapComponent 
+        id={id} 
+        map={map} 
+        style={{height: '100%', width: '100%'}}
+      />
+
+  );
 };
 
 export default AutoResizeMapComponent;

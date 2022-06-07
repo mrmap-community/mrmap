@@ -155,10 +155,8 @@ export const mapOpenApiSchemaToProTableColumn = (
           //console.log('col:', column);
           column.renderText = (text: Geometry) => {   
             
-            return <ModalMap geom={text} />
-          //   console.log('geom', text);
-          //return JSON.stringify(text);
-          //   return text;
+            return <ModalMap title={`${column.title}`} geom={text} />
+          
          };
 
           // column.render = (entity: any, schema: any) => {

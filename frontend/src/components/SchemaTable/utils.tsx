@@ -10,7 +10,7 @@ import type { Geometry } from 'geojson';
 import type { ReactNode } from 'react';
 import { generatePath } from 'react-router';
 import { Link } from 'umi';
-import ModalMap from '../CustomMap';
+import ModalMap from '../ModalMap';
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
 
@@ -155,7 +155,7 @@ export const mapOpenApiSchemaToProTableColumn = (
           //console.log('col:', column);
           column.renderText = (text: Geometry) => {   
             
-            return <ModalMap title={`${column.title}`} geom={text} />
+            return <ModalMap title={column.title} geom={text} />
           
          };
 

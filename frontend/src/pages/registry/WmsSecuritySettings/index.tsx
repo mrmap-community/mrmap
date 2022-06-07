@@ -237,7 +237,7 @@ export const WmsSecuritySettings = (): ReactElement => {
           />
         </LeftDrawer>
       )}
-      <AutoResizeMapComponent id="map" />
+      <AutoResizeMapComponent />
       {map && id && (
         <RulesDrawer
           map={map}

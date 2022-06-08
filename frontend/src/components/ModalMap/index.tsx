@@ -16,6 +16,7 @@ import Stroke from 'ol/style/Stroke';
 import Style from 'ol/style/Style';
 import type { ReactElement, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { useIntl } from 'umi';
 import { v4 as uuidv4 } from 'uuid';
 import AutoResizeMapComponent from '../AutoResizeMapComponent';
 
@@ -31,17 +32,18 @@ const ModalMap = ({
     buttonText = undefined,
     ...passThroughProps
 }: ModalMapProps ): ReactElement => {
-
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const map = olMap;
-
+    const intl = useIntl();
     const uuid = useMemo(() => {
         return uuidv4();
     }, []);
+    const map = olMap;
 
     const _geomName = useMemo(() => {
         return geomName || passThroughProps.title;
-    }, []);
+    }, [geomName, passThroughProps.title]);
+
+    const [isModalVisible, setIsModalVisible] = useState(false);
+
 
     const showModal = () => {
       setIsModalVisible(true);
@@ -93,7 +95,7 @@ const ModalMap = ({
     return (
         <>
             <Button  onClick={showModal}>
-                {buttonText ? buttonText: <Tooltip title={'show map'}><FontAwesomeIcon icon={faMapLocationDot}/></Tooltip>} 
+                {buttonText ? buttonText: <Tooltip title={intl.formatMessage({ id: 'component.modalMap.buttonTooltipTitle' })}><FontAwesomeIcon icon={faMapLocationDot}/></Tooltip>} 
             </Button>
             <Modal 
                 visible={isModalVisible} 

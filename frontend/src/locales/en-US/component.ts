@@ -26,4 +26,6 @@ export default {
   'component.ogcservicedetails.editRessource': 'Edit {type}: {label}',
   'component.ogcservicedetails.search': 'Search',
 
+  'component.modalMap.buttonTooltipTitle': 'Show Map',
+
 };

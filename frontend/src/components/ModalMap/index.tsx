@@ -10,6 +10,9 @@ import Feature from 'ol/Feature';
 import GeoJSON from 'ol/format/GeoJSON';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
+import Fill from 'ol/style/Fill';
+import Stroke from 'ol/style/Stroke';
+import Style from 'ol/style/Style';
 import type { ReactElement, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -55,7 +58,6 @@ const ModalMap = ({
         if (!map){
             return
         }
-        console.log(JSON.stringify(geom));
         const layers = map.getLayers().getArray().filter(layer => layer.get('id') === uuid);
 
         if (isModalVisible && layers.length === 0){   
@@ -63,8 +65,9 @@ const ModalMap = ({
             const geometry = geoJson.readGeometry(geom);
             const feature = new Feature({
                 name: _geomName,
-                geometry: wgs84ToScreen(geometry)
+                geometry: wgs84ToScreen(geometry),
             });
+            feature.setStyle(new Style({ stroke: new Stroke({color: '#FF0000', width: 1}), fill: new Fill({color: [255,27,27,0.2]})}));
 
             const vectorSource = new VectorSource({
                 features: [feature],
@@ -79,8 +82,6 @@ const ModalMap = ({
             });         
             
             map?.addLayer(vectorLayer);
-            console.log(map.getAllLayers());
-            
             map?.getView().fit(vectorSource.getExtent(), );
         } else if (!isModalVisible && layers.length > 0) {
             layers.forEach(layer => map.removeLayer(layer));

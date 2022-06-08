@@ -15,17 +15,16 @@ export default {
   'component.schemaTable.actionsColumnTitle': 'Actions',
   'component.schemaTable.searchColumn': 'Search term',
 
-
   'component.tagSelect.all': 'All',
   'component.tagSelect.collapse': 'Collapse',
   'component.tagSelect.expand': 'Expand',
 
   'component.ressourceDetails.pageContainer.title': 'Details of {ressourceType}: {label}',
 
-  'component.ogcservicedetails.linkedDatasetMetadata': 'Linked dataset metadata records for {type}: {label}',
+  'component.ogcservicedetails.linkedDatasetMetadata':
+    'Linked dataset metadata records for {type}: {label}',
   'component.ogcservicedetails.editRessource': 'Edit {type}: {label}',
   'component.ogcservicedetails.search': 'Search',
 
   'component.modalMap.buttonTooltipTitle': 'Show Map',
-
 };

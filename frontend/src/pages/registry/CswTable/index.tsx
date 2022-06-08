@@ -27,7 +27,7 @@ const CswTable = (): ReactElement => {
   return (
     <PageContainer>
       <SchemaTable
-        resourceTypes={{baseResourceType: 'CatalougeService'}} 
+        resourceTypes={{ baseResourceType: 'CatalougeService' }}
         additionalActions={additionalActions}
       />
     </PageContainer>

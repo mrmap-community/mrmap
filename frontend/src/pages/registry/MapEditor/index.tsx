@@ -9,7 +9,7 @@ import {
   MinusCircleFilled,
   SearchOutlined,
   SettingFilled,
-  SettingOutlined
+  SettingOutlined,
 } from '@ant-design/icons';
 import { faLayerGroup } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';

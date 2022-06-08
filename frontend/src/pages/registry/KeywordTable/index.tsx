@@ -5,9 +5,7 @@ import type { ReactElement } from 'react';
 const KeywordTable = (): ReactElement => {
   return (
     <GenericPageContainer>
-      <SchemaTable 
-        resourceTypes={{baseResourceType: 'Keyword'}} 
-      />
+      <SchemaTable resourceTypes={{ baseResourceType: 'Keyword' }} />
     </GenericPageContainer>
   );
 };

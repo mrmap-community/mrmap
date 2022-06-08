@@ -53,14 +53,12 @@ const UserSettingsUpdater: React.FC = (props: any) => {
         buildJsonApiPayload('User', currentUser.id, { settings: settings }),
       );
     }
-  // only trigger the hook if settings are changing
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // only trigger the hook if settings are changing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, updateUser]);
 
   return props.children;
 };
-
-
 
 /**
  * Workaround to init openapi provider before child containers are rendered
@@ -71,14 +69,16 @@ const RootContainer: React.FC = (props: any) => {
   const [schema, setSchema] = useState();
 
   // Workaround to store routes as global accessable instance
-  const {setRoutes} = useModel('routes', model => ({routes: model.routes, setRoutes: model.setRoutes}));
-  
+  const { setRoutes } = useModel('routes', (model) => ({
+    routes: model.routes,
+    setRoutes: model.setRoutes,
+  }));
+
   useEffect(() => {
     if (props?.routes) {
       setRoutes(props.routes);
     }
   });
-  
 
   useEffect(() => {
     setDjangoLanguageCookie();

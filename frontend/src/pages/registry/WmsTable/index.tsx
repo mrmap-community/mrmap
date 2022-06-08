@@ -13,24 +13,24 @@ const WmsTable = (): ReactElement => {
       const allowedOperations = record.relationships?.allowedOperations?.meta?.count;
       return (
         <>
-        <Tooltip
-          title={
-            allowedOperations > 0
-              ? intl.formatMessage(
-                  { id: 'pages.wmsTable.securityRuleCount' },
-                  { num: allowedOperations },
-                )
-              : intl.formatMessage({ id: 'pages.wmsTable.noSecurityRules' })
-          }
-        >
-          <Link to={`/registry/wms/${record.id}/security/rules`}>
-            <Button
-              size="small"
-              style={{ borderColor: 'gold', color: 'gold' }}
-              icon={allowedOperations > 0 ? <LockFilled /> : <UnlockFilled />}
-            />
-          </Link>
-        </Tooltip>
+          <Tooltip
+            title={
+              allowedOperations > 0
+                ? intl.formatMessage(
+                    { id: 'pages.wmsTable.securityRuleCount' },
+                    { num: allowedOperations },
+                  )
+                : intl.formatMessage({ id: 'pages.wmsTable.noSecurityRules' })
+            }
+          >
+            <Link to={`/registry/wms/${record.id}/security/rules`}>
+              <Button
+                size="small"
+                style={{ borderColor: 'gold', color: 'gold' }}
+                icon={allowedOperations > 0 ? <LockFilled /> : <UnlockFilled />}
+              />
+            </Link>
+          </Tooltip>
         </>
       );
     },
@@ -38,9 +38,9 @@ const WmsTable = (): ReactElement => {
   );
   return (
     <GenericPageContainer>
-      <SchemaTable 
-        resourceTypes={{baseResourceType: 'WebMapService'}} 
-        additionalActions={additionalActions} 
+      <SchemaTable
+        resourceTypes={{ baseResourceType: 'WebMapService' }}
+        additionalActions={additionalActions}
       />
     </GenericPageContainer>
   );

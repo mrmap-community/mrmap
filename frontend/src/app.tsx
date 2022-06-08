@@ -1,6 +1,10 @@
 import RightContent from '@/components/RightContent';
 import { GithubFilled, LinkOutlined } from '@ant-design/icons';
-import type { BasicLayoutProps, MenuDataItem, Settings as LayoutSettings } from '@ant-design/pro-layout';
+import type {
+  BasicLayoutProps,
+  MenuDataItem,
+  Settings as LayoutSettings,
+} from '@ant-design/pro-layout';
 import { SettingDrawer } from '@ant-design/pro-layout';
 import type { RunTimeLayoutConfig } from 'umi';
 import { history, Link, request } from 'umi';
@@ -55,8 +59,7 @@ export async function getInitialState(): Promise<{
     userInfoResponse: response,
     currentUser: currentUser,
     isAuthenticated: isAuthenticated,
-    settings: isAuthenticated ? currentUser?.attributes.settings : {layout: defaultSettings},
-    
+    settings: isAuthenticated ? currentUser?.attributes.settings : { layout: defaultSettings },
   };
 }
 
@@ -120,7 +123,7 @@ export const layout: RunTimeLayoutConfig = ({
                   ...preInitialState,
                   settings: {
                     ...preInitialState.settings,
-                    ['layout']: layoutSettings
+                    ['layout']: layoutSettings,
                   },
                 }));
               }}
@@ -128,9 +131,8 @@ export const layout: RunTimeLayoutConfig = ({
           )}
         </>
       );
-      
     },
-    
+
     ...initialState?.settings?.layout,
   };
 };

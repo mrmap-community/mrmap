@@ -26,5 +26,4 @@ export default {
   'component.ogcservicedetails.search': 'Suchen',
 
   'component.modalMap.buttonTooltipTitle': 'Zeige Karte',
-
 };

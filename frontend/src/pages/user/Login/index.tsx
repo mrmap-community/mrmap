@@ -48,12 +48,11 @@ const Login: React.FC = (): ReactElement => {
         if (currentUserResponse?.data?.data?.attributes?.settings) {
           newState.settings = currentUserResponse?.data?.data?.attributes?.settings;
         }
-        return ({
+        return {
           ...newState,
           userInfoResponse: currentUserResponse,
           currentUser: currentUserResponse.data.data,
-          
-        })
+        };
       });
     }
   }, [currentUserResponse, intl, setInitialState]);

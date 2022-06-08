@@ -28,14 +28,12 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
       const { redirect } = query;
       // Note: There may be security issues, please note
       if (window.location.pathname !== '/user/login' && !redirect) {
-        history.replace(
-          {
-            pathname: '/user/login',
-            search: stringify({
-              redirect: pathname,
-            }),
-          },
-        );
+        history.replace({
+          pathname: '/user/login',
+          search: stringify({
+            redirect: pathname,
+          }),
+        });
       }
       const logoutSuccessMessage = intl.formatMessage({
         id: 'component.rightContent.logoutSuccesful',

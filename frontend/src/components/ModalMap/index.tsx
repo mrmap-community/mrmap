@@ -1,9 +1,10 @@
 import { olMap, wgs84ToScreen } from '@/utils/map';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { faMapLocationDot } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LayerTree, useMap } from '@terrestris/react-geo';
 import type { ModalProps } from 'antd';
-import { Modal, Tooltip } from 'antd';
+import { Modal, Popover, Tooltip } from 'antd';
 import Button from 'antd/lib/button';
 import type { Geometry } from 'geojson';
 import Feature from 'ol/Feature';
@@ -76,7 +77,7 @@ const ModalMap = ({
             const vectorLayer = new VectorLayer({
                 source: vectorSource,
                 properties: {
-                    name: _geomName,
+                    name: <Popover content={JSON.stringify(geom)} title="geojson">{_geomName} <InfoCircleOutlined /></Popover>,
                     id: uuid
                 },
             });         
@@ -108,6 +109,7 @@ const ModalMap = ({
                 <LayerTree
                         map={map || olMap}
                 />
+
                 
             </Modal>
         </>

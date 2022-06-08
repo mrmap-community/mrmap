@@ -123,5 +123,4 @@ export default {
   'pages.wmsSecuritySettings.rulesDrawer.ruleForm.save': 'Speichern',
   'pages.wmsTable.noSecurityRules': 'Unbeschränkter Zugriff',
   'pages.wmsTable.securityRuleCount': 'Anzahl Zugriffsregeln: {num}',
-
 };

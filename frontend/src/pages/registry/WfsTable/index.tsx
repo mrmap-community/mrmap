@@ -36,8 +36,8 @@ const WfsTable = (): ReactElement => {
   );
   return (
     <PageContainer>
-      <SchemaTable 
-        resourceTypes={{baseResourceType: 'WebFeatureService'}}
+      <SchemaTable
+        resourceTypes={{ baseResourceType: 'WebFeatureService' }}
         additionalActions={additionalActions}
       />
     </PageContainer>

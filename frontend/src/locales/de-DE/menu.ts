@@ -10,7 +10,7 @@ export default {
   'menu.registry.FeatureType': 'Datenebenen (WFS/Vektor)',
   'menu.registry.maps': 'Karten',
   'menu.registry.Keyword': 'Schlagwörter',
-  
+
   'menu.jobs': 'Prozesse',
   'menu.more-blocks': 'More Blocks',
   'menu.home': 'Home',

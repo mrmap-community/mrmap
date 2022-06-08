@@ -27,7 +27,7 @@ const SearchTable = ({
 
   return (
     <SchemaTable
-      resourceTypes={{baseResourceType: 'DatasetMetadata'}}
+      resourceTypes={{ baseResourceType: 'DatasetMetadata' }}
       // columns={datasetMetadataColumns}
       toolBarRender={false}
       size="small"

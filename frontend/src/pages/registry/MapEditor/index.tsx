@@ -378,7 +378,7 @@ const MapEditor = (): ReactElement => {
             )}
           </LeftDrawer>
         )}
-        <AutoResizeMapComponent id="map" />
+        <AutoResizeMapComponent />
       </div>
       {
         <BottomDrawer

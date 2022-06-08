@@ -3,12 +3,9 @@ import SchemaTable from '@/components/SchemaTable';
 import type { ReactElement } from 'react';
 
 const LayerTable = (): ReactElement => {
-
   return (
     <GenericPageContainer>
-      <SchemaTable 
-        resourceTypes={{baseResourceType: 'Layer'}} 
-      />
+      <SchemaTable resourceTypes={{ baseResourceType: 'Layer' }} />
     </GenericPageContainer>
   );
 };

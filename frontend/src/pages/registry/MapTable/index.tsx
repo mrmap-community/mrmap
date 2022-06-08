@@ -7,7 +7,7 @@ const MapTable = (): ReactElement => {
   return (
     <PageContainer>
       <SchemaTable
-        resourceTypes={{baseResourceType: 'MapContext'}}
+        resourceTypes={{ baseResourceType: 'MapContext' }}
         onAddRecord={() => history.push('/registry/maps/add')}
         onEditRecord={(mapId) => history.push(`/registry/maps/${mapId}/edit`)}
       />

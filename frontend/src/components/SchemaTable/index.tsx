@@ -3,7 +3,13 @@ import type { JsonApiPrimaryData } from '@/utils/jsonapi';
 import { getQueryParams } from '@/utils/jsonapi';
 import { DeleteFilled, EditFilled, InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { MenuDataItem } from '@ant-design/pro-layout';
-import type { ActionType, ColumnsState, ProColumns, ProColumnType, ProTableProps } from '@ant-design/pro-table';
+import type {
+  ActionType,
+  ColumnsState,
+  ProColumns,
+  ProColumnType,
+  ProTableProps,
+} from '@ant-design/pro-table';
 import { default as ProTable } from '@ant-design/pro-table';
 import '@ant-design/pro-table/dist/table.css';
 import type { TablePaginationConfig } from 'antd';
@@ -17,8 +23,11 @@ import { OpenAPIContext, useOperationMethod } from 'react-openapi-client';
 import { generatePath } from 'react-router';
 import { FormattedMessage, Link, useIntl, useModel, useParams } from 'umi';
 import SchemaForm from '../SchemaForm';
-import { buildSearchTransformText, mapOpenApiSchemaToProTableColumn, transformJsonApiPrimaryDataToRow } from './utils';
-
+import {
+  buildSearchTransformText,
+  mapOpenApiSchemaToProTableColumn,
+  transformJsonApiPrimaryDataToRow,
+} from './utils';
 
 export interface NestedLookup {
   paramName: string;
@@ -30,7 +39,7 @@ export interface ResourceTypes {
   nestedResource?: {
     type: string;
     id: string;
-  }
+  };
 }
 
 export interface SchemaTableProps extends Omit<ProTableProps<any, any>, 'actionRef'> {
@@ -51,7 +60,6 @@ export type SchemaTableColumnType = ProColumnType & {
   toFilterParams?: (value: any) => Record<string, string>;
 };
 
-
 const SchemaTable = ({
   resourceTypes,
   columns = undefined,
@@ -61,29 +69,30 @@ const SchemaTable = ({
   onEditRecord = undefined,
   ...passThroughProps
 }: SchemaTableProps): ReactElement => {
-
-  const {flatRoutes} = useModel('routes');
+  const { flatRoutes } = useModel('routes');
 
   // TODO: check permissions of the user to decide if he can add a resource, if not remove onAddRecord route
 
   const { id } = useParams<{ id: string }>();
 
   const _resourceTypes = useMemo(() => {
-    if (id){
+    if (id) {
       const pathname = window.location.pathname;
       const routes = pathname.split('/');
       const indexOfId = routes.indexOf(id);
-      
-      if (resourceTypes.baseResourceType !== routes[indexOfId+1]) {
-        console.log('missmatching baseResourceType passed in by properties. ResourceType founded by route will be owerwrite it.');
+
+      if (resourceTypes.baseResourceType !== routes[indexOfId + 1]) {
+        console.log(
+          'missmatching baseResourceType passed in by properties. ResourceType founded by route will be owerwrite it.',
+        );
       }
-      
+
       return {
-        baseResourceType: routes[indexOfId+1],
+        baseResourceType: routes[indexOfId + 1],
         nestedResource: {
           id: id,
-          type: routes[indexOfId-1]
-        }
+          type: routes[indexOfId - 1],
+        },
       };
     } else {
       return resourceTypes;
@@ -92,8 +101,8 @@ const SchemaTable = ({
 
   const resourceTypesArray = useMemo(() => {
     const list = [_resourceTypes.baseResourceType];
-    if (_resourceTypes.nestedResource){
-      list.push(_resourceTypes.nestedResource.type)
+    if (_resourceTypes.nestedResource) {
+      list.push(_resourceTypes.nestedResource.type);
     }
     return list;
   }, [_resourceTypes]);
@@ -103,7 +112,7 @@ const SchemaTable = ({
     return flatRoutes.find((_route: MenuDataItem) => _route.key === lookupKey);
   }, [_resourceTypes.baseResourceType, flatRoutes]);
 
-  const {lastResourceMessage} = useDefaultWebSocket(resourceTypesArray);
+  const { lastResourceMessage } = useDefaultWebSocket(resourceTypesArray);
 
   const intl = useIntl();
   const _defaultActions = useRef(defaultActions);
@@ -117,7 +126,6 @@ const SchemaTable = ({
     settings?.[jsonPointer.current] || {},
   );
 
-
   /**
    * @description state variables for right drawer
    */
@@ -130,8 +138,9 @@ const SchemaTable = ({
   const { api } = useContext(OpenAPIContext);
   const [listResource, { loading: listLoading, error: listError, response: listResponse }] =
     useOperationMethod(listOperationId);
-  const [deleteResource, { error: deleteError }] = useOperationMethod('delete' + _resourceTypes.baseResourceType);
-  
+  const [deleteResource, { error: deleteError }] = useOperationMethod(
+    'delete' + _resourceTypes.baseResourceType,
+  );
 
   /**
    * @description state variables for protable
@@ -141,46 +150,42 @@ const SchemaTable = ({
 
   const proTableActions = useRef<ActionType>();
 
-  
-  const augmentColumns = useCallback((
-    properties: any,
-    queryParams: any,
-    columnHints: ProColumnType[] | undefined,
-  ): ProColumns[] => {
-    const schemaColumns: any = {};
-    for (const propName in properties) {
-
-      schemaColumns[propName] = mapOpenApiSchemaToProTableColumn(
-        { dataIndex: propName },
-        properties[propName],
-        queryParams,
-        flatRoutes
-      );
-      // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
-      const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
-      if (columnHint) {
-        schemaColumns[propName].valueType = 'text';
-        for (const [key, value] of Object.entries(columnHint)) {
-          schemaColumns[propName][key] = value;
+  const augmentColumns = useCallback(
+    (properties: any, queryParams: any, columnHints: ProColumnType[] | undefined): ProColumns[] => {
+      const schemaColumns: any = {};
+      for (const propName in properties) {
+        schemaColumns[propName] = mapOpenApiSchemaToProTableColumn(
+          { dataIndex: propName },
+          properties[propName],
+          queryParams,
+          flatRoutes,
+        );
+        // if there are definitions comes from the inherited component, we overwrite the definitions comes from the schema
+        const columnHint = columnHints?.find((hint) => hint.dataIndex === propName);
+        if (columnHint) {
+          schemaColumns[propName].valueType = 'text';
+          for (const [key, value] of Object.entries(columnHint)) {
+            schemaColumns[propName][key] = value;
+          }
         }
       }
-    }
-  
-    if (queryParams['filter[search]']) {
-      schemaColumns.search = {
-        dataIndex: 'search',
-        title: intl.formatMessage({ id: 'component.schemaTable.searchColumn' }),
-        valueType: 'text',
-        hideInTable: true,
-        hideInSearch: false,
-        search: {
-          transform: buildSearchTransformText('search'),
-        },
-      };
-    }
-    return Object.values(schemaColumns);
-  }, [flatRoutes, intl]);
 
+      if (queryParams['filter[search]']) {
+        schemaColumns.search = {
+          dataIndex: 'search',
+          title: intl.formatMessage({ id: 'component.schemaTable.searchColumn' }),
+          valueType: 'text',
+          hideInTable: true,
+          hideInSearch: false,
+          search: {
+            transform: buildSearchTransformText('search'),
+          },
+        };
+      }
+      return Object.values(schemaColumns);
+    },
+    [flatRoutes, intl],
+  );
 
   const addRowAction = useCallback(() => {
     return !onAddRecord
@@ -205,58 +210,60 @@ const SchemaTable = ({
 
   const detailsButton = useCallback(
     (row: JsonApiPrimaryData): ReactNode => {
-
-      if (!detailRoute?.path){
-        return <></>
+      if (!detailRoute?.path) {
+        return <></>;
       }
       return (
-        <Tooltip    
-          title={intl.formatMessage({ id: 'component.schemaTable.details' })}
-        >
+        <Tooltip title={intl.formatMessage({ id: 'component.schemaTable.details' })}>
           <Link to={generatePath(detailRoute.path, { id: row.id })}>
             <Button
-              size='small'
+              size="small"
               style={{ borderColor: 'blue', color: 'blue' }}
               icon={<InfoCircleOutlined />}
             />
           </Link>
-        </Tooltip>)
-    }, [detailRoute, intl]
+        </Tooltip>
+      );
+    },
+    [detailRoute, intl],
   );
 
   const deleteRowButton = useCallback(
     (row: any): ReactNode => {
       // todo: check if user has permission also
-      if (_defaultActions.current.includes('delete') &&
-          api.getOperation('delete' + _resourceTypes.baseResourceType)) {
-          return (
-            <Tooltip title={'Delete'}>
-              <Button
-                style={{ borderColor: 'red', color: 'red' }}
-                type="default"
-                icon={<DeleteFilled />}
-                size="small"
-                onClick={() => {
-                  const modal = Modal.confirm({
-                    title: intl.formatMessage({ id: 'component.schemaTable.deleteRowTitle' }),
-                    content: intl.formatMessage(
-                      { id: 'component.schemaTable.deleteRowText' },
-                      { row: row.id },
-                    ),
-                    onOk: () => {
-                      modal.update((prevConfig) => ({
-                        ...prevConfig,
-                        confirmLoading: true,
-                      }));
-                      deleteResource(row.id);
-                      proTableActions.current?.reload();
-                    },
-                  });
-                }}
-              />
-            </Tooltip>);
+      if (
+        _defaultActions.current.includes('delete') &&
+        api.getOperation('delete' + _resourceTypes.baseResourceType)
+      ) {
+        return (
+          <Tooltip title={'Delete'}>
+            <Button
+              style={{ borderColor: 'red', color: 'red' }}
+              type="default"
+              icon={<DeleteFilled />}
+              size="small"
+              onClick={() => {
+                const modal = Modal.confirm({
+                  title: intl.formatMessage({ id: 'component.schemaTable.deleteRowTitle' }),
+                  content: intl.formatMessage(
+                    { id: 'component.schemaTable.deleteRowText' },
+                    { row: row.id },
+                  ),
+                  onOk: () => {
+                    modal.update((prevConfig) => ({
+                      ...prevConfig,
+                      confirmLoading: true,
+                    }));
+                    deleteResource(row.id);
+                    proTableActions.current?.reload();
+                  },
+                });
+              }}
+            />
+          </Tooltip>
+        );
       } else {
-        return <></>
+        return <></>;
       }
     },
     [api, deleteResource, intl, _resourceTypes.baseResourceType],
@@ -265,29 +272,30 @@ const SchemaTable = ({
   const editRowButton = useCallback(
     (row: any): ReactNode => {
       // todo: check if user has permission also
-      if (_defaultActions.current.includes('edit') &&
-          api.getOperation('update' + _resourceTypes.baseResourceType)) {
-            return (
-              <Tooltip title={'Edit'}>
-                <Button
-                  size="small"
-                  icon={<EditFilled />}
-                  style={{ borderColor: 'gold', color: 'gold' }}
-                  onClick={() => {
-                    if (onEditRecord) {
-                      onEditRecord(row.id);
-                    } else {
-                      setSelectedForEdit(row.id);
-                      setRightDrawerVisible(true);
-                    }
-                  }}
-                />
-              </Tooltip>
-            );
+      if (
+        _defaultActions.current.includes('edit') &&
+        api.getOperation('update' + _resourceTypes.baseResourceType)
+      ) {
+        return (
+          <Tooltip title={'Edit'}>
+            <Button
+              size="small"
+              icon={<EditFilled />}
+              style={{ borderColor: 'gold', color: 'gold' }}
+              onClick={() => {
+                if (onEditRecord) {
+                  onEditRecord(row.id);
+                } else {
+                  setSelectedForEdit(row.id);
+                  setRightDrawerVisible(true);
+                }
+              }}
+            />
+          </Tooltip>
+        );
       } else {
-        return <></>
+        return <></>;
       }
-      
     },
     [api, onEditRecord, _resourceTypes.baseResourceType],
   );
@@ -336,13 +344,13 @@ const SchemaTable = ({
     const operation = api.getOperation(listOperationId);
     const responseObject = operation?.responses?.['200'] as OpenAPIV3.ResponseObject;
     const responseSchema = responseObject?.content?.['application/vnd.api+json'].schema as any;
-    const schemaColumns: ProColumns[] = []
+    const schemaColumns: ProColumns[] = [];
     if (responseSchema) {
       const attributes = {
         ...responseSchema.properties?.data?.items?.properties?.attributes?.properties,
-        ...responseSchema.properties?.data?.items?.properties?.relationships?.properties
+        ...responseSchema.properties?.data?.items?.properties?.relationships?.properties,
       };
-      
+
       schemaColumns.push(...augmentColumns(attributes, queryParams, columns));
       if (!schemaColumns.some((column) => column.key === 'actions')) {
         // TODO: title shall be translated
@@ -357,9 +365,8 @@ const SchemaTable = ({
         });
       }
     }
-    return schemaColumns
+    return schemaColumns;
   }, [api, augmentColumns, columns, defaultActionButtons, intl, listOperationId]);
-
 
   /**
    * @description Handles list response and fills the table with data
@@ -392,12 +399,15 @@ const SchemaTable = ({
         ],
       );
 
-      if (_resourceTypes.nestedResource){
+      if (_resourceTypes.nestedResource) {
         const operation = api.getOperation(listOperationId);
         const firstParam = operation?.parameters?.[0] as ParameterObject;
-        if (firstParam){
-          queryParams.push({ name: firstParam.name, value: _resourceTypes.nestedResource.id, in: 'path' })
-
+        if (firstParam) {
+          queryParams.push({
+            name: firstParam.name,
+            value: _resourceTypes.nestedResource.id,
+            in: 'path',
+          });
         }
       }
 
@@ -426,25 +436,29 @@ const SchemaTable = ({
   /**
    * @description Update handler if there is message received by websocket hook
    */
-     useEffect(() => {
-      if (tableData?.length > 0 && lastResourceMessage?.payload?.id){
-        const existsInCurrentTableView = tableData.findIndex((element: JsonApiPrimaryData) => element.id === lastResourceMessage.payload.id)
-        // This is an known element, so we can update it with the received payload
-        if (existsInCurrentTableView !== -1 && !lastResourceMessage.type.includes('/delete')){
-          const newData = [...tableData];
-          newData[existsInCurrentTableView] = transformJsonApiPrimaryDataToRow(lastResourceMessage.payload);
-          setTableData(newData);
-        } else {
-          // this element does not exists in the current table view or was deleted... 
-          // for now we simply refresh the table to become the correct data for the current table view
-          // This will result in silly reload beahavoir 
-          // TODO: think about to handle this better...
-          proTableActions.current?.reload();
-        }
+  useEffect(() => {
+    if (tableData?.length > 0 && lastResourceMessage?.payload?.id) {
+      const existsInCurrentTableView = tableData.findIndex(
+        (element: JsonApiPrimaryData) => element.id === lastResourceMessage.payload.id,
+      );
+      // This is an known element, so we can update it with the received payload
+      if (existsInCurrentTableView !== -1 && !lastResourceMessage.type.includes('/delete')) {
+        const newData = [...tableData];
+        newData[existsInCurrentTableView] = transformJsonApiPrimaryDataToRow(
+          lastResourceMessage.payload,
+        );
+        setTableData(newData);
+      } else {
+        // this element does not exists in the current table view or was deleted...
+        // for now we simply refresh the table to become the correct data for the current table view
+        // This will result in silly reload beahavoir
+        // TODO: think about to handle this better...
+        proTableActions.current?.reload();
       }
+    }
     // only trigger the hook if lastResourceMessage are changing
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [lastResourceMessage]);
+  }, [lastResourceMessage]);
 
   return (
     <>

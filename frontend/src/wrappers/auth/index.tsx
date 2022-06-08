@@ -5,9 +5,7 @@ import { Redirect, useAccess } from 'umi';
 export default (props: any) => {
   const { isAuthenticated } = useAccess();
   if (isAuthenticated) {
-    return (
-      <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>
-    );
+    return <MapContext.Provider value={olMap}>{props.children}</MapContext.Provider>;
   } else {
     return <Redirect to="/user/login" />;
   }

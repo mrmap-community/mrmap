@@ -1,4 +1,8 @@
-import type { JsonApiPrimaryData, ResourceIdentifierObject, ResourceLinkage } from '@/utils/jsonapi';
+import type {
+  JsonApiPrimaryData,
+  ResourceIdentifierObject,
+  ResourceLinkage,
+} from '@/utils/jsonapi';
 import { CheckCircleTwoTone, CloseCircleTwoTone, LinkOutlined } from '@ant-design/icons';
 import type { MenuDataItem } from '@ant-design/pro-layout';
 import type { ProColumnType } from '@ant-design/pro-table';
@@ -6,10 +10,11 @@ import { Badge, Button } from 'antd';
 import Text from 'antd/lib/typography/Text';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import type { Geometry } from 'geojson';
 import type { ReactNode } from 'react';
 import { generatePath } from 'react-router';
 import { Link } from 'umi';
-
+import ModalMap from '../ModalMap';
 // required for parsing of German dates
 dayjs.extend(customParseFormat);
 
@@ -124,17 +129,17 @@ const mapOpenApiFilter = (column: ProColumnType, propSchema: any, queryParams: a
 };
 
 export const mapOpenApiSchemaToProTableColumn = (
-    proColumn: ProColumnType,
-    propSchema: { type: string; format: string; title: string },
-    queryParams: any,
-    routes: MenuDataItem[],
-  ): ProColumnType => {
+  proColumn: ProColumnType,
+  propSchema: { type: string; format: string; title: string },
+  queryParams: any,
+  routes: MenuDataItem[],
+): ProColumnType => {
   let column = proColumn;
   column.title = column.title || propSchema.title || column.dataIndex;
   const paramName = column.dataIndex as string;
 
   // https://procomponents.ant.design/components/schema#valuetype
-  if (!column.valueType) {
+  if (column && !column.valueType) {
     if (propSchema.type === 'string') {
       switch (propSchema.format) {
         case 'date-time':
@@ -151,7 +156,19 @@ export const mapOpenApiSchemaToProTableColumn = (
           break;
         case 'geojson':
           // TODO: here should be a map component
-          column.valueType = 'textarea';
+          //console.log('col:', column);
+          column.renderText = (text: Geometry) => {
+            return <ModalMap title={column.title} geom={text} />;
+          };
+
+          // column.render = (entity: any, schema: any) => {
+          //   // console.log('entity', entity);
+          //   // console.log('schema', schema);
+          //   const geom: Polygon = entity;
+          //   console.log('geom', geom);
+          //   return JSON.stringify(geom);
+          // };
+          //column.valueType = ;
           break;
         default:
           column.render = renderEllipsis.bind(null, column.dataIndex as string) as any;
@@ -173,49 +190,47 @@ export const mapOpenApiSchemaToProTableColumn = (
           <CloseCircleTwoTone twoToneColor="#eb2f96" />
         );
       };
-    } else if (propSchema.type === 'object'){
+    } else if (propSchema.type === 'object') {
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage) => {
         const resourceObject = relationshipObject?.data as ResourceIdentifierObject;
-        if (relationshipObject?.data){
+        if (relationshipObject?.data) {
           const lookupKey = `${resourceObject.type}Details`;
-          const route = routes.find(_route => _route.key === lookupKey);
+          const route = routes.find((_route) => _route.key === lookupKey);
           return (
-            <Badge size='small' count={1}>
-              {
-                route?.path ?
+            <Badge size="small" count={1}>
+              {route?.path ? (
                 <Link to={generatePath(route?.path, { id: resourceObject.id })}>
-                  <Button size='small' icon={<LinkOutlined />} />
-                </Link> :
-                <Button disabled={true} size='small' icon={<LinkOutlined />} />
-              }
-              
-            </Badge>)
+                  <Button size="small" icon={<LinkOutlined />} />
+                </Link>
+              ) : (
+                <Button disabled={true} size="small" icon={<LinkOutlined />} />
+              )}
+            </Badge>
+          );
         } else {
-          return <Button size='small' icon={<LinkOutlined />} disabled={true} />
+          return <Button size="small" icon={<LinkOutlined />} disabled={true} />;
         }
-
-      }
-    } else if (propSchema.type === 'array'){
+      };
+    } else if (propSchema.type === 'array') {
       column.valueType = 'textarea';
       column.renderText = (relationshipObject: ResourceLinkage, proTableRecord: any) => {
         const _proTableRecord = proTableRecord._jsonApiPrimaryData as JsonApiPrimaryData;
         const lookupKey = `${_proTableRecord.type}Nested${relationshipObject?.data?.[0]?.type}`;
-        const route = routes.find(_route => _route.key === lookupKey);
-        
-        return (
-          <Badge size='small' count={relationshipObject?.meta?.count} showZero >
-            {
-              relationshipObject?.meta?.count && route?.path ? 
-              <Link to={generatePath(route?.path, { id: _proTableRecord.id })}>
-                <Button size='small' icon={<LinkOutlined />} />
-              </Link> :
-              <Button disabled={true} size='small' icon={<LinkOutlined />} />
-            }
-          </Badge>
-        )
+        const route = routes.find((_route) => _route.key === lookupKey);
 
-      }
+        return (
+          <Badge size="small" count={relationshipObject?.meta?.count} showZero>
+            {relationshipObject?.meta?.count && route?.path ? (
+              <Link to={generatePath(route?.path, { id: _proTableRecord.id })}>
+                <Button size="small" icon={<LinkOutlined />} />
+              </Link>
+            ) : (
+              <Button disabled={true} size="small" icon={<LinkOutlined />} />
+            )}
+          </Badge>
+        );
+      };
     }
     // @ts-ignore
     // column.ellipsis = {
@@ -239,8 +254,8 @@ export const mapOpenApiSchemaToProTableColumn = (
 
 /**
  * @description Transforms the given JsonApiPrimayData to a flat object which can be used by the antd pro table
- * @param data 
- * @returns 
+ * @param data
+ * @returns
  */
 export const transformJsonApiPrimaryDataToRow = (data: JsonApiPrimaryData) => {
   return {
@@ -248,6 +263,6 @@ export const transformJsonApiPrimaryDataToRow = (data: JsonApiPrimaryData) => {
     id: data.id,
     ...data.attributes,
     ...data.relationships,
-    _jsonApiPrimaryData: data
+    _jsonApiPrimaryData: data,
   };
 };

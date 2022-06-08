@@ -5,7 +5,10 @@ import { history } from 'umi';
 const RulesTable = ({ wmsId }: { wmsId: string }): ReactElement => {
   return (
     <SchemaTable
-      resourceTypes={{baseResourceType: 'AllowedWebMapServiceOperation', nestedResource: {type: 'WebMapService', id: wmsId}}}
+      resourceTypes={{
+        baseResourceType: 'AllowedWebMapServiceOperation',
+        nestedResource: { type: 'WebMapService', id: wmsId },
+      }}
       options={{
         setting: false,
         density: false,

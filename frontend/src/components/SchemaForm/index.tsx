@@ -2,7 +2,7 @@ import SchemaSelect from '@/components/SchemaSelect';
 import type {
   JsonApiErrorObject,
   JsonApiPrimaryData,
-  ResourceIdentifierObject
+  ResourceIdentifierObject,
 } from '@/utils/jsonapi';
 import { buildJsonApiPayload } from '@/utils/jsonapi';
 import type { ProFieldValueType } from '@ant-design/pro-field';

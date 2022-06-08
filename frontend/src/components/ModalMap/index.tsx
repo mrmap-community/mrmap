@@ -2,7 +2,7 @@ import { olMap, wgs84ToScreen } from '@/utils/map';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { faMapLocationDot } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { LayerTree, useMap } from '@terrestris/react-geo';
+import { LayerTree } from '@terrestris/react-geo';
 import type { ModalProps } from 'antd';
 import { Modal, Popover, Tooltip } from 'antd';
 import Button from 'antd/lib/button';
@@ -33,12 +33,12 @@ const ModalMap = ({
 }: ModalMapProps ): ReactElement => {
 
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const map = olMap;
 
     const uuid = useMemo(() => {
         return uuidv4();
     }, []);
 
-    const map = useMap();
     const _geomName = useMemo(() => {
         return geomName || passThroughProps.title;
     }, []);
@@ -56,9 +56,7 @@ const ModalMap = ({
     };
 
     useEffect(() => {
-        if (!map){
-            return
-        }
+
         const layers = map.getLayers().getArray().filter(layer => layer.get('id') === uuid);
 
         if (isModalVisible && layers.length === 0){   
@@ -107,10 +105,8 @@ const ModalMap = ({
             >
                 <AutoResizeMapComponent />
                 <LayerTree
-                        map={map || olMap}
-                />
-
-                
+                        map={map}
+                />    
             </Modal>
         </>
     );

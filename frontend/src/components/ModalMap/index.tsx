@@ -1,4 +1,4 @@
-import { olMap, zoomTo } from '@/utils/map';
+import { olMap, wgs84ToScreen } from '@/utils/map';
 import { faMapLocationDot } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LayerTree, useMap } from '@terrestris/react-geo';
@@ -56,33 +56,34 @@ const ModalMap = ({
             return
         }
         console.log(JSON.stringify(geom));
-        
-        if (isModalVisible){   
-            const geoJson = new GeoJSON();
-        const geometry = geoJson.readGeometry(geom);
-        const feature = new Feature({
-            name: _geomName,
-            geometry: geometry
-        });
+        const layers = map.getLayers().getArray().filter(layer => layer.get('id') === uuid);
 
-        const vectorSource = new VectorSource({
-            features: [feature],
+        if (isModalVisible && layers.length === 0){   
+            const geoJson = new GeoJSON();
+            const geometry = geoJson.readGeometry(geom);
+            const feature = new Feature({
+                name: _geomName,
+                geometry: wgs84ToScreen(geometry)
             });
 
-        const vectorLayer = new VectorLayer({
-            source: vectorSource,
-            properties: {
-                name: _geomName,
-                id: uuid
-              },
+            const vectorSource = new VectorSource({
+                features: [feature],
+            });
+
+            const vectorLayer = new VectorLayer({
+                source: vectorSource,
+                properties: {
+                    name: _geomName,
+                    id: uuid
+                },
+            });         
             
-        });         
             map?.addLayer(vectorLayer);
-            zoomTo(map, feature);
-        } else {
-            map.getLayers().getArray()
-            .filter(layer => layer.get('id') === uuid)
-            .forEach(layer => map.removeLayer(layer));
+            console.log(map.getAllLayers());
+            
+            map?.getView().fit(vectorSource.getExtent(), );
+        } else if (!isModalVisible && layers.length > 0) {
+            layers.forEach(layer => map.removeLayer(layer));
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isModalVisible]);

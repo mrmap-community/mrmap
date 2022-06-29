@@ -39,5 +39,5 @@ The best platform for general feedback, assistance, and other discussion is our
 To report a bug or request a specific feature, please open a GitHub issue using
 the [appropriate template](https://github.com/mrmap-community/mrmap/issues/new/choose).
 
-If you are interested in contributing to the development of NetBox, please read
+If you are interested in contributing to the development of MrMap, please read
 our [contributing guide](CONTRIBUTING.md) prior to beginning any work.

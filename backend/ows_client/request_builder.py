@@ -22,6 +22,8 @@ class WebService(ABC):
     VERSION_QP = "VERSION"
     GET_CAPABILITIES_QV = "GetCapabilities"
 
+    version = (0, 0, 0)
+
     def __init__(self, base_url: str, service_type: str, version: str, *args, **kwargs):
         self.base_url = base_url.split("?", 1)[0]
         self.service_type = service_type
@@ -47,6 +49,7 @@ class WebService(ABC):
         return req
 
     def get_operation_by_name(self, operation: str):
+        """Method to get the concrete method for an operation. """
         if hasattr(self, operation):
             return getattr(self, operation)
 
@@ -82,6 +85,9 @@ class WebService(ABC):
             return WfsService(base_url=url, version=version[0])
         elif service_type[0] in ["csw", "CSW"]:
             return CatalogueServiceWeb(base_url=url, version=version[0])
+
+    def set_version(self, new_version: tuple[int, int, int]):
+        self.version = new_version
 
 
 class WebMapAndFeatureService(WebService):
@@ -222,11 +228,11 @@ class WebMapAndFeatureService(WebService):
         return GEOSGeometry('POLYGON EMPTY')
 
     @classmethod
-    def construct_polygon_from_bbox_query_param(cls, get_dict):
+    def construct_polygon_from_bbox_query_param(cls, get_dict) -> GEOSGeometry:
         """Construct a polygon from the parsed bbox query parameter, based on the given service type and version.
 
         :return: the bbox parsed from the get_dict or an empty polygon if something went wrong.
-        :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
+        :rtype: :class:`django.contrib.gis.geos.geometry.GEOSGeometry`
         """
         service_type = get_dict.get("service", None)
         if not get_dict.get("service", None):

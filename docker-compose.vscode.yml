@@ -64,7 +64,8 @@ services:
 
   django-tests:
     command: >
-      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test tests/django/registry/models/ --noinput"
+      /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test ows_lib/xml_mapper/ --noinput"
+    #  /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test tests/django/registry/models/ --noinput"
     # command: >
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage
     #   run --branch --source='/opt/mrmap' /opt/mrmap/manage.py test

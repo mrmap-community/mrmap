@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from django.test import TestCase
+from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
 from ows_lib.xml_mapper.capabilities.wms.capabilities import WebMapService
 
 
-class WebMapServiceTestCase(TestCase):
+class WebMapServiceTestCase(SimpleTestCase):
 
     def test_xml_loading(self):
         path = Path(Path.joinpath(
@@ -14,5 +14,7 @@ class WebMapServiceTestCase(TestCase):
         parsed_capabilities: WebMapService = load_xmlobject_from_file(
             path.resolve().__str__(), xmlclass=WebMapService)
 
+        # print(parsed_capabilities)
         print(parsed_capabilities.version)
         print(parsed_capabilities.service_url)
+        print(parsed_capabilities.service_metadata.title)

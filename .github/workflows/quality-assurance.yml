@@ -120,3 +120,19 @@ jobs:
       - name: Run unit tests
         run: npm run test
         working-directory: ./frontend
+
+  client-test-e2e:
+    name: client-test-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: pull needed docker images
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull frontend-tests-e2e
+
+      - name: Run playwright tests
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from frontend-tests-e2e frontend-tests-e2e

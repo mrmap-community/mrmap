@@ -4,7 +4,6 @@ from typing import Callable, List
 from eulxml.xmlmap import NodeField, NodeListField, StringField, XmlObject
 from ows_lib.xml_mapper.mixins import DBModelConverterMixin
 from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
-from ows_lib.xml_mapper.utils import get_or_create_node
 
 
 class WebMapServiceDefaultSettings(DBModelConverterMixin, XmlObject):
@@ -79,7 +78,6 @@ class CallbackList(list):
         self.callback = callback
 
     def append(self, item) -> None:
-        print('CL: append')
         super().append(item)
         self.callback(list_operation="append", items=item)
 
@@ -104,16 +102,21 @@ class CallbackList(list):
         self.callback(list_operation="remove", items=__value)
 
 
+class OnlineResource(WebMapServiceDefaultSettings):
+    ROOT_NAME = "OnlineResource"
+
+    href = StringField(xpath="@xlink:href")
+
+
 class WebMapService(WebMapServiceDefaultSettings):
     ROOT_NAME = f"wms:WMS_Capabilities/@version='1.3.0'"
     XSD_SCHEMA = "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
 
-    __root_node = "/wms:WMS_Capabilities"
-    __service_path = f"/{__root_node}/wms:Service"
+    __service_path = "./wms:Service"
 
     service_url = StringField(
         xpath=f"{__service_path}/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
-    version = StringField(xpath=f"{__root_node}/@version", choices='1.3.0')
+    version = StringField(xpath="./@version", choices='1.3.0')
 
     # TODO: service_type = NodeField(xpath=".", node_class=ServiceType)
     service_metadata: ServiceMetadata = NodeField(
@@ -143,30 +146,31 @@ class WebMapService(WebMapServiceDefaultSettings):
     __operation_urls: CallbackList = None
 
     __operation_url_xpath = "/wms:OnlineResource[@xlink:type='simple']/@xlink:href"
+    __dcp_type_xpath = "/wms:DCPType/wms:HTTP"
 
-    __get_capabilities_xpath = f"{__root_node}/wms:Capability/wms:Request/wms:GetCapabilities"
+    __get_capabilities_xpath = "./wms:Capability/wms:Request/wms:GetCapabilities"
     __get_capabilitites_mime_types = NodeListField(
         xpath=f"{__get_capabilities_xpath}/wms:Format", node_class=Format)
     __get_capabilitites_get_url = StringField(
-        xpath=f"{__get_capabilities_xpath}/wms:DCPType/wms:HTTP/wms:Get{__operation_url_xpath}")
+        xpath=f"{__get_capabilities_xpath}{__dcp_type_xpath}/wms:Get{__operation_url_xpath}")
     __get_capabilitites_post_url = StringField(
-        xpath=f"{__get_capabilities_xpath}/wms:DCPType/wms:HTTP/wms:Post{__operation_url_xpath}")
+        xpath=f"{__get_capabilities_xpath}{__dcp_type_xpath}/wms:Post{__operation_url_xpath}")
 
-    __get_map_xpath = f"{__root_node}/wms:Capability/wms:Request/wms:GetMap"
+    __get_map_xpath = "./wms:Capability/wms:Request/wms:GetMap"
     __get_map_mime_types = NodeListField(
         xpath=f"{__get_map_xpath}/wms:Format", node_class=Format)
     __get_map_get_url = StringField(
-        xpath=f"{__get_map_xpath}/wms:DCPType/wms:HTTP/wms:Get{__operation_url_xpath}")
+        xpath=f"{__get_map_xpath}{__dcp_type_xpath}/wms:Get{__operation_url_xpath}")
     __get_map_post_url = StringField(
-        xpath=f"{__get_map_xpath}/wms:DCPType/wms:HTTP/wms:Post{__operation_url_xpath}")
+        xpath=f"{__get_map_xpath}{__dcp_type_xpath}/wms:Post{__operation_url_xpath}")
 
-    __get_feature_info_xpath = f"{__root_node}/wms:Capability/wms:Request/wms:GetFeatureInfo"
+    __get_feature_info_xpath = "./wms:Capability/wms:Request/wms:GetFeatureInfo"
     __get_feature_info_mime_types = NodeListField(
         xpath=f"{__get_feature_info_xpath}/wms:Format", node_class=Format)
     __get_feature_info_get_url = StringField(
-        xpath=f"{__get_feature_info_xpath}/wms:DCPType/wms:HTTP/wms:Get{__operation_url_xpath}")
+        xpath=f"{__get_feature_info_xpath}{__dcp_type_xpath}/wms:Get{__operation_url_xpath}")
     __get_feature_info_post_url = StringField(
-        xpath=f"{__get_feature_info_xpath}/wms:DCPType/wms:HTTP/wms:Post{__operation_url_xpath}")
+        xpath=f"{__get_feature_info_xpath}{__dcp_type_xpath}/wms:Post{__operation_url_xpath}")
 
     @property
     def __get_capabilities_operation_urls(self) -> List[OperationUrl]:
@@ -234,7 +238,6 @@ class WebMapService(WebMapServiceDefaultSettings):
     @property
     def operation_urls(self) -> List[OperationUrl]:
         """Custom getter to merge all operation urls as plane OperationUrl object."""
-        print("getter")
         if not self.__operation_urls:
 
             _operation_urls = []
@@ -248,7 +251,6 @@ class WebMapService(WebMapServiceDefaultSettings):
         return self.__operation_urls
 
     def __handle_new_operation_url(self, new_operation_url):
-        print('__handle')
         match new_operation_url.operation:
             case "GetCapabilities":
                 # TODO: check if new_operation_url.mime_type exists in self.__get_capabilitites_mime_types and append it if not
@@ -257,14 +259,10 @@ class WebMapService(WebMapServiceDefaultSettings):
                 elif new_operation_url.method == "Post":
                     self.__get_capabilitites_post_url = new_operation_url.url
             case "GetMap":
-                print('getmap')
                 # TODO: check if new_operation_url.mime_type exists in self.__get_capabilitites_mime_types and append it if not
                 if new_operation_url.method == "Get":
                     self.__get_map_get_url = new_operation_url.url
                 elif new_operation_url.method == "Post":
-                    print('post')
-                    print(self.node)
-                    get_or_create_node(self.node, f"{self.__get_map_xpath}/wms:DCPType/wms:HTTP/wms:Post{self.__operation_url_xpath}", namespaces=self.ROOT_NAMESPACES)
                     self.__get_map_post_url = new_operation_url.url
             case _:
                 raise ValueError("unsuported operation")

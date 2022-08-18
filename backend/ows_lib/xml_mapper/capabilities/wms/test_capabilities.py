@@ -195,7 +195,6 @@ class WebMapServiceTestCase(SimpleTestCase):
         self._test_get_feature_info_operation_urls()
 
     def test_wms_operation_urls_setter(self):
-        print("pre append")
         self.parsed_capabilities.operation_urls.append(
             OperationUrl(
                 method="Post",
@@ -203,6 +202,21 @@ class WebMapServiceTestCase(SimpleTestCase):
                 mime_types=[Format(context={"mime_type": "image/png"})],
                 url="http://example.com")
         )
+        file = open("output.xml", "w")
+
+        doc = self.parsed_capabilities.serializeDocument(pretty=True)
+        file.write(doc.decode("utf-8"))
+        file.flush()
+        file.close()
+
+        # test = self.parsed_capabilities.node.xpath(
+        #     "//wms:WMS_Capabilities/wms:Capability/wms:Request/wms:GetMap/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource",
+        #     namespaces={
+        #         "wms": WMS_1_3_0_NAMESPACE,
+        #         "xlink": XLINK_NAMESPACE
+        #     })
+        # print("test: ")
+        # print(test[0].attrib)
 
         added_operation_url = self.parsed_capabilities.node.xpath(
             "//wms:WMS_Capabilities/wms:Capability/wms:Request/wms:GetMap/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource/@xlink:href",

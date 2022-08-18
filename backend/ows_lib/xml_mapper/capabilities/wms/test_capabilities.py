@@ -194,7 +194,7 @@ class WebMapServiceTestCase(SimpleTestCase):
         self._test_get_map_operation_urls()
         self._test_get_feature_info_operation_urls()
 
-    def test_wms_operation_urls_setter(self):
+    def test_wms_operation_urls_append(self):
         self.parsed_capabilities.operation_urls.append(
             OperationUrl(
                 method="Post",
@@ -202,21 +202,6 @@ class WebMapServiceTestCase(SimpleTestCase):
                 mime_types=[Format(context={"mime_type": "image/png"})],
                 url="http://example.com")
         )
-        file = open("output.xml", "w")
-
-        doc = self.parsed_capabilities.serializeDocument(pretty=True)
-        file.write(doc.decode("utf-8"))
-        file.flush()
-        file.close()
-
-        # test = self.parsed_capabilities.node.xpath(
-        #     "//wms:WMS_Capabilities/wms:Capability/wms:Request/wms:GetMap/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource",
-        #     namespaces={
-        #         "wms": WMS_1_3_0_NAMESPACE,
-        #         "xlink": XLINK_NAMESPACE
-        #     })
-        # print("test: ")
-        # print(test[0].attrib)
 
         added_operation_url = self.parsed_capabilities.node.xpath(
             "//wms:WMS_Capabilities/wms:Capability/wms:Request/wms:GetMap/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource/@xlink:href",
@@ -228,4 +213,24 @@ class WebMapServiceTestCase(SimpleTestCase):
         self.assertEqual(
             added_operation_url,
             "http://example.com"
+        )
+
+    def test_wms_operation_urls_clear(self):
+        self.parsed_capabilities.operation_urls.clear()
+
+        operation_urls = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Request",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })
+
+        self.assertEqual(
+            len(self.parsed_capabilities.operation_urls),
+            0
+        )
+
+        self.assertEqual(
+            len(operation_urls),
+            0
         )

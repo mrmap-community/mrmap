@@ -102,29 +102,54 @@ class CallbackList(list):
         self.callback(list_operation="remove", items=__value)
 
 
-class OnlineResource(WebMapServiceDefaultSettings):
-    ROOT_NAME = "OnlineResource"
-
-    href = StringField(xpath="@xlink:href")
-
-
 class WebMapService(WebMapServiceDefaultSettings):
     ROOT_NAME = f"wms:WMS_Capabilities/@version='1.3.0'"
     XSD_SCHEMA = "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
 
-    __service_path = "./wms:Service"
-
     service_url = StringField(
-        xpath=f"{__service_path}/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+        xpath="./wms:Service/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
     version = StringField(xpath="./@version", choices='1.3.0')
 
     # TODO: service_type = NodeField(xpath=".", node_class=ServiceType)
     service_metadata: ServiceMetadata = NodeField(
-        xpath=__service_path, node_class=ServiceMetadata)
+        xpath="./wms:Service", node_class=ServiceMetadata)
 
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.
     # With that technique the usage of this mapper is easier and matches the db model
+    __get_capabilitites_mime_types = NodeListField(
+        xpath="./wms:Capability/wms:Request/wms:GetCapabilities/wms:Format", node_class=Format)
+    __get_capabilitites_get_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetCapabilities/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    __get_capabilitites_post_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetCapabilities/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+
+    __get_map_mime_types = NodeListField(
+        xpath="./wms:Capability/wms:Request/wms:GetMap/wms:Format", node_class=Format)
+    __get_map_get_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetMap/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    __get_map_post_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetMap/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+
+    __get_feature_info_mime_types = NodeListField(
+        xpath="./wms:Capability/wms:Request/wms:GetFeatureInfo/wms:Format", node_class=Format)
+    __get_feature_info_get_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetFeatureInfo/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    __get_feature_info_post_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetFeatureInfo/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+
+    __operation_urls: CallbackList = None
+
+    def __clear_all_operation_urls(self):
+        self.__get_capabilitites_mime_types = []
+        self.__get_capabilitites_get_url = None
+        self.__get_capabilitites_post_url = None
+        self.__get_map_mime_types = []
+        self.__get_map_get_url = None
+        self.__get_map_post_url = None
+        self.__get_feature_info_mime_types = []
+        self.__get_feature_info_get_url = None
+        self.__get_feature_info_post_url = None
 
     def __manipulate_operation_urls(self, list_operation, index=None, items=None):
         """Custom setter to set/append new operation urls. The XML will be build implicitly by using this setter."""
@@ -135,42 +160,16 @@ class WebMapService(WebMapServiceDefaultSettings):
             case "extend":
                 [self.__handle_new_operation_url(item) for item in items]
             case "pop":
+                # TODO: implement pop
                 pass
             case "clear":
-                pass
+                self.__clear_all_operation_urls()
             case "insert":
+                # TODO: implement insert
                 pass
             case "remove":
+                # TODO: implement remove
                 pass
-
-    __operation_urls: CallbackList = None
-
-    __operation_url_xpath = "/wms:OnlineResource[@xlink:type='simple']/@xlink:href"
-    __dcp_type_xpath = "/wms:DCPType/wms:HTTP"
-
-    __get_capabilities_xpath = "./wms:Capability/wms:Request/wms:GetCapabilities"
-    __get_capabilitites_mime_types = NodeListField(
-        xpath=f"{__get_capabilities_xpath}/wms:Format", node_class=Format)
-    __get_capabilitites_get_url = StringField(
-        xpath=f"{__get_capabilities_xpath}{__dcp_type_xpath}/wms:Get{__operation_url_xpath}")
-    __get_capabilitites_post_url = StringField(
-        xpath=f"{__get_capabilities_xpath}{__dcp_type_xpath}/wms:Post{__operation_url_xpath}")
-
-    __get_map_xpath = "./wms:Capability/wms:Request/wms:GetMap"
-    __get_map_mime_types = NodeListField(
-        xpath=f"{__get_map_xpath}/wms:Format", node_class=Format)
-    __get_map_get_url = StringField(
-        xpath=f"{__get_map_xpath}{__dcp_type_xpath}/wms:Get{__operation_url_xpath}")
-    __get_map_post_url = StringField(
-        xpath=f"{__get_map_xpath}{__dcp_type_xpath}/wms:Post{__operation_url_xpath}")
-
-    __get_feature_info_xpath = "./wms:Capability/wms:Request/wms:GetFeatureInfo"
-    __get_feature_info_mime_types = NodeListField(
-        xpath=f"{__get_feature_info_xpath}/wms:Format", node_class=Format)
-    __get_feature_info_get_url = StringField(
-        xpath=f"{__get_feature_info_xpath}{__dcp_type_xpath}/wms:Get{__operation_url_xpath}")
-    __get_feature_info_post_url = StringField(
-        xpath=f"{__get_feature_info_xpath}{__dcp_type_xpath}/wms:Post{__operation_url_xpath}")
 
     @property
     def __get_capabilities_operation_urls(self) -> List[OperationUrl]:
@@ -251,6 +250,7 @@ class WebMapService(WebMapServiceDefaultSettings):
         return self.__operation_urls
 
     def __handle_new_operation_url(self, new_operation_url):
+
         match new_operation_url.operation:
             case "GetCapabilities":
                 # TODO: check if new_operation_url.mime_type exists in self.__get_capabilitites_mime_types and append it if not
@@ -264,6 +264,12 @@ class WebMapService(WebMapServiceDefaultSettings):
                     self.__get_map_get_url = new_operation_url.url
                 elif new_operation_url.method == "Post":
                     self.__get_map_post_url = new_operation_url.url
+            case "GetFeatureInfo":
+                # TODO: check if new_operation_url.mime_type exists in self.__get_capabilitites_mime_types and append it if not
+                if new_operation_url.method == "Get":
+                    self.__get_feature_info_get_url = new_operation_url.url
+                elif new_operation_url.method == "Post":
+                    self.__get_feature_info_post_url = new_operation_url.url
             case _:
                 raise ValueError("unsuported operation")
 

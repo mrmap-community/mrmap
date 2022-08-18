@@ -22,5 +22,7 @@ const config: PlaywrightTestConfig = {
       use: { ...devices['Desktop Firefox'] },
     },
   ],
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
+  reporter: process.env.CI ? [['github'], ['html']] : 'html',
 };
 export default config;

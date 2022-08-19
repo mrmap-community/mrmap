@@ -2,8 +2,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
-from ows_lib.xml_mapper.capabilities.wms.capabilities import (Format,
-                                                              OperationUrl,
+from ows_lib.xml_mapper.capabilities.wms.capabilities import (OperationUrl,
                                                               WebMapService)
 from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
 
@@ -82,11 +81,11 @@ class WebMapServiceTestCase(SimpleTestCase):
 
     def _test_service_keywords(self):
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.keywords[0].keyword,
+            self.parsed_capabilities.service_metadata.keywords[0],
             "meteorology"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.keywords[1].keyword,
+            self.parsed_capabilities.service_metadata.keywords[1],
             "climatology"
         )
 
@@ -104,7 +103,7 @@ class WebMapServiceTestCase(SimpleTestCase):
             "GetCapabilities"
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[0].mime_types[0].mime_type,
+            self.parsed_capabilities.operation_urls[0].mime_types[0],
             "text/xml"
         )
 
@@ -121,7 +120,7 @@ class WebMapServiceTestCase(SimpleTestCase):
             "GetCapabilities"
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[1].mime_types[0].mime_type,
+            self.parsed_capabilities.operation_urls[1].mime_types[0],
             "text/xml"
         )
 
@@ -143,15 +142,15 @@ class WebMapServiceTestCase(SimpleTestCase):
             24
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[2].mime_types[0].mime_type,
+            self.parsed_capabilities.operation_urls[2].mime_types[0],
             "image/png"
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[2].mime_types[1].mime_type,
+            self.parsed_capabilities.operation_urls[2].mime_types[1],
             "application/atom+xml"
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[2].mime_types[2].mime_type,
+            self.parsed_capabilities.operation_urls[2].mime_types[2],
             "application/json;type=geojson"
         )
 
@@ -173,15 +172,15 @@ class WebMapServiceTestCase(SimpleTestCase):
             8
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].mime_types[0].mime_type,
+            self.parsed_capabilities.operation_urls[3].mime_types[0],
             "text/plain"
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].mime_types[1].mime_type,
+            self.parsed_capabilities.operation_urls[3].mime_types[1],
             "application/vnd.ogc.gml"
         )
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].mime_types[2].mime_type,
+            self.parsed_capabilities.operation_urls[3].mime_types[2],
             "text/xml"
         )
 
@@ -195,12 +194,38 @@ class WebMapServiceTestCase(SimpleTestCase):
         self._test_get_feature_info_operation_urls()
 
     def test_wms_operation_urls_append(self):
+        o_url = OperationUrl(
+            method="Post",
+            operation="GetMap",
+            mime_types=["image/png"],
+            url="http://example.com")
+
         self.parsed_capabilities.operation_urls.append(
-            OperationUrl(
-                method="Post",
-                operation="GetMap",
-                mime_types=[Format(context={"mime_type": "image/png"})],
-                url="http://example.com")
+            o_url
+        )
+
+        added_operation_url = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Request/wms:GetMap/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource/@xlink:href",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })[0]
+
+        self.assertEqual(
+            added_operation_url,
+            "http://example.com"
+        )
+
+    def test_wms_operation_urls_insert(self):
+        o_url = OperationUrl(
+            method="Post",
+            operation="GetMap",
+            mime_types=["image/png"],
+            url="http://example.com")
+
+        self.parsed_capabilities.operation_urls.insert(
+            0,
+            o_url
         )
 
         added_operation_url = self.parsed_capabilities.node.xpath(
@@ -233,4 +258,80 @@ class WebMapServiceTestCase(SimpleTestCase):
         self.assertEqual(
             len(operation_urls),
             0
+        )
+
+    def test_wms_operation_urls_pop(self):
+        self.parsed_capabilities.operation_urls.pop(1)
+
+        operation_urls = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Request//wms:DCPType/wms:HTTP/*",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })
+
+        self.assertEqual(
+            len(self.parsed_capabilities.operation_urls),
+            3
+        )
+
+        self.assertEqual(
+            len(operation_urls),
+            3
+        )
+
+    def test_wms_operation_urls_remove(self):
+
+        o_url = self.parsed_capabilities.operation_urls[2]
+
+        self.parsed_capabilities.operation_urls.remove(o_url)
+
+        operation_urls = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Request//wms:DCPType/wms:HTTP/*",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })
+
+        self.assertEqual(
+            len(self.parsed_capabilities.operation_urls),
+            3
+        )
+
+        self.assertEqual(
+            len(operation_urls),
+            3
+        )
+
+    def test_wms_operation_urls_update_single_object(self):
+
+        o_url = self.parsed_capabilities.operation_urls[0]
+        o_url.url = "http://example.com"
+
+        new_o_url_url = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Request/wms:GetCapabilities/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource/@xlink:href",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })[0]
+
+        self.assertEqual(
+            new_o_url_url,
+            "http://example.com"
+        )
+
+    def test_camouflage_urls(self):
+
+        self.parsed_capabilities.camouflage_urls(new_domain="example.com")
+
+        new_o_url_url = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Request/wms:GetCapabilities/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource/@xlink:href",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })[0]
+
+        self.assertEqual(
+            new_o_url_url,
+            "https://example.com/geoserver/ows?SERVICE=WMS&"
         )

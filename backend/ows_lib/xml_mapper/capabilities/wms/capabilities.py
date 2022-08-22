@@ -183,11 +183,6 @@ class Layer(WebMapServiceDefaultSettings):
 
     ROOT_NAME = "wms:Layer"
 
-    is_leaf_node = False
-    level = 0
-    left = 0
-    right = 0
-
     scale_min = FloatField(xpath="./wms:MinScaleDenominator")
     scale_max = FloatField(xpath="./wms:MaxScaleDenominator")
 
@@ -473,6 +468,4 @@ class WebMapService(WebMapServiceDefaultSettings):
             else:
                 replaced: parse.ParseResult = parsed._replace(
                     netloc=new_domain)
-            operation_url = replaced.geturl()
-
-    # TODO: all_layers = None
+            operation_url.url = replaced.geturl()

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from django.contrib.gis.geos import Polygon
 from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
 from ows_lib.xml_mapper.capabilities.wms.capabilities import (OperationUrl,
@@ -17,7 +18,6 @@ class WebMapServiceTestCase(SimpleTestCase):
             path.resolve().__str__(), xmlclass=WebMapService)
 
     def _test_root_mapper(self):
-        self.assertEqual(self.parsed_capabilities.version, "1.3.0")
         self.assertEqual(self.parsed_capabilities.service_url,
                          "https://maps.dwd.de/geoserver/")
 
@@ -184,6 +184,48 @@ class WebMapServiceTestCase(SimpleTestCase):
             "text/xml"
         )
 
+    def _test_service_type_mapper(self):
+        self.assertEqual(
+            self.parsed_capabilities.service_type.version, "1.3.0")
+        self.assertEqual(self.parsed_capabilities.service_type.name, "wms")
+
+    def _test_layer_mapper(self):
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.scale_min,
+            4.989528903
+        )
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.scale_max,
+            8.7308025
+        )
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.identifier,
+            "root_layer"
+        )
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.bbox_lat_lon,
+            Polygon(
+                (
+                    (-180, -90),
+                    (-180, 90),
+                    (180, 90),
+                    (180, -90),
+                    (-180, -90)
+                )
+            )
+        )
+        self.assertTrue(self.parsed_capabilities.root_layer.is_queryable)
+        self.assertTrue(self.parsed_capabilities.root_layer.is_opaque)
+        self.assertTrue(self.parsed_capabilities.root_layer.is_cascaded)
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.parent,
+            None
+        )
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.children[0].identifier,
+            "Fachlayer"
+        )
+
     def test_wms_xml_mapper(self):
         self._test_root_mapper()
         self._test_service_metadata_mapper()
@@ -192,6 +234,8 @@ class WebMapServiceTestCase(SimpleTestCase):
         self._test_get_capabilities_operation_urls()
         self._test_get_map_operation_urls()
         self._test_get_feature_info_operation_urls()
+        self._test_service_type_mapper()
+        self._test_layer_mapper()
 
     def test_wms_operation_urls_append(self):
         o_url = OperationUrl(
@@ -318,6 +362,61 @@ class WebMapServiceTestCase(SimpleTestCase):
         self.assertEqual(
             new_o_url_url,
             "http://example.com"
+        )
+
+    def test_layer_bbox_setter(self):
+        new_poly = Polygon(
+            (
+                (-10, -20),
+                (-10, 20),
+                (10, 20),
+                (10, -20),
+                (-10, -20)
+            )
+        )
+
+        self.parsed_capabilities.root_layer.bbox_lat_lon = new_poly
+
+        root_layer_min_x = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Layer/wms:EX_GeographicBoundingBox/wms:westBoundLongitude",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })[0]
+        root_layer_max_x = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Layer/wms:EX_GeographicBoundingBox/wms:eastBoundLongitude",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })[0]
+        root_layer_min_y = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Layer/wms:EX_GeographicBoundingBox/wms:southBoundLatitude",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })[0]
+        root_layer_max_y = self.parsed_capabilities.node.xpath(
+            "//wms:WMS_Capabilities/wms:Capability/wms:Layer/wms:EX_GeographicBoundingBox/wms:northBoundLatitude",
+            namespaces={
+                "wms": WMS_1_3_0_NAMESPACE,
+                "xlink": XLINK_NAMESPACE
+            })[0]
+
+        self.assertEqual(
+            float(root_layer_min_x.text),
+            -10.0
+        )
+        self.assertEqual(
+            float(root_layer_max_x.text),
+            10.0
+        )
+        self.assertEqual(
+            float(root_layer_min_y.text),
+            -20.0
+        )
+        self.assertEqual(
+            float(root_layer_max_y.text),
+            20.0
         )
 
     def test_camouflage_urls(self):

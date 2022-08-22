@@ -3,9 +3,13 @@ from collections.abc import Iterable
 from typing import Callable, List
 from urllib import parse
 
-from eulxml.xmlmap import NodeField, StringField, StringListField, XmlObject
+from django.contrib.gis.geos import Polygon
+from eulxml.xmlmap import (FloatField, NodeField, NodeListField,
+                           SimpleBooleanField, StringField, StringListField,
+                           XmlObject)
 from ows_lib.xml_mapper.mixins import DBModelConverterMixin
 from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
+from registry.xmlmapper.exceptions import SemanticError
 
 
 class WebMapServiceDefaultSettings(DBModelConverterMixin, XmlObject):
@@ -137,17 +141,121 @@ class CallbackList(list):
         self.callback(list_operation="remove", items=__value)
 
 
+class ServiceType(WebMapServiceDefaultSettings):
+    ROOT_NAME = "wms:WMS_Capabilities/@version='1.3.0'"
+
+    __name = StringField(xpath="./wms:Service/wms:Name")
+    version = StringField(xpath="./@version", choices='1.3.0')
+
+    @property
+    def name(self) -> str:
+        """ Custom property, cause the parsed name of the root element doesn't contains the right
+            value for database. We need to parse again cause the root attribute contains different service type names
+            as we store in our database.
+
+            Returns:
+                field_dict (dict): the dict which contains all needed information
+
+            Raises:
+                SemanticError if service name or version can not be found
+        """
+        if ":" in self.__name:
+            name = self.__name.split(":", 1)[-1]
+        elif " " in self.__name:
+            name = self.__name.split(" ", 1)[-1]
+        else:
+            name = self.__name
+
+        name = name.lower()
+
+        if name not in ["wms", "wfs", "csw"]:
+            raise SemanticError(f"could not determine the service type for the parsed capabilities document. "
+                                f"Parsed name was {name}")
+
+        return name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self.__name = value
+
+
+class Layer(WebMapServiceDefaultSettings):
+
+    ROOT_NAME = "wms:Layer"
+
+    is_leaf_node = False
+    level = 0
+    left = 0
+    right = 0
+
+    scale_min = FloatField(xpath="./wms:MinScaleDenominator")
+    scale_max = FloatField(xpath="./wms:MaxScaleDenominator")
+
+    __bbox_min_x = FloatField(
+        xpath="./wms:EX_GeographicBoundingBox/wms:westBoundLongitude")
+    __bbox_max_x = FloatField(
+        xpath="./wms:EX_GeographicBoundingBox/wms:eastBoundLongitude")
+    __bbox_min_y = FloatField(
+        xpath="./wms:EX_GeographicBoundingBox/wms:southBoundLatitude")
+    __bbox_max_y = FloatField(
+        xpath="./wms:EX_GeographicBoundingBox/wms:northBoundLatitude")
+
+    # TODO: reference_systems = NodeListField(xpath="wms:CRS", node_class=ReferenceSystem)
+    identifier = StringField(xpath="./wms:Name")
+    # TODO: styles = NodeListField(xpath="wms:Style", node_class=Style)
+    is_queryable = SimpleBooleanField(
+        xpath="./@queryable", true=1, false=0)
+    is_opaque = SimpleBooleanField(xpath="./@opaque", true=1, false=0)
+    is_cascaded = SimpleBooleanField(
+        xpath="./@cascaded", true=1, false=0)
+    # TODO: dimensions = NodeListField(xpath="wms:Dimension", node_class=Dimension130)
+    parent = NodeField(xpath="../../wms:Layer", node_class="self")
+    children = NodeListField(xpath="./wms:Layer", node_class="self")
+
+    # TODO: metadata = NodeField(xpath=".", node_class=LayerMetadata)
+    # TODO: remote_metadata = NodeListField(xpath="wms:MetadataURL", node_class=WebMapServiceRemoteMetadata)
+
+    @property
+    def bbox_lat_lon(self) -> Polygon:
+        # there is no default xmlmap field which parses to a geos polygon. So we convert it here.
+        if self.__bbox_min_x and self.__bbox_max_x and self.__bbox_min_y and self.__bbox_max_y:
+            return Polygon(
+                (
+                    (self.__bbox_min_x, self.__bbox_min_y),
+                    (self.__bbox_min_x, self.__bbox_max_y),
+                    (self.__bbox_max_x, self.__bbox_max_y),
+                    (self.__bbox_max_x, self.__bbox_min_y),
+                    (self.__bbox_min_x, self.__bbox_min_y)
+                )
+            )
+
+    @bbox_lat_lon.setter
+    def bbox_lat_lon(self, polygon: Polygon) -> None:
+        # Custom setter function to mapp the geos Polygon object back to the xml attributes
+        self.__bbox_min_x = polygon.extent[0]
+        self.__bbox_min_y = polygon.extent[1]
+        self.__bbox_max_x = polygon.extent[2]
+        self.__bbox_max_y = polygon.extent[3]
+
+    def get_field_dict(self):
+        dic = super().get_field_dict()
+        dic.update({"bbox_lat_lon": self.bbox_lat_lon})
+        return dic
+
+
 class WebMapService(WebMapServiceDefaultSettings):
-    ROOT_NAME = f"wms:WMS_Capabilities/@version='1.3.0'"
+    ROOT_NAME = "wms:WMS_Capabilities/@version='1.3.0'"
     XSD_SCHEMA = "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
 
     service_url = StringField(
         xpath="./wms:Service/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
-    version = StringField(xpath="./@version", choices='1.3.0')
 
-    # TODO: service_type = NodeField(xpath=".", node_class=ServiceType)
+    service_type = NodeField(xpath=".", node_class=ServiceType)
     service_metadata: ServiceMetadata = NodeField(
         xpath="./wms:Service", node_class=ServiceMetadata)
+
+    root_layer = NodeField(
+        xpath="wms:Capability/wms:Layer", node_class=Layer)
 
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.

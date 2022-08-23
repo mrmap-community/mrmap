@@ -5,6 +5,7 @@ from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
 from isodate.isodatetime import parse_datetime
 from isodate.isoduration import parse_duration
+
 from ows_lib.xml_mapper.capabilities.wms.capabilities import (Layer,
                                                               OperationUrl,
                                                               TimeExtent,
@@ -16,7 +17,7 @@ class WebMapServiceTestCase(SimpleTestCase):
 
     def setUp(self) -> None:
         path = Path(Path.joinpath(
-            Path(__file__).parent.resolve(), "./wms_1.3.0.xml"))
+            Path(__file__).parent.resolve(), "../test_data/capabilities/wms/1.3.0.xml"))
 
         self.parsed_capabilities: WebMapService = load_xmlobject_from_file(
             path.resolve().__str__(), xmlclass=WebMapService)

@@ -1,12 +1,20 @@
 
+import datetime
 from collections.abc import Iterable
 from typing import Callable, List
 from urllib import parse
 
+from django.conf import settings
 from django.contrib.gis.geos import Polygon
-from eulxml.xmlmap import (FloatField, NodeField, NodeListField,
+from django.utils import timezone
+from eulxml.xmlmap import (FloatField, IntegerField, NodeField, NodeListField,
                            SimpleBooleanField, StringField, StringListField,
                            XmlObject)
+from isodate.duration import Duration
+from isodate.isodates import parse_date
+from isodate.isodatetime import datetime_isoformat, parse_datetime
+from isodate.isoduration import duration_isoformat, parse_duration
+from isodate.isoerror import ISO8601Error
 from ows_lib.xml_mapper.mixins import DBModelConverterMixin
 from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
 from registry.xmlmapper.exceptions import SemanticError
@@ -179,6 +187,269 @@ class ServiceType(WebMapServiceDefaultSettings):
         self.__name = value
 
 
+class TimeExtent:
+    """Helper class to abstract single time extent objects"""
+
+    def __init__(
+            self,
+            start: datetime.datetime,
+            stop: datetime.datetime = None,
+            resolution: int = None,
+            callback: Callable = None,
+            *args,
+            **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__start = start
+        self.__stop = stop
+        self.__resolution = resolution
+        self._callback = callback
+
+    @property
+    def start(self) -> datetime.datetime:
+        return self.__start
+
+    @start.setter
+    def start(self, value: datetime.datetime) -> None:
+        self.__start = value
+        if self._callback:
+            self._callback(self)
+
+    @property
+    def stop(self) -> datetime.datetime:
+        return self.__stop
+
+    @stop.setter
+    def stop(self, value: datetime.datetime) -> None:
+        self.__stop = value
+        if self._callback:
+            self._callback(self)
+
+    @property
+    def resolution(self) -> int:
+        return self.__resolution
+
+    @resolution.setter
+    def resolution(self, value: int) -> None:
+        self.__resolution = value
+        if self._callback:
+            self._callback(self)
+
+    @property
+    def is_value(self):
+        return self.start and not self.stop and not self.resolution
+
+    @property
+    def is_interval(self):
+        return self.start and self.stop and self.resolution
+
+    @property
+    def is_valid(self):
+        return self.is_value or self.is_interval
+
+    def to_xml_value(self) -> str:
+        if self.is_value:
+            return datetime_isoformat(self.start)
+        elif self.is_interval:
+            if self.resolution == 0:
+                return f"{datetime_isoformat(self.start)}/{datetime_isoformat(self.stop)}/0"
+            else:
+                return f"{datetime_isoformat(self.start)}/{datetime_isoformat(self.stop)}/{duration_isoformat(self.resolution)}"
+
+    def __str__(self) -> str:
+        return f"{self.start} | {self.stop} | {self.resolution}"
+
+
+class TimeDimension(WebMapServiceDefaultSettings):
+    """ Time Dimension in ISO8601 format"""
+
+    ROOT_NAME = "wms:Dimension[@name='time']"
+
+    name = StringField(xpath="./@name", choices="time")
+    units = StringField(xpath="./@units", choices="ISO8601")
+
+    __extent = StringField(xpath="./text()")
+
+    _extent = []  # cache variable to store the parsed extent value
+
+    @property
+    def time_extents(self):
+        if not self._extent:
+            self.__parse_extent()
+        return self._extent
+
+    @time_extents.setter
+    def time_extents(self, time_extents: list[TimeExtent]) -> None:
+        """Custom setter function to serialize a list of TimeExtent objects and update it to the xml node"""
+        values = []
+        intervals = []
+        not_valid = []
+
+        for time_extent in time_extents:
+            if not time_extent._callback:
+                time_extent._callback = self.__parse_extent
+            if not time_extent.is_valid:
+                raise ValueError(
+                    f"time extent objects is not valid: {time_extent}")
+            if time_extent.is_value:
+                values.append(time_extent)
+            elif time_extent.is_interval:
+                intervals.append(time_extent)
+
+        if values and intervals:
+            raise ValueError("mixing values and intervals is not supported.")
+
+        if not_valid:
+            raise ValueError("some passed time extent objects are not valid")
+
+        self.__extent = ",".join([value for value in time_extents])
+        self._extent = []
+
+    def __parse_extent_value(self, start, stop, resolution) -> tuple:
+        _start = parse_datetime(start)  # iso date time
+        _stop = parse_datetime(stop)  # iso date time
+        try:
+            _resolution = int(resolution)
+        except ValueError:
+            _resolution = parse_duration(resolution)
+            if isinstance(_resolution, Duration):
+                _resolution = _resolution.totimedelta(start=timezone.now())
+        return _start, _stop, _resolution
+
+    def __parse_datetime_or_date(self, value):
+        _value = None
+        try:
+            _value = parse_datetime(value)
+        except ISO8601Error:
+            try:
+                _value = parse_date(value)
+            except ISO8601Error:
+                settings.ROOT_LOGGER.debug(
+                    msg=f"can't parse time dimension from value: {value}")
+
+        return _value
+
+    def __parse_list_of_multiple_intervals(self) -> list[TimeExtent]:
+        __extents = []
+        intervals = self.__extent.split(",")
+        for interval in intervals:
+            __extents.append(self.__parse_single_interval(interval=interval))
+        return __extents
+
+    def __parse_single_interval(self, interval) -> TimeExtent:
+        split = interval.split("/")
+        start, stop, resolution = self.__parse_extent_value(
+            start=split[0], stop=split[1], resolution=split[2])
+        return TimeExtent(start=start, stop=stop, resolution=resolution)
+
+    def __parse_list_of_values(self) -> list[TimeExtent]:
+        split = self.__extent.split(",")
+        for value in split:
+            _value = self.__parse_datetime_or_date(value)
+            if _value:
+                self.extents.append(TimeExtent(start=_value, stop=_value))
+
+    def __parse_extent(self, *args, **kwargs):
+        """
+            OGC WMS 1.3.0 Spech page 53:
+
+            Table C.2 — Syntax for listing one or more extent values
+
+            value 								A single value.
+            value1,value2,value3,... 			a A list of multiple values.
+            min/max/resolution 					An interval defined by its lower and upper bounds and its resolution.
+            min1/max1/res1,min2/max2/res2,... 	a A list of multiple intervals.
+
+            A resolution value of zero (as in min/max/0) means that the data are effectively at infinitely-fine resolution for the
+            purposes of making requests on the server. For instance, an instrument which continuously monitors randomly-
+            occurring data may have no explicitly defined temporal resolution.
+        """
+
+        # ogc wms dimension supports more thant time in iso 8601 format.
+        # But for now we only implement this, cause other ones are not common usage
+        if self.name == "time" and self.units == "ISO8601":
+            if "," in self.__extent and "/" in self.__extent:
+                # case 4 of table C.2: A list of multiple interval
+                self._extent.extend(self.__parse_list_of_multiple_intervals())
+            elif "/" in self.__extent:
+                # case 3 of table C.2: An interval defined by its lower and upper bounds and its resolution
+                self._extent.append(self.__parse_single_interval(
+                    interval=self.__extent))
+            elif "," in self.__extent:
+                # case 2 of table C.2: a A list of multiple values
+                self.__parse_list_of_values()
+            else:
+                # case 1 of table C.2: one single value was detected
+                _value = self.__parse_datetime_or_date(self.__extent)
+                if _value:
+                    self._extent.append(TimeExtent(start=_value, stop=_value))
+
+
+class ReferenceSystem(WebMapServiceDefaultSettings):
+
+    __ref_system = StringField(xpath=".")
+    __code = None
+    __prefix = None
+
+    def __extract_ref_system(self) -> None:
+        if "::" in self.__ref_system:
+            # example: ref_system = urn:ogc:def:crs:EPSG::4326
+            code = self.__ref_system.rsplit(":")[-1]
+            prefix = self.__ref_system.rsplit(":")[-3]
+        elif ":" in self.__ref_system:
+            # example: ref_system = EPSG:4326
+            code = self.__ref_system.rsplit(":")[-1]
+            prefix = self.__ref_system.rsplit(":")[-2]
+        else:
+            raise SemanticError("reference system unknown")
+
+        self.__code = code
+        self.__prefix = prefix
+
+    @property
+    def code(self) -> str:
+        if not self.__code:
+            self.__extract_ref_system()
+        return self.__code
+
+    @code.setter
+    def code(self, new_code) -> None:
+        self.__ref_system = f"{self.__prefix}:{new_code}"
+
+    @property
+    def prefix(self) -> str:
+        if not self.__prefix:
+            self.__extract_ref_system()
+        return self.__prefix
+
+    @prefix.setter
+    def prefix(self, new_prefix) -> None:
+        self.__ref_system = f"{new_prefix}:{self.__code}"
+
+
+class LegendUrl(WebMapServiceDefaultSettings):
+    ROOT_NAME = "wms:LegendUrl"
+
+    legend_url = StringField(
+        xpath="./wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    height = IntegerField(xpath="./@height")
+    width = IntegerField(xpath="./@width")
+    mime_type = StringField(xpath="./wms:Format")
+
+
+class Style(WebMapServiceDefaultSettings):
+    ROOT_NAME = "wms:Style"
+
+    name = StringField(xpath="./wms:Name")
+    title = StringField(xpath="./wms:Title")
+    legend_url = NodeField(xpath="./wms:LegendURL", node_class=LegendUrl)
+
+
+class LayerMetadata(WebMapServiceDefaultSettings):
+    title = StringField(xpath="./wms:Title")
+    abstract = StringField(xpath="./wms:Abstract")
+    keywords = StringListField(xpath="./wms:KeywordList/wms:Keyword")
+
+
 class Layer(WebMapServiceDefaultSettings):
 
     ROOT_NAME = "wms:Layer"
@@ -195,20 +466,23 @@ class Layer(WebMapServiceDefaultSettings):
     __bbox_max_y = FloatField(
         xpath="./wms:EX_GeographicBoundingBox/wms:northBoundLatitude")
 
-    # TODO: reference_systems = NodeListField(xpath="wms:CRS", node_class=ReferenceSystem)
+    reference_systems = NodeListField(
+        xpath="./wms:CRS", node_class=ReferenceSystem)
     identifier = StringField(xpath="./wms:Name")
-    # TODO: styles = NodeListField(xpath="wms:Style", node_class=Style)
+    styles = NodeListField(xpath="./wms:Style", node_class=Style)
     is_queryable = SimpleBooleanField(
         xpath="./@queryable", true=1, false=0)
     is_opaque = SimpleBooleanField(xpath="./@opaque", true=1, false=0)
     is_cascaded = SimpleBooleanField(
         xpath="./@cascaded", true=1, false=0)
-    # TODO: dimensions = NodeListField(xpath="wms:Dimension", node_class=Dimension130)
+    dimensions = NodeListField(
+        xpath="./wms:Dimension[@name='time']", node_class=TimeDimension)
     parent = NodeField(xpath="../../wms:Layer", node_class="self")
     children = NodeListField(xpath="./wms:Layer", node_class="self")
 
-    # TODO: metadata = NodeField(xpath=".", node_class=LayerMetadata)
-    # TODO: remote_metadata = NodeListField(xpath="wms:MetadataURL", node_class=WebMapServiceRemoteMetadata)
+    metadata = NodeField(xpath=".", node_class=LayerMetadata)
+    remote_metadata = StringListField(
+        xpath="./wms:MetadataURL/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
 
     @property
     def bbox_lat_lon(self) -> Polygon:

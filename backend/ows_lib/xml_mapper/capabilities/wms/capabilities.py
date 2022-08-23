@@ -269,7 +269,7 @@ class TimeDimension(WebMapServiceDefaultSettings):
 
     __extent = StringField(xpath="./text()")
 
-    _extent = []  # cache variable to store the parsed extent value
+    _extent: CallbackList = None    # cache variable to store the parsed extent value
 
     @property
     def time_extents(self):
@@ -300,9 +300,13 @@ class TimeDimension(WebMapServiceDefaultSettings):
 
         if not_valid:
             raise ValueError("some passed time extent objects are not valid")
+        self._extent = CallbackList(
+            time_extents, callback=self.__serialize_time_extents)
+        self.__serialize_time_extents()
 
-        self.__extent = ",".join([value for value in time_extents])
-        self._extent = []
+    def __serialize_time_extents(self, *args, **kwargs):
+        self.__extent = ",".join([time_extent.to_xml_value()
+                                 for time_extent in self.time_extents])
 
     def __parse_extent_value(self, start, stop, resolution) -> tuple:
         _start = parse_datetime(start)  # iso date time
@@ -366,13 +370,14 @@ class TimeDimension(WebMapServiceDefaultSettings):
 
         # ogc wms dimension supports more thant time in iso 8601 format.
         # But for now we only implement this, cause other ones are not common usage
+        __extents = []
         if self.name == "time" and self.units == "ISO8601":
             if "," in self.__extent and "/" in self.__extent:
                 # case 4 of table C.2: A list of multiple interval
-                self._extent.extend(self.__parse_list_of_multiple_intervals())
+                __extents.extend(self.__parse_list_of_multiple_intervals())
             elif "/" in self.__extent:
                 # case 3 of table C.2: An interval defined by its lower and upper bounds and its resolution
-                self._extent.append(self.__parse_single_interval(
+                __extents.append(self.__parse_single_interval(
                     interval=self.__extent))
             elif "," in self.__extent:
                 # case 2 of table C.2: a A list of multiple values
@@ -381,7 +386,9 @@ class TimeDimension(WebMapServiceDefaultSettings):
                 # case 1 of table C.2: one single value was detected
                 _value = self.__parse_datetime_or_date(self.__extent)
                 if _value:
-                    self._extent.append(TimeExtent(start=_value, stop=_value))
+                    __extents.append(TimeExtent(start=_value, stop=_value))
+        self._extent = CallbackList(
+            __extents, callback=self.__serialize_time_extents)
 
 
 class ReferenceSystem(WebMapServiceDefaultSettings):
@@ -484,6 +491,9 @@ class Layer(WebMapServiceDefaultSettings):
     remote_metadata = StringListField(
         xpath="./wms:MetadataURL/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
 
+    def __str__(self):
+        return self.identifier
+
     @property
     def bbox_lat_lon(self) -> Polygon:
         # there is no default xmlmap field which parses to a geos polygon. So we convert it here.
@@ -510,6 +520,13 @@ class Layer(WebMapServiceDefaultSettings):
         dic = super().get_field_dict()
         dic.update({"bbox_lat_lon": self.bbox_lat_lon})
         return dic
+
+    @property
+    def descendants(self, include_self=True):
+        descendants = [self] if include_self else []
+        for child in self.children:
+            descendants.extend(child.descendants)
+        return descendants
 
 
 class WebMapService(WebMapServiceDefaultSettings):
@@ -629,8 +646,8 @@ class WebMapService(WebMapServiceDefaultSettings):
 
         if isinstance(items, Iterable):
             for item in items:
-                if not item._update:
-                    item._update = self.__update_or_create_operation_url_xml_node
+                if not item._callback:
+                    item._callback = self.__update_or_create_operation_url_xml_node
         else:
             if items and not items._callback:
                 items._callback = self.__update_or_create_operation_url_xml_node
@@ -743,3 +760,13 @@ class WebMapService(WebMapServiceDefaultSettings):
                 replaced: parse.ParseResult = parsed._replace(
                     netloc=new_domain)
             operation_url.url = replaced.geturl()
+
+    @property
+    def layers(self):
+        """Flat list of all layers of this web map service"""
+        __layers = []
+        __layers.extend(self.root_layer.descendants)
+        return __layers
+
+    def get_layer_by_identifier(self, identifier: str):
+        return next((layer for layer in self.layers if layer.identifier == identifier), None)

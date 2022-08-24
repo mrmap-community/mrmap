@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from django.contrib.gis.geos import Polygon
@@ -5,22 +6,21 @@ from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
 from isodate.isodatetime import parse_datetime
 from isodate.isoduration import parse_duration
-
-from ows_lib.xml_mapper.capabilities.wms.capabilities import (Layer,
-                                                              OperationUrl,
-                                                              TimeExtent,
-                                                              WebMapService)
+from ows_lib.xml_mapper.capabilities.wms.wms130 import (Layer, OperationUrl,
+                                                        TimeExtent,
+                                                        WebMapService)
 from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
+from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 
 class WebMapServiceTestCase(SimpleTestCase):
 
     def setUp(self) -> None:
-        path = Path(Path.joinpath(
-            Path(__file__).parent.resolve(), "../test_data/capabilities/wms/1.3.0.xml"))
+        path = os.path.join(DJANGO_TEST_ROOT_DIR,
+                            "./test_data/capabilities/wms/1.3.0.xml")
 
         self.parsed_capabilities: WebMapService = load_xmlobject_from_file(
-            path.resolve().__str__(), xmlclass=WebMapService)
+            path, xmlclass=WebMapService)
 
     def _test_root_mapper(self):
         self.assertEqual(self.parsed_capabilities.service_url,

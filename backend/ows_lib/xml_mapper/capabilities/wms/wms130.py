@@ -148,7 +148,7 @@ class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):
         xpath="./wms:Service", node_class=ServiceMetadata)
 
     root_layer = NodeField(
-        xpath="wms:Capability/wms:Layer", node_class=Layer)
+        xpath="./wms:Capability/wms:Layer", node_class=Layer)
 
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.
@@ -173,3 +173,24 @@ class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):
         xpath="./wms:Capability/wms:Request/wms:GetFeatureInfo/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
     _get_feature_info_post_url = StringField(
         xpath="./wms:Capability/wms:Request/wms:GetFeatureInfo/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+
+    _describe_layer_mime_types = StringListField(
+        xpath="./wms:Capability/wms:Request/wms:DescribeLayer/wms:Format")
+    _describe_layer_get_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:DescribeLayer/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    _describe_layer_post_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:DescribeLayer/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+
+    _get_legend_graphic_mime_types = StringListField(
+        xpath="./wms:Capability/wms:Request/wms:GetLegendGraphic/wms:Format")
+    _get_legend_graphic_get_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetLegendGraphic/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    _get_legend_graphic_post_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetLegendGraphic/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+
+    _get_styles_mime_types = StringListField(
+        xpath="./wms:Capability/wms:Request/wms:GetStyles/wms:Format")
+    _get_styles_get_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetStyles/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    _get_styles_post_url = StringField(
+        xpath="./wms:Capability/wms:Request/wms:GetStyles/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")

@@ -318,6 +318,9 @@ class WebMapServiceMixin(OGCServiceMixin):
             _operation_urls.extend(self._get_capabilities_operation_urls)
             _operation_urls.extend(self._get_map_operation_urls)
             _operation_urls.extend(self._get_feature_info_operation_urls)
+            _operation_urls.extend(self._get_describe_layer_operation_urls)
+            _operation_urls.extend(self._get_legend_graphic_operation_urls)
+            _operation_urls.extend(self._get_style_operation_urls)
 
             self._operation_urls = CallbackList(
                 _operation_urls, callback=self._handle_operation_urls_list_operation)
@@ -332,46 +335,75 @@ class WebMapServiceMixin(OGCServiceMixin):
         self._get_feature_info_mime_types = []
         self._get_feature_info_get_url = None
         self._get_feature_info_post_url = None
+        self._describe_layer_mime_types = []
+        self._describe_layer_get_url = None
+        self._describe_layer_post_url = None
+        self._get_legend_graphic_mime_types = []
+        self._get_legend_graphic_get_url = None
+        self._get_legend_graphic_post_url = None
+        self._get_styles_mime_types = []
+        self._get_styles_get_url = None
+        self._get_styles_post_url = None
 
-    def _update_or_create_operation_url_xml_node(self, operation_url: OperationUrl):
-        match operation_url.operation:
-            case "GetMap":
-                new_mime_types = filter(
-                    lambda mime_type: mime_type not in self._get_map_mime_types, operation_url.mime_types)
-                self._get_map_mime_types.extend(new_mime_types)
-                if operation_url.method == "Get":
-                    self._get_map_get_url = operation_url.url
-                elif operation_url.method == "Post":
-                    self._get_map_post_url = operation_url.url
-            case "GetFeatureInfo":
-                new_mime_types = filter(
-                    lambda mime_type: mime_type not in self._get_feature_info_mime_types, operation_url.mime_types)
-                self._get_feature_info_mime_types.extend(new_mime_types)
-                if operation_url.method == "Get":
-                    self._get_feature_info_get_url = operation_url.url
-                elif operation_url.method == "Post":
-                    self._get_feature_info_post_url = operation_url.url
-            case _:
-                super()._update_or_create_operation_url_xml_node(operation_url)
-
-    def _remove_operation_url_xml_node(self, operation_url: OperationUrl):
+    def _update_operation_url_xml_node(self, operation_url: OperationUrl, remove: bool = False):
         match operation_url.operation:
             case "GetMap":
                 if operation_url.method == "Get":
-                    self._get_map_get_url = None
+                    self._get_map_get_url = None if remove else operation_url.url
                 elif operation_url.method == "Post":
-                    self._get_map_post_url = None
-                if not self._operation_has_get_and_post(operation_url):
+                    self._get_map_post_url = None if remove else operation_url.url
+                if remove and not self._operation_has_get_and_post(operation_url):
                     self._get_map_mime_types = []
+                elif not remove:
+                    new_mime_types = filter(
+                        lambda mime_type: mime_type not in self._get_map_mime_types, operation_url.mime_types)
+                    self._get_feature_info_mime_types.extend(new_mime_types)
             case "GetFeatureInfo":
                 if operation_url.method == "Get":
-                    self._get_feature_info_get_url = None
+                    self._get_feature_info_get_url = None if remove else operation_url.url
                 elif operation_url.method == "Post":
-                    self._get_feature_info_post_url = None
-                if not self._operation_has_get_and_post(operation_url):
+                    self._get_feature_info_post_url = None if remove else operation_url.url
+                if remove and not self._operation_has_get_and_post(operation_url):
                     self._get_feature_info_mime_types = []
+                elif not remove:
+                    new_mime_types = filter(
+                        lambda mime_type: mime_type not in self._get_feature_info_mime_types, operation_url.mime_types)
+                    self._get_feature_info_mime_types.extend(new_mime_types)
+            case "DescribeLayer":
+                if operation_url.method == "Get":
+                    self._describe_layer_get_url = None if remove else operation_url.url
+                elif operation_url.method == "Post":
+                    self._describe_layer_post_url = None if remove else operation_url.url
+                if remove and not self._operation_has_get_and_post(operation_url):
+                    self._describe_layer_mime_types = []
+                elif not remove:
+                    new_mime_types = filter(
+                        lambda mime_type: mime_type not in self._describe_layer_mime_types, operation_url.mime_types)
+                    self._describe_layer_mime_types.extend(new_mime_types)
+            case "GetLegendGraphic":
+                if operation_url.method == "Get":
+                    self._get_legend_graphic_get_url = None if remove else operation_url.url
+                elif operation_url.method == "Post":
+                    self._get_legend_graphic_post_url = None if remove else operation_url.url
+                if remove and not self._operation_has_get_and_post(operation_url):
+                    self._get_legend_graphic_mime_types = []
+                elif not remove:
+                    new_mime_types = filter(
+                        lambda mime_type: mime_type not in self._get_legend_graphic_mime_types, operation_url.mime_types)
+                    self._get_legend_graphic_mime_types.extend(new_mime_types)
+            case "GetStyles":
+                if operation_url.method == "Get":
+                    self._get_styles_get_url = None if remove else operation_url.url
+                elif operation_url.method == "Post":
+                    self._get_styles_post_url = None if remove else operation_url.url
+                if remove and not self._operation_has_get_and_post(operation_url):
+                    self._get_styles_mime_types = []
+                elif not remove:
+                    new_mime_types = filter(
+                        lambda mime_type: mime_type not in self._get_styles_mime_types, operation_url.mime_types)
+                    self._get_styles_mime_types.extend(new_mime_types)
             case _:
-                return super()._remove_operation_url_xml_node(operation_url)
+                return super()._update_operation_url_xml_node(operation_url, remove)
 
     @property
     def _get_map_operation_urls(self) -> List[OperationUrl]:
@@ -383,7 +415,7 @@ class WebMapServiceMixin(OGCServiceMixin):
                     operation="GetMap",
                     mime_types=self._get_map_mime_types,
                     url=self._get_map_get_url,
-                    callback=self._update_or_create_operation_url_xml_node)
+                    callback=self._update_operation_url_xml_node)
             )
         if self._get_map_post_url:
             _operation_urls.append(
@@ -392,7 +424,7 @@ class WebMapServiceMixin(OGCServiceMixin):
                     operation="GetMap",
                     mime_types=self._get_map_mime_types,
                     url=self._get_map_post_url,
-                    callback=self._update_or_create_operation_url_xml_node)
+                    callback=self._update_operation_url_xml_node)
             )
         return _operation_urls
 
@@ -406,16 +438,85 @@ class WebMapServiceMixin(OGCServiceMixin):
                     operation="GetFeatureInfo",
                     mime_types=self._get_feature_info_mime_types,
                     url=self._get_feature_info_get_url,
-                    callback=self._update_or_create_operation_url_xml_node)
+                    callback=self._update_operation_url_xml_node)
             )
-        if self._get_map_post_url:
+        if self._get_feature_info_post_url:
             _operation_urls.append(
                 OperationUrl(
                     method="Post",
                     operation="GetFeatureInfo",
                     mime_types=self._get_feature_info_mime_types,
                     url=self._get_feature_info_post_url,
-                    callback=self._update_or_create_operation_url_xml_node)
+                    callback=self._update_operation_url_xml_node)
+            )
+        return _operation_urls
+
+    @property
+    def _get_describe_layer_operation_urls(self) -> List[OperationUrl]:
+        _operation_urls: List[OperationUrl] = []
+        if self._describe_layer_get_url:
+            _operation_urls.append(
+                OperationUrl(
+                    method="Get",
+                    operation="DescribeLayer",
+                    mime_types=self._describe_layer_mime_types,
+                    url=self._describe_layer_get_url,
+                    callback=self._update_operation_url_xml_node)
+            )
+        if self._describe_layer_post_url:
+            _operation_urls.append(
+                OperationUrl(
+                    method="Post",
+                    operation="GetFeatureInfo",
+                    mime_types=self._describe_layer_mime_types,
+                    url=self._describe_layer_post_url,
+                    callback=self._update_operation_url_xml_node)
+            )
+        return _operation_urls
+
+    @property
+    def _get_legend_graphic_operation_urls(self) -> List[OperationUrl]:
+        _operation_urls: List[OperationUrl] = []
+        if self._get_legend_graphic_get_url:
+            _operation_urls.append(
+                OperationUrl(
+                    method="Get",
+                    operation="DescribeLayer",
+                    mime_types=self._get_legend_graphic_mime_types,
+                    url=self._get_legend_graphic_get_url,
+                    callback=self._update_operation_url_xml_node)
+            )
+        if self._get_legend_graphic_post_url:
+            _operation_urls.append(
+                OperationUrl(
+                    method="Post",
+                    operation="GetFeatureInfo",
+                    mime_types=self._get_legend_graphic_mime_types,
+                    url=self._get_legend_graphic_post_url,
+                    callback=self._update_operation_url_xml_node)
+            )
+        return _operation_urls
+
+    @property
+    def _get_style_operation_urls(self) -> List[OperationUrl]:
+        _operation_urls: List[OperationUrl] = []
+        if self._get_styles_get_url:
+            _operation_urls.append(
+                OperationUrl(
+                    method="Get",
+                    operation="DescribeLayer",
+                    mime_types=self._get_styles_mime_types,
+                    url=self._get_styles_get_url,
+                    callback=self._update_operation_url_xml_node)
+            )
+        if self._get_styles_post_url:
+            _operation_urls.append(
+                OperationUrl(
+                    method="Post",
+                    operation="GetFeatureInfo",
+                    mime_types=self._get_styles_mime_types,
+                    url=self._get_styles_post_url,
+                    callback=self._update_operation_url_xml_node)
             )
         return _operation_urls
 

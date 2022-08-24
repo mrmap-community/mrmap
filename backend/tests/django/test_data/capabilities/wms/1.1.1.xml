@@ -34,72 +34,48 @@
   <Capability>
     <Request>
       <GetCapabilities>
-        <Format>application/vnd.ogc.wms_xml</Format>
         <Format>text/xml</Format>
+        <Format>application/vnd.ogc.wms_xml</Format>
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
             </Get>
             <Post>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
             </Post>
           </HTTP>
         </DCPType>
       </GetCapabilities>
       <GetMap>
         <Format>image/png</Format>
-        <Format>application/atom xml</Format>
         <Format>application/atom+xml</Format>
         <Format>application/json;type=geojson</Format>
         <Format>application/json;type=topojson</Format>
         <Format>application/json;type=utfgrid</Format>
-        <Format>application/openlayers</Format>
-        <Format>application/openlayers2</Format>
-        <Format>application/openlayers3</Format>
         <Format>application/pdf</Format>
-        <Format>application/rss xml</Format>
         <Format>application/rss+xml</Format>
-        <Format>application/vnd.google-earth.kml</Format>
-        <Format>application/vnd.google-earth.kml xml</Format>
         <Format>application/vnd.google-earth.kml+xml</Format>
         <Format>application/vnd.google-earth.kml+xml;mode=networklink</Format>
         <Format>application/vnd.google-earth.kmz</Format>
-        <Format>application/vnd.google-earth.kmz xml</Format>
-        <Format>application/vnd.google-earth.kmz+xml</Format>
-        <Format>application/vnd.google-earth.kmz;mode=networklink</Format>
         <Format>application/vnd.mapbox-vector-tile</Format>
-        <Format>application/x-protobuf;type=mapbox-vector</Format>
-        <Format>atom</Format>
-        <Format>geojson</Format>
         <Format>image/geotiff</Format>
         <Format>image/geotiff8</Format>
         <Format>image/gif</Format>
-        <Format>image/gif;subtype=animated</Format>
         <Format>image/jpeg</Format>
-        <Format>image/png8</Format>
         <Format>image/png; mode=8bit</Format>
-        <Format>image/svg</Format>
-        <Format>image/svg xml</Format>
         <Format>image/svg+xml</Format>
         <Format>image/tiff</Format>
         <Format>image/tiff8</Format>
         <Format>image/vnd.jpeg-png</Format>
         <Format>image/vnd.jpeg-png8</Format>
-        <Format>kml</Format>
-        <Format>kmz</Format>
-        <Format>openlayers</Format>
-        <Format>pbf</Format>
-        <Format>rss</Format>
         <Format>text/html; subtype=openlayers</Format>
         <Format>text/html; subtype=openlayers2</Format>
         <Format>text/html; subtype=openlayers3</Format>
-        <Format>topojson</Format>
-        <Format>utfgrid</Format>
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -116,11 +92,8 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
             </Get>
-            <Post>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
-            </Post>
           </HTTP>
         </DCPType>
       </GetFeatureInfo>
@@ -129,7 +102,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -142,7 +115,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -152,7 +125,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -166,7 +139,9 @@
       <Format>text/javascript</Format>
     </Exception>
     <UserDefinedSymbolization SupportSLD="1" UserLayer="1" UserStyle="1" RemoteWFS="1"/>
-    <Layer>
+    <Layer queryable="1" opaque="1" cascaded="1">
+      <ScaleHint min="4.989528903" max="8.7308025"></ScaleHint>
+      <Name>root_layer</Name>
       <Title>DWD GeoServer WMS</Title>
       <Abstract>This is the Web Map Server of DWD.</Abstract>
       <!--Limited list of EPSG projections:-->
@@ -183,7 +158,7 @@
       <SRS>EPSG:31468</SRS>
       <SRS>EPSG:900913</SRS>
       <SRS>EPSG:1000001</SRS>
-      <LatLonBoundingBox minx="-180.0" miny="-90.000000000036" maxx="180.00000000007202" maxy="90.00000000000001"/>
+      <LatLonBoundingBox minx="-180.0" miny="-90.0" maxx="180.0" maxy="90.0"/>
       <BoundingBox SRS="EPSG:3044" minx="-6.97458784955371E7" miny="-1.8717613338059384E8" maxx="2.748120094547065E8" maxy="1.8717613338131383E8"/>
       <BoundingBox SRS="EPSG:3045" minx="-5.325414845879483E7" miny="-1.5102999267101717E8" maxx="2.2476790476762792E8" maxy="1.510299926715639E8"/>
       <BoundingBox SRS="EPSG:3413" minx="-3.766124718993079E19" miny="-1.414383184819423E23" maxx="1.4143831848212006E23" maxy="3.766124718994348E19"/>
@@ -197,1003 +172,6 @@
       <BoundingBox SRS="EPSG:31468" minx="-5.713066439766248E7" miny="-1.682355003568126E8" maxx="2.526925886935334E8" maxy="1.6835629796332362E8"/>
       <BoundingBox SRS="EPSG:900913" minx="-2.0037508342789244E7" miny="-1.997186888040857E7" maxx="2.003750834279726E7" maxy="1.9971868880408563E7"/>
       <BoundingBox SRS="EPSG:1000001" minx="-11706.071442276874" miny="-11706.071442277524" maxx="11706.071442278173" maxy="11706.071442278822"/>
-      <Layer queryable="1">
-        <Title>Numerische Seegangsvorhersagen (WAM)</Title>
-        <Abstract>Grundlage des numerischen Seegangsvorhersagesystems im Deutschen Wetterdienst (DWD) ist ein spektrales Seegangsmodell der 3.Generation (3G-WAveModel). Spektrale Modelle beschreiben den Zustand des Seegangs über das sogenannte Frequenz-Richtungs-Seegangsspektrum - das ist die 2-dimensionale Verteilung der Wellenenergie nach Wellenfrequenz (bzw Wellenperiode oder Wellenzahl) und Ausbreitungsrichtung. In der gegenwärtigen Version wird eine Auflösung von 36 Richtungen und 30 Frequenzen (Wellenperioden zwischen 1.5 und 24 Sekunden) verwendet.&#13;
-&#13;
-Im numerischen Modell wird die zeitliche Entwicklung des Seegangsspektrums an einer Vielzahl von Punkten eines über die Meeresoberfläche gespannten Gitters berechnet. Die Wellenenergie ändert sich durch die folgenden physikalischen Prozesse:&#13;
-. Wellenwachstum durch den abwärts gerichteten Impulsfluss aus dem Windfeld&#13;
-. Wellenkinematik (Advektion, Refraktion)&#13;
-. Umverteilung der Energie zwischen den Wellenzahlen durch nichtlineare Wechselwirkungen&#13;
-. Dissipation (interne Reibung und Wellenbrechen)&#13;
-&#13;
-Ähnlich wie die Kette der Atmosphärenmodelle (ICON, ICON-EU und ICON-D2) ist das Seegangsvorhersagesystem in verschiedene Vorhersagegebiete gegliedert: Das globale Modell GWAM, das Europamodell EWAM und das hoch auflösende Küstenmodell CWAM. Der Modellseegang wird durch analysierte und vorhergesagte 10m-Winde der Atmosphärenmodelle angetrieben.</Abstract>
-        <KeywordList/>
-        <SRS>EPSG:4326</SRS>
-        <LatLonBoundingBox minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
-        <BoundingBox SRS="EPSG:4326" minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
-        <BoundingBox SRS="EPSG:3044" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
-        <BoundingBox SRS="EPSG:3045" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
-        <BoundingBox SRS="EPSG:3413" minx="779093.1863974744" miny="-6718243.508860684" maxx="7207957.191830363" maxy="2174587.8484162525"/>
-        <BoundingBox SRS="EPSG:3857" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
-        <BoundingBox SRS="EPSG:4258" minx="-23.531250000000004" miny="29.46875002706887" maxx="62.53125" maxy="70.53125001102518"/>
-        <BoundingBox SRS="EPSG:4839" minx="-3392820.6676097265" miny="-2422300.4998297426" maxx="4939637.238415538" maxy="2927019.769141159"/>
-        <BoundingBox SRS="EPSG:25832" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
-        <BoundingBox SRS="EPSG:25833" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
-        <BoundingBox SRS="EPSG:31467" minx="258253.23182776803" miny="3266927.747122287" maxx="9050588.528165929" maxy="8676590.935194049"/>
-        <BoundingBox SRS="EPSG:31468" minx="941748.4305253257" miny="3280350.6572090904" maxx="9707699.124680042" maxy="8587505.99889916"/>
-        <BoundingBox SRS="EPSG:900913" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
-        <BoundingBox SRS="EPSG:1000001" minx="-3831.6308476171357" miny="-6911.66562490425" maxx="5505.348454951087" maxy="-1240.4818469455083"/>
-        <Layer queryable="1">
-          <Title>Numerische Seegangsvorhersagen für die deutschen Küsten (CWAM)</Title>
-          <Abstract>Grundlage des numerischen Seegangsvorhersagesystems im Deutschen Wetterdienst (DWD) ist ein spektrales Seegangsmodell der 3.Generation (3G-WAveModel). Spektrale Modelle beschreiben den Zustand des Seegangs über das sogenannte Frequenz-Richtungs-Seegangsspektrum - das ist die 2-dimensionale Verteilung der Wellenenergie nach Wellenfrequenz (bzw Wellenperiode oder Wellenzahl) und Ausbreitungsrichtung. In der gegenwärtigen Version wird eine Auflösung von 36 Richtungen und 30 Frequenzen (Wellenperioden zwischen 1.5 und 24 Sekunden) verwendet.&#13;
-&#13;
-Im numerischen Modell wird die zeitliche Entwicklung des Seegangsspektrums an einer Vielzahl von Punkten eines über die Meeresoberfläche gespannten Gitters berechnet. Die Wellenenergie ändert sich durch die folgenden physikalischen Prozesse:&#13;
-. Wellenwachstum durch den abwärts gerichteten Impulsfluss aus dem Windfeld&#13;
-. Wellenkinematik (Advektion, Refraktion)&#13;
-. Umverteilung der Energie zwischen den Wellenzahlen durch nichtlineare Wechselwirkungen&#13;
-. Dissipation (interne Reibung und Wellenbrechen)&#13;
-&#13;
-Ähnlich wie die Kette der Atmosphärenmodelle (ICON, ICON-EU und ICON-D2) ist das Seegangsvorhersagesystem in verschiedene Vorhersagegebiete gegliedert: Das globale Modell GWAM, das Europamodell EWAM und das hoch auflösende Küstenmodell CWAM. Der Modellseegang wird durch analysierte und vorhergesagte 10m-Winde der Atmosphärenmodelle angetrieben.</Abstract>
-          <KeywordList/>
-          <SRS>EPSG:4326</SRS>
-          <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-          <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-          <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-          <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-          <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-          <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-          <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-          <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-          <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-          <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-          <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-          <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-          <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-          <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_DD10M</Name>
-            <Title>Windrichtung 10m aus CWAM</Title>
-            <Abstract>Windrichtung 10m aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>CWAM_REG025_FD_SL_DD10M</Keyword>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Windrichtung</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
-              <Name>cwam_reg025_fd_sl_dd10m_epsg4326</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M"/>
-              </LegendURL>
-            </Style>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
-              <Name>cwam_reg025_fd_sl_dd10m_epsg25832</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M&amp;style=cwam_reg025_fd_sl_dd10m_epsg25832"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_MDTS</Name>
-            <Title>Mittlere Ausbreitungsrichtung (Dünung) aus CWAM</Title>
-            <Abstract>Mittlere Ausbreitungsrichtung (Dünung) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
-              <Name>cwam_reg025_fd_sl_mdts_epsg4326</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS"/>
-              </LegendURL>
-            </Style>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
-              <Name>cwam_reg025_fd_sl_mdts_epsg25832</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS&amp;style=cwam_reg025_fd_sl_mdts_epsg25832"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_MDWW</Name>
-            <Title>Mittlere Ausbreitungsrichtung (Windsee) aus CWAM</Title>
-            <Abstract>Mittlere Ausbreitungsrichtung (Windsee) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
-              <Name>cwam_reg025_fd_sl_mdww_epsg4326</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW"/>
-              </LegendURL>
-            </Style>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
-              <Name>cwam_reg025_fd_sl_mdww_epsg25832</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW&amp;style=cwam_reg025_fd_sl_mdww_epsg25832"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_PPTS</Name>
-            <Title>Peak Periode (Dünung) aus CWAM</Title>
-            <Abstract>Peak Periode (Dünung) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>peak periode in s</Title>
-              <Abstract>A sample style for rasters</Abstract>
-              <Name>cwam_reg025_fd_sl_ppts</Name>
-              <LegendURL width="94" height="137">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPTS"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_PPWW</Name>
-            <Title>Peak Periode (Windsee) aus CWAM</Title>
-            <Abstract>Peak Periode (Windsee) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>peak periode in s</Title>
-              <Abstract>A sample style for rasters</Abstract>
-              <Name>cwam_reg025_fd_sl_ppww</Name>
-              <LegendURL width="94" height="137">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPWW"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_SHTS</Name>
-            <Title>Signifikante Wellenhöhe (Dünung) aus CWAM</Title>
-            <Abstract>Signifikante Wellenhöhe (Dünung) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Wellenhöhe der Dünung</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Wellenhöhe</Title>
-              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
-              <Name>cwam_reg025_fd_sl_shts</Name>
-              <LegendURL width="91" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHTS"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_SHWW</Name>
-            <Title>Signifikante Wellenhöhe (Windsee) aus CWAM</Title>
-            <Abstract>Signifikante Wellenhöhe (Windsee) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Wellenhöhe der Windsee</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Wellenhöhe</Title>
-              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
-              <Name>cwam_reg025_fd_sl_shww</Name>
-              <LegendURL width="91" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHWW"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_SP10M</Name>
-            <Title>Windgeschwindigkeit 10m aus CWAM</Title>
-            <Abstract>Windgeschwindigkeit 10m aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Windgeschwindigkeit</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windgeschwindigkeit 10m in m/s </Title>
-              <Abstract>A sample style for rasters</Abstract>
-              <Name>cwam_reg025_fd_sl_sp10m</Name>
-              <LegendURL width="80" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SP10M"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Cwam_reg025_fd_sl_SWH</Name>
-            <Title>Signifikante Wellenhöhe (totaler Seegang) aus CWAM</Title>
-            <Abstract>Signifikante Wellenhöhe (totaler Seegang) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Wellenhöhe der Windsee</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
-            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
-            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
-            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
-            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
-            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
-            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
-            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
-            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Wellenhöhe</Title>
-              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
-              <Name>cwam_reg025_fd_sl_swh</Name>
-              <LegendURL width="81" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SWH"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Style>
-            <Name>default-style-dwd:CWAM</Name>
-            <Title>dwd:CWAM style</Title>
-            <Abstract>Default style for dwd:CWAM layer</Abstract>
-            <LegendURL width="20" height="20">
-              <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACWAM"/>
-            </LegendURL>
-          </Style>
-        </Layer>
-        <Layer queryable="1">
-          <Title>Numerische Seegangsvorhersagen für europäische Meere (EWAM)</Title>
-          <Abstract>Grundlage des numerischen Seegangsvorhersagesystems im Deutschen Wetterdienst (DWD) ist ein spektrales Seegangsmodell der 3.Generation (3G-WAveModel). Spektrale Modelle beschreiben den Zustand des Seegangs über das sogenannte Frequenz-Richtungs-Seegangsspektrum - das ist die 2-dimensionale Verteilung der Wellenenergie nach Wellenfrequenz (bzw Wellenperiode oder Wellenzahl) und Ausbreitungsrichtung. In der gegenwärtigen Version wird eine Auflösung von 36 Richtungen und 30 Frequenzen (Wellenperioden zwischen 1.5 und 24 Sekunden) verwendet.&#13;
-&#13;
-Im numerischen Modell wird die zeitliche Entwicklung des Seegangsspektrums an einer Vielzahl von Punkten eines über die Meeresoberfläche gespannten Gitters berechnet. Die Wellenenergie ändert sich durch die folgenden physikalischen Prozesse:&#13;
-. Wellenwachstum durch den abwärts gerichteten Impulsfluss aus dem Windfeld&#13;
-. Wellenkinematik (Advektion, Refraktion)&#13;
-. Umverteilung der Energie zwischen den Wellenzahlen durch nichtlineare Wechselwirkungen&#13;
-. Dissipation (interne Reibung und Wellenbrechen)&#13;
-&#13;
-Ähnlich wie die Kette der Atmosphärenmodelle (ICON, ICON-EU und ICON-D2) ist das Seegangsvorhersagesystem in verschiedene Vorhersagegebiete gegliedert: Das globale Modell GWAM, das Europamodell EWAM und das hoch auflösende Küstenmodell CWAM. Der Modellseegang wird durch analysierte und vorhergesagte 10m-Winde der Atmosphärenmodelle angetrieben.</Abstract>
-          <KeywordList/>
-          <SRS>EPSG:4326</SRS>
-          <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-          <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-          <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-          <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-          <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-          <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-          <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-          <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-          <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-          <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-          <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-          <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-          <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-          <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_DD10M</Name>
-            <Title>Windrichtung 10m aus EWAM</Title>
-            <Abstract>Windrichtung 10m aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Windrichtung</Keyword>
-              <Keyword>Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
-              <Name>ewam_reg025_fd_sl_dd10m_epsg4326</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M"/>
-              </LegendURL>
-            </Style>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
-              <Name>ewam_reg025_fd_sl_dd10m_epsg25832</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M&amp;style=ewam_reg025_fd_sl_dd10m_epsg25832"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_MDTS</Name>
-            <Title>Mittlere Ausbreitungsrichtung (Dünung) aus EWAM</Title>
-            <Abstract>Mittlere Ausbreitungsrichtung (Dünung) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
-              <Name>ewam_reg025_fd_sl_mdts_epsg4326</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS"/>
-              </LegendURL>
-            </Style>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
-              <Name>ewam_reg025_fd_sl_mdts_epsg25832</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS&amp;style=ewam_reg025_fd_sl_mdts_epsg25832"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_MDWW</Name>
-            <Title>Mittlere Ausbreitungsrichtung (Windsee) aus EWAM</Title>
-            <Abstract>Mittlere Ausbreitungsrichtung (Windsee) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>ImageMosaic</Keyword>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
-              <Name>ewam_reg025_fd_sl_mdww_epsg4326</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW"/>
-              </LegendURL>
-            </Style>
-            <Style>
-              <Title>Windrichtung</Title>
-              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
-              <Name>ewam_reg025_fd_sl_mdww_epsg25832</Name>
-              <LegendURL width="20" height="20">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW&amp;style=ewam_reg025_fd_sl_mdww_epsg25832"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_PPTS</Name>
-            <Title>Peak Periode (Dünung) aus EWAM</Title>
-            <Abstract>Peak Periode (Dünung) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Wellenhöhe der Dünung</Keyword>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>peak periode in s</Title>
-              <Abstract>A sample style for rasters</Abstract>
-              <Name>ewam_reg025_fd_sl_ppts</Name>
-              <LegendURL width="94" height="137">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPTS"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_PPWW</Name>
-            <Title>Peak Periode (Windsee) aus EWAM</Title>
-            <Abstract>Peak Periode (Windsee) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>peak periode in s</Title>
-              <Abstract>A sample style for rasters</Abstract>
-              <Name>ewam_reg025_fd_sl_ppww</Name>
-              <LegendURL width="94" height="137">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPWW"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_SHTS</Name>
-            <Title>Signifikante Wellenhöhe (Dünung) aus EWAM</Title>
-            <Abstract>Signifikante Wellenhöhe (Dünung) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Wellenhöhe der Dünung</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Wellenhöhe</Title>
-              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
-              <Name>ewam_reg025_fd_sl_shts</Name>
-              <LegendURL width="91" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHTS"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_SHWW</Name>
-            <Title>Signifikante Wellenhöhe (Windsee) aus EWAM</Title>
-            <Abstract>Signifikante Wellenhöhe (Windsee) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Wellenhöhe der Windsee</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Wellenhöhe</Title>
-              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
-              <Name>ewam_reg025_fd_sl_shww</Name>
-              <LegendURL width="91" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHWW"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_SP10M</Name>
-            <Title>Windgeschwindigkeit 10m aus EWAM</Title>
-            <Abstract>Windgeschwindigkeit 10m aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Windgeschwindigkeit</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Windgeschwindigkeit 10m in m/s </Title>
-              <Abstract>A sample style for rasters</Abstract>
-              <Name>ewam_reg025_fd_sl_sp10m</Name>
-              <LegendURL width="80" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SP10M"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Layer queryable="1" opaque="0">
-            <Name>dwd:Ewam_reg025_fd_sl_SWH</Name>
-            <Title>Signifikane Wellenöhe (totaler Seegang) aus EWAM</Title>
-            <Abstract>Signifikane Wellenöhe (totaler Seegang aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
-            <KeywordList>
-              <Keyword>Atmosphärische Bedingungen</Keyword>
-              <Keyword>Meteorologie</Keyword>
-              <Keyword>Schifffahrt</Keyword>
-              <Keyword>Seemeteorologie</Keyword>
-              <Keyword>Synoptische Meteorologie</Keyword>
-              <Keyword>Wellenhöhe der Windsee</Keyword>
-            </KeywordList>
-            <SRS>EPSG:4326</SRS>
-            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
-            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
-            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
-            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
-            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
-            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
-            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
-            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
-            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
-            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
-            <Dimension name="time" units="ISO8601"/>
-            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
-            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
-            <Style>
-              <Title>Wellenhöhe</Title>
-              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
-              <Name>ewam_reg025_fd_sl_swh</Name>
-              <LegendURL width="81" height="252">
-                <Format>image/png</Format>
-                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SWH"/>
-              </LegendURL>
-            </Style>
-          </Layer>
-          <Style>
-            <Name>default-style-dwd:EWAM</Name>
-            <Title>dwd:EWAM style</Title>
-            <Abstract>Default style for dwd:EWAM layer</Abstract>
-            <LegendURL width="20" height="20">
-              <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEWAM"/>
-            </LegendURL>
-          </Style>
-        </Layer>
-        <Layer queryable="1" opaque="0">
-          <Name>dwd:Icon-eu_reg00625_fd_sl_QFF</Name>
-          <Title>QFF (Luftdruck Meeresspiegel) aus ICON-EU</Title>
-          <Abstract>QFF (Luftdruck auf Meeresspiegelniveau) aus dem Modell ICON-EU mit einer räumlichen Auflösung von 0.0625° und einer stündlichen Auflösung, europaweite Abdeckung (ICON-EU Modellgebiet). Die Daten liegen für die Modellläufe 00, 06, 12, und 18 UTC für die Vorhersagezeitschritte vv+00 bis vv+120 vor.</Abstract>
-          <KeywordList>
-            <Keyword>Atmosphärische Bedingungen</Keyword>
-            <Keyword>Bodenluftdruck auf NN reduziert</Keyword>
-            <Keyword>Gitterpunkt (reguläres geographisches Gitter)</Keyword>
-            <Keyword>GRIB</Keyword>
-            <Keyword>Horizontale Auflösung von 0,0625 Grad</Keyword>
-            <Keyword>Luftdruck</Keyword>
-            <Keyword>Luftfahrt</Keyword>
-            <Keyword>Numerische Wettervorhersagen</Keyword>
-            <Keyword>QFF</Keyword>
-            <Keyword>Stündlich</Keyword>
-            <Keyword>Vorhersage</Keyword>
-          </KeywordList>
-          <SRS>EPSG:4326</SRS>
-          <LatLonBoundingBox minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
-          <BoundingBox SRS="EPSG:4326" minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
-          <BoundingBox SRS="EPSG:3044" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
-          <BoundingBox SRS="EPSG:3045" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
-          <BoundingBox SRS="EPSG:3413" minx="779093.1863974744" miny="-6718243.508860684" maxx="7207957.191830363" maxy="2174587.8484162525"/>
-          <BoundingBox SRS="EPSG:3857" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
-          <BoundingBox SRS="EPSG:4258" minx="-23.531250000000004" miny="29.46875002706887" maxx="62.53125" maxy="70.53125001102518"/>
-          <BoundingBox SRS="EPSG:4839" minx="-3392820.6676097265" miny="-2422300.4998297426" maxx="4939637.238415538" maxy="2927019.769141159"/>
-          <BoundingBox SRS="EPSG:25832" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
-          <BoundingBox SRS="EPSG:25833" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
-          <BoundingBox SRS="EPSG:31467" minx="258253.23182776803" miny="3266927.747122287" maxx="9050588.528165929" maxy="8676590.935194049"/>
-          <BoundingBox SRS="EPSG:31468" minx="941748.4305253257" miny="3280350.6572090904" maxx="9707699.124680042" maxy="8587505.99889916"/>
-          <BoundingBox SRS="EPSG:900913" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
-          <BoundingBox SRS="EPSG:1000001" minx="-3831.6308476171357" miny="-6911.66562490425" maxx="5505.348454951087" maxy="-1240.4818469455083"/>
-          <Dimension name="time" units="ISO8601"/>
-          <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-          <Extent name="time" default="current">2022-08-22T18:00:00.000Z/2022-08-29T00:00:00.000Z/PT1H</Extent>
-          <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-22T18:00:00.000Z,2022-08-23T00:00:00.000Z,2022-08-23T06:00:00.000Z,2022-08-23T12:00:00.000Z,2022-08-23T18:00:00.000Z,2022-08-24T00:00:00.000Z</Extent>
-          <Style>
-            <Title>icon-eu_reg00625_fd_sl_qff_isolines</Title>
-            <Name>icon-eu_reg00625_fd_sl_qff_isolines</Name>
-            <LegendURL width="216" height="60">
-              <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_sl_QFF"/>
-            </LegendURL>
-          </Style>
-        </Layer>
-        <Layer queryable="1" opaque="0">
-          <Name>dwd:Icon-eu_reg00625_fd_gl_T</Name>
-          <Title>Temperatur auf Höhen über Grund in m aus ICON-EU</Title>
-          <Abstract>2m Temperatur auf diversen Höhen über Grund in m (2, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500) aus dem Modell ICON-EU mit einer räumlichen Auflösung von 0.0625° und einer stündlichen Auflösung, europaweite Abdeckung (ICON-EU Modellgebiet). Die Daten liegen für die Modellläufe 00, 06, 12, und 18 UTC für die Vorhersagezeitschritte vv+00 bis vv+120 vor.</Abstract>
-          <KeywordList>
-            <Keyword>Atmosphärische Bedingungen</Keyword>
-            <Keyword>Gitterpunkt (reguläres geographisches Gitter)</Keyword>
-            <Keyword>GRIB</Keyword>
-            <Keyword>Horizontale Auflösung von 0,0625 Grad</Keyword>
-            <Keyword>Luftfahrt</Keyword>
-            <Keyword>Lufttemperatur</Keyword>
-            <Keyword>Numerische Wettervorhersagen</Keyword>
-            <Keyword>Stündlich</Keyword>
-            <Keyword>Vorhersage</Keyword>
-            <Keyword>2 m über Grund</Keyword>
-          </KeywordList>
-          <SRS>EPSG:4326</SRS>
-          <LatLonBoundingBox minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
-          <BoundingBox SRS="EPSG:4326" minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
-          <BoundingBox SRS="EPSG:3044" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
-          <BoundingBox SRS="EPSG:3045" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
-          <BoundingBox SRS="EPSG:3413" minx="779093.1863974744" miny="-6718243.508860684" maxx="7207957.191830363" maxy="2174587.8484162525"/>
-          <BoundingBox SRS="EPSG:3857" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
-          <BoundingBox SRS="EPSG:4258" minx="-23.531250000000004" miny="29.46875002706887" maxx="62.53125" maxy="70.53125001102518"/>
-          <BoundingBox SRS="EPSG:4839" minx="-3392820.6676097265" miny="-2422300.4998297426" maxx="4939637.238415538" maxy="2927019.769141159"/>
-          <BoundingBox SRS="EPSG:25832" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
-          <BoundingBox SRS="EPSG:25833" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
-          <BoundingBox SRS="EPSG:31467" minx="258253.23182776803" miny="3266927.747122287" maxx="9050588.528165929" maxy="8676590.935194049"/>
-          <BoundingBox SRS="EPSG:31468" minx="941748.4305253257" miny="3280350.6572090904" maxx="9707699.124680042" maxy="8587505.99889916"/>
-          <BoundingBox SRS="EPSG:900913" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
-          <BoundingBox SRS="EPSG:1000001" minx="-3831.6308476171357" miny="-6911.66562490425" maxx="5505.348454951087" maxy="-1240.4818469455083"/>
-          <Dimension name="time" units="ISO8601"/>
-          <Dimension name="elevation" units="EPSG:5030" unitSymbol="m"/>
-          <Dimension name="REFERENCE_TIME" units="ISO8601"/>
-          <Extent name="time" default="current">2022-08-22T18:00:00.000Z/2022-08-29T00:00:00.000Z/PT1H</Extent>
-          <Extent name="elevation" default="2.0">2.0,50.0,100.0,150.0,200.0,250.0,300.0,350.0,400.0,450.0,500.0</Extent>
-          <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-22T18:00:00.000Z,2022-08-23T00:00:00.000Z,2022-08-23T06:00:00.000Z,2022-08-23T12:00:00.000Z,2022-08-23T18:00:00.000Z,2022-08-24T00:00:00.000Z</Extent>
-          <Style>
-            <Title>icon-eu_reg00625_fd_gl_t_isoarea_isa</Title>
-            <Name>icon-eu_reg00625_fd_gl_t_isoarea_isa</Name>
-            <LegendURL width="80" height="252">
-              <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T"/>
-            </LegendURL>
-          </Style>
-          <Style>
-            <Title>icon-eu_reg00625_fd_gl_t_isoarea_tkb</Title>
-            <Abstract>style for temperature 2m thematische bodenkarte, data in celsius, labeled in celsius</Abstract>
-            <Name>icon-eu_reg00625_fd_gl_t_isoarea_tkb</Name>
-            <LegendURL width="72" height="482">
-              <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T&amp;style=icon-eu_reg00625_fd_gl_t_isoarea_tkb"/>
-            </LegendURL>
-          </Style>
-        </Layer>
-        <Style>
-          <Name>default-style-dwd:WAM</Name>
-          <Title>dwd:WAM style</Title>
-          <Abstract>Default style for dwd:WAM layer</Abstract>
-          <LegendURL width="20" height="20">
-            <Format>image/png</Format>
-            <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWAM"/>
-          </LegendURL>
-        </Style>
-      </Layer>
       <Layer>
         <Name>Fachlayer</Name>
         <Title>Fachlayer</Title>
@@ -1235,7 +213,7 @@ Im numerischen Modell wird die zeitliche Entwicklung des Seegangsspektrums an ei
               <BoundingBox SRS="EPSG:900913" minx="556597.4539663679" miny="5942074.072431108" maxx="1781111.852692377" maxy="7420309.048083066"/>
               <BoundingBox SRS="EPSG:1000001" minx="-408.08746049386383" miny="-4682.10021404221" maxx="489.431376286091" maxy="-3693.3198317559136"/>
               <Dimension name="time" units="ISO8601"/>
-              <Extent name="time" default="current">2022-08-10T06:55:00.000Z/2022-08-24T06:55:00.000Z/PT5M</Extent>
+              <Extent name="time" default="current">2021-11-29T12:40:00.000Z/2021-12-13T12:40:00.000Z/PT5M</Extent>
               <Style>
                 <Title>AutoWARN Polygone</Title>
                 <Name>autowarn_analyse_types</Name>
@@ -1397,6 +375,106 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 </LegendURL>
               </Style>
             </Layer>
+            <Layer queryable="1" opaque="0">
+          <Name>dwd:Icon-eu_reg00625_fd_sl_QFF</Name>
+          <Title>QFF (Luftdruck Meeresspiegel) aus ICON-EU</Title>
+          <Abstract>QFF (Luftdruck auf Meeresspiegelniveau) aus dem Modell ICON-EU mit einer räumlichen Auflösung von 0.0625° und einer stündlichen Auflösung, europaweite Abdeckung (ICON-EU Modellgebiet). Die Daten liegen für die Modellläufe 00, 06, 12, und 18 UTC für die Vorhersagezeitschritte vv+00 bis vv+120 vor.</Abstract>
+          <KeywordList>
+            <Keyword>Atmosphärische Bedingungen</Keyword>
+            <Keyword>Bodenluftdruck auf NN reduziert</Keyword>
+            <Keyword>Gitterpunkt (reguläres geographisches Gitter)</Keyword>
+            <Keyword>GRIB</Keyword>
+            <Keyword>Horizontale Auflösung von 0,0625 Grad</Keyword>
+            <Keyword>Luftdruck</Keyword>
+            <Keyword>Luftfahrt</Keyword>
+            <Keyword>Numerische Wettervorhersagen</Keyword>
+            <Keyword>QFF</Keyword>
+            <Keyword>Stündlich</Keyword>
+            <Keyword>Vorhersage</Keyword>
+          </KeywordList>
+          <SRS>EPSG:4326</SRS>
+          <LatLonBoundingBox minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
+          <BoundingBox SRS="EPSG:4326" minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
+          <BoundingBox SRS="EPSG:3044" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
+          <BoundingBox SRS="EPSG:3045" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
+          <BoundingBox SRS="EPSG:3413" minx="779093.1863974744" miny="-6718243.508860684" maxx="7207957.191830363" maxy="2174587.8484162525"/>
+          <BoundingBox SRS="EPSG:3857" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
+          <BoundingBox SRS="EPSG:4258" minx="-23.531250000000004" miny="29.46875002706887" maxx="62.53125" maxy="70.53125001102518"/>
+          <BoundingBox SRS="EPSG:4839" minx="-3392820.6676097265" miny="-2422300.4998297426" maxx="4939637.238415538" maxy="2927019.769141159"/>
+          <BoundingBox SRS="EPSG:25832" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
+          <BoundingBox SRS="EPSG:25833" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
+          <BoundingBox SRS="EPSG:31467" minx="258253.23182776803" miny="3266927.747122287" maxx="9050588.528165929" maxy="8676590.935194049"/>
+          <BoundingBox SRS="EPSG:31468" minx="941748.4305253257" miny="3280350.6572090904" maxx="9707699.124680042" maxy="8587505.99889916"/>
+          <BoundingBox SRS="EPSG:900913" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
+          <BoundingBox SRS="EPSG:1000001" minx="-3831.6308476171357" miny="-6911.66562490425" maxx="5505.348454951087" maxy="-1240.4818469455083"/>
+          <Dimension name="time" units="ISO8601"/>
+          <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+          <Extent name="time" default="current">2022-08-22T18:00:00.000Z/2022-08-29T00:00:00.000Z/PT1H</Extent>
+          <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-22T18:00:00.000Z,2022-08-23T00:00:00.000Z,2022-08-23T06:00:00.000Z,2022-08-23T12:00:00.000Z,2022-08-23T18:00:00.000Z,2022-08-24T00:00:00.000Z</Extent>
+          <Style>
+            <Title>icon-eu_reg00625_fd_sl_qff_isolines</Title>
+            <Name>icon-eu_reg00625_fd_sl_qff_isolines</Name>
+            <LegendURL width="216" height="60">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_sl_QFF"/>
+            </LegendURL>
+          </Style>
+        </Layer>
+        <Layer queryable="1" opaque="0">
+          <Name>dwd:Icon-eu_reg00625_fd_gl_T</Name>
+          <Title>Temperatur auf Höhen über Grund in m aus ICON-EU</Title>
+          <Abstract>2m Temperatur auf diversen Höhen über Grund in m (2, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500) aus dem Modell ICON-EU mit einer räumlichen Auflösung von 0.0625° und einer stündlichen Auflösung, europaweite Abdeckung (ICON-EU Modellgebiet). Die Daten liegen für die Modellläufe 00, 06, 12, und 18 UTC für die Vorhersagezeitschritte vv+00 bis vv+120 vor.</Abstract>
+          <KeywordList>
+            <Keyword>Atmosphärische Bedingungen</Keyword>
+            <Keyword>Gitterpunkt (reguläres geographisches Gitter)</Keyword>
+            <Keyword>GRIB</Keyword>
+            <Keyword>Horizontale Auflösung von 0,0625 Grad</Keyword>
+            <Keyword>Luftfahrt</Keyword>
+            <Keyword>Lufttemperatur</Keyword>
+            <Keyword>Numerische Wettervorhersagen</Keyword>
+            <Keyword>Stündlich</Keyword>
+            <Keyword>Vorhersage</Keyword>
+            <Keyword>2 m über Grund</Keyword>
+          </KeywordList>
+          <SRS>EPSG:4326</SRS>
+          <LatLonBoundingBox minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
+          <BoundingBox SRS="EPSG:4326" minx="-23.53125" miny="29.46875" maxx="62.53125" maxy="70.53125"/>
+          <BoundingBox SRS="EPSG:3044" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
+          <BoundingBox SRS="EPSG:3045" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
+          <BoundingBox SRS="EPSG:3413" minx="779093.1863974744" miny="-6718243.508860684" maxx="7207957.191830363" maxy="2174587.8484162525"/>
+          <BoundingBox SRS="EPSG:3857" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
+          <BoundingBox SRS="EPSG:4258" minx="-23.531250000000004" miny="29.46875002706887" maxx="62.53125" maxy="70.53125001102518"/>
+          <BoundingBox SRS="EPSG:4839" minx="-3392820.6676097265" miny="-2422300.4998297426" maxx="4939637.238415538" maxy="2927019.769141159"/>
+          <BoundingBox SRS="EPSG:25832" minx="-2740515.1170287323" miny="3266078.9469760163" maxx="6048133.679837126" maxy="8673533.26065045"/>
+          <BoundingBox SRS="EPSG:25833" minx="-3377622.6790049206" miny="3268365.398154352" maxx="5366733.112610812" maxy="8499703.828101395"/>
+          <BoundingBox SRS="EPSG:31467" minx="258253.23182776803" miny="3266927.747122287" maxx="9050588.528165929" maxy="8676590.935194049"/>
+          <BoundingBox SRS="EPSG:31468" minx="941748.4305253257" miny="3280350.6572090904" maxx="9707699.124680042" maxy="8587505.99889916"/>
+          <BoundingBox SRS="EPSG:900913" minx="-2619486.7677292186" miny="3435443.766284772" maxx="6960946.908666887" maxy="1.1243868112024302E7"/>
+          <BoundingBox SRS="EPSG:1000001" minx="-3831.6308476171357" miny="-6911.66562490425" maxx="5505.348454951087" maxy="-1240.4818469455083"/>
+          <Dimension name="time" units="ISO8601"/>
+          <Dimension name="elevation" units="EPSG:5030" unitSymbol="m"/>
+          <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+          <Extent name="time" default="current">2022-08-22T18:00:00.000Z/2022-08-29T00:00:00.000Z/PT1H</Extent>
+          <Extent name="elevation" default="2.0">2.0,50.0,100.0,150.0,200.0,250.0,300.0,350.0,400.0,450.0,500.0</Extent>
+          <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-22T18:00:00.000Z,2022-08-23T00:00:00.000Z,2022-08-23T06:00:00.000Z,2022-08-23T12:00:00.000Z,2022-08-23T18:00:00.000Z,2022-08-24T00:00:00.000Z</Extent>
+          <Style>
+            <Title>icon-eu_reg00625_fd_gl_t_isoarea_isa</Title>
+            <Name>icon-eu_reg00625_fd_gl_t_isoarea_isa</Name>
+            <LegendURL width="80" height="252">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T"/>
+            </LegendURL>
+          </Style>
+          <Style>
+            <Title>icon-eu_reg00625_fd_gl_t_isoarea_tkb</Title>
+            <Abstract>style for temperature 2m thematische bodenkarte, data in celsius, labeled in celsius</Abstract>
+            <Name>icon-eu_reg00625_fd_gl_t_isoarea_tkb</Name>
+            <LegendURL width="72" height="482">
+              <Format>image/png</Format>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T&amp;style=icon-eu_reg00625_fd_gl_t_isoarea_tkb"/>
+            </LegendURL>
+          </Style>
+        </Layer>
             <Layer queryable="1" opaque="0">
               <Name>dwd:Pollenflug</Name>
               <Title>Pollenflug-Gefahrenindex</Title>
@@ -1988,6 +1066,792 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
           <Layer>
             <Name>Mittelfristvorhersagen</Name>
             <Title>Mittelfristvorhersagen</Title>
+                      <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_DD10M</Name>
+            <Title>Windrichtung 10m aus CWAM</Title>
+            <Abstract>Windrichtung 10m aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>CWAM_REG025_FD_SL_DD10M</Keyword>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Windrichtung</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
+              <Name>cwam_reg025_fd_sl_dd10m_epsg4326</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M"/>
+              </LegendURL>
+            </Style>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
+              <Name>cwam_reg025_fd_sl_dd10m_epsg25832</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M&amp;style=cwam_reg025_fd_sl_dd10m_epsg25832"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_MDTS</Name>
+            <Title>Mittlere Ausbreitungsrichtung (Dünung) aus CWAM</Title>
+            <Abstract>Mittlere Ausbreitungsrichtung (Dünung) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
+              <Name>cwam_reg025_fd_sl_mdts_epsg4326</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS"/>
+              </LegendURL>
+            </Style>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
+              <Name>cwam_reg025_fd_sl_mdts_epsg25832</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS&amp;style=cwam_reg025_fd_sl_mdts_epsg25832"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_MDWW</Name>
+            <Title>Mittlere Ausbreitungsrichtung (Windsee) aus CWAM</Title>
+            <Abstract>Mittlere Ausbreitungsrichtung (Windsee) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
+              <Name>cwam_reg025_fd_sl_mdww_epsg4326</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW"/>
+              </LegendURL>
+            </Style>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
+              <Name>cwam_reg025_fd_sl_mdww_epsg25832</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW&amp;style=cwam_reg025_fd_sl_mdww_epsg25832"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_PPTS</Name>
+            <Title>Peak Periode (Dünung) aus CWAM</Title>
+            <Abstract>Peak Periode (Dünung) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>peak periode in s</Title>
+              <Abstract>A sample style for rasters</Abstract>
+              <Name>cwam_reg025_fd_sl_ppts</Name>
+              <LegendURL width="94" height="137">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPTS"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_PPWW</Name>
+            <Title>Peak Periode (Windsee) aus CWAM</Title>
+            <Abstract>Peak Periode (Windsee) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>peak periode in s</Title>
+              <Abstract>A sample style for rasters</Abstract>
+              <Name>cwam_reg025_fd_sl_ppww</Name>
+              <LegendURL width="94" height="137">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPWW"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_SHTS</Name>
+            <Title>Signifikante Wellenhöhe (Dünung) aus CWAM</Title>
+            <Abstract>Signifikante Wellenhöhe (Dünung) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Wellenhöhe der Dünung</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Wellenhöhe</Title>
+              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
+              <Name>cwam_reg025_fd_sl_shts</Name>
+              <LegendURL width="91" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHTS"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_SHWW</Name>
+            <Title>Signifikante Wellenhöhe (Windsee) aus CWAM</Title>
+            <Abstract>Signifikante Wellenhöhe (Windsee) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Wellenhöhe der Windsee</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Wellenhöhe</Title>
+              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
+              <Name>cwam_reg025_fd_sl_shww</Name>
+              <LegendURL width="91" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHWW"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_SP10M</Name>
+            <Title>Windgeschwindigkeit 10m aus CWAM</Title>
+            <Abstract>Windgeschwindigkeit 10m aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Windgeschwindigkeit</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windgeschwindigkeit 10m in m/s </Title>
+              <Abstract>A sample style for rasters</Abstract>
+              <Name>cwam_reg025_fd_sl_sp10m</Name>
+              <LegendURL width="80" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SP10M"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Cwam_reg025_fd_sl_SWH</Name>
+            <Title>Signifikante Wellenhöhe (totaler Seegang) aus CWAM</Title>
+            <Abstract>Signifikante Wellenhöhe (totaler Seegang) aus dem Seegangsmodell CWAM,  Abdeckung der deutschen Küsten (56°26‘45‘‘–53°13‘45‘‘, 006°10‘25‘‘–014°54‘35‘‘), horizontale Auflösung von 30‘‘ x 50‘‘(~900m), Windantrieb durch ICON-EU und Randsteuerung durch EWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Wellenhöhe der Windsee</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:4326" minx="6.16666672036456" miny="53.2250012709069" maxx="14.9166658182402" maxy="56.4500017808509"/>
+            <BoundingBox SRS="EPSG:3044" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:3045" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:3413" minx="2911585.093561262" miny="-2584011.9763960266" maxx="3565765.3272067625" maxy="-1873566.7113266487"/>
+            <BoundingBox SRS="EPSG:3857" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:4258" minx="6.166666720364559" miny="53.2250013088032" maxx="14.916665818240205" maxy="56.45000181451487"/>
+            <BoundingBox SRS="EPSG:4839" minx="-289155.8952448844" miny="247388.45634221195" maxx="294709.90656310774" maxy="615059.779760514"/>
+            <BoundingBox SRS="EPSG:25832" minx="310865.7230412029" miny="5897303.78478538" maxx="894802.975063928" maxy="6271870.860939699"/>
+            <BoundingBox SRS="EPSG:25833" minx="-89053.69210756943" miny="5897303.784870579" maxx="494863.18268175604" maxy="6291203.411590728"/>
+            <BoundingBox SRS="EPSG:31467" minx="3310859.8267770493" miny="5899223.995633376" maxx="3895032.9363162722" maxy="6273946.548839101"/>
+            <BoundingBox SRS="EPSG:31468" minx="4110697.6530656856" miny="5899219.25666479" maxx="4694877.141608804" maxy="6273496.973600684"/>
+            <BoundingBox SRS="EPSG:900913" minx="686470.1992028091" miny="7024725.997014331" maxx="1660515.6432199285" maxy="7648524.854084692"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-264.16067353507754" miny="-3951.107568935522" maxx="338.65164253794774" maxy="-3569.9499385080735"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Wellenhöhe</Title>
+              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
+              <Name>cwam_reg025_fd_sl_swh</Name>
+              <LegendURL width="81" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SWH"/>
+              </LegendURL>
+            </Style>
+                    <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_DD10M</Name>
+            <Title>Windrichtung 10m aus EWAM</Title>
+            <Abstract>Windrichtung 10m aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Windrichtung</Keyword>
+              <Keyword>Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
+              <Name>ewam_reg025_fd_sl_dd10m_epsg4326</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M"/>
+              </LegendURL>
+            </Style>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
+              <Name>ewam_reg025_fd_sl_dd10m_epsg25832</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M&amp;style=ewam_reg025_fd_sl_dd10m_epsg25832"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_MDTS</Name>
+            <Title>Mittlere Ausbreitungsrichtung (Dünung) aus EWAM</Title>
+            <Abstract>Mittlere Ausbreitungsrichtung (Dünung) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
+              <Name>ewam_reg025_fd_sl_mdts_epsg4326</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS"/>
+              </LegendURL>
+            </Style>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
+              <Name>ewam_reg025_fd_sl_mdts_epsg25832</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS&amp;style=ewam_reg025_fd_sl_mdts_epsg25832"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_MDWW</Name>
+            <Title>Mittlere Ausbreitungsrichtung (Windsee) aus EWAM</Title>
+            <Abstract>Mittlere Ausbreitungsrichtung (Windsee) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>ImageMosaic</Keyword>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
+              <Name>ewam_reg025_fd_sl_mdww_epsg4326</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW"/>
+              </LegendURL>
+            </Style>
+            <Style>
+              <Title>Windrichtung</Title>
+              <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
+              <Name>ewam_reg025_fd_sl_mdww_epsg25832</Name>
+              <LegendURL width="20" height="20">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW&amp;style=ewam_reg025_fd_sl_mdww_epsg25832"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_PPTS</Name>
+            <Title>Peak Periode (Dünung) aus EWAM</Title>
+            <Abstract>Peak Periode (Dünung) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Wellenhöhe der Dünung</Keyword>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>peak periode in s</Title>
+              <Abstract>A sample style for rasters</Abstract>
+              <Name>ewam_reg025_fd_sl_ppts</Name>
+              <LegendURL width="94" height="137">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPTS"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_PPWW</Name>
+            <Title>Peak Periode (Windsee) aus EWAM</Title>
+            <Abstract>Peak Periode (Windsee) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>peak periode in s</Title>
+              <Abstract>A sample style for rasters</Abstract>
+              <Name>ewam_reg025_fd_sl_ppww</Name>
+              <LegendURL width="94" height="137">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPWW"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_SHTS</Name>
+            <Title>Signifikante Wellenhöhe (Dünung) aus EWAM</Title>
+            <Abstract>Signifikante Wellenhöhe (Dünung) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Wellenhöhe der Dünung</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Wellenhöhe</Title>
+              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
+              <Name>ewam_reg025_fd_sl_shts</Name>
+              <LegendURL width="91" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHTS"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_SHWW</Name>
+            <Title>Signifikante Wellenhöhe (Windsee) aus EWAM</Title>
+            <Abstract>Signifikante Wellenhöhe (Windsee) aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Wellenhöhe der Windsee</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/P1D</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Wellenhöhe</Title>
+              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
+              <Name>ewam_reg025_fd_sl_shww</Name>
+              <LegendURL width="91" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHWW"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_SP10M</Name>
+            <Title>Windgeschwindigkeit 10m aus EWAM</Title>
+            <Abstract>Windgeschwindigkeit 10m aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Windgeschwindigkeit</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Windgeschwindigkeit 10m in m/s </Title>
+              <Abstract>A sample style for rasters</Abstract>
+              <Name>ewam_reg025_fd_sl_sp10m</Name>
+              <LegendURL width="80" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SP10M"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          <Layer queryable="1" opaque="0">
+            <Name>dwd:Ewam_reg025_fd_sl_SWH</Name>
+            <Title>Signifikane Wellenöhe (totaler Seegang) aus EWAM</Title>
+            <Abstract>Signifikane Wellenöhe (totaler Seegang aus dem Seegangsmodell EWAM, europäische Abdeckung (66.00°N -30.00°N  10.50°W -42.00°E), horizontale Auflösung von 0.05°x0.1° (~5km), Windantrieb durch ICON-EU und Randsteuerung durch GWAM, stündliche Vorhersage (wobei hier nur vv+00,24,48,72)</Abstract>
+            <KeywordList>
+              <Keyword>Atmosphärische Bedingungen</Keyword>
+              <Keyword>Meteorologie</Keyword>
+              <Keyword>Schifffahrt</Keyword>
+              <Keyword>Seemeteorologie</Keyword>
+              <Keyword>Synoptische Meteorologie</Keyword>
+              <Keyword>Wellenhöhe der Windsee</Keyword>
+            </KeywordList>
+            <SRS>EPSG:4326</SRS>
+            <LatLonBoundingBox minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:4326" minx="-10.55" miny="29.975" maxx="42.05" maxy="66.025"/>
+            <BoundingBox SRS="EPSG:3044" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:3045" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:3413" minx="1490125.0335378672" miny="-5893079.03330956" maxx="7136946.176338203" maxy="-135567.04331536716"/>
+            <BoundingBox SRS="EPSG:3857" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:4258" minx="-10.550000000000002" miny="29.975000027914156" maxx="42.05" maxy="66.02500001789993"/>
+            <BoundingBox SRS="EPSG:4839" minx="-2129011.507875035" miny="-2374033.139868125" maxx="3136640.0527071524" maxy="2006664.409639273"/>
+            <BoundingBox SRS="EPSG:25832" minx="-1404361.6221232351" miny="3317726.419973536" maxx="3775335.599513364" maxy="7716838.838395635"/>
+            <BoundingBox SRS="EPSG:25833" minx="-2005532.1439969381" miny="3316251.7688317965" maxx="3157734.7439827546" maxy="7586995.470749111"/>
+            <BoundingBox SRS="EPSG:31467" minx="1594959.1426204005" miny="3318597.5165975043" maxx="6776782.669890467" maxy="7719512.688274907"/>
+            <BoundingBox SRS="EPSG:31468" minx="2295728.7370645166" miny="3322813.25417672" maxx="7466054.531676538" maxy="7651367.791400642"/>
+            <BoundingBox SRS="EPSG:900913" minx="-1174420.6278690363" miny="3500336.731204786" maxx="4680984.587857153" maxy="9883691.484916544"/>
+            <BoundingBox SRS="EPSG:1000001" minx="-2410.2133158696956" miny="-6856.707692510958" maxx="3643.6235808247" maxy="-2139.200719019195"/>
+            <Dimension name="time" units="ISO8601"/>
+            <Dimension name="REFERENCE_TIME" units="ISO8601"/>
+            <Extent name="time" default="current">2022-08-24T00:00:00.000Z/2022-08-27T00:00:00.000Z/PT1H</Extent>
+            <Extent name="REFERENCE_TIME" default="2022-08-24T00:00:00.000Z">2022-08-24T00:00:00.000Z</Extent>
+            <Style>
+              <Title>Wellenhöhe</Title>
+              <Abstract>style for wind waves and sewll isoflaechen</Abstract>
+              <Name>ewam_reg025_fd_sl_swh</Name>
+              <LegendURL width="81" height="252">
+                <Format>image/png</Format>
+                <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/wms?request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SWH"/>
+              </LegendURL>
+            </Style>
+          </Layer>
+          </Layer>
             <Layer queryable="1" opaque="0">
               <Name>dwd:GefuehlteTemp</Name>
               <Title>Gefühlte Temperatur</Title>

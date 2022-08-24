@@ -104,29 +104,19 @@ class OGCServiceMixin:
     which implements functionality for global usage."""
     _operation_urls: CallbackList = None
 
-    def _update_or_create_operation_url_xml_node(self, operation_url: OperationUrl) -> None:
-        match operation_url.operation:
-            case "GetCapabilities":
-                new_mime_types = filter(
-                    lambda mime_type: mime_type not in self._get_capabilitites_mime_types, operation_url.mime_types)
-                self._get_capabilitites_mime_types.extend(new_mime_types)
-                if operation_url.method == "Get":
-                    self._get_capabilitites_get_url = operation_url.url
-                elif operation_url.method == "Post":
-                    self._get_capabilitites_post_url = operation_url.url
-            case _:
-                raise ValueError(
-                    f"unsuported operation: {operation_url.operation}")
-
-    def _remove_operation_url_xml_node(self, operation_url: OperationUrl) -> None:
+    def _update_operation_url_xml_node(self, operation_url: OperationUrl, remove: bool = False) -> None:
         match operation_url.operation:
             case "GetCapabilities":
                 if operation_url.method == "Get":
-                    self._get_capabilitites_get_url = None
+                    self._get_capabilitites_get_url = None if remove else operation_url.url
                 elif operation_url.method == "Post":
-                    self._get_capabilitites_post_url = None
-                if not self._operation_has_get_and_post(operation_url):
+                    self._get_capabilitites_post_url = None if remove else operation_url.url
+                if remove and not self._operation_has_get_and_post(operation_url):
                     self._get_capabilitites_mime_types = []
+                elif not remove:
+                    new_mime_types = filter(
+                        lambda mime_type: mime_type not in self._get_capabilitites_mime_types, operation_url.mime_types)
+                    self._get_capabilitites_mime_types.extend(new_mime_types)
             case _:
                 raise ValueError(
                     f"unsuported operation: {operation_url.operation}")
@@ -137,19 +127,19 @@ class OGCServiceMixin:
         if isinstance(items, Iterable):
             for item in items:
                 if not item._callback:
-                    item._callback = self._update_or_create_operation_url_xml_node
+                    item._callback = self._update_operation_url_xml_node
         else:
             if items and not items._callback:
-                items._callback = self._update_or_create_operation_url_xml_node
+                items._callback = self._update_operation_url_xml_node
 
         match list_operation:
             case "append" | "insert":
-                self._update_or_create_operation_url_xml_node(items)
+                self._update_operation_url_xml_node(items)
             case "extend":
-                [self._update_or_create_operation_url_xml_node(
+                [self._update_operation_url_xml_node(
                     item) for item in items]
             case "pop" | "remove":
-                self._remove_operation_url_xml_node(items)
+                self._update_operation_url_xml_node(items, True)
             case "clear":
                 self._clear_all_operation_urls()
 
@@ -171,7 +161,7 @@ class OGCServiceMixin:
                     operation="GetCapabilities",
                     mime_types=self._get_capabilitites_mime_types,
                     url=self._get_capabilitites_get_url,
-                    callback=self._update_or_create_operation_url_xml_node)
+                    callback=self._update_operation_url_xml_node)
             )
         if self._get_capabilitites_post_url:
             _operation_urls.append(
@@ -180,7 +170,7 @@ class OGCServiceMixin:
                     operation="GetCapabilities",
                     mime_types=self._get_capabilitites_mime_types,
                     url=self._get_capabilitites_post_url,
-                    callback=self._update_or_create_operation_url_xml_node)
+                    callback=self._update_operation_url_xml_node)
             )
         return _operation_urls
 

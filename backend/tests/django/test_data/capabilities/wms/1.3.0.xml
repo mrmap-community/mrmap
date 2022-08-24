@@ -95,6 +95,39 @@
           </HTTP>
         </DCPType>
       </GetFeatureInfo>
+      <DescribeLayer>
+        <Format>application/vnd.ogc.wms_xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </DescribeLayer>
+      <GetLegendGraphic>
+        <Format>image/png</Format>
+        <Format>image/jpeg</Format>
+        <Format>application/json</Format>
+        <Format>image/gif</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetLegendGraphic>
+      <GetStyles>
+        <Format>application/vnd.ogc.sld+xml</Format>
+        <DCPType>
+          <HTTP>
+            <Get>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+            </Get>
+          </HTTP>
+        </DCPType>
+      </GetStyles>
     </Request>
     <Exception>
       <Format>XML</Format>

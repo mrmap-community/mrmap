@@ -94,13 +94,14 @@ class Style(WebMapServiceDefaultSettings):
 
 
 class LayerMetadata(WebMapServiceDefaultSettings):
+    ROOT_NAME = "Layer"
+
     title = StringField(xpath="./Title")
     abstract = StringField(xpath="./Abstract")
     keywords = StringListField(xpath="./KeywordList/Keyword")
 
 
 class Layer(WebMapServiceDefaultSettings, LayerMixin):
-
     ROOT_NAME = "Layer"
 
     scale_min = FloatField(xpath="./ScaleHint/@min")

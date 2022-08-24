@@ -1,9 +1,9 @@
 from eulxml.xmlmap import (FloatField, IntegerField, NodeField, NodeListField,
                            SimpleBooleanField, StringField, StringListField,
                            XmlObject)
-from ows_lib.xml_mapper.capabilities.mixins import OGCServiceTypeMixin
+from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceTypeMixin,
+                                                    ReferenceSystemMixin)
 from ows_lib.xml_mapper.capabilities.wms.mixins import (LayerMixin,
-                                                        ReferenceSystemMixin,
                                                         TimeDimensionMixin,
                                                         WebMapServiceMixin)
 from ows_lib.xml_mapper.mixins import DBModelConverterMixin
@@ -22,34 +22,34 @@ class ServiceMetadataContact(WebMapServiceDefaultSettings):
     ROOT_NAME = "wms:ContactInformation"
 
     name = StringField(
-        xpath="wms:ContactPersonPrimary/wms:ContactOrganization")
+        xpath="./wms:ContactPersonPrimary/wms:ContactOrganization")
     person_name = StringField(
-        xpath="wms:ContactPersonPrimary/wms:ContactPerson")
-    phone = StringField(xpath="wms:ContactVoiceTelephone")
-    facsimile = StringField(xpath="wms:ContactFacsimileTelephone")
-    email = StringField(xpath="wms:ContactElectronicMailAddress")
-    country = StringField(xpath="wms:ContactAddress/wms:Country")
-    postal_code = StringField(xpath="wms:ContactAddress/wms:PostCode")
-    city = StringField(xpath="wms:ContactAddress/wms:City")
+        xpath="./wms:ContactPersonPrimary/wms:ContactPerson")
+    phone = StringField(xpath="./wms:ContactVoiceTelephone")
+    facsimile = StringField(xpath="./wms:ContactFacsimileTelephone")
+    email = StringField(xpath="./wms:ContactElectronicMailAddress")
+    country = StringField(xpath="./wms:ContactAddress/wms:Country")
+    postal_code = StringField(xpath="./wms:ContactAddress/wms:PostCode")
+    city = StringField(xpath="./wms:ContactAddress/wms:City")
     state_or_province = StringField(
-        xpath="wms:ContactAddress/wms:StateOrProvince")
-    address = StringField(xpath="wms:ContactAddress/wms:Address")
+        xpath="./wms:ContactAddress/wms:StateOrProvince")
+    address = StringField(xpath="./wms:ContactAddress/wms:Address")
 
 
 class ServiceMetadata(WebMapServiceDefaultSettings):
     ROOT_NAME = "wms:Service"
 
-    title = StringField(xpath="wms:Title")
-    abstract = StringField(xpath="wms:Abstract")
-    fees = StringField(xpath="wms:Fees")
-    access_constraints = StringField(xpath="wms:AccessConstraints")
+    title = StringField(xpath="./wms:Title")
+    abstract = StringField(xpath="./wms:Abstract")
+    fees = StringField(xpath="./wms:Fees")
+    access_constraints = StringField(xpath="./wms:AccessConstraints")
 
     # ForeignKey
-    service_contact = NodeField(xpath="wms:ContactInformation",
+    service_contact = NodeField(xpath="./wms:ContactInformation",
                                 node_class=ServiceMetadataContact)
 
     # ManyToManyField
-    keywords = StringListField(xpath="wms:KeywordList/wms:Keyword")
+    keywords = StringListField(xpath="./wms:KeywordList/wms:Keyword")
 
 
 class ServiceType(WebMapServiceDefaultSettings, OGCServiceTypeMixin):
@@ -96,13 +96,14 @@ class Style(WebMapServiceDefaultSettings):
 
 
 class LayerMetadata(WebMapServiceDefaultSettings):
+    ROOT_NAME = "wms:Layer"
+
     title = StringField(xpath="./wms:Title")
     abstract = StringField(xpath="./wms:Abstract")
     keywords = StringListField(xpath="./wms:KeywordList/wms:Keyword")
 
 
 class Layer(WebMapServiceDefaultSettings, LayerMixin):
-
     ROOT_NAME = "wms:Layer"
 
     scale_min = FloatField(xpath="./wms:MinScaleDenominator")
@@ -153,11 +154,11 @@ class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.
     # With that technique the usage of this mapper is easier and matches the db model
-    _get_capabilitites_mime_types = StringListField(
+    _get_capabilities_mime_types = StringListField(
         xpath="./wms:Capability/wms:Request/wms:GetCapabilities/wms:Format")
-    _get_capabilitites_get_url = StringField(
+    _get_capabilities_get_url = StringField(
         xpath="./wms:Capability/wms:Request/wms:GetCapabilities/wms:DCPType/wms:HTTP/wms:Get/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
-    _get_capabilitites_post_url = StringField(
+    _get_capabilities_post_url = StringField(
         xpath="./wms:Capability/wms:Request/wms:GetCapabilities/wms:DCPType/wms:HTTP/wms:Post/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
 
     _get_map_mime_types = StringListField(

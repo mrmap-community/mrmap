@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from typing import Callable, Iterable, List
 from urllib import parse
 
+from extras.utils import camel_to_snake
 from ows_lib.xml_mapper.mixins import CallbackList
 from registry.xmlmapper.exceptions import SemanticError
 
@@ -61,6 +62,54 @@ class OperationUrl:
             self._callback(self)
 
 
+class ReferenceSystemMixin:
+
+    _code = None
+    _prefix = None
+
+    def __str__(self) -> str:
+        return self._ref_system
+
+    @property
+    def _ref_system(self):
+        raise NotImplementedError
+
+    def _extract_ref_system(self) -> None:
+        if "::" in self._ref_system:
+            # example: ref_system = urn:ogc:def:crs:EPSG::4326
+            code = self._ref_system.rsplit(":")[-1]
+            prefix = self._ref_system.rsplit(":")[-3]
+        elif ":" in self._ref_system:
+            # example: ref_system = EPSG:4326
+            code = self._ref_system.rsplit(":")[-1]
+            prefix = self._ref_system.rsplit(":")[-2]
+        else:
+            raise SemanticError("reference system unknown")
+
+        self._code = code
+        self._prefix = prefix
+
+    @property
+    def code(self) -> str:
+        if not self._code:
+            self._extract_ref_system()
+        return self._code
+
+    @code.setter
+    def code(self, new_code) -> None:
+        self._ref_system = f"{self._prefix}:{new_code}"
+
+    @property
+    def prefix(self) -> str:
+        if not self._prefix:
+            self._extract_ref_system()
+        return self._prefix
+
+    @prefix.setter
+    def prefix(self, new_prefix) -> None:
+        self._ref_system = f"{new_prefix}:{self._code}"
+
+
 class OGCServiceTypeMixin:
 
     @property
@@ -104,22 +153,71 @@ class OGCServiceMixin:
     which implements functionality for global usage."""
     _operation_urls: CallbackList = None
 
+    @property
+    def _possible_operations(self):
+        raise NotImplementedError
+
+    @property
+    def operation_urls(self) -> List[OperationUrl]:
+        """Custom getter to merge all operation urls as plane OperationUrl object."""
+        if not self._operation_urls:
+            _operation_urls = []
+
+            for possible_operation in self._possible_operations:
+                mime_types_attr_name = f"_{camel_to_snake(possible_operation)}_mime_types"
+                mime_types = getattr(self, mime_types_attr_name)
+
+                get_url_attr_name = f"_{camel_to_snake(possible_operation)}_get_url"
+                get_url = getattr(self, get_url_attr_name)
+
+                post_url_attr_name = f"_{camel_to_snake(possible_operation)}_post_url"
+                post_url = getattr(self, post_url_attr_name)
+
+                if get_url:
+                    _operation_urls.append(
+                        OperationUrl(
+                            method="Get",
+                            operation=possible_operation,
+                            mime_types=mime_types,
+                            url=get_url,
+                            callback=self._update_operation_url_xml_node)
+                    )
+                if post_url:
+                    _operation_urls.append(
+                        OperationUrl(
+                            method="Post",
+                            operation=possible_operation,
+                            mime_types=mime_types,
+                            url=post_url,
+                            callback=self._update_operation_url_xml_node)
+                    )
+
+            self._operation_urls = CallbackList(
+                _operation_urls, callback=self._handle_operation_urls_list_operation)
+
+        return self._operation_urls
+
+    def _update_operation_url_xml_node_by_name(self, operation_url: OperationUrl, remove: bool = False):
+        # find url attribute and update it
+        url_attr_name = f"_{camel_to_snake(operation_url.operation)}_{operation_url.method.lower()}_url"
+        setattr(self, url_attr_name, None if remove else operation_url.url)
+
+        # find mime_types list attribute and update it
+        mime_types_attr_name = f"_{camel_to_snake(operation_url.operation)}_mime_types"
+        if remove and not self._operation_has_get_and_post(operation_url):
+            setattr(self, mime_types_attr_name, [])
+        elif not remove:
+            mime_types = getattr(self, mime_types_attr_name)
+            new_mime_types = filter(
+                lambda mime_type: mime_type not in getattr(self, mime_types_attr_name), operation_url.mime_types)
+            mime_types.extend(new_mime_types)
+
     def _update_operation_url_xml_node(self, operation_url: OperationUrl, remove: bool = False) -> None:
-        match operation_url.operation:
-            case "GetCapabilities":
-                if operation_url.method == "Get":
-                    self._get_capabilitites_get_url = None if remove else operation_url.url
-                elif operation_url.method == "Post":
-                    self._get_capabilitites_post_url = None if remove else operation_url.url
-                if remove and not self._operation_has_get_and_post(operation_url):
-                    self._get_capabilitites_mime_types = []
-                elif not remove:
-                    new_mime_types = filter(
-                        lambda mime_type: mime_type not in self._get_capabilitites_mime_types, operation_url.mime_types)
-                    self._get_capabilitites_mime_types.extend(new_mime_types)
-            case _:
-                raise ValueError(
-                    f"unsuported operation: {operation_url.operation}")
+        if operation_url.operation in self._possible_operations:
+            self._update_operation_url_xml_node_by_name(
+                operation_url, remove)
+        raise ValueError(
+            f"unsuported operation: {operation_url.operation}")
 
     def _handle_operation_urls_list_operation(self, list_operation, items: OperationUrl = None) -> None:
         """Custom setter to set/append new operation urls. The XML will be build implicitly by using this setter."""
@@ -144,35 +242,18 @@ class OGCServiceMixin:
                 self._clear_all_operation_urls()
 
     def _clear_all_operation_urls(self) -> None:
-        self._get_capabilitites_mime_types = []
-        self._get_capabilitites_get_url = None
-        self._get_capabilitites_post_url = None
+        for possible_operation in self._possible_operations:
+            get_url_attr_name = f"{camel_to_snake(possible_operation)}_get_url"
+            setattr(self, get_url_attr_name, None)
+
+            post_url_attr_name = f"{camel_to_snake(possible_operation)}_post_url"
+            setattr(self, post_url_attr_name, None)
+
+            mime_types_attr_name = f"{camel_to_snake(possible_operation)}_mime_types"
+            setattr(self, mime_types_attr_name, [])
 
     def _operation_has_get_and_post(self, operation_url: OperationUrl) -> bool:
         return self.get_operation_url_by_name_and_method(name=operation_url.operation, method="Get") and self.get_operation_url_by_name_and_method(name=operation_url.operation, method="Post")
-
-    @property
-    def _get_capabilities_operation_urls(self) -> List[OperationUrl]:
-        _operation_urls: List[OperationUrl] = []
-        if self._get_capabilitites_get_url:
-            _operation_urls.append(
-                OperationUrl(
-                    method="Get",
-                    operation="GetCapabilities",
-                    mime_types=self._get_capabilitites_mime_types,
-                    url=self._get_capabilitites_get_url,
-                    callback=self._update_operation_url_xml_node)
-            )
-        if self._get_capabilitites_post_url:
-            _operation_urls.append(
-                OperationUrl(
-                    method="Post",
-                    operation="GetCapabilities",
-                    mime_types=self._get_capabilitites_mime_types,
-                    url=self._get_capabilitites_post_url,
-                    callback=self._update_operation_url_xml_node)
-            )
-        return _operation_urls
 
     def get_operation_url_by_name_and_method(self, name, method) -> OperationUrl:
         return next((operation_url for operation_url in self.operation_urls if operation_url.operation == name and operation_url.method == method), None)

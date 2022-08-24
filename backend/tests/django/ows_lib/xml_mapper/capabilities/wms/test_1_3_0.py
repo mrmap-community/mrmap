@@ -1,14 +1,13 @@
 import os
-from pathlib import Path
 
 from django.contrib.gis.geos import Polygon
 from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
 from isodate.isodatetime import parse_datetime
 from isodate.isoduration import parse_duration
-from ows_lib.xml_mapper.capabilities.wms.wms130 import (Layer, OperationUrl,
-                                                        TimeExtent,
-                                                        WebMapService)
+from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
+from ows_lib.xml_mapper.capabilities.wms.mixins import TimeExtent
+from ows_lib.xml_mapper.capabilities.wms.wms130 import Layer, WebMapService
 from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
 from tests.django.settings import DJANGO_TEST_ROOT_DIR
 

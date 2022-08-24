@@ -1,6 +1,40 @@
+from typing import Callable
+
 from django.conf import settings
 from eulxml import xmlmap
 from lxml.etree import XPathEvalError
+
+
+class CallbackList(list):
+
+    def __init__(self, iterable, callback: Callable, *args, **kwargs) -> None:
+        super().__init__(iterable, *args, **kwargs)
+        self.callback = callback
+
+    def append(self, item) -> None:
+        super().append(item)
+        self.callback(list_operation="append", items=item)
+
+    def extend(self, items) -> None:
+        super().extend(items)
+        self.callback(list_operation="extend", items=items)
+
+    def pop(self, __index):
+        operation_url_to_pop = self[__index]
+        super().pop(__index)
+        self.callback(list_operation="pop", items=operation_url_to_pop)
+
+    def clear(self) -> None:
+        super().clear()
+        self.callback(list_operation="clear")
+
+    def insert(self, __index, __object) -> None:
+        super().insert(__index, __object)
+        self.callback(list_operation="insert", items=__object)
+
+    def remove(self, __value) -> None:
+        super().remove(__value)
+        self.callback(list_operation="remove", items=__value)
 
 
 class DBModelConverterMixin:

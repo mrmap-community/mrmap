@@ -35,6 +35,7 @@ class OGCServiceTypeHelper(XmlObject):
 
 
 def get_xml_mapper(capabilities_xml):
+    """helper function to get the correct xml mapper class for a given capabilities xml"""
     if isinstance(capabilities_xml, str) or isinstance(capabilities_xml, bytes):
         load_func = load_xmlobject_from_string
     elif isinstance(capabilities_xml, Path):

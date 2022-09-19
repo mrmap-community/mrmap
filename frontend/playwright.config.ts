@@ -5,8 +5,12 @@ import { devices } from '@playwright/test';
 const config: PlaywrightTestConfig = {
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  testDir: 'src/e2e',
   use: {
+    baseURL: 'https://localhost',
     trace: 'on-first-retry',
+    ignoreHTTPSErrors: true,
+    screenshot: 'only-on-failure',
   },
   projects: [
     {
@@ -18,5 +22,7 @@ const config: PlaywrightTestConfig = {
       use: { ...devices['Desktop Firefox'] },
     },
   ],
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
+  reporter: process.env.CI ? [['github'], ['html']] : 'html',
 };
 export default config;

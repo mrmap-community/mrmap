@@ -146,12 +146,100 @@ services:
   nginx:
     build:
       context: ./docker/nginx
-      dockerfile: ./DevDockerfile
+      dockerfile: ./Dockerfile.dev
     container_name: nginx-dev
     volumes:
       - type: bind
         source: ./docker/nginx/mrmap.dev.conf
         target: /etc/nginx/conf.d/default.conf
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    hostname: "mrmap-frontend"
+    volumes:
+      - type: bind
+        source: ./frontend/src
+        target: /opt/mrmap/src
+      - type: bind
+        source: ./frontend/public
+        target: /opt/mrmap/public
+      - type: bind
+        source: ./frontend/config
+        target: /opt/mrmap/config
+      - type: bind
+        source: ./frontend/mock
+        target: /opt/mrmap/mock
+      - type: bind
+        source: ./frontend/tests
+        target: /opt/mrmap/tests
+
+    networks:
+      - mrmap-internal
+    env_file:
+      - docker/frontend/.mrmap.env
+    working_dir: "/opt/mrmap"
+    command: "npm start"
+
+  frontend-tests-unit:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    hostname: "mrmap-frontend-unit"
+    volumes:
+      - type: bind
+        source: ./frontend/src
+        target: /opt/mrmap/src
+      - type: bind
+        source: ./frontend/public
+        target: /opt/mrmap/public
+      - type: bind
+        source: ./frontend/config
+        target: /opt/mrmap/config
+      - type: bind
+        source: ./frontend/mock
+        target: /opt/mrmap/mock
+      - type: bind
+        source: ./frontend/tests
+        target: /opt/mrmap/tests
+      - type: bind
+        source: ./frontend/jest.config.js
+        target: /opt/mrmap/jest.config.js
+
+    networks:
+      - mrmap-internal
+    env_file:
+      - docker/frontend/.mrmap.env
+    working_dir: "/opt/mrmap"
+    command: "npm run test"
+
+  frontend-tests-e2e:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend-tests-e2e/Dockerfile
+    volumes:
+      - type: bind
+        source: ./frontend/src
+        target: /opt/mrmap/frontend/src
+      - type: bind
+        source: ./docker/frontend-tests-e2e/entrypoint.sh
+        target: /opt/mrmap/entrypoint.sh
+      - type: bind
+        source: ./frontend/playwright.config.ts
+        target: /opt/mrmap/frontend/playwright.config.ts
+      - type: bind
+        source: ./frontend/playwright.docker.config.ts
+        target: /opt/mrmap/frontend/playwright.docker.config.ts
+    env_file:
+      - docker/frontend-tests-e2e/.mrmap.env
+    entrypoint: /opt/mrmap/entrypoint.sh
+    command: "npx playwright test --config ./playwright.docker.config.ts"
+    networks:
+      - mrmap-internal
+    depends_on:
+      - backend
+      - nginx-prod
 
   swagger-ui:
     image: swaggerapi/swagger-ui
@@ -210,3 +298,4 @@ networks:
     null
 volumes:
   sonar-db: null
+  umijs-build: null

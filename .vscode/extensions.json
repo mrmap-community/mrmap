@@ -11,6 +11,7 @@
         "ms-python.python",
         "trond-snekvik.simple-rst",
         "humao.rest-client",
-        "ckolkman.vscode-postgres"
+        "ckolkman.vscode-postgres",
+        "ms-playwright.playwright"
     ]
 }

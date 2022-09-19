@@ -34,13 +34,13 @@ A default app structure in django is splitted in some basic modules:
   * ``views.py``
   * ``...``
 
-Like discussed in `article <https://djangobook.com/mdj2-django-structure/>`_ the module ``views.py`` is **not** the controller module. 
+Like discussed in `article <https://masteringdjango.com/django-tutorials/mastering-django-structure/>`_ the module ``views.py`` is **not** the controller module. 
 Citation from the article: "The view in Django is most often described as being equivalent to the controller in MVC, but it’s not—it’s still the view."
 
 Where to put app logic code then?
 ---------------------------------
 
-Follow the question from the `article <https://djangobook.com/mdj2-django-structure/>`_::
+Follow the question from the `article <https://masteringdjango.com/django-tutorials/mastering-django-structure/>`_::
 
     Does the function/class return a response?
 

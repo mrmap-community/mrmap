@@ -27,6 +27,7 @@
     "mock/**/*",
     "src/**/*",
     "playwright.config.ts",
+    "playwright.docker.config.ts",
     "tests/**/*",
     "test/**/*",
     "__test__/**/*",

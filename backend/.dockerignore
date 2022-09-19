@@ -1,0 +1,12 @@
+**/.__pycache__
+*/.__pycache__
+**/.scannerwork
+*/.scannerwork
+
+*coverage-report.xml
+*.coverage
+*.properties
+*.md
+.gitignore
+*.env
+.dockerignore

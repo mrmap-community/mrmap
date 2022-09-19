@@ -1,3 +1,10 @@
 */dist
 */node_modules
+**/node_modules
 */src/.umi
+**/src/.umi
+
+README.md
+.gitignore
+*.env
+.dockerignore

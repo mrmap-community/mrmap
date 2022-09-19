@@ -46,34 +46,25 @@ services:
       - mrmap-internal
     extra_hosts:
       - host.docker.internal:host-gateway
-
-  frontend:
+  nginx-prod:
     build:
-      context: ./frontend
-      dockerfile: ../docker/frontend/Dockerfile
-    hostname: "mrmap-frontend"
+      context: ./
+      dockerfile: ./docker/nginx/Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    hostname: "mrmap-nginx"
     volumes:
       - type: bind
-        source: ./frontend/src
-        target: /opt/mrmap/src
-      - type: bind
-        source: ./frontend/public
-        target: /opt/mrmap/public
-      - type: bind
-        source: ./frontend/config
-        target: /opt/mrmap/config
-      - type: bind
-        source: ./frontend/mock
-        target: /opt/mrmap/mock
-      - type: bind
-        source: ./frontend/tests
-        target: /opt/mrmap/tests
+        source: ./docker/nginx/mrmap.conf
+        target: /etc/nginx/conf.d/default.conf
+      - type: volume
+        source: frontend-static
+        target: /var/www/mrmap/frontend
     networks:
       - mrmap-internal
-    env_file:
-      - docker/frontend/.mrmap.env
-    working_dir: "/opt/mrmap"
-    command: "npm start"
+    extra_hosts:
+      - host.docker.internal:host-gateway
 
   backend:
     build:
@@ -106,6 +97,7 @@ services:
       - postgis
       - redis
       - mapserver
+
   celery-default-worker:
     build:
       context: ./backend
@@ -133,6 +125,7 @@ services:
     depends_on:
       - postgis
       - redis
+
   celery-download-worker:
     build:
       context: ./backend

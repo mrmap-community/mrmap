@@ -73,3 +73,7 @@ ENV/
 # npm-related
 node_modules/
 /mrmap/static/
+
+# Playwright
+frontend/playwright-report/
+frontend/test-results/

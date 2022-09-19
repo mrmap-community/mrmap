@@ -151,7 +151,7 @@ class OGCServiceTypeMixin:
 class OGCServiceMixin:
     """Abstract class for all OGCService xml mappers, 
     which implements functionality for global usage."""
-    _operation_urls: CallbackList = None
+    _operation_urls: CallbackList = []
 
     @property
     def _possible_operations(self):
@@ -216,6 +216,7 @@ class OGCServiceMixin:
         if operation_url.operation in self._possible_operations:
             self._update_operation_url_xml_node_by_name(
                 operation_url, remove)
+            return
         raise ValueError(
             f"unsuported operation: {operation_url.operation}")
 
@@ -243,14 +244,15 @@ class OGCServiceMixin:
 
     def _clear_all_operation_urls(self) -> None:
         for possible_operation in self._possible_operations:
-            get_url_attr_name = f"{camel_to_snake(possible_operation)}_get_url"
+            get_url_attr_name = f"_{camel_to_snake(possible_operation)}_get_url"
             setattr(self, get_url_attr_name, None)
 
-            post_url_attr_name = f"{camel_to_snake(possible_operation)}_post_url"
+            post_url_attr_name = f"_{camel_to_snake(possible_operation)}_post_url"
             setattr(self, post_url_attr_name, None)
 
-            mime_types_attr_name = f"{camel_to_snake(possible_operation)}_mime_types"
+            mime_types_attr_name = f"_{camel_to_snake(possible_operation)}_mime_types"
             setattr(self, mime_types_attr_name, [])
+        self._operation_urls = []
 
     def _operation_has_get_and_post(self, operation_url: OperationUrl) -> bool:
         return self.get_operation_url_by_name_and_method(name=operation_url.operation, method="Get") and self.get_operation_url_by_name_and_method(name=operation_url.operation, method="Post")

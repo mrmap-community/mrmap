@@ -1,9 +1,9 @@
 from eulxml.xmlmap import (FloatField, IntegerField, NodeField, NodeListField,
                            SimpleBooleanField, StringField, StringListField,
                            XmlObject)
-from ows_lib.xml_mapper.capabilities.mixins import OGCServiceTypeMixin
+from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceTypeMixin,
+                                                    ReferenceSystemMixin)
 from ows_lib.xml_mapper.capabilities.wms.mixins import (LayerMixin,
-                                                        ReferenceSystemMixin,
                                                         TimeDimensionMixin,
                                                         WebMapServiceMixin)
 from ows_lib.xml_mapper.mixins import DBModelConverterMixin
@@ -154,11 +154,11 @@ class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.
     # With that technique the usage of this mapper is easier and matches the db model
-    _get_capabilitites_mime_types = StringListField(
+    _get_capabilities_mime_types = StringListField(
         xpath="./Capability/Request/GetCapabilities/Format")
-    _get_capabilitites_get_url = StringField(
+    _get_capabilities_get_url = StringField(
         xpath="./Capability/Request/GetCapabilities/DCPType/HTTP/Get/OnlineResource[@xlink:type='simple']/@xlink:href")
-    _get_capabilitites_post_url = StringField(
+    _get_capabilities_post_url = StringField(
         xpath="./Capability/Request/GetCapabilities/DCPType/HTTP/Post/OnlineResource[@xlink:type='simple']/@xlink:href")
 
     _get_map_mime_types = StringListField(

@@ -1,18 +1,15 @@
 import datetime
-from typing import Callable, List
+from typing import Callable
 
 from django.conf import settings
 from django.contrib.gis.geos import Polygon
 from django.utils import timezone
-from extras.utils import camel_to_snake
 from isodate import (Duration, ISO8601Error, parse_date, parse_datetime,
                      parse_duration)
 from isodate.isodatetime import datetime_isoformat
 from isodate.isoduration import duration_isoformat
-from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceMixin,
-                                                    OperationUrl)
+from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.mixins import CallbackList
-from registry.xmlmapper.exceptions import SemanticError
 
 
 class TimeExtent:

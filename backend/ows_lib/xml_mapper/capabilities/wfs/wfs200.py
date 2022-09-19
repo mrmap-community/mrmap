@@ -1,7 +1,6 @@
 from eulxml.xmlmap import (NodeField, NodeListField, StringField,
                            StringListField, XmlObject)
-from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceMixin,
-                                                    OGCServiceTypeMixin,
+from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceTypeMixin,
                                                     ReferenceSystemMixin)
 from ows_lib.xml_mapper.capabilities.wfs.mixins import (FeatureTypeMixin,
                                                         WebFeatureServiceMixin)
@@ -72,7 +71,7 @@ class ServiceType(WebFeatureServiceDefaultSettings, OGCServiceTypeMixin):
 
 
 class ReferenceSystem(WebFeatureServiceDefaultSettings, ReferenceSystemMixin):
-    _ref_system = StringField(xpath="./")
+    _ref_system = StringField(xpath=".")
 
 
 class DefaultReferenceSystem(ReferenceSystem):

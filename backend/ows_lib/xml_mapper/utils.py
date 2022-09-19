@@ -13,6 +13,9 @@ def raise_default_sematic_error(kind: str):
 
 
 class OGCServiceTypeHelper(XmlObject):
+    """Helper class to extract version and service type from capabilities document.
+       Not for Common usage!
+    """
 
     version = StringField(xpath=f"./{NS_WC}@version']")
     _kind = StringField(

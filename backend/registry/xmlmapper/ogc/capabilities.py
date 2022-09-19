@@ -395,7 +395,6 @@ class FeatureType(DBModelConverterMixin, xmlmap.XmlObject):
     reference_systems = xmlmap.NodeListField(
         xpath=f"{NS_WC}DefaultSRS']|{NS_WC}OtherSRS']|{NS_WC}DefaultCRS']|{NS_WC}OtherCRS']",
         node_class=ReferenceSystem)
-    # todo: add dimensions
 
     def get_field_dict(self):
         dic = super().get_field_dict()

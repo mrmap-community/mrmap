@@ -113,8 +113,6 @@ class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
     _other_reference_systems = NodeListField(
         xpath="./wfs:OtherCRS", node_class=_other_crs_class)
 
-    # TODO: add dimensions
-
 
 class WebFeatureService(WebFeatureServiceDefaultSettings, WebFeatureServiceMixin):
     ROOT_NAME = "wfs:WFS_Capabilities"

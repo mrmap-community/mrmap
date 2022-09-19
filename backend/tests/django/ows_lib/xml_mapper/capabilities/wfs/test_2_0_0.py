@@ -650,51 +650,6 @@ class WebMapServiceTestCase:
             20.0
         )
 
-    # def _get_new_time_extent(self):
-    #     return NotImplementedError
-
-    # def test_layer_dimension_mapper(self):
-
-    #     parsed_layer: Layer = self.parsed_capabilities.get_layer_by_identifier(
-    #         "dwd:Autowarn_Analyse")
-
-    #     parsed_extent: TimeExtent = parsed_layer.dimensions[0].time_extents[0]
-
-    #     self.assertEqual(
-    #         parsed_extent.start,
-    #         parse_datetime("2021-11-29T12:40:00.000Z")
-    #     )
-    #     self.assertEqual(
-    #         parsed_extent.stop,
-    #         parse_datetime("2021-12-13T12:40:00.000Z")
-    #     )
-    #     self.assertEqual(
-    #         parsed_extent.resolution,
-    #         parse_duration("PT5M")
-    #     )
-
-    # def test_layer_dimension_time_extent_setter_with_list_of_intervals(self):
-
-    #     new_time_extend = TimeExtent(
-    #         start=parse_datetime("2020-11-29T12:40:00Z"),
-    #         stop=parse_datetime("2021-12-13T12:40:00Z"),
-    #         resolution=parse_duration("P1D")
-    #     )
-
-    #     parsed_layer: Layer = self.parsed_capabilities.get_layer_by_identifier(
-    #         "dwd:Autowarn_Analyse")
-
-    #     parsed_layer.dimensions[0].time_extents = [new_time_extend]
-
-    #     new_time_extent_value = self._get_new_time_extent()
-
-    #     self.assertEqual(
-    #         new_time_extent_value,
-    #         "2020-11-29T12:40:00Z/2021-12-13T12:40:00Z/P1D"
-    #     )
-
-    # def test_layer_dimension_time_extent_append_with_list_of_intervals(self):
-
         new_time_extend = TimeExtent(
             start=parse_datetime("2020-11-29T12:40:00Z"),
             stop=parse_datetime("2021-12-13T12:40:00Z"),

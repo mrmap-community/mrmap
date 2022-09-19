@@ -412,8 +412,20 @@ class WebMapServiceTestCase:
             self.parsed_capabilities.feature_types[0].keywords[0],
             "Beobachtungssystem"
         )
-        # TODO: proof crs
-        # TODO: proof metadataurl
+
+        self.assertEqual(
+            self.parsed_capabilities.feature_types[0].reference_systems[0].code,
+            "4258"
+        )
+        self.assertEqual(
+            self.parsed_capabilities.feature_types[0].reference_systems[0].prefix,
+            "EPSG"
+        )
+
+        self.assertEqual(
+            self.parsed_capabilities.feature_types[0].remote_metadata[0],
+            "https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_T2m"
+        )
 
     def test_wms_xml_mapper(self):
         self._test_root_mapper()

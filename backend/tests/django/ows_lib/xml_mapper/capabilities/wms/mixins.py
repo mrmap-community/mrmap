@@ -225,6 +225,16 @@ class WebMapServiceTestCase:
         self.assertTrue(self.parsed_capabilities.root_layer.is_queryable)
         self.assertTrue(self.parsed_capabilities.root_layer.is_opaque)
         self.assertTrue(self.parsed_capabilities.root_layer.is_cascaded)
+
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.reference_systems[0].code,
+            "3044"
+        )
+        self.assertEqual(
+            self.parsed_capabilities.root_layer.reference_systems[0].prefix,
+            "EPSG"
+        )
+
         self.assertEqual(
             self.parsed_capabilities.root_layer.parent,
             None
@@ -232,6 +242,14 @@ class WebMapServiceTestCase:
         self.assertEqual(
             self.parsed_capabilities.root_layer.children[0].identifier,
             "Fachlayer"
+        )
+
+        parsed_layer: Layer = self.parsed_capabilities.get_layer_by_identifier(
+            "dwd:RBSN_FF")
+
+        self.assertEqual(
+            parsed_layer.remote_metadata[0],
+            "https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF"
         )
 
     def test_wms_xml_mapper(self):

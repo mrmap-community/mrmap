@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from random import randrange
+from typing import _T, Any
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
@@ -8,8 +9,83 @@ from django.db.models import Max
 from extras.managers import DefaultHistoryManager
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
+from registry.models.metadata import MetadataContact
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
+
+
+class WebMapServiceXmlManager(models.Manager):
+
+    def _create_service_instance(self, parsed_service):
+        """ Creates the service instance and all depending/related objects """
+        # create service instance first
+
+        parsed_service_contact = parsed_service.service_metadata.service_contact
+
+        db_service_contact, created = MetadataContact.objects.get_or_create(
+            **parsed_service_contact.__dict__)
+
+        service = self.create(origin=MetadataOrigin.CAPABILITIES.value,
+                              service_contact=db_service_contact,
+                              metadata_contact=db_service_contact,
+                              **parsed_service.__dict__,
+                              **parsed_service.service_metadata.__dict__)
+
+        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
+                                     db_object=service)
+
+        # m2m objects
+        service.keywords.add(*service.keyword_list)
+
+        service.xml_backup_file.save(name='capabilities.xml',
+                                     content=ContentFile(
+                                         str(parsed_service.serializeDocument(), "UTF-8")),
+                                     save=False)
+        service.save(without_historical=True)
+
+        operation_urls = []
+        operation_url_model_cls = None
+        db_queryables = []
+        queryable_model_cls = None
+        for operation_url in parsed_service.operation_urls:
+            if not operation_url_model_cls:
+                operation_url_model_cls = operation_url.get_model_class()
+
+            db_operation_url = operation_url_model_cls(service=service,
+                                                       **operation_url.__dict__)
+            db_operation_url.mime_type_list = []
+
+            for mime_type in operation_url.mime_types:
+                # todo: slow get_or_create solution - maybe there is a better way to do this
+                if not self.mime_type_cls:
+                    self.mime_type_cls = mime_type.get_model_class()
+                db_mime_type, created = self.mime_type_cls.objects.get_or_create(
+                    **mime_type.__dict__)
+                db_operation_url.mime_type_list.append(db_mime_type)
+
+            if hasattr(operation_url, "queryables"):
+                for queryable in operation_url.queryables:
+                    if not queryable_model_cls:
+                        queryable_model_cls = queryable.get_model_class()
+                    db_queryables.append(queryable_model_cls(
+                        operation_url=db_operation_url, **queryable.__dict__))
+
+            operation_urls.append(db_operation_url)
+        db_operation_url_list = operation_url_model_cls.objects.bulk_create(
+            objs=operation_urls)
+        if queryable_model_cls and db_queryables:
+            queryable_model_cls.objects.bulk_create(objs=db_queryables)
+
+        for db_operation_url in db_operation_url_list:
+            db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
+
+        return service
+
+    def create(self, parsed_service, **kwargs: Any) -> _T:
+        with transaction.atomic:
+            pass
+
+        return super().create(**kwargs)
 
 
 class ServiceCapabilitiesManager(models.Manager):

@@ -42,7 +42,7 @@ class DBModelConverterMixin:
         as dict.
     """
 
-    def get_field_dict(self):
+    def __get_xml_mapper_fields(self) -> dict:
         """ Return a dict which contains the key, value pairs of the given field attribute name as key and the
             attribute value it self as value.
 
@@ -56,6 +56,7 @@ class DBModelConverterMixin:
                     name = xmlmap.StringField('name')
                     nested = xmlmap.NodeField('nested', Nested)
                     nested_list = xmlmap.NodeListField('nested', Nested)
+                    _something = xmlmap.StringField('something')
 
                 The SomeXmlObject().get_field_dict() function return {'name': 'Something'}
 
@@ -64,7 +65,8 @@ class DBModelConverterMixin:
 
         """
         field_dict = {}
-        for key in self._fields.keys():
+
+        for key in filter(lambda key: not key.startswith('_'), self._fields.keys()):
             try:
                 if not (isinstance(self._fields.get(key), xmlmap.NodeField) or
                         isinstance(self._fields.get(key), xmlmap.NodeListField)):
@@ -81,4 +83,11 @@ class DBModelConverterMixin:
                     msg=f"error during parsing field: {key} in class {self.__class__.__name__}")
                 settings.ROOT_LOGGER.exception(
                     e, stack_info=True, exc_info=True)
+        return field_dict
+
+    def __dict__(self):
+        field_dict = self.__get_xml_mapper_fields()
+        for property, value in vars(self.items()):
+            if property not in field_dict:
+                field_dict.update({property: value})
         return field_dict

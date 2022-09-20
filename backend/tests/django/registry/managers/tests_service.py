@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from django.test import TestCase
+from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.enums.service import HttpMethodEnum
 from registry.models.service import (CatalougeService,
                                      CswOperationUrlQueryable,
                                      WebFeatureService, WebMapService)
-from registry.xmlmapper.ogc.capabilities import get_parsed_service
 
 
 class WebMapServiceCapabilitiesManagerTest(TestCase):
@@ -13,10 +13,10 @@ class WebMapServiceCapabilitiesManagerTest(TestCase):
     def test_success(self):
         """Test that create_from_parsed_service manager function works correctly."""
 
-        parsed_service = get_parsed_service(xml=Path(Path.joinpath(
+        parsed_service = get_parsed_service(Path(Path.joinpath(
             Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml')))
 
-        WebMapService.capabilities.create_from_parsed_service(
+        WebMapService.capabilities.create(
             parsed_service=parsed_service)
 
         db_service = WebMapService.objects.count()
@@ -28,7 +28,7 @@ class WebFeatureServiceCapabilitiesManagerTest(TestCase):
     def test_success(self):
         """Test that create_from_parsed_service manager function works correctly."""
 
-        parsed_service = get_parsed_service(xml=Path(Path.joinpath(
+        parsed_service = get_parsed_service(Path(Path.joinpath(
             Path(__file__).parent.resolve(), '../../test_data/dwd_wfs_2_0_0.xml')))
 
         WebFeatureService.capabilities.create_from_parsed_service(
@@ -43,7 +43,7 @@ class CatalougeServiceCapabilitiesManagerTest(TestCase):
     def test_success(self):
         """Test that create_from_parsed_service manager function works correctly."""
 
-        parsed_service = get_parsed_service(xml=Path(Path.joinpath(
+        parsed_service = get_parsed_service(Path(Path.joinpath(
             Path(__file__).parent.resolve(), '../../test_data/csw_hessen_2_0_2.xml')))
 
         db_service = CatalougeService.capabilities.create_from_parsed_service(

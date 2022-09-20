@@ -35,10 +35,10 @@ class OGCServiceTypeHelper(XmlObject):
 
         if _kind not in ["wms", "wfs", "csw"]:
             raise_default_sematic_error(_kind)
+        return _kind
 
 
-def get_xml_mapper(capabilities_xml):
-    """helper function to get the correct xml mapper class for a given capabilities xml"""
+def get_load_func(capabilities_xml):
     if isinstance(capabilities_xml, str) or isinstance(capabilities_xml, bytes):
         load_func = load_xmlobject_from_string
     elif isinstance(capabilities_xml, Path):
@@ -46,7 +46,12 @@ def get_xml_mapper(capabilities_xml):
         load_func = load_xmlobject_from_file
     else:
         raise ValueError("xml must be ether a str or Path")
+    return load_func
 
+
+def get_xml_mapper(capabilities_xml):
+    """helper function to get the correct xml mapper class for a given capabilities xml"""
+    load_func = get_load_func(capabilities_xml)
     parsed_service: OGCServiceTypeHelper = load_func(capabilities_xml,
                                                      xmlclass=OGCServiceTypeHelper)
 
@@ -61,7 +66,8 @@ def get_xml_mapper(capabilities_xml):
                     WebMapService
                 return WebMapService
             case _:
-                raise_default_sematic_error(parsed_service.kind)
+                raise NotImplementedError(
+                    f"Version {parsed_service.version} for wms is not supported.")
 
     elif parsed_service.kind == OGCServiceEnum.WFS.value:
         match parsed_service.version:
@@ -70,8 +76,16 @@ def get_xml_mapper(capabilities_xml):
                     WebFeatureService
                 return WebFeatureService
             case _:
-                raise_default_sematic_error(parsed_service.kind)
+                raise NotImplementedError(
+                    f"Version {parsed_service.version} for wfs is not supported.")
+
     elif parsed_service.kind == OGCServiceEnum.CSW.value:
-        raise NotImplementedError
+        raise NotImplementedError("")
     else:
         raise_default_sematic_error(parsed_service.kind)
+
+
+def get_parsed_service(capabilities_xml):
+    load_func = get_load_func(capabilities_xml)
+    xml_mapper = get_xml_mapper(capabilities_xml)
+    return load_func(capabilities_xml, xmlclass=xml_mapper)

@@ -1,6 +1,8 @@
 from abc import abstractmethod
+from collections import OrderedDict
+from collections.abc import Sequence
 from random import randrange
-from typing import _T, Any
+from typing import _T, Any, Dict, List
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
@@ -9,83 +11,283 @@ from django.db.models import Max
 from extras.managers import DefaultHistoryManager
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
-from registry.models.metadata import MetadataContact
+from registry.models.metadata import (Dimension, Keyword, LegendUrl,
+                                      MetadataContact, MimeType,
+                                      ReferenceSystem, RemoteMetadata, Style,
+                                      TimeExtent)
+from registry.models.service import (Layer, WebMapService,
+                                     WebMapServiceOperationUrl)
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 
 
-class WebMapServiceXmlManager(models.Manager):
+class ListObjectManagerMixin:
 
-    def _create_service_instance(self, parsed_service):
+    def get_or_create_list(self, list, model_cls):
+        items = []
+        for item in list:
+            # todo: slow get_or_create solution - maybe there is a better way to do this
+            db_item, created = model_cls.objects.get_or_create(
+                **item.__dict__)
+            items.append(db_item)
+        return items
+
+
+class WebMapServiceXmlManager(ListObjectManagerMixin, models.Manager):
+
+    def __update_transient_objects(self, kv: Dict):
+        for key, value in kv:
+            self.__transient_objects.update(
+                {
+                    key: self.__transient_objects.get(key, []).extend(
+                        value) if isinstance(value, Sequence) else value
+                }
+            )
+
+    def __persist_transient_objects(self):
+        set_attr_key = None
+        get_attr_key = None
+        for key, value in self.__transient_objects:
+            if key == "pre_db_job":
+                # handle command like "update__style_id__with__style.pk"
+                # foreignkey id attribute is not updated after bulk_create is done. So we need to update it manually
+                # before we create related objects in bulk.
+                # todo: find better way to update foreignkey id
+                cmd = value.split("__")
+                set_attr_key = cmd[1]
+                get_attr_key = cmd[3]
+            elif isinstance(value, Sequence):
+                if set_attr_key and get_attr_key:
+                    for obj in value:
+                        # handle pre db job detected by last loop
+                        setattr(obj, set_attr_key, getattr(
+                            obj, get_attr_key.split(".")[1]))
+                    set_attr_key = None
+                    get_attr_key = None
+                value[0]._meta.model.objects.bulk_create(objs=value)
+
+    def __handle_transient_objects(self, db_obj: models.Model):
+        m2m_fields = [field.name for field in db_obj._meta.local_many_to_many]
+        transient_fields = filter(lambda key: not key.startswith(
+            '__transient'), vars(self.items()))
+        transient_m2m_fields = filter(
+            lambda key: key in m2m_fields, transient_fields)
+
+        for key in transient_m2m_fields:
+            attr = getattr(db_obj, key.split("__transient_")[1])
+            attr.add(*getattr(db_obj, key))
+
+    def _create_service_instance(self, parsed_service) -> WebMapService:
         """ Creates the service instance and all depending/related objects """
-        # create service instance first
-
         parsed_service_contact = parsed_service.service_metadata.service_contact
 
         db_service_contact, created = MetadataContact.objects.get_or_create(
             **parsed_service_contact.__dict__)
 
-        service = self.create(origin=MetadataOrigin.CAPABILITIES.value,
-                              service_contact=db_service_contact,
-                              metadata_contact=db_service_contact,
-                              **parsed_service.__dict__,
-                              **parsed_service.service_metadata.__dict__)
+        service: WebMapService = self.create(origin=MetadataOrigin.CAPABILITIES.value,
+                                             service_contact=db_service_contact,
+                                             metadata_contact=db_service_contact,
+                                             **parsed_service.__dict__,
+                                             **parsed_service.service_metadata.__dict__)
 
-        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
-                                     db_object=service)
+        # keywords
+        keyword_list = self.get_or_create_list(
+            list=parsed_service.service_metadata.keywords,
+            model_cls=Keyword)
+        service.keywords.add(*keyword_list)
 
-        # m2m objects
-        service.keywords.add(*service.keyword_list)
-
+        # xml
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(
                                          str(parsed_service.serializeDocument(), "UTF-8")),
                                      save=False)
         service.save(without_historical=True)
 
+        # operation urls
         operation_urls = []
-        operation_url_model_cls = None
-        db_queryables = []
-        queryable_model_cls = None
         for operation_url in parsed_service.operation_urls:
-            if not operation_url_model_cls:
-                operation_url_model_cls = operation_url.get_model_class()
-
-            db_operation_url = operation_url_model_cls(service=service,
-                                                       **operation_url.__dict__)
+            db_operation_url = WebMapServiceOperationUrl(
+                service=service,
+                **operation_url.__dict__)
             db_operation_url.mime_type_list = []
 
-            for mime_type in operation_url.mime_types:
-                # todo: slow get_or_create solution - maybe there is a better way to do this
-                if not self.mime_type_cls:
-                    self.mime_type_cls = mime_type.get_model_class()
-                db_mime_type, created = self.mime_type_cls.objects.get_or_create(
-                    **mime_type.__dict__)
-                db_operation_url.mime_type_list.append(db_mime_type)
+            mime_type_list = self.get_or_create_list(
+                list=operation_url.mime_types,
+                model_cls=MimeType)
 
-            if hasattr(operation_url, "queryables"):
-                for queryable in operation_url.queryables:
-                    if not queryable_model_cls:
-                        queryable_model_cls = queryable.get_model_class()
-                    db_queryables.append(queryable_model_cls(
-                        operation_url=db_operation_url, **queryable.__dict__))
-
+            db_operation_url.mime_type_list.extend(mime_type_list)
             operation_urls.append(db_operation_url)
-        db_operation_url_list = operation_url_model_cls.objects.bulk_create(
+
+        db_operation_url_list = WebMapServiceOperationUrl.objects.bulk_create(
             objs=operation_urls)
-        if queryable_model_cls and db_queryables:
-            queryable_model_cls.objects.bulk_create(objs=db_queryables)
 
         for db_operation_url in db_operation_url_list:
             db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
 
         return service
 
-    def create(self, parsed_service, **kwargs: Any) -> _T:
-        with transaction.atomic:
-            pass
+    def _construct_remote_metadata_instances(self, parsed_sub_element, db_service, db_sub_element):
+        sub_element_content_type = ContentType.objects.get_for_model(
+            model=Layer)
+        remote_metadata_list = []
+        for remote_metadata in parsed_sub_element.remote_metadata:
+            remote_metadata_list.append(RemoteMetadata(service=db_service,
+                                                       content_type=sub_element_content_type,
+                                                       object_id=db_sub_element.pk,
+                                                       **remote_metadata.__dict__))
+        self.__update_transient_objects(
+            {"remote_metadata_list": remote_metadata_list})
 
-        return super().create(**kwargs)
+    def _construct_style_instances(self, parsed_layer, db_layer):
+        style_list = []
+        legend_url_list = []
+        for style in parsed_layer.styles:
+            db_style = Style(layer=db_layer,
+                             **style.__dict__)
+            if style.legend_url:
+                # legend_url is optional for style entities
+                db_mime_type, created = MimeType.objects.get_or_create(
+                    **style.legend_url.mime_type.__dict__)
+                legend_url_list.append(LegendUrl(style=db_style,
+                                                 mime_type=db_mime_type,
+                                                 **style.legend_url.__dict__))
+            style_list.append(db_style)
+        self.__update_transient_objects({
+            "style_list": style_list,
+            "pre_db_job": "update__style_id__with__style.pk",
+            "legend_url_list": legend_url_list
+        })
+
+    def _construct_dimension_instances(self, parsed_layer, db_layer):
+        dimension_list = []
+        time_extent_list = []
+        for dimension in parsed_layer.dimensions:
+            db_dimension = Dimension(layer=db_layer,
+                                     **dimension.__dict__)
+            dimension_list.append(db_dimension)
+
+            for dimension_extent in dimension.extents:
+                time_extent_list.append(TimeExtent(dimension=db_dimension,
+                                                   **dimension_extent.__dict__))
+
+        self.__update_transient_objects({
+            "dimension_list": dimension_list,
+            "pre_db_job": "update__dimension_id__with__dimension.pk",
+            "time_extent_list": time_extent_list
+        })
+
+    def _get_next_tree_id(self):
+
+        max_tree_id = Layer.objects.filter(
+            parent=None).aggregate(Max('tree_id'))
+        tree_id = max_tree_id.get("tree_id__max")
+        if isinstance(tree_id, int):
+            tree_id += 1
+        else:
+            tree_id = 0
+        # FIXME: not thread safe handling of tree_id... random is only a workaround
+        random = randrange(1, 20)
+        return tree_id + random
+
+    def _treeify(self, parsed_layer, db_service, tree_id, db_parent=None, cursor=1, level=0):
+        """
+        adapted function from
+        https://github.com/django-mptt/django-mptt/blob/7a6a54c6d2572a45ea63bd639c25507108fff3e6/mptt/managers.py#L716
+        to construct the correct layer tree
+        """
+        node = Layer(service=db_service,
+                     parent=db_parent,
+                     origin=MetadataOrigin.CAPABILITIES.value,
+                     **parsed_layer.get_field_dict(),
+                     **parsed_layer.metadata.get_field_dict())
+
+        self.__update_transient_objects({"layer_list": [node]})
+
+        setattr(node, Layer._mptt_meta.tree_id_attr, tree_id)
+        setattr(node, Layer._mptt_meta.level_attr, level)
+        setattr(node, Layer._mptt_meta.left_attr, cursor)
+
+        node.__transient_keywords = self.get_or_create_list(
+            list=parsed_layer.metadata.keywords,
+            model_cls=Keyword
+        )
+        node.__transient_reference_systems = self.get_or_create_list(
+            list=parsed_layer.reference_systems,
+            model_cls=ReferenceSystem
+        )
+
+        self._construct_remote_metadata_instances(parsed_sub_element=parsed_layer,
+                                                  db_service=db_service,
+                                                  db_sub_element=node)
+        self._construct_style_instances(parsed_layer=parsed_layer,
+                                        db_layer=node)
+        self._construct_dimension_instances(parsed_layer=parsed_layer,
+                                            db_layer=node)
+
+        for child in parsed_layer.children:
+            cursor = self._treeify(
+                parsed_layer=child,
+                db_service=db_service,
+                tree_id=tree_id,
+                db_parent=node,
+                cursor=cursor + 1,
+                level=level + 1)
+        cursor += 1
+        setattr(node, Layer._mptt_meta.right_attr, cursor)
+        return cursor
+
+    def _construct_layer_tree(self, parsed_service, db_service):
+        """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
+            append them to global lists to use bulk create for all objects. Some db models will created instantly.
+
+            keywords and mime types will be created instantly, cause unique constraints are configured on this models.
+
+            Args:
+                parsed_service (plain python object): the parsed service in the same hierarchy structure as the
+                                                      :class:`registry.models.service.Service`
+                db_service (Service): the persisted :class:`registry.models.service.Service`
+
+            Returns:
+                tree_id (int): the used tree id of the constructed layer objects.
+        """
+        if not self.parent_lookup:
+            self.parent_lookup = {}
+
+        tree_id = self._get_next_tree_id()
+        self._treeify(
+            parsed_layer=parsed_service.root_layer,
+            db_service=db_service,
+            tree_id=tree_id,
+        )
+
+        return tree_id
+
+    def _create_subelements(self, parsed_service, db_service) -> None:
+        tree_id: int = self._construct_layer_tree(
+            parsed_service=parsed_service,
+            db_service=db_service)
+
+        db_layer_list: List[Layer] = bulk_create_with_history(
+            objs=self.__transient_objects.get("layer_list"),
+            model=Layer)
+
+        self.__persist_transient_objects()
+
+        for db_layer in db_layer_list:
+            self.__handle_transient_objects(db_layer)
+
+        # non documented function from mptt to rebuild the tree
+        # TODO: check if we need to rebuild if we create the tree with the correct right and left values.
+        Layer.objects.partial_rebuild(tree_id=tree_id)
+
+    def create(self, parsed_service, **kwargs: Any) -> _T:
+        self.__transient_objects = OrderedDict()
+        with transaction.atomic:
+            db_service: WebMapService = self._create_service_instance(
+                parsed_service=parsed_service)
+            self._create_subelements(parsed_service=parsed_service,
+                                     db_service=db_service)
+        return db_service
 
 
 class ServiceCapabilitiesManager(models.Manager):
@@ -277,7 +479,6 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
     parent_lookup = None
     current_parent = None
 
-    layer_opts = None
     db_layer_list = []
     db_style_list = []
     db_legend_url_list = []
@@ -297,9 +498,9 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         self.style_cls = None
         self.legend_url_cls = None
 
-    def _get_next_tree_id(self, layer_cls):
+    def _get_next_tree_id(self):
 
-        max_tree_id = layer_cls.objects.filter(
+        max_tree_id = Layer.objects.filter(
             parent=None).aggregate(Max('tree_id'))
         tree_id = max_tree_id.get("tree_id__max")
         if isinstance(tree_id, int):
@@ -335,18 +536,17 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         https://github.com/django-mptt/django-mptt/blob/7a6a54c6d2572a45ea63bd639c25507108fff3e6/mptt/managers.py#L716
         to construct the correct layer tree
         """
-
-        node = self.sub_element_cls(service=db_service,
-                                    parent=db_parent,
-                                    origin=MetadataOrigin.CAPABILITIES.value,
-                                    **parsed_layer.get_field_dict(),
-                                    **parsed_layer.metadata.get_field_dict())
+        node = Layer(service=db_service,
+                     parent=db_parent,
+                     origin=MetadataOrigin.CAPABILITIES.value,
+                     **parsed_layer.get_field_dict(),
+                     **parsed_layer.metadata.get_field_dict())
 
         self.db_layer_list.append(node)
 
-        setattr(node, self.layer_opts.tree_id_attr, tree_id)
-        setattr(node, self.layer_opts.level_attr, level)
-        setattr(node, self.layer_opts.left_attr, cursor)
+        setattr(node, Layer._mptt_meta.tree_id_attr, tree_id)
+        setattr(node, Layer._mptt_meta.level_attr, level)
+        setattr(node, Layer._mptt_meta.left_attr, cursor)
 
         self._get_or_create_keywords(parsed_keywords=parsed_layer.metadata.keywords,
                                      db_object=node)
@@ -369,7 +569,7 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
                 cursor=cursor + 1,
                 level=level + 1)
         cursor += 1
-        setattr(node, self.layer_opts.right_attr, cursor)
+        setattr(node, Layer._mptt_meta.right_attr, cursor)
         return cursor
 
     def _construct_layer_tree(self, parsed_service, db_service):
@@ -389,11 +589,7 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         if not self.parent_lookup:
             self.parent_lookup = {}
 
-        if not self.sub_element_cls:
-            self.sub_element_cls = parsed_service.root_layer.get_model_class()
-            self.layer_opts = self.sub_element_cls._mptt_meta
-
-        tree_id = self._get_next_tree_id(self.sub_element_cls)
+        tree_id = self._get_next_tree_id()
         self._treeify(
             parsed_layer=parsed_service.root_layer,
             db_service=db_service,
@@ -406,23 +602,23 @@ class WebMapServiceCapabilitiesManager(ServiceCapabilitiesManager):
         tree_id = self._construct_layer_tree(
             parsed_service=parsed_service, db_service=db_service)
 
-        db_layer_list = bulk_create_with_history(
-            objs=self.db_layer_list, model=self.sub_element_cls)
+        db_layer_list: List[Layer] = bulk_create_with_history(
+            objs=self.db_layer_list, model=Layer)
 
         # non documented function from mptt to rebuild the tree
         # todo: check if we need to rebuild if we create the tree with the correct right and left values.
-        self.sub_element_cls.objects.partial_rebuild(tree_id=tree_id)
+        Layer.objects.partial_rebuild(tree_id=tree_id)
 
         # ForeingKey objects
         if self.db_style_list:
-            self.style_cls.objects.bulk_create(objs=self.db_style_list)
+            Style.objects.bulk_create(objs=self.db_style_list)
         if self.db_legend_url_list:
             for legend_url in self.db_legend_url_list:
                 # foreignkey id attribute is not updated after bulk_create is done. So we need to update it manually
                 # before we create related objects in bulk.
                 # todo: find better way to update foreignkey id
                 legend_url.style_id = legend_url.style.pk
-            self.legend_url_cls.objects.bulk_create(
+            LegendUrl.objects.bulk_create(
                 objs=self.db_legend_url_list)
         if self.db_dimension_list:
             self.dimension_cls.objects.bulk_create(objs=self.db_dimension_list)

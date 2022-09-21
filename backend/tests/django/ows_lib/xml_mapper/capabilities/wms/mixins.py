@@ -248,7 +248,7 @@ class WebMapServiceTestCase:
             "dwd:RBSN_FF")
 
         self.assertEqual(
-            parsed_layer.remote_metadata[0],
+            parsed_layer.remote_metadata[0].link,
             "https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF"
         )
 

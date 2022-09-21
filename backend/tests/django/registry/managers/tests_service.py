@@ -14,7 +14,7 @@ class WebMapServiceCapabilitiesManagerTest(TestCase):
         """Test that create_from_parsed_service manager function works correctly."""
 
         parsed_service = get_parsed_service(Path(Path.joinpath(
-            Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml')))
+            Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/1.3.0.xml')))
 
         WebMapService.capabilities.create(
             parsed_service=parsed_service)

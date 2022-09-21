@@ -19,26 +19,24 @@ from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 
 
-class TransientObjectsManagerMixin:
-    __transient_objects = {}
+class TransientObjectsManagerMixin(object):
+
+    _transient_objects = {}
 
     def _update_transient_objects(self, kv: Dict):
         for key, value in kv.items():
-            l = self.__transient_objects.get(key, [])
-            if l == None:
-                l = []
-            self.__transient_objects.update(
-                {
-                    key: l.extend(
-                        value) if not isinstance(value, str) else value
-                }
-            )
+            if isinstance(value, Sequence) and not isinstance(value, str):
+                current_value = self._transient_objects.get(key, [])
+                current_value.extend(value)
+                self._transient_objects.update({key: current_value})
+            else:
+                self._transient_objects.update({key: value})
 
     def _persist_transient_objects(self):
         set_attr_key = None
         get_attr_key = None
-        for key, value in self.__transient_objects.items():
-            if key == "pre_db_job":
+        for key, value in self._transient_objects.items():
+            if "pre_db_job" in key:
                 # handle command like "update__style_id__with__style.pk"
                 # foreignkey id attribute is not updated after bulk_create is done. So we need to update it manually
                 # before we create related objects in bulk.
@@ -46,7 +44,7 @@ class TransientObjectsManagerMixin:
                 cmd = value.split("__")
                 set_attr_key = cmd[1]
                 get_attr_key = cmd[3]
-            elif isinstance(value, Sequence):
+            elif isinstance(value, Sequence) and len(value) > 0:
                 if set_attr_key and get_attr_key:
                     for obj in value:
                         # handle pre db job detected by last loop
@@ -56,10 +54,10 @@ class TransientObjectsManagerMixin:
                     get_attr_key = None
                 value[0]._meta.model.objects.bulk_create(objs=value)
 
-    def _handle_transient_objects(self, db_obj: models.Model):
+    def _handle_transient_m2m_objects(self, db_obj: models.Model):
         m2m_fields = [field.name for field in db_obj._meta.local_many_to_many]
         transient_fields = filter(lambda key: not key.startswith(
-            '__transient'), vars(self.items()))
+            '__transient'), db_obj.__dict__.keys())
         transient_m2m_fields = filter(
             lambda key: key in m2m_fields, transient_fields)
 
@@ -165,7 +163,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             style_list.append(db_style)
         self._update_transient_objects({
             "style_list": style_list,
-            "pre_db_job": "update__style_id__with__style.pk",
+            "pre_db_job__style_list": "update__style_id__with__style.pk",
             "legend_url_list": legend_url_list
         })
 
@@ -183,7 +181,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
 
         self._update_transient_objects({
             "dimension_list": dimension_list,
-            "pre_db_job": "update__dimension_id__with__dimension.pk",
+            "pre_db_job__dimension_list": "update__dimension_id__with__dimension.pk",
             "time_extent_list": time_extent_list
         })
 
@@ -212,7 +210,6 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                      origin=MetadataOrigin.CAPABILITIES.value,
                      **parsed_layer.transform_to_model(),
                      **parsed_layer.metadata.transform_to_model())
-
         self._update_transient_objects({"layer_list": [node]})
 
         setattr(node, Layer._mptt_meta.tree_id_attr, tree_id)
@@ -278,21 +275,22 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             db_service=db_service)
 
         db_layer_list: List[Layer] = bulk_create_with_history(
-            objs=self.__transient_objects.get("layer_list", []),
+            objs=self._transient_objects.pop("layer_list"),
             model=Layer)
 
         self._persist_transient_objects()
 
         for db_layer in db_layer_list:
-            self._handle_transient_objects(db_layer)
+            self._handle_transient_m2m_objects(db_layer)
 
         # non documented function from mptt to rebuild the tree
         # TODO: check if we need to rebuild if we create the tree with the correct right and left values.
         Layer.objects.partial_rebuild(tree_id=tree_id)
 
     def create(self, parsed_service, **kwargs: Any):
-        self.__transient_objects = {}
+        self._transient_objects = {}
         from registry.models.service import WebMapService
+
         with transaction.atomic():
             db_service: WebMapService = self._create_service_instance(
                 parsed_service=parsed_service)

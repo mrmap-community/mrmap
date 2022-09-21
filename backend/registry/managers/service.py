@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from collections import OrderedDict
 from collections.abc import Sequence
 from random import randrange
 from typing import Any, Dict, List
@@ -9,32 +8,36 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Max
 from extras.managers import DefaultHistoryManager
+from extras.utils import camel_to_snake
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
 from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       MetadataContact, MimeType,
-                                      ReferenceSystem, RemoteMetadata, Style,
-                                      TimeExtent)
+                                      ReferenceSystem, Style, TimeExtent,
+                                      WebMapServiceRemoteMetadata)
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 
 
 class TransientObjectsManagerMixin:
-    __transient_objects = OrderedDict()
+    __transient_objects = {}
 
     def _update_transient_objects(self, kv: Dict):
-        for key, value in kv:
+        for key, value in kv.items():
+            l = self.__transient_objects.get(key, [])
+            if l == None:
+                l = []
             self.__transient_objects.update(
                 {
-                    key: self.__transient_objects.get(key, []).extend(
-                        value) if isinstance(value, Sequence) else value
+                    key: l.extend(
+                        value) if not isinstance(value, str) else value
                 }
             )
 
     def _persist_transient_objects(self):
         set_attr_key = None
         get_attr_key = None
-        for key, value in self.__transient_objects:
+        for key, value in self.__transient_objects.items():
             if key == "pre_db_job":
                 # handle command like "update__style_id__with__style.pk"
                 # foreignkey id attribute is not updated after bulk_create is done. So we need to update it manually
@@ -66,10 +69,15 @@ class TransientObjectsManagerMixin:
 
     def get_or_create_list(self, list, model_cls):
         items = []
+
         for item in list:
             # todo: slow get_or_create solution - maybe there is a better way to do this
-            db_item, created = model_cls.objects.get_or_create(
-                **item.__dict__)
+            if isinstance(item, str):
+                db_item, created = model_cls.objects.get_or_create(
+                    **{camel_to_snake(model_cls.__name__): item})
+            else:
+                db_item, created = model_cls.objects.get_or_create(
+                    **item.transform_to_model())
             items.append(db_item)
         return items
 
@@ -84,13 +92,13 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         parsed_service_contact = parsed_service.service_metadata.service_contact
 
         db_service_contact, created = MetadataContact.objects.get_or_create(
-            **parsed_service_contact.__dict__)
+            **parsed_service_contact.transform_to_model())
 
-        service: WebMapService = self.create(origin=MetadataOrigin.CAPABILITIES.value,
-                                             service_contact=db_service_contact,
-                                             metadata_contact=db_service_contact,
-                                             **parsed_service.__dict__,
-                                             **parsed_service.service_metadata.__dict__)
+        service: WebMapService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
+                                                service_contact=db_service_contact,
+                                                metadata_contact=db_service_contact,
+                                                **parsed_service.transform_to_model(),
+                                                **parsed_service.service_metadata.transform_to_model())
 
         # keywords
         keyword_list = self.get_or_create_list(
@@ -110,7 +118,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         for operation_url in parsed_service.operation_urls:
             db_operation_url = WebMapServiceOperationUrl(
                 service=service,
-                **operation_url.__dict__)
+                **operation_url.transform_to_model())
             db_operation_url.mime_type_list = []
 
             mime_type_list = self.get_or_create_list(
@@ -134,10 +142,10 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             model=Layer)
         remote_metadata_list = []
         for remote_metadata in parsed_sub_element.remote_metadata:
-            remote_metadata_list.append(RemoteMetadata(service=db_service,
-                                                       content_type=sub_element_content_type,
-                                                       object_id=db_sub_element.pk,
-                                                       **remote_metadata.__dict__))
+            remote_metadata_list.append(WebMapServiceRemoteMetadata(service=db_service,
+                                                                    content_type=sub_element_content_type,
+                                                                    object_id=db_sub_element.pk,
+                                                                    **remote_metadata.transform_to_model()))
         self._update_transient_objects(
             {"remote_metadata_list": remote_metadata_list})
 
@@ -146,14 +154,14 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         legend_url_list = []
         for style in parsed_layer.styles:
             db_style = Style(layer=db_layer,
-                             **style.__dict__)
+                             **style.transform_to_model())
             if style.legend_url:
                 # legend_url is optional for style entities
                 db_mime_type, created = MimeType.objects.get_or_create(
-                    **style.legend_url.mime_type.__dict__)
+                    mime_type=style.legend_url.mime_type.transform_to_model())
                 legend_url_list.append(LegendUrl(style=db_style,
                                                  mime_type=db_mime_type,
-                                                 **style.legend_url.__dict__))
+                                                 **style.legend_url.transform_to_model()))
             style_list.append(db_style)
         self._update_transient_objects({
             "style_list": style_list,
@@ -166,12 +174,12 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         time_extent_list = []
         for dimension in parsed_layer.dimensions:
             db_dimension = Dimension(layer=db_layer,
-                                     **dimension.__dict__)
+                                     **dimension.transform_to_model())
             dimension_list.append(db_dimension)
 
-            for dimension_extent in dimension.extents:
+            for dimension_extent in dimension.time_extents:
                 time_extent_list.append(TimeExtent(dimension=db_dimension,
-                                                   **dimension_extent.__dict__))
+                                                   **dimension_extent.transform_to_model()))
 
         self._update_transient_objects({
             "dimension_list": dimension_list,
@@ -202,8 +210,8 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         node = Layer(service=db_service,
                      parent=db_parent,
                      origin=MetadataOrigin.CAPABILITIES.value,
-                     **parsed_layer.get_field_dict(),
-                     **parsed_layer.metadata.get_field_dict())
+                     **parsed_layer.transform_to_model(),
+                     **parsed_layer.metadata.transform_to_model())
 
         self._update_transient_objects({"layer_list": [node]})
 
@@ -254,9 +262,6 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             Returns:
                 tree_id (int): the used tree id of the constructed layer objects.
         """
-        if not self.parent_lookup:
-            self.parent_lookup = {}
-
         tree_id = self._get_next_tree_id()
         self._treeify(
             parsed_layer=parsed_service.root_layer,
@@ -273,7 +278,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             db_service=db_service)
 
         db_layer_list: List[Layer] = bulk_create_with_history(
-            objs=self.__transient_objects.get("layer_list"),
+            objs=self.__transient_objects.get("layer_list", []),
             model=Layer)
 
         self._persist_transient_objects()
@@ -286,9 +291,9 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         Layer.objects.partial_rebuild(tree_id=tree_id)
 
     def create(self, parsed_service, **kwargs: Any):
-        self.__transient_objects = OrderedDict()
+        self.__transient_objects = {}
         from registry.models.service import WebMapService
-        with transaction.atomic:
+        with transaction.atomic():
             db_service: WebMapService = self._create_service_instance(
                 parsed_service=parsed_service)
             self._create_subelements(parsed_service=parsed_service,

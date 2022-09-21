@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Callable, Iterable, List
+from typing import Callable, Dict, Iterable, List
 from urllib import parse
 
 from extras.utils import camel_to_snake
@@ -61,6 +61,16 @@ class OperationUrl:
         if self._callback:
             self._callback(self)
 
+    def transform_to_model(self) -> Dict:
+        attr = {}
+        if self.operation:
+            attr.update({"operation": self.operation})
+        if self.url:
+            attr.update({"url": self.url})
+        if self.method:
+            attr.update({"method": self.method})
+        return attr
+
 
 class ReferenceSystemMixin:
 
@@ -108,6 +118,14 @@ class ReferenceSystemMixin:
     @prefix.setter
     def prefix(self, new_prefix) -> None:
         self._ref_system = f"{new_prefix}:{self._code}"
+
+    def transform_to_model(self) -> Dict:
+        attr = {}
+        if self.prefix:
+            attr.update({"prefix": self.prefix})
+        if self.code:
+            attr.update({"code": self.code})
+        return attr
 
 
 class OGCServiceTypeMixin:

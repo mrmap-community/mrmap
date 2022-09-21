@@ -17,7 +17,7 @@ class OGCServiceTypeHelper(XmlObject):
        Not for Common usage!
     """
 
-    version = StringField(xpath=f"./{NS_WC}@version']")
+    version = StringField(xpath="//@version")
     _kind = StringField(
         xpath=f"./{NS_WC}Service']/{NS_WC}Name']|./{NS_WC}ServiceIdentification']/{NS_WC}ServiceType']")
 

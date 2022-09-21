@@ -1,5 +1,5 @@
 import datetime
-from typing import Callable
+from typing import Callable, Dict
 
 from django.conf import settings
 from django.contrib.gis.geos import Polygon
@@ -83,6 +83,16 @@ class TimeExtent:
     def __str__(self) -> str:
         return f"{self.start} | {self.stop} | {self.resolution}"
 
+    def transform_to_model(self) -> Dict:
+        attr = {}
+        if self.start:
+            attr.update({"start": self.start})
+        if self.stop:
+            attr.update({"stop": self.stop})
+        if self.resolution:
+            attr.update({"resolution": self.resolution})
+        return attr
+
 
 class TimeDimensionMixin:
     # cache variable to store the parsed extent value
@@ -164,10 +174,13 @@ class TimeDimensionMixin:
 
     def __parse_list_of_values(self) -> list[TimeExtent]:
         split = self._extent.split(",")
+        _extents = []
         for value in split:
             _value = self.__parse_datetime_or_date(value)
             if _value:
-                self.extents.append(TimeExtent(start=_value, stop=_value))
+                _extents.append(
+                    TimeExtent(start=_value, stop=_value))
+        return _extents
 
     def __parse_extent(self, *args, **kwargs):
         """
@@ -198,7 +211,7 @@ class TimeDimensionMixin:
                     interval=self._extent))
             elif "," in self._extent:
                 # case 2 of table C.2: a A list of multiple values
-                self.__parse_list_of_values()
+                __extents.extend(self.__parse_list_of_values())
             else:
                 # case 1 of table C.2: one single value was detected
                 _value = self.__parse_datetime_or_date(self._extent)

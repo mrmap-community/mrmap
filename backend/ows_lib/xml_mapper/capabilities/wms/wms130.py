@@ -56,7 +56,6 @@ class ServiceType(WebMapServiceDefaultSettings, OGCServiceTypeMixin):
     ROOT_NAME = "wms:WMS_Capabilities/@version='1.3.0'"
 
     version = StringField(xpath="./@version", choices='1.3.0')
-
     _name = StringField(xpath="./wms:Service/wms:Name")
 
 
@@ -77,6 +76,11 @@ class ReferenceSystem(WebMapServiceDefaultSettings, ReferenceSystemMixin):
     _ref_system = StringField(xpath=".")
 
 
+class MimeType(WebMapServiceDefaultSettings):
+    ROOT_NAME = "wms:Format"
+    mime_type = StringField(xpath="./wms:Format")
+
+
 class LegendUrl(WebMapServiceDefaultSettings):
     ROOT_NAME = "wms:LegendUrl"
 
@@ -84,7 +88,7 @@ class LegendUrl(WebMapServiceDefaultSettings):
         xpath="./wms:OnlineResource[@xlink:type='simple']/@xlink:href")
     height = IntegerField(xpath="./@height")
     width = IntegerField(xpath="./@width")
-    mime_type = StringField(xpath="./wms:Format")
+    mime_type = NodeField(xpath="./wms:Format", node_class=MimeType)
 
 
 class Style(WebMapServiceDefaultSettings):
@@ -101,6 +105,12 @@ class LayerMetadata(WebMapServiceDefaultSettings):
     title = StringField(xpath="./wms:Title")
     abstract = StringField(xpath="./wms:Abstract")
     keywords = StringListField(xpath="./wms:KeywordList/wms:Keyword")
+
+
+class RemoteMetadata(WebMapServiceDefaultSettings):
+    ROOT_NAME = "wms:OnlineResource[@xlink:type='simple']/@xlink:href"
+    link = StringField(
+        xpath="./@xlink:href")
 
 
 class Layer(WebMapServiceDefaultSettings, LayerMixin):
@@ -133,8 +143,9 @@ class Layer(WebMapServiceDefaultSettings, LayerMixin):
     children = NodeListField(xpath="./wms:Layer", node_class="self")
 
     metadata = NodeField(xpath=".", node_class=LayerMetadata)
-    remote_metadata = StringListField(
-        xpath="./wms:MetadataURL/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
+    remote_metadata = NodeListField(
+        xpath="./wms:MetadataURL/wms:OnlineResource[@xlink:type='simple']",
+        node_class=RemoteMetadata)
 
 
 class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):

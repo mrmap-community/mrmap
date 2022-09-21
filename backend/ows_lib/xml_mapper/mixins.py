@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict
 
 from django.conf import settings
 from eulxml import xmlmap
@@ -69,7 +69,8 @@ class DBModelConverterMixin:
         for key in filter(lambda key: not key.startswith('_'), self._fields.keys()):
             try:
                 if not (isinstance(self._fields.get(key), xmlmap.NodeField) or
-                        isinstance(self._fields.get(key), xmlmap.NodeListField)):
+                        isinstance(self._fields.get(key), xmlmap.NodeListField) or
+                        isinstance(self._fields.get(key), xmlmap.StringListField)):
                     if isinstance(self._fields.get(key), xmlmap.SimpleBooleanField) and getattr(self, key) is None or \
                        isinstance(self._fields.get(key), xmlmap.StringField) and getattr(self, key) is None or \
                        isinstance(self._fields.get(key), xmlmap.IntegerField) and getattr(self, key) is None:
@@ -85,9 +86,11 @@ class DBModelConverterMixin:
                     e, stack_info=True, exc_info=True)
         return field_dict
 
-    def __dict__(self):
+    def transform_to_model(self) -> Dict:
+        """"""
         field_dict = self.__get_xml_mapper_fields()
-        for property, value in vars(self.items()):
-            if property not in field_dict:
-                field_dict.update({property: value})
+        for key, value in self.__dict__.items():
+            if key.startswith('_') or key[0].isupper() or key != 'context' or value == None or key in self._fields.keys():
+                break
+            field_dict.update({key: value})
         return field_dict

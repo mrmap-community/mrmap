@@ -426,7 +426,7 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
     def _get_operation_xml_nodes(self):
         return self.parsed_capabilities.node.xpath(
-            "//wfs:WFS_Capabilities/ows:OperationsMetadata/",
+            "//wfs:WFS_Capabilities/ows:OperationsMetadata",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
                 "ows": OWS_1_1_NAMESPACE,

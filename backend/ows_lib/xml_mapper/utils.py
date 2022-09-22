@@ -80,7 +80,13 @@ def get_xml_mapper(capabilities_xml):
                     f"Version {parsed_service.version} for wfs is not supported.")
 
     elif parsed_service.kind == OGCServiceEnum.CSW.value:
-        raise NotImplementedError("")
+        match parsed_service.version:
+            case "2.0.2":
+                from ows_lib.xml_mapper.capabilities.csw.csw202 import \
+                    CatalogueService
+                return CatalogueService
+        raise NotImplementedError(
+            f"Version {parsed_service.version} for csw is not supported.")
     else:
         raise_default_sematic_error(parsed_service.kind)
 

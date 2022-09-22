@@ -1,30 +1,17 @@
 import os
 
 from django.contrib.gis.geos import Polygon
+from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
-from isodate.isodatetime import parse_datetime
-from isodate.isoduration import parse_duration
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.capabilities.wfs.wfs200 import WebFeatureService
-from ows_lib.xml_mapper.capabilities.wms.mixins import TimeExtent
-from ows_lib.xml_mapper.capabilities.wms.wms130 import Layer
-from ows_lib.xml_mapper.namespaces import WFS_2_0_0_NAMESPACE, XLINK_NAMESPACE
+from ows_lib.xml_mapper.namespaces import (OWS_1_1_NAMESPACE,
+                                           WFS_2_0_0_NAMESPACE,
+                                           XLINK_NAMESPACE)
 from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 
-class WebMapServiceTestCase:
-
-    @property
-    def path(self):
-        raise NotImplementedError
-
-    @property
-    def xml_class(self):
-        raise NotImplementedError
-
-    @property
-    def version(self):
-        raise NotImplementedError
+class WebFeatureServiceTestCase(SimpleTestCase):
 
     path = os.path.join(DJANGO_TEST_ROOT_DIR,
                         "./test_data/capabilities/wfs/2.0.0.xml")
@@ -36,10 +23,6 @@ class WebMapServiceTestCase:
     def setUp(self) -> None:
         self.parsed_capabilities: self.xml_class = load_xmlobject_from_file(
             self.path, xmlclass=self.xml_class)
-
-    def _test_root_mapper(self):
-        self.assertEqual(self.parsed_capabilities.service_url,
-                         "https://maps.dwd.de/geoserver/")
 
     def _test_service_metadata_mapper(self):
         self.assertEqual(
@@ -428,7 +411,6 @@ class WebMapServiceTestCase:
         )
 
     def test_wms_xml_mapper(self):
-        self._test_root_mapper()
         self._test_service_metadata_mapper()
         self._test_service_contact_mapper()
         self._test_service_keywords()
@@ -443,11 +425,12 @@ class WebMapServiceTestCase:
         self._test_service_type_mapper()
         self._test_feature_type_mapper()
 
-    def _get_added_get_map_operation_url(self):
+    def _get_added_get_feature_operation_url(self):
         return self.parsed_capabilities.node.xpath(
             "//wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation[@name='GetFeature']/ows:DCP/ows:HTTP/ows:Get/@xlink:href",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })[0]
 
@@ -456,6 +439,7 @@ class WebMapServiceTestCase:
             "//wfs:WFS_Capabilities/ows:OperationsMetadata/",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })
 
@@ -464,6 +448,7 @@ class WebMapServiceTestCase:
             "//wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation//ows:DCP/ows:HTTP/ows:Get/@xlink:href",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })
 
@@ -472,6 +457,7 @@ class WebMapServiceTestCase:
             "//wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation[@name='GetCapabilities']/ows:DCP/ows:HTTP/ows:Get/@xlink:href",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })[0]
 
@@ -505,7 +491,7 @@ class WebMapServiceTestCase:
             o_url
         )
 
-        added_operation_url = self._get_added_get_map_operation_url()
+        added_operation_url = self._get_added_get_feature_operation_url()
 
         self.assertEqual(
             added_operation_url,
@@ -588,6 +574,7 @@ class WebMapServiceTestCase:
             "//wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[1]/ows:WGS84BoundingBox/ows:LowerCorner",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })[0].text.split(" ")[0]
 
@@ -596,6 +583,7 @@ class WebMapServiceTestCase:
             "//wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[1]/ows:WGS84BoundingBox/ows:LowerCorner",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })[0].text.split(" ")[1]
 
@@ -604,6 +592,7 @@ class WebMapServiceTestCase:
             "//wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[1]/ows:WGS84BoundingBox/ows:UpperCorner",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })[0].text.split(" ")[0]
 
@@ -612,6 +601,7 @@ class WebMapServiceTestCase:
             "//wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[1]/ows:WGS84BoundingBox/ows:UpperCorner",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
+                "ows": OWS_1_1_NAMESPACE,
                 "xlink": XLINK_NAMESPACE
             })[0].text.split(" ")[1]
 
@@ -648,24 +638,6 @@ class WebMapServiceTestCase:
         self.assertEqual(
             float(first_feature_type_max_y),
             20.0
-        )
-
-        new_time_extend = TimeExtent(
-            start=parse_datetime("2020-11-29T12:40:00Z"),
-            stop=parse_datetime("2021-12-13T12:40:00Z"),
-            resolution=parse_duration("P1D")
-        )
-
-        parsed_layer: Layer = self.parsed_capabilities.get_layer_by_identifier(
-            "dwd:Autowarn_Analyse")
-
-        parsed_layer.dimensions[0].time_extents.append(new_time_extend)
-
-        new_time_extent_value = self._get_new_time_extent()
-
-        self.assertEqual(
-            new_time_extent_value,
-            "2021-11-29T12:40:00Z/2021-12-13T12:40:00Z/PT5M,2020-11-29T12:40:00Z/2021-12-13T12:40:00Z/P1D"
         )
 
     def test_feature_types_property(self):

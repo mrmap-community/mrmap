@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from collections.abc import Sequence
 from random import randrange
 from typing import Any, Dict, List
@@ -414,193 +413,60 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         return db_service
 
 
-class ServiceCapabilitiesManager(models.Manager):
-    """
-    handles the creation of objects by using the parsed service which is stored in the given :class:`new.Service`
-    instance.
-    """
-    db_remote_metadata_list = []
-    db_dimension_list = []
-
-    # to avoid from circular import problems, we lookup the model from the parsed python objects. The model is
-    # stored on the parsed python objects in attribute `model`.
-    sub_element_cls = None
-    sub_element_content_type = None
-    service_metadata_cls = None
-    keyword_cls = None
-    remote_metadata_cls = None
-    mime_type_cls = None
-
-    dimension_cls = None
-    reference_system_cls = None
-
-    current_user = None
-
-    def _reset_local_variables(self):
-        """helper function to reset local variables.
-           It seems to be that a manager in django is a singleton object.
-        """
-
-        self.db_sub_element_metadata_list = []
-        self.db_remote_metadata_list = []
-
-        self.db_dimension_list = []
-        self.db_dimension_extent_list = []
-
-        self.sub_element_cls = None
-        self.sub_element_content_type = None
-        self.sub_element_metadata_cls = None
-        self.service_metadata_cls = None
-        self.keyword_cls = None
-        self.remote_metadata_cls = None
-        self.mime_type_cls = None
-
-        self.dimension_cls = None
-        self.dimension_extent_cls = None
-        self.reference_system_cls = None
-
-        # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
-        # collect them once.
-        if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
-            self.current_user = HistoricalRecords.context.request.user
-
-    def _get_or_create_keywords(self, parsed_keywords, db_object):
-        db_object.keyword_list = []
-        for keyword in parsed_keywords:
-            # todo: slow get_or_create solution - maybe there is a better way to do this
-            if not self.keyword_cls:
-                self.keyword_cls = keyword.get_model_class()
-            db_keyword, created = self.keyword_cls.objects.get_or_create(
-                **keyword.get_field_dict())
-            db_object.keyword_list.append(db_keyword)
-
+class CatalougeServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Manager):
     def _create_service_instance(self, parsed_service):
         """ Creates the service instance and all depending/related objects """
-        # create service instance first
-
+        from registry.models.service import (CatalougeService,
+                                             CatalougeServiceOperationUrl)
+        print(parsed_service.service_metadata)
         parsed_service_contact = parsed_service.service_metadata.service_contact
-        service_contact_cls = parsed_service_contact.get_model_class()
-        db_service_contact, created = service_contact_cls.objects.get_or_create(
-            **parsed_service_contact.get_field_dict())
 
-        service = self.create(origin=MetadataOrigin.CAPABILITIES.value,
-                              service_contact=db_service_contact,
-                              metadata_contact=db_service_contact,
-                              **parsed_service.get_field_dict(),
-                              **parsed_service.service_metadata.get_field_dict())
+        db_service_contact, created = MetadataContact.objects.get_or_create(
+            **parsed_service_contact.transform_to_model())
 
-        self._get_or_create_keywords(parsed_keywords=parsed_service.service_metadata.keywords,
-                                     db_object=service)
+        service: CatalougeService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
+                                                   service_contact=db_service_contact,
+                                                   metadata_contact=db_service_contact,
+                                                   **parsed_service.transform_to_model(),
+                                                   **parsed_service.service_metadata.transform_to_model())
 
-        # m2m objects
-        service.keywords.add(*service.keyword_list)
+        # keywords
+        keyword_list = self.get_or_create_list(
+            list=parsed_service.service_metadata.keywords,
+            model_cls=Keyword)
+        service.keywords.add(*keyword_list)
 
+        # xml
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(
                                          str(parsed_service.serializeDocument(), "UTF-8")),
                                      save=False)
         service.save(without_historical=True)
 
+        # operation urls
         operation_urls = []
-        operation_url_model_cls = None
-        db_queryables = []
-        queryable_model_cls = None
         for operation_url in parsed_service.operation_urls:
-            if not operation_url_model_cls:
-                operation_url_model_cls = operation_url.get_model_class()
-
-            db_operation_url = operation_url_model_cls(service=service,
-                                                       **operation_url.get_field_dict())
+            db_operation_url = CatalougeServiceOperationUrl(
+                service=service,
+                **operation_url.transform_to_model())
             db_operation_url.mime_type_list = []
 
-            for mime_type in operation_url.mime_types:
-                # todo: slow get_or_create solution - maybe there is a better way to do this
-                if not self.mime_type_cls:
-                    self.mime_type_cls = mime_type.get_model_class()
-                db_mime_type, created = self.mime_type_cls.objects.get_or_create(
-                    **mime_type.get_field_dict())
-                db_operation_url.mime_type_list.append(db_mime_type)
+            mime_type_list = self.get_or_create_list(
+                list=operation_url.mime_types,
+                model_cls=MimeType)
 
-            if hasattr(operation_url, "queryables"):
-                for queryable in operation_url.queryables:
-                    if not queryable_model_cls:
-                        queryable_model_cls = queryable.get_model_class()
-                    db_queryables.append(queryable_model_cls(
-                        operation_url=db_operation_url, **queryable.get_field_dict()))
-
+            db_operation_url.mime_type_list.extend(mime_type_list)
             operation_urls.append(db_operation_url)
-        db_operation_url_list = operation_url_model_cls.objects.bulk_create(
+
+        db_operation_url_list = CatalougeServiceOperationUrl.objects.bulk_create(
             objs=operation_urls)
-        if queryable_model_cls and db_queryables:
-            queryable_model_cls.objects.bulk_create(objs=db_queryables)
 
         for db_operation_url in db_operation_url_list:
             db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
 
         return service
 
-    def _construct_remote_metadata_instances(self, parsed_sub_element, db_service, db_sub_element):
-        if not self.sub_element_content_type:
-            self.sub_element_content_type = ContentType.objects.get_for_model(
-                model=self.sub_element_cls)
-        for remote_metadata in parsed_sub_element.remote_metadata:
-            if not self.remote_metadata_cls:
-                self.remote_metadata_cls = remote_metadata.get_model_class()
-            self.db_remote_metadata_list.append(self.remote_metadata_cls(service=db_service,
-                                                                         content_type=self.sub_element_content_type,
-                                                                         object_id=db_sub_element.pk,
-                                                                         **remote_metadata.get_field_dict()))
-
-    def _get_or_create_output_formats(self, parsed_feature_type, db_feature_type):
-        for mime_type in parsed_feature_type.output_formats:
-            # todo: slow get_or_create solution - maybe there is a better way to do this
-            if not self.mime_type_cls:
-                self.mime_type_cls = mime_type.get_model_class()
-            db_mime_type, created = self.mime_type_cls.objects.get_or_create(
-                **mime_type.get_field_dict())
-            db_feature_type.db_output_format_list.append(db_mime_type)
-
-    def _construct_dimension_instances(self, parsed_layer, db_layer):
-
-        for dimension in parsed_layer.dimensions:
-            if not self.dimension_cls:
-                self.dimension_cls = dimension.get_model_class()
-            db_dimension = self.dimension_cls(layer=db_layer,
-                                              **dimension.get_field_dict())
-            self.db_dimension_list.append(db_dimension)
-            dimension.parse_extent()
-            for dimension_extent in dimension.extents:
-                if not self.dimension_extent_cls:
-                    self.dimension_extent_cls = dimension_extent.get_model_class()
-                self.db_dimension_extent_list.append(self.dimension_extent_cls(dimension=db_dimension,
-                                                     **dimension_extent.get_field_dict()))
-
-    def _create_reference_system_instances(self, parsed_sub_element, db_sub_element):
-        db_sub_element.reference_system_list = []
-        for reference_system in parsed_sub_element.reference_systems:
-            # todo: slow get_or_create solution - maybe there is a better way to do this
-            if not self.reference_system_cls:
-                self.reference_system_cls = reference_system.get_model_class()
-            db_reference_system, created = self.reference_system_cls.objects.get_or_create(
-                **reference_system.get_field_dict())
-            db_sub_element.reference_system_list.append(db_reference_system)
-
-    @abstractmethod
-    def create_from_parsed_service(self, parsed_service, *args, **kwargs):
-        """ Custom create function for :class:`models.Service` which is based on the parsed capabilities document.
-
-            Args:
-                parsed_service: the parsed Service object based on the :class:`new.Service` class.
-
-            Returns:
-                db instance (Service): the created Service object based on the :class:`models.Service`
-        """
-        raise NotImplementedError
-
-
-class CatalougeServiceCapabilitiesManager(ServiceCapabilitiesManager):
-    def create_from_parsed_service(self, parsed_service):
-        self._reset_local_variables()
+    def create(self, parsed_service):
         with transaction.atomic():
             db_service = self._create_service_instance(
                 parsed_service=parsed_service)

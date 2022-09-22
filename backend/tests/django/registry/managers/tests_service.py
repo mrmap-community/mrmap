@@ -41,12 +41,12 @@ class WebFeatureServiceCapabilitiesManagerTest(TestCase):
 class CatalougeServiceCapabilitiesManagerTest(TestCase):
 
     def test_success(self):
-        """Test that create_from_parsed_service manager function works correctly."""
+        """Test that create manager function works correctly."""
 
         parsed_service = get_parsed_service(Path(Path.joinpath(
-            Path(__file__).parent.resolve(), '../../test_data/csw_hessen_2_0_2.xml')))
+            Path(__file__).parent.resolve(), '../../test_data/capabilities/csw/2.0.2.xml')))
 
-        db_service = CatalougeService.capabilities.create_from_parsed_service(
+        db_service = CatalougeService.capabilities.create(
             parsed_service=parsed_service)
 
         db_service_count = CatalougeService.objects.count()

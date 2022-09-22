@@ -113,9 +113,9 @@ class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
         xpath="./wfs:MetadataURL", node_class=RemoteMetadata)
 
     _bbox_lower_corner = StringField(
-        xpath="./wfs:WGS84BoundingBox/wfs:LowerCorner")
+        xpath="./ows:WGS84BoundingBox/ows:LowerCorner")
     _bbox_upper_corner = StringField(
-        xpath="./wfs:WGS84BoundingBox/wfs:UpperCorner")
+        xpath="./ows:WGS84BoundingBox/ows:UpperCorner")
 
     output_formats = NodeListField(
         xpath="./wfs:OutputFormats/wfs:Format", node_class=OutputFormat)
@@ -126,6 +126,8 @@ class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
         xpath="./wfs:DefaultCRS", node_class=_default_crs_class)
     _other_reference_systems = NodeListField(
         xpath="./wfs:OtherCRS", node_class=_other_crs_class)
+
+    keywords = StringListField(xpath="./ows:Keywords/ows:Keyword")
 
 
 class WebFeatureService(WebFeatureServiceDefaultSettings, WebFeatureServiceMixin):

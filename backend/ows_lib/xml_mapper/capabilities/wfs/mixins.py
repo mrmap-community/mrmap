@@ -80,4 +80,4 @@ class WebFeatureServiceMixin(OGCServiceMixin):
                             "GetFeature", "GetPropertyValue", "ListStoredQueries", "DescribeStoredQueries", "CreateStoredQuery", "DropStoredQuery"]
 
     def get_feature_type_by_identifier(self, identifier: str):
-        return next((layer for layer in self.layers if layer.identifier == identifier), None)
+        return next((feature_type for feature_type in self.feature_types if feature_type.identifier == identifier), None)

@@ -165,40 +165,12 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
     def _test_get_feature_operation_urls(self):
         self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].url,
-            "https://maps.dwd.de/geoserver/wfs"
-        )
-        self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].method,
-            "Get"
-        )
-        self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].operation,
-            "GetFeature"
-        )
-        self.assertEqual(
-            len(self.parsed_capabilities.operation_urls[3].mime_types),
-            16
-        )
-        self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].mime_types[0],
-            "application/gml+xml; version=3.2"
-        )
-        self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].mime_types[1],
-            "GML2"
-        )
-        self.assertEqual(
-            self.parsed_capabilities.operation_urls[3].mime_types[2],
-            "KML"
-        )
-        self.assertEqual(
             self.parsed_capabilities.operation_urls[4].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[4].method,
-            "Post"
+            "Get"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[4].operation,
@@ -220,107 +192,123 @@ class WebFeatureServiceTestCase(SimpleTestCase):
             self.parsed_capabilities.operation_urls[4].mime_types[2],
             "KML"
         )
-
-    def _test_get_property_value_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[5].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[5].method,
-            "Get"
+            "Post"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[5].operation,
-            "GetPropertyValue"
+            "GetFeature"
         )
-
+        self.assertEqual(
+            len(self.parsed_capabilities.operation_urls[5].mime_types),
+            16
+        )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[5].mime_types[0],
             "application/gml+xml; version=3.2"
         )
+        self.assertEqual(
+            self.parsed_capabilities.operation_urls[5].mime_types[1],
+            "GML2"
+        )
+        self.assertEqual(
+            self.parsed_capabilities.operation_urls[5].mime_types[2],
+            "KML"
+        )
+
+    def _test_get_property_value_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[6].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[6].method,
-            "Post"
+            "Get"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[6].operation,
             "GetPropertyValue"
         )
+
         self.assertEqual(
             self.parsed_capabilities.operation_urls[6].mime_types[0],
             "application/gml+xml; version=3.2"
         )
-
-    def _test_list_stored_queries_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[7].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[7].method,
-            "Get"
+            "Post"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[7].operation,
-            "ListStoredQueries"
+            "GetPropertyValue"
         )
+        self.assertEqual(
+            self.parsed_capabilities.operation_urls[7].mime_types[0],
+            "application/gml+xml; version=3.2"
+        )
+
+    def _test_list_stored_queries_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[8].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[8].method,
-            "Post"
+            "Get"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[8].operation,
             "ListStoredQueries"
         )
-
-    def _test_describe_stored_queries_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[9].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[9].method,
-            "Get"
+            "Post"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[9].operation,
-            "DescribeStoredQueries"
+            "ListStoredQueries"
         )
+
+    def _test_describe_stored_queries_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[10].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[10].method,
-            "Post"
+            "Get"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[10].operation,
             "DescribeStoredQueries"
         )
-
-    def _test_create_stored_query_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[11].url,
             "https://maps.dwd.de/geoserver/wfs"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[11].method,
-            "Get"
+            "Post"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[11].operation,
-            "CreateStoredQuery"
+            "DescribeStoredQueries"
         )
+
+    def _test_create_stored_query_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[12].url,
             "https://maps.dwd.de/geoserver/wfs"
@@ -366,21 +354,23 @@ class WebFeatureServiceTestCase(SimpleTestCase):
         self.assertEqual(self.parsed_capabilities.service_type.name, "wfs")
 
     def _test_feature_type_mapper(self):
+        ft = self.parsed_capabilities.get_feature_type_by_identifier(
+            "dwd:RBSN_T2m")
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].identifier,
+            ft.identifier,
             "dwd:RBSN_T2m"
         )
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].metadata.title,
+            ft.metadata.title,
             "2m Temperatur an RBSN Stationen"
         )
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].metadata.abstract,
+            ft.metadata.abstract,
             "Messwerte der 2m Temperatur an den DWD Stationen im Regional Basic Synoptic Network (RBSN) der WMO. Erweitert um weitere Stationen der Grundversorgung."
         )
 
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].bbox_lat_lon,
+            ft.bbox_lat_lon,
             Polygon(
                 (
                     (6.02439799999999, 47.398578),
@@ -392,21 +382,21 @@ class WebFeatureServiceTestCase(SimpleTestCase):
             )
         )
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].keywords[0],
+            ft.keywords[0],
             "Beobachtungssystem"
         )
 
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].reference_systems[0].code,
+            ft.reference_systems[0].code,
             "4258"
         )
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].reference_systems[0].prefix,
+            ft.reference_systems[0].prefix,
             "EPSG"
         )
 
         self.assertEqual(
-            self.parsed_capabilities.feature_types[0].remote_metadata[0],
+            ft.remote_metadata[0].link,
             "https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_T2m"
         )
 
@@ -445,7 +435,7 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
     def _get_all_operation_urls(self):
         return self.parsed_capabilities.node.xpath(
-            "//wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation//ows:DCP/ows:HTTP/ows:Get/@xlink:href",
+            "//wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation//ows:DCP/ows:HTTP//@xlink:href",
             namespaces={
                 "wfs": WFS_2_0_0_NAMESPACE,
                 "ows": OWS_1_1_NAMESPACE,
@@ -463,7 +453,7 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
     def test_wfs_operation_urls_append(self):
         o_url = OperationUrl(
-            method="Post",
+            method="Get",
             operation="GetFeature",
             mime_types=["image/png"],
             url="http://example.com")
@@ -481,8 +471,8 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
     def test_wfs_operation_urls_insert(self):
         o_url = OperationUrl(
-            method="Post",
-            operation="GetMap",
+            method="Get",
+            operation="GetFeature",
             mime_types=["image/png"],
             url="http://example.com")
 
@@ -520,12 +510,12 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
         self.assertEqual(
             len(self.parsed_capabilities.operation_urls),
-            6
+            14
         )
 
         self.assertEqual(
             len(operation_urls),
-            6
+            20
         )
 
     def test_wfs_operation_urls_remove(self):
@@ -538,12 +528,12 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
         self.assertEqual(
             len(self.parsed_capabilities.operation_urls),
-            6
+            14
         )
 
         self.assertEqual(
             len(operation_urls),
-            6
+            20
         )
 
     def test_wfs_operation_urls_update_single_object(self):
@@ -566,7 +556,7 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
         self.assertEqual(
             new_o_url_url,
-            "https://example.com/geoserver/ows?SERVICE=WMS&"
+            "https://example.com/geoserver/wfs"
         )
 
     def _get_first_feature_type_min_x(self):
@@ -616,7 +606,7 @@ class WebFeatureServiceTestCase(SimpleTestCase):
             )
         )
 
-        self.parsed_capabilities.feature_type[0].bbox_lat_lon = new_poly
+        self.parsed_capabilities.feature_types[0].bbox_lat_lon = new_poly
 
         first_feature_type_min_x = self._get_first_feature_type_min_x()
         first_feature_type_max_x = self._get_first_feature_type_max_x()

@@ -51,7 +51,12 @@ class FeatureTypeMixin:
 
     @property
     def reference_systems(self) -> List[ReferenceSystemMixin]:
-        return [self._default_reference_system].extend(self._other_reference_systems)
+        if self._default_reference_system and self._other_reference_systems:
+            return [self._default_reference_system].extend(self._other_reference_systems)
+        elif self._default_reference_system:
+            return [self._default_reference_system]
+        else:
+            return []
 
     @reference_systems.setter
     def reference_systems(self, value: List[ReferenceSystemMixin]):

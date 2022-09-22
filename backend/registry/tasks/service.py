@@ -64,7 +64,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             self_url = reverse(
                 viewname='registry:wms-detail', args=[db_service.pk])
         elif parsed_service.service_type.name == "wfs":
-            db_service = WebFeatureService.capabilities.create_from_parsed_service(
+            db_service = WebFeatureService.capabilities.create(
                 parsed_service=parsed_service)
             resource_name = "WebFeatureService"
             self_url = reverse(

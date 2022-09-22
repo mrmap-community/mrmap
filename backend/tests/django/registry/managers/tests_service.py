@@ -11,7 +11,7 @@ from registry.models.service import (CatalougeService,
 class WebMapServiceCapabilitiesManagerTest(TestCase):
 
     def test_success(self):
-        """Test that create_from_parsed_service manager function works correctly."""
+        """Test that create manager function works correctly."""
 
         parsed_service = get_parsed_service(Path(Path.joinpath(
             Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/1.3.0.xml')))
@@ -26,12 +26,12 @@ class WebMapServiceCapabilitiesManagerTest(TestCase):
 class WebFeatureServiceCapabilitiesManagerTest(TestCase):
 
     def test_success(self):
-        """Test that create_from_parsed_service manager function works correctly."""
+        """Test that create manager function works correctly."""
 
         parsed_service = get_parsed_service(Path(Path.joinpath(
-            Path(__file__).parent.resolve(), '../../test_data/dwd_wfs_2_0_0.xml')))
+            Path(__file__).parent.resolve(), '../../test_data/capabilities/wfs/2.0.0.xml')))
 
-        WebFeatureService.capabilities.create_from_parsed_service(
+        WebFeatureService.capabilities.create(
             parsed_service=parsed_service)
 
         db_service = WebFeatureService.objects.count()

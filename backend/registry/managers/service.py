@@ -14,6 +14,7 @@ from registry.enums.metadata import MetadataOrigin
 from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, Style, TimeExtent,
+                                      WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
@@ -268,7 +269,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
 
         return tree_id
 
-    def _create_subelements(self, parsed_service, db_service) -> None:
+    def _create_layer_and_related_objects(self, parsed_service, db_service) -> None:
         from registry.models.service import Layer
         tree_id: int = self._construct_layer_tree(
             parsed_service=parsed_service,
@@ -294,8 +295,122 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         with transaction.atomic():
             db_service: WebMapService = self._create_service_instance(
                 parsed_service=parsed_service)
-            self._create_subelements(parsed_service=parsed_service,
-                                     db_service=db_service)
+            self._create_layer_and_related_objects(parsed_service=parsed_service,
+                                                   db_service=db_service)
+        return db_service
+
+
+class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Manager):
+    def _create_service_instance(self, parsed_service):
+        """ Creates the service instance and all depending/related objects """
+        from registry.models.service import (WebFeatureService,
+                                             WebFeatureServiceOperationUrl)
+        parsed_service_contact = parsed_service.service_metadata.service_contact
+
+        db_service_contact, created = MetadataContact.objects.get_or_create(
+            **parsed_service_contact.transform_to_model())
+
+        service: WebFeatureService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
+                                                    service_contact=db_service_contact,
+                                                    metadata_contact=db_service_contact,
+                                                    **parsed_service.transform_to_model(),
+                                                    **parsed_service.service_metadata.transform_to_model())
+
+        # keywords
+        keyword_list = self.get_or_create_list(
+            list=parsed_service.service_metadata.keywords,
+            model_cls=Keyword)
+        service.keywords.add(*keyword_list)
+
+        # xml
+        service.xml_backup_file.save(name='capabilities.xml',
+                                     content=ContentFile(
+                                         str(parsed_service.serializeDocument(), "UTF-8")),
+                                     save=False)
+        service.save(without_historical=True)
+
+        # operation urls
+        operation_urls = []
+        for operation_url in parsed_service.operation_urls:
+            db_operation_url = WebFeatureServiceOperationUrl(
+                service=service,
+                **operation_url.transform_to_model())
+            db_operation_url.mime_type_list = []
+
+            mime_type_list = self.get_or_create_list(
+                list=operation_url.mime_types,
+                model_cls=MimeType)
+
+            db_operation_url.mime_type_list.extend(mime_type_list)
+            operation_urls.append(db_operation_url)
+
+        db_operation_url_list = WebFeatureServiceOperationUrl.objects.bulk_create(
+            objs=operation_urls)
+
+        for db_operation_url in db_operation_url_list:
+            db_operation_url.mime_types.add(*db_operation_url.mime_type_list)
+
+        return service
+
+    def _construct_remote_metadata_instances(self, parsed_sub_element, db_service, db_sub_element):
+        from registry.models.service import FeatureType
+        sub_element_content_type = ContentType.objects.get_for_model(
+            model=FeatureType)
+        remote_metadata_list = []
+        for remote_metadata in parsed_sub_element.remote_metadata:
+            remote_metadata_list.append(WebFeatureServiceRemoteMetadata(service=db_service,
+                                                                        content_type=sub_element_content_type,
+                                                                        object_id=db_sub_element.pk,
+                                                                        **remote_metadata.transform_to_model()))
+        self._update_transient_objects(
+            {"remote_metadata_list": remote_metadata_list})
+
+    def _create_feature_types_and_related_objects(self, parsed_service, db_service):
+        db_feature_type_list = []
+        from registry.models.service import FeatureType
+        for parsed_feature_type in parsed_service.feature_types:
+            db_feature_type = FeatureType(service=db_service,
+                                          origin=MetadataOrigin.CAPABILITIES.value,
+                                          **parsed_feature_type.transform_to_model(),
+                                          **parsed_feature_type.metadata.transform_to_model())
+            self._update_transient_objects(
+                {"feature_type_list": [db_feature_type]})
+
+            db_feature_type.__transient_keywords = self.get_or_create_list(
+                list=parsed_feature_type.metadata.keywords,
+                model_cls=Keyword
+            )
+            db_feature_type.__transient_reference_systems = self.get_or_create_list(
+                list=parsed_feature_type.reference_systems,
+                model_cls=ReferenceSystem
+            )
+            db_feature_type.__transient_output_formats = self.get_or_create_list(
+                list=parsed_feature_type.output_formats,
+                model_cls=MimeType
+            )
+
+            self._construct_remote_metadata_instances(parsed_sub_element=parsed_feature_type,
+                                                      db_service=db_service,
+                                                      db_sub_element=db_feature_type)
+
+        db_feature_type_list: List[FeatureType] = bulk_create_with_history(
+            objs=self._transient_objects.pop("feature_type_list"),
+            model=FeatureType)
+
+        self._persist_transient_objects()
+
+        for db_feature_type in db_feature_type_list:
+            self._handle_transient_m2m_objects(db_feature_type)
+
+    def create(self, parsed_service, **kwargs: Any):
+        self._transient_objects = {}
+        from registry.models.service import WebFeatureService
+
+        with transaction.atomic():
+            db_service: WebFeatureService = self._create_service_instance(
+                parsed_service=parsed_service)
+            self._create_feature_types_and_related_objects(parsed_service=parsed_service,
+                                                           db_service=db_service)
         return db_service
 
 
@@ -481,60 +596,6 @@ class ServiceCapabilitiesManager(models.Manager):
                 db instance (Service): the created Service object based on the :class:`models.Service`
         """
         raise NotImplementedError
-
-
-class WebFeatureServiceCapabilitiesManager(ServiceCapabilitiesManager):
-
-    def _create_wfs(self, parsed_service, db_service):
-        db_feature_type_list = []
-        if not self.sub_element_cls:
-            self.sub_element_cls = parsed_service.feature_types[0].get_model_class(
-            )
-        for parsed_feature_type in parsed_service.feature_types:
-            db_feature_type = self.sub_element_cls(service=db_service,
-                                                   origin=MetadataOrigin.CAPABILITIES.value,
-                                                   **parsed_feature_type.get_field_dict(),
-                                                   **parsed_feature_type.metadata.get_field_dict())
-            db_feature_type.db_output_format_list = []
-            db_feature_type_list.append(db_feature_type)
-            self._get_or_create_keywords(parsed_keywords=parsed_feature_type.metadata.keywords,
-                                         db_object=db_feature_type)
-
-            self._construct_remote_metadata_instances(parsed_sub_element=parsed_feature_type,
-                                                      db_service=db_service,
-                                                      db_sub_element=db_feature_type)
-            # todo:
-            """
-            self._construct_dimension_instances(parsed_layer=parsed_layer,
-                                                db_layer=db_layer)
-            """
-            self._get_or_create_output_formats(
-                parsed_feature_type=parsed_feature_type, db_feature_type=db_feature_type)
-            self._create_reference_system_instances(parsed_sub_element=parsed_feature_type,
-                                                    db_sub_element=db_feature_type)
-
-        db_feature_type_list = bulk_create_with_history(
-            objs=db_feature_type_list, model=self.sub_element_cls)
-
-        if self.db_remote_metadata_list:
-            self.remote_metadata_cls.objects.bulk_create(
-                objs=self.db_remote_metadata_list)
-
-        for db_feature_type in db_feature_type_list:
-            db_feature_type.keywords.add(*db_feature_type.keyword_list)
-            db_feature_type.output_formats.add(
-                *db_feature_type.db_output_format_list)
-            db_feature_type.reference_systems.add(
-                *db_feature_type.reference_system_list)
-
-    def create_from_parsed_service(self, parsed_service):
-        self._reset_local_variables()
-        with transaction.atomic():
-            db_service = self._create_service_instance(
-                parsed_service=parsed_service)
-            self._create_wfs(parsed_service=parsed_service,
-                             db_service=db_service)
-        return db_service
 
 
 class CatalougeServiceCapabilitiesManager(ServiceCapabilitiesManager):

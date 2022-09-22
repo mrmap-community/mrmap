@@ -92,19 +92,33 @@ class FeatureTypeMetadata(WebFeatureServiceDefaultSettings):
     keywords = StringListField(xpath="ows:Keywords/ows:Keyword")
 
 
+class OutputFormat(WebFeatureServiceDefaultSettings):
+    ROOT_NAME = "wfs:Format"
+
+    mime_type = StringField(xpath="./wfs:Format")
+
+
+class RemoteMetadata(WebFeatureServiceDefaultSettings):
+    ROOT_NAME = "wfs:MetadataURL"
+
+    link = StringField(xpath="./@xlink:href")
+
+
 class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
     ROOT_NAME = "wfs:FeatureType"
 
     identifier = StringField(xpath="./wfs:Name")
     metadata = NodeField(xpath=".", node_class=FeatureTypeMetadata)
-    remote_metadata = StringListField(xpath="./wfs:MetadataURL/@xlink:href")
+    remote_metadata = NodeListField(
+        xpath="./wfs:MetadataURL", node_class=RemoteMetadata)
 
     _bbox_lower_corner = StringField(
         xpath="./wfs:WGS84BoundingBox/wfs:LowerCorner")
     _bbox_upper_corner = StringField(
         xpath="./wfs:WGS84BoundingBox/wfs:UpperCorner")
 
-    output_formats = StringListField(xpath="./wfs:OutputFormats/wfs:Format")
+    output_formats = NodeListField(
+        xpath="./wfs:OutputFormats/wfs:Format", node_class=OutputFormat)
 
     _default_crs_class = DefaultReferenceSystem
     _other_crs_class = OtherReferenceSystem
@@ -138,47 +152,47 @@ class WebFeatureService(WebFeatureServiceDefaultSettings, WebFeatureServiceMixin
 
     _describe_feature_type_mime_types = StringListField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DescribeFeatureType']/ows:Parameter[@name='outputFormat']/ows:AllowedValues/ows:Value")
-    _describe_feature_get_url = StringField(
+    _describe_feature_type_get_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DescribeFeatureType']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")
-    _describe_feature_post_url = StringField(
+    _describe_feature_type_post_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DescribeFeatureType']/ows:DCP/ows:HTTP/ows:Post/@xlink:href")
 
-    _get_feature_type_mime_types = StringListField(
+    _get_feature_mime_types = StringListField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetFeature']/ows:Parameter[@name='outputFormat']/ows:AllowedValues/ows:Value")
     _get_feature_get_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetFeature']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")
     _get_feature_post_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetFeature']/ows:DCP/ows:HTTP/ows:Post/@xlink:href")
 
-    _get_property_value_type_mime_types = StringListField(
+    _get_property_value_mime_types = StringListField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetPropertyValue']/ows:Parameter[@name='outputFormat']/ows:AllowedValues/ows:Value")
     _get_property_value_get_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetPropertyValue']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")
     _get_property_value_post_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetPropertyValue']/ows:DCP/ows:HTTP/ows:Post/@xlink:href")
 
-    _list_stored_queries_type_mime_types = StringListField(
+    _list_stored_queries_mime_types = StringListField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='ListStoredQueries']/ows:Parameter[@name='outputFormat']/ows:AllowedValues/ows:Value")
     _list_stored_queries_get_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='ListStoredQueries']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")
     _list_stored_queries_post_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='ListStoredQueries']/ows:DCP/ows:HTTP/ows:Post/@xlink:href")
 
-    _describe_stored_queries_type_mime_types = StringListField(
+    _describe_stored_queries_mime_types = StringListField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DescribeStoredQueries']/ows:Parameter[@name='outputFormat']/ows:AllowedValues/ows:Value")
     _describe_stored_queries_get_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DescribeStoredQueries']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")
     _describe_stored_queries_post_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DescribeStoredQueries']/ows:DCP/ows:HTTP/ows:Post/@xlink:href")
 
-    _create_stored_query_type_mime_types = StringListField(
+    _create_stored_query_mime_types = StringListField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='CreateStoredQuery']/ows:Parameter[@name='outputFormat']/ows:AllowedValues/ows:Value")
     _create_stored_query_get_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='CreateStoredQuery']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")
     _create_stored_query_post_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='CreateStoredQuery']/ows:DCP/ows:HTTP/ows:Post/@xlink:href")
 
-    _drop_stored_query_type_mime_types = StringListField(
+    _drop_stored_query_mime_types = StringListField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DropStoredQuery']/ows:Parameter[@name='outputFormat']/ows:AllowedValues/ows:Value")
     _drop_stored_query_get_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='DropStoredQuery']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")

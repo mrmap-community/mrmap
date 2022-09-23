@@ -491,7 +491,7 @@ class WebFeatureServiceTestCase(SimpleTestCase):
     def test_wfs_operation_urls_clear(self):
         self.parsed_capabilities.operation_urls.clear()
 
-        operation_urls = self._get_operation_xml_nodes()
+        operation_urls = self._get_all_operation_urls()
 
         self.assertEqual(
             len(self.parsed_capabilities.operation_urls),
@@ -500,7 +500,7 @@ class WebFeatureServiceTestCase(SimpleTestCase):
 
         self.assertEqual(
             len(operation_urls),
-            0
+            6
         )
 
     def test_wfs_operation_urls_pop(self):

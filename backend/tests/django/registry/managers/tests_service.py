@@ -2,9 +2,7 @@ from pathlib import Path
 
 from django.test import TestCase
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.enums.service import HttpMethodEnum
 from registry.models.service import (CatalougeService,
-                                     CswOperationUrlQueryable,
                                      WebFeatureService, WebMapService)
 
 
@@ -52,7 +50,8 @@ class CatalougeServiceCapabilitiesManagerTest(TestCase):
         db_service_count = CatalougeService.objects.count()
         self.assertEqual(1, db_service_count)
 
-        queryables = CswOperationUrlQueryable.objects.closest_matches(
-            value="Type", operation="GetRecords", service_id=db_service.pk).filter(operation_url__method=HttpMethodEnum.GET.value)
+        #  See TODO in CswOperationUrlQueryable model
+        # queryables = CswOperationUrlQueryable.objects.closest_matches(
+        #     value="Type", operation="GetRecords", service_id=db_service.pk).filter(operation_url__method=HttpMethodEnum.GET.value)
 
-        self.assertEqual(2, queryables.count())
+        # self.assertEqual(2, queryables.count())

@@ -418,7 +418,7 @@ class CatalougeServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
         """ Creates the service instance and all depending/related objects """
         from registry.models.service import (CatalougeService,
                                              CatalougeServiceOperationUrl)
-        print(parsed_service.service_metadata)
+
         parsed_service_contact = parsed_service.service_metadata.service_contact
 
         db_service_contact, created = MetadataContact.objects.get_or_create(

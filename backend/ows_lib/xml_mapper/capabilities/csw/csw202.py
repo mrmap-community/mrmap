@@ -1,15 +1,15 @@
 from eulxml.xmlmap import NodeField, StringField, StringListField, XmlObject
-from ows_lib.xml_mapper.capabilities.mixins import OGCServiceTypeMixin
+from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin, OGCServiceTypeMixin
 from ows_lib.xml_mapper.mixins import DBModelConverterMixin
 from ows_lib.xml_mapper.namespaces import (CSW_2_0_2_NAMESPACE,
-                                           OWS_1_1_NAMESPACE, XLINK_NAMESPACE)
+                                           OWS_NAMESPACE, XLINK_NAMESPACE)
 
 
 class CatalogueServiceDefaultSettings(DBModelConverterMixin, XmlObject):
     ROOT_NS = "csw"
     ROOT_NAMESPACES = {
         "csw": CSW_2_0_2_NAMESPACE,
-        "ows": OWS_1_1_NAMESPACE,
+        "ows": OWS_NAMESPACE,
         "xlink": XLINK_NAMESPACE
     }
 
@@ -61,9 +61,9 @@ class ServiceType(CatalogueServiceDefaultSettings, OGCServiceTypeMixin):
     _name = StringField(xpath="./ows:ServiceIdentification/ows:ServiceType")
 
 
-class CatalogueService(CatalogueServiceDefaultSettings):
+class CatalogueService(CatalogueServiceDefaultSettings, OGCServiceMixin):
     ROOT_NAME = "csw:Capabilities/@version='2.0.2'"
-    XSD_SCHEMA = "http://www.opengis.net/cat/csw/2.0.2 http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd"
+    XSD_SCHEMA = "http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd"
 
     _possible_operations = ["GetCapabilities", "DescribeRecord",
                             "GetDomain", "GetRecords", "GetRecordById"]

@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
-from registry.xmlmapper.ogc.capabilities import get_parsed_service
+from ows_lib.xml_mapper.utils import get_parsed_service
 
 
 def xml_backup_file_path(instance, filename):

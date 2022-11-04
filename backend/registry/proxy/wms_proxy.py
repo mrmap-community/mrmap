@@ -21,9 +21,11 @@ from django.views.generic.base import View
 from eulxml import xmlmap
 from extras.utils import execute_threads
 from MrMap.settings import PROXIES
-from ows_client.exceptions import (MissingBboxParam, MissingServiceParam,
-                                   MissingVersionParam)
-from ows_client.request_builder import WebService, WmsService
+from ows_lib.client.exceptions import (MissingBboxParam, MissingServiceParam,
+                                       MissingVersionParam)
+from ows_lib.client.utils import (construct_polygon_from_bbox_query_param,
+                                  get_client)
+from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from PIL import Image, ImageDraw, ImageFont
 from registry.enums.service import OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
@@ -51,8 +53,8 @@ class WebMapServiceProxy(View):
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
 
-    service = None
-    remote_service = None
+    service: WebMapService = None
+    remote_service: WebMapServiceClient = None
     query_parameters = None
     access_denied_img = None
     bbox = None
@@ -82,7 +84,7 @@ class WebMapServiceProxy(View):
 
     def get_bbox_from_request(self):
         try:
-            self.request.bbox = WmsService.construct_polygon_from_bbox_query_param(
+            self.request.bbox = construct_polygon_from_bbox_query_param(
                 get_dict=self.request.query_parameters
             )
         except (MissingBboxParam, MissingServiceParam):
@@ -110,10 +112,8 @@ class WebMapServiceProxy(View):
             service_url_parts._replace(
                 query=parse_qsl(qs=requested_url_parts.query))
 
-            self.remote_service = WebService.manufacture_service(
-                url=service_url_parts._replace(
-                    query=requested_url_parts.query).geturl()
-            )
+            self.remote_service = get_client(self.service.xml_backup)
+
         except (MissingServiceParam, MissingVersionParam):
             # exception handling in self.get()
             pass

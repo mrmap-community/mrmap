@@ -1,4 +1,4 @@
-FROM library/nginx:1.21-alpine
+FROM library/nginx:1.23-alpine
 
 RUN mkdir -p /etc/ssl/private/
 RUN apk add openssl

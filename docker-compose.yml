@@ -2,7 +2,7 @@
 version: '3.8'
 services:
   postgis:
-    image: postgis/postgis:14-3.1-alpine
+    image: postgis/postgis:14-3.3-alpine
     volumes:
       - type: volume
         source: db-data
@@ -12,7 +12,7 @@ services:
     env_file:
       - ./docker/postgis/.db.env
   redis:
-    image: library/redis:6.2-alpine
+    image: library/redis:7.0.5-alpine
     volumes:
       - type: volume
         source: mem-db-data

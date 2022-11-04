@@ -90,7 +90,7 @@ class DBModelConverterMixin:
         """"""
         field_dict = self.__get_xml_mapper_fields()
         for key, value in self.__dict__.items():
-            if key.startswith('_') or key[0].isupper() or key != 'context' or value == None or key in self._fields.keys():
+            if key.startswith('_') or key[0].isupper() or key != 'context' or value is None or key in self._fields.keys():
                 break
             field_dict.update({key: value})
         return field_dict

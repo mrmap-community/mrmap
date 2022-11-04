@@ -73,7 +73,7 @@ class FeatureTypeMixin:
 
 
 class WebFeatureServiceMixin(OGCServiceMixin):
-    """Abstract class for WebMapService xml mappers, 
+    """Abstract class for WebMapService xml mappers,
     which implements functionality for global usage."""
 
     _possible_operations = ["GetCapabilities", "DescribeFeatureType",

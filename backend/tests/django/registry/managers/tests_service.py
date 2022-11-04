@@ -2,8 +2,8 @@ from pathlib import Path
 
 from django.test import TestCase
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.models.service import (CatalougeService,
-                                     WebFeatureService, WebMapService)
+from registry.models.service import (CatalougeService, WebFeatureService,
+                                     WebMapService)
 
 
 class WebMapServiceCapabilitiesManagerTest(TestCase):
@@ -44,7 +44,7 @@ class CatalougeServiceCapabilitiesManagerTest(TestCase):
         parsed_service = get_parsed_service(Path(Path.joinpath(
             Path(__file__).parent.resolve(), '../../test_data/capabilities/csw/2.0.2.xml')))
 
-        db_service = CatalougeService.capabilities.create(
+        CatalougeService.capabilities.create(
             parsed_service=parsed_service)
 
         db_service_count = CatalougeService.objects.count()

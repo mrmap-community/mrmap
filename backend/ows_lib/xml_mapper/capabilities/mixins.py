@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import Callable, Dict, Iterable, List
 from urllib import parse
 
@@ -167,7 +166,7 @@ class OGCServiceTypeMixin:
 
 
 class OGCServiceMixin:
-    """Abstract class for all OGCService xml mappers, 
+    """Abstract class for all OGCService xml mappers,
     which implements functionality for global usage."""
     _operation_urls: CallbackList = []
 

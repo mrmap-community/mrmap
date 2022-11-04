@@ -272,7 +272,7 @@ class LayerMixin:
 
 
 class WebMapServiceMixin(OGCServiceMixin):
-    """Abstract class for WebMapService xml mappers, 
+    """Abstract class for WebMapService xml mappers,
     which implements functionality for global usage."""
 
     _possible_operations = ["GetCapabilities", "GetMap",

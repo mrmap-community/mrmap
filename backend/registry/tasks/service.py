@@ -5,16 +5,13 @@ from celery.canvas import group
 from django.conf import settings
 from django.db import transaction
 from notify.tasks import BackgroundProcessBased
+from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.models import CatalougeService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
-from registry.xmlmapper.ogc.capabilities import CswService as CswXmlMapper
-from registry.xmlmapper.ogc.capabilities import Wfs200Service as WfsXmlMapper
-from registry.xmlmapper.ogc.capabilities import WmsService as WmsXmlMapper
-from registry.xmlmapper.ogc.capabilities import get_parsed_service
 from requests import Request, Session
 from rest_framework.reverse import reverse
 
@@ -52,7 +49,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
                       'done': 1, 'total': 3, 'phase': 'parse capabilities document...'})
     self.update_background_process('parse capabilities document...')
 
-    parsed_service = get_parsed_service(xml=response.content)
+    parsed_service = get_parsed_service(capabilities_xml=response.content)
 
     self.update_state(state=states.STARTED, meta={
                       'done': 2, 'total': 3, 'phase': 'persisting service...'})
@@ -60,19 +57,19 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
     with transaction.atomic():
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        if isinstance(parsed_service, WmsXmlMapper):
-            db_service = WebMapService.capabilities.create_from_parsed_service(
+        if parsed_service.service_type.name == "wms":
+            db_service = WebMapService.capabilities.create(
                 parsed_service=parsed_service)
             resource_name = "WebMapService"
             self_url = reverse(
                 viewname='registry:wms-detail', args=[db_service.pk])
-        elif isinstance(parsed_service, WfsXmlMapper):
-            db_service = WebFeatureService.capabilities.create_from_parsed_service(
+        elif parsed_service.service_type.name == "wfs":
+            db_service = WebFeatureService.capabilities.create(
                 parsed_service=parsed_service)
             resource_name = "WebFeatureService"
             self_url = reverse(
                 viewname='registry:wfs-detail', args=[db_service.pk])
-        elif isinstance(parsed_service, CswXmlMapper):
+        elif parsed_service.service_type.name == "csw":
             db_service = CatalougeService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
             resource_name = "CatalougeService"

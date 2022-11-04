@@ -366,6 +366,11 @@ class CatalougeServiceOperationUrl(OperationUrl):
 
 
 class CswOperationUrlQueryable(models.Model):
+    # TODO: remove this model and merge it with CatalougeServiceOperationUrl
+    #  CatalougeServiceOperationUrl can have constraints.
+    #  For harvesting processing we need the concrete constraint value for type with correct namespace.
+    #  Like dc:type or apiso:Type to build the GetRecord request correctly
+
     operation_url = models.ForeignKey(
         to=CatalougeServiceOperationUrl,
         on_delete=models.CASCADE,
@@ -571,7 +576,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.scale_min:
             return self.scale_min
         else:
-            has_prefetched_ancestors, inherited_scale_min = self.get_value_from_ancestor('scale_min')
+            has_prefetched_ancestors, inherited_scale_min = self.get_value_from_ancestor(
+                'scale_min')
             return inherited_scale_min if has_prefetched_ancestors else (
                 self.get_ancestors()
                 .exclude(scale_min=None)
@@ -595,7 +601,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.scale_max:
             return self.scale_max
         else:
-            has_prefetched_ancestors, inherited_scale_max = self.get_value_from_ancestor('scale_max')
+            has_prefetched_ancestors, inherited_scale_max = self.get_value_from_ancestor(
+                'scale_max')
             return inherited_scale_max if has_prefetched_ancestors else (
                 self.get_ancestors()
                 .exclude(scale_max=None)
@@ -621,7 +628,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         if self.bbox_lat_lon:
             return self.bbox_lat_lon
         else:
-            has_prefetched_ancestors, inherited_bbox = self.get_value_from_ancestor('bbox_lat_lon')
+            has_prefetched_ancestors, inherited_bbox = self.get_value_from_ancestor(
+                'bbox_lat_lon')
             return inherited_bbox if has_prefetched_ancestors else (
                 self.get_ancestors()
                 .exclude(bbox_lat_lon=None)

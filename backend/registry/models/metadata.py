@@ -740,7 +740,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
 
 
 class Dimension(models.Model):
-    # TODO: refactor this class to conrete models for layer, featuretype and dataset
+    # TODO: refactor this class to conrete models for layer and dataset
     name = models.CharField(max_length=50,
                             verbose_name=_("name"),
                             help_text=_("the type of the content stored in extent field."))
@@ -758,6 +758,7 @@ class Dimension(models.Model):
                               related_query_name="layer_dimension",
                               verbose_name=_("layer"),
                               help_text=_("the related layer of this dimension entity"))
+    # FIXME: Featuretypes does not have any dimensions
     feature_type = models.ForeignKey(to="registry.FeatureType",
                                      on_delete=models.CASCADE,
                                      null=True,

@@ -36,6 +36,7 @@ DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 
 # Application definition
 INSTALLED_APPS = [
+    "daphne",
     "channels",
     "guardian",
     "django.contrib.auth",

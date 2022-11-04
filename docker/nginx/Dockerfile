@@ -27,7 +27,7 @@ RUN /usr/local/bin/python -m pip install --upgrade pip && \
     python manage.py collectstatic
 
 
-FROM library/nginx:1.21-alpine AS nginx
+FROM library/nginx:1.23-alpine AS nginx
 
 RUN mkdir -p /etc/ssl/private/
 RUN apk add openssl

@@ -11,17 +11,17 @@ from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
-from ows_client.request_builder import WebService
+from ows_lib.client.utils import get_requested_layers
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
 class AllowedWebMapServiceOperationQuerySet(models.QuerySet):
     def filter_by_layers(self, request):
-        dummy_service = WebService.manufacture_service(request.get_full_path())
-        layer_identifiers = dummy_service.get_requested_layers(
-            query_params=request.query_parameters
-        )
+
+        layer_identifiers = get_requested_layers(
+            params=request.query_parameters)
+
         query = None
         for identifier in layer_identifiers:
             _query = Q(secured_layers__identifier__iexact=identifier)
@@ -125,10 +125,8 @@ class WebMapServiceOperationUrlQuerySet(models.QuerySet):
 class WebMapServiceSecurityManager(models.Manager):
 
     def is_unknown_layer(self, service_pk, request: HttpRequest) -> QuerySet:
-        dummy_service = WebService.manufacture_service(request.get_full_path())
-        layer_identifiers = dummy_service.get_requested_layers(
-            query_params=request.query_parameters
-        )
+        layer_identifiers = get_requested_layers(
+            params=request.query_parameters)
         return ~Exists(self.filter(pk=service_pk, layer__identifier__in=layer_identifiers))
 
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:

@@ -64,6 +64,7 @@ class WebMapServiceProxyTest(TestCase):
         call_command("loaddata", "test_keywords.json", verbosity=0)
         call_command("loaddata", "test_wms.json", verbosity=0)
         call_command("loaddata", "test_allowedoperation.json", verbosity=0)
+        # FIXME: feed the wms instances with correct capabilities xml files like: my_model.file_field = SimpleUploadedFile('best_file_eva.txt', b'these are the contents of the txt file')
 
     @classmethod
     def tearDownClass(cls):

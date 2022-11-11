@@ -1,4 +1,5 @@
 import urllib.parse
+from typing import List
 
 from axis_order_cache.registry import Registry
 from axis_order_cache.utils import get_epsg_srid
@@ -7,6 +8,7 @@ from django.contrib.gis.geos import GEOSGeometry, Polygon
 from ows_lib.client.exceptions import (MissingBboxParam, MissingCrsParam,
                                        MissingServiceParam)
 from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
+from requests import Session
 
 
 def update_queryparams(url: str, params: dict):
@@ -155,10 +157,10 @@ def construct_polygon_from_bbox_query_param(get_dict) -> GEOSGeometry:
     :return: the bbox parsed from the get_dict or an empty polygon if something went wrong.
     :rtype: :class:`django.contrib.gis.geos.geometry.GEOSGeometry`
     """
-    service_type = get_dict.get("service", None)
-    if not get_dict.get("service", None):
+    service_type = get_dict.get("SERVICE", get_dict.get("service", None))
+    if not service_type:
         raise MissingServiceParam
-    if not get_dict.get("bbox", None):
+    if not get_dict.get("BBOX", get_dict.get("bbox", None)):
         raise MissingBboxParam
     if service_type.lower() == "wms":
         return _construct_polygon_from_bbox_query_param_for_wms(get_dict=get_dict)
@@ -166,8 +168,16 @@ def construct_polygon_from_bbox_query_param(get_dict) -> GEOSGeometry:
         return _construct_polygon_from_bbox_query_param_for_wfs(get_dict=get_dict)
 
 
-def get_client(capabilities: OGCServiceMixin):
+def get_requested_layers(params: dict) -> List[str]:
+    return params.get("LAYERS", params.get("layers", "")).split(",")
+
+
+def get_client(capabilities: OGCServiceMixin, session: Session = None):
     if capabilities.service_type.name == "wms":
         if capabilities.version == "1.1.1":
             from ows_lib.client.wms.wms111 import WebMapService
-            return WebMapService(capabilities=capabilities)
+            return WebMapService(capabilities=capabilities, session=session)
+    if capabilities.service_type.name == "wms":
+        if capabilities.version == "2.0.0":
+            from ows_lib.client.wfs.wfs200 import WebFeatureService
+            return WebFeatureService(capabilities=capabilities, session=session)

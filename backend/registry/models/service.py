@@ -15,9 +15,9 @@ from extras.models import HistoricalRecordMixin
 from extras.utils import update_url_base, update_url_query_params
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
-from ows_client.request_builder import OgcService as OgcServiceClient
-from registry.enums.service import (AuthTypeEnum, HttpMethodEnum,
-                                    OGCOperationEnum, OGCServiceVersionEnum)
+from ows_lib.client.utils import get_client
+from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
+                                    OGCServiceVersionEnum)
 from registry.exceptions.service import (LayerNotQueryable,
                                          OperationNotSupported)
 from registry.managers.security import WebMapServiceSecurityManager
@@ -33,7 +33,6 @@ from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
-from requests.auth import HTTPDigestAuth
 from requests.models import Request, Response
 from simple_history.models import HistoricalRecords
 
@@ -789,7 +788,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     :attr objects: custom models manager :class:`registry.managers.service.FeatureTypeManager`
     """
 
-    service = models.ForeignKey(
+    service: WebFeatureService = models.ForeignKey(
         to=WebFeatureService,
         on_delete=models.CASCADE,
         editable=False,
@@ -843,30 +842,11 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """Return the fetched described feature type document and update the content if save is True"""
-        base_url = self.service.operation_urls.values_list("url", flat=True).get(
-            operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
-            method=HttpMethodEnum.GET.value,
-        )
-        request = OgcServiceClient(
-            base_url=base_url,
-            service_type=self.service.service_type_name,
-            version=self.service.service_version,
-        ).get_describe_feature_type_request(type_name_list=self.identifier)
-        if hasattr(self.service, "external_authentication"):
-            username, password = self.service.external_authentication.decrypt()
-            if (
-                self.service.external_authentication.auth_type
-                == AuthTypeEnum.BASIC.value
-            ):
-                request.auth = (username, password)
-            elif (
-                self.service.external_authentication.auth_type
-                == AuthTypeEnum.DIGEST.value
-            ):
-                request.auth = HTTPDigestAuth(
-                    username=username, password=password)
-        session = Session()
-        response = session.send(request=request.prepare())
+
+        client = get_client(capabilities=self.service.xml_backup,
+                            session=self.service.get_session_for_request())
+        response = client.send_request(
+            client.prepare_describe_feature_type_request(type_names=self.identifier))
         if response.status_code <= 202 and "xml" in response.headers["content-type"]:
             self.describe_feature_type_document = response.content
             if save:

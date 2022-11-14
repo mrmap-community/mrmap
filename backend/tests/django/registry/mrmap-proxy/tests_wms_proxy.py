@@ -5,10 +5,12 @@ from unittest.mock import patch
 from accounts.models.users import User
 from axis_order_cache.models import Origin, SpatialReference
 from axis_order_cache.registry import Registry
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
 from django.test import Client, TestCase
 from lxml import etree, objectify
+from MrMap.settings import BASE_DIR
 from PIL import Image, ImageChops
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import WebMapService
@@ -64,7 +66,17 @@ class WebMapServiceProxyTest(TestCase):
         call_command("loaddata", "test_keywords.json", verbosity=0)
         call_command("loaddata", "test_wms.json", verbosity=0)
         call_command("loaddata", "test_allowedoperation.json", verbosity=0)
-        # FIXME: feed the wms instances with correct capabilities xml files like: my_model.file_field = SimpleUploadedFile('best_file_eva.txt', b'these are the contents of the txt file')
+        wms: WebMapService = WebMapService.objects.get(
+            pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
+
+        print(f"{BASE_DIR}/backend/tests/django/test_data/capabilities/wms/1.3.0.xml")
+
+        cap_file = open(
+            f"{BASE_DIR}/tests/django/test_data/capabilities/wms/1.3.0.xml", mode="rb")
+
+        wms.xml_backup_file = SimpleUploadedFile(
+            'capabilitites.xml', cap_file.read())
+        wms.save()
 
     @classmethod
     def tearDownClass(cls):

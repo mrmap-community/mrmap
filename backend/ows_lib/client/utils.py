@@ -172,12 +172,26 @@ def get_requested_layers(params: dict) -> List[str]:
     return params.get("LAYERS", params.get("layers", "")).split(",")
 
 
+def filter_ogc_query_params(query_params: dict) -> dict:
+    """ Parses the GET parameters into all member variables, which can be found in a ogc request.
+    Returns:
+        the for this version converted get_dict
+    """
+    query_keys = ["SERVICE", "REQUEST", "LAYERS", "BBOX", "VERSION", "FORMAT",
+                  "OUTPUTFORMAT", "SRS", "CRS", "SRSNAME", "WIDTH", "HEIGHT",
+                  "TRANSPARENT", "EXCEPTIONS", "BGCOLOR", "TIME", "ELEVATION",
+                  "QUERY_LAYERS", "INFO_FORMAT", "FEATURE_COUNT", "I", "J"]
+    filtered = {key: query_params.get(
+        key, query_params.get(key.lower())) for key in query_keys}
+    return filtered
+
+
 def get_client(capabilities: OGCServiceMixin, session: Session = None):
     if capabilities.service_type.name == "wms":
-        if capabilities.version == "1.1.1":
+        if capabilities.service_type.version == "1.1.1":
             from ows_lib.client.wms.wms111 import WebMapService
             return WebMapService(capabilities=capabilities, session=session)
     if capabilities.service_type.name == "wms":
-        if capabilities.version == "2.0.0":
+        if capabilities.service_type.version == "2.0.0":
             from ows_lib.client.wfs.wfs200 import WebFeatureService
             return WebFeatureService(capabilities=capabilities, session=session)

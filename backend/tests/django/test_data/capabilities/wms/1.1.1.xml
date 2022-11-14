@@ -39,10 +39,10 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
             <Post>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Post>
           </HTTP>
         </DCPType>
@@ -75,7 +75,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -92,7 +92,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -102,7 +102,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -115,7 +115,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -125,7 +125,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>

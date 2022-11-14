@@ -4,7 +4,6 @@ import re
 from io import BytesIO
 from queue import Queue
 from threading import Thread
-from urllib.parse import parse_qsl, urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -24,7 +23,7 @@ from MrMap.settings import PROXIES
 from ows_lib.client.exceptions import (MissingBboxParam, MissingServiceParam,
                                        MissingVersionParam)
 from ows_lib.client.utils import (construct_polygon_from_bbox_query_param,
-                                  get_client)
+                                  filter_ogc_query_params, get_client)
 from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from PIL import Image, ImageDraw, ImageFont
 from registry.enums.service import OGCOperationEnum
@@ -101,16 +100,16 @@ class WebMapServiceProxy(View):
 
     def setup_remote_service(self):
         try:
-            requested_url_parts = urlparse(self.request.get_full_path())
+            # requested_url_parts = urlparse(self.request.get_full_path())
 
-            service_url_parts = urlparse(
-                self.service.base_operation_url
-                if self.service.base_operation_url
-                else self.service.unknown_operation_url
-            )
+            # service_url_parts = urlparse(
+            #     self.service.base_operation_url
+            #     if self.service.base_operation_url
+            #     else self.service.unknown_operation_url
+            # )
 
-            service_url_parts._replace(
-                query=parse_qsl(qs=requested_url_parts.query))
+            # service_url_parts._replace(
+            #     query=parse_qsl(qs=requested_url_parts.query))
 
             self.remote_service = get_client(self.service.xml_backup)
 
@@ -195,32 +194,27 @@ class WebMapServiceProxy(View):
         Gets a mask image, which can be used to remove restricted areas from another image
         Returns:
              secured_image (Image)
+        # TODO: calculate the security mask without mapserver as depending subsystem
         """
-        get_params = self.remote_service.get_get_params(
-            query_params=self.request.query_parameters
-        )
-        width = int(get_params.get(self.remote_service.WIDTH_QP))
-        height = int(get_params.get(self.remote_service.HEIGHT_QP))
+        get_params = filter_ogc_query_params(
+            query_params=self.request.query_parameters)
+        crs_qp = "CRS" if "CRS" in get_params else "SRS"
+        width = int(get_params.get("WIDTH"))
+        height = int(get_params.get("HEIGHT"))
         try:
             from django.db import connection
-
             db_name = connection.settings_dict["NAME"]
             query_parameters = {
-                self.remote_service.VERSION_QP: get_params.get(
-                    self.remote_service.VERSION_QP
-                ),
-                self.remote_service.REQUEST_QP: "GetMap",
-                self.remote_service.SERVICE_QP: "WMS",
-                self.remote_service.FORMAT_QP: "image/png",
-                self.remote_service.LAYERS_QP: "mask",
-                self.remote_service.CRS_QP: get_params.get(self.remote_service.CRS_QP),
-                self.remote_service.BBOX_QP: get_params.get(
-                    self.remote_service.BBOX_QP
-                ),
-                self.remote_service.WIDTH_QP: width,
-                self.remote_service.HEIGHT_QP: height,
-                self.remote_service.TRANSPARENT_QP: "TRUE",
-                # "map": settings.MAPSERVER_SECURITY_MASK_FILE_PATH,
+                "VERSION": get_params.get("VERSION"),
+                "REQUEST": "GetMap",
+                "SERVICE": "WMS",
+                "FORMAT": "image/png",
+                "LAYERS": "mask",
+                crs_qp: get_params.get(crs_qp),
+                "BBOX": get_params.get("BBOX"),
+                "WIDTH": width,
+                "HEIGHT": height,
+                "TRANSPARENT": "TRUE",
                 "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
                 "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
                 "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
@@ -265,10 +259,9 @@ class WebMapServiceProxy(View):
         Returns:
              text_img (Image): The image containing text
         """
-        get_params = self.remote_service.get_get_params(
-            query_params=self.request.query_parameters
-        )
-        width = int(get_params.get(self.remote_service.WIDTH_QP))
+        get_params = filter_ogc_query_params(
+            query_params=self.request.query_parameters)
+        width = int(get_params.get("WIDTH"))
         text_img = Image.new("RGBA", (width, int(h)), (255, 255, 255, 0))
         draw = ImageDraw.Draw(text_img)
         font_size = int(h * settings.FONT_IMG_RATIO)
@@ -513,7 +506,7 @@ class WebMapServiceProxy(View):
                 feature_collection = xmlmap.load_xmlobject_from_string(
                     xml_response.content, xmlclass=FeatureCollection
                 )
-                # FIXME: depends on xml wfs version not on the registered service version
+                # FIXME: depends on xml wms version not on the registered service version
                 axis_order_correction = (
                     True if self.service.major_service_version >= 2 else False
                 )

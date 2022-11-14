@@ -1,0 +1,35 @@
+from abc import ABC
+
+from ows_lib.client.exceptions import InitialError
+from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
+from ows_lib.xml_mapper.utils import get_parsed_service
+from requests import Request, Session
+
+
+class OgcClient(ABC):
+    capabilities: OGCServiceMixin = None
+
+    def __init__(
+            self,
+            capabilities,
+            session: Session = Session(),
+            *args,
+            **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.session = session
+
+        if isinstance(capabilities, OGCServiceMixin):
+            self.capabilities = capabilities
+        elif capabilities is str and "?" in capabilities:
+            # client was initialized with an url
+            response = self.send_request(
+                request=Request(method="GET", url=capabilities))
+            if response.status_code <= 202 and "xml" in response.headers["content-type"]:
+                self.capabilities = get_parsed_service(response.content)
+            else:
+                raise InitialError(
+                    f"client could not be initialized by the given url: {capabilities}. Response status code: {response.status_code}")
+
+    def send_request(self, request: Request):
+        return self.session.send(request=request.prepare())

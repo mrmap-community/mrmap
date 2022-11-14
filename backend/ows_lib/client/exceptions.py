@@ -1,3 +1,7 @@
+class InitialError(Exception):
+    pass
+
+
 class MissingQueryParam(Exception):
     """ Base class for missing query parameter errors. """
     pass
@@ -19,6 +23,7 @@ class MissingVersionParam(MissingQueryParam):
 
 class MissingServiceParam(MissingQueryParam):
     """Raised when the "SERVICE" query param is missed"""
+
     def __init__(self, msg="'SERVICE' query parameter was missed", *args, **kwargs):
         super().__init__(msg, *args, **kwargs)
 

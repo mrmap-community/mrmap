@@ -100,7 +100,7 @@ class WebMapServiceTestCase:
     def _test_get_capabilities_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[0].url,
-            "https://maps.dwd.de/geoserver/ows?SERVICE=WMS&"
+            "http://example.com/wms?SERVICE=WMS&"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[0].method,
@@ -117,7 +117,7 @@ class WebMapServiceTestCase:
 
         self.assertEqual(
             self.parsed_capabilities.operation_urls[1].url,
-            "https://maps.dwd.de/geoserver/ows?SERVICE=WMS&"
+            "http://example.com/wms?SERVICE=WMS&"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[1].method,
@@ -135,7 +135,7 @@ class WebMapServiceTestCase:
     def _test_get_map_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[2].url,
-            "https://maps.dwd.de/geoserver/ows?SERVICE=WMS&"
+            "http://example.com/wms?SERVICE=WMS&"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[2].method,
@@ -165,7 +165,7 @@ class WebMapServiceTestCase:
     def _test_get_feature_info_operation_urls(self):
         self.assertEqual(
             self.parsed_capabilities.operation_urls[3].url,
-            "https://maps.dwd.de/geoserver/ows?SERVICE=WMS&"
+            "http://example.com/wms?SERVICE=WMS&"
         )
         self.assertEqual(
             self.parsed_capabilities.operation_urls[3].method,
@@ -429,7 +429,7 @@ class WebMapServiceTestCase:
 
         self.assertEqual(
             new_o_url_url,
-            "https://example.com/geoserver/ows?SERVICE=WMS&"
+            "http://example.com/wms?SERVICE=WMS&"
         )
 
     def test_layer_dimension_mapper(self):

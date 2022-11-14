@@ -37,10 +37,10 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
             <Post>
-              <OnlineResource xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Post>
           </HTTP>
         </DCPType>
@@ -73,7 +73,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -90,7 +90,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -100,7 +100,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -113,7 +113,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -123,7 +123,7 @@
         <DCPType>
           <HTTP>
             <Get>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?SERVICE=WMS&amp;"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?SERVICE=WMS&amp;"/>
             </Get>
           </HTTP>
         </DCPType>
@@ -234,7 +234,7 @@
                 <Title>AutoWARN Polygone</Title>
                 <LegendURL width="392" height="340">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -243,7 +243,7 @@
                 <Abstract>Automatische Warnhinweise</Abstract>
                 <LegendURL width="219" height="80">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_severity_label"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_severity_label"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -251,7 +251,7 @@
                 <Title>Piktogramme</Title>
                 <LegendURL width="195" height="220">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_symbols"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_symbols"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -259,7 +259,7 @@
                 <Title>Piktogramme</Title>
                 <LegendURL width="195" height="220">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_warnwetter"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_warnwetter"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -268,7 +268,7 @@
                 <Abstract>Automatische Warnhinweise</Abstract>
                 <LegendURL width="219" height="80">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_severity"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Analyse&amp;style=autowarn_analyse_severity"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -308,7 +308,7 @@
                 <Title>AutoWARN Polygone</Title>
                 <LegendURL width="392" height="340">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -317,7 +317,7 @@
                 <Abstract>Automatische Warnhinweise</Abstract>
                 <LegendURL width="219" height="80">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_severity_label"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_severity_label"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -325,7 +325,7 @@
                 <Title>Piktogramme</Title>
                 <LegendURL width="195" height="220">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_symbols"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_symbols"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -333,7 +333,7 @@
                 <Title>Piktogramme</Title>
                 <LegendURL width="195" height="220">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_warnwetter"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_warnwetter"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -342,7 +342,7 @@
                 <Abstract>Automatische Warnhinweise</Abstract>
                 <LegendURL width="219" height="80">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_severity"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AAutowarn_Vorhersage&amp;style=autowarn_vorhersage_severity"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -382,7 +382,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>Biowettervorhersage</Title>
                 <LegendURL width="137" height="80">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABiowettervorhersage"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABiowettervorhersage"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -424,7 +424,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>icon-eu_reg00625_fd_gl_t_isoarea_isa</Title>
                 <LegendURL width="80" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -433,7 +433,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>style for temperature 2m thematische bodenkarte, data in celsius, labeled in celsius</Abstract>
                 <LegendURL width="72" height="482">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T&amp;style=icon-eu_reg00625_fd_gl_t_isoarea_tkb"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_gl_T&amp;style=icon-eu_reg00625_fd_gl_t_isoarea_tkb"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -475,7 +475,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>icon-eu_reg00625_fd_sl_qff_isolines</Title>
                 <LegendURL width="216" height="60">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_sl_QFF"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_reg00625_fd_sl_QFF"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -517,7 +517,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>Pollenintensitaet</Title>
                 <LegendURL width="193" height="140">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APollenflug"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APollenflug"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -525,7 +525,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>pollenflug_intensitaet_2021</Title>
                 <LegendURL width="214" height="140">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APollenflug&amp;style=pollenflug_intensitaet_2021"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APollenflug&amp;style=pollenflug_intensitaet_2021"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -567,7 +567,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>wawfor_ieu_qff_pressure_isolines</Title>
                 <LegendURL width="104" height="40">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWAWFOR_ieu_qff"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWAWFOR_ieu_qff"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -608,7 +608,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>temperature 2m in ICAO standard atmosphere, data in kelvin, labeled in celsius</Title>
                 <LegendURL width="64" height="273">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWAWFOR_ieu_temperature_2m"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWAWFOR_ieu_temperature_2m"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -646,7 +646,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>SLD für NCM Blitzdichte</Abstract>
                 <LegendURL width="119" height="344">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABlitzdichte"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABlitzdichte"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -679,7 +679,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>eucos_rs_heights</Title>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_heights"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_heights"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -687,7 +687,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>eucos_rs_heights_10hpa</Title>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_heights&amp;style=eucos_rs_heights_10hpa"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_heights&amp;style=eucos_rs_heights_10hpa"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -695,7 +695,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>eucos_rs_heights_30hpa</Title>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_heights&amp;style=eucos_rs_heights_30hpa"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_heights&amp;style=eucos_rs_heights_30hpa"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -728,7 +728,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>eucos_rs_stations</Title>
                 <LegendURL width="106" height="40">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_stations"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEUCOS_RS_stations"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -768,7 +768,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>red square point style</Title>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APolarstern"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APolarstern"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -809,7 +809,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>Default style for INSPIRE wind values.</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_FF"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_FF"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -818,7 +818,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>A sample style showing wind barbs</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_FF&amp;style=RBSN_FF_Pfeile"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_FF&amp;style=RBSN_FF_Pfeile"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -858,7 +858,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>Default style for INSPIRE rel. humidity values.</Abstract>
                 <LegendURL width="127" height="60">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_RH"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_RH"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -899,7 +899,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>Default style for INSPIRE precipitation values.</Abstract>
                 <LegendURL width="148" height="120">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_RR"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_RR"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -944,7 +944,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>Default style for INSPIRE temperature values.</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_T2m"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_T2m"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -981,7 +981,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Title>Default INSPIRE evaporation style</Title>
                 <LegendURL width="135" height="140">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_VPGB"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARBSN_VPGB"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1029,7 +1029,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>A sample style that draws a point</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3Asws_beobachtungen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3Asws_beobachtungen"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1065,7 +1065,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>Ceilometers</Abstract>
                 <LegendURL width="163" height="860">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACeilometer"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACeilometer"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1097,7 +1097,7 @@ BIOWETTER_RHEUMA_ENTZÜNDLICH -&gt; 6</Abstract>
                 <Abstract>Ceilometers</Abstract>
                 <LegendURL width="163" height="860">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AE-PROFILE"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AE-PROFILE"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1130,7 +1130,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>A  style that prints out a red line</Abstract>
                 <LegendURL width="76" height="40">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANCEW_EU"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANCEW_EU"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -1139,7 +1139,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Passender Stil zur Kombination mit dwd:Lightning</Abstract>
                 <LegendURL width="138" height="40">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANCEW_EU&amp;style=ncew_eu_gelb"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANCEW_EU&amp;style=ncew_eu_gelb"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1169,7 +1169,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Title>Trajectory</Title>
                 <LegendURL width="77" height="200">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATrajectories"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATrajectories"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1212,7 +1212,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -1221,7 +1221,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M&amp;style=cwam_reg025_fd_sl_dd10m_epsg25832"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_DD10M&amp;style=cwam_reg025_fd_sl_dd10m_epsg25832"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1258,7 +1258,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -1267,7 +1267,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS&amp;style=cwam_reg025_fd_sl_mdts_epsg25832"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDTS&amp;style=cwam_reg025_fd_sl_mdts_epsg25832"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1304,7 +1304,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -1313,7 +1313,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW&amp;style=cwam_reg025_fd_sl_mdww_epsg25832"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_MDWW&amp;style=cwam_reg025_fd_sl_mdww_epsg25832"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1350,7 +1350,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="94" height="137">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPTS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPTS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1387,7 +1387,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="94" height="137">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPWW"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_PPWW"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1425,7 +1425,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for wind waves and sewll isoflaechen</Abstract>
                 <LegendURL width="91" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHTS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHTS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1463,7 +1463,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for wind waves and sewll isoflaechen</Abstract>
                 <LegendURL width="91" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHWW"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SHWW"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1501,7 +1501,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="80" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SP10M"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SP10M"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1539,7 +1539,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for wind waves and sewll isoflaechen</Abstract>
                 <LegendURL width="81" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SWH"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACwam_reg025_fd_sl_SWH"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1576,7 +1576,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -1585,7 +1585,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M&amp;style=ewam_reg025_fd_sl_dd10m_epsg25832"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_DD10M&amp;style=ewam_reg025_fd_sl_dd10m_epsg25832"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1622,7 +1622,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -1631,7 +1631,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS&amp;style=ewam_reg025_fd_sl_mdts_epsg25832"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDTS&amp;style=ewam_reg025_fd_sl_mdts_epsg25832"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1669,7 +1669,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:4326</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -1678,7 +1678,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Visualisierung der Windrichtung als Windpfeil im CRS EPSG:25832</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW&amp;style=ewam_reg025_fd_sl_mdww_epsg25832"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_MDWW&amp;style=ewam_reg025_fd_sl_mdww_epsg25832"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1716,7 +1716,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="94" height="137">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPTS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPTS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1753,7 +1753,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="94" height="137">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPWW"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_PPWW"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1791,7 +1791,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for wind waves and sewll isoflaechen</Abstract>
                 <LegendURL width="91" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHTS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHTS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1829,7 +1829,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for wind waves and sewll isoflaechen</Abstract>
                 <LegendURL width="91" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHWW"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SHWW"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1867,7 +1867,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="80" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SP10M"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SP10M"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1905,7 +1905,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for wind waves and sewll isoflaechen</Abstract>
                 <LegendURL width="81" height="252">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SWH"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEwam_reg025_fd_sl_SWH"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1940,7 +1940,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for perceived temperature in Kelvin</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTemp"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTemp"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -1976,7 +1976,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for perceived temperature in Kelvin</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMax"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMax"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2011,7 +2011,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Zeit</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMaxZeit"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMaxZeit"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2047,7 +2047,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for perceived temperature in Kelvin</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMin"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMin"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2082,7 +2082,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Zeit</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMinZeit"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGefuehlteTempMinZeit"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2125,7 +2125,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Title>Simple style for wmc stations</Title>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AICON-EPS_meteograms"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AICON-EPS_meteograms"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2162,7 +2162,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Index, max of the day</Abstract>
                 <LegendURL width="138" height="367">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVI_CS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVI_CS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2198,7 +2198,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Index, max of the day</Abstract>
                 <LegendURL width="138" height="367">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVI_Global_CL"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVI_Global_CL"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2234,7 +2234,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Index, max of the day</Abstract>
                 <LegendURL width="138" height="367">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVI_Global_CS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVI_Global_CS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2271,7 +2271,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Index, max of the day</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVIndex"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVIndex"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2306,7 +2306,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Zeit</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVZeit"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVZeit"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2340,7 +2340,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Zeit</Abstract>
                 <LegendURL width="80" height="92">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVZeit_Global_CL"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUVZeit_Global_CL"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2374,7 +2374,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Dosis of the day</Abstract>
                 <LegendURL width="119" height="303">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_EU_CL"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_EU_CL"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2408,7 +2408,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Dosis of the day</Abstract>
                 <LegendURL width="119" height="303">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_EU_CS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_EU_CS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2442,7 +2442,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Dosis of the day</Abstract>
                 <LegendURL width="119" height="303">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_Global_CL"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_Global_CL"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2476,7 +2476,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for UV Dosis of the day</Abstract>
                 <LegendURL width="119" height="303">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_Global_CS"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUV_Dosis_Global_CS"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2514,7 +2514,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Niederschlag in mm/h</Abstract>
                 <LegendURL width="100" height="390">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANiederschlagsradar"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANiederschlagsradar"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -2523,7 +2523,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>Niederschlag in mm/h</Abstract>
                 <LegendURL width="100" height="114">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANiederschlagsradar&amp;style=niederschlagsradar_starkregen_mm"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANiederschlagsradar&amp;style=niederschlagsradar_starkregen_mm"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2558,7 +2558,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for reflectivity</Abstract>
                 <LegendURL width="100" height="344">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-RW"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-RW"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2593,7 +2593,7 @@ NCEW draws polygons around detected and forecasted lightning strikes. The polygo
                 <Abstract>style for reflectivity</Abstract>
                 <LegendURL width="88" height="321">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-RY"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-RY"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2627,7 +2627,7 @@ Daten nur innerhalb Deutschlands.</Abstract>
                 <Title>precipitation rate</Title>
                 <LegendURL width="118" height="413">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-SY"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-SY"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2671,7 +2671,7 @@ Aktualisierungsintervall: täglich</Abstract>
                 <Abstract>style for the sum for the last 30 days of the W4 product in mm</Abstract>
                 <LegendURL width="114" height="364">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-W4"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARADOLAN-W4"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2705,7 +2705,7 @@ Aktualisierungsintervall: täglich</Abstract>
                 <Abstract>Niederschlag in mm/h</Abstract>
                 <LegendURL width="100" height="390">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARV-Produkt"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARV-Produkt"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -2714,7 +2714,7 @@ Aktualisierungsintervall: täglich</Abstract>
                 <Abstract>Niederschlag in mm/h</Abstract>
                 <LegendURL width="100" height="114">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARV-Produkt&amp;style=rv-produkt_starkregen_mm"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARV-Produkt&amp;style=rv-produkt_starkregen_mm"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2761,7 +2761,7 @@ Aktualisierungsintervall: täglich</Abstract>
                 <Abstract>style for reflectivity</Abstract>
                 <LegendURL width="94" height="436">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARX-Produkt"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARX-Produkt"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2800,7 +2800,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Abstract>style for the sum for the last 24 hours of the RW product in tenth of mm</Abstract>
                 <LegendURL width="113" height="321">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASF-Produkt"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASF-Produkt"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2834,7 +2834,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Abstract>style for the sum for the last 24 hours of the RW product in tenth of mm</Abstract>
                 <LegendURL width="81" height="344">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASF-Produkt_%280-24%29"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASF-Produkt_%280-24%29"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2894,7 +2894,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Abstract>style for reflectivity</Abstract>
                 <LegendURL width="110" height="459">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWN-Produkt"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWN-Produkt"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -2903,7 +2903,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Abstract>style for reflectivity</Abstract>
                 <LegendURL width="110" height="436">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWN-Produkt&amp;style=wn-produkt-ohne-abdeckung"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWN-Produkt&amp;style=wn-produkt-ohne-abdeckung"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2938,7 +2938,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Abstract>style for reflectivity</Abstract>
                 <LegendURL width="94" height="436">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWX-Produkt"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWX-Produkt"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -2988,7 +2988,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASAT_EU_RGB"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASAT_EU_RGB"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3033,7 +3033,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Abstract>A sample style for rasters</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASAT_EU_central_RGB_cloud"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASAT_EU_central_RGB_cloud"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3078,7 +3078,7 @@ Dieser Layer enthält die Daten des RADOLAN-Produktes SF. Beim SF-Produkt handel
                 <Title>SAT_WELT_KOMPOSIT</Title>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASAT_WELT_KOMPOSIT"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASAT_WELT_KOMPOSIT"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3160,7 +3160,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3169,7 +3169,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen&amp;style=Warngebiete_gruen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen&amp;style=Warngebiete_gruen"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3178,7 +3178,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen&amp;style=Warngebiete_Grenzen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen&amp;style=Warngebiete_Grenzen"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3187,7 +3187,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete Binnenseen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen&amp;style=Warngebiete_Binnenseen_Text"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Binnenseen&amp;style=Warngebiete_Binnenseen_Text"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3262,7 +3262,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3271,7 +3271,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=Warngebiete_gruen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=Warngebiete_gruen"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3280,7 +3280,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete Gemeinden</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=Warngebiete_Gemeinden_Text"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=Warngebiete_Gemeinden_Text"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3289,7 +3289,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=Warngebiete_Grenzen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=Warngebiete_Grenzen"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3298,7 +3298,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete Gemeinden Grenzen und Namen, Environment: strokecolour, strokewidth, strokedash, textfill, textopacity</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=warngebiete_gemeinden_env"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Gemeinden&amp;style=warngebiete_gemeinden_env"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3374,7 +3374,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kreise"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kreise"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3383,7 +3383,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete Kreise Grenzen und Namen, Environment: strokecolour, strokewidth, strokedash, textfill, textopacity, haloopacity</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kreise&amp;style=warngebiete_kreise_env"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kreise&amp;style=warngebiete_kreise_env"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3458,7 +3458,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3467,7 +3467,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete Kueste</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste&amp;style=Warngebiete_Kueste_Text"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste&amp;style=Warngebiete_Kueste_Text"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3476,7 +3476,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste&amp;style=Warngebiete_gruen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste&amp;style=Warngebiete_gruen"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3485,7 +3485,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste&amp;style=Warngebiete_Grenzen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Kueste&amp;style=Warngebiete_Grenzen"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3563,7 +3563,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3572,7 +3572,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete_gruen</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See&amp;style=Warngebiete_gruen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See&amp;style=Warngebiete_gruen"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3581,7 +3581,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete See</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See&amp;style=Warngebiete_See_Text"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See&amp;style=Warngebiete_See_Text"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3590,7 +3590,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warngebiete</Abstract>
                 <LegendURL width="20" height="20">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See&amp;style=Warngebiete_Grenzen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_See&amp;style=Warngebiete_Grenzen"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3665,7 +3665,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Title>Basiswarnungen</Title>
                 <LegendURL width="306" height="160">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Binnenseen"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Binnenseen"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3748,7 +3748,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Title>Basiswarnungen</Title>
                 <LegendURL width="306" height="160">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Gemeinden"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Gemeinden"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3826,7 +3826,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Title>Basiswarnungen</Title>
                 <LegendURL width="306" height="160">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Gemeinden_vereinigt"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Gemeinden_vereinigt"/>
                 </LegendURL>
               </Style>
               <Style>
@@ -3835,7 +3835,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Abstract>Warnungen plus Ereignislabel</Abstract>
                 <LegendURL width="231" height="160">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Gemeinden_vereinigt&amp;style=warnungen_gemeinden_vereinigt_event_seamless_param"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Gemeinden_vereinigt&amp;style=warnungen_gemeinden_vereinigt_event_seamless_param"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3909,7 +3909,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Title>Basiswarnungen</Title>
                 <LegendURL width="306" height="160">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Kueste"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Kueste"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -3983,7 +3983,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Title>Basiswarnungen</Title>
                 <LegendURL width="306" height="160">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Landkreise"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_Landkreise"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -4044,7 +4044,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                 <Title>Basiswarnungen</Title>
                 <LegendURL width="306" height="160">
                   <Format>image/png</Format>
-                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_See"/>
+                  <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarnungen_See"/>
                 </LegendURL>
               </Style>
             </Layer>
@@ -4087,7 +4087,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>Stil f??r die Windgeschwindigkeit</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABRD_1km_winddaten_10m"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABRD_1km_winddaten_10m"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4119,7 +4119,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>Stil f??r die Windgeschwindigkeit</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABRD_1km_winddaten_80m"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABRD_1km_winddaten_80m"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4155,7 +4155,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for the number of frost days per year</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AFrostdays_annual_map_normals_1971_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AFrostdays_annual_map_normals_1971_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4194,7 +4194,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>CMSAF GeoViewer Style</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AProb_sunny_days"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AProb_sunny_days"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4228,7 +4228,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for precipitation sums for a year</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARSMS_17_1961_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ARSMS_17_1961_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4262,7 +4262,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for sunshine duration for a year</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASDMS_17_1961_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASDMS_17_1961_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4296,7 +4296,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for sunshine duration for a year</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASDMS_17_1971_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASDMS_17_1971_30"/>
                   </LegendURL>
                 </Style>
                 <Style>
@@ -4305,7 +4305,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for sunshine duration for a year</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASDMS_17_1971_30&amp;style=sunshine_year"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASDMS_17_1971_30&amp;style=sunshine_year"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4338,7 +4338,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>Stil für die Jahressummen Globalstrahlung</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASISMM_annual_map_normals_1981_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASISMM_annual_map_normals_1981_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4369,7 +4369,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for the number of snow days per year</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASnowdays_annual_map_normals_1971_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASnowdays_annual_map_normals_1971_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4405,7 +4405,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for the number of summer days in a year</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASummerdays_annual_map_normals_1971_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ASummerdays_annual_map_normals_1971_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4440,7 +4440,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for temperature means</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATADNMM_17_1961_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATADNMM_17_1961_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4475,7 +4475,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for temperature means</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATADXMM_17_1961_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATADXMM_17_1961_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4510,7 +4510,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>style for temperature means</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATAMM_17_1961_30"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ATAMM_17_1961_30"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4547,7 +4547,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>climat_availability</Title>
                   <LegendURL width="66" height="120">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACLIMAT_AVAILABILITY_1"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACLIMAT_AVAILABILITY_1"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4581,7 +4581,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>climat_availability</Title>
                   <LegendURL width="66" height="120">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACLIMAT_AVAILABILITY_12"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACLIMAT_AVAILABILITY_12"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4614,7 +4614,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>climat_availability</Title>
                   <LegendURL width="66" height="120">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACLIMAT_AVAILABILITY_24"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ACLIMAT_AVAILABILITY_24"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4648,7 +4648,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>input_format_1</Title>
                   <LegendURL width="56" height="40">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AINPUT_FORMAT_1"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AINPUT_FORMAT_1"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4682,7 +4682,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>input_format_12</Title>
                   <LegendURL width="66" height="120">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AINPUT_FORMAT_12"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AINPUT_FORMAT_12"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4717,7 +4717,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Abstract>A sample style that just prints out a purple square</Abstract>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AINPUT_FORMAT_BARS_12"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AINPUT_FORMAT_BARS_12"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4751,7 +4751,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>month_year_group</Title>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AMONTH_YEAR_GROUP"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AMONTH_YEAR_GROUP"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4785,7 +4785,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>PERCENTAGE_CLIMAT_REGION</Title>
                   <LegendURL width="56" height="40">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APERCENTAGE_CLIMAT_REGION"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APERCENTAGE_CLIMAT_REGION"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4818,7 +4818,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>performance_indicator</Title>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APERFORMANCE_INDICATOR"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APERFORMANCE_INDICATOR"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4853,7 +4853,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>performance_indicator</Title>
                   <LegendURL width="20" height="20">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APERFORMANCE_INDICATOR_MONTH"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APERFORMANCE_INDICATOR_MONTH"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4896,7 +4896,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>DWD Extremevents</Title>
                   <LegendURL width="78" height="540">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEEVIEW_EERLINE"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEEVIEW_EERLINE"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4933,7 +4933,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>DWD Extremevents</Title>
                   <LegendURL width="78" height="540">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEEVIEW_EERPOINT"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEEVIEW_EERPOINT"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -4969,7 +4969,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
                   <Title>DWD Extremevents</Title>
                   <LegendURL width="78" height="540">
                     <Format>image/png</Format>
-                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEEVIEW_EERPOL"/>
+                    <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEEVIEW_EERPOL"/>
                   </LegendURL>
                 </Style>
               </Layer>
@@ -5007,7 +5007,7 @@ Copyright GeoBasis-DE / BKG (http://www.bkg.bund.de) 2019 (Daten modifiziert)</A
             <Title>Biowettergebiete</Title>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABiowettergebiete"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ABiowettergebiete"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5041,7 +5041,7 @@ Copyright: Hydrologischer Atlas von Deutschland, BfG 2003.</Abstract>
             <Title>Flusseinzugsgebiete</Title>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEinzugsgebiete_DE"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AEinzugsgebiete_DE"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5074,7 +5074,7 @@ Copyright: Hydrologischer Atlas von Deutschland, BfG 2003.</Abstract>
             <Abstract>A sample style for rasters</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGRAY_HR_SR_OB_DR"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGRAY_HR_SR_OB_DR"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5108,7 +5108,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Title>Einfacher Style fuer Fluesse und Seen</Title>
             <LegendURL width="119" height="120">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGewaesser"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGewaesser"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5117,7 +5117,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Abstract>Styles fuer Fluesse</Abstract>
             <LegendURL width="70" height="60">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGewaesser&amp;style=fluesse"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AGewaesser&amp;style=fluesse"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5150,7 +5150,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Abstract>A sample style for rasters</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AHoehe_icon"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AHoehe_icon"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5181,7 +5181,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Title>A yellow line style</Title>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_Modelarea"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AIcon-eu_Modelarea"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5215,7 +5215,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Title>Laendergrenzen in Gelb</Title>
             <LegendURL width="22" height="60">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5223,7 +5223,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Title>Laendergrenzen in Gelb</Title>
             <LegendURL width="22" height="60">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender&amp;style=Laender_gelb"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender&amp;style=Laender_gelb"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5231,7 +5231,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Title>Laendergrenzen in Ocker</Title>
             <LegendURL width="22" height="60">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender&amp;style=Laender_ocker"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender&amp;style=Laender_ocker"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5239,7 +5239,7 @@ Der Datenbestand kann Fehler enthalten und/oder unvollständig sein. Der Deutsch
             <Title>Laendergrenzen in Schwarz</Title>
             <LegendURL width="22" height="60">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender&amp;style=Laender_schwarz"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ALaender&amp;style=Laender_schwarz"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5272,7 +5272,7 @@ Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.
             <Abstract>A sample style for rasters</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANatural_Earth_Map"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3ANatural_Earth_Map"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5303,7 +5303,7 @@ Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.
             <Title>Pollenfluggebiete</Title>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APollenfluggebiete"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3APollenfluggebiete"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5335,7 +5335,7 @@ Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.
             <Abstract>A sample style that just prints out a 6px wide red square</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUv_Stationen"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AUv_Stationen"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5365,7 +5365,7 @@ Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.
             <Title>A polygon style</Title>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AVG250_Gemeinden"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AVG250_Gemeinden"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5395,7 +5395,7 @@ Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.
             <Title>PERCENTAGE_CLIMAT_REGION</Title>
             <LegendURL width="60" height="40">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWMO_REGIONS"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWMO_REGIONS"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5429,7 +5429,7 @@ Die Grenzen der Bundeslandpolygone wurden an die Grenzen der Warngebiete/Bundesl
             <Abstract>Bundeslaender</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5438,7 +5438,7 @@ Die Grenzen der Bundeslandpolygone wurden an die Grenzen der Warngebiete/Bundesl
             <Abstract>Bundeslaender</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5447,7 +5447,7 @@ Die Grenzen der Bundeslandpolygone wurden an die Grenzen der Warngebiete/Bundesl
             <Abstract>Bundeslaender</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender_Warnungen"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender_Warnungen"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5456,7 +5456,7 @@ Die Grenzen der Bundeslandpolygone wurden an die Grenzen der Warngebiete/Bundesl
             <Abstract>Bundeslaender</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender_grau"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender_grau"/>
             </LegendURL>
           </Style>
           <Style>
@@ -5465,7 +5465,7 @@ Die Grenzen der Bundeslandpolygone wurden an die Grenzen der Warngebiete/Bundesl
             <Abstract>Bundeslaender</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender_Text"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3AWarngebiete_Bundeslaender&amp;style=Bundeslaender_Text"/>
             </LegendURL>
           </Style>
         </Layer>
@@ -5496,7 +5496,7 @@ Die Grenzen der Bundeslandpolygone wurden an die Grenzen der Warngebiete/Bundesl
             <Abstract>A sample style for rasters</Abstract>
             <LegendURL width="20" height="20">
               <Format>image/png</Format>
-              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://maps.dwd.de/geoserver/ows?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3Abluemarble"/>
+              <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="http://example.com/wms?service=WMS&amp;request=GetLegendGraphic&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=dwd%3Abluemarble"/>
             </LegendURL>
           </Style>
         </Layer>

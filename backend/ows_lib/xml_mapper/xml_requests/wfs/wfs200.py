@@ -1,41 +1,12 @@
 from axis_order_cache.utils import adjust_axis_order
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from django.template.loader import render_to_string
-from eulxml.xmlmap import NodeField, StringField, StringListField, XmlObject
+from eulxml.xmlmap import (NodeField, NodeListField, StringField,
+                           StringListField, XmlObject)
 from lxml import etree
 from ows_lib.xml_mapper.namespaces import (FES_2_0_NAMEPSACE,
                                            GML_3_2_2_NAMESPACE,
                                            WFS_2_0_0_NAMESPACE)
-
-
-class LinearRing(XmlObject):
-    ROOT_NS = "gml"
-    ROOT_NAME = "LinearRing"
-    ROOT_NAMESPACES = {
-        "gml": GML_3_2_2_NAMESPACE
-    }
-
-    _position_list = StringField(xpath="./gml:posList", )
-
-    @property
-    def position_list(self):
-        return self._position_list
-
-    @position_list.setter
-    def position_list(self, polygon: GeosPolygon):
-        if len(polygon.coords) == 1:
-            self.position_list = " ".join(
-                f"{polygon.coords[0][0][0]} {polygon.coords[0][0][1]}")
-
-
-class Exterior(XmlObject):
-    ROOT_NS = "gml"
-    ROOT_NAME = "exterior"
-    ROOT_NAMESPACES = {
-        "gml": GML_3_2_2_NAMESPACE
-    }
-
-    linear_ring = NodeField(xpath="./gml:LinearRing", node_class=LinearRing)
 
 
 class PolygonFilter(XmlObject):
@@ -70,30 +41,6 @@ class PolygonFilter(XmlObject):
     @position_list.setter
     def position_list(self, coords):
         self._position_list = " ".join(f"{coords[0][0][0]} {coords[0][0][1]}")
-
-
-class ValueReference(XmlObject):
-    ROOT_NS = "fes"
-    ROOT_NAME = "ValueReference"
-    ROOT_NAMESPACES = {
-        "fes": FES_2_0_NAMEPSACE,
-    }
-
-
-class OrCondition(XmlObject):
-    ROOT_NS = "fes"
-    ROOT_NAME = "Or"
-    ROOT_NAMESPACES = {
-        "fes": FES_2_0_NAMEPSACE,
-    }
-
-
-class WithinCondition(XmlObject):
-    ROOT_NS = "fes"
-    ROOT_NAME = "Within"
-    ROOT_NAMESPACES = {
-        "fes": FES_2_0_NAMEPSACE,
-    }
 
 
 class Filter(XmlObject):
@@ -149,6 +96,13 @@ class Filter(XmlObject):
     def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True):
         gml_namespace_url = self.context['namespaces'].get(
             "gml", "http://www.opengis.net/gml")
+
+        if len(polygon.coords) == 1:
+            PolygonFilter(srid=polygon.srid, coords=polygon.coords)
+        elif len(polygon.coords) > 1:
+            for coords in polygon.coords:
+                PolygonFilter(srid=polygon.srid, coords=coords)
+
         within_tree = self.init_within_filter_node(value_reference=value_reference,
                                                    polygon=polygon,
                                                    filter_namespace=filter_namespace,
@@ -196,4 +150,4 @@ class GetFeatureRequest(XmlObject):
         "fes": FES_2_0_NAMEPSACE
     }
 
-    query = NodeField(xpath="./wfs:Query", node_class=Query)
+    query = NodeListField(xpath="./wfs:Query", node_class=Query)

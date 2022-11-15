@@ -1,3 +1,5 @@
+from typing import List
+
 from axis_order_cache.utils import adjust_axis_order
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from django.template.loader import render_to_string
@@ -43,6 +45,36 @@ class PolygonFilter(XmlObject):
         self._position_list = " ".join(f"{coords[0][0][0]} {coords[0][0][1]}")
 
 
+class WithinCondition(XmlObject):
+    ROOT_NS = "fes"
+    ROOT_NAME = "Within"
+    ROOT_NAMESPACES = {
+        "fes": FES_2_0_NAMEPSACE,
+        "gml": GML_3_2_2_NAMESPACE
+    }
+
+    value_reference = StringField(xpath="./fes:ValueReference")
+    polygon_filter = PolygonFilter(xpath="./gml:Polygon")
+
+
+class AndCondition(XmlObject):
+    ROOT_NS = "fes"
+    ROOT_NAME = "And"
+    ROOT_NAMESPACES = {
+        "fes": FES_2_0_NAMEPSACE,
+    }
+
+
+class OrCondition(XmlObject):
+    ROOT_NS = "fes"
+    ROOT_NAME = "Or"
+    ROOT_NAMESPACES = {
+        "fes": FES_2_0_NAMEPSACE,
+    }
+
+    within_conditons = NodeListField(xpath="./fes:Within")
+
+
 class Filter(XmlObject):
     ROOT_NS = "fes"
     ROOT_NAME = "Filter"
@@ -54,7 +86,7 @@ class Filter(XmlObject):
 
     ressource_ids = StringListField(xpath="./fes:ResourceId/@rid")
 
-    condition = StringField(xpath=".")
+    and_condition = NodeField(xpath="./fes:And", node_class=AndCondition)
 
     @classmethod
     def init_within_filter_node(cls,
@@ -150,4 +182,44 @@ class GetFeatureRequest(XmlObject):
         "fes": FES_2_0_NAMEPSACE
     }
 
-    query = NodeListField(xpath="./wfs:Query", node_class=Query)
+    queries = NodeListField(xpath="./wfs:Query", node_class=Query)
+
+    def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True):
+        filter_nodes: List[WithinCondition] = []
+
+        if len(polygon.coords) == 1:
+            within_condition = WithinCondition()
+            within_condition.value_reference = value_reference
+            within_condition.polygon_filter = PolygonFilter(
+                srid=polygon.srid, coords=polygon.coords)
+            filter_nodes.append(within_condition)
+        elif len(polygon.coords) > 1:
+            for coords in polygon.coords:
+                within_condition = WithinCondition()
+                within_condition.value_reference = value_reference
+                within_condition.polygon_filter = PolygonFilter(
+                    srid=polygon.srid, coords=coords)
+                filter_nodes.append(within_condition)
+
+        condition = None
+
+        if len(filter_nodes) > 1:
+            condition = OrCondition()
+            condition.within_conditons = filter_nodes
+
+        for query in self.queries:
+            if query.filter.and_condition:
+                # append geometry filter as sub element
+                query.filter.and_condition.node.append(condition.node)
+        else:
+            old_filter = copy.deepcopy(self.node)
+            if filter_namespace:
+                and_element = etree.Element("{" + self.context['namespaces'].get(filter_namespace) + "}And",
+                                            nsmap=self.context["namespaces"])
+            else:
+                and_element = etree.Element("And")
+            and_element.append(old_filter)
+            and_element.append(within_tree)
+            # add new <fes:And></fes:And> around current node
+            # after that, append geometry filter as sub element
+            self.node.getparent().replace(self.node, and_element)

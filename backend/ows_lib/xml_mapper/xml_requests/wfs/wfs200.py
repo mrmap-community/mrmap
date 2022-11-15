@@ -1,11 +1,9 @@
+import copy
 from typing import List
 
-from axis_order_cache.utils import adjust_axis_order
 from django.contrib.gis.geos import Polygon as GeosPolygon
-from django.template.loader import render_to_string
 from eulxml.xmlmap import (NodeField, NodeListField, StringField,
                            StringListField, XmlObject)
-from lxml import etree
 from ows_lib.xml_mapper.namespaces import (FES_2_0_NAMEPSACE,
                                            GML_3_2_2_NAMESPACE,
                                            WFS_2_0_0_NAMESPACE)
@@ -23,10 +21,12 @@ class PolygonFilter(XmlObject):
     _position_list = StringField(
         xpath="./gml:exterior/gml:LinearRing/gml:posList")
 
-    def __init__(self, srid, coords, node=None, context=None, **kwargs):
+    def __init__(self, srid=None, coords=None, node=None, context=None, **kwargs):
         super().__init__(node, context, **kwargs)
-        self.srs_name = srid
-        self.position_list = coords
+        if srid:
+            self.srs_name = srid
+        if coords:
+            self.position_list = coords
 
     @property
     def srs_name(self):
@@ -72,7 +72,8 @@ class OrCondition(XmlObject):
         "fes": FES_2_0_NAMEPSACE,
     }
 
-    within_conditons = NodeListField(xpath="./fes:Within")
+    within_conditons = NodeListField(
+        xpath="./fes:Within", node_class=WithinCondition)
 
 
 class Filter(XmlObject):
@@ -87,76 +88,6 @@ class Filter(XmlObject):
     ressource_ids = StringListField(xpath="./fes:ResourceId/@rid")
 
     and_condition = NodeField(xpath="./fes:And", node_class=AndCondition)
-
-    @classmethod
-    def init_within_filter_node(cls,
-                                value_reference,
-                                polygon: GeosPolygon,
-                                filter_namespace: str,
-                                filter_namespace_url: str,
-                                gml_namespace_url: str,
-                                axis_order_correction: bool = True):
-        if axis_order_correction:
-            polygon = adjust_axis_order(polygon)
-        within_filter = render_to_string(template_name="registry/xml/wfs/filter_within_v2.xml",
-                                         context={"value_reference": value_reference,
-                                                  "polygon": polygon,
-                                                  "filter_namespace": filter_namespace,
-                                                  "filter_namespace_url": filter_namespace_url,
-                                                  "gml_namespace_url": gml_namespace_url})
-        return etree.fromstring(within_filter)
-
-    @classmethod
-    def init_secured_filter_node(cls,
-                                 value_reference,
-                                 polygon: GeosPolygon,
-                                 filter_namespace: str = "ogc",
-                                 filter_namespace_url: str = "http://www.opengis.net/ogc",
-                                 gml_namespace_url: str = "http://www.opengis.net/gml",
-                                 axis_order_correction: bool = True):
-
-        if axis_order_correction:
-            polygon = adjust_axis_order(polygon)
-        filter_node = render_to_string(template_name="registry/xml/wfs/filter_v2.xml",
-                                       context={"value_reference": value_reference,
-                                                "polygon": polygon,
-                                                "filter_namespace": filter_namespace,
-                                                "filter_namespace_url": filter_namespace_url,
-                                                "gml_namespace_url": gml_namespace_url})
-        return etree.fromstring(filter_node)
-
-    def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True):
-        gml_namespace_url = self.context['namespaces'].get(
-            "gml", "http://www.opengis.net/gml")
-
-        if len(polygon.coords) == 1:
-            PolygonFilter(srid=polygon.srid, coords=polygon.coords)
-        elif len(polygon.coords) > 1:
-            for coords in polygon.coords:
-                PolygonFilter(srid=polygon.srid, coords=coords)
-
-        within_tree = self.init_within_filter_node(value_reference=value_reference,
-                                                   polygon=polygon,
-                                                   filter_namespace=filter_namespace,
-                                                   filter_namespace_url=filter_namespace_url,
-                                                   axis_order_correction=axis_order_correction,
-                                                   gml_namespace_url=gml_namespace_url)
-
-        if "And" in self.name:
-            # append geometry filter as sub element
-            self.node.append(within_tree)
-        else:
-            old_filter = copy.deepcopy(self.node)
-            if filter_namespace:
-                and_element = etree.Element("{" + self.context['namespaces'].get(filter_namespace) + "}And",
-                                            nsmap=self.context["namespaces"])
-            else:
-                and_element = etree.Element("And")
-            and_element.append(old_filter)
-            and_element.append(within_tree)
-            # add new <fes:And></fes:And> around current node
-            # after that, append geometry filter as sub element
-            self.node.getparent().replace(self.node, and_element)
 
 
 class Query(XmlObject):
@@ -184,7 +115,7 @@ class GetFeatureRequest(XmlObject):
 
     queries = NodeListField(xpath="./wfs:Query", node_class=Query)
 
-    def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True):
+    def construct_polygon_filter_xml_node(self, polygon: GeosPolygon, value_reference: str) -> XmlObject:
         filter_nodes: List[WithinCondition] = []
 
         if len(polygon.coords) == 1:
@@ -201,25 +132,37 @@ class GetFeatureRequest(XmlObject):
                     srid=polygon.srid, coords=coords)
                 filter_nodes.append(within_condition)
 
-        condition = None
-
-        if len(filter_nodes) > 1:
+        if len(filter_nodes) == 1:
+            return filter_nodes[0]
+        elif len(filter_nodes) > 1:
             condition = OrCondition()
             condition.within_conditons = filter_nodes
+            return condition
+
+    def append_filter_nodes(self, filter_nodes, node):
+        if len(filter_nodes) == 1:
+            node.append(filter_nodes.node)
+        elif len(filter_nodes) > 1:
+            for filter_node in filter_nodes:
+                node.append(filter_node.node)
+
+    def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True) -> None:
+        filter_node = self.construct_polygon_filter_xml_node(
+            polygon=polygon, value_reference=value_reference)
 
         for query in self.queries:
             if query.filter.and_condition:
                 # append geometry filter as sub element
-                query.filter.and_condition.node.append(condition.node)
-        else:
-            old_filter = copy.deepcopy(self.node)
-            if filter_namespace:
-                and_element = etree.Element("{" + self.context['namespaces'].get(filter_namespace) + "}And",
-                                            nsmap=self.context["namespaces"])
+                self.append_filter_nodes(
+                    filter_nodes=filter_node, node=query.filter.and_condition.node)
+
             else:
-                and_element = etree.Element("And")
-            and_element.append(old_filter)
-            and_element.append(within_tree)
-            # add new <fes:And></fes:And> around current node
-            # after that, append geometry filter as sub element
-            self.node.getparent().replace(self.node, and_element)
+                old_filter = copy.deepcopy(query.filter.node)
+                and_node = AndCondition()
+                and_node.node.append(old_filter)
+                self.append_filter_nodes(
+                    filter_nodes=filter_node, node=and_node.node)
+
+                # add new <fes:And></fes:And> around current node
+                # after that, append geometry filter as sub element
+                query.filter.node.getparent().replace(query.filter.node, and_node)

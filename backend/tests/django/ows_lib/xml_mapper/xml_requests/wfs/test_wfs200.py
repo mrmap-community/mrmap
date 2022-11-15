@@ -20,7 +20,7 @@ class GetFeatureRequestTestCase(SimpleTestCase):
             self.insecure_xml, xmlclass=GetFeatureRequest)
 
     def test_secure_spatial(self):
-        print(self.parsed_xml_request.query[0].filter.condition)
+        # print(self.parsed_xml_request.queries[0].filter.condition)
 
         self.parsed_xml_request.secure_spatial(
             value_reference="bla", polygon=Polygon(((-180, -90),

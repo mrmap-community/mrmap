@@ -1,4 +1,3 @@
-import copy
 from typing import List
 
 from django.contrib.gis.geos import Polygon as GeosPolygon
@@ -42,7 +41,10 @@ class PolygonFilter(XmlObject):
 
     @position_list.setter
     def position_list(self, coords):
-        self._position_list = " ".join(f"{coords[0][0][0]} {coords[0][0][1]}")
+        position_list = ""
+        for x, y in coords[0]:
+            position_list += f"{x} {y} "
+        self._position_list = position_list[:-1]
 
 
 class WithinCondition(XmlObject):
@@ -54,7 +56,7 @@ class WithinCondition(XmlObject):
     }
 
     value_reference = StringField(xpath="./fes:ValueReference")
-    polygon_filter = PolygonFilter(xpath="./gml:Polygon")
+    polygon_filter = NodeField(xpath="./gml:Polygon", node_class=PolygonFilter)
 
 
 class AndCondition(XmlObject):
@@ -116,53 +118,46 @@ class GetFeatureRequest(XmlObject):
     queries = NodeListField(xpath="./wfs:Query", node_class=Query)
 
     def construct_polygon_filter_xml_node(self, polygon: GeosPolygon, value_reference: str) -> XmlObject:
-        filter_nodes: List[WithinCondition] = []
-
         if len(polygon.coords) == 1:
             within_condition = WithinCondition()
             within_condition.value_reference = value_reference
             within_condition.polygon_filter = PolygonFilter(
                 srid=polygon.srid, coords=polygon.coords)
-            filter_nodes.append(within_condition)
+            return within_condition
         elif len(polygon.coords) > 1:
+            atomic_polygon_filter: List[WithinCondition] = []
             for coords in polygon.coords:
                 within_condition = WithinCondition()
                 within_condition.value_reference = value_reference
                 within_condition.polygon_filter = PolygonFilter(
                     srid=polygon.srid, coords=coords)
-                filter_nodes.append(within_condition)
-
-        if len(filter_nodes) == 1:
-            return filter_nodes[0]
-        elif len(filter_nodes) > 1:
+                atomic_polygon_filter.append(within_condition)
             condition = OrCondition()
-            condition.within_conditons = filter_nodes
+            condition.within_conditons = atomic_polygon_filter
             return condition
 
-    def append_filter_nodes(self, filter_nodes, node):
-        if len(filter_nodes) == 1:
-            node.append(filter_nodes.node)
-        elif len(filter_nodes) > 1:
-            for filter_node in filter_nodes:
-                node.append(filter_node.node)
-
     def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True) -> None:
-        filter_node = self.construct_polygon_filter_xml_node(
+        spatial_filter = self.construct_polygon_filter_xml_node(
             polygon=polygon, value_reference=value_reference)
-
         for query in self.queries:
             if query.filter.and_condition:
                 # append geometry filter as sub element
-                self.append_filter_nodes(
-                    filter_nodes=filter_node, node=query.filter.and_condition.node)
+                and_condition.node.append(spatial_filter.node)
 
             else:
-                old_filter = copy.deepcopy(query.filter.node)
-                and_node = AndCondition()
-                and_node.node.append(old_filter)
-                self.append_filter_nodes(
-                    filter_nodes=filter_node, node=and_node.node)
+                # old_filter = copy.deepcopy(query.filter.node)
+                and_condition = AndCondition()
+                and_condition.node.extend(
+                    [child for child in query.filter.node])
+                and_condition.node.append(spatial_filter.node)
+                new_filter = Filter()
+                new_filter.and_condition = and_condition
+
+                # self.append_filter_nodes(
+                #     filter_nodes=spatial_filter, node=and_condition.node)
+
+                query.filter = new_filter
 
                 # add new <fes:And></fes:And> around current node
                 # after that, append geometry filter as sub element
-                query.filter.node.getparent().replace(query.filter.node, and_node)
+                # query.filter.node.getparent().replace(query.filter.node, new_filter.node)

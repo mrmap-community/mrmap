@@ -3,9 +3,9 @@ import os
 from django.contrib.gis.geos import Polygon
 from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
-from lxml import etree, objectify
 from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
 from tests.django.settings import DJANGO_TEST_ROOT_DIR
+from xmldiff import main
 
 
 class GetFeatureRequestTestCase(SimpleTestCase):
@@ -29,10 +29,23 @@ class GetFeatureRequestTestCase(SimpleTestCase):
                                                     (180, -90),
                                                     (-180, -90))))
 
-        obj1 = objectify.fromstring(
-            self.parsed_xml_request.serializeDocument())
-        first = etree.tostring(obj1)
-        obj2 = objectify.fromstring(open(self.secured_xml, "rb").read())
-        second = etree.tostring(obj2)
+        first = self.parsed_xml_request.serializeDocument(pretty=True)
 
-        self.assertEqual(first, second)
+        print(first)
+
+        second = open(
+            self.secured_xml, "rb").read()
+
+        diff = main.diff_texts(first, second)
+
+        self.assertFalse(diff, msg="xml differs")
+
+        #self.assertXMLEqual(second, second)
+
+        # obj1 = objectify.fromstring(
+        #     self.parsed_xml_request.serializeDocument())
+        # first = etree.tostring(obj1)
+        # obj2 = objectify.fromstring(open(self.secured_xml, "rb").read())
+        # second = etree.tostring(obj2)
+
+        # self.assertEqual(first, second)

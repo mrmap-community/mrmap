@@ -69,8 +69,6 @@ class WebMapServiceProxyTest(TestCase):
         wms: WebMapService = WebMapService.objects.get(
             pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
 
-        print(f"{BASE_DIR}/backend/tests/django/test_data/capabilities/wms/1.3.0.xml")
-
         cap_file = open(
             f"{BASE_DIR}/tests/django/test_data/capabilities/wms/1.3.0.xml", mode="rb")
 

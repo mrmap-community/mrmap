@@ -21,7 +21,7 @@
                     <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:4316">
                         <gml:exterior>
                             <gml:LinearRing>
-                                <gml:posList>123 456 123 456 123 456 123 456</gml:posList>
+                                <gml:posList>-180 -90 -180 90 180 90 180 -90 -180 -90</gml:posList>
                             </gml:LinearRing>
                         </gml:exterior>
                     </gml:Polygon>

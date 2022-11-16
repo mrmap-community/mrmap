@@ -30,3 +30,11 @@ class WebFeatureServiceMixin(OgcClient):
                 "DescribeFeatureType", "Get").url,
             params=params)
         return Request(method="GET", url=url)
+
+    def has_filter(self, filter_type) -> bool:
+        # TODO: check if the "And" filter is provided by the given capabilitites
+        pass
+
+    def prepare_feature_type_request(self):
+        # TODO
+        pass

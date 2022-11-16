@@ -23,24 +23,21 @@ class GetFeatureRequestTestCase(SimpleTestCase):
         # print(self.parsed_xml_request.queries[0].filter.condition)
 
         self.parsed_xml_request.secure_spatial(
-            value_reference="bla", polygon=Polygon(((-180, -90),
-                                                    (-180, 90),
-                                                    (180, 90),
-                                                    (180, -90),
-                                                    (-180, -90))))
+            value_reference="myns:spatial_area", polygon=Polygon(((-180, -90),
+                                                                  (-180, 90),
+                                                                  (180, 90),
+                                                                  (180, -90),
+                                                                  (-180, -90))))
 
         first = self.parsed_xml_request.serializeDocument(pretty=True)
-
-        print(first)
-
         second = open(
             self.secured_xml, "rb").read()
 
         diff = main.diff_texts(first, second)
 
-        self.assertFalse(diff, msg="xml differs")
+        #self.assertFalse(diff, msg="xml differs")
 
-        #self.assertXMLEqual(second, second)
+        self.assertXMLEqual(first.decode('utf-8'), second.decode('utf-8'))
 
         # obj1 = objectify.fromstring(
         #     self.parsed_xml_request.serializeDocument())

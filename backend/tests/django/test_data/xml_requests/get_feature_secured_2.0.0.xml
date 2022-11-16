@@ -17,7 +17,7 @@
         <fes:Filter>
             <fes:And>
                 <fes:Within>
-                    <fes:ValueReference>myns:geoTemp</fes:ValueReference>
+                    <fes:ValueReference>THE_GEOM</fes:ValueReference>
                     <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:4316">
                         <gml:exterior>
                             <gml:LinearRing>

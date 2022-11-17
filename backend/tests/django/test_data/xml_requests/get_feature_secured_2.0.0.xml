@@ -16,6 +16,15 @@
         <PropertyName>myns:temperature</PropertyName>
         <fes:Filter>
             <fes:And>
+                <fes:Not>
+                    <fes:Disjoint>
+                        <fes:ValueReference>myns:geoTemp</fes:ValueReference>
+                        <gml:Envelope srsName="urn:ogc;def:crs:EPSG::4326">
+                            <gml:lowerCorner>46.2023 -57.9118 </gml:lowerCorner>
+                            <gml:upperCorner>51.8145 -46.6873</gml:upperCorner>
+                        </gml:Envelope>
+                    </fes:Disjoint>
+                </fes:Not>
                 <fes:Within>
                     <fes:ValueReference>THE_GEOM</fes:ValueReference>
                     <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:4316">
@@ -26,15 +35,6 @@
                         </gml:exterior>
                     </gml:Polygon>
                 </fes:Within>
-                <fes:Not>
-                    <fes:Disjoint>
-                        <fes:ValueReference>myns:geoTemp</fes:ValueReference>
-                        <gml:Envelope srsName="urn:ogc;def:crs:EPSG::4326">
-                            <gml:lowerCorner>46.2023 -57.9118 </gml:lowerCorner>
-                            <gml:upperCorner>51.8145 -46.6873</gml:upperCorner>
-                        </gml:Envelope>
-                    </fes:Disjoint>
-                </fes:Not>
             </fes:And>
         </fes:Filter>
         <fes:SortBy>

@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <GetFeature version="2.0.2" service="WFS" handle="Query01"
     xmlns="http://www.opengis.net/wfs/2.0"
     xmlns:fes="http://www.opengis.net/fes/2.0"

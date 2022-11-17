@@ -3,9 +3,9 @@ import os
 from django.contrib.gis.geos import Polygon
 from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
+from lxml import etree
 from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
 from tests.django.settings import DJANGO_TEST_ROOT_DIR
-from xmldiff import main
 
 
 class GetFeatureRequestTestCase(SimpleTestCase):
@@ -23,26 +23,26 @@ class GetFeatureRequestTestCase(SimpleTestCase):
         # print(self.parsed_xml_request.queries[0].filter.condition)
 
         self.parsed_xml_request.secure_spatial(
-            value_reference="myns:spatial_area", polygon=Polygon(((-180, -90),
-                                                                  (-180, 90),
-                                                                  (180, 90),
-                                                                  (180, -90),
-                                                                  (-180, -90))))
+            value_reference="THE_GEOM", polygon=Polygon(((-180, -90),
+                                                         (-180, 90),
+                                                         (180, 90),
+                                                         (180, -90),
+                                                         (-180, -90)), srid=4326))
 
-        first = self.parsed_xml_request.serializeDocument(pretty=True)
-        second = open(
-            self.secured_xml, "rb").read()
+        first = self.parsed_xml_request.serializeDocument()
+        second = load_xmlobject_from_file(
+            filename=self.secured_xml, xmlclass=GetFeatureRequest)
+        second = second.serializeDocument()
 
-        diff = main.diff_texts(first, second)
+        parser = etree.XMLParser(
+            remove_blank_text=True, remove_comments=True, ns_clean=True)
 
-        #self.assertFalse(diff, msg="xml differs")
+        first_xml = etree.fromstring(text=first, parser=parser)
+        second_xml = etree.fromstring(text=second, parser=parser)
 
-        self.assertXMLEqual(first.decode('utf-8'), second.decode('utf-8'))
+        print(etree.tostring(first_xml).decode("UTF-8"))
+        print(etree.tostring(second_xml).decode("UTF-8"))
 
-        # obj1 = objectify.fromstring(
-        #     self.parsed_xml_request.serializeDocument())
-        # first = etree.tostring(obj1)
-        # obj2 = objectify.fromstring(open(self.secured_xml, "rb").read())
-        # second = etree.tostring(obj2)
-
-        # self.assertEqual(first, second)
+        self.maxDiff = None
+        self.assertXMLEqual(etree.tostring(first_xml).decode("UTF-8"),
+                            etree.tostring(second_xml).decode("UTF-8"))

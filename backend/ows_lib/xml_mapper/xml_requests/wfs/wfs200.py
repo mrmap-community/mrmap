@@ -1,4 +1,4 @@
-from typing import List
+import copy
 
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from eulxml.xmlmap import (NodeField, NodeListField, StringField,
@@ -12,7 +12,6 @@ class PolygonFilter(XmlObject):
     ROOT_NS = "fes"
     ROOT_NAME = "Within"
     ROOT_NAMESPACES = {
-        "fes": FES_2_0_NAMEPSACE,
         "gml": GML_3_2_2_NAMESPACE
     }
 
@@ -59,14 +58,6 @@ class WithinCondition(XmlObject):
     polygon_filter = NodeField(xpath="./gml:Polygon", node_class=PolygonFilter)
 
 
-class AndCondition(XmlObject):
-    ROOT_NS = "fes"
-    ROOT_NAME = "And"
-    ROOT_NAMESPACES = {
-        "fes": FES_2_0_NAMEPSACE,
-    }
-
-
 class OrCondition(XmlObject):
     ROOT_NS = "fes"
     ROOT_NAME = "Or"
@@ -74,8 +65,22 @@ class OrCondition(XmlObject):
         "fes": FES_2_0_NAMEPSACE,
     }
 
-    within_conditons = NodeListField(
+    within_conditions = NodeListField(
         xpath="./fes:Within", node_class=WithinCondition)
+    or_conditions = NodeListField(xpath="./fes:Or", node_class="self")
+
+
+class AndCondition(XmlObject):
+    ROOT_NS = "fes"
+    ROOT_NAME = "And"
+    ROOT_NAMESPACES = {
+        "fes": FES_2_0_NAMEPSACE,
+    }
+
+    within_conditions = NodeListField(
+        xpath="./fes:Within", node_class=WithinCondition)
+    and_conditions = NodeListField(xpath="./fes:And", node_class="self")
+    or_conditions = NodeListField(xpath="./fes:Or", node_class=OrCondition)
 
 
 class Filter(XmlObject):
@@ -89,7 +94,9 @@ class Filter(XmlObject):
 
     ressource_ids = StringListField(xpath="./fes:ResourceId/@rid")
 
+    # FIXME: multiple and and or conditions are possible
     and_condition = NodeField(xpath="./fes:And", node_class=AndCondition)
+    or_condition = NodeField(xpath="./fes:Or", node_class=OrCondition)
 
 
 class Query(XmlObject):
@@ -112,52 +119,38 @@ class GetFeatureRequest(XmlObject):
     XSD_SCHEMA = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
     ROOT_NAMESPACES = {
         "wfs": WFS_2_0_0_NAMESPACE,
-        "fes": FES_2_0_NAMEPSACE
+        "fes": FES_2_0_NAMEPSACE,
+        "gml": GML_3_2_2_NAMESPACE
     }
 
     queries = NodeListField(xpath="./wfs:Query", node_class=Query)
 
-    def construct_polygon_filter_xml_node(self, polygon: GeosPolygon, value_reference: str) -> XmlObject:
+    def _construct_within_condition(self, srid: str, value_reference: str, coords, parent_condition: (AndCondition | OrCondition)) -> None:
+        parent_condition.within_conditions.append(WithinCondition())
+        parent_condition.within_conditions[-1].value_reference = value_reference
+        parent_condition.within_conditions[-1].polygon_filter = PolygonFilter(
+            srid=srid, coords=coords)
+
+    def _append_spatial_filter_condition(self, polygon: GeosPolygon, value_reference: str, and_condition: AndCondition) -> None:
         if len(polygon.coords) == 1:
-            within_condition = WithinCondition()
-            within_condition.value_reference = value_reference
-            within_condition.polygon_filter = PolygonFilter(
-                srid=polygon.srid, coords=polygon.coords)
-            return within_condition
+            self._construct_within_condition(
+                srid=polygon.srid, value_reference=value_reference, coords=polygon.coords, parent_condition=and_condition)
         elif len(polygon.coords) > 1:
-            atomic_polygon_filter: List[WithinCondition] = []
+            and_condition.or_conditions.append(OrCondition())
             for coords in polygon.coords:
-                within_condition = WithinCondition()
-                within_condition.value_reference = value_reference
-                within_condition.polygon_filter = PolygonFilter(
-                    srid=polygon.srid, coords=coords)
-                atomic_polygon_filter.append(within_condition)
-            condition = OrCondition()
-            condition.within_conditons = atomic_polygon_filter
-            return condition
+                self._construct_within_condition(
+                    srid=polygon.srid, value_reference=value_reference, coords=coords, parent_condition=and_condition.or_conditions[-1])
 
     def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True) -> None:
-        spatial_filter = self.construct_polygon_filter_xml_node(
-            polygon=polygon, value_reference=value_reference)
+
         for query in self.queries:
-            if query.filter.and_condition:
-                # append geometry filter as sub element
-                and_condition.node.append(spatial_filter.node)
+            if not query.filter.and_condition:
+                # Sourround the old filter with a fes:And node first to combine them binary together
+                old_filter = copy.deepcopy(query.filter.node)
+                query.filter = Filter()
+                query.filter.and_condition = AndCondition()
+                query.filter.and_condition.node.extend(
+                    [child for child in old_filter])
 
-            else:
-                # old_filter = copy.deepcopy(query.filter.node)
-                and_condition = AndCondition()
-                and_condition.node.extend(
-                    [child for child in query.filter.node])
-                and_condition.node.append(spatial_filter.node)
-                new_filter = Filter()
-                new_filter.and_condition = and_condition
-
-                # self.append_filter_nodes(
-                #     filter_nodes=spatial_filter, node=and_condition.node)
-
-                query.filter = new_filter
-
-                # add new <fes:And></fes:And> around current node
-                # after that, append geometry filter as sub element
-                # query.filter.node.getparent().replace(query.filter.node, new_filter.node)
+            self._append_spatial_filter_condition(
+                polygon=polygon, value_reference=value_reference, and_condition=query.filter.and_condition)

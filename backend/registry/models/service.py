@@ -147,6 +147,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 class WebFeatureService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
     capabilities = WebFeatureServiceCapabilitiesManager()
+    # TODO: security = WebFeatureServiceSecurityManager()
 
     class Meta:
         verbose_name = _("web feature service")

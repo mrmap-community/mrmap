@@ -143,7 +143,7 @@ class GetFeatureRequest(XmlObject):
                     srid=polygon.srid, value_reference=value_reference, coords=coords, parent_condition=or_condition)
             and_condition.or_conditions.append(or_condition)
 
-    def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True) -> None:
+    def secure_spatial(self, value_reference, polygon: GeosPolygon) -> None:
 
         for query in self.queries:
             if not query.filter.and_condition:

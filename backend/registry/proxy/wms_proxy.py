@@ -1,47 +1,31 @@
 import copy
 import io
-import re
-from io import BytesIO
 from queue import Queue
 from threading import Thread
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import GEOSGeometry
-from django.core.files.base import ContentFile
-from django.db import connection, transaction
-from django.db.models.functions import datetime
-from django.http import HttpResponse, StreamingHttpResponse
+from django.db import connection
 from django.http.response import Http404
-from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic.base import View
 from eulxml import xmlmap
 from extras.utils import execute_threads
-from MrMap.settings import PROXIES
-from ows_lib.client.exceptions import (MissingBboxParam, MissingServiceParam,
-                                       MissingVersionParam)
+from ows_lib.client.exceptions import MissingBboxParam, MissingServiceParam
 from ows_lib.client.utils import (construct_polygon_from_bbox_query_param,
-                                  filter_ogc_query_params, get_client)
+                                  filter_ogc_query_params)
 from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from PIL import Image, ImageDraw, ImageFont
 from registry.enums.service import OGCOperationEnum
-from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import WebMapService
-from registry.proxy.ogc_exceptions import (DisabledException,
-                                           ForbiddenException, LayerNotDefined,
-                                           MissingRequestParameterException,
-                                           MissingVersionParameterException)
-from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
+from registry.proxy.mixins import OgcServiceProxyView
+from registry.proxy.ogc_exceptions import ForbiddenException, LayerNotDefined
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
 from requests import Request, Session
-from requests.exceptions import ConnectionError as ConnectionErrorException
-from requests.exceptions import ConnectTimeout as ConnectTimeoutException
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class WebMapServiceProxy(View):
+class WebMapServiceProxy(OgcServiceProxyView):
     """Security proxy facade to secure registered services spatial by there operations and for sets of users.
     :attr service:  :class:`registry.models.service.Service` the requested service which was found by the pk.
     :attr remote_service: :class:`registry.ows_client.request_builder.WebService` the request builder to get
@@ -54,32 +38,7 @@ class WebMapServiceProxy(View):
 
     service: WebMapService = None
     remote_service: WebMapServiceClient = None
-    query_parameters = None
     access_denied_img = None
-    bbox = None
-    start_time = None
-
-    def dispatch(self, request, *args, **kwargs):
-        self.start_time = datetime.datetime.now()
-        self.adjust_query_params()
-
-        exception = self.check_request()
-        if exception:
-            return exception
-
-        self.get_bbox_from_request()
-        self.get_service()
-        self.setup_remote_service()
-        return self.get_and_post(request=request, *args, **kwargs)
-
-    def check_request(self):
-        request_operation = self.request.query_parameters.get("request", None)
-        if not request_operation:
-            return MissingRequestParameterException()
-
-    def adjust_query_params(self):
-        self.request.query_parameters = {
-            k.lower(): v for k, v in self.request.GET.items()}
 
     def get_bbox_from_request(self):
         try:
@@ -97,31 +56,6 @@ class WebMapServiceProxy(View):
             )
         except WebMapService.DoesNotExist:
             raise Http404
-
-    def setup_remote_service(self):
-        try:
-            # requested_url_parts = urlparse(self.request.get_full_path())
-
-            # service_url_parts = urlparse(
-            #     self.service.base_operation_url
-            #     if self.service.base_operation_url
-            #     else self.service.unknown_operation_url
-            # )
-
-            # service_url_parts._replace(
-            #     query=parse_qsl(qs=requested_url_parts.query))
-
-            self.remote_service = get_client(self.service.xml_backup)
-
-        except (MissingServiceParam, MissingVersionParam):
-            # exception handling in self.get()
-            pass
-
-    def post(self, request, *args, **kwargs):
-        return self.get_and_post(request=request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return self.get_and_post(request=request, *args, **kwargs)
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method with security case decisioning.
@@ -146,48 +80,10 @@ class WebMapServiceProxy(View):
         :return: the computed response based on some principle decisions.
         :rtype: dict or :class:`requests.models.Request`
         """
-        if (
-            self.request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_CAPABILITIES.value.lower()
-        ):
-            return self.get_capabilities()
-        elif not self.request.query_parameters.get("version", None):
-            return MissingVersionParameterException()
-        elif not self.service.is_active:
-            return DisabledException()
-        elif self.service.is_unknown_layer:
+        if self.service.is_unknown_layer:
             return LayerNotDefined()
-        elif (
-            not self.request.query_parameters.get("request").lower()
-            in SECURE_ABLE_OPERATIONS_LOWER
-        ):
-            # seperated from elif below, cause security.for_security_facade does not fill the fields like is_secured,
-            # is_spatial_secured, is_user_principle_entitled...
-            return self.return_http_response(response=self.get_remote_response())
-        elif (
-            not self.service.is_secured
-            or not self.service.is_spatial_secured
-            and self.service.is_user_principle_entitled
-        ):
-            return self.return_http_response(response=self.get_remote_response())
-        elif (
-            self.service.is_spatial_secured and self.service.is_user_principle_entitled
-        ):
-            return self.handle_secured_wms()
         else:
-            return ForbiddenException()
-
-    def get_capabilities(self):
-        """Return the camouflaged capabilities document of the founded service.
-        .. note::
-           See :meth:`registry.models.document.DocumentModelMixin.xml_secured` for details of xml_secured function.
-        :return: the camouflaged capabilities document.
-        :rtype: :class:`django.http.response.HttpResponse`
-        """
-        # todo: handle different service versions
-        return HttpResponse(
-            status=200, content=self.service.get_xml(self.request), content_type="application/xml"
-        )
+            return super().get_and_post(request, *args, **kwargs)
 
     def _create_secured_service_mask(self):
         """Creates call to local mapserver and returns the response
@@ -519,7 +415,7 @@ class WebMapServiceProxy(View):
                 pass
         return ForbiddenException()
 
-    def handle_secured_wms(self):
+    def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.
         :return: the correct handler function for the given request param.
         :rtype: function
@@ -534,187 +430,3 @@ class WebMapServiceProxy(View):
             == OGCOperationEnum.GET_FEATURE_INFO.value.lower()
         ):
             return self.handle_secured_get_feature_info()
-
-    def get_secured_response(self):
-        """Return a filtered response based on the requested bbox
-        .. note::
-            This function will only be called, if the service is spatial secured and the user is in principle
-            entitled! If so we filter the allowed_operations again by with the bbox param.
-        :return: the correct handler function for the given service type.
-        :rtype: function
-        """
-        return self.handle_secured_wms()
-
-    def get_remote_response(self, request: Request = None):
-        """Perform a request to the :attr:`~GenericOwsServiceOperationFacade.remote_service` with the given
-        query parameters or if ``request`` is provided this request is performed.
-        :param request: a prepared request which shall used instead of the constructed request from the remote
-                        service.
-        :type request: :class:`requests.models.Request`, optional
-        :return: the response of the remote service
-        :rtype: :class:`requests.models.Response` or dict with ``status_code``, ``content`` and ``code`` if any
-                error occurs.
-        """
-        if not request:
-            request = self.remote_service.construct_request(
-                query_params=self.request.GET
-            )
-        if hasattr(self.service, "external_authentication"):
-            request.auth = self.service.external_authentication.get_auth_for_request()
-        s = Session()
-        s.proxies = PROXIES
-        r = {}
-        try:
-            r = s.send(request.prepare())
-        except ConnectTimeoutException:
-            # response with GatewayTimeout; the remote service response not in timeout
-            r.update(
-                {
-                    "status_code": 504,
-                    "code": "MaxResponseTimeExceeded",
-                    "content": "remote service didn't response in time.",
-                }
-            )
-        except ConnectionErrorException:
-            # response with Bad Gateway; we can't connect to the remote service
-            r.update(
-                {
-                    "status_code": 502,
-                    "code": "MaxRetriesExceeded",
-                    "content": "can't reach remote service.",
-                }
-            )
-        except Exception as e:
-            # todo: log exception
-            r.update(
-                {
-                    "status_code": 500,
-                    "code": "InternalServerError",
-                    "content": f"{type(e).__name__} raised in function get_remote_response()",
-                }
-            )
-        return r
-
-    def log_response(self, response):
-        """Check if response logging is active. If so, the request and response will be logged."""
-        if self.service.log_response:
-            with transaction.atomic():
-                if self.request.user.username == "":
-                    user = get_user_model().objects.get(username="AnonymousUser")
-                else:
-                    user = self.request.user
-                regex = re.compile("^HTTP_")
-                headers = dict(
-                    (regex.sub("", header), value)
-                    for (header, value) in self.request.META.items()
-                    if header.startswith("HTTP_")
-                )
-                request_log = HttpRequestLog(
-                    timestamp=self.start_time,
-                    elapsed=datetime.datetime.now() - self.start_time,
-                    method=self.request.method,
-                    url=self.request.get_full_path(),
-                    headers=headers,
-                    service=self.service,
-                    user=user,
-                )
-                if self.request.body:
-                    content_type = self.request.content_type
-                    if "/" in content_type:
-                        content_type = content_type.split("/")[-1]
-                    request_log.body.save(
-                        name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
-                        content=ContentFile(self.request.body),
-                    )
-                else:
-                    request_log.save()
-                if isinstance(response, dict):
-                    response_log = HttpResponseLog(
-                        status_code=response.get("status_code"),
-                        reason=response.get("reason"),
-                        elapsed=response.get("elapsed"),
-                        headers=response.get("headers"),
-                        url=response.get("url"),
-                        request=request_log,
-                    )
-                    if response.get("content", None):
-                        content_type = response.get("content_type")
-                        if "/" in content_type:
-                            content_type = content_type.split("/")[-1]
-                        response_log.content.save(
-                            name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
-                            content=ContentFile(response.get("content")),
-                        )
-                    else:
-                        response_log.save()
-                else:
-                    response_log = HttpResponseLog(
-                        status_code=response.status_code,
-                        reason=response.reason,
-                        elapsed=response.elapsed,
-                        headers=dict(response.headers),
-                        url=response.url,
-                        request=request_log,
-                    )
-                    if response.content:
-                        content_type = response.headers.get("content-type")
-                        if "/" in content_type:
-                            content_type = content_type.split("/")[-1]
-                        response_log.content.save(
-                            name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
-                            content=ContentFile(response.content),
-                        )
-                    else:
-                        response_log.save()
-
-    def return_http_response(self, response):
-        """Return the http response for the client.
-        :param response: the response with status code, content and content type
-        :type response: :class:`requests.models.Response` or dict
-        :return: The secured response or an ows exception report if ``status_code >399`` and
-                 ``isinstance(response, dict) == True``.
-        :rtype: :class:`django.http.response.StreamingHttpResponse` if response >= 500000 else
-                :class:`django.http.response.HttpResponse`
-        """
-        headers = {}
-        if isinstance(response, dict):
-            content = response.get("content", "unknown")
-            status_code = response.get("status_code", 200)
-            content_type = response.get("content_type", None)
-        else:
-            content = response.content
-            status_code = response.status_code
-            content_type = response.headers.get("content-type")
-            content_disposition = response.headers.get(
-                "content-disposition", None)
-            content_encoding = response.headers.get("content-encoding", None)
-            if content_disposition:
-                headers.update({"Content-Disposition": content_disposition})
-            if content_encoding:
-                headers.update({"Content-Encoding": content_encoding})
-
-        if isinstance(response, dict) and status_code > 399:
-            # todo: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
-            content = render_to_string(
-                template_name="registry/xml/ows/exception.xml", context=response
-            )
-            content_type = "text/xml"
-
-        if len(content) >= 5000000:
-            # data too big - we should stream it!
-            computed_response = StreamingHttpResponse(
-                status=status_code,
-                streaming_content=BytesIO(content),
-                content_type=content_type,
-                headers=headers,
-            )
-        else:
-            computed_response = HttpResponse(
-                status=status_code,
-                content=content,
-                content_type=content_type,
-                headers=headers,
-            )
-
-        self.log_response(response=response)
-        return computed_response

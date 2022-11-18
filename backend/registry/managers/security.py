@@ -14,6 +14,7 @@ from django.http import HttpRequest
 from eulxml.xmlmap import load_xmlobject_from_string
 from ows_lib.client.utils import get_requested_layers
 from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
+from ows_lib.xml_mapper.xml_responses.wfs200 import GEOMETRY_DATA_TYPES
 from registry.enums.service import OGCOperationEnum
 from registry.models.service import FeatureTypeProperty
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
@@ -248,6 +249,9 @@ class WebFeatureServiceSecurityManager(models.Manager):
             == OGCOperationEnum.GET_FEATURE.value.lower() &
             request.method == "POST"
         ):
+            get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
+                string=request.body, xmlclass=GetFeatureRequest)
+
             return (
                 self.get_queryset()
                 .select_related("auth")
@@ -274,7 +278,9 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     # TODO: get the correct geom name for the requested feature types
                     # TODO: Multiple queries with one request possible?
                     geometry_property_name=Coalesce(FeatureTypeProperty.objects.filter(
-                        feature_type__service__pk=OuterRef("pk"), feature_type__identifier=""), V("THE_GEOM"))  # luky shot we use 'THE_GEOM' as default
+                        feature_type__service__pk=OuterRef("pk"),
+                        feature_type__identifier__in=get_feature_request.requested_feature_types,
+                        data_type__in=GEOMETRY_DATA_TYPES).values_list("name", flat=True).first(), V("THE_GEOM"))  # luky shot we use 'THE_GEOM' as default
 
 
                 )

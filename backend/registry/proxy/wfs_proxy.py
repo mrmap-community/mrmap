@@ -100,7 +100,7 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
         if self.request.method == "POST":
             get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
                 string=self.request.body, xmlclass=GetFeatureRequest)
-            value_reference = self.get_geometry_based_value_reference()
+            value_reference = self.service.geometry_property_name
 
             get_feature_request.secure_spatial(
                 value_reference=value_reference,
@@ -113,10 +113,6 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             self.return_http_response(response=response)
         else:
             raise NotImplementedError()
-
-    def get_geometry_based_value_reference(self):
-        # TODO: could be done by the security manager, which has an annotation with the first founded geometry prop name
-        raise NotImplementedError()
 
     def handle_secured_transaction(self):
         #  Transaction: Transaction operations does not contains area of interest.

@@ -9,7 +9,7 @@ from ows_lib.xml_mapper.namespaces import (FES_2_0_NAMEPSACE,
 
 
 class PolygonFilter(XmlObject):
-    ROOT_NS = "fes"
+    ROOT_NS = GML_3_2_2_NAMESPACE
     ROOT_NAME = "Within"
     ROOT_NAMESPACES = {
         "gml": GML_3_2_2_NAMESPACE
@@ -47,7 +47,7 @@ class PolygonFilter(XmlObject):
 
 
 class WithinCondition(XmlObject):
-    ROOT_NS = "fes"
+    ROOT_NS = FES_2_0_NAMEPSACE
     ROOT_NAME = "Within"
     ROOT_NAMESPACES = {
         "fes": FES_2_0_NAMEPSACE,
@@ -59,7 +59,7 @@ class WithinCondition(XmlObject):
 
 
 class OrCondition(XmlObject):
-    ROOT_NS = "fes"
+    ROOT_NS = FES_2_0_NAMEPSACE
     ROOT_NAME = "Or"
     ROOT_NAMESPACES = {
         "fes": FES_2_0_NAMEPSACE,
@@ -71,7 +71,7 @@ class OrCondition(XmlObject):
 
 
 class AndCondition(XmlObject):
-    ROOT_NS = "fes"
+    ROOT_NS = FES_2_0_NAMEPSACE
     ROOT_NAME = "And"
     ROOT_NAMESPACES = {
         "fes": FES_2_0_NAMEPSACE,
@@ -84,7 +84,7 @@ class AndCondition(XmlObject):
 
 
 class Filter(XmlObject):
-    ROOT_NS = "fes"
+    ROOT_NS = FES_2_0_NAMEPSACE
     ROOT_NAME = "Filter"
     XSD_SCHEMA = "http://schemas.opengis.net/filter/2.0/filter.xsd"
     ROOT_NAMESPACES = {
@@ -100,7 +100,7 @@ class Filter(XmlObject):
 
 
 class Query(XmlObject):
-    ROOT_NS = "wfs"
+    ROOT_NS = WFS_2_0_0_NAMESPACE
     ROOT_NAME = "Query"
     XSD_SCHEMA = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
     ROOT_NAMESPACES = {
@@ -114,7 +114,7 @@ class Query(XmlObject):
 
 
 class GetFeatureRequest(XmlObject):
-    ROOT_NS = "wfs"
+    ROOT_NS = WFS_2_0_0_NAMESPACE
     ROOT_NAME = "GetFeature"
     XSD_SCHEMA = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
     ROOT_NAMESPACES = {
@@ -126,20 +126,22 @@ class GetFeatureRequest(XmlObject):
     queries = NodeListField(xpath="./wfs:Query", node_class=Query)
 
     def _construct_within_condition(self, srid: str, value_reference: str, coords, parent_condition: (AndCondition | OrCondition)) -> None:
-        parent_condition.within_conditions.append(WithinCondition())
-        parent_condition.within_conditions[-1].value_reference = value_reference
-        parent_condition.within_conditions[-1].polygon_filter = PolygonFilter(
+        within_condition = WithinCondition()
+        within_condition.value_reference = value_reference
+        within_condition.polygon_filter = PolygonFilter(
             srid=srid, coords=coords)
+        parent_condition.within_conditions.append(within_condition)
 
     def _append_spatial_filter_condition(self, polygon: GeosPolygon, value_reference: str, and_condition: AndCondition) -> None:
         if len(polygon.coords) == 1:
             self._construct_within_condition(
                 srid=polygon.srid, value_reference=value_reference, coords=polygon.coords, parent_condition=and_condition)
         elif len(polygon.coords) > 1:
-            and_condition.or_conditions.append(OrCondition())
+            or_condition = OrCondition()
             for coords in polygon.coords:
                 self._construct_within_condition(
-                    srid=polygon.srid, value_reference=value_reference, coords=coords, parent_condition=and_condition.or_conditions[-1])
+                    srid=polygon.srid, value_reference=value_reference, coords=coords, parent_condition=or_condition)
+            and_condition.or_conditions.append(or_condition)
 
     def secure_spatial(self, value_reference, polygon: GeosPolygon, axis_order_correction: bool = True) -> None:
 

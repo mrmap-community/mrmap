@@ -13,7 +13,7 @@ from ows_lib.xml_mapper.namespaces import (FES_2_0_NAMEPSACE,
 
 
 class WebFeatureServiceDefaultSettings(DBModelConverterMixin, XmlObject):
-    ROOT_NS = "wfs"
+    ROOT_NS = WFS_2_0_0_NAMESPACE
     ROOT_NAMESPACES = {
         "wms": WFS_2_0_0_NAMESPACE,
         "ows": OWS_1_1_NAMESPACE,

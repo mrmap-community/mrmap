@@ -34,15 +34,12 @@ class GetFeatureRequestTestCase(SimpleTestCase):
             filename=self.secured_xml, xmlclass=GetFeatureRequest)
         second = second.serializeDocument()
 
+        # We need to format both xml files the same way... otherwise the self.assertXMLEqual function, which is based on str compare will fail
         parser = etree.XMLParser(
-            remove_blank_text=True, remove_comments=True, ns_clean=True)
+            remove_blank_text=True, remove_comments=True, ns_clean=True, encoding="UTF-8", remove_pis=True)
 
         first_xml = etree.fromstring(text=first, parser=parser)
         second_xml = etree.fromstring(text=second, parser=parser)
 
-        print(etree.tostring(first_xml).decode("UTF-8"))
-        print(etree.tostring(second_xml).decode("UTF-8"))
-
-        self.maxDiff = None
         self.assertXMLEqual(etree.tostring(first_xml).decode("UTF-8"),
                             etree.tostring(second_xml).decode("UTF-8"))

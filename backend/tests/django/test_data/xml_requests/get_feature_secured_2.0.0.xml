@@ -27,10 +27,10 @@
                 </fes:Not>
                 <fes:Within>
                     <fes:ValueReference>THE_GEOM</fes:ValueReference>
-                    <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:4316">
+                    <gml:Polygon srsName="urn:x-ogc:def:crs:EPSG:4326">
                         <gml:exterior>
                             <gml:LinearRing>
-                                <gml:posList>-180 -90 -180 90 180 90 180 -90 -180 -90</gml:posList>
+                                <gml:posList>-180.0 -90.0 -180.0 90.0 180.0 90.0 180.0 -90.0 -180.0 -90.0</gml:posList>
                             </gml:LinearRing>
                         </gml:exterior>
                     </gml:Polygon>

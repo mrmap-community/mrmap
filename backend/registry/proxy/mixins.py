@@ -49,7 +49,6 @@ class OgcServiceProxyView(View):
         if exception:
             return exception
 
-        self.get_bbox_from_request()
         self.get_service()
         self.setup_remote_service()
         return self.get_and_post(request=request, *args, **kwargs)
@@ -62,9 +61,6 @@ class OgcServiceProxyView(View):
     def adjust_query_params(self):
         self.request.query_parameters = {
             k.lower(): v for k, v in self.request.GET.items()}
-
-    def get_bbox_from_request(self):
-        raise NotImplementedError()
 
     def get_service(self):
         raise NotImplementedError()

@@ -1,4 +1,5 @@
 import copy
+from typing import List
 
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from eulxml.xmlmap import (NodeField, NodeListField, StringField,
@@ -156,3 +157,7 @@ class GetFeatureRequest(XmlObject):
 
             self._append_spatial_filter_condition(
                 polygon=polygon, value_reference=value_reference, and_condition=query.filter.and_condition)
+
+    @property
+    def requested_feature_types(self) -> List[str]:
+        return [query.type_names for query in self.queries]

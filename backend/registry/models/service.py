@@ -878,12 +878,12 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def create_element_instances(self):
         """Return the created FeatureTypeElement record(s)"""
-        return FeatureTypeElement.xml_objects.create_from_parsed_xml(
+        return FeatureTypeProperty.xml_objects.create_from_parsed_xml(
             parsed_xml=self.parse(), related_object=self
         )
 
 
-class FeatureTypeElement(models.Model):
+class FeatureTypeProperty(models.Model):
     max_occurs = models.IntegerField(default=1)
     min_occurs = models.IntegerField(default=0)
     name = models.CharField(max_length=255)
@@ -892,18 +892,18 @@ class FeatureTypeElement(models.Model):
     feature_type = models.ForeignKey(
         to=FeatureType,
         # editable=False,
-        related_name="elements",
-        related_query_name="element",
+        related_name="properties",
+        related_query_name="property",
         on_delete=models.CASCADE,
         verbose_name=_("feature type"),
-        help_text=_("related feature type of this element"),
+        help_text=_("related feature type of this property"),
     )
     objects = models.Manager()
     xml_objects = FeatureTypeElementXmlManager()
 
     class Meta:
-        verbose_name = _("feature type element")
-        verbose_name_plural = _("feature type elements")
+        verbose_name = _("feature type property")
+        verbose_name_plural = _("feature type properties")
         ordering = ["-name"]
 
     def __str__(self):

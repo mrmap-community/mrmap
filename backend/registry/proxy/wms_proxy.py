@@ -50,6 +50,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
             self.request.bbox = GEOSGeometry("POLYGON EMPTY")
 
     def get_service(self):
+        self.get_bbox_from_request()
         try:
             self.service = WebMapService.security.get_with_security_info(
                 pk=self.kwargs.get("pk"), request=self.request

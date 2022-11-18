@@ -2,6 +2,7 @@ from typing import List
 
 from ows_lib.client.mixins import OgcClient
 from ows_lib.client.utils import update_queryparams
+from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
 from requests import Request
 
 
@@ -31,10 +32,16 @@ class WebFeatureServiceMixin(OgcClient):
             params=params)
         return Request(method="GET", url=url)
 
-    def has_filter(self, filter_type) -> bool:
-        # TODO: check if the "And" filter is provided by the given capabilitites
-        pass
+    def prepare_get_feature_request(
+            self,
+            get_feature_request: GetFeatureRequest):
+        params = {
+            "VERSION": self.capabilities.version,
+            "REQUEST": "GetFeature"
+        }
+        url = update_queryparams(
+            url=self.capabilities.get_operation_url_by_name_and_method(
+                "GetFeature", "Post").url,
+            params=params)
 
-    def prepare_feature_type_request(self):
-        # TODO
-        pass
+        return Request(method="POST", url=url, data=get_feature_request.serializeDocument(), headers={"Content-Type": "application/xml"})

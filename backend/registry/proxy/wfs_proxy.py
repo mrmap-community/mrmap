@@ -1,13 +1,12 @@
 
-from django.contrib.gis.geos import GEOSGeometry
 from django.http.response import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from eulxml import xmlmap
-from ows_lib.client.exceptions import MissingBboxParam, MissingServiceParam
-from ows_lib.client.utils import construct_polygon_from_bbox_query_param
+from eulxml.xmlmap import load_xmlobject_from_string
 from ows_lib.client.wfs.mixins import \
     WebFeatureServiceMixin as WebFeatureServiceClient
+from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
 from registry.enums.service import OGCOperationEnum
 from registry.models.service import WebFeatureService
 from registry.proxy.mixins import OgcServiceProxyView
@@ -29,19 +28,6 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
 
     service: WebFeatureService = None
     remote_service: WebFeatureServiceClient = None
-
-    def get_bbox_from_request(self):
-        # TODO: get the requested area of interest by given request
-        #  GetFeature:
-        #  Transaction
-        raise NotImplementedError()
-        try:
-            self.request.bbox = construct_polygon_from_bbox_query_param(
-                get_dict=self.request.query_parameters
-            )
-        except (MissingBboxParam, MissingServiceParam):
-            # only to avoid error while handling sql in get_service()
-            self.request.bbox = GEOSGeometry("POLYGON EMPTY")
 
     def get_service(self):
         try:
@@ -111,7 +97,33 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             return self.handle_secured_transaction()
 
     def handle_secured_get_feature(self):
+        if self.request.method == "POST":
+            get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
+                string=self.request.body, xmlclass=GetFeatureRequest)
+            value_reference = self.get_geometry_based_value_reference()
+
+            get_feature_request.secure_spatial(
+                value_reference=value_reference,
+                polygon=self.service.allowed_area_union
+            )
+
+            response = self.remote_service.send_request(
+                self.remote_service.prepare_feature_type_request(get_feature_request=get_feature_request))
+
+            self.return_http_response(response=response)
+        else:
+            raise NotImplementedError()
+
+    def get_geometry_based_value_reference(self):
+        # TODO: could be done by the security manager, which has an annotation with the first founded geometry prop name
         raise NotImplementedError()
 
     def handle_secured_transaction(self):
+        #  Transaction: Transaction operations does not contains area of interest.
+        #   F. E. the transaction request
+        #   could contain an update for a not spatial value of some column. Then the request has no spatial limitation. Insert operation --> same problem
+        # TODO: cause it is very complex to differ all the cases (UPDATE, INSERT, DELETE) in a transaction, we will do this in future.
+        #       We could secure the transaction on table column level.
+        #       * secure on feature level per permission (update, delete)
+        #       * secure on table level for insert permission
         raise NotImplementedError()

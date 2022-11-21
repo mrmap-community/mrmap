@@ -24,7 +24,10 @@ services:
     volumes:
       - type: bind
         source: ./docker/mapserver/mapfiles
-        target: /etc/mapserver
+        target: /etc/mapserver/mapfiles
+      - type: bind
+        source: ./docker/mapserver/shapefiles
+        target: /etc/mapserver/shapefiles
     networks:
       - mrmap-internal
   nginx:

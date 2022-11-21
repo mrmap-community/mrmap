@@ -1,0 +1,35 @@
+MAP
+    NAME "countries"
+    EXTENT -180 -90 180 90
+    UNITS DD
+    SHAPEPATH "/etc/mapserver/shapefiles/countries"
+    SIZE 400 300
+  
+    IMAGETYPE PNG24
+  
+    PROJECTION
+      "init=epsg:4326"
+    END
+  
+    WEB
+      METADATA
+        ows_title "MapServer countires example"
+        ows_enable_request "*"
+        ows_srs "EPSG:4326 EPSG:25832 EPSG:25833"
+      END
+    END
+  
+    LAYER
+      NAME "Countries"
+      STATUS ON
+      TYPE POLYGON
+      DATA "ne_110m_admin_0_countries"
+      CLASS
+        STYLE
+          COLOR 246 241 223
+          OUTLINECOLOR 0 0 0
+        END
+      END
+    END
+  
+  END

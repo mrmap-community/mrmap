@@ -115,7 +115,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
                 "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
                 "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
-                "map": f"/etc/mapserver/security_mask{'_test_db' if 'test' in db_name else ''}.map",
+                "map": f"/etc/mapserver/mapfiles/security_mask{'_test_db' if 'test' in db_name else ''}.map",
                 "keys": ",".join(str(pk) for pk in self.service.allowed_area_pks)
             }
 

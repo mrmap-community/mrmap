@@ -92,7 +92,7 @@ class OgcServiceProxyView(View):
         **Service is secured condition**:
             * service.is_spatial_secured ==True and service.is_user_principle_entitled == True
             If the condition matches, return the result from
-            :meth:`~GenericOwsServiceOperationFacade.get_secured_response`
+            :meth:`~GenericOwsServiceOperationFacade.secure_request`
         **Default behavior**:
             return ``403 (Forbidden) - User has no permissions to request this service.``
         .. note::
@@ -150,16 +150,6 @@ class OgcServiceProxyView(View):
         :rtype: function
         """
         raise NotImplementedError()
-
-    def get_secured_response(self):
-        """Return a filtered response based on the requested bbox
-        .. note::
-            This function will only be called, if the service is spatial secured and the user is in principle
-            entitled! If so we filter the allowed_operations again by with the bbox param.
-        :return: the correct handler function for the given service type.
-        :rtype: function
-        """
-        return self.secure_request()
 
     def get_remote_response(self, request: Request = None):
         """Perform a request to the :attr:`~GenericOwsServiceOperationFacade.remote_service` with the given

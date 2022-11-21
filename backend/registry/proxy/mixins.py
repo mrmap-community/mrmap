@@ -12,7 +12,6 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from ows_lib.client.exceptions import MissingServiceParam, MissingVersionParam
 from ows_lib.client.utils import get_client
 from registry.enums.service import OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
@@ -43,6 +42,7 @@ class OgcServiceProxyView(View):
     bbox = None
     start_time = None
     _service = None
+    _remote_service = None
 
     @property
     def is_get_request(self) -> bool:
@@ -70,11 +70,11 @@ class OgcServiceProxyView(View):
 
     @property
     def remote_service(self):
-        try:
-            self.remote_service = get_client(self.service.xml_backup)
-        except (MissingServiceParam, MissingVersionParam):
-            # exception handling in self.get()
-            pass
+        if not self._remote_service:
+            self._remote_service = get_client(self.service.xml_backup)
+            print("xml_backup: ", self.service.xml_backup)
+            print("remote_service:", self._remote_service)
+        return self._remote_service
 
     def analyze_request(self):
         """hook method to do adittional stuff in child classes"""

@@ -147,7 +147,10 @@ class GetFeatureRequest(XmlObject):
     def secure_spatial(self, value_reference, polygon: GeosPolygon) -> None:
 
         for query in self.queries:
-            if not query.filter.and_condition:
+            if not query.filter:
+                query.filter = Filter()
+                query.filter.and_condition = AndCondition()
+            elif not query.filter.and_condition:
                 # Sourround the old filter with a fes:And node first to combine them binary together
                 old_filter = copy.deepcopy(query.filter.node)
                 query.filter = Filter()

@@ -12,7 +12,6 @@ from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
-from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
 from ows_lib.xml_mapper.xml_responses.consts import GEOMETRY_DATA_TYPES
 from registry.enums.service import OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
@@ -206,7 +205,7 @@ class WebFeatureServiceSecurityManager(models.Manager):
             using=self._db,
         )
 
-    def prepare_with_security_info(self, request: HttpRequest, get_feature_request: GetFeatureRequest = None, *args, **kwargs):
+    def prepare_with_security_info(self, request: HttpRequest):
         if (
             request.query_parameters.get("request").lower()
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
@@ -238,9 +237,6 @@ class WebFeatureServiceSecurityManager(models.Manager):
             request.query_parameters.get("request").lower()
             == OGCOperationEnum.GET_FEATURE.value.lower()
         ):
-            if not get_feature_request:
-                raise ValueError(
-                    "If the request is a GetFeature request, you need to pass in the GetFeatureRequest object as 'get_feature_request'.")
             from registry.models.service import FeatureTypeProperty
 
             return (
@@ -252,7 +248,7 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     log_response=Coalesce(
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_feature_type=self.is_unknown_feature_type(
-                        service_pk=OuterRef("pk"), feature_types=get_feature_request.requested_feature_types),
+                        service_pk=OuterRef("pk"), feature_types=request.get_feature_request.requested_feature_types),
                     is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
                         service_pk=OuterRef("pk"), request=request
                     ),
@@ -270,8 +266,8 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     # TODO: Multiple queries with one request possible?
                     geometry_property_name=Coalesce(FeatureTypeProperty.objects.filter(
                         feature_type__service__pk=OuterRef("pk"),
-                        feature_type__identifier__in=get_feature_request.requested_feature_types,
-                        data_type__in=GEOMETRY_DATA_TYPES).values_list("name", flat=True).first(), V("THE_GEOM"))  # luky shot we use 'THE_GEOM' as default
+                        feature_type__identifier__in=request.get_feature_request.requested_feature_types,
+                        data_type__in=GEOMETRY_DATA_TYPES).values("name")[:1], V("THE_GEOM"))  # luky shot we use 'THE_GEOM' as default
 
 
                 )
@@ -280,7 +276,5 @@ class WebFeatureServiceSecurityManager(models.Manager):
     def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
         print("request: ", request.query_parameters.get("request").lower())
         print("method: ", request.method)
-        get_feature_request = kwargs.pop("get_feature_request", None)
-        print("get_feature_request: ", get_feature_request)
 
-        return self.prepare_with_security_info(request=request, get_feature_request=get_feature_request).get(*args, **kwargs)
+        return self.prepare_with_security_info(request=request).get(*args, **kwargs)

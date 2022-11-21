@@ -55,11 +55,14 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                     queries.append(query)
                 get_feature_request: GetFeatureRequest = GetFeatureRequest()
                 get_feature_request.queries = queries
-            self.additional_get_service_dict.update(
-                {"get_feature_request": get_feature_request})
 
-            self.request.requested_entites = get_requested_feature_types(
-                params=self.request.query_parameters).extend(get_feature_request.requested_feature_types)
+            self.request.get_feature_request = get_feature_request
+            self.request.requested_entities = get_requested_feature_types(
+                params=self.request.query_parameters)
+            self.request.requested_entities.extend(
+                get_feature_request.requested_feature_types)
+
+            print(self.request.requested_entities)
 
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.
@@ -78,16 +81,14 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             return self.handle_secured_transaction()
 
     def handle_secured_get_feature(self):
-        get_feature_request = self.additional_get_service_dict.get(
-            "get_feature_request")
-        get_feature_request.secure_spatial(
+        self.request.get_feature_request.secure_spatial(
             value_reference=self.service.geometry_property_name,
             polygon=self.service.allowed_area_union
         )
         response = self.remote_service.send_request(
-            self.remote_service.prepare_get_feature_request(get_feature_request=get_feature_request))
+            self.remote_service.prepare_get_feature_request(get_feature_request=self.request.get_feature_request))
 
-        self.return_http_response(response=response)
+        return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):
         #  Transaction: Transaction operations does not contains area of interest.

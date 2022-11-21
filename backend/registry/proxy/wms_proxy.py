@@ -47,7 +47,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
             # only to avoid error while handling sql in service property
             self.request.bbox = GEOSGeometry("POLYGON EMPTY")
 
-        self.request.requested_entites = get_requested_layers(
+        self.request.requested_entities = get_requested_layers(
             params=self.request.query_parameters)
 
     @property

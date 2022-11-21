@@ -1,17 +1,17 @@
 
-from django.http.response import Http404
+from typing import List
+
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from eulxml import xmlmap
 from eulxml.xmlmap import load_xmlobject_from_string
+from ows_lib.client.utils import get_requested_feature_types
 from ows_lib.client.wfs.mixins import \
     WebFeatureServiceMixin as WebFeatureServiceClient
-from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
+from ows_lib.xml_mapper.xml_requests.wfs.get_feature import (GetFeatureRequest,
+                                                             Query)
 from registry.enums.service import OGCOperationEnum
 from registry.models.service import WebFeatureService
 from registry.proxy.mixins import OgcServiceProxyView
-from registry.proxy.ogc_exceptions import ForbiddenException
-from registry.xmlmapper.ogc.feature_collection import FeatureCollection
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -25,60 +25,41 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                              overlay with information about the resources, which can not be accessed
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
+    service_cls = WebFeatureService
 
-    service: WebFeatureService = None
-    remote_service: WebFeatureServiceClient = None
+    @property
+    def service(self) -> WebFeatureService:
+        return super().service
 
-    def get_service(self):
-        try:
-            # FIXME: the is currently no security manager...
-            self.service = WebFeatureService.security.get_with_security_info(
-                pk=self.kwargs.get("pk"), request=self.request
-            )
-        except WebFeatureService.DoesNotExist:
-            raise Http404
+    @property
+    def remote_service(self) -> WebFeatureServiceClient:
+        return super().remote_service
 
-        """Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
-        contained in any allowed area.
-        IF not we response with a owsExceptionReport in xml format.
-        .. note:: excerpt from ogc specs
-            **ogc wms 1.3.0**: The server shall return a response according to the requested INFO_FORMAT if the
-            request is valid, or issue a service  exception  otherwise. The nature of the response is at the
-            discretion of the service provider, but it shall pertain to the feature(s) nearest to (I,J).
-            (see section 7.4.4)
-        :return: the GetFeatureInfo response
-        :rtype: :class:`request.models.Response` or dict if the request is not allowed.
-        """
-        if self.service.is_spatial_secured_and_covers:
-            return self.return_http_response(response=self.get_remote_response())
-        else:
-            try:
-                request = self.remote_service.construct_request(
-                    query_params=self.request.GET
-                )
-                if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
-                    (
-                        xml_response,
-                        requested_response,
-                    ) = self.handle_get_feature_info_with_multithreading()
-                else:
-                    xml_response = self.get_remote_response(request=request)
-                    requested_response = xml_response
-                feature_collection = xmlmap.load_xmlobject_from_string(
-                    xml_response.content, xmlclass=FeatureCollection
-                )
-                # FIXME: depends on xml wms version not on the registered service version
-                axis_order_correction = (
-                    True if self.service.major_service_version >= 2 else False
-                )
-                polygon = feature_collection.bounded_by.get_geometry(
-                    axis_order_correction
-                )
-                if self.service.allowed_area_union.contains(polygon.convex_hull):
-                    return self.return_http_response(response=requested_response)
-            except Exception:
-                pass
-        return ForbiddenException()
+    @property
+    def is_get_feature_request(self) -> bool:
+        return self.request.query_parameters.get("request").lower() == OGCOperationEnum.GET_FEATURE.value.lower()
+
+    def analyze_request(self):
+        super().analyze_request()
+        if self.is_get_feature_request:
+            if self.request.method == "POST":
+                get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
+                    string=self.request.body, xmlclass=GetFeatureRequest)
+            elif self.request.method == "GET":
+                # we construct a xml get feature request to post it with a filter
+                queries: List[Query] = []
+                for feature_type in get_requested_feature_types(
+                        self.request.query_parameters):
+                    query: Query = Query()
+                    query.type_names = feature_type
+                    queries.append(query)
+                get_feature_request: GetFeatureRequest = GetFeatureRequest()
+                get_feature_request.queries = queries
+            self.additional_get_service_dict.update(
+                {"get_feature_request": get_feature_request})
+
+            self.request.requested_entites = get_requested_feature_types(
+                params=self.request.query_parameters).extend(get_feature_request.requested_feature_types)
 
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.
@@ -97,22 +78,16 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             return self.handle_secured_transaction()
 
     def handle_secured_get_feature(self):
-        if self.request.method == "POST":
-            get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
-                string=self.request.body, xmlclass=GetFeatureRequest)
-            value_reference = self.service.geometry_property_name
+        get_feature_request = self.additional_get_service_dict.get(
+            "get_feature_request")
+        get_feature_request.secure_spatial(
+            value_reference=self.service.geometry_property_name,
+            polygon=self.service.allowed_area_union
+        )
+        response = self.remote_service.send_request(
+            self.remote_service.prepare_get_feature_request(get_feature_request=get_feature_request))
 
-            get_feature_request.secure_spatial(
-                value_reference=value_reference,
-                polygon=self.service.allowed_area_union
-            )
-
-            response = self.remote_service.send_request(
-                self.remote_service.prepare_feature_type_request(get_feature_request=get_feature_request))
-
-            self.return_http_response(response=response)
-        else:
-            raise NotImplementedError()
+        self.return_http_response(response=response)
 
     def handle_secured_transaction(self):
         #  Transaction: Transaction operations does not contains area of interest.

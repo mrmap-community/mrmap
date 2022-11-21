@@ -19,7 +19,8 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
 from extras.openapi import CustomSchemaGenerator
-from registry.proxy import wms_proxy as security_proxy_views
+from registry.proxy.wfs_proxy import WebFeatureServiceProxy
+from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
 from rest_framework.renderers import JSONOpenAPIRenderer
 from rest_framework.schemas import get_schema_view
@@ -52,8 +53,14 @@ urlpatterns = [
     # ows views
     path(
         "mrmap-proxy/wms/<pk>",
-        security_proxy_views.WebMapServiceProxy.as_view(),
+        WebMapServiceProxy.as_view(),
         name="wms-operation",
+    ),
+    path(
+        "mrmap-proxy/wfs/<pk>",
+        WebFeatureServiceProxy.as_view(),
+        name="wfs-operation",
+
     ),
     path(
         "mrmap-proxy/ows/<pk>",

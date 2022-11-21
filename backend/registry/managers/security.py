@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import Any, List
 
 from django.contrib.auth.models import Group
@@ -11,18 +12,15 @@ from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
-from eulxml.xmlmap import load_xmlobject_from_string
-from ows_lib.client.utils import get_requested_layers
-from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
-from ows_lib.xml_mapper.xml_responses.wfs200 import GEOMETRY_DATA_TYPES
+from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
+from ows_lib.xml_mapper.xml_responses.consts import GEOMETRY_DATA_TYPES
 from registry.enums.service import OGCOperationEnum
-from registry.models.service import FeatureTypeProperty
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
-class AllowedOgcServiceOperationQuerySet(models.QuerySet):
+class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
 
-    def get_entity_identifiers(self, request) -> tuple(str, List[str]):
+    def get_entity_identifiers(self, request) -> tuple[str, List[str]]:
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
@@ -97,8 +95,7 @@ class AllowedOgcServiceOperationQuerySet(models.QuerySet):
 class AllowedWebMapServiceOperationQuerySet(AllowedOgcServiceOperationQuerySet):
 
     def get_entity_identifiers(self, request):
-        return "secured_layers__identifier__iexact", get_requested_layers(
-            params=request.query_parameters)
+        return "secured_layers__identifier__iexact", request.requested_entities
 
     def is_spatial_secured_and_covers(self, service_pk, request: HttpRequest) -> Exists:
         return Exists(
@@ -121,18 +118,13 @@ class AllowedWebMapServiceOperationQuerySet(AllowedOgcServiceOperationQuerySet):
 
 class AllowedWebFeatureServiceOperationQuerySet(AllowedOgcServiceOperationQuerySet):
     def get_entity_identifiers(self, request):
-        get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
-            string=self.request.body, xmlclass=GetFeatureRequest)
-
-        return "secured_feature_types__identifier__iexact",  get_feature_request.requested_feature_types
+        return "secured_feature_types__identifier__iexact",  request.requested_entities
 
 
 class WebMapServiceSecurityManager(models.Manager):
 
     def is_unknown_layer(self, service_pk, request: HttpRequest) -> QuerySet:
-        layer_identifiers = get_requested_layers(
-            params=request.query_parameters)
-        return ~Exists(self.filter(pk=service_pk, layer__identifier__in=layer_identifiers))
+        return ~Exists(self.filter(pk=service_pk, layer__identifier__in=request.requested_entities))
 
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
         from registry.models.security import \
@@ -202,10 +194,8 @@ class WebMapServiceSecurityManager(models.Manager):
 
 class WebFeatureServiceSecurityManager(models.Manager):
 
-    def is_unknown_feature_type(self, service_pk, request: HttpRequest) -> QuerySet:
-        get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
-            string=request.body, xmlclass=GetFeatureRequest)
-        return ~Exists(self.filter(pk=service_pk, feature_type__identifier__in=get_feature_request.requested_feature_types))
+    def is_unknown_feature_type(self, service_pk, feature_types: list[str]) -> QuerySet:
+        return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
 
     def get_allowed_operation_qs(self) -> AllowedWebFeatureServiceOperationQuerySet:
         from registry.models.security import \
@@ -216,7 +206,7 @@ class WebFeatureServiceSecurityManager(models.Manager):
             using=self._db,
         )
 
-    def prepare_with_security_info(self, request: HttpRequest):
+    def prepare_with_security_info(self, request: HttpRequest, get_feature_request: GetFeatureRequest = None, *args, **kwargs):
         if (
             request.query_parameters.get("request").lower()
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
@@ -246,11 +236,12 @@ class WebFeatureServiceSecurityManager(models.Manager):
             )
         elif (
             request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_FEATURE.value.lower() &
-            request.method == "POST"
+            == OGCOperationEnum.GET_FEATURE.value.lower()
         ):
-            get_feature_request: GetFeatureRequest = load_xmlobject_from_string(
-                string=request.body, xmlclass=GetFeatureRequest)
+            if not get_feature_request:
+                raise ValueError(
+                    "If the request is a GetFeature request, you need to pass in the GetFeatureRequest object as 'get_feature_request'.")
+            from registry.models.service import FeatureTypeProperty
 
             return (
                 self.get_queryset()
@@ -261,7 +252,7 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     log_response=Coalesce(
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_feature_type=self.is_unknown_feature_type(
-                        service_pk=OuterRef("pk"), request=request),
+                        service_pk=OuterRef("pk"), feature_types=get_feature_request.requested_feature_types),
                     is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
                         service_pk=OuterRef("pk"), request=request
                     ),
@@ -287,4 +278,9 @@ class WebFeatureServiceSecurityManager(models.Manager):
             )
 
     def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
-        return self.prepare_with_security_info(request=request).get(*args, **kwargs)
+        print("request: ", request.query_parameters.get("request").lower())
+        print("method: ", request.method)
+        get_feature_request = kwargs.pop("get_feature_request", None)
+        print("get_feature_request: ", get_feature_request)
+
+        return self.prepare_with_security_info(request=request, get_feature_request=get_feature_request).get(*args, **kwargs)

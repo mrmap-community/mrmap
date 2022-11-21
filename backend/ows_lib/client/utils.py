@@ -172,6 +172,10 @@ def get_requested_layers(params: dict) -> List[str]:
     return params.get("LAYERS", params.get("layers", "")).split(",")
 
 
+def get_requested_feature_types(params: dict) -> List[str]:
+    return params.get("TYPENAMES", params.get("typenames", "")).split(",")
+
+
 def filter_ogc_query_params(query_params: dict) -> dict:
     """ Parses the GET parameters into all member variables, which can be found in a ogc request.
     Returns:

@@ -1,0 +1,126 @@
+[
+    {
+        "model": "registry.historicalwebfeatureservice",
+        "pk": "b9466bde-219d-4ed8-b4c9-dac16d59348c",
+        "fields": {
+            "id": "73cf78c9-6605-47fd-ac4f-1be59265df65",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "version": "2.0.0",
+            "is_active": true,
+            "origin": "capabilities",
+            "origin_url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.mapSERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "title": "MapServer countires example",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "73cf78c9-6605-47fd-ac4f-1be59265df65",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
+        "model": "registry.historicalfeaturetype",
+        "pk": "0668976f-0257-498a-88fe-5da3dde0ce69",
+        "fields": {
+            "id": "47202f00-c28d-4cb2-b351-7a730f70acca",
+            "service": "73cf78c9-6605-47fd-ac4f-1be59265df65",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "ms:Countries",
+            "origin": "capabilities",
+            "title": "Countries",
+            "history_date": "2022-02-01T13:54:12.013Z",
+            "history_change_reason": null,
+            "history_type": "+",
+            "history_relation": "47202f00-c28d-4cb2-b351-7a730f70acca",
+            "history_user": [
+                "mrmap"
+            ]
+        }
+    },
+    {
+        "model": "registry.metadatacontact",
+        "pk": "1",
+        "fields": {}
+    },
+    {
+        "model": "registry.webfeatureservice",
+        "pk": "73cf78c9-6605-47fd-ac4f-1be59265df65",
+        "fields": {
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "is_active": true,
+            "version": "2.0.0",
+            "origin": "capabilities",
+            "origin_url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.mapSERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "title": "MapServer countires example",
+            "service_url": "",
+            "service_contact": "1",
+            "metadata_contact": "1"
+        }
+    },
+    {
+        "model": "registry.featuretype",
+        "pk": "47202f00-c28d-4cb2-b351-7a730f70acca",
+        "fields": {
+            "service": "73cf78c9-6605-47fd-ac4f-1be59265df65",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "ms:Countries",
+            "origin": "capabilities",
+            "title": "Countries"
+        }
+    },
+    {
+        "model": "registry.WebFeatureServiceOperationUrl",
+        "pk": "1",
+        "fields": {
+            "method": "Get",
+            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "operation": "GetFeature",
+            "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
+        }
+    },
+    {
+        "model": "registry.WebFeatureServiceOperationUrl",
+        "pk": "2",
+        "fields": {
+            "method": "Post",
+            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "operation": "GetFeature",
+            "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
+        }
+    },
+    {
+        "model": "registry.WebFeatureServiceOperationUrl",
+        "pk": "3",
+        "fields": {
+            "method": "Get",
+            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "operation": "DescribeFeature",
+            "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
+        }
+    },
+    {
+        "model": "registry.WebFeatureServiceOperationUrl",
+        "pk": "4",
+        "fields": {
+            "method": "Post",
+            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "operation": "DescribeFeature",
+            "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
+        }
+    },
+    {
+        "model": "registry.FeatureTypeProperty",
+        "pk": "4",
+        "fields": {
+            "max_occurs": 1,
+            "min_occurs": 0,
+            "name": "msGeometry",
+            "data_type": "gml:GeometryPropertyType",
+            "feature_type": "47202f00-c28d-4cb2-b351-7a730f70acca"
+        }
+    }
+]

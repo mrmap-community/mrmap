@@ -2,7 +2,7 @@ from typing import List
 
 from ows_lib.client.mixins import OgcClient
 from ows_lib.client.utils import update_queryparams
-from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
+from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
 from requests import Request
 
 

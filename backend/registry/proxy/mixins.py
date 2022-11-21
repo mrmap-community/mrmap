@@ -2,10 +2,12 @@ import re
 from io import BytesIO
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models.functions import datetime
 from django.http import HttpResponse, StreamingHttpResponse
+from django.http.response import Http404
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -35,11 +37,48 @@ class OgcServiceProxyView(View):
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
 
-    service = None
-    remote_service = None
+    additional_get_service_dict = {}
+
     query_parameters = None
     bbox = None
     start_time = None
+    _service = None
+
+    @property
+    def is_get_request(self) -> bool:
+        return self.request.method == "GET"
+
+    @property
+    def is_post_request(self) -> bool:
+        return self.request.method == "POST"
+
+    @property
+    def service(self):
+        if not self._service:
+            try:
+                self._service = self.service_cls.security.get_with_security_info(
+                    pk=self.kwargs.get("pk"), request=self.request, **self.additional_get_service_dict
+                )
+            except ObjectDoesNotExist:
+                raise Http404
+        return self._service
+
+    @property
+    def service_cls(self):
+        raise ImproperlyConfigured(
+            "you need to setup the proxy class with the corretc 'service_cls' property.")
+
+    @property
+    def remote_service(self):
+        try:
+            self.remote_service = get_client(self.service.xml_backup)
+        except (MissingServiceParam, MissingVersionParam):
+            # exception handling in self.get()
+            pass
+
+    def analyze_request(self):
+        """hook method to do adittional stuff in child classes"""
+        pass
 
     def dispatch(self, request, *args, **kwargs):
         self.start_time = datetime.datetime.now()
@@ -48,29 +87,19 @@ class OgcServiceProxyView(View):
         exception = self.check_request()
         if exception:
             return exception
+        self.analyze_request()
 
-        self.get_service()
-        self.setup_remote_service()
         return self.get_and_post(request=request, *args, **kwargs)
 
     def check_request(self):
-        request_operation = self.request.query_parameters.get("request", None)
-        if not request_operation:
+        if not self.request.query_parameters.get("request", None):
             return MissingRequestParameterException()
+        elif not self.request.query_parameters.get("version", None):
+            return MissingVersionParameterException()
 
     def adjust_query_params(self):
         self.request.query_parameters = {
             k.lower(): v for k, v in self.request.GET.items()}
-
-    def get_service(self):
-        raise NotImplementedError()
-
-    def setup_remote_service(self):
-        try:
-            self.remote_service = get_client(self.service.xml_backup)
-        except (MissingServiceParam, MissingVersionParam):
-            # exception handling in self.get()
-            pass
 
     def post(self, request, *args, **kwargs):
         return self.get_and_post(request=request, *args, **kwargs)
@@ -106,15 +135,13 @@ class OgcServiceProxyView(View):
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
         ):
             return self.get_capabilities()
-        elif not self.request.query_parameters.get("version", None):
-            return MissingVersionParameterException()
         elif not self.service.is_active:
             return DisabledException()
         # elif self.service.is_unknown_layer:
         #     return LayerNotDefined()
         elif (
-            not self.request.query_parameters.get("request").lower()
-            in SECURE_ABLE_OPERATIONS_LOWER
+            self.request.query_parameters.get(
+                "request").lower() not in SECURE_ABLE_OPERATIONS_LOWER
         ):
             # seperated from elif below, cause security.for_security_facade does not fill the fields like is_secured,
             # is_spatial_secured, is_user_principle_entitled...

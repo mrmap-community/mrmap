@@ -49,7 +49,7 @@ def before_feature(context, feature):
 
     if ('AllowedWebMapServiceOperation' in feature.name
             and 'Related' in feature.name):
-        fixtures.extend(['test_wms.json', 'test_allowedoperation.json'])
+        fixtures.extend(['test_wms.json', 'test_allowed_wms_operation.json'])
 
     if fixtures:
         call_command("loaddata", *fixtures, verbosity=0)

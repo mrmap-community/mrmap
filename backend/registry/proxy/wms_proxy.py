@@ -6,14 +6,14 @@ from threading import Thread
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
-from django.http.response import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from eulxml import xmlmap
 from extras.utils import execute_threads
 from ows_lib.client.exceptions import MissingBboxParam, MissingServiceParam
 from ows_lib.client.utils import (construct_polygon_from_bbox_query_param,
-                                  filter_ogc_query_params)
+                                  filter_ogc_query_params,
+                                  get_requested_layers)
 from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from PIL import Image, ImageDraw, ImageFont
 from registry.enums.service import OGCOperationEnum
@@ -35,28 +35,28 @@ class WebMapServiceProxy(OgcServiceProxyView):
                              overlay with information about the resources, which can not be accessed
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
-
-    service: WebMapService = None
-    remote_service: WebMapServiceClient = None
+    service_cls = WebMapService
     access_denied_img = None
 
-    def get_bbox_from_request(self):
+    def analyze_request(self):
         try:
             self.request.bbox = construct_polygon_from_bbox_query_param(
                 get_dict=self.request.query_parameters
             )
         except (MissingBboxParam, MissingServiceParam):
-            # only to avoid error while handling sql in get_service()
+            # only to avoid error while handling sql in service property
             self.request.bbox = GEOSGeometry("POLYGON EMPTY")
 
-    def get_service(self):
-        self.get_bbox_from_request()
-        try:
-            self.service = WebMapService.security.get_with_security_info(
-                pk=self.kwargs.get("pk"), request=self.request
-            )
-        except WebMapService.DoesNotExist:
-            raise Http404
+        self.request.requested_entites = get_requested_layers(
+            params=self.request.query_parameters)
+
+    @property
+    def service(self) -> WebMapService:
+        return super().service
+
+    @property
+    def remote_service(self) -> WebMapServiceClient:
+        return super().remote_service
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method with security case decisioning.

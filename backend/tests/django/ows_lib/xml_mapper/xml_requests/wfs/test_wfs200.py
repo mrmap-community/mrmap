@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Polygon
 from django.test import SimpleTestCase
 from eulxml.xmlmap import load_xmlobject_from_file
 from lxml import etree
-from ows_lib.xml_mapper.xml_requests.wfs.wfs200 import GetFeatureRequest
+from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
 from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 

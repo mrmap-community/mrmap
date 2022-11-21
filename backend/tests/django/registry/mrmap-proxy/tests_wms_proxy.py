@@ -65,7 +65,8 @@ class WebMapServiceProxyTest(TestCase):
         call_command("loaddata", "test_users.json", verbosity=0)
         call_command("loaddata", "test_keywords.json", verbosity=0)
         call_command("loaddata", "test_wms.json", verbosity=0)
-        call_command("loaddata", "test_allowedoperation.json", verbosity=0)
+        call_command(
+            "loaddata", "test_allowed_wms_operation.json", verbosity=0)
         wms: WebMapService = WebMapService.objects.get(
             pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
 

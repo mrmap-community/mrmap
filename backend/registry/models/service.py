@@ -20,10 +20,10 @@ from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
 from registry.exceptions.service import (LayerNotQueryable,
                                          OperationNotSupported)
-from registry.managers.security import WebMapServiceSecurityManager
+from registry.managers.security import (WebFeatureServiceSecurityManager,
+                                        WebMapServiceSecurityManager)
 from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        CswOperationUrlQueryableQuerySet,
-                                       FeatureTypeElementXmlManager,
                                        LayerManager,
                                        WebFeatureServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
@@ -147,7 +147,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 class WebFeatureService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
     capabilities = WebFeatureServiceCapabilitiesManager()
-    # TODO: security = WebFeatureServiceSecurityManager()
+    security = WebFeatureServiceSecurityManager()
 
     class Meta:
         verbose_name = _("web feature service")
@@ -820,6 +820,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             "the fetched content of the download describe feature" " type document."
         ),
     )
+
     change_log = HistoricalRecords(related_name="change_logs")
     objects = DefaultHistoryManager()
 
@@ -884,22 +885,24 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
 
 class FeatureTypeProperty(models.Model):
-    max_occurs = models.IntegerField(default=1)
-    min_occurs = models.IntegerField(default=0)
-    name = models.CharField(max_length=255)
-    data_type = models.CharField(max_length=255, null=True, blank=True)
+    max_occurs = models.IntegerField(default=1, help_text=_(
+        "The maximum count this property is part of a feature type"))
+    min_occurs = models.IntegerField(default=0, help_text=_(
+        "The minimum count this property is part of a feature type"))
+    name = models.CharField(max_length=255, help_text=_(
+        "The identifing type name of the property"))
+    data_type = models.CharField(max_length=255, null=True, blank=True, help_text=_(
+        "The concrete data type of this property"))
     required = models.BooleanField(default=False)
     feature_type = models.ForeignKey(
         to=FeatureType,
-        # editable=False,
+        editable=False,
         related_name="properties",
         related_query_name="property",
         on_delete=models.CASCADE,
         verbose_name=_("feature type"),
         help_text=_("related feature type of this property"),
     )
-    objects = models.Manager()
-    xml_objects = FeatureTypeElementXmlManager()
 
     class Meta:
         verbose_name = _("feature type property")

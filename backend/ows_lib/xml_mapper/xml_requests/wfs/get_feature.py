@@ -123,6 +123,7 @@ class GetFeatureRequest(XmlObject):
         "fes": FES_2_0_NAMEPSACE,
         "gml": GML_3_2_2_NAMESPACE
     }
+    output_format = StringField(xpath="./@outputFormat")
 
     queries = NodeListField(xpath="./wfs:Query", node_class=Query)
 

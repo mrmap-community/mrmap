@@ -57,12 +57,7 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                 get_feature_request.queries = queries
 
             self.request.get_feature_request = get_feature_request
-            self.request.requested_entities = get_requested_feature_types(
-                params=self.request.query_parameters)
-            self.request.requested_entities.extend(
-                get_feature_request.requested_feature_types)
-
-            print(self.request.requested_entities)
+            self.request.requested_entities = get_feature_request.requested_feature_types
 
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.
@@ -85,6 +80,9 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             value_reference=self.service.geometry_property_name,
             polygon=self.service.allowed_area_union
         )
+
+        print(self.request.get_feature_request.serializeDocument())
+
         response = self.remote_service.send_request(
             self.remote_service.prepare_get_feature_request(get_feature_request=self.request.get_feature_request))
 

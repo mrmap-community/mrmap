@@ -111,9 +111,20 @@ class Query(XmlObject):
         "fes": FES_2_0_NAMEPSACE
     }
 
-    type_names = StringField(xpath="./@typeNames")
+    # single typenames are seperated by ,
+    # example: <Query typeNames="ms:Erdbebenstation_Schutzbereich, ms:Erdbebenereignisse">
+    _type_names = StringField(xpath="./@typeNames")
+
     property_names = StringListField(xpath="./wfs:PropertyName")
     filter = NodeField(xpath="./fes:Filter", node_class=Filter)
+
+    @property
+    def type_names(self) -> list[str]:
+        return self._type_names.split(",")
+
+    @type_names.setter
+    def type_names(self, type_names: list[str]) -> None:
+        self._type_names = ", ".join(type_names)
 
 
 class GetFeatureRequest(XmlObject):
@@ -130,7 +141,7 @@ class GetFeatureRequest(XmlObject):
     # Default is application/gml+xml; version=3.1
     output_format = StringField(xpath="./@outputFormat")
 
-    # wfs 2.0.2 spec 9.2:
+    # wfs 1.1.0 spec 9.2:
     # "The <GetFeature> element contains one or more <Query> elements, each of which in turn contains the description of a query." 
     queries = NodeListField(xpath="./wfs:Query", node_class=Query)
 

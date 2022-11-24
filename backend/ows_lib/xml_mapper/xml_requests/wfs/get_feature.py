@@ -69,6 +69,7 @@ class OrCondition(XmlObject):
     within_conditions = NodeListField(
         xpath="./fes:Within", node_class=WithinCondition)
     or_conditions = NodeListField(xpath="./fes:Or", node_class="self")
+    # FIXME: and_conditions are also possible
 
 
 class AndCondition(XmlObject):
@@ -95,7 +96,6 @@ class Filter(XmlObject):
 
     ressource_ids = StringListField(xpath="./fes:ResourceId/@rid")
 
-    # FIXME: multiple and and or conditions are possible
     and_condition = NodeField(xpath="./fes:And", node_class=AndCondition)
     or_condition = NodeField(xpath="./fes:Or", node_class=OrCondition)
     within_conditions = NodeListField(
@@ -152,35 +152,35 @@ class GetFeatureRequest(XmlObject):
             srid=srid, coords=coords)
         return within_condition
 
-    def _append_spatial_filter_condition(self, polygon: GeosPolygon, value_reference: str, query: Query) -> None:
+    def _construct_spatial_filter_condition(self, polygon: GeosPolygon, value_reference: str) -> (WithinCondition | OrCondition):
         if len(polygon.coords) == 1:
-            within_condition = self._construct_within_condition(
-                srid=polygon.srid, value_reference=value_reference, coords=polygon.coords)
-            if query.filter.and_condition:
-                # FIXME: multiple and conditions are possible
-                query.filter.and_condition.within_condition = within_condition
-            else:
-                query.filter.within_condition = within_condition
+            return self._construct_within_condition(srid=polygon.srid, value_reference=value_reference, coords=polygon.coords)
         elif len(polygon.coords) > 1:
             or_condition = OrCondition()
             for coords in polygon.coords:
                 or_condition.within_conditions.append(self._construct_within_condition(
                     srid=polygon.srid, value_reference=value_reference, coords=coords))
+            return or_condition
 
-            if query.filter.and_condition:
-                query.filter.and_condition.or_conditions.append(or_condition)
-            else:
-                # FIXME: multiple or conditions are possible
-                query.filter.or_condition = or_condition
+    def _append_spatial_filter_condition(self, polygon: GeosPolygon, value_reference: str, query: Query):
+        filter_condition = self._construct_spatial_filter_condition(
+            polygon=polygon, value_reference=value_reference)
+
+        xml_node = query.filter.and_condition if query.filter.and_condition else query.filter
+
+        if isinstance(filter_condition, WithinCondition):
+            xml_node.within_condition = filter_condition
+        elif isinstance(filter_condition, OrCondition):
+            xml_node.or_condition = filter_condition
 
     def secure_spatial(self, value_reference, polygon: GeosPolygon) -> None:
-
+        # FIXME: if there are more than one typename, multiple value_references are needed.
+        #  The filter has to be build based on this multiple value_references
         for query in self.queries:
             if not query.filter:
                 query.filter = Filter()
-                #query.filter.and_condition = AndCondition()
             elif not query.filter.and_condition:
-                # Sourround the old filter with a fes:And node first to combine them binary together
+                # Sourround the old filter with a fes:And node first to combine them binary together and secure the request spatial
                 old_filter = copy.deepcopy(query.filter.node)
                 query.filter = Filter()
                 query.filter.and_condition = AndCondition()
@@ -192,4 +192,9 @@ class GetFeatureRequest(XmlObject):
 
     @property
     def requested_feature_types(self) -> List[str]:
-        return [query.type_names for query in self.queries]
+        """Collect all typeNames of the request."""
+        type_names = []
+        for query in self.queries:
+            for type_name in query.type_names:
+                type_names.append(type_name)
+        return type_names

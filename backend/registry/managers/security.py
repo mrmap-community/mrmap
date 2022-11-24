@@ -262,8 +262,8 @@ class WebFeatureServiceSecurityManager(models.Manager):
                         service_pk=OuterRef("pk"), request=request
                     ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom'),
 
-                    # TODO: get the correct geom name for the requested feature types
-                    # TODO: Multiple queries with one request possible?
+                    # FIXME: Multiple featuretypes could be requested at once.
+                    #  If so, we will to collect all these property names in a key, value list to
                     geometry_property_name=Coalesce(FeatureTypeProperty.objects.filter(
                         feature_type__service__pk=OuterRef("pk"),
                         feature_type__identifier__in=request.get_feature_request.requested_feature_types,

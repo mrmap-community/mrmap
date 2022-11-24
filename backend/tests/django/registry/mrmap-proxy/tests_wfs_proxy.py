@@ -55,8 +55,7 @@ class WebMapServiceProxyTest(TestCase):
             self.wfs_url,
             self.query_params
         )
-        print(response.request)
-        print(response.content)
+
         self.assertEqual(200, response.status_code)
 
         # TODO: compare response xml content... if there is any spatial data outside the secured area the test should fail

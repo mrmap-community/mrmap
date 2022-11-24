@@ -13,6 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.client.utils import get_client
+from ows_lib.models.ogc_request import OGCRequest
 from registry.enums.service import OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.proxy.ogc_exceptions import (DisabledException,
@@ -31,14 +32,12 @@ class OgcServiceProxyView(View):
     :attr service:  :class:`registry.models.service.Service` the requested service which was found by the pk.
     :attr remote_service: :class:`registry.ows_client.request_builder.WebService` the request builder to get
                           prepared :class:`requests.models.Request` objects with the correct uri and query params.
-    :attr query_parameters: all query parameters in lower case.
 
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
 
     additional_get_service_dict = {}
 
-    query_parameters = None
     bbox = None
     start_time = None
     _service = None
@@ -72,8 +71,6 @@ class OgcServiceProxyView(View):
     def remote_service(self):
         if not self._remote_service:
             self._remote_service = get_client(self.service.xml_backup)
-            print("xml_backup: ", self.service.xml_backup)
-            print("remote_service:", self._remote_service)
         return self._remote_service
 
     def analyze_request(self):
@@ -82,7 +79,7 @@ class OgcServiceProxyView(View):
 
     def dispatch(self, request, *args, **kwargs):
         self.start_time = datetime.datetime.now()
-        self.adjust_query_params()
+        self.ogc_request = OGCRequest(request=request)
 
         exception = self.check_request()
         if exception:
@@ -92,14 +89,10 @@ class OgcServiceProxyView(View):
         return self.get_and_post(request=request, *args, **kwargs)
 
     def check_request(self):
-        if not self.request.query_parameters.get("request", None):
+        if not self.ogc_request.operation:
             return MissingRequestParameterException()
-        elif not self.request.query_parameters.get("version", None):
+        elif not self.ogc_request.service_version:
             return MissingVersionParameterException()
-
-    def adjust_query_params(self):
-        self.request.query_parameters = {
-            k.lower(): v for k, v in self.request.GET.items()}
 
     def post(self, request, *args, **kwargs):
         return self.get_and_post(request=request, *args, **kwargs)
@@ -131,7 +124,7 @@ class OgcServiceProxyView(View):
         :rtype: dict or :class:`requests.models.Request`
         """
         if (
-            self.request.query_parameters.get("request").lower()
+            self.ogc_request.operation
             == OGCOperationEnum.GET_CAPABILITIES.value.lower()
         ):
             return self.get_capabilities()
@@ -140,8 +133,7 @@ class OgcServiceProxyView(View):
         # elif self.service.is_unknown_layer:
         #     return LayerNotDefined()
         elif (
-            self.request.query_parameters.get(
-                "request").lower() not in SECURE_ABLE_OPERATIONS_LOWER
+            self.ogc_request.operation not in SECURE_ABLE_OPERATIONS_LOWER
         ):
             # seperated from elif below, cause security.for_security_facade does not fill the fields like is_secured,
             # is_spatial_secured, is_user_principle_entitled...

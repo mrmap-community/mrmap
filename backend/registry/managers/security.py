@@ -4,12 +4,13 @@ from typing import Any, List
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.expressions import ArraySubquery
 from django.db import models
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
                               OuterRef, QuerySet)
 from django.db.models import Value as V
 from django.db.models.expressions import Value
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
 from ows_lib.xml_mapper.xml_responses.consts import GEOMETRY_DATA_TYPES
@@ -239,6 +240,15 @@ class WebFeatureServiceSecurityManager(models.Manager):
         ):
             from registry.models.service import FeatureTypeProperty
 
+            geometry_property_names_query = FeatureTypeProperty.objects.filter(
+                feature_type__service__pk=OuterRef("pk"),
+                feature_type__identifier__in=request.get_feature_request.requested_feature_types,
+                data_type__in=GEOMETRY_DATA_TYPES).values(
+                json=JSONObject(
+                    type_name=F("feature_type__identifier"),
+                    geometry_property_name=Coalesce(F("name"), V("THE_GEOM")))  # luky shot, THE_GEOM is the most popular default property name for the geometry...
+            )
+
             return (
                 self.get_queryset()
                 .select_related("auth")
@@ -261,20 +271,10 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     allowed_area_union=self.get_allowed_operation_qs().get_allowed_areas(
                         service_pk=OuterRef("pk"), request=request
                     ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom'),
-
-                    # FIXME: Multiple featuretypes could be requested at once.
-                    #  If so, we will to collect all these property names in a key, value list to
-                    geometry_property_name=Coalesce(FeatureTypeProperty.objects.filter(
-                        feature_type__service__pk=OuterRef("pk"),
-                        feature_type__identifier__in=request.get_feature_request.requested_feature_types,
-                        data_type__in=GEOMETRY_DATA_TYPES).values("name")[:1], V("THE_GEOM"))  # luky shot we use 'THE_GEOM' as default
-
-
+                    geometry_property_names=ArraySubquery(
+                        geometry_property_names_query)
                 )
             )
 
     def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
-        print("request: ", request.query_parameters.get("request").lower())
-        print("method: ", request.method)
-
         return self.prepare_with_security_info(request=request).get(*args, **kwargs)

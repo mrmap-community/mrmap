@@ -30,7 +30,6 @@ class WebMapServiceProxy(OgcServiceProxyView):
     :attr service:  :class:`registry.models.service.Service` the requested service which was found by the pk.
     :attr remote_service: :class:`registry.ows_client.request_builder.WebService` the request builder to get
                           prepared :class:`requests.models.Request` objects with the correct uri and query params.
-    :attr query_parameters: all query parameters in lower case.
     :attr access_denied_img: if sub elements are not accessible for the user, this PIL.Image object represents an
                              overlay with information about the resources, which can not be accessed
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.

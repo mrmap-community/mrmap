@@ -1,6 +1,7 @@
 from abc import ABC
 
 from ows_lib.client.exceptions import InitialError
+from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.utils import get_parsed_service
 from requests import Request, Session
@@ -33,3 +34,19 @@ class OgcClient(ABC):
 
     def send_request(self, request: Request):
         return self.session.send(request=request.prepare())
+
+    def bypass_request(self, request: OGCRequest) -> Request:
+        if request.is_get:
+            return Request(
+                method="GET",
+                url=self.capabilities.get_operation_url_by_name_and_method(
+                    name=request.operation, method="Get"),
+                params=request.request.GET,
+                headers=request.request.headers)
+        if request.is_post:
+            return Request(
+                method="POST",
+                url=self.capabilities.get_operation_url_by_name_and_method(
+                    name=request.operation, method="Post"),
+                data=request.request.body,
+                headers=request.request.headers)

@@ -14,7 +14,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.client.utils import get_client
 from ows_lib.models.ogc_request import OGCRequest
-from registry.enums.service import OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.proxy.ogc_exceptions import (DisabledException,
                                            ForbiddenException,
@@ -56,7 +55,7 @@ class OgcServiceProxyView(View):
         if not self._service:
             try:
                 self._service = self.service_cls.security.get_with_security_info(
-                    pk=self.kwargs.get("pk"), request=self.request, **self.additional_get_service_dict
+                    pk=self.kwargs.get("pk"), request=self.ogc_request, **self.additional_get_service_dict
                 )
             except ObjectDoesNotExist:
                 raise Http404
@@ -123,17 +122,14 @@ class OgcServiceProxyView(View):
         :return: the computed response based on some principle decisions.
         :rtype: dict or :class:`requests.models.Request`
         """
-        if (
-            self.ogc_request.operation
-            == OGCOperationEnum.GET_CAPABILITIES.value.lower()
-        ):
+        if self.ogc_request.is_get_capabilities_request:
             return self.get_capabilities()
         elif not self.service.is_active:
             return DisabledException()
         # elif self.service.is_unknown_layer:
         #     return LayerNotDefined()
         elif (
-            self.ogc_request.operation not in SECURE_ABLE_OPERATIONS_LOWER
+            self.ogc_request.operation.lower() not in SECURE_ABLE_OPERATIONS_LOWER
         ):
             # seperated from elif below, cause security.for_security_facade does not fill the fields like is_secured,
             # is_spatial_secured, is_user_principle_entitled...
@@ -181,13 +177,13 @@ class OgcServiceProxyView(View):
                 error occurs.
         """
         if not request:
-            request = self.remote_service.construct_request(
-                query_params=self.request.GET
+            request = self.remote_service.bypass_request(
+                request=self.ogc_request
             )
 
         r = {}
         try:
-            r = self.service.get_session_for_request().send(request.prepare())
+            r = self.remote_service.send_request(request)
         except ConnectTimeoutException:
             # response with GatewayTimeout; the remote service response not in timeout
             r.update(

@@ -13,8 +13,8 @@ from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
+from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.xml_responses.consts import GEOMETRY_DATA_TYPES
-from registry.enums.service import OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
@@ -34,21 +34,19 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
                 query = _query
         return self.filter(query)
 
-    def for_user(self, service_pk, request: HttpRequest):
+    def for_user(self, service_pk, request: OGCRequest):
         return self.filter(
             secured_service__pk=service_pk,
             allowed_groups=None,
-            operations__operation__iexact=request.query_parameters.get(
-                "request"),
+            operations__operation__iexact=request.operation,
         ).filter_by_requested_entity(request=request) | self.filter(
             secured_service__pk=service_pk,
             allowed_groups__pk__in=Group.objects.filter(
                 user__username="AnonymouseUser"
             ).values_list("pk", flat=True)
-            if request.user.is_anonymous
-            else request.user.groups.values_list("pk", flat=True),
-            operations__operation__iexact=request.query_parameters.get(
-                "request"),
+            if request.request.user.is_anonymous
+            else request.request.user.groups.values_list("pk", flat=True),
+            operations__operation__iexact=request.operation,
         ).filter_by_requested_entity(request=request)
 
     def get_allowed_areas(self, service_pk, request: HttpRequest):
@@ -85,9 +83,9 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             output_field=BooleanField(),
         )
 
-    def is_user_entitled(self, service_pk, request: HttpRequest) -> Exists:
+    def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
         """checks if the user of the request is member of any AllowedOperation object"""
-        if request.user.is_superuser:
+        if request.request.user.is_superuser:
             return Value(True)
         return Exists(self.for_user(service_pk=service_pk, request=request))
 
@@ -135,16 +133,13 @@ class WebMapServiceSecurityManager(models.Manager):
             using=self._db,
         )
 
-    def prepare_with_security_info(self, request: HttpRequest):
-        if (
-            request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_CAPABILITIES.value.lower()
-        ):
+    def prepare_with_security_info(self, request: OGCRequest):
+        if request.is_get_capabilities_request:
             return self.get_queryset().annotate(
                 camouflage=Coalesce(F("proxy_setting__camouflage"), V(False))
             )
         elif (
-            request.query_parameters.get("request").lower()
+            request.operation.lower()
             not in SECURE_ABLE_OPERATIONS_LOWER
         ):
             return self.get_queryset().annotate(
@@ -206,43 +201,24 @@ class WebFeatureServiceSecurityManager(models.Manager):
             using=self._db,
         )
 
-    def prepare_with_security_info(self, request: HttpRequest):
-        if (
-            request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_CAPABILITIES.value.lower()
-        ):
+    def prepare_with_security_info(self, request: OGCRequest):
+        if request.is_get_capabilities_request:
             return self.get_queryset().annotate(
-                camouflage=Coalesce(F("proxy_setting__camouflage"), V(False)),
-                base_operation_url=self.get_operation_url_qs().get_base_url(
-                    service_pk=OuterRef("pk"), request=request
-                ),
-                unknown_operation_url=self.get_operation_url_qs().get_fallback_url(
-                    service_pk=OuterRef("pk")
-                ),
+                camouflage=Coalesce(F("proxy_setting__camouflage"), V(False))
             )
         elif (
-            request.query_parameters.get("request").lower()
+            request.operation.lower()
             not in SECURE_ABLE_OPERATIONS_LOWER
         ):
             return self.get_queryset().annotate(
                 log_response=Coalesce(
-                    F("proxy_setting__log_response"), V(False)),
-                base_operation_url=self.get_operation_url_qs().get_base_url(
-                    service_pk=OuterRef("pk"), request=request
-                ),
-                unknown_operation_url=self.get_operation_url_qs().get_fallback_url(
-                    service_pk=OuterRef("pk")
-                ),
+                    F("proxy_setting__log_response"), V(False))
             )
-        elif (
-            request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_FEATURE.value.lower()
-        ):
+        elif request.is_get_feature_request:
             from registry.models.service import FeatureTypeProperty
-
             geometry_property_names_query = FeatureTypeProperty.objects.filter(
                 feature_type__service__pk=OuterRef("pk"),
-                feature_type__identifier__in=request.get_feature_request.requested_feature_types,
+                feature_type__identifier__in=request.requested_entities,
                 data_type__in=GEOMETRY_DATA_TYPES).values(
                 json=JSONObject(
                     type_name=F("feature_type__identifier"),
@@ -258,7 +234,7 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     log_response=Coalesce(
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_feature_type=self.is_unknown_feature_type(
-                        service_pk=OuterRef("pk"), feature_types=request.get_feature_request.requested_feature_types),
+                        service_pk=OuterRef("pk"), feature_types=request.requested_entities),
                     is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
                         service_pk=OuterRef("pk"), request=request
                     ),
@@ -276,5 +252,5 @@ class WebFeatureServiceSecurityManager(models.Manager):
                 )
             )
 
-    def get_with_security_info(self, request: HttpRequest, *args: Any, **kwargs: Any):
+    def get_with_security_info(self, request: OGCRequest, *args: Any, **kwargs: Any):
         return self.prepare_with_security_info(request=request).get(*args, **kwargs)

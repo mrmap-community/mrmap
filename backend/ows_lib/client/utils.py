@@ -169,11 +169,11 @@ def construct_polygon_from_bbox_query_param(get_dict) -> GEOSGeometry:
 
 
 def get_requested_layers(params: dict) -> List[str]:
-    return params.get("LAYERS", params.get("layers", "")).split(",")
+    return list(filter(None, params.get("LAYERS", params.get("layers", "")).split(",")))
 
 
 def get_requested_feature_types(params: dict) -> List[str]:
-    return params.get("TYPENAMES", params.get("typenames", "")).split(",")
+    return list(filter(None, params.get("TYPENAMES", params.get("typenames", "")).split(",")))
 
 
 def filter_ogc_query_params(query_params: dict) -> dict:

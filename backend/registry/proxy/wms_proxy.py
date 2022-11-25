@@ -4,19 +4,13 @@ from queue import Queue
 from threading import Thread
 
 from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from eulxml import xmlmap
 from extras.utils import execute_threads
-from ows_lib.client.exceptions import MissingBboxParam, MissingServiceParam
-from ows_lib.client.utils import (construct_polygon_from_bbox_query_param,
-                                  filter_ogc_query_params,
-                                  get_requested_layers)
 from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from PIL import Image, ImageDraw, ImageFont
-from registry.enums.service import OGCOperationEnum
 from registry.models.service import WebMapService
 from registry.proxy.mixins import OgcServiceProxyView
 from registry.proxy.ogc_exceptions import ForbiddenException, LayerNotDefined
@@ -36,18 +30,6 @@ class WebMapServiceProxy(OgcServiceProxyView):
     """
     service_cls = WebMapService
     access_denied_img = None
-
-    def analyze_request(self):
-        try:
-            self.request.bbox = construct_polygon_from_bbox_query_param(
-                get_dict=self.request.query_parameters
-            )
-        except (MissingBboxParam, MissingServiceParam):
-            # only to avoid error while handling sql in service property
-            self.request.bbox = GEOSGeometry("POLYGON EMPTY")
-
-        self.request.requested_entities = get_requested_layers(
-            params=self.request.query_parameters)
 
     @property
     def service(self) -> WebMapService:
@@ -92,22 +74,20 @@ class WebMapServiceProxy(OgcServiceProxyView):
              secured_image (Image)
         # TODO: calculate the security mask without mapserver as depending subsystem
         """
-        get_params = filter_ogc_query_params(
-            query_params=self.request.query_parameters)
-        crs_qp = "CRS" if "CRS" in get_params else "SRS"
-        width = int(get_params.get("WIDTH"))
-        height = int(get_params.get("HEIGHT"))
+        crs_qp = "CRS" if "CRS" in self.ogc_request.ogc_query_params else "SRS"
+        width = int(self.ogc_request.ogc_query_params.get("WIDTH"))
+        height = int(self.ogc_request.ogc_query_params.get("HEIGHT"))
         try:
             from django.db import connection
             db_name = connection.settings_dict["NAME"]
             query_parameters = {
-                "VERSION": get_params.get("VERSION"),
+                "VERSION": self.ogc_request.ogc_query_params.get("VERSION"),
                 "REQUEST": "GetMap",
                 "SERVICE": "WMS",
                 "FORMAT": "image/png",
                 "LAYERS": "mask",
-                crs_qp: get_params.get(crs_qp),
-                "BBOX": get_params.get("BBOX"),
+                crs_qp: self.ogc_request.ogc_query_params.get(crs_qp),
+                "BBOX": self.ogc_request.ogc_query_params.get("BBOX"),
                 "WIDTH": width,
                 "HEIGHT": height,
                 "TRANSPARENT": "TRUE",
@@ -155,9 +135,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         Returns:
              text_img (Image): The image containing text
         """
-        get_params = filter_ogc_query_params(
-            query_params=self.request.query_parameters)
-        width = int(get_params.get("WIDTH"))
+        width = int(self.ogc_request.ogc_query_params.get("WIDTH"))
         text_img = Image.new("RGBA", (width, int(h)), (255, 255, 255, 0))
         draw = ImageDraw.Draw(text_img)
         font_size = int(h * settings.FONT_IMG_RATIO)
@@ -333,8 +311,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
     def handle_get_feature_info_with_multithreading(self):
         """We use multithreading to send two requests at the same time to speed up the response time."""
-        request = self.remote_service.construct_request(
-            query_params=self.request.GET)
+        request = self.remote_service.bypass_request(request=self.ogc_request)
         thread_list = []
         results = Queue()
         xml_request = copy.deepcopy(request)
@@ -388,9 +365,8 @@ class WebMapServiceProxy(OgcServiceProxyView):
             return self.return_http_response(response=self.get_remote_response())
         else:
             try:
-                request = self.remote_service.construct_request(
-                    query_params=self.request.GET
-                )
+                request = self.remote_service.bypass_request(
+                    request=self.ogc_request)
                 if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
                     (
                         xml_response,
@@ -420,13 +396,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         :return: the correct handler function for the given request param.
         :rtype: function
         """
-        if (
-            self.request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_MAP.value.lower()
-        ):
+        if self.ogc_request.is_get_map_request:
             return self.handle_secured_get_map()
-        elif (
-            self.request.query_parameters.get("request").lower()
-            == OGCOperationEnum.GET_FEATURE_INFO.value.lower()
-        ):
+        elif self.ogc_request.is_get_feature_info_request:
             return self.handle_secured_get_feature_info()

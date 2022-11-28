@@ -39,7 +39,7 @@ class WebFeatureServiceSecurityManagerTest(TestCase):
         try:
 
             self.assertEqual(
-                {"type_name": "ms:Countries", "geometry_property_name": "ms:Geometry"},
+                [{"type_name": "ms:Countries", "geometry_property_name": "ms:Geometry"}],
                 wfs.geometry_property_names,
                 msg="There shall be a geometry_property_names property with type_name geometry_property_name information")
 

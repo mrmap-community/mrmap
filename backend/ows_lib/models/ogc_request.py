@@ -43,11 +43,12 @@ class OGCRequest:
                     get_requested_layers(params=self.GET_LOWER))
             else:
                 if self.is_get_feature_request:
-                    self._requested_entities.extend(
-                        get_requested_feature_types(params=self.GET_LOWER))
-
-                    self._requested_entities.extend(
-                        self.xml_request.requested_feature_types)
+                    if self.is_get:
+                        self._requested_entities.extend(
+                            get_requested_feature_types(params=self.GET_LOWER))
+                    elif self.is_post:
+                        self._requested_entities.extend(
+                            self.xml_request.requested_feature_types)
         return self._requested_entities
 
     @property

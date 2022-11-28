@@ -1,12 +1,16 @@
+import os
 
 from accounts.models.users import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
 from django.test import Client, TestCase
+from eulxml.xmlmap import load_xmlobject_from_file
 from MrMap.settings import BASE_DIR
+from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
 from registry.models.security import AllowedWebFeatureServiceOperation
 from registry.models.service import WebFeatureService
+from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 
 class WebMapServiceProxyTest(TestCase):
@@ -46,16 +50,25 @@ class WebMapServiceProxyTest(TestCase):
             "VERSION": "2.0.0",
             "REQUEST": "GetFeature",
             "SERVICE": "WFS",
-            "TYPENAMES": "ms:countries"
+            "TYPENAMES": "ms:Countries"
         }
 
     def test_matching_secured_get_feature_response(self):
         self.client.login(username="User1", password="User1")
-        response = self.client.get(
+
+        path = os.path.join(DJANGO_TEST_ROOT_DIR,
+                            "./test_data/xml_requests/get_feature_2.0.0.xml")
+
+        get_feature_request: GetFeatureRequest = load_xmlobject_from_file(
+            filename=path, xmlclass=GetFeatureRequest)
+
+        response = self.client.post(
             self.wfs_url,
-            self.query_params
+            data=get_feature_request.serializeDocument().decode("UTF-8"),
+            content_type="application/gml+xml; version=3.2"
         )
 
+        print("response: ", response.content)
         self.assertEqual(200, response.status_code)
 
         # TODO: compare response xml content... if there is any spatial data outside the secured area the test should fail

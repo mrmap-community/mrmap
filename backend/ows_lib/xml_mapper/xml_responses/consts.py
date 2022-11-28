@@ -1,13 +1,13 @@
 GEOMETRY_DATA_TYPES = [
-    "MultiPolygonPropertyType",
-    "MultiSurfacePropertyType",
-    "PolygonPropertyType",
-    "SurfacePropertyType",
-    "MultiLineStringPropertyType",
-    "MultiCurvePropertyType",
-    "LineStringPropertyType",
-    "GeometryPropertyType",
-    "CurvePropertyType",
-    "PointPropertyType",
-    "MultiPointPropertyType"
+    "gml:MultiPolygonPropertyType",
+    "gml:MultiSurfacePropertyType",
+    "gml:PolygonPropertyType",
+    "gml:SurfacePropertyType",
+    "gml:MultiLineStringPropertyType",
+    "gml:MultiCurvePropertyType",
+    "gml:LineStringPropertyType",
+    "gml:GeometryPropertyType",
+    "gml:CurvePropertyType",
+    "gml:PointPropertyType",
+    "gml:MultiPointPropertyType"
 ]

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<GetFeature version="2.0.2" service="WFS" handle="Query01"
+<GetFeature version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2"
     xmlns="http://www.opengis.net/wfs/2.0"
     xmlns:fes="http://www.opengis.net/fes/2.0"
     xmlns:gml="http://www.opengis.net/gml/3.2"
@@ -10,11 +10,11 @@
                        http://schemas.opengis.net/gml/3.2.1/gml.xsd
                        http://www.someserver.example.com/ms">
 
-    <Query typeNames="ms:Geometry">
+    <Query typeNames="ms:Countries">
         <fes:Filter>
             <fes:Not>
                 <fes:Disjoint>
-                    <fes:ValueReference>ms:geoTemp</fes:ValueReference>
+                    <fes:ValueReference>ms:Geometry</fes:ValueReference>
                     <gml:Envelope srsName="urn:ogc;def:crs:EPSG::4326">
                         <gml:lowerCorner>46.2023 -57.9118 </gml:lowerCorner>
                         <gml:upperCorner>51.8145 -46.6873</gml:upperCorner>
@@ -22,14 +22,5 @@
                 </fes:Disjoint>
             </fes:Not>
         </fes:Filter>
-        <fes:SortBy>
-            <fes:SortProperty>
-                <fes:ValueReference>ms:depth</fes:ValueReference>
-            </fes:SortProperty>
-            <fes:SortProperty>
-                <fes:ValueReference>ms:temperature</fes:ValueReference>
-                <fes:SortOrder>DESC</fes:SortOrder>
-            </fes:SortProperty>
-        </fes:SortBy>
     </Query>
 </GetFeature>

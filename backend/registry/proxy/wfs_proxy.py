@@ -39,13 +39,19 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             return self.handle_secured_transaction()
 
     def handle_secured_get_feature(self):
+
+        print("props: ", self.service.geometry_property_names)
+        print("area: ", self.service.allowed_area_union)
+
         self.ogc_request.xml_request.secure_spatial(
-            value_reference=self.service.geometry_property_name,
+            value_reference=self.service.geometry_property_names,
             polygon=self.service.allowed_area_union
         )
 
+        print("secured xml: ", self.ogc_request.xml_request.serializeDocument())
+
         response = self.remote_service.send_request(
-            self.remote_service.prepare_get_feature_request(get_feature_request=self.request.get_feature_request))
+            self.remote_service.prepare_get_feature_request(get_feature_request=self.ogc_request.xml_request))
 
         return self.return_http_response(response=response)
 

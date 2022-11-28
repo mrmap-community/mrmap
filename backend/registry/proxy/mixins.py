@@ -34,9 +34,6 @@ class OgcServiceProxyView(View):
 
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
-
-    additional_get_service_dict = {}
-
     bbox = None
     start_time = None
     _service = None
@@ -55,7 +52,7 @@ class OgcServiceProxyView(View):
         if not self._service:
             try:
                 self._service = self.service_cls.security.get_with_security_info(
-                    pk=self.kwargs.get("pk"), request=self.ogc_request, **self.additional_get_service_dict
+                    pk=self.kwargs.get("pk"), request=self.ogc_request
                 )
             except ObjectDoesNotExist:
                 raise Http404

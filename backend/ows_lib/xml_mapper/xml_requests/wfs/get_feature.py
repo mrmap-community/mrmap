@@ -173,22 +173,32 @@ class GetFeatureRequest(XmlObject):
         elif isinstance(filter_condition, OrCondition):
             xml_node.or_condition = filter_condition
 
-    def secure_spatial(self, value_reference, polygon: GeosPolygon) -> None:
-        # FIXME: if there are more than one typename, multiple value_references are needed.
-        #  The filter has to be build based on this multiple value_references
-        for query in self.queries:
-            if not query.filter:
-                query.filter = Filter()
-            elif not query.filter.and_condition:
-                # Sourround the old filter with a fes:And node first to combine them binary together and secure the request spatial
-                old_filter = copy.deepcopy(query.filter.node)
-                query.filter = Filter()
-                query.filter.and_condition = AndCondition()
-                query.filter.and_condition.node.extend(
-                    [child for child in old_filter])
+    def secure_spatial(self, value_references: list[dict], polygon: GeosPolygon) -> None:
+        # FIXME: value_references is a list of kind like '[{'type_name': 'ms:Countries', 'geometry_property_name': 'ms:Geometry'}]'
+        # The list contains only the feature types, which shall be secured.
 
-            self._append_spatial_filter_condition(
-                polygon=polygon, value_reference=value_reference, query=query)
+        type_names = [type_name for type_name, value_ref in value_references]
+
+        query: Query
+        for query in self.queries:
+
+            if len(query.type_names) > 1 and not set(query.type_names) & set(type_names):
+                # LEMMA: If there is a query with a list of typenames AND the given typenames set is not the same as the value reference set,
+                #  we need to split the query to build the filter correctly
+                # FIXME
+
+                if not query.filter:
+                    query.filter = Filter()
+                elif not query.filter.and_condition:
+                    # Sourround the old filter with a fes:And node first to combine them binary together and secure the request spatial
+                    old_filter = copy.deepcopy(query.filter.node)
+                    query.filter = Filter()
+                    query.filter.and_condition = AndCondition()
+                    query.filter.and_condition.node.extend(
+                        [child for child in old_filter])
+
+                self._append_spatial_filter_condition(
+                    polygon=polygon, value_reference=value_reference, query=query)
 
     @property
     def requested_feature_types(self) -> List[str]:

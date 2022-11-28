@@ -42,5 +42,5 @@ class OGCRequestTest(SimpleTestCase):
 
         self.assertTrue(ogc_request.is_post)
         self.assertTrue(ogc_request.is_get_feature_request)
-        self.assertEqual(["ms:Geometry"], ogc_request.requested_entities)
+        self.assertEqual(["ms:Countries"], ogc_request.requested_entities)
         self.assertTrue(isinstance(ogc_request.xml_request, GetFeatureRequest))

@@ -216,9 +216,12 @@ class WebFeatureServiceSecurityManager(models.Manager):
             )
         elif request.is_get_feature_request:
             from registry.models.service import FeatureTypeProperty
+
+            # FIXME: only property names for secured feature types are neded.
             geometry_property_names_query = FeatureTypeProperty.objects.filter(
                 feature_type__service__pk=OuterRef("pk"),
                 feature_type__identifier__in=request.requested_entities,
+
                 data_type__in=GEOMETRY_DATA_TYPES).values(
                 json=JSONObject(
                     type_name=F("feature_type__identifier"),

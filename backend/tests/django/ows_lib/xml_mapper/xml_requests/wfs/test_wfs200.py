@@ -22,12 +22,15 @@ class GetFeatureRequestTestCase(SimpleTestCase):
     def test_secure_spatial(self):
         # print(self.parsed_xml_request.queries[0].filter.condition)
 
-        self.parsed_xml_request.secure_spatial(
-            value_reference="THE_GEOM", polygon=Polygon(((-180, -90),
-                                                         (-180, 90),
-                                                         (180, 90),
-                                                         (180, -90),
-                                                         (-180, -90)), srid=4326))
+        self.parsed_xml_request.secure_spatial(feature_types=[
+            {
+                "type_name": "ms:Countries",
+                "geometry_property_name": "THE_GEOM",
+                "polygon": Polygon(((-180, -90), (-180, 90), (180, 90), (180, -90), (-180, -90)), srid=4326),
+
+            }
+        ]
+        )
 
         first = self.parsed_xml_request.serializeDocument()
         second = load_xmlobject_from_file(

@@ -42,7 +42,6 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
 
         print("props: ", self.service.geometry_property_names)
         print("area: ", self.service.allowed_area_union)
-
         self.ogc_request.xml_request.secure_spatial(
             value_reference=self.service.geometry_property_names,
             polygon=self.service.allowed_area_union

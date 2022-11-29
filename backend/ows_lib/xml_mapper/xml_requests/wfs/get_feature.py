@@ -1,6 +1,7 @@
 import copy
 from typing import List
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from eulxml.xmlmap import (NodeField, NodeListField, StringField,
                            StringListField, XmlObject)
@@ -173,32 +174,53 @@ class GetFeatureRequest(XmlObject):
         elif isinstance(filter_condition, OrCondition):
             xml_node.or_condition = filter_condition
 
-    def secure_spatial(self, value_references: list[dict], polygon: GeosPolygon) -> None:
-        # FIXME: value_references is a list of kind like '[{'type_name': 'ms:Countries', 'geometry_property_name': 'ms:Geometry'}]'
-        # The list contains only the feature types, which shall be secured.
+    def _adjust_filter_node(self, query: Query):
+        if not query.filter:
+            query.filter = Filter()
+        elif not query.filter.and_condition:
+            # Sourround the old filter with a fes:And node first to combine them binary together and secure the request spatial
+            old_filter = copy.deepcopy(query.filter.node)
+            query.filter = Filter()
+            query.filter.and_condition = AndCondition()
+            query.filter.and_condition.node.extend(
+                [child for child in old_filter])
 
-        type_names = [type_name for type_name, value_ref in value_references]
+    def secure_spatial(self, feature_types: list[dict]) -> None:
+
+        lookup_dict = {}
+        for feature_type in feature_types:
+            try:
+                lookup_dict.update({
+                    feature_type.get("type_name"): {
+                        "geometry_property_name": feature_type.get("geometry_property_name"),
+                        "allowed_area_union": feature_type.get("allowed_area_union")
+                    }})
+            except AttributeError:
+                raise AttributeError(
+                    "feature_types list shall be provides as a list of dicts with kind {'type_name': val, 'geometry_property_name': val, 'allowed_area_union': val}")
 
         query: Query
         for query in self.queries:
+            _feature_type = lookup_dict.get(query.type_names[0], {})
+            _polygon = _feature_type.get(
+                "allowed_area_union", GEOSGeometry("POLYGON EMPTY"))
+            _geometry_property_name = _feature_type.get(
+                "geometry_property_name", "THE_GEOM")
 
-            if len(query.type_names) > 1 and not set(query.type_names) & set(type_names):
-                # LEMMA: If there is a query with a list of typenames AND the given typenames set is not the same as the value reference set,
-                #  we need to split the query to build the filter correctly
-                # FIXME
-
-                if not query.filter:
-                    query.filter = Filter()
-                elif not query.filter.and_condition:
-                    # Sourround the old filter with a fes:And node first to combine them binary together and secure the request spatial
-                    old_filter = copy.deepcopy(query.filter.node)
-                    query.filter = Filter()
-                    query.filter.and_condition = AndCondition()
-                    query.filter.and_condition.node.extend(
-                        [child for child in old_filter])
-
+            if len(query.type_names) == 1 and _polygon and not _polygon.empty:
+                self._adjust_filter_node(query=query)
                 self._append_spatial_filter_condition(
-                    polygon=polygon, value_reference=value_reference, query=query)
+                    polygon=_polygon, value_reference=_geometry_property_name, query=query)
+            elif len(query.type_names) > 1:
+                # type_names_to_be_secured = []
+                # type_names_to_be_insecure = []
+                # for type_name in query.type_names:
+                #     if lookup_dict.get(type_name, {"allowed_area_union": GEOSGeometry("POLYGON EMPTY")}).get("allowed_area_union", GEOSGeometry("POLYGON EMPTY")).empty:
+                #         type_names_to_be_insecure.append(type_name)
+                #     else:
+                #         type_names_to_be_secured.append(type_name)
+                raise NotImplementedError(
+                    "Currently we can't secure a query with multple type names in a single query node.")
 
     @property
     def requested_feature_types(self) -> List[str]:

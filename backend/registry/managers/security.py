@@ -7,7 +7,7 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db import models
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
-                              OuterRef, QuerySet)
+                              OuterRef, QuerySet, Subquery)
 from django.db.models import Value as V
 from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce, JSONObject
@@ -24,6 +24,7 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
+        """Collects only the AllowedWebMapServiceOperation objects where all requested_entities are part of."""
         lookup, identifiers = self.get_entity_identifiers(request=request)
         query = None
         for identifier in identifiers:
@@ -50,6 +51,10 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         ).filter_by_requested_entity(request=request)
 
     def get_allowed_areas(self, service_pk, request: HttpRequest):
+        """Collect all allowed areas that are configured for all requested entities together.
+
+            Returns: The subset of allowed operations that for given user and requested entities. 
+        """
         return (
             self.filter(secured_service__pk=service_pk,
                         allowed_area__isnull=False)
@@ -189,6 +194,18 @@ class WebMapServiceSecurityManager(models.Manager):
 
 class WebFeatureServiceSecurityManager(models.Manager):
 
+    def filter_by_requested_entity(self, request):
+        """Collects only the AllowedWebMapServiceOperation objects where all requested_entities are part of."""
+        lookup, identifiers = self.get_entity_identifiers(request=request)
+        query = None
+        for identifier in identifiers:
+            _query = Q(**{lookup: identifier})
+            if query:
+                query &= _query
+            else:
+                query = _query
+        return self.filter(query)
+
     def is_unknown_feature_type(self, service_pk, feature_types: list[str]) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
 
@@ -215,17 +232,20 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     F("proxy_setting__log_response"), V(False))
             )
         elif request.is_get_feature_request:
-            from registry.models.service import FeatureTypeProperty
+            from registry.models.service import (FeatureType,
+                                                 FeatureTypeProperty)
 
-            # FIXME: only property names for secured feature types are neded.
-            geometry_property_names_query = FeatureTypeProperty.objects.filter(
-                feature_type__service__pk=OuterRef("pk"),
-                feature_type__identifier__in=request.requested_entities,
-
-                data_type__in=GEOMETRY_DATA_TYPES).values(
-                json=JSONObject(
-                    type_name=F("feature_type__identifier"),
-                    geometry_property_name=Coalesce(F("name"), V("THE_GEOM")))  # luky shot, THE_GEOM is the most popular default property name for the geometry...
+            # FIXME: filter for requesting user
+            security_info = FeatureType.objects.filter(
+                service__pk=OuterRef("pk"),
+                identifier__in=request.requested_entities,
+                allowed_operation__operations__operation__icontains=request.operation.lower(),
+            ).annotate(
+                allowed_area_union=Union("allowed_operation__allowed_area"),
+                geometry_property_name=Subquery(FeatureTypeProperty.objects.filter(
+                    feature_type__pk=OuterRef("pk"),
+                    data_type__in=GEOMETRY_DATA_TYPES
+                )[:1].values("name"))
             )
 
             return (
@@ -247,11 +267,14 @@ class WebFeatureServiceSecurityManager(models.Manager):
                     is_user_principle_entitled=self.get_allowed_operation_qs().is_user_entitled(
                         service_pk=OuterRef("pk"), request=request
                     ),
-                    allowed_area_union=self.get_allowed_operation_qs().get_allowed_areas(
-                        service_pk=OuterRef("pk"), request=request
-                    ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom'),
-                    geometry_property_names=ArraySubquery(
-                        geometry_property_names_query)
+                    security_info_per_feature_type=ArraySubquery(
+                        security_info.values(json=JSONObject(
+                            type_name=F("identifier"),
+                            geometry_property_name=Coalesce(
+                                F("geometry_property_name"), V("THE_GEOM")),
+                            allowed_area_union=F("allowed_area_union")
+                        ))
+                    )
                 )
             )
 

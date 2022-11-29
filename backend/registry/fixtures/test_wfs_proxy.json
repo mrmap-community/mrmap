@@ -73,6 +73,17 @@
         }
     },
     {
+        "model": "registry.featuretype",
+        "pk": "2140fcdf-8231-4771-9dc8-5f713df37cef",
+        "fields": {
+            "service": "73cf78c9-6605-47fd-ac4f-1be59265df65",
+            "date_stamp": "2013-03-16T17:41:28+00:00",
+            "identifier": "ms:Rivers",
+            "origin": "capabilities",
+            "title": "Rivers"
+        }
+    },
+    {
         "model": "registry.WebFeatureServiceOperationUrl",
         "pk": "1",
         "fields": {
@@ -121,6 +132,17 @@
             "name": "ms:Geometry",
             "data_type": "gml:GeometryPropertyType",
             "feature_type": "47202f00-c28d-4cb2-b351-7a730f70acca"
+        }
+    },
+    {
+        "model": "registry.FeatureTypeProperty",
+        "pk": "5",
+        "fields": {
+            "max_occurs": 1,
+            "min_occurs": 0,
+            "name": "ms:Geometry",
+            "data_type": "gml:GeometryPropertyType",
+            "feature_type": "2140fcdf-8231-4771-9dc8-5f713df37cef"
         }
     }
 ]

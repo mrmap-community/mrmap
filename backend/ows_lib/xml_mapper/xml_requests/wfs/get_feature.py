@@ -174,7 +174,7 @@ class GetFeatureRequest(XmlObject):
         elif isinstance(filter_condition, OrCondition):
             xml_node.or_condition = filter_condition
 
-    def _adjust_filter_node(self, query: Query):
+    def _adjust_filter_node(self, query: Query) -> None:
         if not query.filter:
             query.filter = Filter()
         elif not query.filter.and_condition:
@@ -211,6 +211,7 @@ class GetFeatureRequest(XmlObject):
                 self._adjust_filter_node(query=query)
                 self._append_spatial_filter_condition(
                     polygon=_polygon, value_reference=_geometry_property_name, query=query)
+
             elif len(query.type_names) > 1:
                 # type_names_to_be_secured = []
                 # type_names_to_be_insecure = []

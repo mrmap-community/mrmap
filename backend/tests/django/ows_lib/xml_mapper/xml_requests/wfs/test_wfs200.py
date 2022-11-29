@@ -26,7 +26,7 @@ class GetFeatureRequestTestCase(SimpleTestCase):
             {
                 "type_name": "ms:Countries",
                 "geometry_property_name": "THE_GEOM",
-                "polygon": Polygon(((-180, -90), (-180, 90), (180, 90), (180, -90), (-180, -90)), srid=4326),
+                "allowed_area_union": Polygon(((-180, -90), (-180, 90), (180, 90), (180, -90), (-180, -90)), srid=4326),
 
             }
         ]
@@ -44,5 +44,6 @@ class GetFeatureRequestTestCase(SimpleTestCase):
         first_xml = etree.fromstring(text=first, parser=parser)
         second_xml = etree.fromstring(text=second, parser=parser)
 
+        self.maxDiff = None
         self.assertXMLEqual(etree.tostring(first_xml).decode("UTF-8"),
                             etree.tostring(second_xml).decode("UTF-8"))

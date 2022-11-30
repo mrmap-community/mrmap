@@ -77,6 +77,8 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
 
     def handle_secured_get_feature(self):
         try:
+            if self.ogc_request.service_version.split(".")[0] != "2":
+                return MrMapNotImplementedError(ogc_request=self.ogc_request, message="MrMap currently can only handle wfs 2.x.x GetFeature requests")
             self.ogc_request.xml_request.secure_spatial(
                 feature_types=self.service.security_info_per_feature_type)
         except NotImplementedError:

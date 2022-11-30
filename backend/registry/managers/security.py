@@ -53,7 +53,7 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
     def get_allowed_areas(self, service_pk, request: HttpRequest):
         """Collect all allowed areas that are configured for all requested entities together.
 
-            Returns: The subset of allowed operations that for given user and requested entities. 
+            Returns: The subset of allowed operations that for given user and requested entities.
         """
         return (
             self.filter(secured_service__pk=service_pk,
@@ -121,7 +121,7 @@ class AllowedWebMapServiceOperationQuerySet(AllowedOgcServiceOperationQuerySet):
 
 class AllowedWebFeatureServiceOperationQuerySet(AllowedOgcServiceOperationQuerySet):
     def get_entity_identifiers(self, request):
-        return "secured_feature_types__identifier__iexact",  request.requested_entities
+        return "secured_feature_types__identifier__iexact", request.requested_entities
 
 
 class WebMapServiceSecurityManager(models.Manager):

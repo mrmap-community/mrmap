@@ -337,6 +337,9 @@ class AllowedWebFeatureServiceOperation(AllowedOperation):
 
     class Meta(AllowedOperation.Meta):
         ordering = ['-secured_service']
+        # DEPRECATED_FIXME: there must be a constraint, which prevent to create this object, if the referenced secured_service is not secureable.
+        #  If the wfs does not support And filter, we can't secure it!
+        # Reason: And filter is default operation which shall be supported by any wfs
 
     def save(self, *args, **kwargs):
         """Custom save function to update related :class:`registry.models.security.ProxySetting` instance.

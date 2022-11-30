@@ -30,7 +30,6 @@ class WMSGetCapabilitiesResultViewSetMixin():
     task_function = check_wms_get_capabilities_operation
 
     def get_task_kwargs(self, request, serializer):
-        print(serializer.data)
         return {
             "service_pk": serializer.data["service"]["id"]
         }

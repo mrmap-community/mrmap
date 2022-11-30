@@ -20,10 +20,10 @@ from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
 from registry.exceptions.service import (LayerNotQueryable,
                                          OperationNotSupported)
-from registry.managers.security import WebMapServiceSecurityManager
+from registry.managers.security import (WebFeatureServiceSecurityManager,
+                                        WebMapServiceSecurityManager)
 from registry.managers.service import (CatalougeServiceCapabilitiesManager,
                                        CswOperationUrlQueryableQuerySet,
-                                       FeatureTypeElementXmlManager,
                                        LayerManager,
                                        WebFeatureServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
@@ -147,6 +147,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 class WebFeatureService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
     capabilities = WebFeatureServiceCapabilitiesManager()
+    security = WebFeatureServiceSecurityManager()
 
     class Meta:
         verbose_name = _("web feature service")
@@ -819,6 +820,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             "the fetched content of the download describe feature" " type document."
         ),
     )
+
     change_log = HistoricalRecords(related_name="change_logs")
     objects = DefaultHistoryManager()
 
@@ -877,32 +879,34 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def create_element_instances(self):
         """Return the created FeatureTypeElement record(s)"""
-        return FeatureTypeElement.xml_objects.create_from_parsed_xml(
+        return FeatureTypeProperty.xml_objects.create_from_parsed_xml(
             parsed_xml=self.parse(), related_object=self
         )
 
 
-class FeatureTypeElement(models.Model):
-    max_occurs = models.IntegerField(default=1)
-    min_occurs = models.IntegerField(default=0)
-    name = models.CharField(max_length=255)
-    data_type = models.CharField(max_length=255, null=True, blank=True)
+class FeatureTypeProperty(models.Model):
+    max_occurs = models.IntegerField(default=1, help_text=_(
+        "The maximum count this property is part of a feature type"))
+    min_occurs = models.IntegerField(default=0, help_text=_(
+        "The minimum count this property is part of a feature type"))
+    name = models.CharField(max_length=255, help_text=_(
+        "The identifing type name of the property"))
+    data_type = models.CharField(max_length=255, null=True, blank=True, help_text=_(
+        "The concrete data type of this property"))
     required = models.BooleanField(default=False)
     feature_type = models.ForeignKey(
         to=FeatureType,
-        # editable=False,
-        related_name="elements",
-        related_query_name="element",
+        editable=False,
+        related_name="properties",
+        related_query_name="property",
         on_delete=models.CASCADE,
         verbose_name=_("feature type"),
-        help_text=_("related feature type of this element"),
+        help_text=_("related feature type of this property"),
     )
-    objects = models.Manager()
-    xml_objects = FeatureTypeElementXmlManager()
 
     class Meta:
-        verbose_name = _("feature type element")
-        verbose_name_plural = _("feature type elements")
+        verbose_name = _("feature type property")
+        verbose_name_plural = _("feature type properties")
         ordering = ["-name"]
 
     def __str__(self):

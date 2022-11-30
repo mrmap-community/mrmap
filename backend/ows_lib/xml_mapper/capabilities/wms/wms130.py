@@ -11,7 +11,7 @@ from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
 
 
 class WebMapServiceDefaultSettings(DBModelConverterMixin, XmlObject):
-    ROOT_NS = "wms"
+    ROOT_NS = WMS_1_3_0_NAMESPACE
     ROOT_NAMESPACES = {
         "wms": WMS_1_3_0_NAMESPACE,
         "xlink": XLINK_NAMESPACE

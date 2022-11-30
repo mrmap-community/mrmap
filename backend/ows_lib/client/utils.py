@@ -169,7 +169,11 @@ def construct_polygon_from_bbox_query_param(get_dict) -> GEOSGeometry:
 
 
 def get_requested_layers(params: dict) -> List[str]:
-    return params.get("LAYERS", params.get("layers", "")).split(",")
+    return list(filter(None, params.get("LAYERS", params.get("layers", "")).split(",")))
+
+
+def get_requested_feature_types(params: dict) -> List[str]:
+    return list(filter(None, params.get("TYPENAMES", params.get("typenames", "")).split(",")))
 
 
 def filter_ogc_query_params(query_params: dict) -> dict:
@@ -186,12 +190,12 @@ def filter_ogc_query_params(query_params: dict) -> dict:
     return filtered
 
 
-def get_client(capabilities: OGCServiceMixin, session: Session = None):
+def get_client(capabilities: OGCServiceMixin, session: Session = Session()):
     if capabilities.service_type.name == "wms":
         if capabilities.service_type.version == "1.1.1":
             from ows_lib.client.wms.wms111 import WebMapService
             return WebMapService(capabilities=capabilities, session=session)
-    if capabilities.service_type.name == "wms":
+    if capabilities.service_type.name == "wfs":
         if capabilities.service_type.version == "2.0.0":
             from ows_lib.client.wfs.wfs200 import WebFeatureService
             return WebFeatureService(capabilities=capabilities, session=session)

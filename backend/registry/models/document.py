@@ -63,7 +63,6 @@ class DocumentModelMixin(models.Model):
         try:
             return self.xml_backup_file.open().read()
         except (FileNotFoundError, ValueError):
-            print("error")
             return ""
 
     @property

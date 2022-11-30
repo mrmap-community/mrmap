@@ -5,3 +5,4 @@ watchdog[watchmedo]==2.1.9
 debugpy==1.6.3
 autopep8==2.0.0
 django-debug-toolbar==3.7.0
+xmldiff==2.4

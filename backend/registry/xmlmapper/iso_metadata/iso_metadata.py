@@ -3,7 +3,7 @@ import urllib
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from eulxml import xmlmap
-from registry.xmlmapper.gml.gml import Gml
+from ows_lib.xml_mapper.gml.gml import Gml
 from registry.xmlmapper.mixins import DBModelConverterMixin
 from registry.xmlmapper.namespaces import (GCO_NAMESPACE, GMD_NAMESPACE,
                                            GML_3_1_1_NAMESPACE, SRV_NAMESPACE)
@@ -11,7 +11,7 @@ from registry.xmlmapper.namespaces import (GCO_NAMESPACE, GMD_NAMESPACE,
 
 class Keyword(DBModelConverterMixin, xmlmap.XmlObject):
     model = "registry.Keyword"
-    ROOT_NS = "gmd"
+    ROOT_NS = GMD_NAMESPACE
     ROOT_NAME = "keyword"
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE),
                             ("gco", GCO_NAMESPACE)])
@@ -27,7 +27,7 @@ class Category(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
-    ROOT_NS = "gmd"
+    ROOT_NS = GMD_NAMESPACE
     ROOT_NAME = "extent"
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE),
                             ("gml", GML_3_1_1_NAMESPACE)])
@@ -43,7 +43,7 @@ class Dimension(DBModelConverterMixin, xmlmap.XmlObject):
 
 
 class EXGeographicBoundingBox(xmlmap.XmlObject):
-    ROOT_NS = "gmd"
+    ROOT_NS = GMD_NAMESPACE
     ROOT_NAME = "EX_GeographicBoundingBox"
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE),
                             ("gco", GCO_NAMESPACE)])
@@ -63,7 +63,7 @@ class EXGeographicBoundingBox(xmlmap.XmlObject):
 
 
 class EXBoundingPolygon(xmlmap.XmlObject):
-    ROOT_NS = "gmd"
+    ROOT_NS = GMD_NAMESPACE
     ROOT_NAME = "EX_BoundingPolygon"
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE)])
 
@@ -104,7 +104,7 @@ class ReferenceSystem(DBModelConverterMixin, xmlmap.XmlObject):
 class CiResponsibleParty(DBModelConverterMixin, xmlmap.XmlObject):
     model = "registry.MetadataContact"
     ROOT_NAME = "CI_ResponsibleParty"
-    ROOT_NS = "gmd"
+    ROOT_NS = GMD_NAMESPACE
     ROOT_NAMESPACES = dict([("gmd", "http://www.isotc211.org/2005/gmd"),
                            ("gco", "http://www.isotc211.org/2005/gco")])
 
@@ -128,7 +128,7 @@ class BaseIsoMetadata(DBModelConverterMixin, xmlmap.XmlObject):
        :attr:`GMD_NAMESPACE` is mapped to the prefix **gmd**.
        :attr:`GCO_NAMESPACE` is mapped to the prefix **gco**.
     """
-    ROOT_NS = "gmd"
+    ROOT_NS = GMD_NAMESPACE
     ROOT_NAMESPACES = dict([("gmd", GMD_NAMESPACE),
                             ("gco", GCO_NAMESPACE)])
 

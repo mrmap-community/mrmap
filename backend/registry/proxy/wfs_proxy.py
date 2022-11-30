@@ -10,6 +10,9 @@ from ows_lib.client.wfs.mixins import \
     WebFeatureServiceMixin as WebFeatureServiceClient
 from registry.models.service import WebFeatureService
 from registry.proxy.mixins import OgcServiceProxyView
+from registry.proxy.ogc_exceptions import ForbiddenException
+from registry.proxy.ogc_exceptions import \
+    NotImplementedError as MrMapNotImplementedError
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -73,9 +76,13 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             return self.handle_secured_transaction()
 
     def handle_secured_get_feature(self):
-        self.ogc_request.xml_request.secure_spatial(
-            feature_types=self.service.security_info_per_feature_type)
-
+        try:
+            self.ogc_request.xml_request.secure_spatial(
+                feature_types=self.service.security_info_per_feature_type)
+        except NotImplementedError:
+            return ForbiddenException(
+                ogc_request=self.ogc_request,
+                message="MrMap can't secure the given request. Maybe you request multiple typenames in a single query.")
         response = self.remote_service.send_request(
             self.remote_service.prepare_get_feature_request(get_feature_request=self.ogc_request.xml_request))
 
@@ -89,4 +96,4 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
         #       We could secure the transaction on table column level.
         #       * secure on feature level per permission (update, delete)
         #       * secure on table level for insert permission
-        raise NotImplementedError()
+        return MrMapNotImplementedError(ogc_request=self.ogc_request, message="securing transaction is not implemented.")

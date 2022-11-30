@@ -56,7 +56,7 @@ class WebMapServiceProxyTest(TestCase):
             "TYPENAMES": "ms:Countries"
         }
 
-    def test_matching_secured_get_feature_response(self):
+    def test_matching_secured_get_feature_response_for_wfs_200(self):
         self.client.login(username="User1", password="User1")
 
         query = Query()

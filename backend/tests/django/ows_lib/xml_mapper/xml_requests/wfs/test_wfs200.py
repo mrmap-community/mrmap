@@ -20,7 +20,6 @@ class GetFeatureRequestTestCase(SimpleTestCase):
             self.insecure_xml, xmlclass=GetFeatureRequest)
 
     def test_secure_spatial(self):
-        # print(self.parsed_xml_request.queries[0].filter.condition)
 
         self.parsed_xml_request.secure_spatial(feature_types=[
             {

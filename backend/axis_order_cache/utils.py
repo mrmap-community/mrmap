@@ -1,7 +1,8 @@
-from django.contrib.gis.geos import MultiPolygon, Polygon, Point
-from django.contrib.gis.gdal.geometries import MultiPolygon as GdalMultiPolygon, Polygon as GdalPolygon, \
-    Point as GdalPoint
 from axis_order_cache.registry import Registry
+from django.contrib.gis.gdal.geometries import MultiPolygon as GdalMultiPolygon
+from django.contrib.gis.gdal.geometries import Point as GdalPoint
+from django.contrib.gis.gdal.geometries import Polygon as GdalPolygon
+from django.contrib.gis.geos import MultiPolygon, Point, Polygon
 
 
 def get_epsg_srid(srs_name):
@@ -73,6 +74,7 @@ def switch_axis_order(geometry):
 
 
 def adjust_axis_order(geometry):
+    """switches from y/x axis interpretation to x/y axis interpretation. If the given interpretation is x/y the geometry is returned as it was."""
     registry = Registry()
     epsg_sr = registry.get(srid=geometry.srid)
     if epsg_sr.is_yx_order:

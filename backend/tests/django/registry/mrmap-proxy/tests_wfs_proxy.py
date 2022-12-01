@@ -1,16 +1,19 @@
-import os
 
 from accounts.models.users import User
+from axis_order_cache.utils import adjust_axis_order
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
 from django.test import Client, TestCase
-from eulxml.xmlmap import load_xmlobject_from_file
+from eulxml.xmlmap import load_xmlobject_from_string
 from MrMap.settings import BASE_DIR
-from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
+from ows_lib.xml_mapper.xml_requests.wfs.get_feature import (GetFeatureRequest,
+                                                             Query)
+from ows_lib.xml_mapper.xml_responses.wfs.feature_collection import \
+    FeatureCollection
 from registry.models.security import AllowedWebFeatureServiceOperation
 from registry.models.service import WebFeatureService
-from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 
 class WebMapServiceProxyTest(TestCase):
@@ -53,14 +56,17 @@ class WebMapServiceProxyTest(TestCase):
             "TYPENAMES": "ms:Countries"
         }
 
-    def test_matching_secured_get_feature_response(self):
+    def test_matching_secured_get_feature_response_for_wfs_200(self):
         self.client.login(username="User1", password="User1")
 
-        path = os.path.join(DJANGO_TEST_ROOT_DIR,
-                            "./test_data/xml_requests/get_feature_2.0.0.xml")
+        query = Query()
+        query.type_names = ["ms:Countries"]
 
-        get_feature_request: GetFeatureRequest = load_xmlobject_from_file(
-            filename=path, xmlclass=GetFeatureRequest)
+        get_feature_request: GetFeatureRequest = GetFeatureRequest()
+        get_feature_request.output_format = "application/gml+xml; version=3.2"
+        get_feature_request.version = "2.0.0"
+        get_feature_request.service_type = "wfs"
+        get_feature_request.queries.append(query)
 
         response = self.client.post(
             self.wfs_url,
@@ -68,7 +74,18 @@ class WebMapServiceProxyTest(TestCase):
             content_type="application/gml+xml; version=3.2"
         )
 
-        print("response: ", response.content)
-        self.assertEqual(200, response.status_code)
+        feature_collection: FeatureCollection = load_xmlobject_from_string(
+            string=response.content, xmlclass=FeatureCollection)
 
-        # TODO: compare response xml content... if there is any spatial data outside the secured area the test should fail
+        bounded_by: GEOSGeometry = feature_collection.bounded_by.geos
+        # cause we are testing for wfs 2.0.0, we need to adjust the axis order to get an correct initialized python geometry object.
+        bounded_by = adjust_axis_order(bounded_by)
+
+        allowed_area: GEOSGeometry = AllowedWebFeatureServiceOperation.objects.get(
+            pk="1235").allowed_area
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(feature_collection.number_matched, 4)
+        self.assertEqual(feature_collection.number_returned, 4)
+        self.assertTrue(allowed_area.overlaps(
+            bounded_by), msg="configured allowed area does not overlaps the responsed bounding box")

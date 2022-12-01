@@ -19,6 +19,8 @@ from registry.proxy.ogc_exceptions import (DisabledException,
                                            ForbiddenException,
                                            MissingRequestParameterException,
                                            MissingVersionParameterException)
+from registry.proxy.ogc_exceptions import \
+    NotImplementedError as MrMapNotImplementedError
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from requests import Request
 from requests.exceptions import ConnectionError as ConnectionErrorException
@@ -86,9 +88,9 @@ class OgcServiceProxyView(View):
 
     def check_request(self):
         if not self.ogc_request.operation:
-            return MissingRequestParameterException()
+            return MissingRequestParameterException(ogc_request=self.ogc_request)
         elif not self.ogc_request.service_version:
-            return MissingVersionParameterException()
+            return MissingVersionParameterException(ogc_request=self.ogc_request)
 
     def post(self, request, *args, **kwargs):
         return self.get_and_post(request=request, *args, **kwargs)
@@ -122,7 +124,7 @@ class OgcServiceProxyView(View):
         if self.ogc_request.is_get_capabilities_request:
             return self.get_capabilities()
         elif not self.service.is_active:
-            return DisabledException()
+            return DisabledException(ogc_request=self.ogc_request)
         # elif self.service.is_unknown_layer:
         #     return LayerNotDefined()
         elif (
@@ -140,9 +142,12 @@ class OgcServiceProxyView(View):
         elif (
             self.service.is_spatial_secured and self.service.is_user_principle_entitled
         ):
-            return self.secure_request()
+            try:
+                return self.secure_request()
+            except NotImplementedError:
+                return MrMapNotImplementedError(ogc_request=self.ogc_request)
         else:
-            return ForbiddenException()
+            return ForbiddenException(ogc_request=self.ogc_request)
 
     def get_capabilities(self):
         """Return the camouflaged capabilities document of the founded service.

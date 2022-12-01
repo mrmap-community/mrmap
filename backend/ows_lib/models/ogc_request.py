@@ -121,8 +121,10 @@ class OGCRequest:
     @property
     def xml_request(self) -> XmlObject:
         if not self._xml_request:
+            # FIXME: depending on version, different xml mapper are needed...
             if self.is_post:
                 if self.is_get_feature_request:
+
                     self._xml_request: GetFeatureRequest = load_xmlobject_from_string(
                         string=self.request.body, xmlclass=GetFeatureRequest)
             elif self.is_get:

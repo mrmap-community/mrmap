@@ -139,8 +139,10 @@ class GetFeatureRequest(XmlObject):
     }
 
     # is optional, but mapserver for example will report an server error if you dont pass it.
-    # Default is application/gml+xml; version=3.1
+    # Default is application/gml+xml; version=3.2
     output_format = StringField(xpath="./@outputFormat")
+    version = StringField(xpath="./@version")
+    service_type = StringField(xpath="./@service")
 
     # wfs 1.1.0 spec 9.2:
     # "The <GetFeature> element contains one or more <Query> elements, each of which in turn contains the description of a query." 
@@ -170,7 +172,7 @@ class GetFeatureRequest(XmlObject):
         xml_node = query.filter.and_condition if query.filter.and_condition else query.filter
 
         if isinstance(filter_condition, WithinCondition):
-            xml_node.within_condition = filter_condition
+            xml_node.within_conditions.append(filter_condition)
         elif isinstance(filter_condition, OrCondition):
             xml_node.or_condition = filter_condition
 
@@ -213,13 +215,6 @@ class GetFeatureRequest(XmlObject):
                     polygon=_polygon, value_reference=_geometry_property_name, query=query)
 
             elif len(query.type_names) > 1:
-                # type_names_to_be_secured = []
-                # type_names_to_be_insecure = []
-                # for type_name in query.type_names:
-                #     if lookup_dict.get(type_name, {"allowed_area_union": GEOSGeometry("POLYGON EMPTY")}).get("allowed_area_union", GEOSGeometry("POLYGON EMPTY")).empty:
-                #         type_names_to_be_insecure.append(type_name)
-                #     else:
-                #         type_names_to_be_secured.append(type_name)
                 raise NotImplementedError(
                     "Currently we can't secure a query with multple type names in a single query node.")
 

@@ -1,12 +1,18 @@
 from django.http import HttpResponse
+from ows_lib.models.ogc_request import OGCRequest
 
 
 class OGCServiceException(HttpResponse):
     status_code = 200
-    locator = None
     message = None
+    locator = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, ogc_request: OGCRequest, message: str = None, locator: str = None, *args, **kwargs):
+        if message:
+            self.message = message
+        if locator:
+            self.locator = locator
+        self.ogc_request = ogc_request
         super().__init__(content_type="application/xml",
                          content=self.get_exception_string(), *args, **kwargs)
 
@@ -23,7 +29,7 @@ class OGCServiceException(HttpResponse):
         # TODO: dynamic version
         return \
             '<?xml version="1.0" encoding="UTF-8"?>'\
-            f'<ServiceExceptionReport version="1.3.0" xmlns="http://www.opengis.net/ogc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ogc">'\
+            f'<ServiceExceptionReport version="{self.ogc_request.service_version}" xmlns="http://www.opengis.net/ogc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ogc">'\
             f'<ServiceException code="{self.code}" {self.get_locator_string() if self.get_locator() else ""}>'\
             f'{self.get_message()}'\
             '</ServiceException>'\
@@ -76,3 +82,8 @@ class LayerNotDefined(OGCServiceException):
 class RuntimeError(OGCServiceException):
     code = "RuntimeError"
     message = "Something unexpected did occur. Please contact the service provider."
+
+
+class NotImplementedError(OGCServiceException):
+    code = "NotImplementedError"
+    message = "MrMap has not implemented the functionality you need."

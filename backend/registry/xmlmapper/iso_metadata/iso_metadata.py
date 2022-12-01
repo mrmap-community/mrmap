@@ -3,7 +3,7 @@ import urllib
 from django.contrib.gis.geos import MultiPolygon
 from django.contrib.gis.geos import Polygon as GeosPolygon
 from eulxml import xmlmap
-from registry.xmlmapper.gml.gml import Gml
+from ows_lib.xml_mapper.gml.gml import Gml
 from registry.xmlmapper.mixins import DBModelConverterMixin
 from registry.xmlmapper.namespaces import (GCO_NAMESPACE, GMD_NAMESPACE,
                                            GML_3_1_1_NAMESPACE, SRV_NAMESPACE)

@@ -63,7 +63,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         :rtype: dict or :class:`requests.models.Request`
         """
         if self.service.is_unknown_layer:
-            return LayerNotDefined()
+            return LayerNotDefined(ogc_request=self.ogc_request)
         else:
             return super().get_and_post(request, *args, **kwargs)
 
@@ -389,7 +389,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
-        return ForbiddenException()
+        return ForbiddenException(ogc_request=self.ogc_request)
 
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.

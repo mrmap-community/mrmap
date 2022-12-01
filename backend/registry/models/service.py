@@ -529,6 +529,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
 
+        # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
+
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the layer, all his descendants and his related service.
         If the given layer shall be active, the complete family (:meth:`mptt.models.MPTTModel.get_family`) of this

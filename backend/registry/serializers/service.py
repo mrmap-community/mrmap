@@ -74,6 +74,10 @@ class LayerSerializer(
         related_link_view_name="registry:layer-datasetmetadata-list",
         related_link_url_kwarg="parent_lookup_self_pointing_layers",
     )
+    bbox = GeometryField(
+        source="bbox_lat_lon",
+        label=_("bbox_l_l"),
+        help_text=_("this is the spatial extent of the layer."))
 
     bbox_lat_lon = GeometryField(
         source="bbox_inherited",

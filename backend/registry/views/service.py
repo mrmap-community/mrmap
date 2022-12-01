@@ -68,7 +68,7 @@ class WebMapServiceViewSet(
         "layers": [
             Prefetch(
                 "layers",
-                queryset=Layer.objects.select_related("parent").prefetch_related(
+                queryset=Layer.objects.with_inherited_attributes().select_related("parent").prefetch_related(
                     "keywords",
                     "styles",
                     "reference_systems",

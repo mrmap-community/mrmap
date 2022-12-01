@@ -18,6 +18,7 @@ from registry.models.service import (CatalougeService,
 from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            KeywordSerializer,
                                            MetadataContactSerializer,
+                                           ReferenceSystemSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import BooleanField, IntegerField, URLField
@@ -147,9 +148,9 @@ class LayerSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        # TODO: "reference_systems": ReferenceSystemSerializer
-        # TODO: "dimensions": DimensionSerializer
-        # TODO: "styles": StyleSerializer
+        "reference_systems": ReferenceSystemSerializer,
+        # "dimensions": DimensionSerializer,
+        "styles": StyleSerializer,
     }
 
     class Meta:
@@ -167,14 +168,14 @@ class LayerSerializer(
         """Converts the given list of dicts that representing the Dimension objects collected by the manager with ArraySubquery"""
         dimensions: list[Dimension] = []
         for dimension in instance.dimensions_inherited:
-            dimensions.append(Dimension(**dimension))
+            dimensions.append(Dimension(layer=instance, **dimension))
         return dimensions
 
     def get_styles(self, instance):
         """Converts the given list of dicts that representing the Dimension objects collected by the manager with ArraySubquery"""
         styles: list[Style] = []
         for style in instance.styles_inherited:
-            styles.append(Style(**style))
+            styles.append(Style(layer=instance, **style))
         return styles
 
 

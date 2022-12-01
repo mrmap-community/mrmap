@@ -5,7 +5,7 @@ from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer)
 from MrMap.validators import validate_get_capablities_uri
-from registry.models.metadata import (DatasetMetadata, Keyword,
+from registry.models.metadata import (DatasetMetadata, Dimension, Keyword,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
@@ -74,17 +74,40 @@ class LayerSerializer(
         related_link_url_kwarg="parent_lookup_self_pointing_layers",
     )
 
-    # FIXME: prefetch ancestors for the following fields, cause otherwise this results in extra db transactions...
     bbox_lat_lon = GeometryField(
-        source="get_bbox",
+        source="bbox_inherited",
         label=_("bbox"),
         help_text=_("this is the spatial extent of the layer."))
+    is_queryable = BooleanField(
+        source="is_queryable_inherited",
+        label=_("is queryable"),
+        help_text=_(
+            "flag to signal if this layer provides factual information or not."
+            " Parsed from capabilities."
+        ),
+    )
+    is_opaque = BooleanField(
+        source="is_opaque_inherited",
+        label=_("is opaque"),
+        help_text=_(
+            "flag to signal if this layer support transparency content or not. "
+            "Parsed from capabilities."
+        ),
+    )
+    is_cascaded = BooleanField(
+        source="is_cascaded_inherited",
+        label=_("is cascaded"),
+        help_text=_(
+            "WMS cascading allows to expose layers coming from other WMS servers "
+            "as if they were local layers"
+        ),
+    )
     scale_min = IntegerField(
-        source="get_scale_min",
+        source="scale_min_inherited",
         label=_("minimal scale"),
         help_text=_("the minimum scale value."))
     scale_max = IntegerField(
-        source="get_scale_max",
+        source="scale_max_inherited",
         label=_("maximum scale"),
         help_text=_("the maximum scale value."))
     styles = ResourceRelatedField(
@@ -102,6 +125,20 @@ class LayerSerializer(
         many=True,
         read_only=True,
     )
+    dimensions = SerializerMethodResourceRelatedField(
+        label=_("dimensions"),
+        help_text=_("available dimensions of this layer."),
+        model=Dimension,
+        many=True,
+        read_only=True,
+    )
+    styles = SerializerMethodResourceRelatedField(
+        label=_("styles"),
+        help_text=_("available styles of this layer."),
+        model=Style,
+        many=True,
+        read_only=True,
+    )
 
     included_serializers = {
         "service": "registry.serializers.service.WebMapServiceSerializer",
@@ -111,6 +148,8 @@ class LayerSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         # TODO: "reference_systems": ReferenceSystemSerializer
+        # TODO: "dimensions": DimensionSerializer
+        # TODO: "styles": StyleSerializer
     }
 
     class Meta:
@@ -118,7 +157,25 @@ class LayerSerializer(
         fields = "__all__"
 
     def get_reference_systems(self, instance):
-        return instance.get_reference_systems
+        """Converts the given list of dicts that representing the ReferenceSystem objects collected by the manager with ArraySubquery"""
+        reference_systems: list[ReferenceSystem] = []
+        for crs in instance.reference_systems_inherited:
+            reference_systems.append(ReferenceSystem(**crs))
+        return reference_systems
+
+    def get_dimensions(self, instance):
+        """Converts the given list of dicts that representing the Dimension objects collected by the manager with ArraySubquery"""
+        dimensions: list[Dimension] = []
+        for dimension in instance.dimensions_inherited:
+            dimensions.append(Dimension(**dimension))
+        return dimensions
+
+    def get_styles(self, instance):
+        """Converts the given list of dicts that representing the Dimension objects collected by the manager with ArraySubquery"""
+        styles: list[Style] = []
+        for style in instance.styles_inherited:
+            styles.append(Style(**style))
+        return styles
 
 
 class WebMapServiceSerializer(

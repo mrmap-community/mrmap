@@ -13,7 +13,8 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import Keyword, ReferenceSystem, Style
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      ReferenceSystem, Style)
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalougeService,
                                      CatalougeServiceOperationUrl,
@@ -182,7 +183,7 @@ class LayerViewSetMixin(
     schema = CustomAutoSchema(
         tags=["Layer"],
     )
-    queryset = Layer.objects.all()
+    queryset = Layer.objects.with_inherited_attributes()
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
@@ -202,6 +203,7 @@ class LayerViewSetMixin(
         "styles": ["styles"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],
+        "dataset_metadata": ["dataset_metadata"]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
@@ -232,6 +234,12 @@ class LayerViewSetMixin(
             qs = qs.prefetch_related(
                 Prefetch(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")
+                )
+            )
+        if not include or "datasetMetadata" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "dataset_metadata", queryset=DatasetMetadata.objects.only("id")
                 )
             )
 

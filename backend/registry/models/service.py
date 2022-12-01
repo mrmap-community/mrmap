@@ -574,7 +574,15 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 )["url"]
                 # TODO: check if this format is supported by the layer...
             image_format: str = format
-        _bbox: Polygon = bbox if bbox else self.get_bbox
+
+        if bbox:
+            _bbox: Polygon = bbox
+        else:
+            if hasattr(self, "bbox_inherited"):
+                _bbox: Polygon = self.bbox_inherited
+            else:
+                _bbox: Polygon = Layer.objects.with_inherited_attributes(
+                ).values_list("bbox_inherited", flat=True).get(pk=self.pk)
 
         # if self.get_scale_max:
         #     # 1/100000

@@ -76,7 +76,6 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
             return self.handle_secured_transaction()
 
     def handle_secured_get_feature(self):
-        print("huhu")
         try:
             if self.ogc_request.service_version.split(".")[0] != "2":
                 return MrMapNotImplementedError(ogc_request=self.ogc_request, message="MrMap currently can only handle wfs 2.x.x GetFeature requests")
@@ -88,7 +87,6 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                 message="MrMap can't secure the given request. Maybe you request multiple typenames in a single query.")
         response = self.remote_service.send_request(
             self.remote_service.prepare_get_feature_request(get_feature_request=self.ogc_request.xml_request))
-        print("response 1: ", response.content)
         return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):

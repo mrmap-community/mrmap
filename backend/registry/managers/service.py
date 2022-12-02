@@ -4,11 +4,12 @@ from typing import Any, Dict, List
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models.fields import PolygonField
+from django.contrib.gis.geos.polygon import Polygon
 from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models.aggregates import Max
-from django.db.models.expressions import F, OuterRef, Value
+from django.db.models.expressions import OuterRef, Subquery, Value
 from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
 from extras.managers import DefaultHistoryManager
@@ -499,27 +500,29 @@ class FeatureTypeElementXmlManager(models.Manager):
 
 class LayerManager(DefaultHistoryManager, TreeManager):
 
-    def get_ancestors_per_layer(self, include_self=False):
+    def get_ancestors_per_layer(self, layer_attribute: str = "", include_self: bool = False):
         # TODO: get lft, rght and tree attributes from model meta
         return self.get_queryset().filter(
-            lft__lte=F("lft") if include_self else F("lft") - 1,
-            rght__gte=F("rght") if include_self else F("rght") + 1,
-            tree_id=F("tree_id"),
+            lft__lte=OuterRef(f"{layer_attribute}lft") if include_self else OuterRef(
+                f"{layer_attribute}lft") - 1,
+            rght__gte=OuterRef(
+                f"{layer_attribute}rght") if include_self else OuterRef(f"{layer_attribute}rght") + 1,
+            tree_id=OuterRef(f"{layer_attribute}tree_id"),
         )
 
-    def get_inherited_is_queryable(self, service_pk) -> bool:
-        return Coalesce(self.get_ancestors_per_layer(include_self=True).exclude(
-            is_queryable=False).filter(service__pk=service_pk).values_list("is_queryable", flat=True).first(), Value(False))
+    def get_inherited_is_queryable(self) -> bool:
+        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            is_queryable=False).values_list("is_queryable", flat=True)[:1]), Value(False))
 
-    def get_inherited_is_cascaded(self, service_pk) -> bool:
-        return Coalesce(self.get_ancestors_per_layer(include_self=True).exclude(
-            is_cascaded=False).filter(service__pk=service_pk).values_list("is_cascaded", flat=True).first(), Value(False))
+    def get_inherited_is_cascaded(self) -> bool:
+        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            is_cascaded=False).values_list("is_cascaded", flat=True)[:1]), Value(False))
 
-    def get_inherited_is_opaque(self, service_pk) -> bool:
-        return Coalesce(self.get_ancestors_per_layer(include_self=True).exclude(
-            is_opaque=False).filter(service__pk=service_pk).values_list("is_opaque", flat=True).first(), Value(False))
+    def get_inherited_is_opaque(self) -> bool:
+        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            is_opaque=False).values_list("is_opaque", flat=True)[:1]), Value(False))
 
-    def get_inherited_scale_min(self, service_pk) -> int:
+    def get_inherited_scale_min(self) -> int:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -531,10 +534,10 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: self.scale_min if not None else scale_min from the first ancestors where scale_min is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
-        return Coalesce(self.get_ancestors_per_layer(include_self=True).exclude(
-            scale_min=None).filter(service__pk=service_pk).values_list("scale_min", flat=True).first(), Value(None), output_field=FloatField())
+        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            scale_min=None).values_list("scale_min", flat=True)[:1]), Value(None), output_field=FloatField())
 
-    def get_inherited_scale_max(self, service_pk) -> int:
+    def get_inherited_scale_max(self) -> int:
         """Return the scale max value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -546,10 +549,10 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: self.scale_max if not None else scale_max from the first ancestors where scale_max is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
-        return Coalesce(self.get_ancestors_per_layer(include_self=True).exclude(
-            scale_max=None).filter(service__pk=service_pk).values_list("scale_max", flat=True).first(), Value(None), output_field=FloatField())
+        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            scale_max=None).values_list("scale_max", flat=True)[:1]), Value(None), output_field=FloatField())
 
-    def get_inherited_bbox_lat_lon(self, service_pk):
+    def get_inherited_bbox_lat_lon(self) -> Polygon:
         """Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -564,16 +567,14 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
         return Coalesce(
-            Value(
-                self.get_ancestors_per_layer(include_self=True).exclude(
-                    bbox_lat_lon=None).filter(service__pk=service_pk).values_list("bbox_lat_lon", flat=True).first(),
+            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+                bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True)[:1],
                 # Cause Polygon can't be casted directly, we need to wrapp it in a Value with the definied output_field
-                output_field=PolygonField()
-            ),
+                output_field=PolygonField()),
             Value(None)
         )
 
-    def get_inherited_reference_systems(self, service_pk) -> models.QuerySet:
+    def get_inherited_reference_systems(self) -> models.QuerySet:
         """Return all supported reference systems for this layer, based on the inheritance from other layers as
         requested in the ogc specs.
 
@@ -588,10 +589,10 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors_per_layer(include_self=True).filter(service__pk=service_pk)).distinct(
+        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct(
             "code", "prefix")
 
-    def get_inherited_dimensions(self, service_pk) -> models.QuerySet:
+    def get_inherited_dimensions(self) -> models.QuerySet:
         """Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
         specs.
 
@@ -612,30 +613,24 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return Dimension.objects.filter(layer__in=self.get_ancestors_per_layer(include_self=True).filter(service__pk=service_pk)).distinct("name")
+        return Dimension.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
 
-    def get_inherited_styles(self, service_pk) -> models.QuerySet:
-        return Style.objects.filter(layer__in=self.get_ancestors_per_layer(include_self=True).filter(service__pk=service_pk)).distinct("name")
+    def get_inherited_styles(self) -> models.QuerySet:
+        return Style.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
 
     def with_inherited_attributes(self):
         return self.get_queryset().annotate(
-            is_queryable_inherited=self.get_inherited_is_queryable(
-                service_pk=OuterRef("service__pk")),
-            is_cascaded_inherited=self.get_inherited_is_cascaded(
-                service_pk=OuterRef("service__pk")),
-            is_opaque_inherited=self.get_inherited_is_opaque(
-                service_pk=OuterRef("service__pk")),
-            scale_min_inherited=self.get_inherited_scale_min(
-                service_pk=OuterRef("service__pk")),
-            scale_max_inherited=self.get_inherited_scale_max(
-                service_pk=OuterRef("service__pk")),
-            bbox_inherited=self.get_inherited_bbox_lat_lon(
-                service_pk=OuterRef("service__pk")),
-            reference_systems_inherited=ArraySubquery(self.get_inherited_reference_systems(service_pk=OuterRef("service__pk")
-                                                                                           ).values(json=JSONObject(pk="pk", code="code", prefix="prefix"))),
-            dimensions_inherited=ArraySubquery(self.get_inherited_dimensions(service_pk=OuterRef("service__pk")).values(
+            is_queryable_inherited=self.get_inherited_is_queryable(),
+            is_cascaded_inherited=self.get_inherited_is_cascaded(),
+            is_opaque_inherited=self.get_inherited_is_opaque(),
+            scale_min_inherited=self.get_inherited_scale_min(),
+            scale_max_inherited=self.get_inherited_scale_max(),
+            bbox_inherited=self.get_inherited_bbox_lat_lon(),
+            reference_systems_inherited=ArraySubquery(self.get_inherited_reference_systems(
+            ).values(json=JSONObject(pk="pk", code="code", prefix="prefix"))),
+            dimensions_inherited=ArraySubquery(self.get_inherited_dimensions().values(
                 json=JSONObject(pk="pk", name="name", units="units", parsed_extent="parsed_extent"))),
-            styles_inherited=ArraySubquery(self.get_inherited_styles(service_pk=OuterRef("service__pk")).values(
+            styles_inherited=ArraySubquery(self.get_inherited_styles().values(
                 json=JSONObject(pk="pk", name="name", title="title")))
         )
 

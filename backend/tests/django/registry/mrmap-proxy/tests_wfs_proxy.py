@@ -73,7 +73,7 @@ class WebMapServiceProxyTest(TestCase):
             data=get_feature_request.serializeDocument().decode("UTF-8"),
             content_type="application/gml+xml; version=3.2"
         )
-
+        print("response: ", response.content)
         feature_collection: FeatureCollection = load_xmlobject_from_string(
             string=response.content, xmlclass=FeatureCollection)
 

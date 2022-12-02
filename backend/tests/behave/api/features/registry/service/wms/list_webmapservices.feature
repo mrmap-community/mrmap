@@ -10,6 +10,7 @@ Feature: WebMapService List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "2"
+        Then I expect that "13" queries where made
 
     Scenario: Can search by title
         Given I set a queryparam "filter[search]" with value "WMS1"

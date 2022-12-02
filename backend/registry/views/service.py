@@ -1,4 +1,3 @@
-from typing import Iterable
 
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
@@ -164,6 +163,7 @@ class LayerViewSetMixin(
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     select_for_includes = {
         "service": ["service"],
+        "service.operation_urls": ["service"]
     }
     prefetch_for_includes = {
         "service": ["service__keywords", "service__layers"],
@@ -173,7 +173,9 @@ class LayerViewSetMixin(
                 queryset=WebMapServiceOperationUrl.objects.prefetch_related(
                     "mime_types"
                 ),
-            )
+            ),
+            "service__keywords",
+            "service__layers"
         ],
         "styles": ["styles"],
         "keywords": ["keywords"],
@@ -187,13 +189,16 @@ class LayerViewSetMixin(
     def get_queryset(self):
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
+        print("include: ", include)
         if not include or "service" not in include:
+            print("hello")
             defer = [
                 f"service__{field.name}"
                 for field in WebMapService._meta.get_fields()
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("service").defer(*defer)
+
         if not include or "parent" not in include:
             # TODO optimize queryset with defer
             qs = qs.select_related("parent")

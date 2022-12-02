@@ -26,20 +26,19 @@ from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 ModelSerializer,
-                                                 SerializerMethodField)
+                                                 ModelSerializer)
 
 
 class WebMapServiceOperationUrlSerializer(ModelSerializer):
 
-    url = SerializerMethodField()
+    # url = SerializerMethodField()
 
     class Meta:
         model = WebMapServiceOperationUrl
         fields = "__all__"
 
-    def get_url(self, instance):
-        return instance.get_url(request=self.context["request"])
+    # def get_url(self, instance):
+    #     return instance.get_url(request=self.context["request"])
 
 
 class LayerSerializer(
@@ -279,14 +278,14 @@ class WebMapServiceCreateSerializer(ModelSerializer):
 
 class WebFeatureServiceOperationUrlSerializer(ModelSerializer):
 
-    url = SerializerMethodField()
+    # url = SerializerMethodField()
 
     class Meta:
         model = WebFeatureServiceOperationUrl
         fields = "__all__"
 
-    def get_url(self, instance):
-        return instance.get_url(request=self.context["request"])
+    # def get_url(self, instance):
+    #     return instance.get_url(request=self.context["request"])
 
 
 class FeatureTypeSerializer(
@@ -417,14 +416,14 @@ class WebFeatureServiceCreateSerializer(ModelSerializer):
 
 class CatalougeServiceOperationUrlSerializer(ModelSerializer):
 
-    url = SerializerMethodField()
+    # url = SerializerMethodField()
 
     class Meta:
         model = CatalougeServiceOperationUrl
         fields = "__all__"
 
-    def get_url(self, instance):
-        return instance.get_url(request=self.context["request"])
+    # def get_url(self, instance):
+    #     return instance.get_url(request=self.context["request"])
 
 
 class CatalougeServiceCreateSerializer(ModelSerializer):

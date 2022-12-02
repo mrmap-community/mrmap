@@ -1,4 +1,3 @@
-from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from django.conf import settings
@@ -289,18 +288,18 @@ class OperationUrl(models.Model):
     def __str__(self):
         return f"{self.operation} | {self.url} ({self.method})"
 
-    def get_url(self, request):
-        url_parsed = urlparse(self.url)
-        new_query = {}
-        for key, value in parse_qs(url_parsed.query).items():
-            new_query.update({key.upper(): value})
-        url_parsed._replace(query=new_query)
-        return url_parsed.geturl()
-        # TODO: check if service is secured and if so return the secured url
-        parsed_request_url = urlparse(request.get_full_path())
-        parsed_url = urlparse(self.url)
-        parsed_url._replace(netloc=parsed_request_url.netloc)
-        return parsed_url.geturl()
+    # def get_url(self, request):
+    #     url_parsed = urlparse(self.url)
+    #     new_query = {}
+    #     for key, value in parse_qs(url_parsed.query).items():
+    #         new_query.update({key.upper(): value})
+    #     url_parsed._replace(query=new_query)
+    #     return url_parsed.geturl()
+    #     # TODO: check if service is secured and if so return the secured url
+    #     parsed_request_url = urlparse(request.get_full_path())
+    #     parsed_url = urlparse(self.url)
+    #     parsed_url._replace(netloc=parsed_request_url.netloc)
+    #     return parsed_url.geturl()
 
 
 class WebMapServiceOperationUrl(OperationUrl):

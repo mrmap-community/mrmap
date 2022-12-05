@@ -9,7 +9,7 @@ from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models.aggregates import Max
-from django.db.models.expressions import OuterRef, Subquery, Value
+from django.db.models.expressions import F, OuterRef, Subquery, Value
 from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
 from extras.managers import DefaultHistoryManager
@@ -511,15 +511,15 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         )
 
     def get_inherited_is_queryable(self) -> bool:
-        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+        return Coalesce(F("is_queryable"), Subquery(self.get_ancestors_per_layer().exclude(
             is_queryable=False).values_list("is_queryable", flat=True)[:1]), Value(False))
 
     def get_inherited_is_cascaded(self) -> bool:
-        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+        return Coalesce(F("is_cascaded"), Subquery(self.get_ancestors_per_layer().exclude(
             is_cascaded=False).values_list("is_cascaded", flat=True)[:1]), Value(False))
 
     def get_inherited_is_opaque(self) -> bool:
-        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+        return Coalesce(F("is_opaque"), Subquery(self.get_ancestors_per_layer().exclude(
             is_opaque=False).values_list("is_opaque", flat=True)[:1]), Value(False))
 
     def get_inherited_scale_min(self) -> int:
@@ -534,7 +534,7 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: self.scale_min if not None else scale_min from the first ancestors where scale_min is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
-        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+        return Coalesce(F("scale_min"), Subquery(self.get_ancestors_per_layer().exclude(
             scale_min=None).values_list("scale_min", flat=True)[:1]), Value(None), output_field=FloatField())
 
     def get_inherited_scale_max(self) -> int:
@@ -549,7 +549,7 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: self.scale_max if not None else scale_max from the first ancestors where scale_max is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
-        return Coalesce(Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+        return Coalesce(F("scale_max"), Subquery(self.get_ancestors_per_layer().exclude(
             scale_max=None).values_list("scale_max", flat=True)[:1]), Value(None), output_field=FloatField())
 
     def get_inherited_bbox_lat_lon(self) -> Polygon:
@@ -567,7 +567,8 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
         return Coalesce(
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            F("bbox_lat_lon"),
+            Subquery(self.get_ancestors_per_layer().exclude(
                 bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True)[:1],
                 # Cause Polygon can't be casted directly, we need to wrapp it in a Value with the definied output_field
                 output_field=PolygonField()),

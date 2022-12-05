@@ -114,10 +114,9 @@ class LayerSerializer(
         source="scale_max_inherited",
         label=_("maximum scale"),
         help_text=_("the maximum scale value."))
-    styles = ResourceRelatedField(
+    styles = SerializerMethodResourceRelatedField(
         label=_("styles"),
         help_text=_("related styles of this layer."),
-        queryset=Style.objects,
         many=True,  # necessary for M2M fields & reverse FK fields
         related_link_view_name="registry:layer-styles-list",
         related_link_url_kwarg="parent_lookup_layer",

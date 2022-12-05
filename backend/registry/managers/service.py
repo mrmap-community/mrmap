@@ -622,15 +622,6 @@ class LayerManager(DefaultHistoryManager, TreeManager):
 
     def with_inherited_attributes(self):
         return self.get_queryset().annotate(
-            anchestors=ArraySubquery((self.get_ancestors_per_layer(include_self=True).values(
-                json=JSONObject(
-                    pk="pk",
-                    is_queryable="is_queryable",
-                    is_cascaded="is_cascaded",
-                    is_opaque="is_opaque",
-                    scale_min="scale_min",
-                    scale_max="scale_max",
-                    bbox_lat_lon="bbox_lat_lon",)))),
             is_queryable_inherited=self.get_inherited_is_queryable(),
             is_cascaded_inherited=self.get_inherited_is_cascaded(),
             is_opaque_inherited=self.get_inherited_is_opaque(),

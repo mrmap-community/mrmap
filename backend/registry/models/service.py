@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
+from django.db.models.indexes import Index
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -527,6 +528,17 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
+
+        # FIXME: can't set new Index object for mptt fields, cause _meta.get_field() does not provide mptt fields. This will raise an Error on model check.
+        # So long we use mptt, we can't fix it.
+        # See also the deprecated not of index_together ==> https://docs.djangoproject.com/en/4.1/ref/models/options/#index-together
+        # indexes = [Index(fields=("tree_id", "lft", "rght"))]
+
+        index_together = [
+            # with_inherited_attributes() manager function will collect anchestors with this three attributes.
+            # For faster lookup we need an index of this three fields in the correct order.
+            ["tree_id", "lft", "rght"]
+        ]
 
         # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 

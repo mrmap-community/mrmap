@@ -189,9 +189,7 @@ class LayerViewSetMixin(
     def get_queryset(self):
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
-        print("include: ", include)
         if not include or "service" not in include:
-            print("hello")
             defer = [
                 f"service__{field.name}"
                 for field in WebMapService._meta.get_fields()

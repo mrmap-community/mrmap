@@ -53,7 +53,7 @@ class Style(models.Model):
                                          "attribute."))
 
     def __str__(self):
-        return self.layer.identifier + ": " + self.name
+        return f"{self.name}: {self.title}"
 
 
 class LegendUrl(models.Model):

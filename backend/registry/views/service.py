@@ -1,4 +1,5 @@
 
+from django.db.models.expressions import OuterRef
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
@@ -69,8 +70,6 @@ class WebMapServiceViewSet(
                 "layers",
                 queryset=Layer.objects.with_inherited_attributes().select_related("parent").prefetch_related(
                     "keywords",
-                    "styles",
-                    "reference_systems",
                     "dataset_metadata"
                 ),
 

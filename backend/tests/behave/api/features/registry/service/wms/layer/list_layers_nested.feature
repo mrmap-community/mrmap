@@ -1,25 +1,25 @@
-Feature: Featuretype List Endpoint
+Feature: Layer Nested List Endpoint
     As an API client,
-    I want to search for featuretype,
+    I want to search for layer,
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/featuretypes/
+        Given I use the endpoint http://localhost:8000/api/v1/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/layers/
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "5"
-        Then I expect that "8" queries where made
+        Then I expect that response json has an attribute "meta.pagination.count" with value "8"
+        Then I expect that "9" queries where made
 
     Scenario: Can search by title
-        Given I set a queryparam "filter[search]" with value "wfs1-node1"
+        Given I set a queryparam "filter[search]" with value "node1.3.1"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
     Scenario: Can search by abstract
-        Given I set a queryparam "filter[search]" with value "wfs1-node1"
+        Given I set a queryparam "filter[search]" with value "node1.3.1"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
@@ -31,13 +31,13 @@ Feature: Featuretype List Endpoint
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
     Scenario: Can filter by title
-        Given I set a queryparam "filter[title.icontains]" with value "wfs1-node1"
+        Given I set a queryparam "filter[title.icontains]" with value "node1.3.1"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
     Scenario: Can filter by abstract
-        Given I set a queryparam "filter[abstract.icontains]" with value "wfs1-node1"
+        Given I set a queryparam "filter[abstract.icontains]" with value "node1.3.1"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
@@ -46,25 +46,33 @@ Feature: Featuretype List Endpoint
         Given I set a queryparam "filter[bboxLatLon.contains]" with value "{'type': 'Polygon', 'coordinates': [[[7.062835693359375, 50.043911679834615], [7.568206787109375, 50.043911679834615], [7.568206787109375, 50.39451208023374], [7.062835693359375, 50.39451208023374], [7.062835693359375, 50.043911679834615]]]}"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "4"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "8"
 
     Scenario: Can include service
         Given I set a queryparam "include" with value "service"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "WebFeatureService"
+        Then I expect that response json has an attribute "included.[0].type" with value "WebMapService"
+        Then I expect that "15" queries where made
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
+        Then I expect that "8" queries where made
 
     Scenario: Can include service.operationUrls
         Given I set a queryparam "include" with value "service.operationUrls"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[3].type" with value "WebFeatureServiceOperationUrl"
+        Then I expect that response json has an attribute "included.[3].type" with value "WebMapServiceOperationUrl"
+
+    Scenario: Can include styles
+        Given I set a queryparam "include" with value "styles"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "included.[0].type" with value "Style"
 
     Scenario: Can include createdBy
         Given I set a queryparam "include" with value "createdBy"

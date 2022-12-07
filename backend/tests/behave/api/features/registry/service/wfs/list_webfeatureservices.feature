@@ -52,6 +52,7 @@ Feature: WebFeatureService List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "FeatureType"
+        Then I expect that "15" queries where made
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"

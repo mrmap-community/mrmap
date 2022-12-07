@@ -48,11 +48,12 @@ Feature: WebMapService List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
-    Scenario: Can include layers
-        Given I set a queryparam "include" with value "layers"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "Layer"
+    # disabled for now
+    # Scenario: Can include layers
+    #     Given I set a queryparam "include" with value "layers"
+    #     When I send the request with GET method
+    #     Then I expect the response status is 200
+    #     Then I expect that response json has an attribute "included.[0].type" with value "Layer"
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"

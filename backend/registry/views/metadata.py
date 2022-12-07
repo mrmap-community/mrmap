@@ -98,7 +98,7 @@ class StyleViewSetMixin():
     schema = CustomAutoSchema(
         tags=["Style"],
     )
-    queryset = Style.objects.all()
+    queryset = Style.objects.all().select_related("layer")
     serializer_class = StyleSerializer
     filterset_fields = {
         "name": ["exact", "icontains", "contains"],

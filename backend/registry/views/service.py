@@ -13,7 +13,7 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import (DatasetMetadata, Keyword,
+from registry.models.metadata import (DatasetMetadata, Keyword, MimeType,
                                       ReferenceSystem, Style)
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalougeService,
@@ -65,16 +65,7 @@ class WebMapServiceViewSet(
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "layers": [
-            Prefetch(
-                "layers",
-                queryset=Layer.objects.with_inherited_attributes().select_related("parent").prefetch_related(
-                    "keywords",
-                    "dataset_metadata"
-                ),
 
-            ),
-        ],
         "keywords": ["keywords"],
         "operation_urls": [
             Prefetch(
@@ -364,8 +355,64 @@ class FeatureTypeViewSetMixin(
     filterset_class = FeatureTypeFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
-    prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
+
+    select_for_includes = {
+        "service": ["service"],
+        "service.operation_urls": ["service"]
+    }
+    prefetch_for_includes = {
+        "service": ["service__keywords", "service__featuretypes"],
+        "service.operation_urls": [
+            Prefetch(
+                "service__operation_urls",
+                queryset=WebFeatureServiceOperationUrl.objects.prefetch_related(
+                    "mime_types"
+                ),
+            ),
+            "service__keywords",
+            "service__featuretypes"
+        ],
+        "output_formats": ["output_formats"],
+        "keywords": ["keywords"],
+        "reference_systems": ["reference_systems"],
+        "dataset_metadata": ["dataset_metadata"]
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+        if not include or "service" not in include:
+            defer = [
+                f"service__{field.name}"
+                for field in WebFeatureService._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("service").defer(*defer)
+        if not include or "keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "referenceSystems" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
+                )
+            )
+        if not include or "datasetMetadata" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "dataset_metadata", queryset=DatasetMetadata.objects.only("id")
+                )
+            )
+        if not include or "output_formats" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "output_formats", queryset=MimeType.objects.only("id")
+                )
+            )
+
+        return qs
 
 
 class FeatureTypeViewSet(

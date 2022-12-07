@@ -1,5 +1,3 @@
-
-from django.db.models.expressions import OuterRef
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly

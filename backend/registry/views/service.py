@@ -1,5 +1,3 @@
-from typing import Iterable
-
 from django.db.models.query import Prefetch
 from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
@@ -13,7 +11,8 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import Keyword, ReferenceSystem, Style
+from registry.models.metadata import (DatasetMetadata, Keyword, MimeType,
+                                      ReferenceSystem, Style)
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalougeService,
                                      CatalougeServiceOperationUrl,
@@ -64,18 +63,7 @@ class WebMapServiceViewSet(
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "layers": [
-            Prefetch(
-                "layers",
-                queryset=Layer.objects.select_related("parent").prefetch_related(
-                    "keywords",
-                    "styles",
-                    "reference_systems",
-                    "dataset_metadata"
-                ),
 
-            ),
-        ],
         "keywords": ["keywords"],
         "operation_urls": [
             Prefetch(
@@ -150,31 +138,6 @@ class WebMapServiceViewSet(
             )
         return qs
 
-    def add_ancestors_to_layers(self, wms):
-        include = self.request.GET.get("include", None)
-        if include and "layers" in include:
-            all_layers = wms.layers.all()
-            for layer in all_layers:
-                ancestors = list(filter(lambda element: (
-                    layer.rght > element.rght & layer.lft < element.lft), all_layers))
-                ancestors.sort(key=lambda element: element.lft, reverse=True)
-                layer.ancestors = ancestors
-
-    def get_serializer(self, *args, **kwargs):
-        if self.request:
-            if self.request.method != 'POST':
-                try:
-                    if isinstance(args[0], Iterable):
-                        for item in args[0]:
-                            self.add_ancestors_to_layers(item)
-                    else:
-                        self.add_ancestors_to_layers(args[0])
-                except IndexError:
-                    # happens on 404
-                    pass
-
-        return super().get_serializer(*args, **kwargs)
-
 
 class LayerViewSetMixin(
     HistoryInformationViewSetMixin,
@@ -182,12 +145,13 @@ class LayerViewSetMixin(
     schema = CustomAutoSchema(
         tags=["Layer"],
     )
-    queryset = Layer.objects.all()
+    queryset = Layer.objects.with_inherited_attributes()
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     select_for_includes = {
         "service": ["service"],
+        "service.operation_urls": ["service"]
     }
     prefetch_for_includes = {
         "service": ["service__keywords", "service__layers"],
@@ -197,11 +161,14 @@ class LayerViewSetMixin(
                 queryset=WebMapServiceOperationUrl.objects.prefetch_related(
                     "mime_types"
                 ),
-            )
+            ),
+            "service__keywords",
+            "service__layers"
         ],
         "styles": ["styles"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],
+        "dataset_metadata": ["dataset_metadata"]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
@@ -217,6 +184,7 @@ class LayerViewSetMixin(
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("service").defer(*defer)
+
         if not include or "parent" not in include:
             # TODO optimize queryset with defer
             qs = qs.select_related("parent")
@@ -232,6 +200,12 @@ class LayerViewSetMixin(
             qs = qs.prefetch_related(
                 Prefetch(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")
+                )
+            )
+        if not include or "datasetMetadata" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "dataset_metadata", queryset=DatasetMetadata.objects.only("id")
                 )
             )
 
@@ -379,8 +353,64 @@ class FeatureTypeViewSetMixin(
     filterset_class = FeatureTypeFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
-    prefetch_for_includes = {"__all__": [], "keywords": ["keywords"]}
+
+    select_for_includes = {
+        "service": ["service"],
+        "service.operation_urls": ["service"]
+    }
+    prefetch_for_includes = {
+        "service": ["service__keywords", "service__featuretypes"],
+        "service.operation_urls": [
+            Prefetch(
+                "service__operation_urls",
+                queryset=WebFeatureServiceOperationUrl.objects.prefetch_related(
+                    "mime_types"
+                ),
+            ),
+            "service__keywords",
+            "service__featuretypes"
+        ],
+        "output_formats": ["output_formats"],
+        "keywords": ["keywords"],
+        "reference_systems": ["reference_systems"],
+        "dataset_metadata": ["dataset_metadata"]
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+        if not include or "service" not in include:
+            defer = [
+                f"service__{field.name}"
+                for field in WebFeatureService._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("service").defer(*defer)
+        if not include or "keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "referenceSystems" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
+                )
+            )
+        if not include or "datasetMetadata" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "dataset_metadata", queryset=DatasetMetadata.objects.only("id")
+                )
+            )
+        if not include or "output_formats" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "output_formats", queryset=MimeType.objects.only("id")
+                )
+            )
+
+        return qs
 
 
 class FeatureTypeViewSet(

@@ -29,25 +29,25 @@ class LayerFilterSet(GeoFilterSet):
         label=_('bbox contains'),
         help_text=_(
             'returns layers with bbox that are contained by the passed geometry'),
-        field_name='bbox_lat_lon',
+        field_name='bbox_inherited',
         lookup_expr='contains')
     bbox_lat_lon__covers = GeometryFilter(
         label=_('bbox covers'),
         help_text=_(
             'returns layers with bbox that are covers the passed geometry'),
-        field_name='bbox_lat_lon',
+        field_name='bbox_inherited',
         lookup_expr='covers')
     bbox_lat_lon__equals = GeometryFilter(
         label=_('bbox equals'),
         help_text=_(
             'returns layers with bbox that are equal to the passed geometry'),
-        field_name='bbox_lat_lon',
+        field_name='bbox_inherited',
         lookup_expr='equals')
     bbox_lat_lon__intersects = GeometryFilter(
         label=_('bbox intersects'),
         help_text=_(
             'returns layers with bbox that intersects the passed geometry'),
-        field_name='bbox_lat_lon',
+        field_name='bbox_inherited',
         lookup_expr='intersects')
 
     class Meta:

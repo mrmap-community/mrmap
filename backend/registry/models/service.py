@@ -1,11 +1,9 @@
-from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.db.models import QuerySet
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -290,18 +288,18 @@ class OperationUrl(models.Model):
     def __str__(self):
         return f"{self.operation} | {self.url} ({self.method})"
 
-    def get_url(self, request):
-        url_parsed = urlparse(self.url)
-        new_query = {}
-        for key, value in parse_qs(url_parsed.query).items():
-            new_query.update({key.upper(): value})
-        url_parsed._replace(query=new_query)
-        return url_parsed.geturl()
-        # TODO: check if service is secured and if so return the secured url
-        parsed_request_url = urlparse(request.get_full_path())
-        parsed_url = urlparse(self.url)
-        parsed_url._replace(netloc=parsed_request_url.netloc)
-        return parsed_url.geturl()
+    # def get_url(self, request):
+    #     url_parsed = urlparse(self.url)
+    #     new_query = {}
+    #     for key, value in parse_qs(url_parsed.query).items():
+    #         new_query.update({key.upper(): value})
+    #     url_parsed._replace(query=new_query)
+    #     return url_parsed.geturl()
+    #     # TODO: check if service is secured and if so return the secured url
+    #     parsed_request_url = urlparse(request.get_full_path())
+    #     parsed_url = urlparse(self.url)
+    #     parsed_url._replace(netloc=parsed_request_url.netloc)
+    #     return parsed_url.geturl()
 
 
 class WebMapServiceOperationUrl(OperationUrl):
@@ -530,6 +528,19 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
 
+        # FIXME: can't set new Index object for mptt fields, cause _meta.get_field() does not provide mptt fields. This will raise an Error on model check.
+        # So long we use mptt, we can't fix it.
+        # See also the deprecated not of index_together ==> https://docs.djangoproject.com/en/4.1/ref/models/options/#index-together
+        # indexes = [Index(fields=("tree_id", "lft", "rght"))]
+
+        index_together = [
+            # with_inherited_attributes() manager function will collect anchestors with this three attributes.
+            # For faster lookup we need an index of this three fields in the correct order.
+            ["tree_id", "lft", "rght"]
+        ]
+
+        # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
+
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the layer, all his descendants and his related service.
         If the given layer shall be active, the complete family (:meth:`mptt.models.MPTTModel.get_family`) of this
@@ -553,146 +564,6 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             else:
                 self.get_descendants().update(is_active=self.is_active)
 
-    def get_value_from_ancestor(self, attr_name: str) -> tuple:
-        """Return a tuple of a boolean, if this layers has prefetched ancestors and as second value of the tuple the first founded value or None"""
-        if hasattr(self, 'ancestors'):
-            return True, next((getattr(ancestor, attr_name) for ancestor in self.ancestors if getattr(ancestor, attr_name) is not None), None)
-        else:
-            return False, None
-
-    @cached_property
-    def get_scale_min(self) -> float:
-        """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
-
-        .. note:: excerpt from ogc specs
-
-           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
-             any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
-
-
-        :return: self.scale_min if not None else scale_min from the first ancestors where scale_min is not None
-        :rtype: :class:`django.contrib.gis.geos.polygon`
-        """
-        if self.scale_min:
-            return self.scale_min
-        else:
-            has_prefetched_ancestors, inherited_scale_min = self.get_value_from_ancestor(
-                'scale_min')
-            return inherited_scale_min if has_prefetched_ancestors else (
-                self.get_ancestors()
-                .exclude(scale_min=None)
-                .values_list("scale_min", flat=True)
-                .first()
-            )
-
-    @cached_property
-    def get_scale_max(self) -> float:
-        """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
-
-        .. note:: excerpt from ogc specs
-
-           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
-             any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
-
-
-        :return: self.scale_max if not None else scale_max from the first ancestors where scale_max is not None
-        :rtype: :class:`django.contrib.gis.geos.polygon`
-        """
-        if self.scale_max:
-            return self.scale_max
-        else:
-            has_prefetched_ancestors, inherited_scale_max = self.get_value_from_ancestor(
-                'scale_max')
-            return inherited_scale_max if has_prefetched_ancestors else (
-                self.get_ancestors()
-                .exclude(scale_max=None)
-                .values_list("scale_max", flat=True)
-                .first()
-            )
-
-    @cached_property
-    def get_bbox(self) -> Polygon:
-        """Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
-
-        .. note:: excerpt from ogc specs
-
-           * **ogc wms 1.1.1**: Every Layer shall have exactly one <LatLonBoundingBox> element that is either stated
-             explicitly or inherited from a parent Layer. (see section 7.1.4.5.6)
-           * **ogc wms 1.3.0**: Every named Layer shall have exactly one <EX_GeographicBoundingBox> element that is
-             either stated explicitly or inherited from a parent Layer. (see section 7.2.4.6.6)
-
-
-        :return: self.bbox_lat_lon if not None else bbox_lat_lon from the first ancestors where bbox_lat_lon is not None
-        :rtype: :class:`django.contrib.gis.geos.polygon`
-        """
-        if self.bbox_lat_lon:
-            return self.bbox_lat_lon
-        else:
-            has_prefetched_ancestors, inherited_bbox = self.get_value_from_ancestor(
-                'bbox_lat_lon')
-            return inherited_bbox if has_prefetched_ancestors else (
-                self.get_ancestors()
-                .exclude(bbox_lat_lon=None)
-                .values_list("bbox_lat_lon", flat=True)
-                .first()
-            )
-
-    @cached_property
-    def get_reference_systems(self) -> QuerySet:
-        """Return all supported reference systems for this layer, based on the inheritance from other layers as
-        requested in the ogc specs.
-
-        .. note:: excerpt from ogc specs
-
-           * **ogc wms 1.1.1**: Every Layer shall have at least one <SRS> element that is either stated explicitly or
-             inherited from a parent Layer (see section 7.1.4.5.5).
-           * **ogc wms 1.3.0**: Every Layer is available in one or more layer coordinate reference systems. 6.7.3
-             discusses the Layer CRS. In order to indicate which Layer CRSs are available, every named Layer shall have
-             at least one <CRS> element that is either stated explicitly or inherited from a parent Layer.
-
-        :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
-        :rtype: :class:`django.db.models.query.QuerySet`
-        """
-        if self.reference_systems.exists():
-            return self.reference_systems.all()
-        from registry.models import \
-            ReferenceSystem  # to avoid circular import errors
-
-        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors()).distinct(
-            "code", "prefix"
-        )
-
-    @cached_property
-    def get_dimensions(self) -> QuerySet:
-        """Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
-        specs.
-
-        .. note:: excerpt from ogc specs
-
-           * **ogc wms 1.1.1**: Dimension declarations are inherited from parent Layers. Any new Dimension declarations
-             in the child are added to the list inherited from the parent. A child **shall not** redefine a  Dimension
-             with the same name attribute as one that was inherited. Extent declarations are inherited from parent
-             Layers. Any Extent declarations in the child with the same name attribute as one inherited from the parent
-             replaces the value declared by the parent.  A Layer shall not declare an Extent unless a Dimension with the
-             same name has been declared or inherited earlier in the Capabilities XML.
-
-           * **ogc wms 1.3.0**: Dimension  declarations  are  inherited  from  parent  Layers.  Any  new  Dimension
-             declaration  in  the  child  with  the  same name attribute as one inherited from the parent replaces the
-             value declared by the parent.
-
-
-        :return: all dimensions of this layer
-        :rtype: :class:`django.db.models.query.QuerySet`
-        """
-        if self.layer_dimensions.exists():
-            return self.layer_dimensions.all()
-        from registry.models import \
-            Dimension  # to avoid circular import errors
-
-        return Dimension.objects.filter(
-            layer__in=self.get_ancestors(ascending=True)
-        ).distinct("name")
-
     def get_map_url(self, bbox: Polygon = None, format: str = None, style: Style = None, width: int = 1, height: int = 1, transparent: bool = False, bgcolor="=0xFFFFFF", exceptions="XML") -> str:
         """ Returns the url for the GetMap operation, to use with http get method to request this specific layer. """
         if not format:
@@ -715,7 +586,15 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
                 )["url"]
                 # TODO: check if this format is supported by the layer...
             image_format: str = format
-        _bbox: Polygon = bbox if bbox else self.get_bbox
+
+        if bbox:
+            _bbox: Polygon = bbox
+        else:
+            if hasattr(self, "bbox_inherited"):
+                _bbox: Polygon = self.bbox_inherited
+            else:
+                _bbox: Polygon = Layer.objects.with_inherited_attributes(
+                ).values_list("bbox_inherited", flat=True).get(pk=self.pk)
 
         # if self.get_scale_max:
         #     # 1/100000

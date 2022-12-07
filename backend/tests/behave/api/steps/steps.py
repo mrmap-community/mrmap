@@ -2,6 +2,7 @@ import json
 from unittest.mock import Mock, patch
 
 from behave import given, step, then
+from django.db import reset_queries
 from django.http import SimpleCookie
 from rest_framework.authtoken.models import Token
 
@@ -52,6 +53,7 @@ def step_impl(context, content_type):
 
 @step('I send the request with GET method')
 def step_impl(context):
+    reset_queries()
     context.response = context.client.get(
         path=context.endpoint,
         data=context.query_params or None)
@@ -59,6 +61,7 @@ def step_impl(context):
 
 @step('I send the request with PATCH method')
 def step_impl(context):
+    reset_queries()
     context.response = context.client.patch(
         path=context.endpoint,
         data=context.payload,
@@ -67,6 +70,7 @@ def step_impl(context):
 
 @step('I send the request with POST method')
 def step_impl(context):
+    reset_queries()
     context.response = context.client.post(
         path=context.endpoint,
         data=context.payload,
@@ -75,6 +79,7 @@ def step_impl(context):
 
 @step('I send the request with DELETE method')
 def step_impl(context):
+    reset_queries()
     context.response = context.client.delete(
         path=context.endpoint)
 
@@ -105,6 +110,11 @@ def step_impl(context, attribute, expected_value=None):
             context.test.assertEqual(bool(value), bool(expected_value))
         else:
             context.test.assertEqual(str(value), expected_value)
+
+
+@then('I expect that "{expected_value}" queries where made')
+def step_impl(context, expected_value):
+    context.test.assertNumQueries(expected_value)
 
 
 @given('I mock the function "{func_name}" of the module "{module_name}" with return value as object')

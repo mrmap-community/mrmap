@@ -87,7 +87,6 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                 message="MrMap can't secure the given request. Maybe you request multiple typenames in a single query.")
         response = self.remote_service.send_request(
             self.remote_service.prepare_get_feature_request(get_feature_request=self.ogc_request.xml_request))
-
         return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):

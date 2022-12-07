@@ -3,9 +3,17 @@ from random import randrange
 from typing import Any, Dict, List
 
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.gis.db.models.fields import PolygonField
+from django.contrib.gis.geos.polygon import Polygon
+from django.contrib.postgres.aggregates import JSONBAgg
+from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Max
+from django.db.models.aggregates import Max
+from django.db.models.expressions import F, OuterRef, Subquery, Value
+from django.db.models.fields import FloatField
+from django.db.models.functions import Coalesce, JSONObject
+from django.db.models.query import Prefetch, Q
 from extras.managers import DefaultHistoryManager
 from extras.utils import camel_to_snake
 from mptt.managers import TreeManager
@@ -494,7 +502,210 @@ class FeatureTypeElementXmlManager(models.Manager):
 
 class LayerManager(DefaultHistoryManager, TreeManager):
 
-    pass
+    def get_ancestors_per_layer(self, layer_attribute: str = "", include_self: bool = False):
+        # TODO: get lft, rght and tree attributes from model meta
+        return self.get_queryset().filter(
+            tree_id=OuterRef(f"{layer_attribute}tree_id"),
+            lft__lte=OuterRef(f"{layer_attribute}lft") if include_self else OuterRef(
+                f"{layer_attribute}lft") - 1,
+            rght__gte=OuterRef(
+                f"{layer_attribute}rght") if include_self else OuterRef(f"{layer_attribute}rght") + 1
+        )
+
+    def get_inherited_is_queryable(self) -> bool:
+        return Coalesce(
+            F("is_queryable"),
+            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+                is_queryable=False).values_list("is_queryable", flat=True)[:1]),
+            Value(False)
+        )
+
+    def get_inherited_is_cascaded(self) -> bool:
+        return Coalesce(
+            F("is_cascaded"),
+            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+                is_cascaded=False).values_list("is_cascaded", flat=True)[:1]),
+            Value(False)
+        )
+
+    def get_inherited_is_opaque(self) -> bool:
+        return Coalesce(
+            F("is_opaque"),
+            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+                is_opaque=False).values_list("is_opaque", flat=True)[:1]),
+            Value(False)
+        )
+
+    def get_inherited_scale_min(self) -> int:
+        """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
+
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
+             any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
+
+
+        :return: self.scale_min if not None else scale_min from the first ancestors where scale_min is not None
+        :rtype: :class:`django.contrib.gis.geos.polygon`
+        """
+        return Coalesce(
+            F("scale_min"),
+            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+                scale_min=None).values_list("scale_min", flat=True)[:1]),
+            Value(None),
+            output_field=FloatField()
+        )
+
+    def get_inherited_scale_max(self) -> int:
+        """Return the scale max value of this layer based on the inheritance from other layers as requested in the ogc specs.
+
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: ScaleHint is inherited by child Layers.  A ScaleHint declaration in the child replaces the
+             any declaration inherited from the parent. (see section 7.1.4.5.8 ScaleHint)
+
+
+        :return: self.scale_max if not None else scale_max from the first ancestors where scale_max is not None
+        :rtype: :class:`django.contrib.gis.geos.polygon`
+        """
+        return Coalesce(
+            F("scale_max"),
+            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+                scale_max=None).values_list("scale_max", flat=True)[:1]),
+            Value(None),
+            output_field=FloatField()
+        )
+
+    def get_inherited_bbox_lat_lon(self) -> Polygon:
+        """Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
+
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: Every Layer shall have exactly one <LatLonBoundingBox> element that is either stated
+             explicitly or inherited from a parent Layer. (see section 7.1.4.5.6)
+           * **ogc wms 1.3.0**: Every named Layer shall have exactly one <EX_GeographicBoundingBox> element that is
+             either stated explicitly or inherited from a parent Layer. (see section 7.2.4.6.6)
+
+
+        :return: self.bbox_lat_lon if not None else bbox_lat_lon from the first ancestors where bbox_lat_lon is not None
+        :rtype: :class:`django.contrib.gis.geos.polygon`
+        """
+        return Coalesce(
+            F("bbox_lat_lon"),
+            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+                bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True)[:1],
+                # Cause Polygon can't be casted directly, we need to wrapp it in a Value with the definied output_field
+                output_field=PolygonField()),
+            Value(None)
+        )
+
+    def get_inherited_reference_systems(self) -> models.QuerySet:
+        """Return all supported reference systems for this layer, based on the inheritance from other layers as
+        requested in the ogc specs.
+
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: Every Layer shall have at least one <SRS> element that is either stated explicitly or
+             inherited from a parent Layer (see section 7.1.4.5.5).
+           * **ogc wms 1.3.0**: Every Layer is available in one or more layer coordinate reference systems. 6.7.3
+             discusses the Layer CRS. In order to indicate which Layer CRSs are available, every named Layer shall have
+             at least one <CRS> element that is either stated explicitly or inherited from a parent Layer.
+
+        :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
+        :rtype: :class:`django.db.models.query.QuerySet`
+        """
+        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct(
+            "code", "prefix")
+
+    def get_inherited_dimensions(self) -> models.QuerySet:
+        """Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
+        specs.
+
+        .. note:: excerpt from ogc specs
+
+           * **ogc wms 1.1.1**: Dimension declarations are inherited from parent Layers. Any new Dimension declarations
+             in the child are added to the list inherited from the parent. A child **shall not** redefine a  Dimension
+             with the same name attribute as one that was inherited. Extent declarations are inherited from parent
+             Layers. Any Extent declarations in the child with the same name attribute as one inherited from the parent
+             replaces the value declared by the parent.  A Layer shall not declare an Extent unless a Dimension with the
+             same name has been declared or inherited earlier in the Capabilities XML.
+
+           * **ogc wms 1.3.0**: Dimension  declarations  are  inherited  from  parent  Layers.  Any  new  Dimension
+             declaration  in  the  child  with  the  same name attribute as one inherited from the parent replaces the
+             value declared by the parent.
+
+
+        :return: all dimensions of this layer
+        :rtype: :class:`django.db.models.query.QuerySet`
+        """
+        return Dimension.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+
+    def get_inherited_styles(self) -> models.QuerySet:
+        return Style.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+
+    def with_inherited_attributes(self):
+        return self.get_queryset().annotate(
+            anchestors_include_self=ArraySubquery(
+                (
+                    self.get_ancestors_per_layer(include_self=True)
+                    .prefetch_related(
+                        Prefetch(
+                            "reference_systems",
+                            queryset=ReferenceSystem.objects.distinct("code", "prefix")),
+                        Prefetch(
+                            "layer_dimension",
+                            queryset=Dimension.objects.distinct("name")),
+                        Prefetch(
+                            "style",
+                            queryset=Style.objects.distinct("name"))
+                    )
+                    .values(
+                        json=JSONObject(
+                            pk="pk",
+                            lft="lft",
+                            rght="rght",
+                            level="level",
+                            reference_systems_inherited=JSONBAgg(
+                                JSONObject(
+                                    pk="reference_systems__pk",
+                                    code="reference_systems__code",
+                                    prefix="reference_systems__prefix",
+                                ),
+                                filter=Q(reference_systems__pk__isnull=False),
+                                distinct=True,
+                                default=Value('[]'),
+                            ),
+                            dimensions_inherited=JSONBAgg(
+                                JSONObject(
+                                    pk="layer_dimension__pk",
+                                    name="layer_dimension__name",
+                                    units="layer_dimension__units",
+                                    parsed_extent="layer_dimension__parsed_extent",
+                                ),
+                                filter=Q(layer_dimension__pk__isnull=False),
+                                distinct=True,
+                                default=Value('[]'),
+                            ),
+                            styles_inherited=JSONBAgg(
+                                JSONObject(
+                                    pk="style__pk",
+                                    name="style__name",
+                                    title="style__title"),
+                                filter=Q(style__pk__isnull=False),
+                                distinct=True,
+                                default=Value('[]'),
+                            )
+                        )
+                    )
+                )
+            ),
+            is_queryable_inherited=self.get_inherited_is_queryable(),
+            is_cascaded_inherited=self.get_inherited_is_cascaded(),
+            is_opaque_inherited=self.get_inherited_is_opaque(),
+            scale_min_inherited=self.get_inherited_scale_min(),
+            scale_max_inherited=self.get_inherited_scale_max(),
+            bbox_inherited=self.get_inherited_bbox_lat_lon(),
+        )
 
 
 class CswOperationUrlQueryableQuerySet(models.QuerySet):

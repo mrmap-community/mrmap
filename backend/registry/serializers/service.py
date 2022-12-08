@@ -10,8 +10,8 @@ from registry.models.metadata import (DatasetMetadata, Dimension, Keyword,
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
-from registry.models.service import (CatalougeService,
-                                     CatalougeServiceOperationUrl, FeatureType,
+from registry.models.service import (CatalogueService,
+                                     CatalogueServiceOperationUrl, FeatureType,
                                      Layer, WebFeatureService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapService, WebMapServiceOperationUrl)
@@ -434,14 +434,14 @@ class CatalougeServiceOperationUrlSerializer(ModelSerializer):
     # url = SerializerMethodField()
 
     class Meta:
-        model = CatalougeServiceOperationUrl
+        model = CatalogueServiceOperationUrl
         fields = "__all__"
 
     # def get_url(self, instance):
     #     return instance.get_url(request=self.context["request"])
 
 
-class CatalougeServiceCreateSerializer(ModelSerializer):
+class CatalogueServiceCreateSerializer(ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
@@ -449,7 +449,7 @@ class CatalougeServiceCreateSerializer(ModelSerializer):
     owner = ResourceRelatedField(queryset=Organization.objects)
 
     class Meta:
-        model = CatalougeService
+        model = CatalogueService
         fields = (
             "get_capabilities_url",
             "owner",
@@ -457,7 +457,7 @@ class CatalougeServiceCreateSerializer(ModelSerializer):
         )
 
 
-class CatalougeServiceSerializer(
+class CatalogueServiceSerializer(
         StringRepresentationSerializer,
         HistoryInformationSerializer,
         ModelSerializer):
@@ -489,7 +489,7 @@ class CatalougeServiceSerializer(
     operation_urls = ResourceRelatedField(
         label=_("operation urls"),
         help_text=_("this are the urls to use for the ogc operations."),
-        model=CatalougeServiceOperationUrl,
+        model=CatalogueServiceOperationUrl,
         many=True,
         read_only=True,
     )
@@ -505,5 +505,5 @@ class CatalougeServiceSerializer(
     }
 
     class Meta:
-        model = CatalougeService
+        model = CatalogueService
         fields = "__all__"

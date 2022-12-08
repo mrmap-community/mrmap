@@ -17,7 +17,7 @@ from MrMap.validators import geometry_is_empty
 from PIL import Image
 from registry.enums.service import (AuthTypeEnum, SecureableWFSOperationEnum,
                                     SecureableWMSOperationEnum)
-from registry.models.service import (CatalougeService, FeatureType, Layer,
+from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.tasks.security import async_analyze_log
 from requests.auth import HTTPDigestAuth
@@ -171,7 +171,7 @@ class WebFeatureServiceAuthentication(ServiceAuthentication):
 
 class CatalougeServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
-        to=CatalougeService,
+        to=CatalogueService,
         verbose_name=_("web feature service"),
         help_text=_(
             "the optional authentication type and credentials to request the service."

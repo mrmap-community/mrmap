@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from notify.tasks import BackgroundProcessBased
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.models import CatalougeService, WebFeatureService, WebMapService
+from registry.models import CatalogueService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
@@ -70,7 +70,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             self_url = reverse(
                 viewname='registry:wfs-detail', args=[db_service.pk])
         elif parsed_service.service_type.name == "csw":
-            db_service = CatalougeService.capabilities.create_from_parsed_service(
+            db_service = CatalogueService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
             resource_name = "CatalougeService"
             self_url = reverse(

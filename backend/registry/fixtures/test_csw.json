@@ -150,7 +150,7 @@
         }
     },
     {
-        "model": "registry.catalougeservice",
+        "model": "registry.catalogueservice",
         "pk": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
@@ -165,7 +165,7 @@
         }
     },
     {
-        "model": "registry.catalougeservice",
+        "model": "registry.catalogueservice",
         "pk": "3df586c6-b89b-4ce5-980a-12dc3ca23df2",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
@@ -180,7 +180,7 @@
         }
     },
     {
-        "model": "registry.catalougeservice",
+        "model": "registry.catalogueservice",
         "pk": "57cf66c2-3bde-49ad-b76e-bae49da57516",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",

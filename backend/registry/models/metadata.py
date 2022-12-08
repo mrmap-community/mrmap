@@ -10,14 +10,14 @@ from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from extras.managers import UniqueConstraintDefaultValueManager
 from MrMap.settings import PROXIES
+from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
+                                                          WrappedIsoMetadata)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOrigin, MetadataOriginEnum,
                                      MetadataRelationEnum,
                                      ReferenceSystemPrefixEnum)
 from registry.managers.metadata import IsoMetadataManager, KeywordManager
 from registry.models.document import MetadataDocumentModelMixin
-from registry.xmlmapper.iso_metadata.iso_metadata import (MdMetadata,
-                                                          WrappedIsoMetadata)
 from requests import Request, Session
 
 
@@ -466,7 +466,7 @@ class DatasetMetadataRelation(models.Model):
                                      blank=True,
                                      related_name="dataset_metadata_relations",
                                      related_query_name="dataset_metadata_relation")
-    csw = models.ForeignKey(to="registry.CatalougeService",
+    csw = models.ForeignKey(to="registry.CatalogueService",
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in DatasetMetadata model
                             blank=True,
@@ -671,7 +671,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                              "feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
-    self_pointing_catalouge_service = models.ManyToManyField(to="registry.CatalougeService",
+    self_pointing_catalouge_service = models.ManyToManyField(to="registry.CatalogueService",
                                                              through=DatasetMetadataRelation,
                                                              editable=False,
                                                              related_name="dataset_metadata",
@@ -695,7 +695,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         ]
 
     def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
-        from registry.models.service import (CatalougeService, FeatureType,
+        from registry.models.service import (CatalogueService, FeatureType,
                                              Layer)
 
         kwargs = {}
@@ -707,7 +707,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             kwargs.update({"feature_type": related_object,
                            "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object._meta.model == CatalougeService:
+        elif related_object._meta.model == CatalogueService:
             kwargs.update({"csw": related_object,
                            "relation_type": relation_type if relation_type else MetadataRelationEnum.HARVESTED_THROUGH.value,
                            "origin": origin if origin else MetadataOriginEnum.CATALOGUE.value})
@@ -720,7 +720,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         return relation
 
     def remove_dataset_metadata_relation(self, related_object, relation_type, internal, origin):
-        from registry.models.service import (CatalougeService, FeatureType,
+        from registry.models.service import (CatalogueService, FeatureType,
                                              Layer)
 
         kwargs = {}
@@ -728,7 +728,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
             kwargs.update({"layer": related_object})
         elif related_object._meta.model == FeatureType:
             kwargs.update({"feature_type": related_object})
-        elif related_object._meta.model == CatalougeService:
+        elif related_object._meta.model == CatalogueService:
             kwargs.update({"csw": related_object})
         DatasetMetadataRelation.objects.filter(
             from_metadata=self,

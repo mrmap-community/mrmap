@@ -32,8 +32,8 @@ class OgcClient(ABC):
                 raise InitialError(
                     f"client could not be initialized by the given url: {capabilities}. Response status code: {response.status_code}")
 
-    def send_request(self, request: Request):
-        return self.session.send(request=request.prepare())
+    def send_request(self, request: Request, timeout: int = 10):
+        return self.session.send(request=request.prepare(), timeout=timeout)
 
     def bypass_request(self, request: OGCRequest) -> Request:
         if request.is_get:

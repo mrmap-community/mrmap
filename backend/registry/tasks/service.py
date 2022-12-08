@@ -19,7 +19,8 @@ from rest_framework.reverse import reverse
 @shared_task(
     bind=True,
     queue="default",
-    base=BackgroundProcessBased
+    base=BackgroundProcessBased,
+    priority=10,
 )
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
     self.update_state(state=states.STARTED, meta={
@@ -72,7 +73,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
         elif parsed_service.service_type.name == "csw":
             db_service = CatalogueService.capabilities.create_from_parsed_service(
                 parsed_service=parsed_service)
-            resource_name = "CatalougeService"
+            resource_name = "CatalogueService"
             self_url = reverse(
                 viewname='registry:csw-detail', args=[db_service.pk])
         else:
@@ -131,7 +132,8 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
 @shared_task(bind=True,
              queue="download",
-             base=BackgroundProcessBased)
+             base=BackgroundProcessBased,
+             priority=10,)
 def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})

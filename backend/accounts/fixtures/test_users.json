@@ -52,19 +52,19 @@
                     "webfeatureservice"
                 ],
                 [
-                    "add_catalougeservice",
+                    "add_catalogueservice",
                     "registry",
-                    "catalougeservice"
+                    "catalogueservice"
                 ],
                 [
-                    "change_catalougeservice",
+                    "change_catalogueservice",
                     "registry",
-                    "catalougeservice"
+                    "catalogueservice"
                 ],
                 [
-                    "delete_catalougeservice",
+                    "delete_catalogueservice",
                     "registry",
-                    "catalougeservice"
+                    "catalogueservice"
                 ],
                 [
                     "add_mapcontext",

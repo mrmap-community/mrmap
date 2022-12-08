@@ -450,18 +450,18 @@ class CatalogueServiceViewSetMixin(
     ObjectPermissionCheckerViewSetMixin,
     HistoryInformationViewSetMixin,
 ):
-    """ Endpoints for resource `CatalougeService`
+    """ Endpoints for resource `CatalogueService`
 
         create:
-            Endpoint to register new `CatalougeService` object
+            Endpoint to register new `CatalogueService` object
         list:
-            Retrieves all registered `CatalougeService` objects
+            Retrieves all registered `CatalogueService` objects
         retrieve:
-            Retrieve one specific `CatalougeService` by the given id
+            Retrieve one specific `CatalogueService` by the given id
         partial_update:
-            Endpoint to update some fields of a registered `CatalougeService`
+            Endpoint to update some fields of a registered `CatalogueService`
         destroy:
-            Endpoint to remove a registered `CatalougeService` from the system
+            Endpoint to remove a registered `CatalogueService` from the system
     """
     schema = CustomAutoSchema(
         tags=["CatalogueService"],

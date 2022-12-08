@@ -218,17 +218,6 @@ class OperationUrl(models.Model):
         verbose_name=_("internet mime type"),
         help_text=_("all available mime types of the remote url"),
     )
-    average_response_time = models.DurationField(
-        verbose_name=_("avarage response time"),
-        help_text=_(
-            "statistic information about the average response duration of this operation")
-    )
-    parameter_info = models.JSONField(
-        verbose_name=_("parameter info"),
-        editable=False,
-        help_text=_(
-            "For harvesting csw we need the maximum requestable records per request for example. "
-            "This is configured by the csw provider and differs. This and other information will be stored inside this field."))
 
     objects = models.Manager()
 

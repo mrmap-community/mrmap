@@ -21,7 +21,8 @@ logger = get_task_logger(__name__)
 
 
 @shared_task(name='async_run_conformity_check',
-             bind=True)
+             bind=True,
+             priority=5,)
 def run_conformity_check(self, run_id: int, **kwargs):
     run = ConformityCheckRun.objects.get(id=run_id)
     if run is None:
@@ -40,7 +41,8 @@ def run_conformity_check(self, run_id: int, **kwargs):
 
 
 @shared_task(name='async_run_conformity_check_etf',
-             bind=True)
+             bind=True,
+             priority=5)
 def run_conformity_check_etf(self, run_id: int, **kwargs):
     if self.task:
         self.task.status = states.STARTED
@@ -84,7 +86,8 @@ def run_conformity_check_etf(self, run_id: int, **kwargs):
 
 
 @shared_task(name='async_run_conformity_check_internal',
-             bind=True)
+             bind=True,
+             priority=5)
 def run_conformity_check_internal(self, run_id: int, **kwargs):
     if self.task:
         self.task.status = states.STARTED.value

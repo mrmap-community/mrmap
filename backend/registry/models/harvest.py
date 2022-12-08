@@ -84,6 +84,11 @@ class HarvestingJob(models.Model):
             call_fetch_records, call_fetch_total_records)
         adding = self._state.adding
         super().save(*args, **kwargs)
+
+        # TODO: implement three phases:
+        # 1. fetch total_records
+        # 2. get statistic information about the average response duration with different step sizes
+        # 3. start harvesting with the best average response duration step settings
         if adding:
             transaction.on_commit(
                 lambda: call_fetch_total_records.delay(harvesting_job_id=self.pk))

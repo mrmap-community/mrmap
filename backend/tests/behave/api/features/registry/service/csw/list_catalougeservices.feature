@@ -1,4 +1,4 @@
-Feature: CatalougeService List Endpoint
+Feature: CatalogueService List Endpoint
     As an API client,
     I want to search for csw,
     so that I can find relevant features.

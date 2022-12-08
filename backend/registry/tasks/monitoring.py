@@ -8,7 +8,7 @@ from registry.models.service import Layer, WebMapService
 from rest_framework.reverse import reverse
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, priority=5,)
 def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
     wms: WebMapService = WebMapService.objects.get(pk=service_pk)
 
@@ -40,7 +40,7 @@ def check_wms_get_capabilities_operation(self, service_pk, *args, **kwargs):
     }
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, priority=5,)
 def check_get_map_operation(self, layer_pk, *args, **kwargs):
 
     layer: Layer = Layer.objects.get(pk=layer_pk)
@@ -72,7 +72,7 @@ def check_get_map_operation(self, layer_pk, *args, **kwargs):
     }
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, priority=5,)
 def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
     layer: Layer = Layer.objects.get(pk=layer_pk)
 

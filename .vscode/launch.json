@@ -46,52 +46,12 @@
             "justMyCode": false
         },
         {
-            "name": "Debug: celery-default-worker",
+            "name": "Debug: celery-worker",
             "type": "python",
             "request": "attach",
             "connect": {
                 "host": "localhost",
                 "port": 3002
-            },
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}/backend",
-                    "remoteRoot": "/opt/mrmap"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
-                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
-                }
-            ],
-            "justMyCode": false
-        },
-        {
-            "name": "Debug: celery-download-worker",
-            "type": "python",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": 3003
-            },
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}/backend",
-                    "remoteRoot": "/opt/mrmap"
-                },
-                {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.10/site-packages",
-                    "remoteRoot": "/opt/venv/lib/python3.10/site-packages"
-                }
-            ],
-            "justMyCode": false
-        },
-        {
-            "name": "Debug: celery-db-calc-worker",
-            "type": "python",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": 3004
             },
             "pathMappings": [
                 {

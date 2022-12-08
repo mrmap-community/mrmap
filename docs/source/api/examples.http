@@ -15,7 +15,7 @@ X-CSRFToken: {{csrf_token}}
 
 {
   "data": {
-    "type": "CatalougeService",
+    "type": "CatalogueService",
     "attributes": {
       "get_capabilities_url": "https://www.geoportal-bw.de/geonetwork/srv/ger/csw?REQUEST=GetCapabilities&VERSION=2.0.2&SERVICE=CSW"
     },

@@ -88,7 +88,7 @@ class DatasetMetadataSerializer(
         related_link_view_name="registry:datasetmetadata-featuretypes-list",
         related_link_url_kwarg="parent_lookup_dataset_metadata_relation__dataset_metadata",
     )
-    self_pointing_catalouge_service = ResourceRelatedField(
+    self_pointing_catalogue_service = ResourceRelatedField(
         queryset=CatalogueService.objects,
         many=True,
         related_link_view_name="registry:datasetmetadata-csws-list",

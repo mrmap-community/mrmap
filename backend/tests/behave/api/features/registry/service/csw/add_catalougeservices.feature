@@ -1,6 +1,6 @@
 Feature: CatalogueService Add Endpoint
     As an API client,
-    I want to add catalouge services,
+    I want to add catalogue services,
     so that I can manage them with Mr.Map.
 
     Background: Setup baseurl, content-type and payload

@@ -169,7 +169,7 @@ class WebFeatureServiceAuthentication(ServiceAuthentication):
     )
 
 
-class CatalougeServiceAuthentication(ServiceAuthentication):
+class CatalogueServiceAuthentication(ServiceAuthentication):
     service = models.OneToOneField(
         to=CatalogueService,
         verbose_name=_("web feature service"),

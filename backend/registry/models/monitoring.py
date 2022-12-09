@@ -11,6 +11,7 @@ from lxml.etree import ParseError
 from PIL import Image, UnidentifiedImageError
 from registry.models.service import Layer, WebMapService
 from registry.settings import MONITORING_REQUEST_TIMEOUT
+from requests import Request
 from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 
 
@@ -56,8 +57,8 @@ class MonitoringResult(models.Model):
     def check_url(self, service: WebMapService, url):
         try:
             self.monitored_uri = url
-            self.response = service.send_get_request(
-                url=url, timeout=MONITORING_REQUEST_TIMEOUT)
+            self.response = service.client.send_request(
+                request=Request(method="GET", url=url), timeout=MONITORING_REQUEST_TIMEOUT)
             self.status_code = self.response.status_code
             if self.status_code != 200:
                 self.error_msg = self.response.text
@@ -123,7 +124,7 @@ class OgcServiceGetCapabilitiesResult(MonitoringResult):
 
     def run_checks(self):
         self.check_url(service=self.service,
-                       url=self.service.get_capabilities_url)
+                       url=self.service.client.prepare_get_capabilitites_request().url)
         if self.check_service_exception():
             return
         if self.status_code == 200:

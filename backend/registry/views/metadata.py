@@ -161,9 +161,9 @@ class DatasetMetadataViewSetMixin:
                 ),
             )
         ],
-        "self_pointing_catalouge_service": [
+        "self_pointing_catalogue_service": [
             Prefetch(
-                "self_pointing_catalouge_service",
+                "self_pointing_catalogue_service",
                 queryset=CatalogueService.objects.prefetch_related("keywords"),
             )
         ],
@@ -209,10 +209,10 @@ class DatasetMetadataViewSetMixin:
                     queryset=FeatureType.objects.only("id", "service_id"),
                 )
             )
-        if not include or "selfPointingCatalougeService" not in include:
+        if not include or "selfPointingCatalogueService" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
-                    "self_pointing_catalouge_service",
+                    "self_pointing_catalogue_service",
                     queryset=CatalogueService.objects.only("id"),
                 )
             )

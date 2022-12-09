@@ -58,19 +58,19 @@ router = ExtendedSimpleRouter()
         r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
     .register(r'allowed-wms-operations', security_views.NestedAllowedWebFeatureServiceOperationViewSet, basename='wfs-allowedwmsoperation', parents_query_lookups=['secured_service']),
 
-    # catalouge service
+    # catalogue service
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
-    .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='csw-datasetmetadata', parents_query_lookups=['self_pointing_catalouge_service']),
+    .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='csw-datasetmetadata', parents_query_lookups=['self_pointing_catalogue_service']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
-    .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='csw-keywords', parents_query_lookups=['catalougeservice_metadata']),
+    .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='csw-keywords', parents_query_lookups=['catalogueservice_metadata']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
-    .register(r'service-contact', metadata_views.NestedServiceContactViewSet, basename='csw-service-contact', parents_query_lookups=['service_contact_catalougeservice_metadata']),
+    .register(r'service-contact', metadata_views.NestedServiceContactViewSet, basename='csw-service-contact', parents_query_lookups=['service_contact_catalogueservice_metadata']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
-    .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-metadata-contact', parents_query_lookups=['metadata_contact_catalougeservice_metadata']),
+    .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-metadata-contact', parents_query_lookups=['metadata_contact_catalogueservice_metadata']),
 
     # harvesting
     router.register(r'harvesting/harvesting-jobs',

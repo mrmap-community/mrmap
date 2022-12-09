@@ -1,10 +1,13 @@
 from pathlib import Path
 from unittest.mock import mock_open, patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.test.utils import override_settings
+from MrMap.settings import BASE_DIR
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.models.metadata import DatasetMetadata
+from registry.models.service import CatalogueService
 from registry.tasks.harvest import (call_fetch_records,
                                     call_fetch_total_records,
                                     call_md_metadata_file_to_db)
@@ -25,9 +28,24 @@ def side_effect(request, timeout):
                                        '../../test_data/csw/hits.xml')))
 
 
+def setup_capabilitites_file():
+    csw: CatalogueService = CatalogueService.objects.get(
+        pk="3df586c6-b89b-4ce5-980a-12dc3ca23df2")
+
+    cap_file = open(
+        f"{BASE_DIR}/tests/django/test_data/capabilities/csw/2.0.2.xml", mode="rb")
+
+    csw.xml_backup_file = SimpleUploadedFile(
+        'capabilitites.xml', cap_file.read())
+    csw.save()
+
+
 class HarvestingGetHitsTaskTest(TestCase):
 
     fixtures = ['test_csw.json']
+
+    def setUp(self):
+        setup_capabilitites_file()
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
@@ -43,6 +61,9 @@ class HarvestingGetRecordsTaskTest(TestCase):
 
     fixtures = ['test_csw.json']
 
+    def setUp(self):
+        setup_capabilitites_file()
+
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
@@ -57,6 +78,9 @@ class HarvestingGetRecordsTaskTest(TestCase):
 class TemporaryMdMetadataFileToDbTaskTest(TestCase):
 
     fixtures = ['test_csw.json']
+
+    def setUp(self):
+        setup_capabilitites_file()
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,

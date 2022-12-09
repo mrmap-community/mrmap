@@ -23,6 +23,7 @@ class WebFeatureServiceMixin(OgcClient):
         params = {
             "VERSION": self.capabilitie.sservice_type.version,
             "REQUEST": "DescribeFeatureType",
+            "SERVICE": self.capabilities.service_type.name,
             self.type_name_qp: ",".join(type_names),
             self.output_format_qp: ",".join(output_format)
         }
@@ -37,7 +38,8 @@ class WebFeatureServiceMixin(OgcClient):
             get_feature_request: GetFeatureRequest):
         params = {
             "VERSION": self.capabilities.service_type.version,
-            "REQUEST": "GetFeature"
+            "REQUEST": "GetFeature",
+            "SERVICE": self.capabilities.service_type.name,
         }
         url = update_queryparams(
             url=self.capabilities.get_operation_url_by_name_and_method(

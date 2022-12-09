@@ -36,7 +36,7 @@ class WebFeatureServiceCapabilitiesManagerTest(TestCase):
         self.assertEqual(1, db_service)
 
 
-class CatalougeServiceCapabilitiesManagerTest(TestCase):
+class CatalogueServiceCapabilitiesManagerTest(TestCase):
 
     def test_success(self):
         """Test that create manager function works correctly."""

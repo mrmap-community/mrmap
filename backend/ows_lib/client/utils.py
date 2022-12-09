@@ -199,3 +199,7 @@ def get_client(capabilities: OGCServiceMixin, session: Session = Session()):
         if capabilities.service_type.version == "2.0.0":
             from ows_lib.client.wfs.wfs200 import WebFeatureService
             return WebFeatureService(capabilities=capabilities, session=session)
+    if capabilities.service_type.name == "csw":
+        if capabilities.service_type.version == "2.0.2":
+            from ows_lib.client.csw.csw202 import CatalogueService
+            return CatalogueService(capabilities=capabilities, session=session)

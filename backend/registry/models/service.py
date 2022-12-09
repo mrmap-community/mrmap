@@ -115,7 +115,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
     @property
     def client(self):
-        return get_client(capabilties=self.xml_backup, session=self.get_session_for_request())
+        return get_client(capabilities=self.xml_backup, session=self.get_session_for_request())
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
@@ -156,8 +156,8 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     objects = DefaultHistoryManager()
 
     class Meta:
-        verbose_name = _("catalouge service")
-        verbose_name_plural = _("catalouge services")
+        verbose_name = _("catalogue service")
+        verbose_name_plural = _("catalogue services")
 
     @property
     def client(self) -> CatalogueServiceClient:

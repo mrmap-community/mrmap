@@ -1140,11 +1140,11 @@ msgid "web feature services"
 msgstr "Ihre registrierten Web Feature Services"
 
 #: registry/models/service.py:161
-msgid "catalouge service"
+msgid "catalogue service"
 msgstr "Zugehöriger Dienst"
 
 #: registry/models/service.py:162
-msgid "catalouge services"
+msgid "catalogue services"
 msgstr "Zugehöriger Dienst"
 
 #: registry/models/service.py:257
@@ -1188,11 +1188,11 @@ msgid "the web feature service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
 #: registry/models/service.py:353
-msgid "related catalouge service"
+msgid "related catalogue service"
 msgstr "Zugehöriger Dienst"
 
 #: registry/models/service.py:354
-msgid "the catalouge service for that this url can be used for."
+msgid "the catalogue service for that this url can be used for."
 msgstr "Der Dienst für den diese URL genutzt wird."
 
 #: registry/models/service.py:396

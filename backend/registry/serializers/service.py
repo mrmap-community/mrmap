@@ -429,7 +429,7 @@ class WebFeatureServiceCreateSerializer(ModelSerializer):
         )
 
 
-class CatalougeServiceOperationUrlSerializer(ModelSerializer):
+class CatalogueServiceOperationUrlSerializer(ModelSerializer):
 
     # url = SerializerMethodField()
 
@@ -468,23 +468,23 @@ class CatalogueServiceSerializer(
         queryset=DatasetMetadata.objects,
         many=True,
         related_link_view_name="registry:csw-datasetmetadata-list",
-        related_link_url_kwarg="parent_lookup_self_pointing_catalouge_service",
+        related_link_url_kwarg="parent_lookup_self_pointing_catalogue_service",
     )
     service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name="registry:csw-service-contact-list",
-        related_link_url_kwarg="parent_lookup_service_contact_catalougeservice_metadata",
+        related_link_url_kwarg="parent_lookup_service_contact_catalogueservice_metadata",
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name="registry:csw-metadata-contact-list",
-        related_link_url_kwarg="parent_lookup_metadata_contact_catalougeservice_metadata",
+        related_link_url_kwarg="parent_lookup_metadata_contact_catalogueservice_metadata",
     )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
         related_link_view_name="registry:csw-keywords-list",
-        related_link_url_kwarg="parent_lookup_catalougeservice_metadata",
+        related_link_url_kwarg="parent_lookup_catalogueservice_metadata",
     )
     operation_urls = ResourceRelatedField(
         label=_("operation urls"),
@@ -501,7 +501,7 @@ class CatalogueServiceSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        "operation_urls": CatalougeServiceOperationUrlSerializer,
+        "operation_urls": CatalogueServiceOperationUrlSerializer,
     }
 
     class Meta:

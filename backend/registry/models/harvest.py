@@ -135,7 +135,7 @@ class HarvestingJob(models.Model):
         md_metadata: XmlMdMetadata
         db_md_metadata_file_list = []
         _counter = 0
-        for md_metadata in get_records_response.records:
+        for md_metadata in get_records_response.gmd_records:
             db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
                 job=self)
             # save the file without saving the instance in db... this will be done with bulk_create

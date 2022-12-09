@@ -671,7 +671,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                              "feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
-    self_pointing_catalouge_service = models.ManyToManyField(to="registry.CatalogueService",
+    self_pointing_catalogue_service = models.ManyToManyField(to="registry.CatalogueService",
                                                              through=DatasetMetadataRelation,
                                                              editable=False,
                                                              related_name="dataset_metadata",

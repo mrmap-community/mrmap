@@ -1,7 +1,7 @@
 Feature: HarvestingJob Add Endpoint
     As an API client,
     I want to add new harvesting job,
-    so that I collect metadata records from registered catalouge services.
+    so that I collect metadata records from registered catalogue services.
 
     Background: Setup baseurl, content-type and payload
         Given I use the endpoint http://localhost:8000/api/v1/registry/harvesting/harvesting-jobs/

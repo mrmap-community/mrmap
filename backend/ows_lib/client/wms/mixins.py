@@ -41,8 +41,9 @@ class WebMapServiceMixin(OgcClient):
                 transparent = False
 
         params = {
-            "VERSION": self.capabilities.version,
+            "VERSION": self.capabilities.service_type.version,
             "REQUEST": "GetMap",
+            "SERVICE": self.capabilities.service_type.name,
             "LAYERS": ",".join(layers),
             "STYLES": ",".join(styles),
             self.crs_qp: crs,
@@ -79,8 +80,9 @@ class WebMapServiceMixin(OgcClient):
         params = get_map_request.params
 
         get_feature_info_params = {
-            "VERSION": self.capabilities.version,
+            "VERSION": self.capabilities.service_type.version,
             "REQUEST": "GetFeatureInfo",
+            "SERVICE": self.capabilities.service_type.name,
             "QUERY_LAYERS": ",".join(query_layers),
             "INFO_FORMAT": info_format,
             "FEATURE_COUNT": feature_count,

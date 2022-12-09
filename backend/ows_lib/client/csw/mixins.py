@@ -58,3 +58,25 @@ class CatalogueServiceMixin(OgcClient):
             params=params)
 
         return Request(method="GET", url=url)
+
+    def prepare_get_record_by_id_request(
+        self,
+        id: str,
+        output_schema: str = "http://www.isotc211.org/2005/gmd",
+        element_set_name: str = "full",
+    ) -> Request:
+        params = {
+            "VERSION": self.version,
+            "SERVICE": "CSW",
+            "REQUEST": "GetRecordById",
+            "outputSchema": output_schema,
+            "elementSetName": element_set_name,
+            "id": id,
+        }
+
+        url = update_queryparams(
+            url=self.capabilities.get_operation_url_by_name_and_method(
+                "GetRecordsById", "Get").url,
+            params=params)
+
+        return Request(method="GET", url=url)

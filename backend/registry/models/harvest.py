@@ -83,7 +83,7 @@ class HarvestingJob(models.Model):
         from registry.tasks.harvest import (  # to avoid circular import errors
             call_fetch_records, call_fetch_total_records)
         adding = self._state.adding
-        super().save(*args, **kwargs)
+        ret = super().save(*args, **kwargs)
 
         # TODO: implement three phases:
         # 1. fetch total_records
@@ -101,6 +101,7 @@ class HarvestingJob(models.Model):
                 tasks.append(call_fetch_records.s(
                     harvesting_job_id=self.pk, start_position=number * self.step_size))
             transaction.on_commit(lambda: group(tasks).apply_async())
+        return ret
 
     def fetch_total_records(self) -> int:
         client = self.service.client
@@ -199,7 +200,7 @@ class TemporaryMdMetadataFile(models.Model):
         dataset_metadata, update, exists = DatasetMetadata.iso_metadata.update_or_create_from_parsed_metadata(
             parsed_metadata=md_metadata,
             related_object=self.job.service,
-            origin_url=self.job.service.get_record_by_id_url(id=md_metadata.file_identifier))
+            origin_url=self.job.service.client.prepare_get_record_by_id_request(id=md_metadata.file_identifier).url)
 
         if exists and update:
             self.job.updated_records.add(dataset_metadata)

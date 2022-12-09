@@ -6,6 +6,14 @@ from requests.exceptions import Timeout
 
 @shared_task(
     queue="default",
+    priority=2
+)
+def create_harvesting_job(service_id):
+    return HarvestingJob.objects.create(service__pk=service_id)
+
+
+@shared_task(
+    queue="default",
     autoretry_for=(Timeout,),
     retry_kwargs={'max_retries': 5},
     priority=10,

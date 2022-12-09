@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4
 
 from django.conf import settings
@@ -7,6 +8,7 @@ from django.contrib.gis.geos import Polygon
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
@@ -163,25 +165,26 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     def client(self) -> CatalogueServiceClient:
         return super().client
 
-    def get_record_by_id_url(
-        self,
-        id: str,
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
-        element_set_name: str = "full",
-    ):
-        url: str = self.operation_urls.values('url').get(
-            operation=OGCOperationEnum.GET_RECORDS.value,
-            method="Get"
-        )['url']
-        query_params = {
-            "VERSION": self.version,
-            "SERVICE": "CSW",
-            "REQUEST": "GetRecordById",
-            "outputSchema": output_schema,
-            "elementSetName": element_set_name,
-            "id": id,
-        }
-        return update_url_query_params(url=url, params=query_params)
+    def save(self,  *args, **kwargs):
+        adding = self._state.adding
+
+        ret = super().save(*args, **kwargs)
+        if adding:
+            schedule, created = CrontabSchedule.objects.get_or_create(
+                minute="0",
+                hour="0",
+                day_of_week="*",
+                day_of_month='*',
+                month_of_year='*',
+            )
+            PeriodicTask.objects.create(
+                crontab=schedule,
+                name=f"Start harvesting of csw: {self}",
+                task="registry.tasks.create_harvesting_job",
+                args=json.dumps([self.pk])
+            )
+
+        return ret
 
 
 class OperationUrl(models.Model):

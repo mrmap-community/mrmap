@@ -92,6 +92,9 @@ class HarvestingJob(models.Model):
         if adding:
             transaction.on_commit(
                 lambda: call_fetch_total_records.delay(harvesting_job_id=self.pk))
+        if self.total_records == 0:
+            self.done_at = now()
+            ret = self.save()
         elif self.total_records and not self.done_at:
             round_trips = (self.total_records // self.step_size)
             if self.total_records % self.step_size > 0:

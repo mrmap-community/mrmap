@@ -40,6 +40,7 @@ def call_fetch_records(harvesting_job_id,
 
 @shared_task(
     queue="db-routines",
+    retry_kwargs={'max_retries': 5},
     priority=6
 )
 def call_md_metadata_file_to_db(md_metadata_file_id: int):

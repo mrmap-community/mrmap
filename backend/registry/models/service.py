@@ -181,7 +181,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
                 crontab=schedule,
                 name=f"Start harvesting of csw: {self}",
                 task="registry.tasks.create_harvesting_job",
-                args=json.dumps([self.pk])
+                args=json.dumps([str(self.pk)])
             )
 
         return ret

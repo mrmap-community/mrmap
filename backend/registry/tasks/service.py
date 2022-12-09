@@ -71,7 +71,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             self_url = reverse(
                 viewname='registry:wfs-detail', args=[db_service.pk])
         elif parsed_service.service_type.name == "csw":
-            db_service = CatalogueService.capabilities.create_from_parsed_service(
+            db_service = CatalogueService.capabilities.create(
                 parsed_service=parsed_service)
             resource_name = "CatalogueService"
             self_url = reverse(

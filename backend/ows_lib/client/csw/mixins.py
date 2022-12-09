@@ -1,3 +1,5 @@
+import re
+
 from ows_lib.client.mixins import OgcClient
 from ows_lib.client.utils import update_queryparams
 from requests import Request
@@ -7,7 +9,11 @@ class CatalogueServiceMixin(OgcClient):
 
     def queryable_type_name(self):
         """Returns the first matching string of the constraints list which matches the name 'type'"""
-        return next((contstraint for contstraint in self.capabilities.get_records_constraints if "type" in contstraint.lower()), "type")
+        prog = re.compile(r'(\w+:type$)|(^type$)')
+        if any((match := prog.match(item)) for item in self.capabilities.get_records_constraints):
+            return match.group(0)
+        else:
+            return type
 
     def get_constraint(self, record_type):
         type_name = self.queryable_type_name()
@@ -66,7 +72,7 @@ class CatalogueServiceMixin(OgcClient):
         element_set_name: str = "full",
     ) -> Request:
         params = {
-            "VERSION": self.version,
+            "VERSION": self.capabilities.service_type.version,
             "SERVICE": "CSW",
             "REQUEST": "GetRecordById",
             "outputSchema": output_schema,
@@ -76,7 +82,7 @@ class CatalogueServiceMixin(OgcClient):
 
         url = update_queryparams(
             url=self.capabilities.get_operation_url_by_name_and_method(
-                "GetRecordsById", "Get").url,
+                "GetRecordById", "Get").url,
             params=params)
 
         return Request(method="GET", url=url)

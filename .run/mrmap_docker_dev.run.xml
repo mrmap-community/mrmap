@@ -13,8 +13,7 @@
         <option name="services">
           <list>
             <option value="appserver" />
-            <option value="celery-default-worker" />
-            <option value="celery-download-worker" />
+            <option value="celery-worker" />
           </list>
         </option>
         <option name="sourceFilePath" value="docker-compose.yml" />

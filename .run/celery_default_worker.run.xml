@@ -1,17 +1,17 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Docker-Compose: mrmap celery-default-worker" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="Docker-Compose: mrmap celery-worker" type="PythonConfigurationType" factoryName="Python">
     <module name="mrmap" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
     </envs>
-    <option name="SDK_HOME" value="docker-compose://[$PROJECT_DIR$/docker-compose.yml]:celery-default-worker/python" />
+    <option name="SDK_HOME" value="docker-compose://[$PROJECT_DIR$/docker-compose.yml]:celery-worker/python" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/mrmap" />
     <option name="IS_MODULE_SDK" value="false" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
-    <EXTENSION ID="DockerComposeSettingsRunConfigurationExtension" commandLine="up --exit-code-from celery-default-worker --abort-on-container-exit celery-default-worker" />
+    <EXTENSION ID="DockerComposeSettingsRunConfigurationExtension" commandLine="up --exit-code-from celery-worker --abort-on-container-exit celery-worker" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <PathMappingSettings>
       <option name="pathMappings">

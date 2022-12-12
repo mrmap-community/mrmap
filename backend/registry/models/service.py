@@ -1,4 +1,3 @@
-import json
 from uuid import uuid4
 
 from django.conf import settings
@@ -8,7 +7,6 @@ from django.contrib.gis.geos import Polygon
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin

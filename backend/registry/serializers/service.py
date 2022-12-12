@@ -21,8 +21,7 @@ from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            ReferenceSystemSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import (BooleanField, IntegerField,
-                                   SerializerMethodField, URLField)
+from rest_framework.fields import BooleanField, IntegerField, URLField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)

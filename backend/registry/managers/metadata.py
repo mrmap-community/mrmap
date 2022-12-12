@@ -135,3 +135,10 @@ class IsoMetadataManager(models.Manager):
             # TODO: categories
 
             return db_metadata, update, exists
+
+
+class KeywordManager(models.Manager):
+    """Needed to insert fixtures without pk by there natural key attribute"""
+
+    def get_by_natural_key(self, keyword):
+        return self.get(keyword=keyword)

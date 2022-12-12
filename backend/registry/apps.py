@@ -7,3 +7,7 @@ class RegistryConfig(AppConfig):
     name = 'registry'
     label = 'registry'
     verbose_name = _('Registry')
+
+    def ready(self):
+        # Implicitly connect signal handlers decorated with @receiver.
+        from . import signals  # noqa

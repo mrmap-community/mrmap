@@ -165,27 +165,6 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     def client(self) -> CatalogueServiceClient:
         return super().client
 
-    def save(self,  *args, **kwargs):
-        adding = self._state.adding
-
-        ret = super().save(*args, **kwargs)
-        if adding:
-            schedule, created = CrontabSchedule.objects.get_or_create(
-                minute="0",
-                hour="0",
-                day_of_week="*",
-                day_of_month='*',
-                month_of_year='*',
-            )
-            PeriodicTask.objects.create(
-                crontab=schedule,
-                name=f"Start harvesting of csw: {self}",
-                task="registry.tasks.create_harvesting_job",
-                args=json.dumps([str(self.pk)])
-            )
-
-        return ret
-
 
 class OperationUrl(models.Model):
     """Concrete model class to store operation urls for registered services

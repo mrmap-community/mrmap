@@ -121,7 +121,7 @@ jobs:
         run: npm run test
         working-directory: ./frontend
       - name: Bring up containers for e2e testing
-        run: docker-compose up -d --build nginx backend celery-default-worker celery-download-worker
+        run: docker-compose up -d --build nginx backend celery-worker
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
         working-directory: ./frontend

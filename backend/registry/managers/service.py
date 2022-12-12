@@ -421,18 +421,18 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         return db_service
 
 
-class CatalougeServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Manager):
+class CatalogueServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Manager):
     def _create_service_instance(self, parsed_service):
         """ Creates the service instance and all depending/related objects """
-        from registry.models.service import (CatalougeService,
-                                             CatalougeServiceOperationUrl)
+        from registry.models.service import (CatalogueService,
+                                             CatalogueServiceOperationUrl)
 
         parsed_service_contact = parsed_service.service_metadata.service_contact
 
         db_service_contact, created = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
 
-        service: CatalougeService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
+        service: CatalogueService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
                                                    service_contact=db_service_contact,
                                                    metadata_contact=db_service_contact,
                                                    **parsed_service.transform_to_model(),
@@ -454,7 +454,7 @@ class CatalougeServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
         # operation urls
         operation_urls = []
         for operation_url in parsed_service.operation_urls:
-            db_operation_url = CatalougeServiceOperationUrl(
+            db_operation_url = CatalogueServiceOperationUrl(
                 service=service,
                 **operation_url.transform_to_model())
             db_operation_url.mime_type_list = []
@@ -466,7 +466,7 @@ class CatalougeServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
             db_operation_url.mime_type_list.extend(mime_type_list)
             operation_urls.append(db_operation_url)
 
-        db_operation_url_list = CatalougeServiceOperationUrl.objects.bulk_create(
+        db_operation_url_list = CatalogueServiceOperationUrl.objects.bulk_create(
             objs=operation_urls)
 
         for db_operation_url in db_operation_url_list:
@@ -706,12 +706,3 @@ class LayerManager(DefaultHistoryManager, TreeManager):
             scale_max_inherited=self.get_inherited_scale_max(),
             bbox_inherited=self.get_inherited_bbox_lat_lon(),
         )
-
-
-class CswOperationUrlQueryableQuerySet(models.QuerySet):
-
-    def closest_matches(self, value: str, operation: str, service_id):
-        return self.filter(
-            value__iregex=fr"(\w+:{value}$)|(^{value}$)",
-            operation_url__operation=operation,
-            operation_url__service__pk=service_id)

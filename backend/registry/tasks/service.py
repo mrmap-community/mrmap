@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from notify.tasks import BackgroundProcessBased
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.models import CatalougeService, WebFeatureService, WebMapService
+from registry.models import CatalogueService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
@@ -19,7 +19,8 @@ from rest_framework.reverse import reverse
 @shared_task(
     bind=True,
     queue="default",
-    base=BackgroundProcessBased
+    base=BackgroundProcessBased,
+    priority=10,
 )
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
     self.update_state(state=states.STARTED, meta={
@@ -70,9 +71,9 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             self_url = reverse(
                 viewname='registry:wfs-detail', args=[db_service.pk])
         elif parsed_service.service_type.name == "csw":
-            db_service = CatalougeService.capabilities.create_from_parsed_service(
+            db_service = CatalogueService.capabilities.create(
                 parsed_service=parsed_service)
-            resource_name = "CatalougeService"
+            resource_name = "CatalogueService"
             self_url = reverse(
                 viewname='registry:csw-detail', args=[db_service.pk])
         else:
@@ -131,7 +132,8 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 
 @shared_task(bind=True,
              queue="download",
-             base=BackgroundProcessBased)
+             base=BackgroundProcessBased,
+             priority=10,)
 def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})

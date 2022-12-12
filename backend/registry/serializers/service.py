@@ -10,8 +10,8 @@ from registry.models.metadata import (DatasetMetadata, Dimension, Keyword,
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
-from registry.models.service import (CatalougeService,
-                                     CatalougeServiceOperationUrl, FeatureType,
+from registry.models.service import (CatalogueService,
+                                     CatalogueServiceOperationUrl, FeatureType,
                                      Layer, WebFeatureService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapService, WebMapServiceOperationUrl)
@@ -429,19 +429,19 @@ class WebFeatureServiceCreateSerializer(ModelSerializer):
         )
 
 
-class CatalougeServiceOperationUrlSerializer(ModelSerializer):
+class CatalogueServiceOperationUrlSerializer(ModelSerializer):
 
     # url = SerializerMethodField()
 
     class Meta:
-        model = CatalougeServiceOperationUrl
+        model = CatalogueServiceOperationUrl
         fields = "__all__"
 
     # def get_url(self, instance):
     #     return instance.get_url(request=self.context["request"])
 
 
-class CatalougeServiceCreateSerializer(ModelSerializer):
+class CatalogueServiceCreateSerializer(ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
@@ -449,7 +449,7 @@ class CatalougeServiceCreateSerializer(ModelSerializer):
     owner = ResourceRelatedField(queryset=Organization.objects)
 
     class Meta:
-        model = CatalougeService
+        model = CatalogueService
         fields = (
             "get_capabilities_url",
             "owner",
@@ -457,7 +457,7 @@ class CatalougeServiceCreateSerializer(ModelSerializer):
         )
 
 
-class CatalougeServiceSerializer(
+class CatalogueServiceSerializer(
         StringRepresentationSerializer,
         HistoryInformationSerializer,
         ModelSerializer):
@@ -468,28 +468,28 @@ class CatalougeServiceSerializer(
         queryset=DatasetMetadata.objects,
         many=True,
         related_link_view_name="registry:csw-datasetmetadata-list",
-        related_link_url_kwarg="parent_lookup_self_pointing_catalouge_service",
+        related_link_url_kwarg="parent_lookup_self_pointing_catalogue_service",
     )
     service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name="registry:csw-service-contact-list",
-        related_link_url_kwarg="parent_lookup_service_contact_catalougeservice_metadata",
+        related_link_url_kwarg="parent_lookup_service_contact_catalogueservice_metadata",
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name="registry:csw-metadata-contact-list",
-        related_link_url_kwarg="parent_lookup_metadata_contact_catalougeservice_metadata",
+        related_link_url_kwarg="parent_lookup_metadata_contact_catalogueservice_metadata",
     )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
         related_link_view_name="registry:csw-keywords-list",
-        related_link_url_kwarg="parent_lookup_catalougeservice_metadata",
+        related_link_url_kwarg="parent_lookup_catalogueservice_metadata",
     )
     operation_urls = ResourceRelatedField(
         label=_("operation urls"),
         help_text=_("this are the urls to use for the ogc operations."),
-        model=CatalougeServiceOperationUrl,
+        model=CatalogueServiceOperationUrl,
         many=True,
         read_only=True,
     )
@@ -501,9 +501,9 @@ class CatalougeServiceSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        "operation_urls": CatalougeServiceOperationUrlSerializer,
+        "operation_urls": CatalogueServiceOperationUrlSerializer,
     }
 
     class Meta:
-        model = CatalougeService
+        model = CatalogueService
         fields = "__all__"

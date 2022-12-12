@@ -1,6 +1,6 @@
 [
     {
-        "model": "registry.historicalcatalougeservice",
+        "model": "registry.historicalcatalogueservice",
         "pk": "639cb553-8c30-4e72-a38d-10351ce81cf1",
         "fields": {
             "id": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
@@ -23,7 +23,7 @@
         }
     },
     {
-        "model": "registry.historicalcatalougeservice",
+        "model": "registry.historicalcatalogueservice",
         "pk": "e9d333e3-d475-4205-9586-7e85c7cbd3c1",
         "fields": {
             "id": "3df586c6-b89b-4ce5-980a-12dc3ca23df2",
@@ -46,7 +46,7 @@
         }
     },
     {
-        "model": "registry.historicalcatalougeservice",
+        "model": "registry.historicalcatalogueservice",
         "pk": "4dd51e1c-df5c-424b-8acd-ec55b87aefd5",
         "fields": {
             "id": "57cf66c2-3bde-49ad-b76e-bae49da57516",
@@ -74,7 +74,7 @@
         "fields": {}
     },
     {
-        "model": "registry.CatalougeServiceOperationUrl",
+        "model": "registry.CatalogueServiceOperationUrl",
         "pk": 1,
         "fields": {
             "method": "Get",
@@ -84,7 +84,7 @@
         }
     },
     {
-        "model": "registry.CatalougeServiceOperationUrl",
+        "model": "registry.CatalogueServiceOperationUrl",
         "pk": 2,
         "fields": {
             "method": "Get",
@@ -94,7 +94,7 @@
         }
     },
     {
-        "model": "registry.CatalougeServiceOperationUrl",
+        "model": "registry.CatalogueServiceOperationUrl",
         "pk": 3,
         "fields": {
             "method": "Get",
@@ -104,7 +104,7 @@
         }
     },
     {
-        "model": "registry.CatalougeServiceOperationUrl",
+        "model": "registry.CatalogueServiceOperationUrl",
         "pk": 4,
         "fields": {
             "method": "Get",
@@ -114,7 +114,7 @@
         }
     },
     {
-        "model": "registry.CatalougeServiceOperationUrl",
+        "model": "registry.CatalogueServiceOperationUrl",
         "pk": 5,
         "fields": {
             "method": "Get",
@@ -124,7 +124,7 @@
         }
     },
     {
-        "model": "registry.CatalougeServiceOperationUrl",
+        "model": "registry.CatalogueServiceOperationUrl",
         "pk": 6,
         "fields": {
             "method": "Get",
@@ -134,23 +134,7 @@
         }
     },
     {
-        "model": "registry.CswOperationUrlQueryable",
-        "pk": 1,
-        "fields": {
-            "operation_url": 2,
-            "value": "apiso:Type"
-        }
-    },
-    {
-        "model": "registry.CswOperationUrlQueryable",
-        "pk": 2,
-        "fields": {
-            "operation_url": 4,
-            "value": "Type"
-        }
-    },
-    {
-        "model": "registry.catalougeservice",
+        "model": "registry.Catalogueservice",
         "pk": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
@@ -165,7 +149,7 @@
         }
     },
     {
-        "model": "registry.catalougeservice",
+        "model": "registry.Catalogueservice",
         "pk": "3df586c6-b89b-4ce5-980a-12dc3ca23df2",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
@@ -180,7 +164,7 @@
         }
     },
     {
-        "model": "registry.catalougeservice",
+        "model": "registry.Catalogueservice",
         "pk": "57cf66c2-3bde-49ad-b76e-bae49da57516",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
@@ -215,7 +199,7 @@
     },
     {
         "model": "registry.temporarymdmetadatafile",
-        "pk": "9281a536-7fef-4773-b3ae-9a41aa103a4b",
+        "pk": "1",
         "fields": {
             "job": "2",
             "md_metadata_file": ""

@@ -210,7 +210,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: mrmap celery-default-worker",
+            "label": "Docker-Compose: mrmap celery-worker",
             "type": "shell",
             "command": "docker-compose",
             "args": [
@@ -224,49 +224,9 @@
                 "--remove-orphans",
                 "--build",
                 "--exit-code-from",
-                "celery-default-worker",
+                "celery-worker",
                 "--abort-on-container-exit",
-                "celery-default-worker"
-            ]
-        },
-        {
-            "label": "Docker-Compose: mrmap celery-download-worker",
-            "type": "shell",
-            "command": "docker-compose",
-            "args": [
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.vscode.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "celery-download-worker",
-                "--abort-on-container-exit",
-                "celery-download-worker"
-            ]
-        },
-        {
-            "label": "Docker-Compose: mrmap celery-db-calc-worker",
-            "type": "shell",
-            "command": "docker-compose",
-            "args": [
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.vscode.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "celery-db-calc-worker",
-                "--abort-on-container-exit",
-                "celery-db-calc-worker"
+                "celery-worker"
             ]
         },
         {

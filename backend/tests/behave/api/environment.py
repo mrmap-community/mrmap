@@ -40,7 +40,7 @@ def before_feature(context, feature):
         fixtures.extend(['test_wfs.json', 'test_keywords.json'])
     elif (
         'HarvestingJob' in feature.name
-        or 'CatalougeService' in feature.name
+        or 'CatalogueService' in feature.name
     ):
         fixtures.extend(
             ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json', 'test_datasetmetadata_relations.json'])

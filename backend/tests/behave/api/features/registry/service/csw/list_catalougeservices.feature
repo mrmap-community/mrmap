@@ -1,4 +1,4 @@
-Feature: CatalougeService List Endpoint
+Feature: CatalogueService List Endpoint
     As an API client,
     I want to search for csw,
     so that I can find relevant features.
@@ -57,7 +57,7 @@ Feature: CatalougeService List Endpoint
         Given I set a queryparam "include" with value "operationUrls"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "CatalougeServiceOperationUrl"
+        Then I expect that response json has an attribute "included.[0].type" with value "CatalogueServiceOperationUrl"
 
     Scenario: Can include serviceContact
         Given I set a queryparam "include" with value "serviceContact"

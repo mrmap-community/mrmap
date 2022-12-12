@@ -292,6 +292,7 @@ class MdMetadata(BaseIsoMetadata):
     """
     model = "registry.ServiceMetadata"
     ROOT_NAME = "MD_Metadata"
+    ROOT_NS = GMD_NAMESPACE
 
     file_identifier = xmlmap.StringField(
         xpath="gmd:fileIdentifier/gco:CharacterString")

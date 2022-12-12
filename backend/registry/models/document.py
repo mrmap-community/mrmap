@@ -61,7 +61,8 @@ class DocumentModelMixin(models.Model):
         :rtype: str
         """
         try:
-            return self.xml_backup_file.open().read()
+            string = self.xml_backup_file.open().read()
+            return string if isinstance(string, str) else string.decode("UTF-8")
         except (FileNotFoundError, ValueError):
             return ""
 
@@ -72,7 +73,7 @@ class DocumentModelMixin(models.Model):
         :return xml_object: the xml mapper object
         :rtype: :class:`xmlmap.XmlObject`
         """
-        return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string,
+        return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string.encode("UTF-8"),
                                                  xmlclass=self.get_xml_mapper_cls())
 
     @property
@@ -111,7 +112,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
     @property
     def xml_backup(self) -> XmlObject:
-        return get_parsed_service(self.xml_backup_string)
+        return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
 
     def xml_secured(self, request: HttpRequest) -> XmlObject:
         path = reverse("wms-operation", args=[self.pk])

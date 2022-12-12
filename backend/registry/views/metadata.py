@@ -4,7 +4,7 @@ from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
 from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
-from registry.models.service import CatalougeService, FeatureType, Layer
+from registry.models.service import CatalogueService, FeatureType, Layer
 from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
@@ -161,10 +161,10 @@ class DatasetMetadataViewSetMixin:
                 ),
             )
         ],
-        "self_pointing_catalouge_service": [
+        "self_pointing_catalogue_service": [
             Prefetch(
-                "self_pointing_catalouge_service",
-                queryset=CatalougeService.objects.prefetch_related("keywords"),
+                "self_pointing_catalogue_service",
+                queryset=CatalogueService.objects.prefetch_related("keywords"),
             )
         ],
         "keywords": ["keywords"],
@@ -209,11 +209,11 @@ class DatasetMetadataViewSetMixin:
                     queryset=FeatureType.objects.only("id", "service_id"),
                 )
             )
-        if not include or "selfPointingCatalougeService" not in include:
+        if not include or "selfPointingCatalogueService" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
-                    "self_pointing_catalouge_service",
-                    queryset=CatalougeService.objects.only("id"),
+                    "self_pointing_catalogue_service",
+                    queryset=CatalogueService.objects.only("id"),
                 )
             )
         if not include or "keywords" not in include:

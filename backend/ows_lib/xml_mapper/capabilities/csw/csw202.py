@@ -106,3 +106,6 @@ class CatalogueService(CatalogueServiceDefaultSettings, OGCServiceMixin):
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetRecordById']/ows:DCP/ows:HTTP/ows:Get/@xlink:href")
     _get_record_by_id_post_url = StringField(
         xpath="./ows:OperationsMetadata/ows:Operation[@name='GetRecordById']/ows:DCP/ows:HTTP/ows:Post/@xlink:href")
+
+    get_records_constraints = StringListField(
+        xpath="./ows:OperationsMetadata/ows:Operation[@name='GetRecords']/ows:Constraint/ows:Value")

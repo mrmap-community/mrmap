@@ -21,7 +21,7 @@ event: created | update | delete
                 'taskArgs': '"()"',
                 'taskKwargs': '"{'get_capabilities_url': 'https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities', 'collect_metadata_records': True, 'service_auth_pk': None, 'current_user': UUID('682394e5-fd2f-4284-a410-54f302425171')}"',
                 'status': 'SUCCESS',
-                'worker': 'mrmap-celery-default-worker',
+                'worker': 'mrmap-celery-worker',
                 'contentType': 'application/json',
                 'contentEncoding': 'utf-8',
                 'result': '{"data": {"type": "OgcService", "id": "4da6ba1d-c400-43c6-8cc0-9625423213dd", "links": {"self": "/api/v1/registry/ogcservices/4da6ba1d-c400-43c6-8cc0-9625423213dd/"}}, "meta": {"collect_metadata_records_job_id": "f8fab3e5-8926-42ce-bd87-eb59bc24b489"}}',

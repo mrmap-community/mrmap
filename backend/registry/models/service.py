@@ -13,15 +13,19 @@ from extras.models import HistoricalRecordMixin
 from extras.utils import update_url_base, update_url_query_params
 from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
+from ows_lib.client.csw.mixins import \
+    CatalogueServiceMixin as CatalogueServiceClient
 from ows_lib.client.utils import get_client
+from ows_lib.client.wfs.mixins import \
+    WebFeatureServiceMixin as WebFeatureServiceClient
+from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
 from registry.exceptions.service import (LayerNotQueryable,
                                          OperationNotSupported)
 from registry.managers.security import (WebFeatureServiceSecurityManager,
                                         WebMapServiceSecurityManager)
-from registry.managers.service import (CatalougeServiceCapabilitiesManager,
-                                       CswOperationUrlQueryableQuerySet,
+from registry.managers.service import (CatalogueServiceCapabilitiesManager,
                                        LayerManager,
                                        WebFeatureServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
@@ -31,7 +35,6 @@ from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
-from requests.models import Request, Response
 from simple_history.models import HistoricalRecords
 
 
@@ -110,22 +113,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
             session.auth = self.auth.get_auth_for_request()
         return session
 
-    def send_get_request(self, url: str, timeout: int = 10) -> Response:
-        return self.get_session_for_request().send(request=Request(method="GET", url=url).prepare(), timeout=timeout)
-
     @property
-    def get_capabilities_url(self) -> str:
-        """ Returns the url for the GetCapabilities operation, to use with http get method. """
-        url: str = self.operation_urls.values('url').get(
-            operation=OGCOperationEnum.GET_CAPABILITIES.value,
-            method="Get"
-        )['url']
-        # TODO: handle different versions here... version 1.0.0 has other query parameters
-        query_params = {
-            "VERSION": self.version,
-            "SERVICE": "WMS",
-            "REQUEST": "GetCapabilities"}
-        return update_url_query_params(url=url, params=query_params)
+    def client(self):
+        return get_client(capabilities=self.xml_backup, session=self.get_session_for_request())
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
@@ -141,6 +131,10 @@ class WebMapService(HistoricalRecordMixin, OgcService):
     def root_layer(self):
         return self.layers.get(parent=None)
 
+    @property
+    def client(self) -> WebMapServiceClient:
+        return super().client
+
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
@@ -151,98 +145,23 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
         verbose_name = _("web feature service")
         verbose_name_plural = _("web feature services")
 
+    @property
+    def client(self) -> WebFeatureServiceClient:
+        return super().client
 
-class CatalougeService(HistoricalRecordMixin, OgcService):
+
+class CatalogueService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(related_name="change_logs")
-    capabilities = CatalougeServiceCapabilitiesManager()
+    capabilities = CatalogueServiceCapabilitiesManager()
     objects = DefaultHistoryManager()
 
     class Meta:
-        verbose_name = _("catalouge service")
-        verbose_name_plural = _("catalouge services")
+        verbose_name = _("catalogue service")
+        verbose_name_plural = _("catalogue services")
 
-    def get_records_hits_url(
-        self,
-        type_names: str = "gmd:MD_Metadata",
-        result_type: str = "hits",
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
-        element_set_name: str = "full",
-        xml_constraint: str = None
-    ):
-        url: str = self.operation_urls.values('url').get(
-            operation=OGCOperationEnum.GET_RECORDS.value,
-            method="Get"
-        )['url']
-        query_params = {
-            "VERSION": self.version,
-            "SERVICE": "CSW",
-            "REQUEST": "GetRecords",
-            "typeNames": type_names,
-            "resultType": result_type,
-            "outputSchema": output_schema,
-            "elementSetName": element_set_name, }
-
-        if xml_constraint:
-            query_params.update({
-                "constraintLanguage": "FILTER",
-                "CONSTRAINT_LANGUAGE_VERSION": "1.1.0",
-                "Constraint": xml_constraint
-            })
-
-        return update_url_query_params(url=url, params=query_params)
-
-    def get_records_url(
-        self,
-        type_names: str = "gmd:MD_Metadata",
-        result_type: str = "results",
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
-        element_set_name: str = "full",
-        max_records: int = 10,
-        start_position: int = 1,
-        xml_constraint: str = None
-    ):
-        url: str = self.operation_urls.values('url').get(
-            operation=OGCOperationEnum.GET_RECORDS.value,
-            method="Get"
-        )['url']
-        query_params = {
-            "VERSION": self.version,
-            "SERVICE": "CSW",
-            "REQUEST": "GetRecords",
-            "typeNames": type_names,
-            "resultType": result_type,
-            "outputSchema": output_schema,
-            "elementSetName": element_set_name,
-            "maxRecords": max_records,
-            "startPosition": start_position}
-        if xml_constraint:
-            query_params.update({
-                "constraintLanguage": "FILTER",
-                "CONSTRAINT_LANGUAGE_VERSION": "1.1.0",
-                "Constraint": xml_constraint
-            })
-
-        return update_url_query_params(url=url, params=query_params)
-
-    def get_record_by_id_url(
-        self,
-        id: str,
-        output_schema: str = "http://www.isotc211.org/2005/gmd",
-        element_set_name: str = "full",
-    ):
-        url: str = self.operation_urls.values('url').get(
-            operation=OGCOperationEnum.GET_RECORDS.value,
-            method="Get"
-        )['url']
-        query_params = {
-            "VERSION": self.version,
-            "SERVICE": "CSW",
-            "REQUEST": "GetRecordById",
-            "outputSchema": output_schema,
-            "elementSetName": element_set_name,
-            "id": id,
-        }
-        return update_url_query_params(url=url, params=query_params)
+    @property
+    def client(self) -> CatalogueServiceClient:
+        return super().client
 
 
 class OperationUrl(models.Model):
@@ -250,7 +169,6 @@ class OperationUrl(models.Model):
 
     With that urls we can perform all needed request to a given service.
     """
-
     method: str = models.CharField(
         max_length=10,
         choices=HttpMethodEnum.as_choices(),
@@ -280,6 +198,7 @@ class OperationUrl(models.Model):
         verbose_name=_("internet mime type"),
         help_text=_("all available mime types of the remote url"),
     )
+
     objects = models.Manager()
 
     class Meta:
@@ -343,15 +262,15 @@ class WebFeatureServiceOperationUrl(OperationUrl):
         ]
 
 
-class CatalougeServiceOperationUrl(OperationUrl):
+class CatalogueServiceOperationUrl(OperationUrl):
     service = models.ForeignKey(
-        to=CatalougeService,
+        to=CatalogueService,
         on_delete=models.CASCADE,
         editable=False,
         related_name="operation_urls",
         related_query_name="operation_url",
-        verbose_name=_("related catalouge service"),
-        help_text=_("the catalouge service for that this url can be used for."),
+        verbose_name=_("related catalogue service"),
+        help_text=_("the catalogue service for that this url can be used for."),
     )
 
     class Meta:
@@ -361,28 +280,6 @@ class CatalougeServiceOperationUrl(OperationUrl):
                 name="%(app_label)s_%(class)s_unique_together_method_id_operation_service",
             )
         ]
-
-
-class CswOperationUrlQueryable(models.Model):
-    # TODO: remove this model and merge it with CatalougeServiceOperationUrl
-    #  CatalougeServiceOperationUrl can have constraints.
-    #  For harvesting processing we need the concrete constraint value for type with correct namespace.
-    #  Like dc:type or apiso:Type to build the GetRecord request correctly
-
-    operation_url = models.ForeignKey(
-        to=CatalougeServiceOperationUrl,
-        on_delete=models.CASCADE,
-        related_name="queryables",
-        related_query_name="queryable"
-    )
-    value = models.CharField(
-        max_length=64
-    )
-
-    objects: models.Manager = CswOperationUrlQueryableQuerySet.as_manager()
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):

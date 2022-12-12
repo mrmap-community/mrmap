@@ -112,7 +112,6 @@ class IsoMetadataManager(models.Manager):
                                                      content=ContentFile(
                                                          str(parsed_metadata.serializeDocument(), "UTF-8")))
             if update:
-                # TODO: how to handle keywords, ref systems on update? append (merge) or delete and set?
                 db_keyword_list = []
                 for keyword in parsed_metadata.keywords:
                     if not self.keyword_cls:
@@ -121,7 +120,7 @@ class IsoMetadataManager(models.Manager):
                     db_keyword, created = self.keyword_cls.objects.get_or_create(
                         **keyword.get_field_dict())
                     db_keyword_list.append(db_keyword)
-                db_metadata.keywords.add(*db_keyword_list)
+                db_metadata.keywords.set(*db_keyword_list)
 
                 db_reference_system_list = []
                 for reference_system in parsed_metadata.reference_systems:
@@ -131,14 +130,8 @@ class IsoMetadataManager(models.Manager):
                     db_reference_system, created = self.reference_system_cls.objects.get_or_create(
                         **reference_system.get_field_dict())
                     db_reference_system_list.append(db_reference_system)
-                db_metadata.reference_systems.add(*db_reference_system_list)
+                db_metadata.reference_systems.set(*db_reference_system_list)
 
             # TODO: categories
 
             return db_metadata, update, exists
-
-
-class KeywordManager(models.Manager):
-
-    def get_by_natural_key(self, keyword):
-        return self.get(keyword=keyword)

@@ -112,13 +112,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
     @property
     def xml_backup(self) -> XmlObject:
-        from lxml.etree import XMLSyntaxError
-        try:
-            return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
-        except XMLSyntaxError as e:
-            print(self)
-            print(self.xml_backup_string)
-            raise e
+        return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
 
     def xml_secured(self, request: HttpRequest) -> XmlObject:
         path = reverse("wms-operation", args=[self.pk])

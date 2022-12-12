@@ -12,9 +12,11 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
+from ows_lib.client.mixins import OgcClient
 from ows_lib.client.utils import get_client
 from ows_lib.models.ogc_request import OGCRequest
 from registry.models.security import HttpRequestLog, HttpResponseLog
+from registry.models.service import OgcService
 from registry.proxy.ogc_exceptions import (DisabledException,
                                            ForbiddenException,
                                            MissingRequestParameterException,
@@ -50,7 +52,7 @@ class OgcServiceProxyView(View):
         return self.request.method == "POST"
 
     @property
-    def service(self):
+    def service(self) -> OgcService:
         if not self._service:
             try:
                 self._service = self.service_cls.security.get_with_security_info(
@@ -66,7 +68,7 @@ class OgcServiceProxyView(View):
             "you need to setup the proxy class with the corretc 'service_cls' property.")
 
     @property
-    def remote_service(self):
+    def remote_service(self) -> OgcClient:
         if not self._remote_service:
             self._remote_service = get_client(self.service.xml_backup)
         return self._remote_service
@@ -158,7 +160,7 @@ class OgcServiceProxyView(View):
         """
         # todo: handle different service versions
         return HttpResponse(
-            status=200, content=self.service.get_xml(self.request), content_type="application/xml"
+            status=200, content=self.service.get_current_xml(self.request), content_type="application/xml"
         )
 
     def secure_request(self):

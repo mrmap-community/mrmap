@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
+from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.utils import get_parsed_service
 
 
@@ -111,7 +112,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         abstract = True
 
     @property
-    def xml_backup(self) -> XmlObject:
+    def xml_backup(self) -> OGCServiceMixin:
         return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
 
     def xml_secured(self, request: HttpRequest) -> XmlObject:
@@ -131,7 +132,18 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         # todo: only support xml Exception format --> remove all others
         return capabilities_xml.serializeDocument()
 
-    def get_xml(self, request: HttpRequest) -> XmlObject:
+    @property
+    def current_capabilities(self) -> OGCServiceMixin:
+        """Returns the current version of the capabilities document.
+
+            The values from the database overwrites the values inside the xml document.
+        """
+
+    def get_current_xml(self, request: HttpRequest) -> str:
+        """Returns the current version of the capabilities document.
+
+            The values from the database overwrites the values inside the xml document.
+        """
         if self.camouflage:
             return self.xml_secured(request=request)
         else:

@@ -62,3 +62,5 @@ channels==4.0.0
 channels[daphne]==4.0.0
 # adds redis cache backend implementation for channels package
 channels-redis==4.0.0
+
+odin==2.1

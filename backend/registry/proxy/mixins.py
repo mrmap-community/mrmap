@@ -160,7 +160,7 @@ class OgcServiceProxyView(View):
         """
         # todo: handle different service versions
         return HttpResponse(
-            status=200, content=self.service.get_current_xml(self.request), content_type="application/xml"
+            status=200, content=self.service.get_capabilitites_for_request(self.request), content_type="application/xml"
         )
 
     def secure_request(self):

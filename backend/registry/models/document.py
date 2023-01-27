@@ -77,23 +77,6 @@ class DocumentModelMixin(models.Model):
         return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string.encode("UTF-8"),
                                                  xmlclass=self.get_xml_mapper_cls())
 
-    @property
-    def xml(self) -> XmlObject:
-        """Return the current model as xml representation based on the given xml_mapper_cls.
-
-        :return xml_object: the xml mapper object
-        :rtype: :class:`xmlmap.XmlObject`
-        """
-        if self.xml_backup_string:
-            xml_object = self.xml_backup
-            fields = self.get_field_dict()
-            fields.pop('version')
-            xml_object.update_fields(obj=fields)
-        else:
-            xml_object = self.get_xml_mapper_cls().from_field_dict(
-                initial=self.get_field_dict())
-        return xml_object
-
     @abstractmethod
     def xml_secured(self, request: HttpRequest) -> XmlObject:
         """Camouflage all urls which are founded in current xml from the xml property on-the-fly with the hostname
@@ -115,11 +98,30 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
     def xml_backup(self) -> OGCServiceMixin:
         return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
 
-    def xml_secured(self, request: HttpRequest) -> XmlObject:
+    @property
+    def updated_capabilitites(self) -> XmlObject:
+        """Returns the current version of the capabilities document.
+
+            The values from the database overwrites the values inside the xml document.
+        """
+        xml_object: OGCServiceMixin = self.xml_backup
+
+        from odin.mapping import mapping_factory
+
+        #from registry.mapping.service import WebMapServiceToXml
+        mapper = mapping_factory(
+            from_obj=self.__class__, to_obj=xml_object.__class__, )
+        mapper.update(destination_obj=xml_object)
+
+        # fields = self.get_field_dict()
+        # xml_object.update_fields(obj=fields)
+        return xml_object
+
+    def xml_secured(self, request: HttpRequest) -> str:
         path = reverse("wms-operation", args=[self.pk])
         new_url = f"{request.scheme}://{request.get_host()}{path}?"
 
-        capabilities_xml = self.xml
+        capabilities_xml = self.updated_capabilitites
         # TODO: camouflage metadata urls also
         for operation_url in capabilities_xml.operation_urls:
             operation_url.url = new_url
@@ -129,17 +131,10 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
             for layer in capabilities_xml.get_all_layers():
                 for style in layer.styles:
                     style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
-        # todo: only support xml Exception format --> remove all others
+        # TODO: only support xml Exception format --> remove all others
         return capabilities_xml.serializeDocument()
 
-    @property
-    def current_capabilities(self) -> OGCServiceMixin:
-        """Returns the current version of the capabilities document.
-
-            The values from the database overwrites the values inside the xml document.
-        """
-
-    def get_current_xml(self, request: HttpRequest) -> str:
+    def get_capabilitites_for_request(self, request: HttpRequest) -> str:
         """Returns the current version of the capabilities document.
 
             The values from the database overwrites the values inside the xml document.
@@ -147,7 +142,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         if self.camouflage:
             return self.xml_secured(request=request)
         else:
-            return self.xml_backup_string
+            return self.updated_capabilitites.serializeDocument()
 
 
 class MetadataDocumentModelMixin(DocumentModelMixin):

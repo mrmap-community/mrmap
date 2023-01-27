@@ -346,9 +346,9 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                  verbose_name=_("origin url"),
                                  help_text=_("the url of the document where the information of this metadata record "
                                              "comes from"))
-    title = models.CharField(max_length=1000,
-                             verbose_name=_("title"),
-                             help_text=_("a short descriptive title for this metadata"))
+    title: str = models.CharField(max_length=1000,
+                                  verbose_name=_("title"),
+                                  help_text=_("a short descriptive title for this metadata"))
     abstract = models.TextField(null=True,
                                 verbose_name=_("abstract"),
                                 help_text=_("brief summary of the content of this metadata."))

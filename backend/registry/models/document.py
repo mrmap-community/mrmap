@@ -110,7 +110,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
         #from registry.mapping.service import WebMapServiceToXml
         mapper = mapping_factory(
-            from_obj=self.__class__, to_obj=xml_object.__class__, )
+            from_obj=self, to_obj=xml_object, )
         mapper.update(destination_obj=xml_object)
 
         # fields = self.get_field_dict()

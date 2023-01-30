@@ -107,10 +107,8 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         xml_object: OGCServiceMixin = self.xml_backup
 
         from odin.mapping import mapping_factory
-
-        #from registry.mapping.service import WebMapServiceToXml
-        mapper = mapping_factory(
-            from_obj=self, to_obj=xml_object, )
+        from registry.mapping.service import WebMapServiceToXml
+        mapper = WebMapServiceToXml(source_obj=self)
         mapper.update(destination_obj=xml_object)
 
         # fields = self.get_field_dict()

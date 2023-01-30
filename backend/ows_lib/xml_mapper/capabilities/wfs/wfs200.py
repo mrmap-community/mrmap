@@ -1,10 +1,10 @@
 from eulxml.xmlmap import (NodeField, NodeListField, StringField,
-                           StringListField, XmlObject)
+                           StringListField)
 from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceTypeMixin,
                                                     ReferenceSystemMixin)
 from ows_lib.xml_mapper.capabilities.wfs.mixins import (FeatureTypeMixin,
                                                         WebFeatureServiceMixin)
-from ows_lib.xml_mapper.mixins import DBModelConverterMixin
+from ows_lib.xml_mapper.mixins import CustomXmlObject
 from ows_lib.xml_mapper.namespaces import (FES_2_0_NAMEPSACE,
                                            GML_3_2_2_NAMESPACE,
                                            OWS_1_1_NAMESPACE,
@@ -12,7 +12,7 @@ from ows_lib.xml_mapper.namespaces import (FES_2_0_NAMEPSACE,
                                            XLINK_NAMESPACE)
 
 
-class WebFeatureServiceDefaultSettings(DBModelConverterMixin, XmlObject):
+class WebFeatureServiceDefaultSettings(CustomXmlObject):
     ROOT_NS = WFS_2_0_0_NAMESPACE
     ROOT_NAMESPACES = {
         "wms": WFS_2_0_0_NAMESPACE,

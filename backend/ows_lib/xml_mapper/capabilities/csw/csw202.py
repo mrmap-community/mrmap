@@ -1,12 +1,12 @@
-from eulxml.xmlmap import NodeField, StringField, StringListField, XmlObject
+from eulxml.xmlmap import NodeField, StringField, StringListField
 from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceMixin,
                                                     OGCServiceTypeMixin)
-from ows_lib.xml_mapper.mixins import DBModelConverterMixin
+from ows_lib.xml_mapper.mixins import CustomXmlObject
 from ows_lib.xml_mapper.namespaces import (CSW_2_0_2_NAMESPACE, OWS_NAMESPACE,
                                            XLINK_NAMESPACE)
 
 
-class CatalogueServiceDefaultSettings(DBModelConverterMixin, XmlObject):
+class CatalogueServiceDefaultSettings(CustomXmlObject):
     ROOT_NS = CSW_2_0_2_NAMESPACE
     ROOT_NAMESPACES = {
         "csw": CSW_2_0_2_NAMESPACE,

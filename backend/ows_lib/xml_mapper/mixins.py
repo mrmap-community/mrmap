@@ -2,6 +2,7 @@ from typing import Callable, Dict
 
 from django.conf import settings
 from eulxml import xmlmap
+from eulxml.xmlmap import XmlObject
 from lxml.etree import XPathEvalError
 
 
@@ -37,12 +38,12 @@ class CallbackList(list):
         self.callback(list_operation="remove", items=__value)
 
 
-class DBModelConverterMixin:
-    """ Abstract class which implements some generic functions to get the db model class and all relevant field content
+class CustomXmlObject(XmlObject):
+    """ Custom Xml Object class which implements some generic functions to get the db model class and all relevant field content
         as dict.
     """
 
-    def __get_xml_mapper_fields(self) -> dict:
+    def __get_xml_mapper_fields(self) -> Dict:
         """ Return a dict which contains the key, value pairs of the given field attribute name as key and the
             attribute value it self as value.
 
@@ -87,7 +88,9 @@ class DBModelConverterMixin:
         return field_dict
 
     def transform_to_model(self) -> Dict:
-        """"""
+        """
+        Returns a dict of public objects fields and there values
+        """
         field_dict = self.__get_xml_mapper_fields()
         for key, value in self.__dict__.items():
             if key.startswith('_') or key[0].isupper() or key != 'context' or value is None or key in self._fields.keys():

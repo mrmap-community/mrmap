@@ -1,16 +1,15 @@
 from eulxml.xmlmap import (FloatField, IntegerField, NodeField, NodeListField,
-                           SimpleBooleanField, StringField, StringListField,
-                           XmlObject)
+                           SimpleBooleanField, StringField, StringListField)
 from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceTypeMixin,
                                                     ReferenceSystemMixin)
 from ows_lib.xml_mapper.capabilities.wms.mixins import (LayerMixin,
                                                         TimeDimensionMixin,
                                                         WebMapServiceMixin)
-from ows_lib.xml_mapper.mixins import DBModelConverterMixin
+from ows_lib.xml_mapper.mixins import CustomXmlObject
 from ows_lib.xml_mapper.namespaces import XLINK_NAMESPACE
 
 
-class WebMapServiceDefaultSettings(DBModelConverterMixin, XmlObject):
+class WebMapServiceDefaultSettings(CustomXmlObject):
     ROOT_NAMESPACES = {
         "xlink": XLINK_NAMESPACE
     }

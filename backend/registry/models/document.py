@@ -106,13 +106,10 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         """
         xml_object: OGCServiceMixin = self.xml_backup
 
-        from odin.mapping import mapping_factory
         from registry.mapping.service import WebMapServiceToXml
-        mapper = WebMapServiceToXml(source_obj=self)
-        mapper.update(destination_obj=xml_object)
+        mapper = WebMapServiceToXml(source_obj=self, xml=xml_object)
+        xml_object = mapper.update(destination_obj=xml_object)
 
-        # fields = self.get_field_dict()
-        # xml_object.update_fields(obj=fields)
         return xml_object
 
     def xml_secured(self, request: HttpRequest) -> str:

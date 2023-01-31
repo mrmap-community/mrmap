@@ -22,7 +22,8 @@ class XmlMapperFieldResolver(FieldResolverBase):
 
     def get_field_dict(self):
         xml_obj = self.obj
-        return {key: getattr(xml_obj, key) for key in filter(lambda key: not key.startswith('_'), xml_obj._fields.keys())}
+        return {key: getattr(xml_obj, key) for key in filter(
+            lambda key: not key.startswith('_'), xml_obj._fields.keys())}
 
 
 registration.register_field_resolver(ModelFieldResolver, Model)

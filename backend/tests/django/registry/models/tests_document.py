@@ -41,7 +41,6 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         some_layer.title = "hoho"
         some_layer.save()
 
-        # TODO: title, abstract etc. differs from cap file content. So this database content shall be overwrite the values from the cap file
         capabilities: XmlWebMapService = wms.updated_capabilitites
 
         self.assertEqual("huhu", capabilities.service_metadata.title)
@@ -50,4 +49,5 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         self.assertEqual("hoho", capabilities.get_layer_by_identifier(
             identifier="node1.1.1").metadata.title)
 
-        print(capabilities.all_layers[2].parent.metadata.title)
+        self.fail(
+            msg="complete this test by adding more data changes on on more sub objects.")

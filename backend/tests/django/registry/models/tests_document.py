@@ -49,3 +49,5 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
                          capabilities.root_layer.metadata.title)
         self.assertEqual("hoho", capabilities.get_layer_by_identifier(
             identifier="node1.1.1").metadata.title)
+
+        print(capabilities.all_layers[2].parent.metadata.title)

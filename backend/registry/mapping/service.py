@@ -20,20 +20,9 @@ class LayerToXml(Mapping):
     from_obj = Layer
     to_obj = XmlLayer
 
-    def __init__(self, xml_service: XmlWebMapService, xml_layer: XmlLayer, *args, **kwargs):
+    def __init__(self, xml_layer: XmlLayer, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.xml_service = xml_service
         self.xml_layer = xml_layer
-
-    @assign_field
-    def children(self):
-        child_list = []
-        for child in self.source.get_children():
-            destination_obj = self.xml_service.get_layer_by_identifier(
-                identifier=child.identifier)
-            child_list.append(LayerToXml(xml_service=self.xml_service, xml_layer=destination_obj, source_obj=child).update(
-                destination_obj=deepcopy(destination_obj)))
-        return child_list
 
     @assign_field
     def metadata(self):
@@ -53,9 +42,22 @@ class WebMapServiceToXml(Mapping):
         super().__init__(*args, **kwargs)
         self.xml = xml
 
-    @assign_field
-    def root_layer(self):
-        return LayerToXml(xml_service=self.xml, xml_layer=self.xml.root_layer, source_obj=self.source.root_layer).update(destination_obj=deepcopy(self.xml.root_layer))
+    @assign_field(to_list=True)
+    def all_layers(self):
+        _layers = []
+        for db_layer in self.source.layers.all():
+            xml_layer = self.xml.get_layer_by_identifier(
+                identifier=db_layer.identifier)
+            if xml_layer:
+                _layers.append(
+                    LayerToXml(xml_layer=xml_layer, source_obj=db_layer).update(
+                        destination_obj=deepcopy(xml_layer))
+                )
+            else:
+                raise NotImplementedError(
+                    f"layer '{db_layer.identifier}' can't be on existing xml. Can't create layers on the fly for now.")
+
+        return _layers
 
     @assign_field
     def service_metadata(self):

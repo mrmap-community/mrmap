@@ -1,15 +1,27 @@
 from copy import deepcopy
 
-from odin.mapping import Mapping, assign_field
+from odin.mapping import Mapping, assign_field, map_field
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.capabilities.wms.wms130 import Layer as XmlLayer
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     LayerMetadata as XmlLayerMetadata
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
+    RemoteMetadata as XmlRemoteMetadata
+from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     ServiceMetadata as XmlServiceMetadata
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     WebMapService as XmlWebMapService
+from registry.models.metadata import DatasetMetadata
 from registry.models.service import Layer, WebMapService
+
+
+class MetadataUrlToXml(Mapping):
+    from_obj = DatasetMetadata
+    to_obj = XmlRemoteMetadata
+
+    @map_field(from_field="origin_url")
+    def link(self, value):
+        return value
 
 
 class LayerMetdataToXml(Mapping):
@@ -25,9 +37,9 @@ class LayerToXml(Mapping):
     from_obj = Layer
     to_obj = XmlLayer
 
-    def __init__(self, destionation_obj: XmlLayer, *args, **kwargs):
+    def __init__(self, destination_obj: XmlLayer, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.destionation_obj = destionation_obj
+        self.destionation_obj = destination_obj
 
     def update(self, *args, **kwargs):
         return super().update(destination_obj=self.destionation_obj, *args, **kwargs)
@@ -35,6 +47,10 @@ class LayerToXml(Mapping):
     @assign_field
     def metadata(self):
         return LayerMetdataToXml(source_obj=self.source).update(destination_obj=deepcopy(self.destionation_obj.metadata))
+
+    @assign_field
+    def remote_metadata(self):
+        pass
 
 
 class ServiceMetadataToXml(Mapping):
@@ -61,9 +77,14 @@ class WebMapServiceToXml(Mapping):
         return updated_service
 
     def _update_layers(self):
-        for layer in self.source.layers.all():
-            LayerToXml(source_obj=layer, destionation_obj=self.xml.get_layer_by_identifier(
+        for layer in self.source.layers.filter(is_active=True):
+            LayerToXml(source_obj=layer, destination_obj=self.xml.get_layer_by_identifier(
                 identifier=layer.identifier)).update()
+        for layer in self.source.layers.filter(is_active=False):
+            xml_layer = self.xml.get_layer_by_identifier(
+                identifier=layer.identifier)
+            if xml_layer:
+                del xml_layer
 
     def _update_operation_urls(self, updated_service):
         operation_urls = []

@@ -107,8 +107,9 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         xml_object: OGCServiceMixin = self.xml_backup
 
         from registry.mapping.service import WebMapServiceToXml
-        mapper = WebMapServiceToXml(source_obj=self, xml=xml_object)
-        xml_object = mapper.update(destination_obj=xml_object)
+        mapper = WebMapServiceToXml(
+            source_obj=self, destination_obj=xml_object)
+        xml_object = mapper.update()
 
         return xml_object
 

@@ -161,8 +161,6 @@ class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):
     root_layer = NodeField(
         xpath="./wms:Capability/wms:Layer", node_class=Layer)
 
-    all_layers = NodeListField(
-        xpath="./wms:Capability//wms:Layer", node_class=Layer)
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.
     # With that technique the usage of this mapper is easier and matches the db model

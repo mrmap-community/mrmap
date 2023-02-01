@@ -15,49 +15,53 @@ class LayerMetdataToXml(Mapping):
     from_obj = Layer
     to_obj = XmlLayerMetadata
 
+    @assign_field(to_list=True)
+    def keywords(self):
+        return [str(keyword) for keyword in self.source.keywords.all()]
+
 
 class LayerToXml(Mapping):
     from_obj = Layer
     to_obj = XmlLayer
 
-    def __init__(self, xml_layer: XmlLayer, *args, **kwargs):
+    def __init__(self, destionation_obj: XmlLayer, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.xml_layer = xml_layer
+        self.destionation_obj = destionation_obj
+
+    def update(self, *args, **kwargs):
+        return super().update(destination_obj=self.destionation_obj, *args, **kwargs)
 
     @assign_field
     def metadata(self):
-        return LayerMetdataToXml(source_obj=self.source).update(destination_obj=deepcopy(self.xml_layer.metadata))
+        return LayerMetdataToXml(source_obj=self.source).update(destination_obj=deepcopy(self.destionation_obj.metadata))
 
 
 class ServiceMetadataToXml(Mapping):
     from_obj = WebMapService
     to_obj = XmlServiceMetadata
 
+    @assign_field(to_list=True)
+    def keywords(self):
+        return [str(keyword) for keyword in self.source.keywords.all()]
+
 
 class WebMapServiceToXml(Mapping):
     from_obj = WebMapService
     to_obj = XmlWebMapService
 
-    def __init__(self, xml: XmlWebMapService, *args, **kwargs):
+    def __init__(self, destination_obj: XmlWebMapService, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.xml = xml
+        self.xml = deepcopy(destination_obj)
 
-    @assign_field(to_list=True)
-    def all_layers(self):
-        _layers = []
-        for db_layer in self.source.layers.all():
-            xml_layer = self.xml.get_layer_by_identifier(
-                identifier=db_layer.identifier)
-            if xml_layer:
-                _layers.append(
-                    LayerToXml(xml_layer=xml_layer, source_obj=db_layer).update(
-                        destination_obj=deepcopy(xml_layer))
-                )
-            else:
-                raise NotImplementedError(
-                    f"layer '{db_layer.identifier}' can't be on existing xml. Can't create layers on the fly for now.")
+    def update(self, *args, **kwargs):
+        updated_service = super().update(destination_obj=self.xml, *args, **kwargs)
+        self._update_layers()
+        return updated_service
 
-        return _layers
+    def _update_layers(self):
+        for layer in self.source.layers.all():
+            LayerToXml(source_obj=layer, destionation_obj=self.xml.get_layer_by_identifier(
+                identifier=layer.identifier)).update()
 
     @assign_field
     def service_metadata(self):

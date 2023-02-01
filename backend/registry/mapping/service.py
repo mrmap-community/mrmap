@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from odin.mapping import Mapping, assign_field
+from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.capabilities.wms.wms130 import Layer as XmlLayer
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     LayerMetadata as XmlLayerMetadata
@@ -81,3 +82,15 @@ class WebMapServiceToXml(Mapping):
         """
         return ServiceMetadataToXml(source_obj=self.source).update(
             destination_obj=deepcopy(self.xml.service_metadata))
+
+    @assign_field(to_list=True)
+    def operation_urls(self):
+        operation_urls = []
+        for operation_url in self.source.operation_urls.all():
+            operation_url.append(
+                OperationUrl(
+                    method=operation_url.method,
+                    url=operation_url.url,
+                    operation=operation_url.operation,
+                    mime_types=[str(mime_type) for mime_type in operation_url.mime_types.all()]))
+        return operation_urls

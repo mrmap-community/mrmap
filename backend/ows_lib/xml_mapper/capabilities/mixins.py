@@ -214,6 +214,13 @@ class OGCServiceMixin:
 
         return self._operation_urls
 
+    @operation_urls.setter
+    def operation_urls(self, operation_urls: List[OperationUrl]):
+        self._clear_all_operation_urls()
+        for operation_url in operation_urls:
+            self._update_operation_url_xml_node_by_name(
+                operation_url=operation_url)
+
     def _update_operation_url_xml_node_by_name(self, operation_url: OperationUrl, remove: bool = False):
         # find url attribute and update it
         url_attr_name = f"_{camel_to_snake(operation_url.operation)}_{operation_url.method.lower()}_url"

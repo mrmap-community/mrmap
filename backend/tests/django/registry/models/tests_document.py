@@ -4,7 +4,8 @@ from MrMap.settings import BASE_DIR
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     WebMapService as XmlWebMapService
 from registry.models.metadata import Keyword
-from registry.models.service import Layer, WebMapService
+from registry.models.service import (Layer, WebMapService,
+                                     WebMapServiceOperationUrl)
 
 
 def setup_capabilitites_file():
@@ -49,6 +50,11 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
 
     def test_current_capabilities(self):
         capabilities: XmlWebMapService = self.wms.updated_capabilitites
+
+        # check service operation urls
+        self.assertEqual(3, len(capabilities.operation_urls))
+        self.assertEqual("http://example.com/wms?",
+                         capabilities.get_operation_url_by_name_and_method("GetMap", "Get").url)
 
         # check service metadata
         self.assertEqual("huhu", capabilities.service_metadata.title)

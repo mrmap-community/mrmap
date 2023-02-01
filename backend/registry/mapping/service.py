@@ -57,12 +57,24 @@ class WebMapServiceToXml(Mapping):
     def update(self, *args, **kwargs):
         updated_service = super().update(destination_obj=self.xml, *args, **kwargs)
         self._update_layers()
+        self._update_operation_urls(updated_service=updated_service)
         return updated_service
 
     def _update_layers(self):
         for layer in self.source.layers.all():
             LayerToXml(source_obj=layer, destionation_obj=self.xml.get_layer_by_identifier(
                 identifier=layer.identifier)).update()
+
+    def _update_operation_urls(self, updated_service):
+        operation_urls = []
+        for operation_url in self.source.operation_urls.all():
+            operation_urls.append(
+                OperationUrl(
+                    method=operation_url.method,
+                    url=operation_url.url,
+                    operation=operation_url.operation,
+                    mime_types=[str(mime_type) for mime_type in operation_url.mime_types.all()]))
+        updated_service.operation_urls = operation_urls
 
     @assign_field
     def service_metadata(self):
@@ -82,15 +94,3 @@ class WebMapServiceToXml(Mapping):
         """
         return ServiceMetadataToXml(source_obj=self.source).update(
             destination_obj=deepcopy(self.xml.service_metadata))
-
-    @assign_field(to_list=True)
-    def operation_urls(self):
-        operation_urls = []
-        for operation_url in self.source.operation_urls.all():
-            operation_url.append(
-                OperationUrl(
-                    method=operation_url.method,
-                    url=operation_url.url,
-                    operation=operation_url.operation,
-                    mime_types=[str(mime_type) for mime_type in operation_url.mime_types.all()]))
-        return operation_urls

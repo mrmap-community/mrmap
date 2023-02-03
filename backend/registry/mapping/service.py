@@ -48,9 +48,10 @@ class LayerToXml(Mapping):
     def metadata(self):
         return LayerMetdataToXml(source_obj=self.source).update(destination_obj=deepcopy(self.destionation_obj.metadata))
 
-    @assign_field
-    def remote_metadata(self):
-        pass
+    # TODO
+    # @assign_field
+    # def remote_metadata(self):
+    #     pass
 
 
 class ServiceMetadataToXml(Mapping):

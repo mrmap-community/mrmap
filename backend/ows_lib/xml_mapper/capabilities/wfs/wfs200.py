@@ -48,7 +48,7 @@ class ServiceMetadataContact(WebFeatureServiceDefaultSettings):
 
 
 class ServiceType(WebFeatureServiceDefaultSettings, OGCServiceTypeMixin):
-    ROOT_NAME = "wfs:WFS_Capabilities/@version='2.0.0'"
+    ROOT_NAME = "WFS_Capabilities/@version='2.0.0'"
 
     version = StringField(xpath="./@version", choices='2.0.0')
     _name = StringField(xpath="./ows:ServiceIdentification/ows:ServiceType")
@@ -59,27 +59,27 @@ class ReferenceSystem(WebFeatureServiceDefaultSettings, ReferenceSystemMixin):
 
 
 class DefaultReferenceSystem(ReferenceSystem):
-    ROOT_NAME = "wfs:DefaultCRS"
+    ROOT_NAME = "DefaultCRS"
 
 
 class OtherReferenceSystem(ReferenceSystem):
-    ROOT_NAME = "wfs:OtherCRS"
+    ROOT_NAME = "OtherCRS"
 
 
 class OutputFormat(WebFeatureServiceDefaultSettings):
-    ROOT_NAME = "wfs:Format"
+    ROOT_NAME = "Format"
 
     mime_type = StringField(xpath="./wfs:Format")
 
 
 class RemoteMetadata(WebFeatureServiceDefaultSettings):
-    ROOT_NAME = "wfs:MetadataURL"
+    ROOT_NAME = "MetadataURL"
 
     link = StringField(xpath="./@xlink:href")
 
 
 class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
-    ROOT_NAME = "wfs:FeatureType"
+    ROOT_NAME = "FeatureType"
 
     identifier = StringField(xpath="./wfs:Name")
     title = StringField(xpath="wfs:Title")
@@ -107,21 +107,22 @@ class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
 
 
 class WebFeatureService(WebFeatureServiceDefaultSettings, WebFeatureServiceMixin):
-    ROOT_NAME = "wfs:WFS_Capabilities"
+    ROOT_NAME = "WFS_Capabilities"
     XSD_SCHEMA = "http://www.opengis.net/wfs/2.0"
 
     title = StringField(xpath="./ows:ServiceIdentification/ows:Title")
     abstract = StringField(xpath="./ows:ServiceIdentification/ows:Abstract")
     fees = StringField(xpath="./ows:ServiceIdentification/ows:Fees")
-    access_constraints = StringField(xpath="./ows:ServiceIdentification/ows:AccessConstraints")
+    access_constraints = StringField(
+        xpath="./ows:ServiceIdentification/ows:AccessConstraints")
 
     # ForeignKey
     service_contact = NodeField(xpath="./ows:ServiceProvider",
                                 node_class=ServiceMetadataContact)
 
     # ManyToManyField
-    keywords = StringListField(xpath="./ows:ServiceIdentification/ows:Keywords/ows:Keyword")
-
+    keywords = StringListField(
+        xpath="./ows:ServiceIdentification/ows:Keywords/ows:Keyword")
 
     service_type = NodeField(xpath=".", node_class=ServiceType)
 

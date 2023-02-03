@@ -5,9 +5,10 @@ from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.capabilities.wms.wms130 import Layer as XmlLayer
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     RemoteMetadata as XmlRemoteMetadata
+from ows_lib.xml_mapper.capabilities.wms.wms130 import Style as XmlStyle
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     WebMapService as XmlWebMapService
-from registry.models.metadata import DatasetMetadata
+from registry.models.metadata import DatasetMetadata, Style
 from registry.models.service import Layer, WebMapService
 
 
@@ -18,6 +19,11 @@ class MetadataUrlToXml(Mapping):
     @map_field(from_field="origin_url")
     def link(self, value):
         return value
+
+
+class StyleToXml(Mapping):
+    from_obj = Style
+    to_obj = XmlStyle
 
 
 class LayerToXml(Mapping):
@@ -34,6 +40,14 @@ class LayerToXml(Mapping):
     @assign_field(to_list=True)
     def keywords(self):
         return [str(keyword) for keyword in self.source.keywords.all()]
+
+    @assign_field(to_list=True)
+    def styles(self):
+        # FIXME: find style and update instead of creating them with apply
+        styles = []
+        for style in self.source.styles.all():
+            styles.append(StyleToXml.apply(source_obj=style))
+        return styles
 
     # TODO
     # @assign_field

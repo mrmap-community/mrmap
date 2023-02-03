@@ -9,6 +9,7 @@ from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
 from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.utils import get_parsed_service
+from registry.mapping.capabilities.utils import get_mapping_class
 
 
 def xml_backup_file_path(instance, filename):
@@ -105,12 +106,10 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
             The values from the database overwrites the values inside the xml document.
         """
         xml_object: OGCServiceMixin = self.xml_backup
-
-        from registry.mapping.service import WebMapServiceToXml
-        mapper = WebMapServiceToXml(
+        mapping_cls = get_mapping_class(self)
+        mapper = mapping_cls(
             source_obj=self, destination_obj=xml_object)
         xml_object = mapper.update()
-
         return xml_object
 
     def xml_secured(self, request: HttpRequest) -> str:

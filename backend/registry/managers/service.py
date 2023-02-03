@@ -95,7 +95,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         """ Creates the service instance and all depending/related objects """
         from registry.models.service import (WebMapService,
                                              WebMapServiceOperationUrl)
-        parsed_service_contact = parsed_service.service_metadata.service_contact
+        parsed_service_contact = parsed_service.service_contact
 
         db_service_contact, created = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
@@ -103,12 +103,11 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         service: WebMapService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
                                                 service_contact=db_service_contact,
                                                 metadata_contact=db_service_contact,
-                                                **parsed_service.transform_to_model(),
-                                                **parsed_service.service_metadata.transform_to_model())
+                                                **parsed_service.transform_to_model())
 
         # keywords
         keyword_list = self.get_or_create_list(
-            list=parsed_service.service_metadata.keywords,
+            list=parsed_service.keywords,
             model_cls=Keyword)
         service.keywords.add(*keyword_list)
 
@@ -216,8 +215,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         node = Layer(service=db_service,
                      parent=db_parent,
                      origin=MetadataOrigin.CAPABILITIES.value,
-                     **parsed_layer.transform_to_model(),
-                     **parsed_layer.metadata.transform_to_model())
+                     **parsed_layer.transform_to_model())
         self._update_transient_objects({"layer_list": [node]})
 
         setattr(node, Layer._mptt_meta.tree_id_attr, tree_id)
@@ -225,7 +223,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         setattr(node, Layer._mptt_meta.left_attr, cursor)
 
         node.__transient_keywords = self.get_or_create_list(
-            list=parsed_layer.metadata.keywords,
+            list=parsed_layer.keywords,
             model_cls=Keyword
         )
         node.__transient_reference_systems = self.get_or_create_list(
@@ -312,7 +310,7 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         """ Creates the service instance and all depending/related objects """
         from registry.models.service import (WebFeatureService,
                                              WebFeatureServiceOperationUrl)
-        parsed_service_contact = parsed_service.service_metadata.service_contact
+        parsed_service_contact = parsed_service.service_contact
 
         db_service_contact, created = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
@@ -320,12 +318,11 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         service: WebFeatureService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
                                                     service_contact=db_service_contact,
                                                     metadata_contact=db_service_contact,
-                                                    **parsed_service.transform_to_model(),
-                                                    **parsed_service.service_metadata.transform_to_model())
+                                                    **parsed_service.transform_to_model())
 
         # keywords
         keyword_list = self.get_or_create_list(
-            list=parsed_service.service_metadata.keywords,
+            list=parsed_service.keywords,
             model_cls=Keyword)
         service.keywords.add(*keyword_list)
 
@@ -378,13 +375,12 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         for parsed_feature_type in parsed_service.feature_types:
             db_feature_type = FeatureType(service=db_service,
                                           origin=MetadataOrigin.CAPABILITIES.value,
-                                          **parsed_feature_type.transform_to_model(),
-                                          **parsed_feature_type.metadata.transform_to_model())
+                                          **parsed_feature_type.transform_to_model())
             self._update_transient_objects(
                 {"feature_type_list": [db_feature_type]})
 
             db_feature_type.__transient_keywords = self.get_or_create_list(
-                list=parsed_feature_type.metadata.keywords,
+                list=parsed_feature_type.keywords,
                 model_cls=Keyword
             )
             db_feature_type.__transient_reference_systems = self.get_or_create_list(
@@ -427,7 +423,7 @@ class CatalogueServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
         from registry.models.service import (CatalogueService,
                                              CatalogueServiceOperationUrl)
 
-        parsed_service_contact = parsed_service.service_metadata.service_contact
+        parsed_service_contact = parsed_service.service_contact
 
         db_service_contact, created = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
@@ -435,12 +431,11 @@ class CatalogueServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
         service: CatalogueService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
                                                    service_contact=db_service_contact,
                                                    metadata_contact=db_service_contact,
-                                                   **parsed_service.transform_to_model(),
-                                                   **parsed_service.service_metadata.transform_to_model())
+                                                   **parsed_service.transform_to_model())
 
         # keywords
         keyword_list = self.get_or_create_list(
-            list=parsed_service.service_metadata.keywords,
+            list=parsed_service.keywords,
             model_cls=Keyword)
         service.keywords.add(*keyword_list)
 

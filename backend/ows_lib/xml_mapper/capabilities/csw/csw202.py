@@ -39,22 +39,6 @@ class ServiceMetadataContact(CatalogueServiceDefaultSettings):
         xpath="./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:DeliveryPoint")
 
 
-class ServiceMetadata(CatalogueServiceDefaultSettings):
-    ROOT_NAME = "csw:ServiceIdentification"
-
-    title = StringField(xpath="ows:Title")
-    abstract = StringField(xpath="ows:Abstract")
-    fees = StringField(xpath="ows:Fees")
-    access_constraints = StringField(xpath="ows:AccessConstraints")
-
-    # ForeignKey
-    service_contact = NodeField(xpath="../ows:ServiceProvider",
-                                node_class=ServiceMetadataContact)
-
-    # ManyToManyField
-    keywords = StringListField(xpath="ows:Keywords/ows:Keyword")
-
-
 class ServiceType(CatalogueServiceDefaultSettings, OGCServiceTypeMixin):
     ROOT_NAME = "csw:Capabilities/@version='2.0.2'"
 
@@ -70,8 +54,17 @@ class CatalogueService(CatalogueServiceDefaultSettings, OGCServiceMixin):
                             "GetDomain", "GetRecords", "GetRecordById"]
 
     service_type = NodeField(xpath=".", node_class=ServiceType)
-    service_metadata: ServiceMetadata = NodeField(
-        xpath="./ows:ServiceIdentification", node_class=ServiceMetadata)
+    title = StringField(xpath="./csw:ServiceIdentification/ows:Title")
+    abstract = StringField(xpath="./csw:ServiceIdentification/ows:Abstract")
+    fees = StringField(xpath="./csw:ServiceIdentification/ows:Fees")
+    access_constraints = StringField(xpath="./csw:ServiceIdentification/ows:AccessConstraints")
+
+    # ForeignKey
+    service_contact = NodeField(xpath="./ows:ServiceProvider",
+                                node_class=ServiceMetadataContact)
+
+    # ManyToManyField
+    keywords = StringListField(xpath="./csw:ServiceIdentification/ows:Keywords/ows:Keyword")
 
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.

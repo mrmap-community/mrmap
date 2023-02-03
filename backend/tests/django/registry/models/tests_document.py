@@ -57,20 +57,20 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
                          capabilities.get_operation_url_by_name_and_method("GetMap", "Get").url)
 
         # check service metadata
-        self.assertEqual("huhu", capabilities.service_metadata.title)
+        self.assertEqual("huhu", capabilities.title)
 
         # check root layer metadata
         self.assertEqual("hihi",
-                         capabilities.root_layer.metadata.title)
+                         capabilities.root_layer.title)
         self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(capabilities.root_layer.metadata.keywords)))
+            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(capabilities.root_layer.keywords)))
 
         # check a layer metadata in deep
         some_layer = capabilities.get_layer_by_identifier(
             identifier="node1.1.1")
-        self.assertEqual("hoho", some_layer.metadata.title)
+        self.assertEqual("hoho", some_layer.title)
         self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(some_layer.metadata.keywords)))
+            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(some_layer.keywords)))
 
         self.fail(
             msg="complete this test by adding more data changes on on more sub objects.")

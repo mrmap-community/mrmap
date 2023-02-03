@@ -47,22 +47,6 @@ class ServiceMetadataContact(WebFeatureServiceDefaultSettings):
         xpath="./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:DeliveryPoint")
 
 
-class ServiceMetadata(WebFeatureServiceDefaultSettings):
-    ROOT_NAME = "ows:ServiceIdentification"
-
-    title = StringField(xpath="./ows:Title")
-    abstract = StringField(xpath="./ows:Abstract")
-    fees = StringField(xpath="./ows:Fees")
-    access_constraints = StringField(xpath="./ows:AccessConstraints")
-
-    # ForeignKey
-    service_contact = NodeField(xpath="../ows:ServiceProvider",
-                                node_class=ServiceMetadataContact)
-
-    # ManyToManyField
-    keywords = StringListField(xpath="./ows:Keywords/ows:Keyword")
-
-
 class ServiceType(WebFeatureServiceDefaultSettings, OGCServiceTypeMixin):
     ROOT_NAME = "wfs:WFS_Capabilities/@version='2.0.0'"
 
@@ -82,16 +66,6 @@ class OtherReferenceSystem(ReferenceSystem):
     ROOT_NAME = "wfs:OtherCRS"
 
 
-class FeatureTypeMetadata(WebFeatureServiceDefaultSettings):
-    ROOT_NAME = "wfs:FeatureType"
-
-    title = StringField(xpath="wfs:Title")
-    abstract = StringField(xpath="wfs:Abstract")
-
-    # ManyToManyField
-    keywords = StringListField(xpath="ows:Keywords/ows:Keyword")
-
-
 class OutputFormat(WebFeatureServiceDefaultSettings):
     ROOT_NAME = "wfs:Format"
 
@@ -108,7 +82,9 @@ class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
     ROOT_NAME = "wfs:FeatureType"
 
     identifier = StringField(xpath="./wfs:Name")
-    metadata = NodeField(xpath=".", node_class=FeatureTypeMetadata)
+    title = StringField(xpath="wfs:Title")
+    abstract = StringField(xpath="wfs:Abstract")
+
     remote_metadata = NodeListField(
         xpath="./wfs:MetadataURL", node_class=RemoteMetadata)
 
@@ -132,12 +108,22 @@ class FeatureType(WebFeatureServiceDefaultSettings, FeatureTypeMixin):
 
 class WebFeatureService(WebFeatureServiceDefaultSettings, WebFeatureServiceMixin):
     ROOT_NAME = "wfs:WFS_Capabilities"
-
     XSD_SCHEMA = "http://www.opengis.net/wfs/2.0"
 
+    title = StringField(xpath="./ows:ServiceIdentification/ows:Title")
+    abstract = StringField(xpath="./ows:ServiceIdentification/ows:Abstract")
+    fees = StringField(xpath="./ows:ServiceIdentification/ows:Fees")
+    access_constraints = StringField(xpath="./ows:ServiceIdentification/ows:AccessConstraints")
+
+    # ForeignKey
+    service_contact = NodeField(xpath="./ows:ServiceProvider",
+                                node_class=ServiceMetadataContact)
+
+    # ManyToManyField
+    keywords = StringListField(xpath="./ows:ServiceIdentification/ows:Keywords/ows:Keyword")
+
+
     service_type = NodeField(xpath=".", node_class=ServiceType)
-    service_metadata: ServiceMetadata = NodeField(
-        xpath="./ows:ServiceIdentification", node_class=ServiceMetadata)
 
     feature_types = NodeListField(xpath="./wfs:FeatureTypeList/wfs:FeatureType",
                                   node_class=FeatureType)

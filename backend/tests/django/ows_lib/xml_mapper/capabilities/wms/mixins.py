@@ -31,69 +31,69 @@ class WebMapServiceTestCase:
 
     def _test_service_metadata_mapper(self):
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.title,
+            self.parsed_capabilities.title,
             "DWD GeoServer WMS")
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.abstract,
+            self.parsed_capabilities.abstract,
             "This is the Web Map Server of DWD.")
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.fees,
+            self.parsed_capabilities.fees,
             "none"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.access_constraints,
+            self.parsed_capabilities.access_constraints,
             "http://www.dwd.de/DE/service/copyright/copyright_node.html"
         )
 
     def _test_service_contact_mapper(self):
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.name,
+            self.parsed_capabilities.service_contact.name,
             "Deutscher Wetterdienst"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.person_name,
+            self.parsed_capabilities.service_contact.person_name,
             ""
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.phone,
+            self.parsed_capabilities.service_contact.phone,
             ""
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.facsimile,
+            self.parsed_capabilities.service_contact.facsimile,
             ""
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.email,
+            self.parsed_capabilities.service_contact.email,
             "info@dwd.de"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.country,
+            self.parsed_capabilities.service_contact.country,
             "Germany"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.postal_code,
+            self.parsed_capabilities.service_contact.postal_code,
             "63067"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.city,
+            self.parsed_capabilities.service_contact.city,
             "Offenbach"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.state_or_province,
+            self.parsed_capabilities.service_contact.state_or_province,
             "Hessen"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.address,
+            self.parsed_capabilities.service_contact.address,
             "Frankfurter Strasse 135"
         )
 
     def _test_service_keywords(self):
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.keywords[0],
+            self.parsed_capabilities.keywords[0],
             "meteorology"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.keywords[1],
+            self.parsed_capabilities.keywords[1],
             "climatology"
         )
 

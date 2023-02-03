@@ -44,15 +44,19 @@ class LayerToXml(Mapping):
     @assign_field(to_list=True)
     def styles(self):
         # FIXME: find style and update instead of creating them with apply
-        styles = []
+        _styles = []
         for style in self.source.styles.all():
-            styles.append(StyleToXml.apply(source_obj=style))
-        return styles
+            _styles.append(StyleToXml.apply(source_obj=style))
+        return _styles
 
-    # TODO
-    # @assign_field
-    # def remote_metadata(self):
-    #     pass
+    @assign_field(to_list=True)
+    def remote_metadata(self):
+        # FIXME: find style and update instead of creating them with apply
+        _remote_metadata = []
+        for remote_metadata in self.source.dataset_metadata_relations.all():
+            _remote_metadata.append(
+                MetadataUrlToXml.apply(source_obj=remote_metadata))
+        return _remote_metadata
 
 
 class WebMapServiceToXml(Mapping):

@@ -1,3 +1,4 @@
+import importlib
 from pathlib import Path
 
 from eulxml.xmlmap import (StringField, XmlObject, load_xmlobject_from_file,
@@ -49,44 +50,54 @@ def get_load_func(capabilities_xml):
     return load_func
 
 
-def get_xml_mapper(capabilities_xml):
-    """helper function to get the correct xml mapper class for a given capabilities xml"""
+def get_ogc_service_type_helper(capabilities_xml: OGCServiceTypeHelper):
     load_func = get_load_func(capabilities_xml)
-    parsed_service: OGCServiceTypeHelper = load_func(capabilities_xml,
-                                                     xmlclass=OGCServiceTypeHelper)
+    return load_func(capabilities_xml, xmlclass=OGCServiceTypeHelper)
+
+
+def get_import_path_for_xml_mapper(capabilities_xml):
+    parsed_service: OGCServiceTypeHelper = get_ogc_service_type_helper(
+        capabilities_xml=capabilities_xml)
 
     if parsed_service.kind == OGCServiceEnum.WMS.value:
         match parsed_service.version:
             case "1.1.1":
-                from ows_lib.xml_mapper.capabilities.wms.wms111 import \
-                    WebMapService
-                return WebMapService
+                return "ows_lib.xml_mapper.capabilities.wms.wms111"
             case "1.3.0":
-                from ows_lib.xml_mapper.capabilities.wms.wms130 import \
-                    WebMapService
-                return WebMapService
+                return "ows_lib.xml_mapper.capabilities.wms.wms130"
             case _:
                 raise NotImplementedError(
                     f"Version {parsed_service.version} for wms is not supported.")
-
     elif parsed_service.kind == OGCServiceEnum.WFS.value:
         match parsed_service.version:
             case "2.0.0":
-                from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
-                    WebFeatureService
-                return WebFeatureService
+                return "ows_lib.xml_mapper.capabilities.wfs.wfs200"
             case _:
                 raise NotImplementedError(
                     f"Version {parsed_service.version} for wfs is not supported.")
-
     elif parsed_service.kind == OGCServiceEnum.CSW.value:
         match parsed_service.version:
             case "2.0.2":
-                from ows_lib.xml_mapper.capabilities.csw.csw202 import \
-                    CatalogueService
-                return CatalogueService
+                return "ows_lib.xml_mapper.capabilities.csw.csw202"
         raise NotImplementedError(
             f"Version {parsed_service.version} for csw is not supported.")
+
+
+def get_xml_mapper(capabilities_xml):
+    """helper function to get the correct xml mapper class for a given capabilities xml"""
+
+    import_path = get_import_path_for_xml_mapper(
+        capabilities_xml=capabilities_xml)
+
+    parsed_service: OGCServiceTypeHelper = get_ogc_service_type_helper(
+        capabilities_xml=capabilities_xml)
+
+    if parsed_service.kind == OGCServiceEnum.WMS.value:
+        return importlib.import_module(f"{import_path}.WebMapService")
+    elif parsed_service.kind == OGCServiceEnum.WFS.value:
+        return importlib.import_module(f"{import_path}.WebFeatureService")
+    elif parsed_service.kind == OGCServiceEnum.CSW.value:
+        return importlib.import_module(f"{import_path}.CatalogueService")
     else:
         raise_default_sematic_error(parsed_service.kind)
 

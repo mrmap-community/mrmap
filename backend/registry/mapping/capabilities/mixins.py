@@ -1,16 +1,13 @@
 from copy import deepcopy
 
-from odin.mapping import assign_field
+from odin.mapping import MappingBase, MappingMeta, assign_field
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 
 
-class OgcServiceToXmlMixin:
-
-    def __init__(self, destination_obj, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.destination_obj = deepcopy(destination_obj)
+class OgcServiceToXml(MappingBase, metaclass=MappingMeta):
 
     def update(self, *args, **kwargs):
+        self.destination_obj = deepcopy(self.destination_obj)
         updated_service = super().update(
             destination_obj=self.destination_obj, *args, **kwargs)
         self._update_operation_urls(updated_service=updated_service)

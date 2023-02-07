@@ -7,9 +7,10 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
+from odin.mapping import Mapping
 from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.mapping.capabilities.utils import get_mapping_class
+from registry.mapping.capabilities.utils import get_mapper_for_service
 
 
 def xml_backup_file_path(instance, filename):
@@ -105,11 +106,9 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
             The values from the database overwrites the values inside the xml document.
         """
-        xml_object: OGCServiceMixin = self.xml_backup
-        mapping_cls = get_mapping_class(self)
-        mapper = mapping_cls(
-            source_obj=self, destination_obj=xml_object)
-        xml_object = mapper.update()
+        mapper_cls = get_mapper_for_service(self)
+        mapper = mapper_cls(source_obj=self)
+        xml_object = mapper.update(destination_obj=self.xml_backup)
         return xml_object
 
     def xml_secured(self, request: HttpRequest) -> str:

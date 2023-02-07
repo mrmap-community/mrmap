@@ -1,4 +1,4 @@
-import importlib
+from importlib import import_module
 from pathlib import Path
 
 from eulxml.xmlmap import (StringField, XmlObject, load_xmlobject_from_file,
@@ -93,11 +93,11 @@ def get_xml_mapper(capabilities_xml):
         capabilities_xml=capabilities_xml)
 
     if parsed_service.kind == OGCServiceEnum.WMS.value:
-        return importlib.import_module(f"{import_path}.WebMapService")
+        return getattr(import_module(import_path), "WebMapService")
     elif parsed_service.kind == OGCServiceEnum.WFS.value:
-        return importlib.import_module(f"{import_path}.WebFeatureService")
+        return getattr(import_module(import_path), "WebFeatureService")
     elif parsed_service.kind == OGCServiceEnum.CSW.value:
-        return importlib.import_module(f"{import_path}.CatalogueService")
+        return getattr(import_module(import_path), "CatalogueService")
     else:
         raise_default_sematic_error(parsed_service.kind)
 

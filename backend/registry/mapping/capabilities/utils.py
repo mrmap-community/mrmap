@@ -1,4 +1,4 @@
-from odin.mapping import forward_mapping_factory
+from odin.mapping import assign, forward_mapping_factory
 
 
 def get_import_path_for_xml_mapper(service):
@@ -20,4 +20,4 @@ def get_mapper_for_service(service):
                 WebMapService as XmlWebMapService
             from registry.mapping.capabilities.wms.wms130 import \
                 WebMapServiceToXml
-            return forward_mapping_factory(from_obj=WebMapService, to_obj=XmlWebMapService, base_mapping=WebMapServiceToXml)
+            return forward_mapping_factory(from_obj=WebMapService, to_obj=XmlWebMapService, base_mapping=WebMapServiceToXml, mappings=[assign(to_field="keywords", action=WebMapServiceToXml.keywords, to_list=True)])

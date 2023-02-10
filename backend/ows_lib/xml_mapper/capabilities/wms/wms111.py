@@ -89,11 +89,11 @@ class RemoteMetadata(WebMapServiceDefaultSettings):
 
 class Layer(WebMapServiceDefaultSettings, LayerMixin):
     ROOT_NAME = "Layer"
-    
+
     title = StringField(xpath="./Title")
     abstract = StringField(xpath="./Abstract")
     keywords = StringListField(xpath="./KeywordList/Keyword")
-    
+
     scale_min = FloatField(xpath="./ScaleHint/@min")
     scale_max = FloatField(xpath="./ScaleHint/@max")
 
@@ -147,9 +147,12 @@ class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):
         xpath="./Service/OnlineResource[@xlink:type='simple']/@xlink:href")
 
     service_type = NodeField(xpath=".", node_class=ServiceType)
-    
+
     root_layer = NodeField(
         xpath="./Capability/Layer", node_class=Layer)
+
+    _layers = NodeListField(
+        xpath="./Capability//Layer", node_class=Layer)
 
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.

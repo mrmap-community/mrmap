@@ -5,11 +5,11 @@ from odin.mapping import (MappingBase, MappingMeta, assign, define,
                           forward_mapping_factory)
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.utils import get_import_path_for_xml_mapper
-from registry.models.metadata import DatasetMetadata, Style
-from registry.models.service import Layer
+from registry.models.metadata import DatasetMetadata
+from registry.models.service import FeatureType
 
 
-class LayerToXml(MappingBase, metaclass=MappingMeta):
+class FeatureTypeToXml(MappingBase, metaclass=MappingMeta):
 
     def update(self, destination_obj, *args, **kwargs):
         self._destination_obj = destination_obj
@@ -17,17 +17,6 @@ class LayerToXml(MappingBase, metaclass=MappingMeta):
 
     def keywords(self):
         return [str(keyword) for keyword in self.source.keywords.all()]
-
-    def styles(self):
-        # FIXME: find style and update instead of creating them with apply
-        xml_style_mapper_cls = getattr(import_module(
-            get_import_path_for_xml_mapper(self._destination_obj.serializeDocument())), "Style")
-        style_mapper_cls = forward_mapping_factory(
-            from_obj=Style, to_obj=xml_style_mapper_cls)
-        _styles = []
-        for style in self.source.styles.all():
-            _styles.append(style_mapper_cls.apply(source_obj=style))
-        return _styles
 
     def remote_metadata(self):
         # FIXME: find style and update instead of creating them with apply
@@ -47,7 +36,7 @@ class LayerToXml(MappingBase, metaclass=MappingMeta):
         return _remote_metadata
 
 
-class WebMapServiceToXml(MappingBase, metaclass=MappingMeta):
+class WebFeatureServiceToXml(MappingBase, metaclass=MappingMeta):
 
     def keywords(self):
         return [str(keyword) for keyword in self.source.keywords.all()]
@@ -57,7 +46,7 @@ class WebMapServiceToXml(MappingBase, metaclass=MappingMeta):
         updated_service = super().update(
             destination_obj=self._destination_obj, *args, **kwargs)
         self._update_operation_urls(updated_service=updated_service)
-        self._update_layers()
+        self._update_feature_types()
         return updated_service
 
     def _update_operation_urls(self, updated_service):
@@ -71,26 +60,24 @@ class WebMapServiceToXml(MappingBase, metaclass=MappingMeta):
                     mime_types=[str(mime_type) for mime_type in operation_url.mime_types.all()]))
         updated_service.operation_urls = operation_urls
 
-    def _update_layers(self):
+    def _update_feature_types(self):
         mappings = []
         mappings.append(assign(to_field="remote_metadata",
-                        action=LayerToXml.remote_metadata, to_list=True))
-        mappings.append(
-            assign(to_field="styles", action=LayerToXml.styles, to_list=True))
+                        action=FeatureTypeToXml.remote_metadata, to_list=True))
         mappings.append(assign(to_field="keywords",
-                        action=LayerToXml.keywords, to_list=True))
+                        action=FeatureTypeToXml.keywords, to_list=True))
 
-        for layer in self.source.layers.filter(is_active=True):
-            xml_layer_mapper_cls = getattr(import_module(get_import_path_for_xml_mapper(
-                self._destination_obj.serializeDocument())), "Layer")
-            layer_mapper_cls = forward_mapping_factory(
-                from_obj=Layer, to_obj=xml_layer_mapper_cls, base_mapping=LayerToXml, mappings=mappings)
-            layer_mapper = layer_mapper_cls(source_obj=layer)
-            layer_mapper.update(destination_obj=self._destination_obj.get_layer_by_identifier(
-                identifier=layer.identifier))
+        for feature_type in self.source.featuretypes.filter(is_active=True):
+            xml_feature_type_mapper_cls = getattr(import_module(get_import_path_for_xml_mapper(
+                self._destination_obj.serializeDocument())), "FeatureType")
+            mapper_cls = forward_mapping_factory(
+                from_obj=FeatureType, to_obj=xml_feature_type_mapper_cls, base_mapping=FeatureTypeToXml, mappings=mappings)
+            mapper = mapper_cls(source_obj=feature_type)
+            mapper.update(destination_obj=self._destination_obj.get_feature_type_by_identifier(
+                identifier=feature_type.identifier))
 
-        for layer in self.source.layers.filter(is_active=False):
-            xml_layer = self._destination_obj.get_layer_by_identifier(
-                identifier=layer.identifier)
-            if xml_layer:
-                self._destination_obj._layers.remove(xml_layer)
+        for feature_type in self.source.featuretypes.filter(is_active=False):
+            xml_feature_type = self._destination_obj.get_feature_type_by_identifier(
+                identifier=feature_type.identifier)
+            if xml_feature_type:
+                self._destination_obj.feature_types.remove(xml_feature_type)

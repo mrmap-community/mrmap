@@ -494,6 +494,6 @@ class WebMapServiceTestCase:
 
     def test_layer_layers_property(self):
         self.assertEqual(
-            len(self.parsed_capabilities.layers),
+            len(self.parsed_capabilities._layers),
             137
         )

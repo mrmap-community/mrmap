@@ -208,7 +208,7 @@
             "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "parent": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "is_active": true,
+            "is_active": false,
             "identifier": "node1.1.2",
             "origin": "capabilities",
             "title": "node1.1.2",

@@ -12,7 +12,8 @@ def get_import_path_for_xml_mapper(service):
 
 
 def get_mapper_for_service(service):
-    from registry.models.service import WebFeatureService, WebMapService
+    from registry.models.service import (CatalogueService, WebFeatureService,
+                                         WebMapService)
 
     if isinstance(service, WebMapService):
         from registry.mapping.capabilities.wms.wms import WebMapServiceToXml
@@ -37,3 +38,13 @@ def get_mapper_for_service(service):
             raise NotImplementedError(
                 f"wfs of version: {service.version} is not supported.")
         return forward_mapping_factory(from_obj=WebFeatureService, to_obj=XmlWebFeatureService, base_mapping=WebFeatureServiceToXml, mappings=[assign(to_field="keywords", action=WebFeatureServiceToXml.keywords, to_list=True)])
+    elif isinstance(service, CatalogueService):
+        from registry.mapping.capabilities.csw.csw import CatalogueServiceToXml
+
+        if service.version == "2.0.2":
+            from ows_lib.xml_mapper.capabilities.csw.csw202 import \
+                CatalogueService as XmlCatalogueService
+        else:
+            raise NotImplementedError(
+                f"csw of version: {service.version} is not supported.")
+        return forward_mapping_factory(from_obj=CatalogueService, to_obj=XmlCatalogueService, base_mapping=CatalogueServiceToXml, mappings=[assign(to_field="keywords", action=CatalogueServiceToXml.keywords, to_list=True)])

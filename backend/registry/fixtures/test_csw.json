@@ -160,7 +160,8 @@
             "abstract": "abstract2",
             "service_url": "",
             "service_contact": "1",
-            "metadata_contact": "1"
+            "metadata_contact": "1",
+            "version": "2.0.2"
         }
     },
     {

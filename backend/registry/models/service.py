@@ -317,8 +317,6 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         verbose_name=_("reference systems"),
         help_text=_("all reference systems which this element supports"),
     )
-    # todo:
-    xml_mapper_cls = None
 
     class Meta:
         abstract = True

@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from warnings import warn
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
@@ -7,7 +8,6 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
-from odin.mapping import Mapping
 from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.mapping.capabilities.utils import get_mapper_for_service
@@ -38,6 +38,7 @@ class DocumentModelMixin(models.Model):
 
         :raises ImproperlyConfigured: if the concrete model does not configure the xml_mapper_cls attribute.
         """
+        warn("get_xml_mapper_cls is deprecated. use utility functions of ows_lib package instead.")
         if self.xml_mapper_cls:
             return self.xml_mapper_cls
         raise ImproperlyConfigured("xml_mapper_cls attribute is needed.")
@@ -121,10 +122,10 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
             operation_url.url = new_url
         if capabilities_xml.service_url:
             capabilities_xml.service_url = new_url
-        if hasattr(capabilities_xml, "get_all_layers"):
-            for layer in capabilities_xml.get_all_layers():
-                for style in layer.styles:
-                    style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+
+        for layer in capabilities_xml.layers:
+            for style in layer.styles:
+                style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
         # TODO: only support xml Exception format --> remove all others
         return capabilities_xml.serializeDocument()
 

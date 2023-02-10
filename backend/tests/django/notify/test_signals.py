@@ -4,15 +4,16 @@ from typing import OrderedDict
 from async_timeout import timeout
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
-from django.test import Client, TransactionTestCase
+from django.test import Client, TransactionTestCase, override_settings
 from django_celery_results.models import TaskResult
 from MrMap.asgi import application
+from notify.models import BackgroundProcess, ProcessNameEnum
 from rest_framework.test import APIRequestFactory
 from simple_history.models import HistoricalRecords
 
-from notify.models import BackgroundProcess, ProcessNameEnum
 
-
+# use in memory channel layer for testing to ignore redis behaviour
+@override_settings(CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}})
 class SignalsTestCase(TransactionTestCase):
     fixtures = ['test_users.json']
 

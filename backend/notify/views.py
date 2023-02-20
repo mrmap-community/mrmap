@@ -2,20 +2,15 @@ import json
 
 from celery import states
 from django_celery_results.models import TaskResult
-from extras.openapi import CustomAutoSchema
+from notify.models import BackgroundProcess
+from notify.serializers import (BackgroundProcessSerializer,
+                                TaskResultSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
-from notify.models import BackgroundProcess
-from notify.serializers import (BackgroundProcessSerializer,
-                                TaskResultSerializer)
-
 
 class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
-    schema = CustomAutoSchema(
-        tags=['TaskResult'],
-    )
     queryset = TaskResult.objects.all()
     serializer_class = TaskResultSerializer
     filterset_fields = {
@@ -46,9 +41,6 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
 
 
 class BackgroundProcessViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["BackgroundProcess"],
-    )
     queryset = BackgroundProcess.objects.process_info()
     serializer_class = BackgroundProcessSerializer
     filterset_fields = {

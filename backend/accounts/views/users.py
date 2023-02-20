@@ -1,6 +1,5 @@
 from accounts.models.users import User
 from accounts.serializers.users import UserCreateSerializer, UserSerializer
-from extras.openapi import CustomAutoSchema
 from extras.viewsets import NestedModelViewSet
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response
@@ -8,9 +7,6 @@ from rest_framework_json_api.views import ModelViewSet
 
 
 class UserViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=['Users'],
-    )
     queryset = User.objects.with_meta()
     serializer_classes = {
         "default": UserSerializer,

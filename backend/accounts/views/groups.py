@@ -2,15 +2,11 @@ from accounts.filters.groups import OrganizationFilterSet
 from accounts.models.groups import Organization
 from accounts.serializers.groups import GroupSerializer, OrganizationSerializer
 from django.contrib.auth.models import Group
-from extras.openapi import CustomAutoSchema
 from extras.viewsets import NestedModelViewSet
 from rest_framework_json_api.views import ModelViewSet
 
 
 class GroupViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=['Groups'],
-    )
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
 
@@ -37,9 +33,6 @@ class NestedGroupViewSet(
 
 
 class OrganizationViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=['Organizations'],
-    )
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     filterset_class = OrganizationFilterSet

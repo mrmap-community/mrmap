@@ -64,6 +64,8 @@ INSTALLED_APPS = [
     "accounts",
     "registry",
     "notify",
+    "drf_spectacular",
+    "drf_spectacular_jsonapi"
 ]
 
 MIDDLEWARE = [
@@ -476,7 +478,7 @@ REST_FRAMEWORK = {
         # "rest_framework_json_api.renderers.BrowsableAPIRenderer",
     ),
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
-    "DEFAULT_SCHEMA_CLASS": "extras.openapi.CustomAutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular_jsonapi.openapi.JsonApiAutoSchema",
     "DEFAULT_FILTER_BACKENDS": (
         "rest_framework_json_api.filters.QueryParameterValidationFilter",
         "rest_framework_json_api.filters.OrderingFilter",
@@ -488,4 +490,12 @@ REST_FRAMEWORK = {
         "rest_framework_json_api.renderers.JSONRenderer",
     ),
     "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Your Project API',
+    'DESCRIPTION': 'Your project description',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    # OTHER SETTINGS
 }

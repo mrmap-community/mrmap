@@ -3,6 +3,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NOCOLOR='\033[0m'
 
+git config --global --add safe.directory /opt/mrmap
+
 export $( grep -v '^#' ./docs/.docs.env | xargs )
 
 cd /opt/mrmap

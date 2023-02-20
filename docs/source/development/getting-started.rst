@@ -35,7 +35,7 @@ Typically, you'll base pull requests off of the ``develop`` branch, or off of ``
 Enable Pre-Commit Hooks
 =======================
 
-MrMap ships with a `git pre-commit hook <https://githooks.com/>`_ script that automatically checks for style compliance and missing database migrations prior to committing changes. This helps avoid erroneous commits that result in CI test failures. You are encouraged to enable it by creating a link to ``scripts/git-hooks/pre-commit``:
+MrMap ships with a `git pre-commit hook <https://git-scm.com/docs/githooks>`_ script that automatically checks for style compliance and missing database migrations prior to committing changes. This helps avoid erroneous commits that result in CI test failures. You are encouraged to enable it by creating a link to ``scripts/git-hooks/pre-commit``:
 
 .. code-block:: console
 

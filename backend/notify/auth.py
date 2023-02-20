@@ -1,4 +1,3 @@
-from channels.exceptions import DenyConnection
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.contrib.auth import get_user_model
 

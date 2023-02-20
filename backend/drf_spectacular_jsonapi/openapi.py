@@ -1,7 +1,7 @@
 import warnings
 from datetime import datetime
 from inspect import signature
-from typing import Dict
+from typing import Dict, List
 
 from django.conf import settings
 from django.urls import resolve
@@ -46,6 +46,7 @@ class JsonApiAutoSchema(AutoSchema):
         See also json:api docs: https://jsonapi.org/format/#fetching-sorting
         """
         parameters = super()._get_filter_parameters()
+
         sort_param = next(
             (parameter for parameter in parameters if parameter["name"] == "sort"), None)
         if sort_param and hasattr(self.view, "ordering_fields") and self.view.ordering_fields:
@@ -57,6 +58,12 @@ class JsonApiAutoSchema(AutoSchema):
             # So for that case, sorting is not supported for this endpoint. We need to drop the sort filter parameter.
             parameters.pop(parameters.index(sort_param))
         return parameters
+
+    def _patch_description_for_field(self, parameters):
+        serializer = self.get_serializer(self.path, self.method)
+        for parameter in parameters:
+            next(field for field in serializer.fields.values() if field.name)
+        pass
 
     def _patch_sort_param_schema(self, sort_param: Dict) -> None:
         """Patching all possible sortable columns as schema definition."""
@@ -75,3 +82,7 @@ class JsonApiAutoSchema(AutoSchema):
         if enum:
             sort_param["schema"]["uniqueItems"] = True
             sort_param["schema"]["enum"] = enum
+
+    def get_tags(self) -> List[str]:
+        # TODO: add a setting wich allows to configure the behaviour
+        return [get_resource_name(context={"view": self.view})]

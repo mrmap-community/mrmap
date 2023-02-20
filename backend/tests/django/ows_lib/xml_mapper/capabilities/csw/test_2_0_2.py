@@ -23,73 +23,73 @@ class CatalogueServiceTestCase(SimpleTestCase):
 
     def _test_service_metadata_mapper(self):
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.title,
+            self.parsed_capabilities.title,
             "CSW Geoportal Hessen")
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.abstract,
+            self.parsed_capabilities.abstract,
             "this is the official CSW of the Geoportal Hessen based on pycsw, an OGC CSW server implementation written in Python")
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.fees,
+            self.parsed_capabilities.fees,
             "None"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.access_constraints,
+            self.parsed_capabilities.access_constraints,
             "None"
         )
 
     def _test_service_contact_mapper(self):
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.name,
+            self.parsed_capabilities.service_contact.name,
             "Zentrale Kompetenzstelle fuer Geoinformation"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.person_name,
+            self.parsed_capabilities.service_contact.person_name,
             ""
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.phone,
+            self.parsed_capabilities.service_contact.phone,
             "+49-611-535-5513"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.facsimile,
+            self.parsed_capabilities.service_contact.facsimile,
             "+xx-xxx-xxx-xxxx"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.email,
+            self.parsed_capabilities.service_contact.email,
             "you@example.org"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.country,
+            self.parsed_capabilities.service_contact.country,
             "Deutschland"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.postal_code,
+            self.parsed_capabilities.service_contact.postal_code,
             "65195"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.city,
+            self.parsed_capabilities.service_contact.city,
             "Wiesbaden"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.state_or_province,
+            self.parsed_capabilities.service_contact.state_or_province,
             "Wiesbaden"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.service_contact.address,
+            self.parsed_capabilities.service_contact.address,
             "Schaperstrasse 16"
         )
 
     def _test_service_keywords(self):
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.keywords[0],
+            self.parsed_capabilities.keywords[0],
             "catalogue"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.keywords[1],
+            self.parsed_capabilities.keywords[1],
             "discovery"
         )
         self.assertEqual(
-            self.parsed_capabilities.service_metadata.keywords[2],
+            self.parsed_capabilities.keywords[2],
             "metadata"
         )
 

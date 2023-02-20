@@ -72,6 +72,7 @@
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1",
+            "version": "2.0.0",
             "keywords": [
                 [
                     "meteorology"
@@ -90,6 +91,7 @@
             "origin": "capabilities",
             "title": "wfs1-node1",
             "abstract": "wfs1-node1",
+            "is_active": true,
             "keywords": [
                 [
                     "meteorology"
@@ -106,7 +108,8 @@
             "identifier": "node2",
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
-            "title": "node2"
+            "title": "node2",
+            "is_active": true
         }
     },
     {
@@ -118,7 +121,8 @@
             "identifier": "node3",
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
-            "title": "node3"
+            "title": "node3",
+            "is_active": true
         }
     },
     {
@@ -130,7 +134,8 @@
             "identifier": "node4",
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
-            "title": "node4"
+            "title": "node4",
+            "is_active": false
         }
     },
     {

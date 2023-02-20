@@ -1,4 +1,3 @@
-from channels.exceptions import DenyConnection
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.contrib.auth import get_user_model
 
@@ -12,8 +11,7 @@ class NonAnonymousJsonWebsocketConsumer(JsonWebsocketConsumer):
 
     def connect(self):
         if self.scope['user'].is_anonymous:
-            # TODO: use close(code=401)
-            raise DenyConnection
+            self.close(code=3000)
         else:
             super().connect()
             self.user = get_user_model().objects.get(

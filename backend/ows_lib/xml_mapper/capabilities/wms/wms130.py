@@ -1,16 +1,15 @@
 from eulxml.xmlmap import (FloatField, IntegerField, NodeField, NodeListField,
-                           SimpleBooleanField, StringField, StringListField,
-                           XmlObject)
+                           SimpleBooleanField, StringField, StringListField)
 from ows_lib.xml_mapper.capabilities.mixins import (OGCServiceTypeMixin,
                                                     ReferenceSystemMixin)
 from ows_lib.xml_mapper.capabilities.wms.mixins import (LayerMixin,
                                                         TimeDimensionMixin,
                                                         WebMapServiceMixin)
-from ows_lib.xml_mapper.mixins import DBModelConverterMixin
+from ows_lib.xml_mapper.mixins import CustomXmlObject
 from ows_lib.xml_mapper.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
 
 
-class WebMapServiceDefaultSettings(DBModelConverterMixin, XmlObject):
+class WebMapServiceDefaultSettings(CustomXmlObject):
     ROOT_NS = WMS_1_3_0_NAMESPACE
     ROOT_NAMESPACES = {
         "wms": WMS_1_3_0_NAMESPACE,
@@ -19,7 +18,7 @@ class WebMapServiceDefaultSettings(DBModelConverterMixin, XmlObject):
 
 
 class ServiceMetadataContact(WebMapServiceDefaultSettings):
-    ROOT_NAME = "wms:ContactInformation"
+    ROOT_NAME = "ContactInformation"
 
     name = StringField(
         xpath="./wms:ContactPersonPrimary/wms:ContactOrganization")
@@ -36,24 +35,8 @@ class ServiceMetadataContact(WebMapServiceDefaultSettings):
     address = StringField(xpath="./wms:ContactAddress/wms:Address")
 
 
-class ServiceMetadata(WebMapServiceDefaultSettings):
-    ROOT_NAME = "wms:Service"
-
-    title = StringField(xpath="./wms:Title")
-    abstract = StringField(xpath="./wms:Abstract")
-    fees = StringField(xpath="./wms:Fees")
-    access_constraints = StringField(xpath="./wms:AccessConstraints")
-
-    # ForeignKey
-    service_contact = NodeField(xpath="./wms:ContactInformation",
-                                node_class=ServiceMetadataContact)
-
-    # ManyToManyField
-    keywords = StringListField(xpath="./wms:KeywordList/wms:Keyword")
-
-
 class ServiceType(WebMapServiceDefaultSettings, OGCServiceTypeMixin):
-    ROOT_NAME = "wms:WMS_Capabilities/@version='1.3.0'"
+    ROOT_NAME = "WMS_Capabilities/@version='1.3.0'"
 
     version = StringField(xpath="./@version", choices='1.3.0')
     _name = StringField(xpath="./wms:Service/wms:Name")
@@ -62,7 +45,7 @@ class ServiceType(WebMapServiceDefaultSettings, OGCServiceTypeMixin):
 class TimeDimension(WebMapServiceDefaultSettings, TimeDimensionMixin):
     """ Time Dimension in ISO8601 format"""
 
-    ROOT_NAME = "wms:Dimension[@name='time']"
+    ROOT_NAME = "Dimension[@name='time']"
 
     name = StringField(xpath="./@name", choices="time")
     units = StringField(xpath="./@units", choices="ISO8601")
@@ -71,18 +54,18 @@ class TimeDimension(WebMapServiceDefaultSettings, TimeDimensionMixin):
 
 
 class ReferenceSystem(WebMapServiceDefaultSettings, ReferenceSystemMixin):
-    ROOT_NAME = "wms:CRS"
+    ROOT_NAME = "CRS"
 
     _ref_system = StringField(xpath=".")
 
 
 class MimeType(WebMapServiceDefaultSettings):
-    ROOT_NAME = "wms:Format"
+    ROOT_NAME = "Format"
     mime_type = StringField(xpath="./wms:Format")
 
 
 class LegendUrl(WebMapServiceDefaultSettings):
-    ROOT_NAME = "wms:LegendUrl"
+    ROOT_NAME = "LegendUrl"
 
     legend_url = StringField(
         xpath="./wms:OnlineResource[@xlink:type='simple']/@xlink:href")
@@ -92,29 +75,25 @@ class LegendUrl(WebMapServiceDefaultSettings):
 
 
 class Style(WebMapServiceDefaultSettings):
-    ROOT_NAME = "wms:Style"
+    ROOT_NAME = "Style"
 
     name = StringField(xpath="./wms:Name")
     title = StringField(xpath="./wms:Title")
     legend_url = NodeField(xpath="./wms:LegendURL", node_class=LegendUrl)
 
 
-class LayerMetadata(WebMapServiceDefaultSettings):
-    ROOT_NAME = "wms:Layer"
-
-    title = StringField(xpath="./wms:Title")
-    abstract = StringField(xpath="./wms:Abstract")
-    keywords = StringListField(xpath="./wms:KeywordList/wms:Keyword")
-
-
 class RemoteMetadata(WebMapServiceDefaultSettings):
-    ROOT_NAME = "wms:OnlineResource[@xlink:type='simple']/@xlink:href"
+    ROOT_NAME = "OnlineResource[@xlink:type='simple']/@xlink:href"
     link = StringField(
         xpath="./@xlink:href")
 
 
 class Layer(WebMapServiceDefaultSettings, LayerMixin):
-    ROOT_NAME = "wms:Layer"
+    ROOT_NAME = "Layer"
+
+    title = StringField(xpath="./wms:Title")
+    abstract = StringField(xpath="./wms:Abstract")
+    keywords = StringListField(xpath="./wms:KeywordList/wms:Keyword")
 
     scale_min = FloatField(xpath="./wms:MinScaleDenominator")
     scale_max = FloatField(xpath="./wms:MaxScaleDenominator")
@@ -142,25 +121,38 @@ class Layer(WebMapServiceDefaultSettings, LayerMixin):
     parent = NodeField(xpath="../../wms:Layer", node_class="self")
     children = NodeListField(xpath="./wms:Layer", node_class="self")
 
-    metadata = NodeField(xpath=".", node_class=LayerMetadata)
     remote_metadata = NodeListField(
         xpath="./wms:MetadataURL/wms:OnlineResource[@xlink:type='simple']",
         node_class=RemoteMetadata)
 
 
 class WebMapService(WebMapServiceDefaultSettings, WebMapServiceMixin):
-    ROOT_NAME = "wms:WMS_Capabilities/@version='1.3.0'"
+    ROOT_NAME = "WMS_Capabilities/@version='1.3.0'"
     XSD_SCHEMA = "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
 
+    title = StringField(xpath="./wms:Service/wms:Title")
+    abstract = StringField(xpath="./wms:Service/wms:Abstract")
+    fees = StringField(xpath="./wms:Service/wms:Fees")
+    access_constraints = StringField(
+        xpath="./wms:Service/wms:AccessConstraints")
     service_url = StringField(
         xpath="./wms:Service/wms:OnlineResource[@xlink:type='simple']/@xlink:href")
 
+    # ForeignKey
+    service_contact = NodeField(xpath="./wms:Service/wms:ContactInformation",
+                                node_class=ServiceMetadataContact)
+
+    # ManyToManyField
+    keywords = StringListField(
+        xpath="./wms:Service/wms:KeywordList/wms:Keyword")
+
     service_type = NodeField(xpath=".", node_class=ServiceType)
-    service_metadata: ServiceMetadata = NodeField(
-        xpath="./wms:Service", node_class=ServiceMetadata)
 
     root_layer = NodeField(
         xpath="./wms:Capability/wms:Layer", node_class=Layer)
+
+    _layers = NodeListField(
+        xpath="./wms:Capability//wms:Layer", node_class=Layer)
 
     # cause the information of operation urls are stored as entity name inside the xpath, we need to parse every operation url seperate.
     # To simplify the access of operation_urls we write a custom getter and setter property for it.

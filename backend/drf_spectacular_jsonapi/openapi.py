@@ -8,6 +8,7 @@ from django.conf import settings
 from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.openapi import AutoSchema
+from drf_spectacular.plumbing import build_parameter_type
 from extras.utils import deep_update
 from rest_framework import serializers as drf_serializers
 from rest_framework.exceptions import APIException
@@ -27,7 +28,7 @@ class JsonApiAutoSchema(AutoSchema):
     Extend DRF's openapi.AutoSchema for JSON:API serialization.
     """
 
-    def get_serializer(self, path, method) -> Serializer | None:
+    def get_serializer(self) -> Serializer | None:
         view = self.view
 
         if not hasattr(view, 'get_serializer'):
@@ -39,12 +40,12 @@ class JsonApiAutoSchema(AutoSchema):
             warnings.warn('{}.get_serializer() raised an exception during '
                           'schema generation. Serializer fields will not be '
                           'generated for {} {}.'
-                          .format(view.__class__.__name__, method, path))
+                          .format(view.__class__.__name__, self.method, self.path))
             return None
 
     def _get_serializer_field(self, name: str) -> Dict | None:
         """Retuns serializer field object by the name of the field"""
-        serializer = self.get_serializer(path=self.path, method=self.method)
+        serializer = self.get_serializer()
         return serializer.fields.get(name, None)
 
     def _get_filter_parameters(self) -> Dict:
@@ -118,7 +119,7 @@ class JsonApiAutoSchema(AutoSchema):
 
     def _patch_sort_param_schema(self, sort_param: Dict) -> None:
         """Patching all possible sortable columns as schema definition."""
-        serializer = self.get_serializer(self.path, self.method)
+        serializer = self.get_serializer()
         enum = []
         if isinstance(self.view.ordering_fields, str) and self.view.ordering_fields == "__all__":
             # All fields can be used to sort
@@ -156,7 +157,33 @@ class JsonApiAutoSchema(AutoSchema):
             schema["required"] = patched_required
 
     def _map_basic_serializer(self, serializer, direction):
+        """Update field names to match the configured field name formatting configured by the `JSON_API_FORMAT_FIELD_NAMES` setting"""
         schema = super()._map_basic_serializer(serializer, direction)
         self._patch_property_names(schema=schema)
         self._patch_required_names(schema=schema)
         return schema
+
+    def get_include_parameters(self):
+        include_parameter = {}
+        include_enum = []
+        serializer = self.get_serializer()
+        if hasattr(serializer, "included_serializers") and serializer.included_serializers:
+            include_parameter["include", "query"] = build_parameter_type(
+                name="include",
+                schema={"type": "string", "uniqueItems": True,
+                        "enum": include_enum},
+                location="in",
+                description=_(
+                    "include query parameter to allow the client to customize which related resources should be returned."),
+            )
+            for field_name, serializer in serializer.included_serializers.serializers.items():
+                include_enum.append(format_field_name(field_name=field_name))
+        return include_parameter
+
+    def _process_override_parameters(self, direction="request"):
+        """Dirty hack to push in json:api specific parameters"""
+        result = super()._process_override_parameters(direction=direction)
+
+        if direction == "request":
+            result = result | self.get_include_parameters()
+        return result

@@ -17,6 +17,7 @@ from rest_framework.schemas.utils import is_list_view
 from rest_framework.serializers import Serializer
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api import serializers, views
+from rest_framework_json_api.serializers import SparseFieldsetsMixin
 from rest_framework_json_api.utils import (format_field_name,
                                            get_related_resource_type,
                                            get_resource_name,
@@ -163,7 +164,7 @@ class JsonApiAutoSchema(AutoSchema):
         self._patch_required_names(schema=schema)
         return schema
 
-    def get_include_parameters(self):
+    def get_include_parameter(self):
         include_parameter = {}
         include_enum = []
         serializer = self.get_serializer()
@@ -180,10 +181,30 @@ class JsonApiAutoSchema(AutoSchema):
                 include_enum.append(format_field_name(field_name=field_name))
         return include_parameter
 
+    def get_sparse_fieldset_parameters(self):
+        serializer = self.get_serializer()
+        fields_parameters = {}
+        if issubclass(serializer.__class__, SparseFieldsetsMixin):
+            # fields parameters are only possible if the used serialzer inherits from `SparseFieldsetsMixin`
+            resource_type = get_resource_type_from_serializer(serializer)
+            parameter_name = f"fields[{resource_type}]"
+            fields_parameters[parameter_name, "query"] = build_parameter_type(
+                name=parameter_name,
+                location="query",
+                schema={"type": "string", "uniqueItems": True, "enum": []},
+                description=_(
+                    "endpoint return only specific fields in the response on a per-type basis by including a fields[TYPE] query parameter."),
+            )
+            for field in serializer.fields.values():
+                fields_parameters[parameter_name, "query"]["schema"]["enum"].append(
+                    format_field_name(field.field_name))
+        return fields_parameters
+
     def _process_override_parameters(self, direction="request"):
         """Dirty hack to push in json:api specific parameters"""
         result = super()._process_override_parameters(direction=direction)
 
         if direction == "request":
-            result = result | self.get_include_parameters()
+            result = result | self.get_include_parameter()
+            result = result | self.get_sparse_fieldset_parameters()
         return result

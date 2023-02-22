@@ -498,4 +498,7 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     # OTHER SETTINGS
+
+    # to expose only json:api request bodys..
+    "PARSER_WHITELIST": ["rest_framework_json_api.parsers.JSONParser"]
 }

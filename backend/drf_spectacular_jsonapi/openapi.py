@@ -1,53 +1,18 @@
-import typing
-import warnings
-from datetime import datetime
-from inspect import signature
 from typing import Dict, List, Tuple
 
-from django.conf import settings
-from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.openapi import AutoSchema
 from drf_spectacular.plumbing import build_parameter_type
-from extras.utils import deep_update
-from rest_framework import serializers as drf_serializers
-from rest_framework.exceptions import APIException
-from rest_framework.fields import empty
-from rest_framework.schemas.utils import is_list_view
-from rest_framework.serializers import Serializer
-from rest_framework_gis.fields import GeometryField
-from rest_framework_json_api import serializers, views
 from rest_framework_json_api.serializers import SparseFieldsetsMixin
 from rest_framework_json_api.utils import (format_field_name,
-                                           get_related_resource_type,
                                            get_resource_name,
                                            get_resource_type_from_serializer)
 
 
 class JsonApiAutoSchema(AutoSchema):
     """
-    Extend DRF's openapi.AutoSchema for JSON:API serialization.
+    Extend DRF's spectacular AutoSchema for JSON:API serialization.
     """
-
-    def get_serializer(self) -> Serializer | None:
-        view = self.view
-
-        if not hasattr(view, 'get_serializer'):
-            return None
-
-        try:
-            return view.get_serializer()
-        except APIException:
-            warnings.warn('{}.get_serializer() raised an exception during '
-                          'schema generation. Serializer fields will not be '
-                          'generated for {} {}.'
-                          .format(view.__class__.__name__, self.method, self.path))
-            return None
-
-    def _get_serializer_field(self, name: str) -> Dict | None:
-        """Retuns serializer field object by the name of the field"""
-        serializer = self.get_serializer()
-        return serializer.fields.get(name, None)
 
     def _get_filter_parameters(self) -> Dict:
         """ JSON:API specific handling for sort parameter
@@ -120,7 +85,7 @@ class JsonApiAutoSchema(AutoSchema):
 
     def _patch_sort_param_schema(self, sort_param: Dict) -> None:
         """Patching all possible sortable columns as schema definition."""
-        serializer = self.get_serializer()
+        serializer = self._get_serializer()
         enum = []
         if isinstance(self.view.ordering_fields, str) and self.view.ordering_fields == "__all__":
             # All fields can be used to sort
@@ -137,7 +102,7 @@ class JsonApiAutoSchema(AutoSchema):
             sort_param["schema"]["enum"] = enum
 
     def get_tags(self) -> List[str]:
-        # TODO: add a setting wich allows to configure the behaviour
+        # TODO: add a setting wich allows to configure the behaviour?
         return [get_resource_name(context={"view": self.view})]
 
     def _patch_property_names(self, schema) -> None:
@@ -167,13 +132,14 @@ class JsonApiAutoSchema(AutoSchema):
     def get_include_parameter(self):
         include_parameter = {}
         include_enum = []
-        serializer = self.get_serializer()
+        serializer = self._get_serializer()
         if hasattr(serializer, "included_serializers") and serializer.included_serializers:
             include_parameter["include", "query"] = build_parameter_type(
                 name="include",
-                schema={"type": "string", "uniqueItems": True,
-                        "enum": include_enum},
-                location="in",
+                location="query",
+                schema={"type": "array", "items": {
+                    "type": "string", "enum": include_enum}},
+                explode=False,
                 description=_(
                     "include query parameter to allow the client to customize which related resources should be returned."),
             )
@@ -182,7 +148,7 @@ class JsonApiAutoSchema(AutoSchema):
         return include_parameter
 
     def get_sparse_fieldset_parameters(self):
-        serializer = self.get_serializer()
+        serializer = self._get_serializer()
         fields_parameters = {}
         if issubclass(serializer.__class__, SparseFieldsetsMixin):
             # fields parameters are only possible if the used serialzer inherits from `SparseFieldsetsMixin`
@@ -191,20 +157,24 @@ class JsonApiAutoSchema(AutoSchema):
             fields_parameters[parameter_name, "query"] = build_parameter_type(
                 name=parameter_name,
                 location="query",
-                schema={"type": "string", "uniqueItems": True, "enum": []},
+                schema={"type": "array", "items": {
+                    "type": "string", "enum": []}},
+                explode=False,
                 description=_(
                     "endpoint return only specific fields in the response on a per-type basis by including a fields[TYPE] query parameter."),
             )
             for field in serializer.fields.values():
-                fields_parameters[parameter_name, "query"]["schema"]["enum"].append(
+                fields_parameters[parameter_name, "query"]["schema"]["items"]["enum"].append(
                     format_field_name(field.field_name))
+        # FIXME: sparse fieldset values for included serializers are also needed
         return fields_parameters
 
     def _process_override_parameters(self, direction="request"):
         """Dirty hack to push in json:api specific parameters"""
         result = super()._process_override_parameters(direction=direction)
 
-        if direction == "request":
+        if self.view.request.method == "GET":
+            # only needed on http get method
             result = result | self.get_include_parameter()
             result = result | self.get_sparse_fieldset_parameters()
         return result

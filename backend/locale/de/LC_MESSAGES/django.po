@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-02-10 11:02+0100\n"
+"POT-Creation-Date: 2023-03-06 07:55+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:178
+#: MrMap/settings.py:180
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:179
+#: MrMap/settings.py:181
 msgid "German"
 msgstr "Deutsch"
 
@@ -197,10 +197,6 @@ msgstr "Gruppe in denen dieser Nutzer Mitglied ist."
 #: accounts/serializers/users.py:41
 msgid "groups where this user shall be member of"
 msgstr "Gruppen in denen dieser Nutzer Mitglied sein soll."
-
-#: extras/openapi.py:115
-msgid "sort by column(s)"
-msgstr "sortiere nach Spalte(n)"
 
 #: notify/apps.py:9
 msgid "Notify"
@@ -1509,3 +1505,6 @@ msgstr "Diese Ressource ist aktiviert."
 #: registry/settings.py:33
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
+
+#~ msgid "sort by column(s)"
+#~ msgstr "sortiere nach Spalte(n)"

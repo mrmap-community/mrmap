@@ -67,3 +67,4 @@ odin==2.1
 
 
 drf-spectacular==0.25.1
+drf-spectacular-jsonapi==0.1.1

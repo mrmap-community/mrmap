@@ -1,1 +1,0 @@
-default_app_config = 'drf_spectacular_jsonapi.apps.DRFSpectacularJsonApiConfig'

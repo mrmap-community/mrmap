@@ -1,13 +1,3 @@
-FROM node:16-alpine as frontend-build
-
-WORKDIR /opt/mrmap
-
-COPY ./frontend ./
-
-RUN npm install
-RUN npm run build
-
-
 FROM python:3.10.4-bullseye AS backend-build
 
 WORKDIR /opt/mrmap
@@ -36,7 +26,6 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private
 
 FROM nginx AS final
 
-COPY --from=frontend-build /opt/mrmap/dist /var/www/mrmap/frontend/
 COPY --from=backend-build /var/www/mrmap/backend/ /var/www/mrmap/backend/
 
 EXPOSE 80/tcp

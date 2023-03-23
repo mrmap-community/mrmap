@@ -35,5 +35,8 @@
     "typescript",
     "javascriptreact",
     "typescriptreact"
-  ]
+  ],
+  "files.associations": {
+    "*.yaml": "home-assistant"
+  }
 }

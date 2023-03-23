@@ -56,63 +56,6 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: mrmap frontend",
-            "type": "shell",
-            "command": "docker-compose",
-            "args": [
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "frontend",
-                "--abort-on-container-exit",
-                "frontend"
-            ],
-            "problemMatcher": []
-        },
-        {
-            "label": "Docker-Compose: mrmap frontend-tests-e2e",
-            "type": "shell",
-            "command": "docker-compose",
-            "args": [
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "frontend-tests-e2e",
-                "--abort-on-container-exit",
-                "frontend-tests-e2e"
-            ],
-            "problemMatcher": []
-        },
-        {
-            "label": "Docker-Compose: mrmap frontend-tests-unit",
-            "type": "shell",
-            "command": "docker-compose",
-            "args": [
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "frontend-tests-unit",
-                "--abort-on-container-exit",
-                "frontend-tests-unit"
-            ],
-            "problemMatcher": []
-        },
-        {
             "label": "Docker-Compose: swagger-ui",
             "type": "shell",
             "command": "docker-compose",
@@ -334,29 +277,5 @@
                 "--reset-force"
             ]
         },
-        {
-            "label": "ESLint",
-            "type": "shell",
-            "problemMatcher": "$eslint-stylish",
-            "command": "npm",
-            "args": [
-                "--prefix",
-                "${workspaceFolder}/frontend/",
-                "run",
-                "lint"
-            ]
-        },
-        {
-            "label": "ESLint:fix",
-            "type": "shell",
-            "problemMatcher": "$eslint-stylish",
-            "command": "npm",
-            "args": [
-                "--prefix",
-                "${workspaceFolder}/frontend/",
-                "run",
-                "lint:fix"
-            ]
-        }
     ]
 }

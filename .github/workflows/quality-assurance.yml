@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: coverage-reports
-          path: ./backend/acceptance-tests-coverage-report.xml
+          path: ./mrmap/acceptance-tests-coverage-report.xml
 
   unit-tests:
     name: unit-tests
@@ -86,14 +86,14 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: coverage-reports
-          path: ./backend
+          path: ./mrmap
 
       - name: Run sonar-scanner
         run: |
-          echo -en "\n" >> ./backend/sonar-project.properties
-          echo "sonar.branch.name=$GITHUB_HEAD_REF" >> ./backend/sonar-project.properties
-          echo "sonar.branch.target=$GITHUB_BASE_REF" >> ./backend/sonar-project.properties
-          echo "sonar.login=${{ secrets.SONAR_TOKEN }}" >> ./backend/sonar-project.properties
-          cat ./backend/sonar-project.properties
-          ls ./backend
+          echo -en "\n" >> ./mrmap/sonar-project.properties
+          echo "sonar.branch.name=$GITHUB_HEAD_REF" >> ./mrmap/sonar-project.properties
+          echo "sonar.branch.target=$GITHUB_BASE_REF" >> ./mrmap/sonar-project.properties
+          echo "sonar.login=${{ secrets.SONAR_TOKEN }}" >> ./mrmap/sonar-project.properties
+          cat ./mrmap/sonar-project.properties
+          ls ./mrmap
           GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from sonar-scanner sonar-scanner

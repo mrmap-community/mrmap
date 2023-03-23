@@ -31,9 +31,9 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     # REST API
     # registry api urls
-    path("api/v1/registry/", include("registry.urls", namespace="registry")),
-    path("api/v1/accounts/", include("accounts.urls", namespace="accounts")),
-    path("api/v1/notify/", include("notify.urls", namespace="notify")),
+    path("api/registry/", include("registry.urls", namespace="registry")),
+    path("api/accounts/", include("accounts.urls", namespace="accounts")),
+    path("api/notify/", include("notify.urls", namespace="notify")),
     path(
         "api/schema/",
         cache_page(timeout=60 * 15,

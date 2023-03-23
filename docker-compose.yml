@@ -65,7 +65,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./mrmap
       dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
@@ -75,7 +75,7 @@ services:
     hostname: "mrmap-backend"
     volumes:
       - type: bind
-        source: ./backend
+        source: ./mrmap
         target: /opt/mrmap
       - type: volume
         source: backend-static
@@ -97,7 +97,7 @@ services:
 
   celery-worker:
     build:
-      context: ./backend
+      context: ./mrmap
       dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
@@ -107,7 +107,7 @@ services:
     hostname: "mrmap-celery-worker"
     volumes:
       - type: bind
-        source: ./backend
+        source: ./mrmap
         target: /opt/mrmap
       - type: volume
         source: backend-media

@@ -2,7 +2,7 @@ FROM python:3.10.4-bullseye AS backend-build
 
 WORKDIR /opt/mrmap
 
-COPY ./backend ./
+COPY ./mrmap ./
 
 RUN apt-get -qq update && \
     apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin

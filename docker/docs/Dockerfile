@@ -11,7 +11,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # build python dependencies    
-COPY ./backend/requirements.txt ./backend/requirements.dev.txt ./docs/requirements.docs.txt /
+COPY ./mrmap/requirements.txt ./mrmap/requirements.dev.txt ./docs/requirements.docs.txt /
 
 RUN /usr/local/bin/python -m pip install --upgrade pip && \
     pip install -r requirements.txt

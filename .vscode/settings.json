@@ -1,9 +1,9 @@
 {
   "cucumberautocomplete.steps": [
-    "backend/tests/behave/api/steps/*.py",
+    "mrmap/tests/behave/api/steps/*.py",
   ],
   "cucumberautocomplete.strictGherkinCompletion": true,
-  "cucumberautocomplete.syncfeatures": "backend/tests/behave/**/features/*feature",
+  "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/**/features/*feature",
   "cucumberautocomplete.smartSnippets": true,
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
   "python.linting.flake8Enabled": true,

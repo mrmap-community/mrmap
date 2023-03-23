@@ -16,6 +16,8 @@ from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 
+from . import __version__ as VERSION
+
 ################################################################
 # Logger settings
 ################################################################
@@ -493,9 +495,9 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'MrMap API',
-    'DESCRIPTION': 'Your project description',
-    'VERSION': '1.0.0',
+    'TITLE': 'MrMap json:api',
+    'DESCRIPTION': 'spatial registry solution',
+    'VERSION': VERSION,
     'SERVE_INCLUDE_SCHEMA': False,
     "COMPONENT_SPLIT_REQUEST": True,
 }

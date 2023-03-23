@@ -27,7 +27,7 @@ services:
 
   pre-commit-check:
     build:
-      context: ./backend
+      context: ./mrmap
       dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
@@ -36,7 +36,7 @@ services:
     hostname: "mrmap-test"
     volumes:
       - type: bind
-        source: ./backend
+        source: ./mrmap
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -48,7 +48,7 @@ services:
 
   behave:
     build:
-      context: ./backend
+      context: ./mrmap
       dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
@@ -60,7 +60,7 @@ services:
     hostname: "mrmap-behave"
     volumes:
       - type: bind
-        source: ./backend
+        source: ./mrmap
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -75,7 +75,7 @@ services:
 
   django-tests:
     build:
-      context: ./backend
+      context: ./mrmap
       dockerfile: ../docker/backend/Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
@@ -87,7 +87,7 @@ services:
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind
-        source: ./backend
+        source: ./mrmap
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -158,7 +158,7 @@ services:
     image: sonarsource/sonar-scanner-cli
     volumes:
       - type: bind
-        source: ./backend
+        source: ./mrmap
         target: /opt/mrmap
     depends_on:
       - sonarqube

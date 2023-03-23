@@ -18,12 +18,10 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
-from extras.openapi import CustomSchemaGenerator
+from drf_spectacular.views import SpectacularJSONAPIView
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
-from rest_framework.renderers import JSONOpenAPIRenderer
-from rest_framework.schemas import get_schema_view
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -38,18 +36,9 @@ urlpatterns = [
     path("api/v1/notify/", include("notify.urls", namespace="notify")),
     path(
         "api/schema/",
-        cache_page(timeout=60 * 15, cache="local-memory")(
-            get_schema_view(
-                title="MrMap JSON:API",
-                description="API for all things …",
-                version="1.0.0",
-                public=True,
-                generator_class=CustomSchemaGenerator,
-                renderer_classes=[JSONOpenAPIRenderer]
-            )
-        ),
-        name="openapi-schema",
-    ),
+        cache_page(timeout=60 * 15,
+                   cache="local-memory")(SpectacularJSONAPIView.as_view()),
+        name="openapi-schema"),
     # ows views
     path(
         "mrmap-proxy/wms/<pk>",

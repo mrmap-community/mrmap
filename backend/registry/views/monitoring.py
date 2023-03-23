@@ -1,5 +1,4 @@
 
-from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, NestedModelViewSet,
                              SerializerClassesMixin)
@@ -18,9 +17,6 @@ from rest_framework_json_api.views import ModelViewSet
 
 
 class WMSGetCapabilitiesResultViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["Monitoring"],
-    )
     queryset = WMSGetCapabilitiesResult.objects.all()
     serializer_classes = {
         "default": WMSGetCapabilitiesResultSerializer,
@@ -53,9 +49,6 @@ class NestedWMSGetCapabilitiesResultViewSet(
 
 
 class LayerGetMapResultViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["Monitoring"],
-    )
     queryset = LayerGetMapResult.objects.all()
     serializer_classes = {
         "default": LayerGetMapResultSerializer,
@@ -88,9 +81,6 @@ class NestedLayerGetMapResultViewSet(
 
 
 class LayerGetFeatureInfoResultViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["Monitoring"],
-    )
     queryset = LayerGetFeatureInfoResult.objects.all()
     serializer_classes = {
         "default": LayerGetFeatureInfoResultSerializer,

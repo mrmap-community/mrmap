@@ -1,5 +1,4 @@
 from django.db.models.query import Prefetch
-from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
 from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
@@ -15,9 +14,6 @@ from rest_framework_json_api.views import ModelViewSet
 
 
 class KeywordViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["Keyword"],
-    )
     queryset = Keyword.objects.all()
     serializer_class = KeywordSerializer
     filterset_fields = {
@@ -41,9 +37,6 @@ class NestedKeywordViewSet(
 
 
 class LicenceViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["Licence"],
-    )
     queryset = Licence.objects.all()
     serializer_class = LicenceSerializer
     filterset_fields = {
@@ -68,9 +61,6 @@ class NestedLicenceViewSet(
 
 
 class ReferenceSystemViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["ReferenceSystem"],
-    )
     queryset = ReferenceSystem.objects.all()
     serializer_class = ReferenceSystemSerializer
     filterset_fields = {
@@ -95,9 +85,6 @@ class NestedReferenceSystemViewSet(
 
 
 class StyleViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["Style"],
-    )
     queryset = Style.objects.all().select_related("layer")
     serializer_class = StyleSerializer
     filterset_fields = {
@@ -128,9 +115,6 @@ class NestedStyleViewSet(
 
 
 class DatasetMetadataViewSetMixin:
-    schema = CustomAutoSchema(
-        tags=["DatasetMetadata"],
-    )
     queryset = DatasetMetadata.objects.all()
     serializer_class = DatasetMetadataSerializer
     filterset_fields = {
@@ -244,9 +228,6 @@ class NestedDatasetMetadataViewSet(
 
 
 class MetadataContactViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["MetadataContact"],
-    )
     queryset = MetadataContact.objects.all()
     serializer_class = MetadataContactSerializer
 

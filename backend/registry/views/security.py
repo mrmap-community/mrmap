@@ -1,6 +1,5 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
-from extras.openapi import CustomAutoSchema
 from extras.viewsets import NestedModelViewSet
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
@@ -18,9 +17,6 @@ from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
 class WebMapServiceAuthenticationViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["ServiceAuthentication"],
-    )
     queryset = WebMapServiceAuthentication.objects.all()
     serializer_class = WebMapServiceAuthenticationSerializer
     search_fields = ('username', 'service__title', 'service__id')
@@ -41,9 +37,6 @@ class NestedWebMapServiceAuthenticationViewSet(
 
 
 class WebMapServiceOperationViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["SecurableOperation"],
-    )
     queryset = WebMapServiceOperation.objects.all()
     serializer_class = WebMapServiceOperationSerializer
     search_fields = ('operation', )
@@ -64,9 +57,6 @@ class NestedWebMapServiceOperationViewSet(
 
 
 class WebFeatureServiceOperationViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["SecurableOperation"],
-    )
     queryset = WebFeatureServiceOperation.objects.all()
     serializer_class = WebFeatureServiceOperationSerializer
     search_fields = ('operation', )
@@ -87,9 +77,6 @@ class NestedWebFeatureServiceOperationViewSet(
 
 
 class AllowedWebMapServiceOperationViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["AllowedOperation"],
-    )
     queryset = AllowedWebMapServiceOperation.objects.all()
     serializer_class = AllowedWebMapServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]
@@ -169,9 +156,6 @@ class NestedAllowedWebMapServiceOperationViewSet(
 
 
 class AllowedWebFeatureServiceOperationViewSetMixin():
-    schema = CustomAutoSchema(
-        tags=["AllowedOperation"],
-    )
     queryset = AllowedWebFeatureServiceOperation.objects.all()
     serializer_class = AllowedWebFeatureServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]

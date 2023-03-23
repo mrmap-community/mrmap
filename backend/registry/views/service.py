@@ -1,5 +1,4 @@
 from django.db.models.query import Prefetch
-from extras.openapi import CustomAutoSchema
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              NestedModelViewSet,
@@ -50,9 +49,6 @@ class WebMapServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebMapServices` from the system
     """
-    schema = CustomAutoSchema(
-        tags=["WebMapService"],
-    )
     queryset = WebMapService.objects.all()
     serializer_classes = {
         "default": WebMapServiceSerializer,
@@ -142,9 +138,6 @@ class WebMapServiceViewSet(
 class LayerViewSetMixin(
     HistoryInformationViewSetMixin,
 ):
-    schema = CustomAutoSchema(
-        tags=["Layer"],
-    )
     queryset = Layer.objects.with_inherited_attributes()
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
@@ -261,9 +254,6 @@ class WebFeatureServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebFeatureService` from the system
     """
-    schema = CustomAutoSchema(
-        tags=["WebFeatureService"],
-    )
     queryset = WebFeatureService.objects.all()
     serializer_classes = {
         "default": WebFeatureServiceSerializer,
@@ -345,9 +335,6 @@ class WebFeatureServiceViewSet(
 class FeatureTypeViewSetMixin(
     HistoryInformationViewSetMixin,
 ):
-    schema = CustomAutoSchema(
-        tags=["FeatureType"],
-    )
     queryset = FeatureType.objects.all()
     serializer_class = FeatureTypeSerializer
     filterset_class = FeatureTypeFilterSet
@@ -463,9 +450,6 @@ class CatalogueServiceViewSetMixin(
         destroy:
             Endpoint to remove a registered `CatalogueService` from the system
     """
-    schema = CustomAutoSchema(
-        tags=["CatalogueService"],
-    )
     queryset = CatalogueService.objects.all()
     serializer_classes = {
         "default": CatalogueServiceSerializer,

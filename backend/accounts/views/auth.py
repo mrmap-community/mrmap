@@ -4,7 +4,6 @@ from accounts.serializers.auth import (LoginSerializer, LogoutSerializer,
 from accounts.serializers.users import UserSerializer
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Permission
-from extras.openapi import CustomAutoSchema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -17,9 +16,6 @@ class LoginRequestView(generics.GenericAPIView):
         post: Login a user by the given credentials
 
     """
-    schema = CustomAutoSchema(
-        tags=['Auth'],
-    )
     http_method_names = ['post', 'head', 'options']
     resource_name = "LoginRequest"
     serializer_class = LoginSerializer
@@ -38,9 +34,6 @@ class LogoutRequestView(generics.GenericAPIView):
         delete: Logout a user by the given session id
 
     """
-    schema = CustomAutoSchema(
-        tags=['Auth'],
-    )
     serializer_class = LogoutSerializer
 
     class Meta:
@@ -52,10 +45,6 @@ class LogoutRequestView(generics.GenericAPIView):
 
 
 class WhoAmIView(generics.GenericAPIView):
-    schema = CustomAutoSchema(
-        tags=['Auth'],
-        operation_id_base="retreive"
-    )
     http_method_names = ['get', 'head', 'options']
     resource_name = "CurrentUser"
     queryset = User.objects.all()
@@ -73,9 +62,6 @@ class WhoAmIView(generics.GenericAPIView):
 
 
 class PermissionViewSet(ReadOnlyModelViewSet):
-    schema = CustomAutoSchema(
-        tags=['Permission'],
-    )
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
     permission_classes = [IsAuthenticated]

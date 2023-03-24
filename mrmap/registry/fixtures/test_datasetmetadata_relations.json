@@ -1,0 +1,12 @@
+[
+    {
+        "model": "registry.datasetmetadatarelation",
+        "pk": 1,
+        "fields": {
+            "csw": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
+            "dataset_metadata": "9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e",
+            "origin": "Catalogue",
+            "relation_type": "harvestedThrough"
+        }
+    }
+]

@@ -11,7 +11,7 @@ Introduction
 What is MrMap?
 **************
 
-Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services `WMS <https://www.opengeospatial.org/standards/wms>`_, web feature services `WFS <https://www.opengeospatial.org/standards/wfs>`_ and all the other `OGC <http://www.opengeospatial.org/>`_ stuff. A similar project maybe `Hypermap-Registry <http://cga-harvard.github.io/Hypermap-Registry/>`_ - but it lacks off many things which are needed in practice. The information model was inspired by the old well known `mapbender2 <https://git.osgeo.org/gitea/GDI-RP/Mapbender2.8>`_ project and somewhen will be replaced by mrmap.
+Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services `WMS <https://www.ogc.org/standard/wms/>`_, web feature services `WFS <https://www.ogc.org/standard/wfs/>`_ and all the other `OGC <https://www.ogc.org/>`_ stuff. A similar project maybe `Hypermap-Registry <http://cga-harvard.github.io/Hypermap-Registry/>`_ - but it lacks off many things which are needed in practice. The information model was inspired by the old well known `mapbender2 <https://github.com/mrmap-community/Mapbender2.8>`_ project and somewhen will be replaced by mrmap.
 
 Since most GIS solutions out there are specified on a specific use case or aged without proper support, the need for an free and open source, generic geospatial registry system is high.
 
@@ -36,7 +36,7 @@ What MrMap Is Not
 
 While MrMap strives to cover many areas of geodata infrastructure, the scope of its feature set is necessarily limited. This ensures that development focuses on core functionality and that scope creep is reasonably contained. To that end, it might help to provide some examples of functionality that MrMap does not provide:
 
-* Card viewer
+* Enhanced web-based Map viewer component
 
 
 Design Philosophy
@@ -53,7 +53,7 @@ When given a choice between a relatively simple `80% solution <https://en.wikipe
 Application Stack
 *****************
 
-NetBox is built on the `Django <https://djangoproject.com/>`_ Python framework and utilizes a `PostgreSQL <https://www.postgresql.org/>`_ database. It runs as a WSGI service behind your choice of HTTP server.
+NetBox is built on the `Django <https://djangoproject.com/>`_ Python framework and utilizes a `PostgreSQL <https://www.postgresql.org/>`_ database. It runs as a ASGI service behind your choice of HTTP server.
 
 .. list-table::
    :widths: 50 50

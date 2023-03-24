@@ -8,230 +8,229 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
-import os
-import sys
-from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
 import logging
-from api.settings import REST_FRAMEWORK # noqa
+import os
+import socket
 
+from django.core.management.utils import get_random_secret_key
+from django.utils.translation import gettext_lazy as _
+from kombu import Exchange, Queue
+
+from . import __version__ as VERSION
+
+################################################################
+# Logger settings
+################################################################
+ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
 
 # Set the base directory two levels up
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
+MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "/var/mrmap/backend/media")
+# create media dir if it does not exist
+if not os.path.exists(MEDIA_ROOT):
+    os.makedirs(MEDIA_ROOT)
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 
 # Application definition
 INSTALLED_APPS = [
-    'channels',
-    'ws',
-    'MrMap',  # added so we can use general commands in MrMap/management/commands
-    'dal',
-    'dal_select2',
-    'django.forms',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django.contrib.postgres',
-    'django.contrib.gis',
-    'formtools',
-    'service',
-    'users',
-    'structure',
-    'django_extensions',
-    'editor',
-    'captcha',
-    'rest_framework',
-    'rest_framework.authtoken',
-    'api',
-    'csw',
-    'django_celery_beat',
-    'django_celery_results',
-    'monitoring',
-    'bootstrap4',
-    'fontawesome_5',
-    'django_tables2',
-    'django_filters',
-    'query_parameters',
-    'django_nose',
-    'mathfilters',
-    'quality',
-    'django_bootstrap_swt',
-    'leaflet',
-    'breadcrumb',
-    'mptt',
-
+    "daphne",
+    "channels",
+    "guardian",
+    "django.contrib.auth",
+    "django.contrib.admin",  # for django admin pages
+    "django.contrib.messages",  # for django admin pages
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.staticfiles",
+    "django.contrib.postgres",
+    "django.contrib.gis",
+    "django.forms",  # for debug_toolbar and rest api html page
+    "django_extensions",
+    "captcha",
+    "corsheaders",
+    "rest_framework",
+    "rest_framework_gis",
+    "rest_framework_json_api",
+    "django_celery_beat",
+    "django_celery_results",
+    "django_filters",
+    "simple_history",
+    "mptt",
+    "MrMap",  # added so we can use general commands in MrMap/management/commands
+    "extras",  # to support template lookup
+    "accounts",
+    "registry",
+    "notify",
+    "drf_spectacular",
+    "drf_spectacular_jsonapi"
 ]
-
-TEMPLATE_LOADERS = (
-    'django.template.loaders.structure.mr_map_filters.py',
-    'django.template.loaders.structure.template_filters.py',
-    'django.template.loaders.app_directories.Loader'
-)
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.middleware.gzip.GZipMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.auth.middleware.RemoteUserMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",  # for django admin pages
+    "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
-if DEBUG:
-    INSTALLED_APPS.append(
-        'debug_toolbar',
-    )
-    # Disable all panels by default
-    DEBUG_TOOLBAR_CONFIG = {
-        "DISABLE_PANELS": {
-            'debug_toolbar.panels.versions.VersionsPanel',
-            'debug_toolbar.panels.timer.TimerPanel',
-            'debug_toolbar.panels.settings.SettingsPanel',
-            'debug_toolbar.panels.headers.HeadersPanel',
-            'debug_toolbar.panels.request.RequestPanel',
-            'debug_toolbar.panels.sql.SQLPanel',
-            'debug_toolbar.panels.staticfiles.StaticFilesPanel',
-            'debug_toolbar.panels.templates.TemplatesPanel',
-            'debug_toolbar.panels.cache.CachePanel',
-            'debug_toolbar.panels.signals.SignalsPanel',
-            'debug_toolbar.panels.logging.LoggingPanel',
-            'debug_toolbar.panels.redirects.RedirectsPanel',
-            'debug_toolbar.panels.profiling.ProfilingPanel',
-        }
-    }
-
-    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
-
-# Password hashes
-PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
-    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
-]
-
-ROOT_URLCONF = 'MrMap.urls'
-
-FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
+TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [
-            BASE_DIR + "/templates",
-        ],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'MrMap.context_processors.default_context',
-                'breadcrumb.context_processors.breadcrumb_renderer',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",  # for django admin pages
             ],
         },
     },
 ]
 
-# Defines basic server information
-HTTP_OR_SSL = "http://"
-HOST_NAME = "localhost:8000"
+if DEBUG:
 
-# DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
-ROOT_URL = HTTP_OR_SSL + HOST_NAME
+    INSTALLED_APPS.append(
+        "debug_toolbar",
+    )
+    # Disable all panels by default
+    DEBUG_TOOLBAR_CONFIG = {
+        "DISABLE_PANELS": {
+            "debug_toolbar.panels.history.HistoryPanel",
+            "debug_toolbar.panels.versions.VersionsPanel",
+            "debug_toolbar.panels.timer.TimerPanel",
+            "debug_toolbar.panels.settings.SettingsPanel",
+            "debug_toolbar.panels.headers.HeadersPanel",
+            "debug_toolbar.panels.request.RequestPanel",
+            "debug_toolbar.panels.sql.SQLPanel",
+            "debug_toolbar.panels.staticfiles.StaticFilesPanel",
+            "debug_toolbar.panels.templates.TemplatesPanel",
+            "debug_toolbar.panels.cache.CachePanel",
+            "debug_toolbar.panels.signals.SignalsPanel",
+            "debug_toolbar.panels.logging.LoggingPanel",
+            "debug_toolbar.panels.redirects.RedirectsPanel",
+            "debug_toolbar.panels.profiling.ProfilingPanel",
+        },
+        # "RENDER_PANELS": True,
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+        "PRETTIFY_SQL": True,
+    }
 
-ALLOWED_HOSTS = [
-    HOST_NAME,
-    "127.0.0.1",
-    "localhost",
+    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
+
+if os.environ.get("MRMAP_PRODUCTION") == "False":
+    INSTALLED_APPS.extend(
+        [
+            "behave_django",
+        ]
+    )
+
+# Password hashes
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
 ]
+
+ROOT_URLCONF = "MrMap.urls"
+
+FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
+
+METADATA_URL = [
+    "request=GetMetadata&",
+]
+
+BASE_URL_FOR_ETF = os.environ.get(
+    "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
+)
+
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver"
+).split(";")
+
+if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
+    CORS_ALLOWED_ORIGINS = os.environ.get(
+        "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+else:
+    ROOT_LOGGER.warning(
+        "all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
+    CORS_ALLOW_ALL_ORIGINS = True
+
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
 GIT_GRAPH_URI = "https://github.com/mrmap-community/mrmap/graph"
 
-LOGIN_REDIRECT_URL = "home"
-# Defines where to redirect a user, that has to be logged in for a certain route
-LOGIN_URL = "/accounts/login/"
-LOGOUT_REDIRECT_URL = "/"
-
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
-LANGUAGE_CODE = 'en'
+LANGUAGE_CODE = "en"
 LANGUAGES = (
-    ('en', _('English')),
-    ('de', _('German')),
+    ("en", _("English")),
+    ("de", _("German")),
 )
-LOCALE_PATHS = (
-    os.path.join(BASE_DIR, 'locale'),
-)
-DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
-TIME_ZONE = 'Europe/Berlin'
+LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
+DEFAULT_DATE_TIME_FORMAT = "YYYY-MM-DD hh:mm:ss"
+TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE")
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
-
-# Defines the semantic web information which will be injected on the resource html views
-SEMANTIC_WEB_HTML_INFORMATION = {
-    "legalName": "Zentrale Stelle GDI-RP",
-    "email": "kontakt@geoportal.rlp.de",
-    "addressCountry": "DE",
-    "streetAddress": "Von-Kuhl-Straße 49",
-    "addressRegion": "RLP",
-    "postalCode": "56070",
-    "addressLocality": "Koblenz",
-}
-
-# Defines the timespan for fetching the last activities on dashboard
-LAST_ACTIVITY_DATE_RANGE = 7
-
 # configure your proxy like "http://10.0.0.1:8080"
 # or with username and password: "http://username:password@10.0.0.1:8080"
-HTTP_PROXY = ""
 PROXIES = {
-    "http": HTTP_PROXY,
-    "https": HTTP_PROXY,
+    "http": os.getenv("http_proxy", ""),
+    "https": os.getenv("https_proxy", ""),
 }
 
 # configure if you want to validate ssl certificates
 # it is highly recommend keeping this to true
 VERIFY_SSL_CERTIFICATES = True
 
+# django-guardian
+
+AUTHENTICATION_BACKENDS = (
+    "django.contrib.auth.backends.ModelBackend",  # default
+    "guardian.backends.ObjectPermissionBackend",
+)
+
+GUARDIAN_RAISE_403 = True
+
 ################################################################
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 ################################################################
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'mrmap',
-        'USER': 'mrmap',
-        'PASSWORD': 'mrmap',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+    "default": {
+        "ENGINE": os.environ.get("SQL_ENGINE"),
+        "NAME": os.environ.get("SQL_DATABASE"),
+        "USER": os.environ.get("SQL_USER"),
+        "PASSWORD": os.environ.get("SQL_PASSWORD"),
+        "HOST": os.environ.get("SQL_HOST"),
+        "PORT": os.environ.get("SQL_PORT"),
     }
 }
-
+# To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
 # Redis settings
 ################################################################
-REDIS_HOST = 'localhost'
-REDIS_PORT = '6379'
-BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
+REDIS_HOST = os.environ.get("REDIS_HOST")
+REDIS_PORT = os.environ.get("REDIS_PORT")
+BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 
 # Cache
 # Use local redis installation as cache
@@ -244,21 +243,49 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-        }
+        },
+    },
+    "local-memory": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
     },
 }
+
 
 ################################################################
 # Celery settings
 ################################################################
-CELERY_RESULT_BACKEND = 'django-db'
-CELERY_ACCEPT_CONTENT = ['application/json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
+CELERY_DEFAULT_QUEUE = "default"
+CELERY_DEFAULT_EXCHANGE = "default"
+
+CELERY_QUEUES = (
+    Queue(
+        name="default",
+        exchange=Exchange("default"),
+        routing_key="default",
+        max_priority=10,
+    ),
+    Queue(
+        name="download",
+        exchange=Exchange("download"),
+        routing_key="download",
+        max_priority=3,
+    ),
+    Queue(
+        name="db-routines",
+        exchange=Exchange("db-routines"),
+        routing_key="db-routines",
+        max_priority=6,
+    ),
+)
 
 ################################################################
 # django channels settings
@@ -274,60 +301,44 @@ CHANNEL_LAYERS = {
     },
 }
 
-
 # Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
 MIN_PASSWORD_LENGTH = 9
 MIN_USERNAME_LENGTH = 5  # ToDo: For production use another, more appropriate length!
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
             "min_length": MIN_PASSWORD_LENGTH,
-        }
+        },
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR + "/static/"
-STATICFILES_DIRS = [
-    BASE_DIR + '/MrMap/static',
-    # TODO research automatic adding of app-specific static dirs
-    BASE_DIR + '/service/static'
-]
+STATIC_URL = "/backend/static/"
+STATIC_ROOT = "/var/www/mrmap/backend/"
 
-WSGI_APPLICATION = 'MrMap.wsgi.application'
-ASGI_APPLICATION = 'MrMap.asgi.application'
+WSGI_APPLICATION = "MrMap.wsgi.application"
+ASGI_APPLICATION = "MrMap.asgi.application"
 
 # Extends the number of GET/POST parameters
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
-
-# A string template used in the beginnings of this project
-EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
-
-# Defines table page constants
-PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
-PAGE_SIZE_DEFAULT = 5
-PAGE_SIZE_MAX = 100
-PAGE_DEFAULT = 1
-
 
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
 
 # Defines which User model implementation is used for authentication process
-AUTH_USER_MODEL = 'structure.MrMapUser'
+AUTH_USER_MODEL = "accounts.User"
 
 # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_COOKIE_AGE = 30 * 60
@@ -335,38 +346,11 @@ SESSION_COOKIE_AGE = 30 * 60
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
 
-# define the message tags for bootstrap4
-MESSAGE_TAGS = {
-    messages.DEBUG: 'alert-info',
-    messages.INFO: 'alert-info',
-    messages.SUCCESS: 'alert-success',
-    messages.WARNING: 'alert-warning',
-    messages.ERROR: 'alert-danger',
-}
-
-################################################################
-# nose test runner settings
-################################################################
-if 'test' in sys.argv:
-    CAPTCHA_TEST_MODE = True
-
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
-NOSE_ARGS = [
-    '--with-xunit',
-    '--xunit-file=xunit-result.xml',
-    '--with-coverage',
-    '--cover-erase',
-    '--cover-xml',
-    '--cover-xml-file=coverage-report.xml',
-]
-
 ################################################################
 # DJANGO DEBUG TOOLBAR
 ################################################################
 # Add the IP for which the toolbar should be shown
-INTERNAL_IPS = [
-    "127.0.0.1"
-]
+INTERNAL_IPS = ["127.0.0.1"]
 
 # Defines xml namespaces used for xml parsing and creating
 XML_NAMESPACES = {
@@ -399,143 +383,121 @@ XML_NAMESPACES = {
 GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 ################################################################
-# Logger settings
+# Mapserver
 ################################################################
-ROOT_LOGGER = logging.getLogger('MrMap.root')
+MAPSERVER_URL = os.environ.get("MAPSERVER_URL")
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.environ.get(
+    "MAPSERVER_SECURITY_MASK_FILE_PATH"
+)  # path on the machine which provides the mapserver service
+MAPSERVER_SECURITY_MASK_TABLE = "registry_allowedwebmapserviceoperation"
+MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN = "allowed_area"
+MAPSERVER_SECURITY_MASK_KEY_COLUMN = "id"
 
-LOG_DIR = BASE_DIR + '/logs'
-LOG_SUB_DIRS = {
-    'root': {'dir': '/root', 'log_file': 'root.log'},
-    'api': {'dir': '/api', 'log_file': 'api.log'},
-    'csw': {'dir': '/csw', 'log_file': 'csw.log'},
-    'editor': {'dir': '/editor', 'log_file': 'rooeditorog'},
-    'monitoring': {'dir': '/monitoring', 'log_file': 'monitoring.log'},
-    'service': {'dir': '/service', 'log_file': 'service.log'},
-    'structure': {'dir': '/structure', 'log_file': 'structure.log'},
-    'users': {'dir': '/users', 'log_file': 'users.log'},
-}
+DEFAULT_SRS = 4326
+FONT_IMG_RATIO = 1 / 20  # Font to image ratio
+ERROR_MASK_VAL = (
+    # Indicates an error while creating the mask ("good" values are either 0 or 255)
+    1
+)
+ERROR_MASK_TXT = (
+    "Error during mask creation! \nCheck the configuration of security_mask.map!"
+)
+
+
+LOG_DIR = os.environ.get(
+    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
+# create log dir if it does not exist
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d}: {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            # see https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
+            "format": "{levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}",
+            "style": "{",
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'MrMap.root.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['root']['dir'] + '/' + LOG_SUB_DIRS['root']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.api.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['api']['dir'] + '/' + LOG_SUB_DIRS['api']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.csw.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['csw']['dir'] + '/' + LOG_SUB_DIRS['csw']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.editor.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['editor']['dir'] + '/' + LOG_SUB_DIRS['editor']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.monitoring.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['monitoring']['dir'] + '/' + LOG_SUB_DIRS['monitoring']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.service.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['service']['dir'] + '/' + LOG_SUB_DIRS['service']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.structure.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['structure']['dir'] + '/' + LOG_SUB_DIRS['structure']['log_file'],
-            'formatter': 'verbose',
-        },
-        'MrMap.users.file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': LOG_FILE_MAX_SIZE,
-            'backupCount': LOG_FILE_BACKUP_COUNT,
-            'filename': LOG_DIR + LOG_SUB_DIRS['users']['dir'] + '/' + LOG_SUB_DIRS['users']['log_file'],
-            'formatter': 'verbose',
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
         },
     },
-    'loggers': {
-        'MrMap.root': {
-            'handlers': ['MrMap.root.file', ],
-            'level': 'INFO',
-            'propagate': True,
+    "handlers": {
+        "syslog": {
+            "class": "logging.handlers.SysLogHandler",
+            "formatter": "verbose",
+            "facility": "user",
+            "address": ("localhost", 1514),
         },
-        'MrMap.api': {
-            'handlers': ['MrMap.api.file', ],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'MrMap.csw': {
-            'handlers': ['MrMap.csw.file', ],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'MrMap.editor': {
-            'handlers': ['MrMap.editor.file', ],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'MrMap.monitoring': {
-            'handlers': ['MrMap.monitoring.file', ],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'MrMap.service': {
-            'handlers': ['MrMap.service.file', ],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'MrMap.structure': {
-            'handlers': ['MrMap.structure.file', ],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'MrMap.users': {
-            'handlers': ['MrMap.users.file', ],
-            'level': 'INFO',
-            'propagate': True,
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "maxBytes": LOG_FILE_MAX_SIZE,
+            "backupCount": LOG_FILE_BACKUP_COUNT,
+            "filename": LOG_DIR + "logs.log",
+            "formatter": "verbose",
         },
     },
+    "loggers": {
+        "MrMap.root": {
+            "handlers": ["file", "syslog"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "disabled": False,
+            "propagate": True,
+        },
+    },
+}
+
+SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
+
+JSON_API_FORMAT_FIELD_NAMES = "camelize"
+
+REST_FRAMEWORK = {
+    "PAGE_SIZE": 10,
+    "MAX_PAGE_SIZE": 100,
+    "EXCEPTION_HANDLER": "rest_framework_json_api.exceptions.exception_handler",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ),
+    "DEFAULT_PAGINATION_CLASS": "drf_spectacular_jsonapi.schemas.pagination.JsonApiPageNumberPagination",
+    "DEFAULT_PARSER_CLASSES": (
+        "rest_framework_json_api.parsers.JSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
+    ),
+    "DEFAULT_RENDERER_CLASSES": (
+        "rest_framework_json_api.renderers.JSONRenderer",
+        # If you're performance testing, you will want to use the browseable API
+        # without forms, as the forms can generate their own queries.
+        # If performance testing, enable:
+        "extras.utils.BrowsableAPIRendererWithoutForms",
+        # Otherwise, to play around with the browseable API, enable:
+        # "rest_framework_json_api.renderers.BrowsableAPIRenderer",
+    ),
+    "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular_jsonapi.schemas.openapi.JsonApiAutoSchema",
+    "DEFAULT_FILTER_BACKENDS": (
+        "rest_framework_json_api.filters.QueryParameterValidationFilter",
+        "rest_framework_json_api.filters.OrderingFilter",
+        "extras.filters.CustomDjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+    ),
+    "SEARCH_PARAM": "filter[search]",
+    "TEST_REQUEST_RENDERER_CLASSES": (
+        "rest_framework_json_api.renderers.JSONRenderer",
+    ),
+    "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MrMap json:api',
+    'DESCRIPTION': 'spatial registry solution',
+    'VERSION': VERSION,
+    'SERVE_INCLUDE_SCHEMA': False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }

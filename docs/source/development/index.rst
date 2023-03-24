@@ -11,11 +11,13 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
 .. toctree::
    :glob:
    :hidden:
-   :maxdepth: 3
+   :maxdepth: 4
 
    communication
    getting-started
    project-structure
-   commands
-   docker
+   environment
+   definition_of_done
    pycharm-configuration
+   vscode-configuration
+   

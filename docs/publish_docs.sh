@@ -1,3 +1,4 @@
+#!/bin/bash
 cat > buildDocs.sh <<'EEOOFF'
 #!/bin/bash
 set -x

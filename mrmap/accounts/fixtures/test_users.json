@@ -1,0 +1,259 @@
+[
+    {
+        "model": "auth.group",
+        "pk": 1,
+        "fields": {
+            "name": "Group1",
+            "permissions": []
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 2,
+        "fields": {
+            "name": "Group2",
+            "permissions": []
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 3,
+        "fields": {
+            "name": "Default-Permissions",
+            "permissions": [
+                [
+                    "add_webmapservice",
+                    "registry",
+                    "webmapservice"
+                ],
+                [
+                    "change_webmapservice",
+                    "registry",
+                    "webmapservice"
+                ],
+                [
+                    "delete_webmapservice",
+                    "registry",
+                    "webmapservice"
+                ],
+                [
+                    "add_webfeatureservice",
+                    "registry",
+                    "webfeatureservice"
+                ],
+                [
+                    "change_webfeatureservice",
+                    "registry",
+                    "webfeatureservice"
+                ],
+                [
+                    "delete_webfeatureservice",
+                    "registry",
+                    "webfeatureservice"
+                ],
+                [
+                    "add_catalogueservice",
+                    "registry",
+                    "catalogueservice"
+                ],
+                [
+                    "change_catalogueservice",
+                    "registry",
+                    "catalogueservice"
+                ],
+                [
+                    "delete_catalogueservice",
+                    "registry",
+                    "catalogueservice"
+                ],
+                [
+                    "add_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "change_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "delete_mapcontext",
+                    "registry",
+                    "mapcontext"
+                ],
+                [
+                    "add_mapcontextlayer",
+                    "registry",
+                    "mapcontextlayer"
+                ],
+                [
+                    "change_mapcontextlayer",
+                    "registry",
+                    "mapcontextlayer"
+                ],
+                [
+                    "delete_mapcontextlayer",
+                    "registry",
+                    "mapcontextlayer"
+                ],
+                [
+                    "add_allowedwebmapserviceoperation",
+                    "registry",
+                    "allowedwebmapserviceoperation"
+                ],
+                [
+                    "change_allowedwebmapserviceoperation",
+                    "registry",
+                    "allowedwebmapserviceoperation"
+                ],
+                [
+                    "delete_allowedwebmapserviceoperation",
+                    "registry",
+                    "allowedwebmapserviceoperation"
+                ],
+                [
+                    "add_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
+                ],
+                [
+                    "change_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
+                ],
+                [
+                    "delete_allowedwebfeatureserviceoperation",
+                    "registry",
+                    "allowedwebfeatureserviceoperation"
+                ],
+                [
+                    "add_wmsgetcapabilitiesresult",
+                    "registry",
+                    "wmsgetcapabilitiesresult"
+                ],
+                [
+                    "change_wmsgetcapabilitiesresult",
+                    "registry",
+                    "wmsgetcapabilitiesresult"
+                ],
+                [
+                    "delete_wmsgetcapabilitiesresult",
+                    "registry",
+                    "wmsgetcapabilitiesresult"
+                ],
+                [
+                    "add_layergetmapresult",
+                    "registry",
+                    "layergetmapresult"
+                ],
+                [
+                    "change_layergetmapresult",
+                    "registry",
+                    "layergetmapresult"
+                ],
+                [
+                    "delete_layergetmapresult",
+                    "registry",
+                    "layergetmapresult"
+                ],
+                [
+                    "add_layergetfeatureinforesult",
+                    "registry",
+                    "layergetfeatureinforesult"
+                ],
+                [
+                    "change_layergetfeatureinforesult",
+                    "registry",
+                    "layergetfeatureinforesult"
+                ],
+                [
+                    "delete_layergetfeatureinforesult",
+                    "registry",
+                    "layergetfeatureinforesult"
+                ],
+                [
+                    "add_harvestingjob",
+                    "registry",
+                    "harvestingjob"
+                ],
+                [
+                    "change_harvestingjob",
+                    "registry",
+                    "harvestingjob"
+                ],
+                [
+                    "delete_harvestingjob",
+                    "registry",
+                    "harvestingjob"
+                ]
+            ]
+        }
+    },
+    {
+        "model": "auth.group",
+        "pk": 4,
+        "fields": {
+            "name": "Testorganization",
+            "permissions": []
+        }
+    },
+    {
+        "model": "accounts.organization",
+        "pk": 4,
+        "fields": {
+            "group_ptr_id": 4
+        }
+    },
+    {
+        "model": "accounts.user",
+        "fields": {
+            "password": "argon2$argon2id$v=19$m=102400,t=2,p=8$SFl2bHVYNGFoM0VCQ2VhRTFManlkRg$gNkcrXVr58njA+5CUE2RZg",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "User1",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "is_staff": false,
+            "is_active": true,
+            "date_joined": "2021-12-08T14:10:33Z",
+            "confirmed_newsletter": false,
+            "confirmed_survey": false,
+            "confirmed_dsgvo": "2021-12-08T14:10:42.563Z",
+            "groups": [
+                [
+                    "Group1"
+                ],
+                [
+                    "Default-Permissions"
+                ]
+            ]
+        }
+    },
+    {
+        "model": "accounts.user",
+        "fields": {
+            "password": "argon2$argon2id$v=19$m=102400,t=2,p=8$dVpwUnB4S1hYcFVoeUlwQkF2anJIcw$+hx2RZKSi4gxtqk+gMUqtQ",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "User2",
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "is_staff": false,
+            "is_active": true,
+            "date_joined": "2021-12-08T14:10:43Z",
+            "confirmed_newsletter": false,
+            "confirmed_survey": false,
+            "confirmed_dsgvo": "2021-12-08T14:10:52.765Z",
+            "groups": [
+                [
+                    "Group2"
+                ],
+                [
+                    "Default-Permissions"
+                ]
+            ]
+        }
+    }
+]

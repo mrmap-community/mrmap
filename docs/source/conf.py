@@ -14,24 +14,19 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-# to get docstrings from django code, the django project needs to setup fist
 import os
 import sys
+
 import django
 
-sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
+sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../backend'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 # Get an instance of a logger
-from MrMap.settings import LOG_DIR, LOG_SUB_DIRS
+from MrMap.settings import LOG_DIR
 
 # create log dir if it does not exist
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
-
-# create sub log dir if it does not exist
-for key, value in LOG_SUB_DIRS.items():
-    if not os.path.exists(LOG_DIR + value['dir']):
-        os.makedirs(LOG_DIR + value['dir'])
 
 django.setup()
 
@@ -54,6 +49,7 @@ release = 'v0.0.0'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx_rtd_theme',
+    'sphinx_multiversion',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -74,8 +70,25 @@ html_theme = "sphinx_rtd_theme"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
+
 #html_static_path = ['_static']
 
-linkcheck_ignore = [r'http://localhost:\d+/', r'http://127.0.0.1:\d+/', r'https://127.0.0.1:\d+/', r'http://YOUR-IP-ADDRESS:\d+/', ]
+linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
+                    r'https://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://YOUR-IP-ADDRESS\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', ]
 
 master_doc = "index"
+
+# to get docstrings from django code, the django project needs to setup fist
+from sphinx.builders.html import StandaloneHTMLBuilder
+StandaloneHTMLBuilder.supported_image_types = [
+    'image/svg+xml',
+    'image/gif',
+    'image/png',
+    'image/jpeg'
+]
+
+
+smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
+smv_branch_whitelist = r'^develop$'              # Include develop branch
+# Use branches from all remotes
+smv_remote_whitelist = None

@@ -1,9 +1,0 @@
-{% if tooltip %}
-<span class="d-inline-block {% if color %}{{color}}{% endif %}" tabindex="0" data-html="true" data-toggle="tooltip" data-placement="{% if tooltip_placement %}{{tooltip_placement}}{% else %}top{% endif %}" data-html="true" title="{{tooltip}}">
-    {{value}}
-</span>
-{% else %}
-<span class="{{icon_color}}">
-    {{value}}
-</span>
-{% endif %}

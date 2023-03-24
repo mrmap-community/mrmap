@@ -1,0 +1,32 @@
+FROM python:3.10.4-bullseye AS backend-build
+
+WORKDIR /opt/mrmap
+
+COPY ./mrmap ./
+
+RUN apt-get -qq update && \
+    apt-get -y install --no-install-recommends gcc libssl-dev gdal-bin
+
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN /usr/local/bin/python -m pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install -r requirements.dev.txt && \
+    python manage.py collectstatic
+
+
+FROM library/nginx:1.23-alpine AS nginx
+
+RUN mkdir -p /etc/ssl/private/
+RUN apk add openssl
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt -subj "/C=DE/ST=Rhineland-Palatinate/L=Wiesbaden/O=MrMap Community/OU=Developers/CN=example.com"
+
+
+FROM nginx AS final
+
+COPY --from=backend-build /var/www/mrmap/backend/ /var/www/mrmap/backend/
+
+EXPOSE 80/tcp
+EXPOSE 443/tcp

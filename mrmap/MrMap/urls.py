@@ -5,35 +5,65 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 Examples:
 Function views
     1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+    2. Add a URL to urlpatterns:  path('', views.home, name='auth:dashboard')
 Class-based views
     1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='auth:dashboard')
 Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path, include
 
-from MrMap.settings import DEBUG
+from django.conf import settings
+from django.contrib import admin
+from django.urls import include, path
+from django.views.decorators.cache import cache_page
+from drf_spectacular.views import SpectacularJSONAPIView
+from registry.proxy.wfs_proxy import WebFeatureServiceProxy
+from registry.proxy.wms_proxy import WebMapServiceProxy
+from registry.views_ows.mapcontext import OwsContextView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include('users.urls')),
-    path('structure/', include('structure.urls')),
-    path('resource/', include('service.urls')),
-    path('monitoring/', include('monitoring.urls')),
-    path('editor/', include('editor.urls')),
-    path('captcha/', include('captcha.urls')),
+    path("django-admin/", admin.site.urls),
+    # captcha support
+    path("captcha/", include("captcha.urls")),
+    # translation support
     path("i18n/", include("django.conf.urls.i18n")),
-    path('api/', include('api.urls')),
-    path('csw/', include('csw.urls')),
-    path('quality/', include('quality.urls')),
+    # REST API
+    # registry api urls
+    path("api/registry/", include("registry.urls", namespace="registry")),
+    path("api/accounts/", include("accounts.urls", namespace="accounts")),
+    path("api/notify/", include("notify.urls", namespace="notify")),
+    path(
+        "api/schema/",
+        cache_page(timeout=60 * 15,
+                   cache="local-memory")(SpectacularJSONAPIView.as_view()),
+        name="openapi-schema"),
+    # ows views
+    path(
+        "mrmap-proxy/wms/<pk>",
+        WebMapServiceProxy.as_view(),
+        name="wms-operation",
+    ),
+    path(
+        "mrmap-proxy/wfs/<pk>",
+        WebFeatureServiceProxy.as_view(),
+        name="wfs-operation",
+
+    ),
+    path(
+        "mrmap-proxy/ows/<pk>",
+        OwsContextView.as_view(),
+        name="ows-context-detail"
+    ),
 ]
 
-if DEBUG:
+if settings.DEBUG:
     import debug_toolbar
-    urlpatterns.append(
-        path('__debug__/', include(debug_toolbar.urls))
-    )
+    from django.conf import settings
+    from django.conf.urls.static import static
+
+    urlpatterns.append(path("__debug__/", include(debug_toolbar.urls)))
+    # to enable possibility to open media files during development (images, documents, etc)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

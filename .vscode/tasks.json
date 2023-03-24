@@ -1,0 +1,281 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Docker-Compose: mrmap startup",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "--build",
+                "--remove-orphans"
+            ]
+        },
+        {
+            "label": "Docker-Compose: mrmap nginx",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "nginx",
+                "--abort-on-container-exit",
+                "nginx"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: mrmap backend",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "backend",
+                "--abort-on-container-exit",
+                "backend"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: swagger-ui",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "swagger-ui",
+                "--abort-on-container-exit",
+                "swagger-ui"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: sonarqube",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "sonarqube",
+                "--abort-on-container-exit",
+                "sonarqube"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: sonar-scanner",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "sonar-scanner",
+                "--abort-on-container-exit",
+                "sonar-scanner"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: build-docs",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "build-docs",
+                "--abort-on-container-exit",
+                "build-docs"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: mrmap validator",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "inspire-validator",
+                "--abort-on-container-exit",
+                "inspire-validator"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker-Compose: mrmap celery-worker",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "celery-worker",
+                "--abort-on-container-exit",
+                "celery-worker"
+            ]
+        },
+        {
+            "label": "Docker-Compose: run pre commit checks",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "up",
+                "--build",
+                "pre-commit-check"
+            ]
+        },
+        {
+            "label": "Docker-Compose: run django-tests",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--build",
+                "django-tests"
+            ]
+        },
+        {
+            "label": "Docker-Compose: run behave tests",
+            "type": "shell",
+            "command": "docker-compose",
+            "args": [
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--build",
+                "behave"
+            ]
+        },
+        {
+            "label": "reset migrations",
+            "type": "shell",
+            "command": [
+                "find",
+                "mrmap",
+                "-iname",
+                "migrations",
+                "|",
+                "xargs",
+                "-i",
+                "find",
+                "{}",
+                "-type",
+                "f",
+                "-name",
+                "'0*.py'",
+                "|",
+                "xargs",
+                "rm"
+            ]
+        },
+        {
+            "label": "makemigrations",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_appserver_1",
+                "/opt/mrmap/manage.py",
+                "makemigrations"
+            ]
+        },
+        {
+            "label": "migrate",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_appserver_1",
+                "/opt/mrmap/manage.py",
+                "migrate"
+            ]
+        },
+        {
+            "label": "Docker-Compose: setup --reset-force",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "exec",
+                "-it",
+                "mrmap_appserver_1",
+                "/opt/mrmap/manage.py",
+                "setup",
+                "--reset-force"
+            ]
+        },
+    ]
+}

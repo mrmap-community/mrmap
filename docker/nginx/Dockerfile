@@ -13,7 +13,6 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN /usr/local/bin/python -m pip install --upgrade pip && \
     pip install -r requirements.txt && \
-    pip install -r requirements.dev.txt && \
     python manage.py collectstatic
 
 

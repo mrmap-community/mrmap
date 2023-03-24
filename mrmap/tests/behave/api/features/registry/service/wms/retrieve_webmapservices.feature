@@ -4,7 +4,7 @@ Feature: WebMapService Retrieve Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/
+        Given I use the endpoint http://localhost:8000/api/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/
 
     Scenario: Can retrieve as anonymous user
         When I send the request with GET method

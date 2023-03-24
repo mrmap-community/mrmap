@@ -4,7 +4,7 @@ Feature: Layer Nested List Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/layers/
+        Given I use the endpoint http://localhost:8000/api/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/layers/
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

@@ -4,7 +4,7 @@ Feature: CatalogueService List Endpoint
     so that I can find relevant features.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/csw/
+        Given I use the endpoint http://localhost:8000/api/registry/csw/
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

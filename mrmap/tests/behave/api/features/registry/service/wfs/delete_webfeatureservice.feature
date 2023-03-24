@@ -4,7 +4,7 @@ Feature: WebFeatureService detele Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/wfs/9cc4889d-0cd4-4c3b-8975-58de6d30db41/
+        Given I use the endpoint http://localhost:8000/api/registry/wfs/9cc4889d-0cd4-4c3b-8975-58de6d30db41/
 
     Scenario: Can't delete as anonymous user
         When I send the request with DELETE method

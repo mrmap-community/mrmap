@@ -4,7 +4,7 @@ Feature: MapContextLayer Update Endpoint
     so that I can configure map applications.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/mapcontextlayers/8/
+        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/8/
         Given I set the content type of the request to application/vnd.api+json
 
     Scenario: Can update as authenticated user

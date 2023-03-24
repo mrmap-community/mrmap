@@ -4,7 +4,7 @@ Feature: WebFeatureServiceOperation List Endpoint
     so that I can secure services.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/security/wfs-operations/
+        Given I use the endpoint http://localhost:8000/api/registry/security/wfs-operations/
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

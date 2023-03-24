@@ -4,7 +4,7 @@ Feature: Related AllowedWebMapServiceOperation for wms List Endpoint
     so that I can secure services.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/allowed-wms-operations/
+        Given I use the endpoint http://localhost:8000/api/registry/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/allowed-wms-operations/
 
     Scenario: Can retrieve list as authenticated user
         Given I am logged in as User1 with password User1

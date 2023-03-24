@@ -4,7 +4,7 @@ Feature: Featuretype List Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/featuretypes/efba476a-d3ff-44f8-a0db-7f2c811f7247/
+        Given I use the endpoint http://localhost:8000/api/registry/featuretypes/efba476a-d3ff-44f8-a0db-7f2c811f7247/
 
     Scenario: Can retrieve as anonymous user
         When I send the request with GET method

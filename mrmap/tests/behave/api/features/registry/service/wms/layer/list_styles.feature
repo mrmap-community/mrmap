@@ -4,7 +4,7 @@ Feature: Layer Style List Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/v1/registry/styles/
+        Given I use the endpoint http://localhost:8000/api/registry/styles/
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

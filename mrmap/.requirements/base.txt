@@ -4,7 +4,7 @@ django-extensions==3.2.1
 # adds history models
 django-simple-history==3.3.0
 # adds filtersets for use in views
-django-filter==22.1
+django-filter==21.1
 # adds object permissions
 django-guardian==2.4.0
 # adds mptt tree model

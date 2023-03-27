@@ -15,6 +15,8 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 
+from MrMap.settings import LOG_DIR
+from MrMap import VERSION
 import os
 import sys
 
@@ -23,8 +25,6 @@ from sphinx.builders.html import StandaloneHTMLBuilder
 
 sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
 
-from MrMap.settings import LOG_DIR
-from MrMap import VERSION
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 
@@ -48,6 +48,8 @@ author = 'mrmap-community'
 # The full version, including alpha/beta/rc tags
 release = VERSION
 
+
+user_agent = "Mozilla/5.0 (X11; Linux x86_64; rv:25.0) Gecko/20100101 Firefox/25.0"
 
 # -- General configuration ---------------------------------------------------
 

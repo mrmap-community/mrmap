@@ -6,5 +6,6 @@ from .celery import app as celery_app  # noqa
 
 __all__ = ('celery',)
 
+
 __version__ = '0.1.0'
 VERSION = __version__  # synonym

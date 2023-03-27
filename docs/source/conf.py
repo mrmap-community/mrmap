@@ -14,15 +14,22 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+
 import os
 import sys
 
 import django
+from sphinx.builders.html import StandaloneHTMLBuilder
 
-sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../backend'))
-os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
-# Get an instance of a logger
+sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
+
 from MrMap.settings import LOG_DIR
+from MrMap import VERSION
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
+
+
+# Get an instance of a logger
 
 # create log dir if it does not exist
 if not os.path.exists(LOG_DIR):
@@ -39,7 +46,8 @@ copyright = '2021, mrmap-community'
 author = 'mrmap-community'
 
 # The full version, including alpha/beta/rc tags
-release = 'v0.0.0'
+release = VERSION
+
 
 # -- General configuration ---------------------------------------------------
 
@@ -79,7 +87,7 @@ linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http
 master_doc = "index"
 
 # to get docstrings from django code, the django project needs to setup fist
-from sphinx.builders.html import StandaloneHTMLBuilder
+
 StandaloneHTMLBuilder.supported_image_types = [
     'image/svg+xml',
     'image/gif',

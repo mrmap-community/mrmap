@@ -15,7 +15,7 @@ COPY ./requirements.txt /
 COPY ./.requirements /.requirements
 RUN /usr/local/bin/python -m pip install --upgrade pip && \
     pip install -r requirements.txt
-RUN if [ "${MRMAP_PRODUCTION}" = "True" ] ; then pip uninstall -r requirements.dev.txt; fi
+RUN if [ "${MRMAP_PRODUCTION}" = "True" ] ; then pip uninstall -r ./requirements/dev.txt && pip uninstall -r ./requirements/docs.txt; fi
 
 ################################
 # MrMap Image

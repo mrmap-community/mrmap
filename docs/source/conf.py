@@ -15,16 +15,16 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 
-from MrMap.settings import LOG_DIR
-from MrMap import VERSION
 import os
 import sys
 
 import django
 from sphinx.builders.html import StandaloneHTMLBuilder
 
-sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))
+sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))  # noqa : to fix the following imports
 
+from MrMap import VERSION
+from MrMap.settings import LOG_DIR
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'MrMap.settings'
 

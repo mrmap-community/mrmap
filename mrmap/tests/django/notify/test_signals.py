@@ -2,12 +2,15 @@ import asyncio
 from typing import OrderedDict
 
 from async_timeout import timeout
+from channels.auth import AuthMiddlewareStack
 from channels.db import database_sync_to_async
+from channels.routing import URLRouter
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase, override_settings
 from django_celery_results.models import TaskResult
 from MrMap.asgi import application
 from notify.models import BackgroundProcess, ProcessNameEnum
+from notify.routing import websocket_urlpatterns
 from rest_framework.test import APIRequestFactory
 from simple_history.models import HistoricalRecords
 
@@ -63,9 +66,13 @@ class SignalsTestCase(TransactionTestCase):
         try:
             async with timeout(60):
                 # test connection established for authenticated user
-                communicator = WebsocketCommunicator(application=application,
-                                                     path="/ws/default/",
-                                                     headers=self.headers)
+                communicator = WebsocketCommunicator(application=AuthMiddlewareStack(
+                    URLRouter(
+                        websocket_urlpatterns,
+                    )
+                ),
+                    path="/ws/default/",
+                    headers=self.headers)
                 connected, exit_code = await communicator.connect()
                 self.assertTrue(connected)
 

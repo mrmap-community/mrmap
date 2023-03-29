@@ -1,6 +1,7 @@
 import asyncio
 from typing import OrderedDict
 
+from asgiref.sync import async_to_sync
 from async_timeout import timeout
 from channels.auth import AuthMiddlewareStack
 from channels.db import database_sync_to_async
@@ -62,6 +63,10 @@ class SignalsTestCase(TransactionTestCase):
     def delete_pending_task(self):
         return TaskResult.objects.get(task_id=123).delete()
 
+    # to wrap this test function as sync function,
+    # so the test runner waits for this test before he runs into other tests
+    # Otherwise the db connections could be corrupted by other tests which runs in other thread at the same time
+    @async_to_sync
     async def test_signal_events_for_task_result(self):
         try:
             async with timeout(60):

@@ -59,7 +59,6 @@ django-celery-results==2.5.0
 websockets==10.4
 # adds websockets implementation for django
 channels==3.0.5
-channels[daphne]==3.0.5
 # adds redis cache backend implementation for channels package
 channels-redis==3.4.1
 # Object mapper lib

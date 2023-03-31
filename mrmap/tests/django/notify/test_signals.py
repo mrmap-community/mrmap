@@ -10,7 +10,6 @@ from channels.routing import URLRouter
 from channels.testing import WebsocketCommunicator
 from django.test import Client, TransactionTestCase, override_settings
 from django_celery_results.models import TaskResult
-from MrMap.asgi import application
 from notify.models import BackgroundProcess, ProcessNameEnum
 from notify.routing import websocket_urlpatterns
 from rest_framework.test import APIRequestFactory

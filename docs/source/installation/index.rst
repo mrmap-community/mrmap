@@ -26,7 +26,7 @@ The MrMap project is full dockerized. All dependend services MrMap needs are als
 1. Download MrMap
 *****************
 
-Download the project from `github <https://github.com/mrmap-community/mrmap/archive/refs/heads/develop.zip>`_ and unzip it to any installation folder you like.
+Download the project from `github <https://github.com/mrmap-community/mrmap/archive/refs/heads/master.zip>`_ and unzip it to any installation folder you like.
 
 
 2. Start MrMap

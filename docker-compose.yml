@@ -12,7 +12,7 @@ services:
     env_file:
       - ./docker/postgis/.db.env
   redis:
-    image: library/redis:7.0.5-alpine
+    image: library/redis:7.0.10-alpine
     volumes:
       - type: volume
         source: mem-db-data

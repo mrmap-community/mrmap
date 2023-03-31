@@ -15,7 +15,7 @@
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/backend",
+                    "localRoot": "${workspaceFolder}/mrmap",
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
@@ -35,7 +35,7 @@
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/backend",
+                    "localRoot": "${workspaceFolder}/mrmap",
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
@@ -55,7 +55,7 @@
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/backend",
+                    "localRoot": "${workspaceFolder}/mrmap",
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
@@ -75,7 +75,7 @@
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/backend",
+                    "localRoot": "${workspaceFolder}/mrmap",
                     "remoteRoot": "/opt/mrmap"
                 },
                 {

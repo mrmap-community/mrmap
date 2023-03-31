@@ -11,11 +11,11 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # build python dependencies    
-COPY ./mrmap/requirements.txt ./mrmap/requirements.dev.txt ./docs/requirements.docs.txt /
+COPY ./mrmap/requirements.txt /
+COPY ./mrmap/.requirements /.requirements
 
 RUN /usr/local/bin/python -m pip install --upgrade pip && \
     pip install -r requirements.txt
-RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r requirements.dev.txt  && pip install -r requirements.docs.txt; fi
 
 ################################
 # MrMap Image

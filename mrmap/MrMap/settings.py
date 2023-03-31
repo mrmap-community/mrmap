@@ -16,7 +16,7 @@ from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 
-from . import __version__ as VERSION
+from . import VERSION
 
 ################################################################
 # Logger settings

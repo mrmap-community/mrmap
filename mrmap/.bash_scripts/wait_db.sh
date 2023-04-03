@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # wait for database
 echo "checking database host is reachable..."

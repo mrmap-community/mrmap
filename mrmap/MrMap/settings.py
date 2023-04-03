@@ -10,13 +10,25 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 import logging
 import os
+import re
 import socket
+from glob import glob
 
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 
 from . import VERSION
+
+id_extractor = re.compile(r'ID=([^^]*)')
+with open('/etc/os-release', 'r') as file:
+    # if we are running on alpine os, we need to pass the gdal/geos paths. Otherwise django can't find the binaries.
+    for line in file:
+        match = id_extractor.match(line)
+        if match and "alpine" in match.groups()[0].lower():
+            GDAL_LIBRARY_PATH = glob('/usr/lib/libgdal.so.*')[0]
+            GEOS_LIBRARY_PATH = glob('/usr/lib/libgeos_c.so.*')[0]
+
 
 ################################################################
 # Logger settings

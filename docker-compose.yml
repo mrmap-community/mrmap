@@ -66,12 +66,10 @@ services:
   backend:
     build:
       context: ./mrmap
-      dockerfile: ../docker/backend/Dockerfile
+      dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
     tty: true # To support colorized log output.
-    entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
-    command: /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
     hostname: "mrmap-backend"
     volumes:
       - type: bind

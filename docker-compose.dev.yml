@@ -109,9 +109,7 @@ services:
     env_file:
       - docker/backend/.mrmap.env
       - docker/backend/.mrmap.dev.env
-    command: /bin/bash -c "python manage.py runserver 0.0.0.0:8001"
-    ports:
-      - "8001:8001"
+    command: /bin/sh -c "python manage.py runserver 0.0.0.0:8001"
 
   celery-worker:
     build:

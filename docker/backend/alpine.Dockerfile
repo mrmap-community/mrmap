@@ -11,11 +11,10 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # build python dependencies    
-COPY ./requirements.txt /
 COPY ./.requirements /.requirements
 RUN /usr/local/bin/python -m pip install --upgrade pip && \
-    pip install -r requirements.txt
-RUN if [ "${MRMAP_PRODUCTION}" = "True" ] ; then pip uninstall -r ./requirements/dev.txt && pip uninstall -r ./requirements/docs.txt; fi
+    pip install -r ./.requirements/base.txt
+RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements/dev.txt && pip install -r ./.requirements/docs.txt; fi
 
 ################################
 # MrMap Image
@@ -38,7 +37,13 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV PATH="/opt/venv/bin:$PATH"
 
-EXPOSE 8001/tcp
 
 ENTRYPOINT [ "/opt/mrmap/.bash_scripts/entrypoint.sh" ]
-CMD [ "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application" ]
+
+CMD ["./.bash_scripts/startup.sh" ]
+
+
+#CMD ["tail", "-f", "/dev/null"]
+
+
+EXPOSE 8001/tcp

@@ -30,38 +30,6 @@ services:
         target: /etc/mapserver/shapefiles
     networks:
       - mrmap-internal
-  nginx:
-    build:
-      context: ./
-      dockerfile: ./docker/nginx/Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    hostname: "mrmap-nginx"
-    volumes:
-      - type: bind
-        source: ./docker/nginx/mrmap.conf
-        target: /etc/nginx/conf.d/default.conf
-    networks:
-      - mrmap-internal
-    extra_hosts:
-      - host.docker.internal:host-gateway
-  nginx-prod:
-    build:
-      context: ./
-      dockerfile: ./docker/nginx/Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    hostname: "mrmap-nginx"
-    volumes:
-      - type: bind
-        source: ./docker/nginx/mrmap.conf
-        target: /etc/nginx/conf.d/default.conf
-    networks:
-      - mrmap-internal
-    extra_hosts:
-      - host.docker.internal:host-gateway
 
   backend:
     build:
@@ -96,11 +64,11 @@ services:
   celery-worker:
     build:
       context: ./mrmap
-      dockerfile: ../docker/backend/Dockerfile
+      dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
     command: >
-      /bin/bash -c "celery -A MrMap worker -E -l INFO -Q default,download,db-routines"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q default,download,db-routines"
     tty: true # To support colorized log output.
     hostname: "mrmap-celery-worker"
     volumes:

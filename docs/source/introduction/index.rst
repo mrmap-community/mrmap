@@ -62,7 +62,7 @@ MrMap is built on the `Django <https://djangoproject.com/>`_ Python framework an
    * - Function
      - Component
    * - HTTP service
-     - nginx
+     - gunicorn
    * - Application
      - Django/Python
    * - Database

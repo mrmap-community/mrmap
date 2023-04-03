@@ -119,25 +119,7 @@ services:
       - ./docker/backend/.mrmap.env
       - ./docker/backend/.mrmap.dev.env
     command: >
-      /bin/bash -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q default,download,db-routines"
-
-  nginx:
-    build:
-      context: ./docker/nginx
-      dockerfile: ./Dockerfile.dev
-    container_name: nginx-dev
-    volumes:
-      - type: bind
-        source: ./docker/nginx/mrmap.dev.conf
-        target: /etc/nginx/conf.d/default.conf
-
-  swagger-ui:
-    image: swaggerapi/swagger-ui
-    env_file:
-      - ./docker/swagger/.swagger.env
-    hostname: "mrmap-swagger-ui"
-    networks:
-      - mrmap-internal
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q default,download,db-routines"
 
   sonarqube:
     # initial admin account: admin:admin 

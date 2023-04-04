@@ -1,6 +1,6 @@
 #!/bin/sh
 
-grep -zoP 'msgstr "".*\n\n' /opt/mrmap/locale/de/LC_MESSAGES/django.po > /dev/null
+grep -oE 'msgstr "".*\n\n' /opt/mrmap/locale/de/LC_MESSAGES/django.po > /dev/null
 
 case $? in
   0)

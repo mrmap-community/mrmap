@@ -47,6 +47,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
+MRMAP_PRODUCTION = bool(os.environ.get("MRMAP_PRODUCTION", default=False))
 
 # Application definition
 INSTALLED_APPS = [
@@ -140,13 +141,6 @@ if DEBUG:
     }
 
     MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
-
-if os.environ.get("MRMAP_PRODUCTION") == "False":
-    INSTALLED_APPS.extend(
-        [
-            "behave_django",
-        ]
-    )
 
 # Password hashes
 PASSWORD_HASHERS = [
@@ -482,15 +476,10 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
         "rest_framework.parsers.MultiPartParser",
     ),
-    "DEFAULT_RENDERER_CLASSES": (
+    "DEFAULT_RENDERER_CLASSES": [
         "rest_framework_json_api.renderers.JSONRenderer",
-        # If you're performance testing, you will want to use the browseable API
-        # without forms, as the forms can generate their own queries.
-        # If performance testing, enable:
-        "extras.utils.BrowsableAPIRendererWithoutForms",
-        # Otherwise, to play around with the browseable API, enable:
-        # "rest_framework_json_api.renderers.BrowsableAPIRenderer",
-    ),
+    ],
+
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular_jsonapi.schemas.openapi.JsonApiAutoSchema",
     "DEFAULT_FILTER_BACKENDS": (
@@ -506,6 +495,7 @@ REST_FRAMEWORK = {
     "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
 }
 
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',
@@ -513,3 +503,13 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+if not MRMAP_PRODUCTION:
+    REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(
+        "extras.utils.BrowsableAPIRendererWithoutForms")
+
+    INSTALLED_APPS.extend(
+        [
+            "behave_django",
+        ]
+    )

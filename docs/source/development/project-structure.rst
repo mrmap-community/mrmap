@@ -51,16 +51,14 @@ Follow the question from the `article <https://masteringdjango.com/django-tutori
 Package Overview
 ================
 
-* ``acls``: generic implementation of access control list management for django guaridan permissions.
+* ``accounts``: generic implementation of access control list management for django guaridan permissions.
 * ``axis_order_cache``: django cache implementation for axis ordering from remote epsg api.
-* ``breadcrumb``: generic implementation to generate breadcrumbs based on the current path.
 * ``extras``: global project wide used django specific code.
-* ``jobs``: implementation to show background processes and complex workflows.
 * ``MrMap``: django project root for mrmap project.
-* ``ows_client``: library to generate requests for ows services like wms, wfs, csw, based on a given GetCapabilities url.
+* ``notify``: handles notifications over websockets.
+* ``ows_lib``: library which has an ogc client for wms, wfs and csw services and the needed xml mappers.
 * ``registry``: spatial service registry to register and manage services like wms, wfs, csw. (monolith app)
-* ``users``: user-, group-, permission- and changelog-management for the hole project.
-* ``ws``: global websocket implementation to handle session authentication and other things.
+* ``tests``: django and behave tests.
 
 package/app structure
 ---------------------

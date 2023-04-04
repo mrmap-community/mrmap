@@ -47,7 +47,8 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
-MRMAP_PRODUCTION = bool(os.environ.get("MRMAP_PRODUCTION", default=False))
+MRMAP_PRODUCTION = os.environ.get("MRMAP_PRODUCTION", default="False")
+MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
 
 # Application definition
 INSTALLED_APPS = [

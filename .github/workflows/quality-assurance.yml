@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -44,7 +44,7 @@ jobs:
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from behave behave
 
       - name: upload coverage reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: coverage-reports
           path: ./mrmap/acceptance-tests-coverage-report.xml
@@ -55,7 +55,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -67,7 +67,7 @@ jobs:
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from django-tests django-tests
 
       - name: upload coverage reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: coverage-reports
           path: ./backend/unit-tests-coverage-report.xml
@@ -79,7 +79,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 

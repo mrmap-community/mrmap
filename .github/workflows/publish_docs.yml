@@ -12,11 +12,11 @@ jobs:
     name: build docs
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
-      
+
       - name: pull needed docker images
         run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml pull build-docs
 
@@ -34,11 +34,11 @@ jobs:
     needs: [build-docs]
     name: publish docs
     runs-on: ubuntu-20.04
-    if: ${{ github.ref == 'refs/heads/master' && github.ref == 'refs/heads/master' && github.event_name != 'push' }}
+    if: ${{ github.ref == 'refs/heads/master' && github.event_name != 'push' }}
     steps:
       - name: download artifacts
-        uses: actions/download-artifact@v2
-        with: 
+        uses: actions/download-artifact@v3
+        with:
           name: docs
           path: ./docs/build
       # ===============================
@@ -46,15 +46,15 @@ jobs:
       # ===============================
       - name: Commit documentation changes
         run: |
-            git clone https://github.com/${GITHUB_REPOSITORY}.git --branch gh-pages --single-branch gh-pages
-            cp -r docs/build/html/* gh-pages/
-            cd gh-pages
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            git add .
-            git commit -m "Update documentation" -a || true
-            # The above command will fail if no changes were present, so we ignore
-            # the return code.
+          git clone https://github.com/${GITHUB_REPOSITORY}.git --branch gh-pages --single-branch gh-pages
+          cp -r docs/build/html/* gh-pages/
+          cd gh-pages
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Update documentation" -a || true
+          # The above command will fail if no changes were present, so we ignore
+          # the return code.
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:

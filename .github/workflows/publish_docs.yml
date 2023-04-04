@@ -34,7 +34,7 @@ jobs:
     needs: [build-docs]
     name: publish docs
     runs-on: ubuntu-20.04
-    if: ${{ github.ref == 'refs/heads/master' && github.event_name != 'push' }}
+    if: github.ref == 'refs/heads/master'
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v3

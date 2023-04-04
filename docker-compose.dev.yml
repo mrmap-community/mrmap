@@ -28,11 +28,11 @@ services:
   pre-commit-check:
     build:
       context: ./mrmap
-      dockerfile: ../docker/backend/Dockerfile
+      dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
-    command: /bin/bash -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
+    command: /bin/sh -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
     hostname: "mrmap-test"
     volumes:
       - type: bind
@@ -49,14 +49,14 @@ services:
   behave:
     build:
       context: ./mrmap
-      dockerfile: ../docker/backend/Dockerfile
+      dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
     tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped tests/behave/api/features && python -m coverage xml -i -o acceptance-tests-coverage-report.xml"
+      /bin/sh -c "python -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped tests/behave/api/features && python -m coverage xml -i -o acceptance-tests-coverage-report.xml"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -76,14 +76,14 @@ services:
   django-tests:
     build:
       context: ./mrmap
-      dockerfile: ../docker/backend/Dockerfile
+      dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
     tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/bash -c "python -m coverage run --branch --source='/opt/mrmap' ./manage.py test /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o unit-tests-coverage-report.xml"
+      /bin/sh -c "python -m coverage run --branch --source='/opt/mrmap' ./manage.py test /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o unit-tests-coverage-report.xml"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind

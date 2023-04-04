@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Security Models &mdash; MrMap 0.1.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Mr Map Managers" href="../managers/index.html" />
+    <link rel="prev" title="Service Models" href="service.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> MrMap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../system_architecture/index.html">System Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../features/index.html">Mr Map Features</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Mr Map Models</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#model-index">Model Index</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="service.html">Service Models</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Security Models</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../managers/index.html">Mr Map Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/index.html">Mr Map Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MrMap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Mr Map Models</a> &raquo;</li>
+      <li>Security Models</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/models/security.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-registry.models.security">
+<span id="security-models"></span><span id="models-resource-security"></span><h1>Security Models<a class="headerlink" href="#module-registry.models.security" title="Permalink to this headline"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.AllowedOperation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">AllowedOperation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AllowedOperation" title="Permalink to this definition"></a></dt>
+<dd><p>A AllowedOperation represents a security configuration for a given <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Attr operations</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.db.models.fields.related.ManyToManyField</span></code> field to configure allowed OGC
+operations.</p>
+</dd>
+<dt class="field-even">Attr allowed_groups</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.db.models.fields.related.ManyToManyField</span></code> field to configure allowed groups to
+access the configured service.</p>
+</dd>
+<dt class="field-odd">Attr allowed_area</dt>
+<dd class="field-odd"><p>(optional) <code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.gis.db.models.fields.MultiPolygonField</span></code> to configure an
+allowed area. If set, only the configured area is allowed to request.</p>
+</dd>
+<dt class="field-even">Attr description</dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">django.db.models.fields.CharField</span></code> short description for better administrating different
+<a class="reference internal" href="#registry.models.security.AllowedOperation" title="registry.models.security.AllowedOperation"><code class="xref py py-class docutils literal notranslate"><span class="pre">AllowedOperation</span></code></a> instances.</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>One allowed operation is a configuration to allow</dt><dd><ul class="simple">
+<li><p>a set of <code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.auth.models.Group</span></code></p></li>
+<li><p>to access a set of <a class="reference internal" href="service.html#registry.models.service.Layer" title="registry.models.service.Layer"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Layer</span></code></a> or <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.FeatureType</span></code></p></li>
+<li><p>for one configured <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.service.Service</span></code></p></li>
+<li><p>limited by the configured <a class="reference internal" href="#registry.models.security.WebMapServiceOperation" title="registry.models.security.WebMapServiceOperation"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.WebMapServiceOperation</span></code></a> or <a class="reference internal" href="#registry.models.security.WebFeatureServiceOperation" title="registry.models.security.WebFeatureServiceOperation"><code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.WebFeatureServiceOperation</span></code></a></p></li>
+<li><p>and (optional) limited by a configured <code class="xref py py-class docutils literal notranslate"><span class="pre">django.contrib.gis.geos.MultiPolygon</span></code></p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>IF there are two <a class="reference internal" href="#registry.models.security.AllowedOperation" title="registry.models.security.AllowedOperation"><code class="xref py py-class docutils literal notranslate"><span class="pre">AllowedOperation</span></code></a> instances for the same set of <code class="docutils literal notranslate"><span class="pre">operations</span></code> and <code class="docutils literal notranslate"><span class="pre">allowed_groups</span></code>
+and one has no allowed area configured the one with <code class="docutils literal notranslate"><span class="pre">allowed_area=None</span></code> allows all areas.</p>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebFeatureServiceOperation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">AllowedWebFeatureServiceOperation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allowed_area</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secured_service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AllowedWebFeatureServiceOperation" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebFeatureServiceOperation.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.AllowedWebFeatureServiceOperation.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebFeatureServiceOperation.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.AllowedWebFeatureServiceOperation.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebFeatureServiceOperation.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AllowedWebFeatureServiceOperation.save" title="Permalink to this definition"></a></dt>
+<dd><p>Custom save function to update related <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ProxySetting</span></code> instance.
+IF there is a related <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ProxySetting</span></code> instance, the
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">ProxySetting.camouflage</span></code> attribute is updated to the value <code class="docutils literal notranslate"><span class="pre">True</span></code>
+ELSE we create a new <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ProxySetting</span></code> instance with the initial
+<code class="docutils literal notranslate"><span class="pre">camouflage=True</span></code> attribute.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebMapServiceOperation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">AllowedWebMapServiceOperation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allowed_area</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secured_service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AllowedWebMapServiceOperation" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebMapServiceOperation.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.AllowedWebMapServiceOperation.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebMapServiceOperation.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.AllowedWebMapServiceOperation.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="registry.models.security.AllowedWebMapServiceOperation.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AllowedWebMapServiceOperation.save" title="Permalink to this definition"></a></dt>
+<dd><p>Custom save function to update related <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ProxySetting</span></code> instance.
+IF there is a related <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ProxySetting</span></code> instance, the
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">ProxySetting.camouflage</span></code> attribute is updated to the value <code class="docutils literal notranslate"><span class="pre">True</span></code>
+ELSE we create a new <code class="xref py py-class docutils literal notranslate"><span class="pre">registry.models.security.ProxySetting</span></code> instance with the initial
+<code class="docutils literal notranslate"><span class="pre">camouflage=True</span></code> attribute.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.AnalyzedResponseLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">AnalyzedResponseLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_total_count</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.AnalyzedResponseLog" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.AnalyzedResponseLog.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.AnalyzedResponseLog.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.AnalyzedResponseLog.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.AnalyzedResponseLog.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.CatalogueServiceAuthentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">CatalogueServiceAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auth_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.CatalogueServiceAuthentication" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.CatalogueServiceAuthentication.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.CatalogueServiceAuthentication.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.CatalogueServiceAuthentication.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.CatalogueServiceAuthentication.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceAnalyzedResponseLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceAnalyzedResponseLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_total_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">analyzedresponselog_ptr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebFeatureServiceAnalyzedResponseLog" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceAnalyzedResponseLog.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceAnalyzedResponseLog.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceAnalyzedResponseLog.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceAnalyzedResponseLog.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceAuthentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auth_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebFeatureServiceAuthentication" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceAuthentication.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceAuthentication.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceAuthentication.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceAuthentication.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceHttpRequestLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceHttpRequestLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elapsed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">body</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebFeatureServiceHttpRequestLog" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceHttpRequestLog.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceHttpRequestLog.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceHttpRequestLog.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceHttpRequestLog.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceHttpResponseLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceHttpResponseLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reason</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elapsed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">request</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebFeatureServiceHttpResponseLog" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceHttpResponseLog.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceHttpResponseLog.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceHttpResponseLog.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceHttpResponseLog.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceOperation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceOperation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operation</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebFeatureServiceOperation" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceOperation.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceOperation.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceOperation.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceOperation.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceProxySetting">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebFeatureServiceProxySetting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camouflage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_response</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secured_service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebFeatureServiceProxySetting" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceProxySetting.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceProxySetting.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebFeatureServiceProxySetting.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebFeatureServiceProxySetting.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceAnalyzedResponseLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceAnalyzedResponseLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity_total_count</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">analyzedresponselog_ptr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">response</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebMapServiceAnalyzedResponseLog" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceAnalyzedResponseLog.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceAnalyzedResponseLog.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceAnalyzedResponseLog.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceAnalyzedResponseLog.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceAuthentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auth_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebMapServiceAuthentication" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceAuthentication.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceAuthentication.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceAuthentication.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceAuthentication.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceHttpRequestLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceHttpRequestLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elapsed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">body</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebMapServiceHttpRequestLog" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceHttpRequestLog.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceHttpRequestLog.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceHttpRequestLog.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceHttpRequestLog.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceHttpResponseLog">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceHttpResponseLog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reason</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elapsed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">content</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">request</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebMapServiceHttpResponseLog" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceHttpResponseLog.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceHttpResponseLog.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceHttpResponseLog.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceHttpResponseLog.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceOperation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceOperation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operation</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebMapServiceOperation" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceOperation.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceOperation.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceOperation.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceOperation.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceProxySetting">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">registry.models.security.</span></span><span class="sig-name descname"><span class="pre">WebMapServiceProxySetting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camouflage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_response</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">secured_service</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#registry.models.security.WebMapServiceProxySetting" title="Permalink to this definition"></a></dt>
+<dd><dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceProxySetting.DoesNotExist">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DoesNotExist</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceProxySetting.DoesNotExist" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="registry.models.security.WebMapServiceProxySetting.MultipleObjectsReturned">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultipleObjectsReturned</span></span><a class="headerlink" href="#registry.models.security.WebMapServiceProxySetting.MultipleObjectsReturned" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="service.html" class="btn btn-neutral float-left" title="Service Models" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../managers/index.html" class="btn btn-neutral float-right" title="Mr Map Managers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, mrmap-community.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  
+<div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    <span class="fa fa-book"> Other Versions</span>
+    v: master
+    <span class="fa fa-caret-down"></span>
+  </span>
+  <div class="rst-other-versions">
+    <dl>
+      <dt>Branches</dt>
+      <dd><a href="security.html">master</a></dd>
+    </dl>
+  </div>
+</div><script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

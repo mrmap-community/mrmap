@@ -1,0 +1,2 @@
+introduction/index.rst:56: [redirected permanently] https://djangoproject.com/ to https://www.djangoproject.com/
+installation/index.rst:29: [redirected with Found] https://github.com/mrmap-community/mrmap/archive/refs/heads/master.zip to https://codeload.github.com/mrmap-community/mrmap/zip/refs/heads/master

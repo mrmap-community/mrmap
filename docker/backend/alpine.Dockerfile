@@ -42,8 +42,4 @@ ENTRYPOINT [ "/opt/mrmap/.bash_scripts/entrypoint.sh" ]
 
 CMD ["./.bash_scripts/startup.sh" ]
 
-
-#CMD ["tail", "-f", "/dev/null"]
-
-
 EXPOSE 8001/tcp

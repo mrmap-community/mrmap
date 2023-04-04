@@ -2,7 +2,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_backend&metric=alert_status)](https://sonarcloud.io/dashboard?id=mrmap-community_backend)
 [![build docs](https://github.com/mrmap-community/mrmap/actions/workflows/publish_docs.yml/badge.svg)](https://mrmap-community.github.io/mrmap/)
 
-<img src="https://github.com/mrmap-community/mrmap/blob/master/mrmap/MrMap/static/images/mr_map.png" width="200">
+<img src="https://github.com/mrmap-community/mrmap/blob/890d63933de3adf45dfb5cfafc1f4d538d2df624/docs/source/images/mr_map.png" width="200">
 
 Mr. Map is a generic registry for geospatial data, metadata, services and their describing documents (e.g. web map services [WMS](https://www.opengeospatial.org/standards/wms), web feature services [WFS](https://www.opengeospatial.org/standards/wfs) and all the other [OGC](http://www.opengeospatial.org/) stuff. A similar project maybe [Hypermap-Registry](http://cga-harvard.github.io/Hypermap-Registry/) - but it lacks off many things which are needed in practice. The information model was inspired by the old well known [mapbender2](https://github.com/mrmap-community/Mapbender2.8) project and somewhen will be replaced by mrmap.
 
@@ -12,11 +12,6 @@ MrMap runs as a web application atop the [Django](https://www.djangoproject.com/
 Python framework with a [PostgreSQL](https://www.postgresql.org/) database. For a
 complete list of requirements, see `requirements.txt`. The code is available [on GitHub](https://github.com/mrmap-community/mrmap).
 
-
-
-### Screenshots
-
-<img src="https://github.com/mrmap-community/mrmap/blob/master/docs/source/images/mrmap_loginpage.png">
 
 ### Documentation
 

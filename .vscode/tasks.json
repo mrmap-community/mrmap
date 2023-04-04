@@ -16,25 +16,6 @@
             ]
         },
         {
-            "label": "Docker-Compose: mrmap nginx",
-            "type": "shell",
-            "command": "docker-compose",
-            "args": [
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "nginx",
-                "--abort-on-container-exit",
-                "nginx"
-            ],
-            "problemMatcher": []
-        },
-        {
             "label": "Docker-Compose: mrmap backend",
             "type": "shell",
             "command": "docker-compose",

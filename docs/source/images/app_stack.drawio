@@ -1,1 +1,49 @@
-<mxfile host="Electron" modified="2021-09-16T18:23:28.787Z" agent="5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/15.2.7 Chrome/93.0.4577.63 Electron/14.0.1 Safari/537.36" etag="L-Gjck_iSlT3o4DybzMS" version="15.2.7" type="device"><diagram id="F1luIscRZNPnV9mhacil" name="Page-1">7VrZcuI6EP0aHpOS5QX7kYGQpOoyw4RUlnkTdgNKbIuRxXa//kq2DDYxmZmExVMXJ1VYR1Jb7j5HS0PDbEfLa06mkx4LIGxgFCwbZqeBsWFh3FD/KFhliGc6GTDmNNCNNsCA/gsaRBqd0QCSUkPBWCjotAz6LI7BFyWMcM4W5WYjFpafOiVjeAMMfBK+RR9pICYZ6tpog98AHU/yJxtI10Qkb6yBZEICtihA5lXDbHPGRHYXLdsQKuflfsn6dXfUrgfGIRa/0+Hxpj15ePKezG/3o9vOrW8aUXShrcxJONMv3MBOKO19CehcDVqstCecnzM10i8jFouLJI1TSzYwnOlyUynvxvozzBtvY8N9mf2olXhMYwkj5SqMWlPiTyC3LLGqMUt4WIHtaJq6rozu0ZsftXJzf9+XlXcwB57IF0Z9zpardVT458f3mx7BpSdhzmZxAIqkhqxeTKiAgYyJql3IOUViExGFunpEw7DNQsbTviYYgQ1NiSeCs1co1HhO0ySOfoMuiWioJqA2m3EK6lW/wkJX6jnHcNaDK2oqFwhwAcsCpDV2DSwCwaUbka7NZwY93xm5/Beb2aOZzxGTwszhaIzoCWu8trzRtLzRsv4DiZuHlfhaFz3ek9F6XzCHVUaGdV5IPGapsqch9YmgLP4FQz8nrL9bQgEBd+RXScjxXRiOTi8hs0JClnNMCVlHklBO3ZNrqL8SE6Ua9Ahque5yEsGC8dezjnbryAY3sKp05OKh6dRgKbJOriP7SDrqs0SMOQy+/1MDLd1BmK5BRLmnQwQZkuRX+83/s5BGrg9+5YI0dG1LcvrkQrIrhLQ+5h1FSM6RhHQHAU1qoKHb+KIHEUtjMhCMn/Xzjn5GI1ytn8AZOvYpFiLs1U1AzSMJqEtDSFaJgKgGKhoIuRD5aj8nR6WVpNJfZy3t1JKt/qq05KTXn2pJlQtGsmtPa5RZN43lKdySyLaCA3HQUllaWfJDkiTU34pH0bsPwAMSkwq/Srfx1ZMsoUs7Lz6rYl7oLEulVV5aUpF1w4aly8/60ep+000Vir36wKl0E3CNZQTJU8TWezGFoJRyfhvRQsTsioDlGE83lvNyoroqivoJfUZTJeeTctO7bDpofeHyodvdokUiqe2DtlFMM1eY9QpmkVV9CMntCsLHIN7YTRm39sknSFiV4T6TsC4kNGzJlgJZsFlmy0dZaDjo0ijYRXb15HgsFuIzC2vMQtOTU2GBLng/JFRmPeO0xKvK/teVeK5lHIt4WQjfc1ytCOqYZYLuaZZUZr2C2aNxlcSPSfz15bmHE4vMUeuqh8Shv4ten7rGs5j6jMcnOpGtn7WgkjkYzeZ6NEhl2NXh4eQHxdbg+lZ20N8YD4DPS8M6nxK3My7g7Mi4NL0hqkHGEh8z9d9+mP7o/njxXEJ/dm5fg4i6rUpx13UdOtQGaGsxqQjxKc+CNtq1AcKfOQs2d+/CzcMtMJUcPG/C/14OGgfiIN4bB2Vx82O+rPnmJ5Hm1X8=</diagram></mxfile>
+<mxfile host="Electron" modified="2023-04-04T08:28:00.845Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.1.2 Chrome/106.0.5249.199 Electron/21.4.3 Safari/537.36" etag="QwO_TRwoHcxQ4VpvO-U8" version="21.1.2" type="device">
+  <diagram id="F1luIscRZNPnV9mhacil" name="Page-1">
+    <mxGraphModel dx="1106" dy="669" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="WHChVX9X3OTfIDIc31mm-3" value="&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;MrMap&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;font&gt;Django Application&lt;/font&gt;&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;br style=&quot;font-size: 16px&quot;&gt;&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontFamily=Courier New;fontSize=16;" parent="1" vertex="1">
+          <mxGeometry x="50" y="320" width="460" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="WHChVX9X3OTfIDIc31mm-4" value="&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;Django&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;font&gt;Python Web Framework&lt;/font&gt;&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;br style=&quot;font-size: 16px&quot;&gt;&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontFamily=Courier New;fontSize=16;" parent="1" vertex="1">
+          <mxGeometry x="50" y="420" width="460" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="WHChVX9X3OTfIDIc31mm-5" value="&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;PostgreSQL&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;font&gt;Relational Database&lt;/font&gt;&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;br style=&quot;font-size: 16px&quot;&gt;&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontFamily=Courier New;fontSize=16;" parent="1" vertex="1">
+          <mxGeometry x="50" y="520" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="WHChVX9X3OTfIDIc31mm-6" value="&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;Redis&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;font&gt;In-Memory Store&lt;/font&gt;&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;br style=&quot;font-size: 16px&quot;&gt;&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontFamily=Courier New;fontSize=16;" parent="1" vertex="1">
+          <mxGeometry x="290" y="520" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="WHChVX9X3OTfIDIc31mm-10" value="" style="endArrow=classic;html=1;fontFamily=Verdana;fontSize=16;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.214;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;strokeWidth=4;" parent="1" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="279.7600000000002" y="380" as="sourcePoint" />
+            <mxPoint x="279.96000000000004" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="WHChVX9X3OTfIDIc31mm-11" value="" style="endArrow=classic;html=1;fontFamily=Verdana;fontSize=16;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.214;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;strokeWidth=4;" parent="1" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="159.90000000000023" y="480" as="sourcePoint" />
+            <mxPoint x="160.10000000000005" y="520" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="WHChVX9X3OTfIDIc31mm-12" value="" style="endArrow=classic;html=1;fontFamily=Verdana;fontSize=16;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.214;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;strokeWidth=4;" parent="1" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="399.7100000000002" y="480" as="sourcePoint" />
+            <mxPoint x="399.91" y="520" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="anWsnNjYM2s4av0AEM0t-1" value="&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;gunicorn&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;b&gt;with uvicorn worker&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;font-size: 16px&quot;&gt;&lt;font&gt;ASGI HTTP Server&lt;/font&gt;&lt;font style=&quot;font-size: 16px&quot;&gt;&lt;br style=&quot;font-size: 16px&quot;&gt;&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontFamily=Courier New;fontSize=16;" parent="1" vertex="1">
+          <mxGeometry x="50" y="220" width="460" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="CVpZFZj98aiqDIkdmi8A-1" value="" style="endArrow=classic;html=1;fontFamily=Verdana;fontSize=16;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.214;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;strokeWidth=4;" parent="1" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="279.5000000000002" y="280" as="sourcePoint" />
+            <mxPoint x="279.70000000000005" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

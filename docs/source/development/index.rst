@@ -18,6 +18,5 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    project-structure
    environment
    definition_of_done
-   pycharm-configuration
    vscode-configuration
    

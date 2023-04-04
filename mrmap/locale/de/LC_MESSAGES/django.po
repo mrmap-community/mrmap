@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-24 09:27+0100\n"
+"POT-Creation-Date: 2023-04-04 11:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:182
+#: MrMap/settings.py:189
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:183
+#: MrMap/settings.py:190
 msgid "German"
 msgstr "Deutsch"
 
@@ -1088,8 +1088,8 @@ msgid ""
 "disabled. See all allowed operations <a href=%(url)s>here</a>"
 msgstr ""
 "Es existieren konfigurierte erlaubte Operationen. Die Tarnungsfunktion kann "
-"nicht deaktiviert werden. Sehen Sie alle erlaubten Operationen <a href="
-"%(url)s>hier</a>"
+"nicht deaktiviert werden. Sehen Sie alle erlaubten Operationen <a "
+"href=%(url)s>hier</a>"
 
 #: registry/models/security.py:431 registry/models/security.py:442
 msgid "proxy settings"

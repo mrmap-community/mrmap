@@ -30,48 +30,14 @@ services:
         target: /etc/mapserver/shapefiles
     networks:
       - mrmap-internal
-  nginx:
-    build:
-      context: ./
-      dockerfile: ./docker/nginx/Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    hostname: "mrmap-nginx"
-    volumes:
-      - type: bind
-        source: ./docker/nginx/mrmap.conf
-        target: /etc/nginx/conf.d/default.conf
-    networks:
-      - mrmap-internal
-    extra_hosts:
-      - host.docker.internal:host-gateway
-  nginx-prod:
-    build:
-      context: ./
-      dockerfile: ./docker/nginx/Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    hostname: "mrmap-nginx"
-    volumes:
-      - type: bind
-        source: ./docker/nginx/mrmap.conf
-        target: /etc/nginx/conf.d/default.conf
-    networks:
-      - mrmap-internal
-    extra_hosts:
-      - host.docker.internal:host-gateway
 
   backend:
     build:
       context: ./mrmap
-      dockerfile: ../docker/backend/Dockerfile
+      dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
     tty: true # To support colorized log output.
-    entrypoint: /opt/mrmap/.bash_scripts/entrypoint.sh
-    command: /bin/bash -c "gunicorn -b 0.0.0.0:8001 -k uvicorn.workers.UvicornWorker --workers=4 --reload --log-level=info --timeout=0 MrMap.asgi:application"
     hostname: "mrmap-backend"
     volumes:
       - type: bind
@@ -94,15 +60,17 @@ services:
       - postgis
       - redis
       - mapserver
+    ports:
+      - "0.0.0.0:8001:8001"
 
   celery-worker:
     build:
       context: ./mrmap
-      dockerfile: ../docker/backend/Dockerfile
+      dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
     command: >
-      /bin/bash -c "celery -A MrMap worker -E -l INFO -Q default,download,db-routines"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q default,download,db-routines"
     tty: true # To support colorized log output.
     hostname: "mrmap-celery-worker"
     volumes:

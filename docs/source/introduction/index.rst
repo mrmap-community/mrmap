@@ -53,7 +53,7 @@ When given a choice between a relatively simple `80% solution <https://en.wikipe
 Application Stack
 *****************
 
-NetBox is built on the `Django <https://djangoproject.com/>`_ Python framework and utilizes a `PostgreSQL <https://www.postgresql.org/>`_ database. It runs as a ASGI service behind your choice of HTTP server.
+MrMap is built on the `Django <https://djangoproject.com/>`_ Python framework and utilizes a `PostgreSQL <https://www.postgresql.org/>`_ database. It runs as a ASGI service behind your choice of HTTP server.
 
 .. list-table::
    :widths: 50 50
@@ -62,18 +62,18 @@ NetBox is built on the `Django <https://djangoproject.com/>`_ Python framework a
    * - Function
      - Component
    * - HTTP service
-     - nginx
+     - gunicorn
    * - Application
      - Django/Python
    * - Database
-     - PostgreSQL 11.10+
+     - PostgreSQL 14+
    * - Task queuing
-     - Redis/django-rq
+     - Redis/celery
 
 Supported Python Versions
 *************************
 
-MrMap supports Python3.7 environment currently.
+MrMap supports Python3.10 environment currently.
 
 Getting Started
 ***************

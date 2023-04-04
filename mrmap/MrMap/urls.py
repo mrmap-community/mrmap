@@ -18,7 +18,8 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
-from drf_spectacular.views import SpectacularJSONAPIView
+from drf_spectacular.views import (SpectacularJSONAPIView,
+                                   SpectacularSwaggerView)
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
@@ -39,6 +40,9 @@ urlpatterns = [
         cache_page(timeout=60 * 15,
                    cache="local-memory")(SpectacularJSONAPIView.as_view()),
         name="openapi-schema"),
+
+    path('api/schema/swagger-ui/',
+         SpectacularSwaggerView.as_view(url_name='openapi-schema'), name='swagger-ui'),
     # ows views
     path(
         "mrmap-proxy/wms/<pk>",

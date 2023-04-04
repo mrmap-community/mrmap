@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Ignored violations:
 #
@@ -58,7 +58,7 @@ else
 fi
 
 echo "Validating if compiled messages are outdated..."
-cmp /opt/mrmap/locale/de/LC_MESSAGES/django.po /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak --ignore-initial=323
+cmp /opt/mrmap/locale/de/LC_MESSAGES/django.po /opt/mrmap/locale/de/LC_MESSAGES/django.po.bak -n 323
 
 if [[ $? != 0 ]]; 
 then

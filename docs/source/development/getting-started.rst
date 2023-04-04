@@ -10,9 +10,8 @@ Getting Started
 
 Cause MrMap is full dockerized, the development of it is priciple possible on any operating system. Feel free to use the development ide of your choice.
 
-We provide configuration files for `pycharm <https://www.jetbrains.com/de-de/pycharm/>`_ and `vscode <https://code.visualstudio.com/>`_. 
+We provide configuration files for `vscode <https://code.visualstudio.com/>`_. 
 
-* To configure pycharm see :ref:`documentation <development-pycharm-cfg>`
 * To configure vscode see :ref:`documentation <development-vscode-cfg>`
 
 
@@ -27,21 +26,11 @@ Branch structure
 The MrMap project utilizes three persistent git branches to track work:
 
 * ``master`` - Serves as a snapshot of the current stable release
-* ``develop`` - Tracks work on an upcoming new minor release
 * ``feature`` - Tracks work on an upcoming new feature
+* ``bug`` - Tracks work on an bugfix
 
-Typically, you'll base pull requests off of the ``develop`` branch, or off of ``feature`` if you're working on a new major release. **Never** merge pull requests into the ``master`` branch, which receives merged only from the ``develop`` branch.
 
-Enable Pre-Commit Hooks
-=======================
-
-MrMap ships with a `git pre-commit hook <https://git-scm.com/docs/githooks>`_ script that automatically checks for style compliance and missing database migrations prior to committing changes. This helps avoid erroneous commits that result in CI test failures. You are encouraged to enable it by creating a link to ``scripts/git-hooks/pre-commit``:
-
-.. code-block:: console
-
-    $ cd .git/hooks/
-    $ ln -s ../../scripts/git-hooks/pre-commit
-
+Typically, you'll base pull requests off of the ``master`` branch.
 
 .. _running_management_commands:
 
@@ -113,18 +102,24 @@ Compilemessages should run local by calling:
 Running Tests
 =============
 
-Throughout the course of development, it's a good idea to occasionally run MrMap's test suite to catch any potential errors. Tests are run using the ``test`` management command:
+Throughout the course of development, it's a good idea to occasionally run MrMap's test suite to catch any potential errors. 
+In our project there are two kinds of test suites which are used to test the hole project.
+
+For deeper testing some code snippets we are using the default django test suite.
+
+Tests are run using the ``django-test`` container which runs the django test suite for us:
 
 .. code-block:: console
 
-    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build test
+    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
 
 
-In cases where you haven't made any changes to the database (which is most of the time), you can append the ``--keepdb`` argument to this command to reuse the test database between runs. This cuts down on the time it takes to run the test suite since the database doesn't have to be rebuilt each time. (Note that this argument will cause errors if you've modified any model fields since the previous test run.)
+To test the `json:api <https://jsonapi.org/>`_ we are using the `behave <https://behave.readthedocs.io/en/stable/>`_ suite with the `gherkin language <https://cucumber.io/docs/gherkin/reference/>`_.
+You can run the test suite by starting the ``behave tests`` containter by using the following command:
 
 .. code-block:: console
 
-    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build test --keepdb
+    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
 
 
 Test documentation builds properly

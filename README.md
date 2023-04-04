@@ -15,7 +15,7 @@ complete list of requirements, see `requirements.txt`. The code is available [on
 
 ### Documentation
 
-The complete documentation for MrMap can be found at [github page](https://mrmap-community.github.io/mrmap/develop/). 
+The complete documentation for MrMap can be found at [github page](https://mrmap-community.github.io/mrmap/master). 
 
 ### Discussion
 

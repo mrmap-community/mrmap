@@ -25,7 +25,7 @@ jobs:
           docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build --abort-on-container-exit --exit-code-from build-docs build-docs
 
       - name: upload build reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: docs
           path: ./docs/build

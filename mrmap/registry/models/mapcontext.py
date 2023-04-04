@@ -5,13 +5,12 @@ from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from mptt.fields import TreeForeignKey
-from mptt.models import MPTTModel
 from registry.managers.mapcontext import (MapContextLayerManager,
                                           MapContextManager)
 from registry.models import DatasetMetadata, Layer
 from registry.models.metadata import Style
 from simple_history.models import HistoricalRecords
+from tree_queries.models import TreeNode, TreeNodeForeignKey
 
 
 def preview_image_file_path(instance, filename):
@@ -254,8 +253,8 @@ class SelectionOffering(models.Model):
             }
 
 
-class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
-    parent = TreeForeignKey(
+class MapContextLayer(RenderingOffering, SelectionOffering, TreeNode):
+    parent = TreeNodeForeignKey(
         to="MapContextLayer",
         on_delete=models.CASCADE,
         null=True,

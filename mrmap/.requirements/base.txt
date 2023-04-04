@@ -7,8 +7,7 @@ django-simple-history==3.3.0
 django-filter==21.1
 # adds object permissions
 django-guardian==2.4.0
-# adds mptt tree model
-django-mptt==0.14.0
+django-tree-queries==0.14.0
 # adds redis cache backend for django
 django-redis==5.2.0
 # adds captcha 

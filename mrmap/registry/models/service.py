@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
+from django.db.models.indexes import Index
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -11,7 +12,6 @@ from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
 from extras.utils import update_url_base, update_url_query_params
-from mptt.models import MPTTModel, TreeForeignKey
 from MrMap.settings import PROXIES
 from ows_lib.client.csw.mixins import \
     CatalogueServiceMixin as CatalogueServiceClient
@@ -36,6 +36,7 @@ from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from simple_history.models import HistoricalRecords
+from tree_queries.models import TreeNode, TreeNodeForeignKey
 
 
 class CommonServiceInfo(models.Model):
@@ -339,7 +340,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         return ""
 
 
-class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
+class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, TreeNode):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
@@ -354,10 +355,11 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name=_("service"),
         help_text=_("the extras service where this element is part of"),
     )
-    parent = TreeForeignKey(
+    parent = TreeNodeForeignKey(
         to="self",
-        on_delete=models.CASCADE,
+        blank=True,
         null=True,
+        on_delete=models.CASCADE,
         editable=False,
         related_name="children",
         related_query_name="child",
@@ -413,6 +415,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             "images. None value means no restriction."
         ),
     )
+    position = models.PositiveIntegerField(default=0)
+
     change_log = HistoricalRecords(
         related_name="change_logs", excluded_fields=["lft", "rght", "tree_id", "level"]
     )
@@ -422,19 +426,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
-
-        # FIXME: can't set new Index object for mptt fields, cause _meta.get_field() does not provide mptt fields. This will raise an Error on model check.
-        # So long we use mptt, we can't fix it.
-        # See also the deprecated not of index_together ==> https://docs.djangoproject.com/en/4.1/ref/models/options/#index-together
-        # indexes = [Index(fields=("tree_id", "lft", "rght"))]
-
-        index_together = [
-            # with_inherited_attributes() manager function will collect anchestors with this three attributes.
-            # For faster lookup we need an index of this three fields in the correct order.
-            ["tree_id", "lft", "rght"]
-        ]
-
-        # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
+        ordering = ["position"]
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the layer, all his descendants and his related service.
@@ -452,12 +444,12 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
             # the active sate of this and all descendant layers shall be changed to the new value. Bulk update
             # is the most efficient way to do it.
             if self.is_active:
-                self.get_family().update(is_active=self.is_active)
+                self.descendants().update(is_active=self.is_active)
                 WebMapService.objects.filter(pk=self.service_id).update(
                     is_active=self.is_active
                 )
             else:
-                self.get_descendants().update(is_active=self.is_active)
+                self.descendants().update(is_active=self.is_active)
 
     def get_map_url(self, bbox: Polygon = None, format: str = None, style: Style = None, width: int = 1, height: int = 1, transparent: bool = False, bgcolor="=0xFFFFFF", exceptions="XML") -> str:
         """ Returns the url for the GetMap operation, to use with http get method to request this specific layer. """

@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from random import randrange
 from typing import Any, Dict, List
 
 from django.contrib.contenttypes.models import ContentType
@@ -8,15 +7,13 @@ from django.contrib.gis.geos.polygon import Polygon
 from django.contrib.postgres.aggregates import JSONBAgg
 from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
-from django.db import models, transaction
-from django.db.models.aggregates import Max
+from django.db import connections, models, transaction
 from django.db.models.expressions import F, OuterRef, Subquery, Value
 from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query import Prefetch, Q
 from extras.managers import DefaultHistoryManager
 from extras.utils import camel_to_snake
-from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
 from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       MetadataContact, MimeType,
@@ -25,6 +22,7 @@ from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       WebMapServiceRemoteMetadata)
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
+from tree_queries.query import TreeQuerySet
 
 
 class TransientObjectsManagerMixin(object):
@@ -192,35 +190,14 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             "time_extent_list": time_extent_list
         })
 
-    def _get_next_tree_id(self):
-        from registry.models.service import Layer
-        max_tree_id = Layer.objects.filter(
-            parent=None).aggregate(Max('tree_id'))
-        tree_id = max_tree_id.get("tree_id__max")
-        if isinstance(tree_id, int):
-            tree_id += 1
-        else:
-            tree_id = 0
-        # FIXME: not thread safe handling of tree_id... random is only a workaround
-        random = randrange(1, 20)
-        return tree_id + random
-
-    def _treeify(self, parsed_layer, db_service, tree_id, db_parent=None, cursor=1, level=0):
-        """
-        adapted function from
-        https://github.com/django-mptt/django-mptt/blob/7a6a54c6d2572a45ea63bd639c25507108fff3e6/mptt/managers.py#L716
-        to construct the correct layer tree
-        """
+    def _treeify(self, parsed_layer, db_service, db_parent=None):
+        """"""
         from registry.models.service import Layer
         node = Layer(service=db_service,
                      parent=db_parent,
                      origin=MetadataOrigin.CAPABILITIES.value,
                      **parsed_layer.transform_to_model())
         self._update_transient_objects({"layer_list": [node]})
-
-        setattr(node, Layer._mptt_meta.tree_id_attr, tree_id)
-        setattr(node, Layer._mptt_meta.level_attr, level)
-        setattr(node, Layer._mptt_meta.left_attr, cursor)
 
         node.__transient_keywords = self.get_or_create_list(
             list=parsed_layer.keywords,
@@ -240,16 +217,10 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                                             db_layer=node)
 
         for child in parsed_layer.children:
-            cursor = self._treeify(
+            self._treeify(
                 parsed_layer=child,
                 db_service=db_service,
-                tree_id=tree_id,
-                db_parent=node,
-                cursor=cursor + 1,
-                level=level + 1)
-        cursor += 1
-        setattr(node, Layer._mptt_meta.right_attr, cursor)
-        return cursor
+                db_parent=node,)
 
     def _construct_layer_tree(self, parsed_service, db_service):
         """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
@@ -265,18 +236,14 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             Returns:
                 tree_id (int): the used tree id of the constructed layer objects.
         """
-        tree_id = self._get_next_tree_id()
         self._treeify(
             parsed_layer=parsed_service.root_layer,
             db_service=db_service,
-            tree_id=tree_id,
         )
-
-        return tree_id
 
     def _create_layer_and_related_objects(self, parsed_service, db_service) -> None:
         from registry.models.service import Layer
-        tree_id: int = self._construct_layer_tree(
+        self._construct_layer_tree(
             parsed_service=parsed_service,
             db_service=db_service)
 
@@ -288,10 +255,6 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
 
         for db_layer in db_layer_list:
             self._handle_transient_m2m_objects(db_layer)
-
-        # non documented function from mptt to rebuild the tree
-        # TODO: check if we need to rebuild if we create the tree with the correct right and left values.
-        Layer.objects.partial_rebuild(tree_id=tree_id)
 
     def create(self, parsed_service, **kwargs: Any):
         self._transient_objects = {}
@@ -495,16 +458,17 @@ class FeatureTypeElementXmlManager(models.Manager):
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class LayerManager(DefaultHistoryManager, TreeManager):
+class LayerManager(DefaultHistoryManager, models.Manager):
+
+    def get_queryset(self):
+        return TreeQuerySet(self.model).with_tree_fields()
 
     def get_ancestors_per_layer(self, layer_attribute: str = "", include_self: bool = False):
-        # TODO: get lft, rght and tree attributes from model meta
+
+        # FIXME: tree_path is not a model field...
         return self.get_queryset().filter(
-            tree_id=OuterRef(f"{layer_attribute}tree_id"),
-            lft__lte=OuterRef(f"{layer_attribute}lft") if include_self else OuterRef(
-                f"{layer_attribute}lft") - 1,
-            rght__gte=OuterRef(
-                f"{layer_attribute}rght") if include_self else OuterRef(f"{layer_attribute}rght") + 1
+            pk__in=F(f"{layer_attribute}tree_path") if include_self else F(
+                f"{layer_attribute}tree_path")[:-1]
         )
 
     def get_inherited_is_queryable(self) -> bool:
@@ -657,9 +621,9 @@ class LayerManager(DefaultHistoryManager, TreeManager):
                     .values(
                         json=JSONObject(
                             pk="pk",
-                            lft="lft",
-                            rght="rght",
-                            level="level",
+                            # lft="lft",
+                            # rght="rght",
+                            # level="level",
                             reference_systems_inherited=JSONBAgg(
                                 JSONObject(
                                     pk="reference_systems__pk",

@@ -43,7 +43,7 @@ Running management commands
 
     .. code-block:: console
 
-        $ docker-compose -f ./docker-compose.yml up --build
+        $ docker compose -f ./docker-compose.yml up --build
 
 
 .. note::
@@ -111,7 +111,7 @@ Tests are run using the ``django-test`` container which runs the django test sui
 
 .. code-block:: console
 
-    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
+    $ docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
 
 
 To test the `json:api <https://jsonapi.org/>`_ we are using the `behave <https://behave.readthedocs.io/en/stable/>`_ suite with the `gherkin language <https://cucumber.io/docs/gherkin/reference/>`_.
@@ -119,7 +119,7 @@ You can run the test suite by starting the ``behave tests`` containter by using 
 
 .. code-block:: console
 
-    $ docker-compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
+    $ docker compose -f ./docker-compose.yml -f ./docker-compose.dev.yml up --build django-test
 
 
 Test documentation builds properly

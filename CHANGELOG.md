@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Removed pycharm run configurations, cause there are outdated and the common development environment is vscode.
-
+- migrate to docker compose cli plugin v2.x.x
 
 ## [0.1.0] - 2023-03-23
 

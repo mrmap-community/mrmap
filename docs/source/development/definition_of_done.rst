@@ -37,4 +37,4 @@ Run the following checks before starting a pullrequest to avoid of error while g
 
 |uncheck| run :ref:`tests <running_management_commands_tests>`
 
-|uncheck| run production compose file ``docker-compose -f docker-compose.yml up --build``
+|uncheck| run production compose file ``docker compose -f docker-compose.yml up --build``

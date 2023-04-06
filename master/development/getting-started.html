@@ -126,7 +126,7 @@ See <a class="reference internal" href="#running-management-commands"><span clas
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>As pre condition MrMap application must be running.</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker-compose<span class="w"> </span>-f<span class="w"> </span>./docker-compose.yml<span class="w"> </span>up<span class="w"> </span>--build
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>./docker-compose.yml<span class="w"> </span>up<span class="w"> </span>--build
 </pre></div>
 </div>
 </div>
@@ -173,12 +173,12 @@ See <a class="reference internal" href="#running-management-commands"><span clas
 In our project there are two kinds of test suites which are used to test the hole project.</p>
 <p>For deeper testing some code snippets we are using the default django test suite.</p>
 <p>Tests are run using the <code class="docutils literal notranslate"><span class="pre">django-test</span></code> container which runs the django test suite for us:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker-compose<span class="w"> </span>-f<span class="w"> </span>./docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>./docker-compose.dev.yml<span class="w"> </span>up<span class="w"> </span>--build<span class="w"> </span>django-test
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>./docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>./docker-compose.dev.yml<span class="w"> </span>up<span class="w"> </span>--build<span class="w"> </span>django-test
 </pre></div>
 </div>
 <p>To test the <a class="reference external" href="https://jsonapi.org/">json:api</a> we are using the <a class="reference external" href="https://behave.readthedocs.io/en/stable/">behave</a> suite with the <a class="reference external" href="https://cucumber.io/docs/gherkin/reference/">gherkin language</a>.
 You can run the test suite by starting the <code class="docutils literal notranslate"><span class="pre">behave</span> <span class="pre">tests</span></code> containter by using the following command:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker-compose<span class="w"> </span>-f<span class="w"> </span>./docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>./docker-compose.dev.yml<span class="w"> </span>up<span class="w"> </span>--build<span class="w"> </span>django-test
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>./docker-compose.yml<span class="w"> </span>-f<span class="w"> </span>./docker-compose.dev.yml<span class="w"> </span>up<span class="w"> </span>--build<span class="w"> </span>django-test
 </pre></div>
 </div>
 </section>

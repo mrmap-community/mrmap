@@ -4,10 +4,11 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Docker-Compose: mrmap startup",
+            "label": "Docker Compose: mrmap startup",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "up",
@@ -16,10 +17,11 @@
             ]
         },
         {
-            "label": "Docker-Compose: mrmap backend",
+            "label": "Docker Compose: mrmap backend",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -37,10 +39,11 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: swagger-ui",
+            "label": "Docker Compose: swagger-ui",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -56,10 +59,11 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: sonarqube",
+            "label": "Docker Compose: sonarqube",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -75,10 +79,11 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: sonar-scanner",
+            "label": "Docker Compose: sonar-scanner",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -94,10 +99,11 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: build-docs",
+            "label": "Docker Compose: build-docs",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -113,10 +119,11 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: mrmap validator",
+            "label": "Docker Compose: mrmap validator",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -134,10 +141,11 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker-Compose: mrmap celery-worker",
+            "label": "Docker Compose: mrmap celery-worker",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -154,10 +162,11 @@
             ]
         },
         {
-            "label": "Docker-Compose: run pre commit checks",
+            "label": "Docker Compose: run pre commit checks",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -168,10 +177,11 @@
             ]
         },
         {
-            "label": "Docker-Compose: run django-tests",
+            "label": "Docker Compose: run django-tests",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -184,10 +194,11 @@
             ]
         },
         {
-            "label": "Docker-Compose: run behave tests",
+            "label": "Docker Compose: run behave tests",
             "type": "shell",
-            "command": "docker-compose",
+            "command": "docker",
             "args": [
+                "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
                 "-f",
@@ -198,65 +209,6 @@
                 "--build",
                 "behave"
             ]
-        },
-        {
-            "label": "reset migrations",
-            "type": "shell",
-            "command": [
-                "find",
-                "mrmap",
-                "-iname",
-                "migrations",
-                "|",
-                "xargs",
-                "-i",
-                "find",
-                "{}",
-                "-type",
-                "f",
-                "-name",
-                "'0*.py'",
-                "|",
-                "xargs",
-                "rm"
-            ]
-        },
-        {
-            "label": "makemigrations",
-            "type": "shell",
-            "command": "docker",
-            "args": [
-                "exec",
-                "-it",
-                "mrmap_appserver_1",
-                "/opt/mrmap/manage.py",
-                "makemigrations"
-            ]
-        },
-        {
-            "label": "migrate",
-            "type": "shell",
-            "command": "docker",
-            "args": [
-                "exec",
-                "-it",
-                "mrmap_appserver_1",
-                "/opt/mrmap/manage.py",
-                "migrate"
-            ]
-        },
-        {
-            "label": "Docker-Compose: setup --reset-force",
-            "type": "shell",
-            "command": "docker",
-            "args": [
-                "exec",
-                "-it",
-                "mrmap_appserver_1",
-                "/opt/mrmap/manage.py",
-                "setup",
-                "--reset-force"
-            ]
-        },
+        }
     ]
 }

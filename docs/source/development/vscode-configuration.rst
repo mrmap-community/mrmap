@@ -28,7 +28,7 @@ Start typing ``tasks: r``. QuickOpen will show you possible results for your sea
   Starting a task
 
 
-For example you choose ``Docker-Compose: mrmap debug gunicorn`` and smash the the enter button again, vscode will open a new terminal for you, where the docker container is running.
+For example you choose ``Docker Compose: mrmap debug gunicorn`` and smash the the enter button again, vscode will open a new terminal for you, where the docker container is running.
 
 .. figure:: ../images/development/vscode/gunicorn_container_run_example.gif
   :width: 100%

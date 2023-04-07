@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from random import randrange
 from typing import Any, Dict, List
 
 from django.contrib.contenttypes.models import ContentType
@@ -7,7 +8,8 @@ from django.contrib.gis.geos.polygon import Polygon
 from django.contrib.postgres.aggregates import JSONBAgg
 from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
-from django.db import connections, models, transaction
+from django.db import models, transaction
+from django.db.models.aggregates import Max
 from django.db.models.expressions import F, OuterRef, Subquery, Value
 from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
@@ -22,7 +24,8 @@ from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       WebMapServiceRemoteMetadata)
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
-from tree_queries.query import TreeQuerySet
+from treebeard.ns_tree import NS_NodeManager as NestedSetNodeManager
+from treebeard.ns_tree import get_result_class
 
 
 class TransientObjectsManagerMixin(object):
@@ -190,7 +193,20 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             "time_extent_list": time_extent_list
         })
 
-    def _treeify(self, parsed_layer, db_service, db_parent=None):
+    def _get_next_tree_id(self):
+        from registry.models.service import Layer
+        max_tree_id = Layer.objects.filter(
+            parent=None).aggregate(Max('tree_id'))
+        tree_id = max_tree_id.get("tree_id__max")
+        if isinstance(tree_id, int):
+            tree_id += 1
+        else:
+            tree_id = 0
+        # FIXME: not thread safe handling of tree_id... random is only a workaround
+        random = randrange(1, 20)
+        return tree_id + random
+
+    def _treeify(self, parsed_layer, db_service,  tree_id, db_parent=None, cursor=1, depth=0):
         """"""
         from registry.models.service import Layer
         node = Layer(service=db_service,
@@ -198,6 +214,10 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                      origin=MetadataOrigin.CAPABILITIES.value,
                      **parsed_layer.transform_to_model())
         self._update_transient_objects({"layer_list": [node]})
+
+        node.tree_id = tree_id
+        node.depth = depth
+        node.lft = cursor
 
         node.__transient_keywords = self.get_or_create_list(
             list=parsed_layer.keywords,
@@ -217,10 +237,16 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                                             db_layer=node)
 
         for child in parsed_layer.children:
-            self._treeify(
+            cursor = self._treeify(
                 parsed_layer=child,
                 db_service=db_service,
-                db_parent=node,)
+                tree_id=tree_id,
+                db_parent=node,
+                cursor=cursor + 1,
+                depth=depth + 1)
+        cursor += 1
+        node.rgt = cursor
+        return cursor
 
     def _construct_layer_tree(self, parsed_service, db_service):
         """ traverse all layers of the parsed service with pre order traversing, constructs all related db objects and
@@ -236,10 +262,13 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             Returns:
                 tree_id (int): the used tree id of the constructed layer objects.
         """
+        tree_id = self._get_next_tree_id()
         self._treeify(
             parsed_layer=parsed_service.root_layer,
             db_service=db_service,
+            tree_id=tree_id
         )
+        return tree_id
 
     def _create_layer_and_related_objects(self, parsed_service, db_service) -> None:
         from registry.models.service import Layer
@@ -458,23 +487,21 @@ class FeatureTypeElementXmlManager(models.Manager):
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class LayerManager(DefaultHistoryManager, models.Manager):
+class LayerManager(DefaultHistoryManager, NestedSetNodeManager):
 
-    def get_queryset(self):
-        return TreeQuerySet(self.model).with_tree_fields()
-
-    def get_ancestors_per_layer(self, layer_attribute: str = "", include_self: bool = False):
-
-        # FIXME: tree_path is not a model field...
-        return self.get_queryset().filter(
-            pk__in=F(f"{layer_attribute}tree_path") if include_self else F(
-                f"{layer_attribute}tree_path")[:-1]
+    def get_ancestors_subquery(self, layer_attribute: str = "", include_self: bool = False):
+        return get_result_class(self.model).objects.filter(
+            tree_id=OuterRef(f"{layer_attribute}tree_id"),
+            lft__lte=OuterRef(f"{layer_attribute}lft") if include_self else OuterRef(
+                f"{layer_attribute}lft") - 1,
+            rgt__gte=OuterRef(
+                f"{layer_attribute}rgt") if include_self else OuterRef(f"{layer_attribute}rgt") + 1
         )
 
     def get_inherited_is_queryable(self) -> bool:
         return Coalesce(
             F("is_queryable"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            Subquery(self.get_ancestors_subquery().exclude(
                 is_queryable=False).values_list("is_queryable", flat=True)[:1]),
             Value(False)
         )
@@ -482,7 +509,7 @@ class LayerManager(DefaultHistoryManager, models.Manager):
     def get_inherited_is_cascaded(self) -> bool:
         return Coalesce(
             F("is_cascaded"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            Subquery(self.get_ancestors_subquery().exclude(
                 is_cascaded=False).values_list("is_cascaded", flat=True)[:1]),
             Value(False)
         )
@@ -490,7 +517,7 @@ class LayerManager(DefaultHistoryManager, models.Manager):
     def get_inherited_is_opaque(self) -> bool:
         return Coalesce(
             F("is_opaque"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            Subquery(self.get_ancestors_subquery().exclude(
                 is_opaque=False).values_list("is_opaque", flat=True)[:1]),
             Value(False)
         )
@@ -509,7 +536,7 @@ class LayerManager(DefaultHistoryManager, models.Manager):
         """
         return Coalesce(
             F("scale_min"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            Subquery(self.get_ancestors_subquery().exclude(
                 scale_min=None).values_list("scale_min", flat=True)[:1]),
             Value(None),
             output_field=FloatField()
@@ -529,7 +556,7 @@ class LayerManager(DefaultHistoryManager, models.Manager):
         """
         return Coalesce(
             F("scale_max"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            Subquery(self.get_ancestors_subquery().exclude(
                 scale_max=None).values_list("scale_max", flat=True)[:1]),
             Value(None),
             output_field=FloatField()
@@ -551,7 +578,7 @@ class LayerManager(DefaultHistoryManager, models.Manager):
         """
         return Coalesce(
             F("bbox_lat_lon"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
+            Subquery(self.get_ancestors_subquery().exclude(
                 bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True)[:1],
                 # Cause Polygon can't be casted directly, we need to wrapp it in a Value with the definied output_field
                 output_field=PolygonField()),
@@ -573,7 +600,7 @@ class LayerManager(DefaultHistoryManager, models.Manager):
         :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct(
+        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors_subquery(layer_attribute="layer").values("pk")).distinct(
             "code", "prefix")
 
     def get_inherited_dimensions(self) -> models.QuerySet:
@@ -597,16 +624,16 @@ class LayerManager(DefaultHistoryManager, models.Manager):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return Dimension.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+        return Dimension.objects.filter(layer__in=self.get_ancestors_subquery(layer_attribute="layer").values("pk")).distinct("name")
 
     def get_inherited_styles(self) -> models.QuerySet:
-        return Style.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+        return Style.objects.filter(layer__in=self.get_ancestors_subquery(layer_attribute="layer").values("pk")).distinct("name")
 
     def with_inherited_attributes(self):
         return self.get_queryset().annotate(
             anchestors_include_self=ArraySubquery(
                 (
-                    self.get_ancestors_per_layer(include_self=True)
+                    self.get_ancestors_subquery()
                     .prefetch_related(
                         Prefetch(
                             "reference_systems",
@@ -621,9 +648,9 @@ class LayerManager(DefaultHistoryManager, models.Manager):
                     .values(
                         json=JSONObject(
                             pk="pk",
-                            # lft="lft",
-                            # rght="rght",
-                            # level="level",
+                            lft="lft",
+                            rgt="rgt",
+                            depth="depth",
                             reference_systems_inherited=JSONBAgg(
                                 JSONObject(
                                     pk="reference_systems__pk",

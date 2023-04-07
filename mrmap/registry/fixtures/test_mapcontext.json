@@ -78,7 +78,6 @@
       "rendering_layer": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
       "layer_style": null,
       "selection_layer": null,
-      "parent": 1,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -105,7 +104,6 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 1,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -132,7 +130,6 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 2,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -159,7 +156,6 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 2,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -186,7 +182,6 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 1,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -202,7 +197,10 @@
     "model": "registry.mapcontextlayer",
     "pk": 1,
     "fields": {
-      "parent": null,
+      "lft": 1,
+      "rgt": 10,
+      "depth": 0,
+      "tree_id": 1,
       "map_context": 1,
       "title": "mc1_node1",
       "description": null,
@@ -212,18 +210,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 1,
-      "rght": 10,
-      "tree_id": 1,
-      "level": 0
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 2,
     "fields": {
-      "parent": 1,
+      "lft": 2,
+      "rgt": 7,
+      "depth": 1,
+      "tree_id": 1,
       "map_context": 1,
       "title": "mc1_node1.1",
       "description": null,
@@ -233,18 +230,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 2,
-      "rght": 7,
-      "tree_id": 1,
-      "level": 1
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 3,
     "fields": {
-      "parent": 2,
+      "lft": 3,
+      "rgt": 4,
+      "depth": 2,
+      "tree_id": 1,
       "map_context": 1,
       "title": "mc1_node1.1.1",
       "description": null,
@@ -254,18 +250,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 3,
-      "rght": 4,
-      "tree_id": 1,
-      "level": 2
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 4,
     "fields": {
-      "parent": 2,
+      "lft": 5,
+      "rgt": 6,
+      "depth": 2,
+      "tree_id": 1,
       "map_context": 1,
       "title": "mc1_node1.1.2",
       "description": null,
@@ -275,18 +270,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 5,
-      "rght": 6,
-      "tree_id": 1,
-      "level": 2
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 5,
     "fields": {
-      "parent": 1,
+      "lft": 8,
+      "rgt": 9,
+      "depth": 1,
+      "tree_id": 1,
       "map_context": 1,
       "title": "mc1_node1.2",
       "description": null,
@@ -296,18 +290,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 8,
-      "rght": 9,
-      "tree_id": 1,
-      "level": 1
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 6,
     "fields": {
-      "parent": null,
+      "lft": 1,
+      "rgt": 12,
+      "depth": 0,
+      "tree_id": 2,
       "map_context": 2,
       "title": "mc2_node1",
       "description": null,
@@ -317,18 +310,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 1,
-      "rght": 12,
-      "tree_id": 2,
-      "level": 0
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 7,
     "fields": {
-      "parent": 6,
+      "lft": 2,
+      "rgt": 3,
+      "depth": 1,
+      "tree_id": 2,
       "map_context": 2,
       "title": "mc2_node1.1",
       "description": null,
@@ -338,18 +330,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 2,
-      "rght": 3,
-      "tree_id": 2,
-      "level": 1
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 8,
     "fields": {
-      "parent": 6,
+      "lft": 4,
+      "rgt": 9,
+      "tree_id": 2,
+      "depth": 1,
       "map_context": 2,
       "title": "mc2_node1.2",
       "description": null,
@@ -359,18 +350,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 4,
-      "rght": 9,
-      "tree_id": 2,
-      "level": 1
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 9,
     "fields": {
-      "parent": 8,
+      "lft": 5,
+      "rgt": 6,
+      "depth": 2,
+      "tree_id": 2,
       "map_context": 2,
       "title": "mc2_node1.2.1",
       "description": null,
@@ -380,18 +370,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 5,
-      "rght": 6,
-      "tree_id": 2,
-      "level": 2
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 10,
     "fields": {
-      "parent": 8,
+      "lft": 7,
+      "rgt": 8,
+      "depth": 2,
+      "tree_id": 2,
       "map_context": 2,
       "title": "mc2_node1.2.2",
       "description": null,
@@ -401,18 +390,17 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 7,
-      "rght": 8,
-      "tree_id": 2,
-      "level": 2
+      "selection_layer": null
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 11,
     "fields": {
-      "parent": 6,
+      "lft": 10,
+      "rgt": 11,
+      "depth": 1,
+      "tree_id": 2,
       "map_context": 2,
       "title": "mc2_node1.3",
       "description": null,
@@ -422,11 +410,7 @@
       "layer_scale_max": null,
       "layer_style": null,
       "preview_image": "",
-      "selection_layer": null,
-      "lft": 10,
-      "rght": 11,
-      "tree_id": 2,
-      "level": 1
+      "selection_layer": null
     }
   },
   {

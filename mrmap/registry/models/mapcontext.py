@@ -10,7 +10,7 @@ from registry.managers.mapcontext import (MapContextLayerManager,
 from registry.models import DatasetMetadata, Layer
 from registry.models.metadata import Style
 from simple_history.models import HistoricalRecords
-from tree_queries.models import TreeNode, TreeNodeForeignKey
+from treebeard.ns_tree import NS_Node as NestedSetNode
 
 
 def preview_image_file_path(instance, filename):
@@ -253,14 +253,7 @@ class SelectionOffering(models.Model):
             }
 
 
-class MapContextLayer(RenderingOffering, SelectionOffering, TreeNode):
-    parent = TreeNodeForeignKey(
-        to="MapContextLayer",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="child_layers",
-        related_query_name="child_layer")
+class MapContextLayer(RenderingOffering, SelectionOffering, NestedSetNode):
     map_context = models.ForeignKey(
         to=MapContext,
         on_delete=models.CASCADE,
@@ -286,7 +279,7 @@ class MapContextLayer(RenderingOffering, SelectionOffering, TreeNode):
 
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields=["lft", "rght", "tree_id", "level"])
+        excluded_fields=["lft", "rgt", "tree_id", "depth"])
     objects = MapContextLayerManager()
 
     def __str__(self):
@@ -299,9 +292,9 @@ class MapContextLayer(RenderingOffering, SelectionOffering, TreeNode):
     @property
     def folder_name(self) -> str:
         if self.is_root_node():
-            return f"/{self.id}"
+            return f"/{self.pk}"
         else:
-            return f"{self.parent.folder_name}/{self.id}"
+            return f"{self.get_parent().folder_name}/{self.pk}"
 
     @property
     def updated(self) -> datetime:

@@ -36,7 +36,7 @@ from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from simple_history.models import HistoricalRecords
-from tree_queries.models import TreeNode, TreeNodeForeignKey
+from treebeard.ns_tree import NS_Node as NestedSetNode
 
 
 class CommonServiceInfo(models.Model):
@@ -340,7 +340,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         return ""
 
 
-class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, TreeNode):
+class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, NestedSetNode):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
@@ -354,17 +354,6 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, TreeNode):
         related_query_name="layer",
         verbose_name=_("service"),
         help_text=_("the extras service where this element is part of"),
-    )
-    parent = TreeNodeForeignKey(
-        to="self",
-        blank=True,
-        null=True,
-        on_delete=models.CASCADE,
-        editable=False,
-        related_name="children",
-        related_query_name="child",
-        verbose_name=_("parent layer"),
-        help_text=_("the ancestor of this layer."),
     )
     is_queryable: bool = models.BooleanField(
         default=False,
@@ -418,7 +407,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, TreeNode):
     position = models.PositiveIntegerField(default=0)
 
     change_log = HistoricalRecords(
-        related_name="change_logs", excluded_fields=["lft", "rght", "tree_id", "level"]
+        related_name="change_logs", excluded_fields=["lft", "rgt", "tree_id", "depth"]
     )
 
     objects = LayerManager()

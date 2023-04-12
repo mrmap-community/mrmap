@@ -5,11 +5,19 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
-from rest_framework.fields import CharField, IntegerField
+from rest_framework.fields import CharField, ChoiceField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  SerializerMethodField)
+
+POSITION_CHOICES = (
+    ("first-sibling", _("the new node will be the new leftmost sibling")),
+    ("left", _("the new node will take the node’s place, which will be moved to the right 1 position")),
+    ("right", _("the new node will be inserted at the right of the node")),
+    ("last-sibling", _("the new node will be the new rightmost sibling")),
+    ("sorted-sibling", _("the new node will be at the right position according to the value of node_order_by")),
+)
 
 
 class MapContextLayerSerializer(
@@ -29,11 +37,12 @@ class MapContextLayerSerializer(
         view_name='registry:mapcontextlayer-detail',
     )
 
-    # https://django-mptt.readthedocs.io/en/latest/models.html?highlight=insert_node#insert-node-node-target-position-last-child-save-false
-    position = IntegerField(
+    # https://django-treebeard.readthedocs.io/en/latest/api.html#treebeard.models.Node.add_sibling
+    pos = ChoiceField(
+        choices=POSITION_CHOICES,
         label=_('position'),
         help_text=_(
-            'the tree position of the node where it should be moved to'),
+            'The position, relative to the current node object, where the new node will be inserted'),
         required=False,
         write_only=True)
 
@@ -44,6 +53,7 @@ class MapContextLayerSerializer(
     class Meta:
         model = MapContextLayer
         fields = "__all__"
+        read_only_fields = ("lft", "rgt", "tree_id", "depth")
 
     def validate(self, attrs):
         validated_data = super().validate(attrs)
@@ -62,6 +72,11 @@ class MapContextLayerSerializer(
                     raise ValidationError(
                         {"position": _('position index out of range')})
         return validated_data
+
+    def create(self, validated_data):
+        parent = validated_data['parent']
+
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         position = validated_data.pop('position', None)

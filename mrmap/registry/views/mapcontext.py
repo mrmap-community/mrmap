@@ -38,7 +38,7 @@ class MapContextViewSet(ModelViewSet):
 
 
 class MapContextLayerViewSetMixin:
-    queryset = MapContextLayer.objects.all()
+    queryset = MapContextLayer.objects.with_parents()
     serializer_class = MapContextLayerSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     search_fields = ("id", "title", "description", "keywords__keyword")

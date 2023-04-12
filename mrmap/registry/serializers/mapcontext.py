@@ -5,19 +5,12 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
-from rest_framework.fields import CharField, ChoiceField
+from rest_framework.fields import CharField, IntegerField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  SerializerMethodField)
-
-POSITION_CHOICES = (
-    ("first-sibling", _("the new node will be the new leftmost sibling")),
-    ("left", _("the new node will take the node’s place, which will be moved to the right 1 position")),
-    ("right", _("the new node will be inserted at the right of the node")),
-    ("last-sibling", _("the new node will be the new rightmost sibling")),
-    ("sorted-sibling", _("the new node will be at the right position according to the value of node_order_by")),
-)
+from treebeard.ns_tree import NS_Node as NestedSetNode
 
 
 class MapContextLayerSerializer(
@@ -38,13 +31,20 @@ class MapContextLayerSerializer(
     )
 
     # https://django-treebeard.readthedocs.io/en/latest/api.html#treebeard.models.Node.add_sibling
-    pos = ChoiceField(
-        choices=POSITION_CHOICES,
+    # https://django-treebeard.readthedocs.io/en/latest/api.html#treebeard.models.Node.move
+    position = IntegerField(
         label=_('position'),
         help_text=_(
-            'The position, relative to the current node object, where the new node will be inserted'),
+            'the tree position of the node where it should be moved to'),
         required=False,
         write_only=True)
+
+    parent = ResourceRelatedField(
+        queryset=MapContextLayer.objects,
+        # related_link_view_name='registry:mapcontext-mapcontextlayers-list',
+        # related_link_url_kwarg='parent_lookup_map_context',
+        required=False,
+    )
 
     included_serializers = {
         'rendering_layer': LayerSerializer
@@ -74,11 +74,32 @@ class MapContextLayerSerializer(
         return validated_data
 
     def create(self, validated_data):
-        parent = validated_data['parent']
+        parent: NestedSetNode = validated_data.pop("parent", None)
+        if parent:
+            children_count = parent.get_children_count()
+            position = validated_data.pop("position", children_count)
 
-        return super().create(validated_data)
+            if position == 0:
+                related_sibling: NestedSetNode = parent.get_children()[:1]
+                related_sibling.add_sibling(
+                    pos="first-sibling", **validated_data)
 
-    def update(self, instance, validated_data):
+            elif position == children_count:
+                # The new node will be the new rightmost child.
+                parent.add_child(**validated_data)
+            else:
+                # new child somewhere between
+                related_sibling: NestedSetNode = parent.get_children()[
+                    position]
+                related_sibling.add_sibling(pos="right", **validated_data)
+        else:
+            # new root node of a new tree
+            node_class: NestedSetNode = self._meta.model
+            node_class.add_root(**validated_data)
+
+        # return super().create(validated_data)
+
+    def update(self, instance: NestedSetNode, validated_data):
         position = validated_data.pop('position', None)
         if isinstance(position, int):
             parent = validated_data['parent']
@@ -98,7 +119,7 @@ class MapContextLayerSerializer(
                 # new child somewhere between
                 target = child_layers[position]
                 if target != instance:
-                    instance.move_to(
+                    instance.move(
                         target=target,
                         position='left')
         return super().update(instance, validated_data)

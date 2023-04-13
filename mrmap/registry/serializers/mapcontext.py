@@ -62,12 +62,13 @@ class MapContextLayerSerializer(
             position = validated_data.get('position', None)
             if isinstance(position, int):
                 # move action detected
-                parent = validated_data.get('parent', self.instance.parent)
+                parent: NestedSetNode = validated_data.get(
+                    'parent', self.instance.parent)
                 if not parent:
                     raise ValidationError(_('root node can not be moved'))
                 else:
                     validated_data['parent'] = parent
-                child_layers_count = parent.child_layers.count()
+                child_layers_count = parent.get_children_count()
                 if position > child_layers_count or position < 0:
                     raise ValidationError(
                         {"position": _('position index out of range')})
@@ -81,47 +82,43 @@ class MapContextLayerSerializer(
 
             if position == 0:
                 related_sibling: NestedSetNode = parent.get_children()[:1]
-                related_sibling.add_sibling(
+                return related_sibling.add_sibling(
                     pos="first-sibling", **validated_data)
 
             elif position == children_count:
                 # The new node will be the new rightmost child.
-                parent.add_child(**validated_data)
+                return parent.add_child(**validated_data)
             else:
                 # new child somewhere between
                 related_sibling: NestedSetNode = parent.get_children()[
                     position]
-                related_sibling.add_sibling(pos="right", **validated_data)
+                return related_sibling.add_sibling(pos="right", **validated_data)
         else:
             # new root node of a new tree
             node_class: NestedSetNode = self._meta.model
-            node_class.add_root(**validated_data)
-
-        # return super().create(validated_data)
+            return node_class.add_root(**validated_data)
 
     def update(self, instance: NestedSetNode, validated_data):
         position = validated_data.pop('position', None)
         if isinstance(position, int):
-            parent = validated_data['parent']
-            child_layers = parent.child_layers.all()
-            child_layers_count = child_layers.count()
+            parent: NestedSetNode = validated_data['parent']
             if position == 0:
                 # first child
-                instance.move_to(
+                instance.move(
                     target=parent,
-                    position='first-child')
-            elif position == child_layers_count:
+                    pos='first-child')
+            elif position == parent.get_children_count():
                 # last child
-                instance.move_to(
+                instance.move(
                     target=parent,
-                    position='last-child')
+                    pos='last-child')
             else:
                 # new child somewhere between
-                target = child_layers[position]
+                target = parent.child_layers.all()[position]
                 if target != instance:
                     instance.move(
                         target=target,
-                        position='left')
+                        pos='left')
         return super().update(instance, validated_data)
 
 

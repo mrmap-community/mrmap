@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.x.x] - UNRELEASED
 
 ### Changed
-
+- moved axis_order_cache package to it's own repo
 - Removed pycharm run configurations, cause there are outdated and the common development environment is vscode.
 - migrate to docker compose cli plugin v2.x.x
 

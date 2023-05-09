@@ -126,7 +126,7 @@ class WebMapServiceProxyTest(TestCase):
     )
     @patch.object(
         target=Registry,
-        attribute="coord_ref_system_export",
+        attribute="_fetch_coord_ref_system",
         side_effect=[EPSG_API_25832_RESPONSE],
     )
     def test_matching_secured_map(self, mocked_proxy, mocked_registry):
@@ -196,7 +196,7 @@ class WebMapServiceProxyTest(TestCase):
     )
     @patch.object(
         target=Registry,
-        attribute="coord_ref_system_export",
+        attribute="_fetch_coord_ref_system",
         side_effect=[EPSG_API_25832_RESPONSE],
     )
     def test_successfully_request_as_anonymous_a_subtree(self, mocked_proxy, mocked_registry):

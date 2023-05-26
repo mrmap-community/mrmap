@@ -124,7 +124,7 @@ class OgcServiceGetCapabilitiesResult(MonitoringResult):
 
     def run_checks(self):
         self.check_url(service=self.service,
-                       url=self.service.client.prepare_get_capabilitites_request().url)
+                       url=self.service.client.get_capabilitites_request().url)
         if self.check_service_exception():
             return
         if self.status_code == 200:

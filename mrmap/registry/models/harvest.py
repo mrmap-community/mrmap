@@ -110,7 +110,7 @@ class HarvestingJob(models.Model):
         client = self.service.client
 
         response: Response = client.send_request(
-            request=client.prepare_get_records_request(
+            request=client.get_records_request(
                 xml_constraint=client.get_constraint(record_type=self.record_type)),
             timeout=60)
 
@@ -123,7 +123,7 @@ class HarvestingJob(models.Model):
 
     def fetch_records(self, start_position) -> List[int]:
         client = self.service.client
-        request = client.prepare_get_records_request(
+        request = client.get_records_request(
             max_records=self.step_size,
             start_position=start_position,
             result_type="results",
@@ -203,7 +203,7 @@ class TemporaryMdMetadataFile(models.Model):
         dataset_metadata, update, exists = DatasetMetadata.iso_metadata.update_or_create_from_parsed_metadata(
             parsed_metadata=md_metadata,
             related_object=self.job.service,
-            origin_url=self.job.service.client.prepare_get_record_by_id_request(id=md_metadata.file_identifier).url)
+            origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url)
 
         if exists and update:
             self.job.updated_records.add(dataset_metadata)

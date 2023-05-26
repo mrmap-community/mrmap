@@ -35,7 +35,7 @@ class WebFeatureServiceSecurityManagerTest(TestCase):
                                data=get_feature_request.serializeDocument().decode("UTF-8"), content_type="application/gml+xml; version=3.2")
         request.user = user
 
-        ogc_request = OGCRequest(request=request)
+        ogc_request = OGCRequest.from_django_request(request)
 
         wfs = WebFeatureService.security.get_with_security_info(
             pk="73cf78c9-6605-47fd-ac4f-1be59265df65", request=ogc_request)

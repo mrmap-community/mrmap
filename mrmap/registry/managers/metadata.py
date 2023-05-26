@@ -28,17 +28,17 @@ class IsoMetadataManager(models.Manager):
             self.current_user = HistoricalRecords.context.request.user
 
     def _create_contact(self, contact):
-        contact, created = contact.get_model_class(
-        ).objects.get_or_create(**contact.get_field_dict())
+        from registry.models.metadata import MetadataContact
+        contact, _ = MetadataContact.objects.get_or_create(**contact.transform_to_model())
         return contact
 
     def _create_dataset_metadata(self, parsed_metadata, origin_url):
         db_metadata_contact = self._create_contact(
             contact=parsed_metadata.metadata_contact)
         db_dataset_contact = self._create_contact(
-            contact=parsed_metadata.md_data_identification.dataset_contact)
+            contact=parsed_metadata._md_data_identification.dataset_contact)
 
-        field_dict = parsed_metadata.get_field_dict()
+        field_dict = parsed_metadata.transform_to_model()
         update = False
         defaults = {
             'metadata_contact': db_metadata_contact,
@@ -50,12 +50,12 @@ class IsoMetadataManager(models.Manager):
 
         try:
             # FIXME use empty string for dataset_id_code_space (avoid multiple identical rows)
-            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(defaults=defaults, dataset_id=field_dict["dataset_id"],
-                                                                                                dataset_id_code_space=field_dict["dataset_id_code_space"])
+            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(defaults=defaults, dataset_id=parsed_metadata.dataset_id,
+                                                                                                dataset_id_code_space=parsed_metadata.dataset_id_code_space)
         except MultipleObjectsReturned:
             # TODO clarify if datasets with NULL dataset_id/dataset_id_code_space can be ruled out somehow?
             db_dataset_metadata = self.model.objects.create(
-                dataset_id=field_dict["dataset_id"],
+                dataset_id=parsed_metadata.dataset_id,
                 dataset_id_code_space=field_dict["dataset_id_code_space"],
                 **defaults)
             created = True
@@ -91,12 +91,12 @@ class IsoMetadataManager(models.Manager):
         self._reset_local_variables()
         with transaction.atomic():
             update = False
-            if parsed_metadata.hierarchy_level == "service":
+            if parsed_metadata.is_service:
                 # todo: update instead of creating, cause we generate service metadata records out of the box from
                 #  capabilities
                 db_metadata = self._create_service_metadata(
                     parsed_metadata=parsed_metadata)
-            else:
+            elif parsed_metadata.is_dataset:
                 db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
                                                                             origin_url=origin_url)
 
@@ -113,22 +113,20 @@ class IsoMetadataManager(models.Manager):
                                                          str(parsed_metadata.serializeDocument(), "UTF-8")))
             if update:
                 db_keyword_list = []
+                from mrmap.registry.models.metadata import \
+                    Keyword  # to prevent from circular imports
                 for keyword in parsed_metadata.keywords:
-                    if not self.keyword_cls:
-                        self.keyword_cls = parsed_metadata.keywords[0].get_model_class(
-                        )
-                    db_keyword, created = self.keyword_cls.objects.get_or_create(
-                        **keyword.get_field_dict())
+                    db_keyword, created = Keyword.objects.get_or_create(
+                        **keyword.transform_to_model())
                     db_keyword_list.append(db_keyword)
                 db_metadata.keywords.set(*db_keyword_list)
 
                 db_reference_system_list = []
+                from mrmap.registry.models.metadata import \
+                    ReferenceSystem  # to prevent from circular imports
                 for reference_system in parsed_metadata.reference_systems:
-                    if not self.reference_system_cls:
-                        self.reference_system_cls = parsed_metadata.reference_systems[0].get_model_class(
-                        )
-                    db_reference_system, created = self.reference_system_cls.objects.get_or_create(
-                        **reference_system.get_field_dict())
+                    db_reference_system, created = ReferenceSystem.objects.get_or_create(
+                        **reference_system.transform_to_model())
                     db_reference_system_list.append(db_reference_system)
                 db_metadata.reference_systems.set(*db_reference_system_list)
 

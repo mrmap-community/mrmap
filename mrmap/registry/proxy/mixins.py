@@ -79,7 +79,7 @@ class OgcServiceProxyView(View):
 
     def dispatch(self, request, *args, **kwargs):
         self.start_time = datetime.datetime.now()
-        self.ogc_request = OGCRequest(request=request)
+        self.ogc_request = OGCRequest.from_django_request(request)
 
         exception = self.check_request()
         if exception:

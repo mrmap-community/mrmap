@@ -45,8 +45,8 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             allowed_groups__pk__in=Group.objects.filter(
                 user__username="AnonymouseUser"
             ).values_list("pk", flat=True)
-            if request.request.user.is_anonymous
-            else request.request.user.groups.values_list("pk", flat=True),
+            if request._djano_request.user.is_anonymous
+            else request._djano_request.user.groups.values_list("pk", flat=True),
             operations__operation__iexact=request.operation,
         ).filter_by_requested_entity(request=request)
 
@@ -90,7 +90,7 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
 
     def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
         """checks if the user of the request is member of any AllowedOperation object"""
-        if request.request.user.is_superuser:
+        if request._djano_request.user.is_superuser:
             return Value(True)
         return Exists(self.for_user(service_pk=service_pk, request=request))
 

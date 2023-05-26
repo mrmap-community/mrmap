@@ -76,7 +76,7 @@ class WebMapServiceProxyTest(TestCase):
         feature_collection: FeatureCollection = load_xmlobject_from_string(
             string=response.content, xmlclass=FeatureCollection)
 
-        bounded_by: GEOSGeometry = feature_collection.bounded_by.geos
+        bounded_by: GEOSGeometry = feature_collection.bounded_by.to_geometry
         # cause we are testing for wfs 2.0.0, we need to adjust the axis order to get an correct initialized python geometry object.
         bounded_by = adjust_axis_order(bounded_by)
 

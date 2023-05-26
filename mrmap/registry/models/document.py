@@ -43,20 +43,6 @@ class DocumentModelMixin(models.Model):
             return self.xml_mapper_cls
         raise ImproperlyConfigured("xml_mapper_cls attribute is needed.")
 
-    def get_field_dict(self):
-        """Return the current model instance as dict to instantiate the xml object.
-
-        :return field_dict: the dict with all necessary fields and related fields.
-        :rtype: dict
-        """
-        field_dict = {}
-        for field in self._meta.fields:
-            if not (isinstance(field, models.ForeignKey) or
-                    isinstance(field, models.OneToOneField) or
-                    isinstance(field, models.ManyToManyField)):
-                field_dict.update({field.name: getattr(self, field.name)})
-        return field_dict
-
     @property
     def xml_backup_string(self) -> str:
         """Return the xml backup file as string

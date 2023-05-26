@@ -124,7 +124,7 @@ class IsoMetadataManager(models.Manager):
                 db_reference_system_list = []
                 from mrmap.registry.models.metadata import \
                     ReferenceSystem  # to prevent from circular imports
-                for reference_system in parsed_metadata.reference_systems:                    
+                for reference_system in parsed_metadata.reference_systems:
                     db_reference_system, created = ReferenceSystem.objects.get_or_create(
                         **reference_system.transform_to_model())
                     db_reference_system_list.append(db_reference_system)

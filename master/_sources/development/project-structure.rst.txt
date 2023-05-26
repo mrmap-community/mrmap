@@ -52,11 +52,9 @@ Package Overview
 ================
 
 * ``accounts``: generic implementation of access control list management for django guaridan permissions.
-* ``axis_order_cache``: django cache implementation for axis ordering from remote epsg api.
 * ``extras``: global project wide used django specific code.
 * ``MrMap``: django project root for mrmap project.
 * ``notify``: handles notifications over websockets.
-* ``ows_lib``: library which has an ogc client for wms, wfs and csw services and the needed xml mappers.
 * ``registry``: spatial service registry to register and manage services like wms, wfs, csw. (monolith app)
 * ``tests``: django and behave tests.
 

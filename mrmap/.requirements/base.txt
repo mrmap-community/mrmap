@@ -70,4 +70,4 @@ drf-spectacular==0.25.1
 drf-spectacular-jsonapi==0.1.1
 
 django-axis-order==0.1.0
-django-ows-lib==0.4.0
+django-ows-lib==0.4.1

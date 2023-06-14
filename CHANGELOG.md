@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.x.x] - UNRELEASED
 
+### Changed
+- building docs with readthedocs.org instead of using custom github action to publish with github pages.
+
 
 ### Changed
 - moved axis_order_cache package to it's own repo

@@ -8,8 +8,7 @@ build:
     python: "3.8"
   jobs:
     pre_build:
-      - python -m sphinx -b linkcheck -D linkcheck_timeout=1 docs/ _build/linkcheck
-
+      - python -m sphinx -b linkcheck -D linkcheck_timeout=1 _build/linkcheck
 python:
   # Install our python package before building the docs
   install:

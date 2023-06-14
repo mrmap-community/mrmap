@@ -29,16 +29,20 @@ with open('/etc/os-release', 'r') as file:
             GDAL_LIBRARY_PATH = glob('/usr/lib/libgdal.so.*')[0]
             GEOS_LIBRARY_PATH = glob('/usr/lib/libgeos_c.so.*')[0]
 
+# Set the base directory two levels up
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+VAR_PATH = "/var/mrmap" if os.access("/var/mrmap",
+                                     os.X_OK | os.W_OK) else BASE_DIR
+
 
 ################################################################
 # Logger settings
 ################################################################
 ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
 
-# Set the base directory two levels up
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "/var/mrmap/backend/media")
+MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", f"{VAR_PATH}/backend/media")
 # create media dir if it does not exist
 if not os.path.exists(MEDIA_ROOT):
     os.makedirs(MEDIA_ROOT)

@@ -1,3 +1,5 @@
+from typing import List
+
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _
@@ -162,9 +164,9 @@ class LayerSerializer(
 
     def _collect_inherited_objects(self, instance):
         """Converts the given list of dicts that representing the ReferenceSystem, Dimension and Style objects collected by the manager with ArraySubquery"""
-        reference_systems: list[ReferenceSystem] = []
-        dimensions: list[Dimension] = []
-        styles: list[Style] = []
+        reference_systems: List[ReferenceSystem] = []
+        dimensions: List[Dimension] = []
+        styles: List[Style] = []
         for layer in instance.anchestors_include_self:
             for crs in layer.get("reference_systems_inherited", []):
                 reference_systems.append(ReferenceSystem(**crs))

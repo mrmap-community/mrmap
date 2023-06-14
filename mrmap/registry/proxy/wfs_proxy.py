@@ -18,6 +18,7 @@ from registry.proxy.ogc_exceptions import \
 @method_decorator(csrf_exempt, name="dispatch")
 class WebFeatureServiceProxy(OgcServiceProxyView):
     """Security proxy facade to secure registered services spatial by there operations and for sets of users.
+
     :attr service:  :class:`registry.models.service.Service` the requested service which was found by the pk.
     :attr remote_service: :class:`registry.ows_client.request_builder.WebService` the request builder to get
                           prepared :class:`requests.models.Request` objects with the correct uri and query params.
@@ -25,6 +26,7 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                              overlay with information about the resources, which can not be accessed
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
+
     service_cls = WebFeatureService
 
     @property

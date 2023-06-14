@@ -7,11 +7,11 @@ Users Package
 Login
 -----
 
-.. literalinclude :: ../../../backend/auth/tests/acceptance/features/login.feature
+.. literalinclude :: ../../../mrmap/tests/behave/api/features/accounts/auth/login.feature
    :language: gherkin
 
 Logout
 ------
 
-.. literalinclude :: ../../../backend/auth/tests/acceptance/features/logout.feature
+.. literalinclude :: ../../../mrmap/tests/behave/api/features/accounts/auth/logout.feature
    :language: gherkin

@@ -8,7 +8,8 @@ build:
     python: "3.8"
   jobs:
     pre_build:
-      - python -m sphinx -T -E -W --keep-going -b linkcheck -d _build/linkcheck -D language=en . $READTHEDOCS_OUTPUT/html
+      - python -m sphinx -b linkcheck -D docs/ _build/linkcheck
+
 python:
   # Install our python package before building the docs
   install:

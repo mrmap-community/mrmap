@@ -8,6 +8,7 @@ build:
     python: "3.10"
   jobs:
     pre_build:
+      - python -c 'import requests; print(requests.__version__)'
       - python -m sphinx -b linkcheck -D linkcheck_timeout=10 docs/source _build/linkcheck
 python:
   # Install our python package before building the docs

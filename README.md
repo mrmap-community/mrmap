@@ -1,6 +1,6 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_backend&metric=coverage)](https://sonarcloud.io/dashboard?id=mrmap-community_backend)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mrmap-community_backend&metric=alert_status)](https://sonarcloud.io/dashboard?id=mrmap-community_backend)
-[![build docs](https://github.com/mrmap-community/mrmap/actions/workflows/publish_docs.yml/badge.svg)](https://mrmap-community.github.io/mrmap/)
+[![build docs](https://readthedocs.org/projects/mrmap/badge/?version=master)](https://mrmap.rtfd.io/en/master/)
 
 <img src="https://github.com/mrmap-community/mrmap/blob/890d63933de3adf45dfb5cfafc1f4d538d2df624/docs/source/images/mr_map.png" width="200">
 

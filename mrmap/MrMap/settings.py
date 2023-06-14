@@ -49,7 +49,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ################################################################
 ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
 
-MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "var/mrmap/backend/media")
+MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "/var/mrmap/backend/media")
 MEDIA_ROOT = MEDIA_ROOT if check_path_access(
     MEDIA_ROOT) else f"{BASE_DIR}/media"
 

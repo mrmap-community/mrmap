@@ -146,24 +146,6 @@ services:
       - sonar
     working_dir: /opt/mrmap
 
-  build-docs:
-    build:
-      context: ./
-      dockerfile: ./docker/docs/Dockerfile
-      args:
-        MRMAP_PRODUCTION: "False"
-    tty: true # To support colorized log output.
-    hostname: "mrmap-build-docs"
-    volumes:
-      - type: bind
-        source: ./
-        target: /opt/mrmap
-    networks:
-      - mrmap-internal
-    env_file:
-      - docker/backend/.mrmap.env
-      - docker/backend/.mrmap.dev.env
-
 networks:
   sonar:
 

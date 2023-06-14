@@ -81,10 +81,17 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 
-#html_static_path = ['_static']
+# html_static_path = ['_static']
+
+linkcheck_timeout = 30
 
 linkcheck_ignore = [r'http://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'https://localhost\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
                     r'https://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', r'http://YOUR-IP-ADDRESS\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)', ]
+
+linkcheck_request_headers = {
+    "*": {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux i686; '
+          'rv:24.0) Gecko/20100101 Firefox/24.0'}
+}
 
 master_doc = "index"
 

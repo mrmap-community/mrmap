@@ -21,6 +21,7 @@ from requests import Request, Session
 @method_decorator(csrf_exempt, name="dispatch")
 class WebMapServiceProxy(OgcServiceProxyView):
     """Security proxy facade to secure registered services spatial by there operations and for sets of users.
+
     :attr service:  :class:`registry.models.service.Service` the requested service which was found by the pk.
     :attr remote_service: :class:`registry.ows_client.request_builder.WebService` the request builder to get
                           prepared :class:`requests.models.Request` objects with the correct uri and query params.
@@ -28,6 +29,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                              overlay with information about the resources, which can not be accessed
     :attr bbox: :class:`django.contrib.gis.geos.polygon.Polygon` the parsed bbox from query params.
     """
+
     service_cls = WebMapService
     access_denied_img = None
 
@@ -41,27 +43,36 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method with security case decisioning.
+
         **Principle constraints**:
             * service is found by the given primary key. If not return ``404 - Service not found.``
             * service is active. If not return ``423 - Service is disabled.``
             * request query parameter is provided. If not return ``400 - Request param is missing``
+
         **Service is not secured condition**:
             * service.is_secured == False ``OR``
             * service.is_spatial_secured == False and service.is_user_principle_entitled == True ``OR``
             * request query parameter not in ['GetMap', 'GetFeatureType', 'GetFeature']
+
             If one condition matches, return the response from the remote service.
+
         **Service is secured condition**:
             * service.is_spatial_secured ==True and service.is_user_principle_entitled == True
+
             If the condition matches, return the result from
             :meth:`~GenericOwsServiceOperationFacade.get_secured_response`
+
         **Default behavior**:
             return ``403 (Forbidden) - User has no permissions to request this service.``
+
         .. note::
             all error messages will be send as an owsExceptionReport. See
             :meth:`~GenericOwsServiceOperationFacade.return_http_response` for details.
+
         :return: the computed response based on some principle decisions.
         :rtype: dict or :class:`requests.models.Request`
         """
+
         if self.service.is_unknown_layer:
             return LayerNotDefined(ogc_request=self.ogc_request)
         else:
@@ -216,29 +227,39 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
     def handle_secured_get_map(self):
         """Compute the secured get map response if the requested bbox intersects any allowed area.
+
         **Example 1: bbox covers allowed area**
             .. figure:: ../images/security/example_1_request.png
               :width: 50%
               :class: with-border
               :alt: Request: bbox covers allowed area
+
               Request: bbox covers allowed area
+
             .. figure:: ../images/security/example_1_result.png
               :width: 50%
               :alt: Result: bbox covers allowed area
+
               Result: bbox covers allowed area
+
         **Example 2: bbox intersects allowed area**
             .. figure:: ../images/security/example_2_request.png
               :width: 50%
               :alt: Request: bbox intersects allowed area
+
               Request: bbox intersects allowed area
+
             .. figure:: ../images/security/example_2_result.png
               :width: 50%
               :alt: Result: bbox intersects allowed area
+
               Result: bbox intersects allowed area
+
             :return: The cropped map image with status code 200 or an error message with status code 403 (Forbidden) if
                      the bbox doesn't intersects any allowed area.
             :rtype: dict
         """
+
         # if not self.service.is_spatial_secured_and_intersects:
         #     # TODO: return transparent image
         #     get_params = self.remote_service.get_get_params(
@@ -350,17 +371,20 @@ class WebMapServiceProxy(OgcServiceProxyView):
         return xml_response, requested_response
 
     def handle_secured_get_feature_info(self):
-        """Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are
-        contained in any allowed area.
+        """Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are contained in any allowed area.
+
         IF not we response with a owsExceptionReport in xml format.
+
         .. note:: excerpt from ogc specs
             **ogc wms 1.3.0**: The server shall return a response according to the requested INFO_FORMAT if the
             request is valid, or issue a service  exception  otherwise. The nature of the response is at the
             discretion of the service provider, but it shall pertain to the feature(s) nearest to (I,J).
             (see section 7.4.4)
+
         :return: the GetFeatureInfo response
         :rtype: :class:`request.models.Response` or dict if the request is not allowed.
         """
+
         if self.service.is_spatial_secured_and_covers:
             return self.return_http_response(response=self.get_remote_response())
         else:

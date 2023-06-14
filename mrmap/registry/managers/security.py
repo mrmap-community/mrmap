@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, List
+from typing import Any, List, Tuple
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
@@ -20,7 +20,7 @@ from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
 
-    def get_entity_identifiers(self, request) -> tuple[str, List[str]]:
+    def get_entity_identifiers(self, request) -> Tuple[str, List[str]]:
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
@@ -206,7 +206,7 @@ class WebFeatureServiceSecurityManager(models.Manager):
                 query = _query
         return self.filter(query)
 
-    def is_unknown_feature_type(self, service_pk, feature_types: list[str]) -> QuerySet:
+    def is_unknown_feature_type(self, service_pk, feature_types: List[str]) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
 
     def get_allowed_operation_qs(self) -> AllowedWebFeatureServiceOperationQuerySet:

@@ -7,5 +7,10 @@ Security Module
 Security Proxy Facade
 #####################
 
-.. automodule:: registry.views.ows
+.. automodule:: registry.proxy.wms_proxy
    :members:
+
+
+.. automodule:: registry.proxy.wfs_proxy
+   :members:
+

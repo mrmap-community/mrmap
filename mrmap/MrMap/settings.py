@@ -13,6 +13,7 @@ import os
 import re
 import socket
 from glob import glob
+from warnings import warn
 
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
@@ -29,11 +30,18 @@ with open('/etc/os-release', 'r') as file:
             GDAL_LIBRARY_PATH = glob('/usr/lib/libgdal.so.*')[0]
             GEOS_LIBRARY_PATH = glob('/usr/lib/libgeos_c.so.*')[0]
 
-# Set the base directory two levels up
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-VAR_PATH = "/var/mrmap" if os.access("/var/mrmap",
-                                     os.X_OK | os.W_OK) else BASE_DIR
+def check_path_access(path: str):
+    has_access = os.access(path, os.R_OK | os.X_OK | os.W_OK)
+    if not has_access:
+        warn(
+            message=f"no full access to path {path}. Fallback to current base directory.")
+    return has_access
+
+
+# Set the base directory two levels up
+# this is the path where the python code is
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 ################################################################
@@ -41,8 +49,11 @@ VAR_PATH = "/var/mrmap" if os.access("/var/mrmap",
 ################################################################
 ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
 
+MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "var/mrmap/backend/media")
+MEDIA_ROOT = MEDIA_ROOT if check_path_access(
+    MEDIA_ROOT) else f"{BASE_DIR}/media"
 
-MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", f"{VAR_PATH}/backend/media")
+
 # create media dir if it does not exist
 if not os.path.exists(MEDIA_ROOT):
     os.makedirs(MEDIA_ROOT)
@@ -175,8 +186,7 @@ if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
     CORS_ALLOWED_ORIGINS = os.environ.get(
         "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
 else:
-    ROOT_LOGGER.warning(
-        "all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
+    warn("all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
     CORS_ALLOW_ALL_ORIGINS = True
 
 USE_X_FORWARDED_HOST = True
@@ -338,6 +348,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 STATIC_URL = "/backend/static/"
 STATIC_ROOT = "/var/www/mrmap/backend/"
+STATIC_ROOT = STATIC_ROOT if check_path_access(
+    STATIC_ROOT) else f"{BASE_DIR}/static"
 
 WSGI_APPLICATION = "MrMap.wsgi.application"
 ASGI_APPLICATION = "MrMap.asgi.application"
@@ -417,6 +429,9 @@ ERROR_MASK_TXT = (
 
 LOG_DIR = os.environ.get(
     "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
+LOG_DIR = LOG_DIR if check_path_access(
+    LOG_DIR) else f"{BASE_DIR}/logs"
+
 LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 

@@ -5,7 +5,7 @@ build:
     - gdal-bin
   os: "ubuntu-20.04"
   tools:
-    python: "3.8"
+    python: "3.10"
   jobs:
     pre_build:
       - python -m sphinx -b linkcheck -D linkcheck_timeout=10 docs/source _build/linkcheck

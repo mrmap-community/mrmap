@@ -206,7 +206,7 @@ class WebFeatureServiceSecurityManager(models.Manager):
                 query = _query
         return self.filter(query)
 
-    def is_unknown_feature_type(self, service_pk, feature_types: list[str]) -> QuerySet:
+    def is_unknown_feature_type(self, service_pk, feature_types: List[str]) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
 
     def get_allowed_operation_qs(self) -> AllowedWebFeatureServiceOperationQuerySet:

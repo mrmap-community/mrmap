@@ -10,7 +10,7 @@ build:
 python:
   # Install our python package before building the docs
   install:
-    - requirements: requirements.txt
+    - requirements: mrmap/requirements.txt
 
 sphinx:
   fail_on_warning: true

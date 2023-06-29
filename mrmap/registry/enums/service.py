@@ -1,7 +1,8 @@
-from MrMap.enums import EnumChoice
+
+from django.db.models.enums import TextChoices
 
 
-class OGCServiceVersionEnum(EnumChoice):
+class OGCServiceVersionEnum(TextChoices):
     """ Defines all supported versions
 
     """
@@ -15,7 +16,7 @@ class OGCServiceVersionEnum(EnumChoice):
     V_2_0_2 = "2.0.2"
 
 
-class OGCServiceEnum(EnumChoice):
+class OGCServiceEnum(TextChoices):
     """ Defines all supported service types
 
     """
@@ -27,17 +28,17 @@ class OGCServiceEnum(EnumChoice):
     CSW = "csw"
 
 
-class SecureableWMSOperationEnum(EnumChoice):
+class SecureableWMSOperationEnum(TextChoices):
     GET_MAP = "GetMap"
     GET_FEATURE_INFO = "GetFeatureInfo"
 
 
-class SecureableWFSOperationEnum(EnumChoice):
+class SecureableWFSOperationEnum(TextChoices):
     GET_FEATURE = "GetFeature"
     TRANSACTION = "Transaction"
 
 
-class OGCOperationEnum(EnumChoice):
+class OGCOperationEnum(TextChoices):
     """ Defines all known operation names
 
     """
@@ -69,7 +70,7 @@ class OGCOperationEnum(EnumChoice):
     GET_RECORD_BY_ID = "GetRecordById"
 
 
-class HttpMethodEnum(EnumChoice):
+class HttpMethodEnum(TextChoices):
     """ Defines all important http method types
 
     """
@@ -77,7 +78,7 @@ class HttpMethodEnum(EnumChoice):
     POST = "Post"
 
 
-class AuthTypeEnum(EnumChoice):
+class AuthTypeEnum(TextChoices):
     """ Defines all supported authentification types """
     BASIC = "http_basic"
     DIGEST = "http_digest"

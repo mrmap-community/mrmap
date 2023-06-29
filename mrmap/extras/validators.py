@@ -4,35 +4,6 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from registry.enums.service import OGCServiceEnum
-from requests import Request, Session
-
-
-def check_uri_is_reachable(value):
-    """Performs a check on the URL.
-
-    Returns whether it's reachable or not
-
-    Args:
-        value: The url to be checked
-    Returns:
-         reachable (bool)
-         needs_authentication (bool)
-         status_code (int)
-    """
-    request = Request(method="GET", url=value)
-    session = Session()
-    response = session.send(request.prepare())
-    if not response.ok:
-        if response.status_code < 0:
-            # Not even callable!
-            msg_suffix = (
-                "URL could not be resolved to a server. Please check your input!"
-            )
-        else:
-            msg_suffix = "Status code was {}".format(response.status_code)
-        return ValidationError(message="URL not valid! {}".format(msg_suffix))
-    needs_authentication = response.status_code == 401
-    return response.ok, needs_authentication, response.status_code
 
 
 def _get_request_uri_has_no_request_parameter(value):

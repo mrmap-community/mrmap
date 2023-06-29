@@ -63,7 +63,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
     version: str = models.CharField(
         max_length=10,
-        choices=OGCServiceVersionEnum.as_choices(),
+        choices=OGCServiceVersionEnum.choices,
         editable=False,
         verbose_name=_("version"),
         help_text=_("the version of the service type as sem version"),
@@ -171,7 +171,7 @@ class OperationUrl(models.Model):
     """
     method: str = models.CharField(
         max_length=10,
-        choices=HttpMethodEnum.as_choices(),
+        choices=HttpMethodEnum.choices,
         verbose_name=_("http method"),
         help_text=_("the http method you can perform for this url"),
     )
@@ -184,7 +184,7 @@ class OperationUrl(models.Model):
     )
     operation: str = models.CharField(
         max_length=30,
-        choices=OGCOperationEnum.as_choices(),
+        choices=OGCOperationEnum.choices,
         editable=False,
         verbose_name=_("operation"),
         help_text=_("the operation you can perform with this url."),

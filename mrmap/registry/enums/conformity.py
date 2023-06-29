@@ -5,10 +5,10 @@ Contact: suleiman@terrestris.de
 Created on: 27.10.20
 
 """
-from MrMap.enums import EnumChoice
+from django.db.models.enums import TextChoices
 
 
-class ReportType(EnumChoice):
+class ReportType(TextChoices):
     """ Defines all possible content types for reports
 
     """
@@ -16,7 +16,7 @@ class ReportType(EnumChoice):
     JSON = 'application/json'
 
 
-class RuleFieldNameEnum(EnumChoice):
+class RuleFieldNameEnum(TextChoices):
     """ Defines all possible field_name types
 
     """
@@ -28,7 +28,7 @@ class RuleFieldNameEnum(EnumChoice):
     REFERENCE_SYSTEM = "reference_system"
 
 
-class RulePropertyEnum(EnumChoice):
+class RulePropertyEnum(TextChoices):
     """ Defines all possible property types
 
     """
@@ -36,7 +36,7 @@ class RulePropertyEnum(EnumChoice):
     COUNT = "count"
 
 
-class RuleOperatorEnum(EnumChoice):
+class RuleOperatorEnum(TextChoices):
     """ Defines all possible operator types
 
     """
@@ -48,7 +48,7 @@ class RuleOperatorEnum(EnumChoice):
     NEQ = "!="
 
 
-class ConformityTypeEnum(EnumChoice):
+class ConformityTypeEnum(TextChoices):
     """ Defines all possible conformity types
 
     """

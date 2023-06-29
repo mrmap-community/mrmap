@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer)
-from MrMap.validators import validate_get_capablities_uri
+from extras.validators import validate_get_capablities_uri
 from registry.models.metadata import (DatasetMetadata, Dimension, Keyword,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.security import (AllowedWebMapServiceOperation,

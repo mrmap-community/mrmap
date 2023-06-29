@@ -154,7 +154,7 @@ class Command(BaseCommand):
         Returns:
             nothing
         """
-        for key, value in OGCOperationEnum.as_choices(drop_empty_choice=True):
+        for key, value in OGCOperationEnum.choices:
             OGCOperation(operation=value).save()
 
     @staticmethod

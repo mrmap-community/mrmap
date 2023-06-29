@@ -71,3 +71,5 @@ drf-spectacular-jsonapi==0.1.1
 
 django-axis-order==0.1.0
 django-ows-lib==0.4.1
+
+django-oso==0.27.0

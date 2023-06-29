@@ -67,6 +67,7 @@ MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
 
 # Application definition
 INSTALLED_APPS = [
+    "django_oso",
     "daphne",
     "channels",
     "guardian",

@@ -10,7 +10,6 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-
 from guardian.shortcuts import assign_perm
 
 

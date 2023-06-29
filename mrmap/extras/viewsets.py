@@ -1,10 +1,12 @@
 import json
 from typing import OrderedDict
 
+from django.core.exceptions import PermissionDenied
 from django.db.models.query import Prefetch
 from django.http import JsonResponse
 from django.views.generic.detail import BaseDetailView, DetailView
 from django_celery_results.models import TaskResult
+from django_oso.auth import authorize, authorize_model
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import TaskResultSerializer
 from rest_framework import mixins, status
@@ -168,3 +170,19 @@ class NestedModelViewSet(
     A viewset that provides default `list()` action for nested usage.
     """
     http_method_names = ["get", "head", "options"]
+
+
+class OsoAuthMixin(GenericViewSet):
+
+    def filter_queryset(self, queryset):
+        qs = super().filter_queryset(queryset)
+        try:
+            query_filter = authorize_model(
+                request=self.request, model=qs.model, action="view")
+            qs = qs.filter(query_filter)
+        except PermissionDenied:
+            return qs.none()
+        return qs
+
+    def check_object_permissions(self, request, obj):
+        authorize(request=request, resource=obj, action="view")

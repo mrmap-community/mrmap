@@ -2,7 +2,7 @@ from accounts.filters.groups import OrganizationFilterSet
 from accounts.models.groups import Organization
 from accounts.serializers.groups import GroupSerializer, OrganizationSerializer
 from django.contrib.auth.models import Group
-from extras.viewsets import NestedModelViewSet
+from extras.viewsets import NestedModelViewSet, OsoAuthMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -32,7 +32,7 @@ class NestedGroupViewSet(
     pass
 
 
-class OrganizationViewSetMixin():
+class OrganizationViewSetMixin(OsoAuthMixin):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     filterset_class = OrganizationFilterSet

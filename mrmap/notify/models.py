@@ -4,7 +4,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
-
 from notify.enums import ProcessNameEnum
 from notify.managers import BackgroundProcessManager
 
@@ -27,7 +26,7 @@ class BackgroundProcess(models.Model):
         help_text=_('Current phase of the process'))
     process_type = models.CharField(
         max_length=32,
-        choices=ProcessNameEnum.as_choices(drop_empty_choice=True),
+        choices=ProcessNameEnum.choices,
         verbose_name=_('process type'),
         help_text=_('tells you what kind of process this is'))
     description = models.CharField(

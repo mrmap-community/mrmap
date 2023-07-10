@@ -98,7 +98,7 @@ class Licence(models.Model):
 class ReferenceSystem(models.Model):
     code = models.CharField(max_length=100)
     prefix = models.CharField(max_length=255,
-                              choices=ReferenceSystemPrefixEnum.as_choices(),
+                              choices=ReferenceSystemPrefixEnum.choices,
                               default=ReferenceSystemPrefixEnum.EPSG.value)
 
     class Meta:
@@ -335,7 +335,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                                    "the uuid of the described layer/featuretype shall be used to "
                                                    "identify the generated iso metadata xml."))
     origin = models.CharField(max_length=20,
-                              choices=MetadataOrigin.as_choices(),
+                              choices=MetadataOrigin.choices,
                               editable=False,
                               verbose_name=_("origin"),
                               help_text=_("Where the metadata record comes from."))
@@ -479,13 +479,13 @@ class DatasetMetadataRelation(models.Model):
     # todo: check if we still need this field; we have no longer a polymorph metadata model, so the relation type
     #  should be clear by the different field names
     relation_type = models.CharField(max_length=20,
-                                     choices=MetadataRelationEnum.as_choices())
+                                     choices=MetadataRelationEnum.choices)
     is_internal = models.BooleanField(default=False,
                                       verbose_name=_("internal relation?"),
                                       help_text=_("true means that this relation is created by a user and the dataset "
                                                   "is maybe not linked in a capabilities document for example."))
     origin = models.CharField(max_length=20,
-                              choices=MetadataOriginEnum.as_choices(),
+                              choices=MetadataOriginEnum.choices,
                               verbose_name=_("origin"),
                               help_text=_("determines where this relation was found or it is added by a user."))
 
@@ -621,13 +621,13 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
     format = models.CharField(null=True,
                               blank=True,
                               max_length=20,
-                              choices=DatasetFormatEnum.as_choices(),
+                              choices=DatasetFormatEnum.choices,
                               verbose_name=_("format"),
                               help_text=_("The format in which the described dataset is stored."))
     charset = models.CharField(null=True,
                                blank=True,
                                max_length=10,
-                               choices=MetadataCharset.as_choices(),
+                               choices=MetadataCharset.choices,
                                verbose_name=_("charset"),
                                help_text=_("The charset which is used by the stored data."))
     inspire_top_consistence = models.BooleanField(default=False,

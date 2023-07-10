@@ -15,16 +15,16 @@ class Migration(migrations.Migration):
         WebMapServiceOperation = apps.get_model(
             "registry", "WebMapServiceOperation")
         objs = []
-        for key, value in SecureableWMSOperationEnum.as_choices(drop_empty_choice=True):
-            objs.append(WebMapServiceOperation(operation=value))
+        for key, value in SecureableWMSOperationEnum.choices:
+            objs.append(WebMapServiceOperation(operation=key))
         WebMapServiceOperation.objects.bulk_create(objs=objs)
 
     def create_wfs_operations(apps, schema_editor):
         WebFeatureServiceOperation = apps.get_model(
             "registry", "WebFeatureServiceOperation")
         objs = []
-        for key, value in SecureableWFSOperationEnum.as_choices(drop_empty_choice=True):
-            objs.append(WebFeatureServiceOperation(operation=value))
+        for key, value in SecureableWFSOperationEnum.choices:
+            objs.append(WebFeatureServiceOperation(operation=key))
         WebFeatureServiceOperation.objects.bulk_create(objs=objs)
 
     operations = [

@@ -1,7 +1,7 @@
-from MrMap.enums import EnumChoice
+from django.db.models.enums import TextChoices
 
 
-class CategoryOriginEnum(EnumChoice):
+class CategoryOriginEnum(TextChoices):
     """ Defines sources for categories
     """
     ISO = "iso"
@@ -16,7 +16,7 @@ class CategoryOriginEnum(EnumChoice):
         return [enum.name for enum in cls]
 
 
-class MetadataOriginEnum(EnumChoice):
+class MetadataOriginEnum(TextChoices):
     """ Defines origins from where a resource could be coming from
 
     """
@@ -26,7 +26,7 @@ class MetadataOriginEnum(EnumChoice):
     CATALOGUE = "Catalogue"
 
 
-class MetadataRelationEnum(EnumChoice):
+class MetadataRelationEnum(TextChoices):
     """ Defines types of metadata relations for MetadataRelation model
 
     """
@@ -37,7 +37,7 @@ class MetadataRelationEnum(EnumChoice):
     PUBLISHED_BY = "publishedBy"
 
 
-class DatasetFormatEnum(EnumChoice):
+class DatasetFormatEnum(TextChoices):
     DATABASE = "Database"
     ESRI_SHAPE = "Esri shape"
     CSV = "CSV"
@@ -45,20 +45,14 @@ class DatasetFormatEnum(EnumChoice):
     GEOTIFF = "GeoTIFF"
 
 
-class MetadataCharset(EnumChoice):
+class MetadataCharset(TextChoices):
     UTF8 = "utf8"
 
 
-class MetadataOrigin(EnumChoice):
+class MetadataOrigin(TextChoices):
     CAPABILITIES = "capabilities"
     ISO_METADATA = "iso metadata"
 
 
-class ReferenceSystemPrefixEnum(EnumChoice):
+class ReferenceSystemPrefixEnum(TextChoices):
     EPSG = "EPSG"
-
-
-class HarvestResultEnum(EnumChoice):
-    FETCHED = "fetched"  # successfully fetched but not parsed
-    INSUFFICIENT_QUALITY = "insufficient quality"  # if catched xml parsing errors
-    SUCCESSFULLY = "successfully"  # fetched and parsed without errors

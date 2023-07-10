@@ -23,7 +23,7 @@ class ConformityCheckConfiguration(models.Model):
     name = models.CharField(max_length=1000)
     metadata_types = models.JSONField()
     conformity_type = models.TextField(
-        choices=ConformityTypeEnum.as_choices(drop_empty_choice=True))
+        choices=ConformityTypeEnum.choices)
 
     objects = ConformityCheckConfigurationManager()
 
@@ -61,12 +61,12 @@ class Rule(models.Model):
     """
     name = models.CharField(max_length=1000)
     field_name = models.TextField(
-        choices=RuleFieldNameEnum.as_choices(drop_empty_choice=True))
+        choices=RuleFieldNameEnum.choices)
     property = models.TextField(
-        choices=RulePropertyEnum.as_choices(drop_empty_choice=True))
+        choices=RulePropertyEnum.choices)
     operator = models.TextField(
-        choices=RuleOperatorEnum.as_choices(drop_empty_choice=True))
-    threshold = models.TextField(null=True)
+        choices=RuleOperatorEnum.choices)
+    threshold = models.TextField(blank=True, default="")
 
     def __str__(self):
         return self.name
@@ -117,7 +117,7 @@ class ConformityCheckRun(models.Model):
     passed = models.BooleanField(blank=True, null=True)
     report = models.TextField(blank=True, null=True)
     report_type = models.TextField(
-        choices=ReportType.as_choices(drop_empty_choice=True))
+        choices=ReportType.choices)
 
     objects = ConformityCheckRunManager()
 

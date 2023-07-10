@@ -1,7 +1,7 @@
-from MrMap.enums import EnumChoice
+from django.db.models.enums import TextChoices
 
 
-class ProcessNameEnum(EnumChoice):
+class ProcessNameEnum(TextChoices):
     HARVESTING = 'harvesting'
     MONITORING = 'monitoring'
     REGISTERING = 'registering'

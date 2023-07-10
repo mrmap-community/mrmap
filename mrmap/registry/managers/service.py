@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from random import randrange
 from typing import Any, Dict, List
 
+from camel_converter import to_snake
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models.fields import PolygonField
 from django.contrib.gis.geos.polygon import Polygon
@@ -15,7 +16,6 @@ from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query import Prefetch, Q
 from extras.managers import DefaultHistoryManager
-from extras.utils import camel_to_snake
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOrigin
 from registry.models.metadata import (Dimension, Keyword, LegendUrl,
@@ -80,7 +80,7 @@ class TransientObjectsManagerMixin(object):
             # todo: slow get_or_create solution - maybe there is a better way to do this
             if isinstance(item, str):
                 db_item, created = model_cls.objects.get_or_create(
-                    **{camel_to_snake(model_cls.__name__): item})
+                    **{to_snake(model_cls.__name__): item})
             else:
                 db_item, created = model_cls.objects.get_or_create(
                     **item.transform_to_model())

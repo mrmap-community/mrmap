@@ -13,7 +13,7 @@ from django.db.models.expressions import F, Func
 from django.db.models.fields import BooleanField
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from MrMap.validators import geometry_is_empty
+from extras.validators import geometry_is_empty
 from PIL import Image
 from registry.enums.service import (AuthTypeEnum, SecureableWFSOperationEnum,
                                     SecureableWMSOperationEnum)
@@ -41,7 +41,7 @@ class ServiceAuthentication(models.Model):
     )
     auth_type = models.CharField(
         max_length=100,
-        choices=AuthTypeEnum.as_choices(),
+        choices=AuthTypeEnum.choices,
         verbose_name=_("authentication type"),
         help_text=_("kind of authentication mechanism shall used."),
     )
@@ -186,13 +186,13 @@ class CatalogueServiceAuthentication(ServiceAuthentication):
 
 class WebMapServiceOperation(models.Model):
     operation = models.CharField(
-        primary_key=True, max_length=30, choices=SecureableWMSOperationEnum.as_choices(drop_empty_choice=True)
+        primary_key=True, max_length=30, choices=SecureableWMSOperationEnum.choices
     )
 
 
 class WebFeatureServiceOperation(models.Model):
     operation = models.CharField(
-        primary_key=True, max_length=30, choices=SecureableWFSOperationEnum.as_choices(drop_empty_choice=True)
+        primary_key=True, max_length=30, choices=SecureableWFSOperationEnum.choices
     )
 
 

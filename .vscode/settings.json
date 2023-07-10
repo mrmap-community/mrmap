@@ -42,5 +42,9 @@
   "[python]": {
     "editor.defaultFormatter": "ms-python.autopep8"
   },
-  "python.formatting.provider": "none"
+  "python.formatting.provider": "none",
+  "sonarlint.connectedMode.project": {
+    "connectionId": "mrmap-community",
+    "projectKey": "mrmap-community_backend"
+  }
 }

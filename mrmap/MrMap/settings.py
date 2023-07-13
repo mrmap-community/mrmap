@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import socket
+from datetime import timedelta
 from glob import glob
 from warnings import warn
 
@@ -85,6 +86,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_gis",
     "rest_framework_json_api",
+    "knox",  # token auth
     "django_celery_beat",
     "django_celery_results",
     "django_filters",
@@ -489,6 +491,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
+        "knox.auth.TokenAuthentication",
     ),
     "DEFAULT_PAGINATION_CLASS": "drf_spectacular_jsonapi.schemas.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
@@ -514,6 +517,11 @@ REST_FRAMEWORK = {
     ),
     "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
 }
+
+# REST_KNOX = {
+#     'TOKEN_TTL': timedelta(hours=1),
+#     'AUTO_REFRESH': True,
+# }
 
 
 SPECTACULAR_SETTINGS = {

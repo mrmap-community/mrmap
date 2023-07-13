@@ -14,6 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from accounts.views.auth import LoginView, LogoutView
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
@@ -60,6 +61,10 @@ urlpatterns = [
         OwsContextView.as_view(),
         name="ows-context-detail"
     ),
+    path('api/auth/login/', LoginView.as_view()),
+    path('api/auth/logout/', LogoutView.as_view())
+
+
 ]
 
 if settings.DEBUG:

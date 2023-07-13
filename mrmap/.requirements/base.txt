@@ -73,3 +73,5 @@ django-axis-order==0.1.0
 django-ows-lib==0.4.1
 
 camel-converter==3.0.0
+
+django-rest-knox==4.2.0

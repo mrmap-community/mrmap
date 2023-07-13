@@ -67,6 +67,7 @@ class LayerFilterSet(GeoFilterSet):
             'rght': ['exact', 'gt', 'gte', 'lt', 'lte'],
             'tree_id': ['exact'],
             'level': ['exact', 'gt', 'gte', 'lt', 'lte'],
+            'service': ['exact']
         }
 
 

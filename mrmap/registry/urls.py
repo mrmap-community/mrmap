@@ -8,7 +8,7 @@ from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'registry'
 
-router = ExtendedSimpleRouter()
+router = ExtendedSimpleRouter(trailing_slash=False)
 (
     # web map service
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')

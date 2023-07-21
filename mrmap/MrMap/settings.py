@@ -504,7 +504,7 @@ REST_FRAMEWORK = {
     ],
 
     "DEFAULT_METADATA_CLASS": "rest_framework_json_api.metadata.JSONAPIMetadata",
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular_jsonapi.schemas.openapi.JsonApiAutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "extras.schema.CustomOperationId",
     "DEFAULT_FILTER_BACKENDS": (
         "rest_framework_json_api.filters.QueryParameterValidationFilter",
         "rest_framework_json_api.filters.OrderingFilter",
@@ -541,3 +541,6 @@ if not MRMAP_PRODUCTION:
             "behave_django",
         ]
     )
+
+
+APPEND_SLASH = False

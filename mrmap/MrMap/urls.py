@@ -37,12 +37,12 @@ urlpatterns = [
     path("api/accounts/", include("accounts.urls", namespace="accounts")),
     path("api/notify/", include("notify.urls", namespace="notify")),
     path(
-        "api/schema/",
+        "api/schema",
         cache_page(timeout=60 * 15,
                    cache="local-memory")(SpectacularJSONAPIView.as_view()),
         name="openapi-schema"),
 
-    path('api/schema/swagger-ui/',
+    path('api/schema/swagger-ui',
          SpectacularSwaggerView.as_view(url_name='openapi-schema'), name='swagger-ui'),
     # ows views
     path(
@@ -61,8 +61,8 @@ urlpatterns = [
         OwsContextView.as_view(),
         name="ows-context-detail"
     ),
-    path('api/auth/login/', LoginView.as_view()),
-    path('api/auth/logout/', LogoutView.as_view())
+    path('api/auth/login', LoginView.as_view()),
+    path('api/auth/logout', LogoutView.as_view())
 
 
 ]

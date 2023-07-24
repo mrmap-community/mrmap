@@ -37,7 +37,7 @@ urlpatterns = [
     path("api/accounts/", include("accounts.urls", namespace="accounts")),
     path("api/notify/", include("notify.urls", namespace="notify")),
     path(
-        "api/schema/",
+        "api/schema",
         cache_page(timeout=60 * 15,
                    cache="local-memory")(SpectacularJSONAPIView.as_view()),
         name="openapi-schema"),

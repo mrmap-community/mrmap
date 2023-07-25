@@ -12,9 +12,6 @@ class CustomOperationId(JsonApiAutoSchema):
             action = 'list'
         else:
             action = self.method_mapping[self.method.lower()]
-<<<<<<< HEAD
-        return f"{action}_{resoruce_name}"
-=======
         resource_name = get_resource_name(context={"view": self.view})
 
         is_nested_view = isinstance(self.view, NestedModelViewSet)
@@ -36,4 +33,3 @@ class CustomOperationId(JsonApiAutoSchema):
                 return super().get_operation_id()
 
         return f"{action}_{resource_name}"
->>>>>>> token-auth

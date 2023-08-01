@@ -1,8 +1,10 @@
 import re
+import warnings
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from rest_framework.settings import api_settings
+from rest_framework_gis.filters import GeometryFilter
 from rest_framework_json_api.utils import (format_field_name,
                                            undo_format_field_name)
 
@@ -132,15 +134,49 @@ class CustomDjangoFilterBackend(DjangoFilterBackend):
 
     def get_schema_operation_parameters(self, view):
         """
+
         Convert backend filter `name` to JSON:API-style `filter[name]`.
         For filters that are relationship paths, rewrite ORM-style `__` to our preferred `.`.
         For example: `blog__name__contains` becomes `filter[blog.name.contains]`.
 
         This is basically the reverse of `get_filterset_kwargs` above.
+
+        Hint: code copy from parent function to interact with field instances directly get_schema_operation_parameters
+
+
         """
-        result = super().get_schema_operation_parameters(view)
-        for res in result:
-            if "name" in res:
-                name = format_field_name(res["name"].replace("__", "."))
-                res["name"] = "filter[{}]".format(name)
-        return result
+
+        try:
+            queryset = view.get_queryset()
+        except Exception:
+            queryset = None
+            warnings.warn(
+                "{} is not compatible with schema generation".format(
+                    view.__class__)
+            )
+
+        filterset_class = self.get_filterset_class(view, queryset)
+
+        if not filterset_class:
+            return []
+
+        parameters = []
+        for field_name, field in filterset_class.base_filters.items():
+            parameter = {
+                'name': f"filter[{format_field_name(field_name.replace('__', '.'))}]",
+                'required': field.extra['required'],
+                'in': 'query',
+                'description': field.label if field.label is not None else field_name,
+                'schema': {
+                    'type': 'string',
+                },
+            }
+
+            if isinstance(field, GeometryFilter):
+                parameter["schema"]["format"] = "geojson"
+
+            if field.extra and 'choices' in field.extra:
+                parameter['schema']['enum'] = [c[0]
+                                               for c in field.extra['choices']]
+            parameters.append(parameter)
+        return parameters

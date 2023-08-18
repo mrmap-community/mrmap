@@ -19,7 +19,7 @@ RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements
 ################################
 # MrMap Image
 ################################    
-FROM python:3.11.4-alpine3.17 AS runtime-image
+FROM python:3.11.4-alpine3.18 AS runtime-image
 ARG MRMAP_PRODUCTION
 COPY --from=compile-image /opt/venv /opt/venv
 

@@ -4,7 +4,7 @@ Feature: BackgroundProcess List Endpoint
     so that I can show progress information of a process.
 
     Background: Setup base url
-        Given I use the endpoint http://localhost:8000/api/notify/background-processes/
+        Given I use the endpoint http://localhost:8000/api/notify/background-processes
 
 
     Scenario: Can get list of current background processes

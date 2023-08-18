@@ -4,7 +4,7 @@ Feature: Layer List Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/registry/layers/16b93d90-6e2e-497a-b26d-cadbe60ab76e/
+        Given I use the endpoint http://localhost:8000/api/registry/layers/16b93d90-6e2e-497a-b26d-cadbe60ab76e
 
     Scenario: Can retrieve as anonymous user
         When I send the request with GET method

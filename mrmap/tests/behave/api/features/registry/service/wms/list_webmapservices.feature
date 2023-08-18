@@ -4,7 +4,7 @@ Feature: WebMapService List Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/registry/wms/
+        Given I use the endpoint http://localhost:8000/api/registry/wms
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

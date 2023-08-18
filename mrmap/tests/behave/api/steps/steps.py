@@ -2,8 +2,10 @@ import json
 from unittest.mock import Mock, patch
 
 from behave import given, step, then
+from django.contrib.auth import get_user_model
 from django.db import reset_queries
 from django.http import SimpleCookie
+from knox.models import AuthToken
 from rest_framework.authtoken.models import Token
 
 
@@ -54,34 +56,53 @@ def step_impl(context, content_type):
 @step('I send the request with GET method')
 def step_impl(context):
     reset_queries()
-    context.response = context.client.get(
-        path=context.endpoint,
-        data=context.query_params or None)
+    request = {
+        "path": context.endpoint,
+        "data": context.query_params or None,
+    }
+    if hasattr(context, "headers"):
+        request.update(**context.headers)
+    context.response = context.client.get(**request)
 
 
 @step('I send the request with PATCH method')
 def step_impl(context):
     reset_queries()
-    context.response = context.client.patch(
-        path=context.endpoint,
-        data=context.payload,
-        content_type=context.content_type if hasattr(context, 'content_type') else 'application/json',)
+    request = {
+        "path": context.endpoint,
+        "data": context.payload if hasattr(context, "payload") else None,
+        "content_type": context.content_type if hasattr(
+            context, 'content_type') else 'application/json',
+    }
+    if hasattr(context, "headers"):
+        request.update(**context.headers)
+    context.response = context.client.patch(**request)
 
 
 @step('I send the request with POST method')
 def step_impl(context):
     reset_queries()
-    context.response = context.client.post(
-        path=context.endpoint,
-        data=context.payload,
-        content_type=context.content_type if hasattr(context, 'content_type') else 'application/json')
+    request = {
+        "path": context.endpoint,
+        "data": context.payload if hasattr(context, "payload") else None,
+        "content_type": context.content_type if hasattr(
+            context, 'content_type') else 'application/json',
+    }
+    if hasattr(context, "headers"):
+        request.update(**context.headers)
+    context.response = context.client.post(**request)
 
 
 @step('I send the request with DELETE method')
 def step_impl(context):
     reset_queries()
-    context.response = context.client.delete(
-        path=context.endpoint)
+    request = {
+        "path": context.endpoint,
+    }
+    if hasattr(context, "headers"):
+        request.update(**context.headers)
+
+    context.response = context.client.delete(**request)
 
 
 @then('I expect the response status is {expected_status}')
@@ -135,3 +156,20 @@ def step_impl(context, cookie_name, cookie_value):
     if not context.client.cookies:
         context.client.cookies = SimpleCookie()
     context.client.cookies[cookie_name] = cookie_value
+
+
+@given('I set the header "{header_name}" with value "{header_value}"')
+def step_impl(context, header_name, header_value):
+    if not hasattr(context, "headers"):
+        context.headers = {}
+    context.headers.update({header_name: header_value})
+
+
+@given('I use token based authentication for user "{username}"')
+def step_impl(context, username):
+    user = get_user_model().objects.get(username=username)
+    instance, token = AuthToken.objects.create(
+        user=user)
+    if not hasattr(context, "headers"):
+        context.headers = {}
+    context.headers.update({"HTTP_AUTHORIZATION": f"Token {token}"})

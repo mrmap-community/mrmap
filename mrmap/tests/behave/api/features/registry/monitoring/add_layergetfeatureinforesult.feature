@@ -4,7 +4,7 @@ Feature: LayerGetFeatureInfoResult Add Endpoint
     so that I see new monitoing result.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/registry/monitoring/layer-get-feature-info-result/
+        Given I use the endpoint http://localhost:8000/api/registry/monitoring/layer-get-feature-info-result
         Given I set the content type of the request to application/vnd.api+json
         Given I mock the function "delay" of the module "registry.tasks.monitoring.check_get_map_operation" with return value as object
             """

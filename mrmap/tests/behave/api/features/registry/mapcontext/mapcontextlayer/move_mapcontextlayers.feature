@@ -4,7 +4,7 @@ Feature: MapContextLayer Move Endpoint
     so that I can configure map applications.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/10/
+        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/10
         Given I set the content type of the request to application/vnd.api+json
 
     Scenario: Can move 10 as authenticated user to parent 6, position 0 (first-child)
@@ -153,7 +153,7 @@ Feature: MapContextLayer Move Endpoint
 
 
     Scenario: Can move as authenticated user to new parent with position 1
-        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/9/
+        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/9
         Given I set the request payload to:
             """
             {
@@ -184,7 +184,7 @@ Feature: MapContextLayer Move Endpoint
 
 
     Scenario: Validation Error is raised on moving root node
-        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/6/
+        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/6
 
         Given I set the request payload to:
             """

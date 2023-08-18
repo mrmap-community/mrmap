@@ -4,7 +4,7 @@ Feature: MapContexLayers List Endpoint
     so that I can fetch them in a seperated request.
 
     Background: Setup base url
-        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers/
+        Given I use the endpoint http://localhost:8000/api/registry/mapcontextlayers
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

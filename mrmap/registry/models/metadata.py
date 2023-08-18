@@ -256,7 +256,7 @@ class RemoteMetadata(models.Model):
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
         from registry.models.service import WebFeatureService, WebMapService
-        if isinstance(self.describes, (WebMapService, WebFeatureService,)):
+        if isinstance(self.describes, (WebMapService, WebFeatureService)):
             metadata_cls = ServiceMetadata
         else:
             metadata_cls = DatasetMetadata
@@ -376,6 +376,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
+
     language = None  # Todo
     xml_mapper_cls = MdMetadata
 

@@ -1,47 +1,24 @@
 from accounts.models.users import User
-from accounts.serializers.auth import (LoginSerializer, LogoutSerializer,
-                                       PermissionSerializer)
+from accounts.serializers.auth import PermissionSerializer
 from accounts.serializers.users import UserSerializer
-from django.contrib.auth import login, logout
 from django.contrib.auth.models import Permission
-from rest_framework import generics, status
+from knox.views import LoginView as KnoxLoginView
+from knox.views import LogoutView as KnoxLogoutView
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
 
-class LoginRequestView(generics.GenericAPIView):
-    """ Login a user by the given credentials
-
-        post: Login a user by the given credentials
-
-    """
-    http_method_names = ['post', 'head', 'options']
-    resource_name = "LoginRequest"
-    serializer_class = LoginSerializer
-    authentication_classes = []
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        login(request=request, user=serializer.user)
-        return Response(serializer.data)
+class LoginView(KnoxLoginView):
+    """Customized LoginView without json:api renderer"""
+    renderer_classes = [JSONRenderer]
 
 
-class LogoutRequestView(generics.GenericAPIView):
-    """ Logout a user by the given session id
-
-        delete: Logout a user by the given session id
-
-    """
-    serializer_class = LogoutSerializer
-
-    class Meta:
-        resource_name = 'LogoutRequest'
-
-    def delete(self, request, *args, **kwargs):
-        logout(request=request)
-        return Response(status=status.HTTP_200_OK)
+class LogoutView(KnoxLogoutView):
+    """Customized LoutView without json:api renderer"""
+    renderer_classes = [JSONRenderer]
 
 
 class WhoAmIView(generics.GenericAPIView):

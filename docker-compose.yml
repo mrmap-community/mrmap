@@ -20,7 +20,7 @@ services:
     networks:
       - mrmap-internal
   mapserver:
-    image: camptocamp/mapserver:8.0
+    image: camptocamp/mapserver:7.6
     volumes:
       - type: bind
         source: ./docker/mapserver/mapfiles

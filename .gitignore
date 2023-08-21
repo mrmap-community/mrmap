@@ -69,3 +69,6 @@ ENV/
 
 # Sonar
 .scannerwork/
+
+
+mrmap/media/**

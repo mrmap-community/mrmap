@@ -4,7 +4,7 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
     so that I can secure services.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/registry/security/allowed-wms-operations/
+        Given I use the endpoint http://localhost:8000/api/registry/security/allowed-wms-operations
         Given I set the content type of the request to application/vnd.api+json
 
     Scenario: Can add as authenticated user

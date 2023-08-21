@@ -4,7 +4,7 @@ Feature: DatasetMetadata List Endpoint
     so that I can search for.
 
     Background: Setup base url
-        Given I use the endpoint http://localhost:8000/api/registry/dataset-metadata/
+        Given I use the endpoint http://localhost:8000/api/registry/dataset-metadata
 
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method

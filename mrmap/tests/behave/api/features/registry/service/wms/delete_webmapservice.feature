@@ -4,7 +4,7 @@ Feature: WebMapService detele Endpoint
     so that I can find relevant map content.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/registry/wms/1b195589-dcfa-403f-9e66-e7e1c0a67024/
+        Given I use the endpoint http://localhost:8000/api/registry/wms/1b195589-dcfa-403f-9e66-e7e1c0a67024
 
     Scenario: Can't delete as anonymous user
         When I send the request with DELETE method

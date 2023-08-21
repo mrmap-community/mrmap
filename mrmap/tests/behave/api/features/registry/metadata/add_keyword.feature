@@ -4,7 +4,7 @@ Feature: Keyword Add Endpoint
     so that I link them to resources.
 
     Background: Setup baseurl, content-type and payload
-        Given I use the endpoint http://localhost:8000/api/registry/keywords/
+        Given I use the endpoint http://localhost:8000/api/registry/keywords
         Given I set the content type of the request to application/vnd.api+json
 
     Scenario: Can add as authenticated user

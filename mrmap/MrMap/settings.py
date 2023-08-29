@@ -530,6 +530,9 @@ SPECTACULAR_SETTINGS = {
     'VERSION': VERSION,
     'SERVE_INCLUDE_SCHEMA': False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "PREPROCESSING_HOOKS": [
+        "drf_spectacular_jsonapi.hooks.fix_nested_path_parameters"
+    ],
 }
 
 if not MRMAP_PRODUCTION:

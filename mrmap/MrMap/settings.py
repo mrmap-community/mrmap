@@ -12,7 +12,6 @@ import logging
 import os
 import re
 import socket
-from datetime import timedelta
 from glob import glob
 from warnings import warn
 

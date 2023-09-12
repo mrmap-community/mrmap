@@ -456,7 +456,7 @@ class CatalogueServiceViewSetMixin(
         "create": CatalogueServiceCreateSerializer,
     }
     search_fields = ("id", "title", "abstract", "keywords__keyword")
-    filter_fields = {
+    filterset_fields = {
         'title': ['exact', 'icontains', 'contains'],
         'abstract': ['exact', 'icontains', 'contains']
     }

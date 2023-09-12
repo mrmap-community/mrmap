@@ -1,5 +1,4 @@
 from django.contrib.auth.models import Permission
-from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.serializers import ModelSerializer

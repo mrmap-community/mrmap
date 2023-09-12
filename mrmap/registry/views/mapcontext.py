@@ -1,4 +1,3 @@
-
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
 from registry.models import MapContext, MapContextLayer
@@ -20,7 +19,7 @@ class MapContextViewSet(ModelViewSet):
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     search_fields = ("id", "title", "abstract")
-    filter_fields = {
+    filterset_fields = {
         'id': ['exact', 'in'],
         'title': ['exact', 'icontains', 'contains'],
         'abstract': ['exact', 'icontains', 'contains']
@@ -42,7 +41,7 @@ class MapContextLayerViewSetMixin:
     serializer_class = MapContextLayerSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     search_fields = ("id", "title", "description", "keywords__keyword")
-    filter_fields = {
+    filterset_fields = {
         'id': ['exact', 'in'],
         'title': ['exact', 'icontains', 'contains'],
         'description': ['exact', 'icontains', 'contains']

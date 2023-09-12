@@ -4,8 +4,7 @@ from accounts.serializers.users import UserSerializer
 from django.contrib.auth.models import Permission
 from knox.views import LoginView as KnoxLoginView
 from knox.views import LogoutView as KnoxLogoutView
-from rest_framework import generics, permissions
-from rest_framework.authentication import BasicAuthentication
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
@@ -43,7 +42,7 @@ class PermissionViewSet(ReadOnlyModelViewSet):
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
     permission_classes = [IsAuthenticated]
-    filter_fields = {
+    filterset_fields = {
         'name': ['exact', 'icontains'],
         'codename': ['exact', 'icontains'],
     }

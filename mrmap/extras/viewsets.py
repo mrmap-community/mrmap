@@ -1,4 +1,3 @@
-import json
 from typing import OrderedDict
 
 from django.db.models.query import Prefetch

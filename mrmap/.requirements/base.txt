@@ -1,4 +1,4 @@
-Django==4.1.10
+Django==4.1.11
 # adds runserver_plus
 django-extensions==3.2.3
 # adds history models
@@ -42,8 +42,8 @@ djangorestframework==3.14.0
 # adds geojson filters
 djangorestframework-gis==1.0
 # adds jsonapi implementation on top of django rest framework
-djangorestframework-jsonapi==6.0.0
-djangorestframework-jsonapi[django-filter]==6.0.0
+djangorestframework-jsonapi==6.1.0
+#djangorestframework-jsonapi[django-filter]==6.1.0
 # adds nested rest views registration
 drf-extensions==0.7.1
 # needed for openapi schema generation
@@ -51,7 +51,7 @@ uritemplate==4.1.1
 # adds redis cache backed
 redis==5.0.0
 # adds background task processing 
-celery==5.3.1
+celery==5.3.4
 django-celery-beat==2.5.0
 # adds database results for celery tasks
 django-celery-results==2.5.1

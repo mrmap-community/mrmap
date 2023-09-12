@@ -1,5 +1,3 @@
-import collections.abc
-import re
 import urllib.parse as urlparse
 
 from rest_framework.renderers import BrowsableAPIRenderer

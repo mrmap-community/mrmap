@@ -1,4 +1,4 @@
-from django.urls import resolve, reverse
+from django.urls import resolve
 from django.urls.exceptions import Resolver404
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
 from extras.viewsets import NestedModelViewSet
@@ -23,8 +23,6 @@ class CustomOperationId(JsonApiAutoSchema):
                 related_base_resource_path = related_base_resource_path[:-1]
             try:
                 match = resolve(related_base_resource_path)
-                view_name = match.view_name
-
                 base_resource_name = get_resource_name(
                     context={"view": match.func.cls(action='list')})
                 return f"{action}_related_{resource_name}_of_{base_resource_name}"

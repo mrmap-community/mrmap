@@ -8,11 +8,11 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MrMap.settings')
 
-import notify.routing  # noqa
-from channels.auth import AuthMiddlewareStack  # noqa
-from channels.routing import ProtocolTypeRouter, URLRouter  # noqa
-# import ws.routing  # noqa
-from channels.security.websocket import AllowedHostsOriginValidator  # noqa
+import notify.routing  # noqa E402
+from channels.routing import ProtocolTypeRouter, URLRouter  # noqa E402
+from channels.security.websocket import \
+    AllowedHostsOriginValidator  # noqa E402
+from notify.auth import AuthMiddlewareStack  # noqa E402
 
 application = ProtocolTypeRouter({
     # Django's ASGI application to handle traditional HTTP requests

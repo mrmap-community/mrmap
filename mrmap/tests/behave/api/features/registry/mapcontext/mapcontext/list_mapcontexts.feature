@@ -30,7 +30,7 @@ Feature: MapContext List Endpoint
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
     Scenario: Can filter by title
-        Given I set a queryparam "filter[title.icontains]" with value "MapContext1"
+        Given I set a queryparam "filter[title__icontains]" with value "MapContext1"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"

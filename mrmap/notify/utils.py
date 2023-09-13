@@ -17,7 +17,7 @@ def send_msg(msg, group="default"):
     )
 
 
-def build_action_payload(request, instance, resource_type, reducer_name, serializer_cls, action):
+def build_action_payload(request, instance, resource_type, serializer_cls, action):
     """ Returns the json payload for redux reducer actions """
 
     msg = json.loads('{}')
@@ -39,10 +39,18 @@ def build_action_payload(request, instance, resource_type, reducer_name, seriali
         data=task_serializer.data,
         renderer_context={"view": DummyView(), "request": request}
     )
+    # see https://marmelab.com/react-admin/RealtimeDataProvider.html#crud-events for recomendet datastructure
     msg.update(
         {
-            "payload": json.loads(rendered_data.decode("utf-8"))["data"],
-            "type": f"{reducer_name}/{action}"
+
+            "topic": f"recource/{resource_type}/" if action == "created" else f"recource/{resource_type}/{instance.pk}",
+            "event": {
+                "type": action,
+                "payload": {
+                    "ids": [instance.id],
+                    "records": [json.loads(rendered_data.decode("utf-8"))["data"]]
+                },
+            }
         }
     )
     return msg

@@ -4,11 +4,10 @@ from django.conf import settings
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django_celery_results.models import TaskResult
-from simple_history.models import HistoricalRecords
-
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
 from notify.utils import build_action_payload, send_msg
+from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -35,7 +34,6 @@ def update_background_process_listeners_on_background_process_delete(**kwargs):
             instance=BackgroundProcess.objects.process_info().get(
                 pk=kwargs['instance'].pk),
             resource_type="BackgroundProcess",
-            reducer_name="backgroundProcesses",
             serializer_cls=BackgroundProcessSerializer,
             action="delete"
         )
@@ -60,7 +58,6 @@ def update_background_process_listeners_on_background_process_save_delete(**kwar
             request=request,
             instance=background_process,
             resource_type="BackgroundProcess",
-            reducer_name="backgroundProcesses",
             serializer_cls=BackgroundProcessSerializer,
             action="created" if kwargs.get("created", False) else "updated"
         )
@@ -87,7 +84,6 @@ def update_background_process_listeners_on_task_result_save_delete(**kwargs):
             request=request,
             instance=task_result.processes.process_info()[0],
             resource_type="BackgroundProcess",
-            reducer_name="backgroundProcesses",
             serializer_cls=BackgroundProcessSerializer,
             action="updated"
         )

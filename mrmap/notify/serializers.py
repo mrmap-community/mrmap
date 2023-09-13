@@ -3,12 +3,11 @@ import json
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from extras.serializers import StringRepresentationSerializer
+from notify.models import BackgroundProcess
 from rest_framework.fields import (CharField, DateTimeField, IntegerField,
                                    SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
-
-from notify.models import BackgroundProcess
 
 
 class TaskResultSerializer(ModelSerializer):

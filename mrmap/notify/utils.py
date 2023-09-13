@@ -43,7 +43,7 @@ def build_action_payload(request, instance, resource_type, serializer_cls, actio
     msg.update(
         {
 
-            "topic": f"recource/{resource_type}/" if action == "created" else f"recource/{resource_type}/{instance.pk}",
+            "topic": f"recource/{resource_type}" if action == "created" else f"recource/{resource_type}/{instance.pk}",
             "event": {
                 "type": action,
                 "payload": {

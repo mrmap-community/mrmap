@@ -23,7 +23,8 @@ from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            ReferenceSystemSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import BooleanField, IntegerField, URLField
+from rest_framework.fields import (BooleanField, IntegerField,
+                                   SerializerMethodField, URLField)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
@@ -196,6 +197,20 @@ class LayerSerializer(
         return instance.styles_inherited
 
 
+class WebMapServiceHistorySerializer():
+
+    changes = SerializerMethodField()
+
+    def get_changes(self, obj):
+        # https://django-simple-history.readthedocs.io/en/latest/history_diffing.html#
+        # TODO: prefetch this obj.change_log.all()[:2]
+        new_record, old_record = obj.change_log.all()[:2]
+        delta = new_record.diff_against(old_record)
+        for change in delta.changes:
+            print("{} changed from {} to {}".format(
+                change.field, change.old, change.new))
+
+
 class WebMapServiceSerializer(
     StringRepresentationSerializer,
     ObjectPermissionCheckerSerializer,
@@ -255,6 +270,7 @@ class WebMapServiceSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebMapServiceOperationUrlSerializer,
+
     }
 
     class Meta:

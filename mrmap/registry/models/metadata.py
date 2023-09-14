@@ -16,13 +16,12 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOrigin, MetadataOriginEnum,
                                      MetadataRelationEnum,
                                      ReferenceSystemPrefixEnum)
+from registry.exceptions.service import NoContent
 from registry.managers.metadata import IsoMetadataManager, KeywordManager
 from registry.models.document import MetadataDocumentModelMixin
 from requests import Request, Session
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
-
-from mrmap.registry.exceptions.service import NoContent
 
 
 class MimeType(models.Model):

@@ -130,8 +130,10 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
                     "collect_metadata_records_job_id": str(group_result.id)
                 }
             })
-        self.update_background_process(
-            'collecting metadata records...', db_service)
+            self.update_background_process(
+                'collecting metadata records...', db_service)
+        else:
+            self.update_background_process('successed', db_service)
 
     else:
         self.update_background_process('successed', db_service)

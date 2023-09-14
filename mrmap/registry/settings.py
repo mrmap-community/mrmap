@@ -1,5 +1,4 @@
 from django.utils.translation import gettext_lazy as _
-
 from registry.enums.service import OGCOperationEnum
 
 SECURE_ABLE_WMS_OPERATIONS = [OGCOperationEnum.GET_MAP.value,
@@ -7,7 +6,8 @@ SECURE_ABLE_WMS_OPERATIONS = [OGCOperationEnum.GET_MAP.value,
 SECURE_ABLE_WFS_OPERATIONS = [OGCOperationEnum.GET_FEATURE.value,
                               OGCOperationEnum.TRANSACTION.value]
 SECURE_ABLE_OPERATIONS = SECURE_ABLE_WMS_OPERATIONS + SECURE_ABLE_WFS_OPERATIONS
-SECURE_ABLE_OPERATIONS_LOWER = [operation.lower() for operation in SECURE_ABLE_OPERATIONS]
+SECURE_ABLE_OPERATIONS_LOWER = [operation.lower()
+                                for operation in SECURE_ABLE_OPERATIONS]
 
 # Defines monitoring constants
 MONITORING_TIME = "23:59:00"
@@ -25,9 +25,13 @@ MONITORING_THRESHOLDS = {'WARNING_RESPONSE_TIME': WARNING_RESPONSE_TIME,
                          'CRITICAL_RELIABILITY': CRITICAL_RELIABILITY, }
 
 # Some pre defined health messages
-MONITORING_DEFAULT_UNKNOWN_MESSAGE = _('The health state is unknown, cause no health checks runs for this resource.')
+MONITORING_DEFAULT_UNKNOWN_MESSAGE = _(
+    'The health state is unknown, cause no health checks runs for this resource.')
 
 # Some pre defined conformity messages
 CONFORMITY_DEFAULT_UNKNOWN_MESSAGE = _('The validation state is unknown.')
 CONFORMITY_DEFAULT_SUCCESS_MESSAGE = _('The resource is valid.')
 CONFORMITY_DEFAULT_FAIL_MESSAGE = _('The resource is invalid.')
+
+
+METADATA_URL_BLACKLIST = ["request=GetMetadata"]

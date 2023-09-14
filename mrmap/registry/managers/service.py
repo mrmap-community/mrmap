@@ -23,6 +23,7 @@ from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       ReferenceSystem, Style, TimeExtent,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
+from registry.settings import METADATA_URL_BLACKLIST
 from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 
@@ -147,6 +148,10 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             model=Layer)
         remote_metadata_list = []
         for remote_metadata in parsed_sub_element.remote_metadata:
+            if any(link in remote_metadata.link for link in METADATA_URL_BLACKLIST):
+                # skip every remote link which contains any of the string of the blacklist
+                continue
+
             remote_metadata_list.append(WebMapServiceRemoteMetadata(service=db_service,
                                                                     content_type=sub_element_content_type,
                                                                     object_id=db_sub_element.pk,
@@ -362,6 +367,9 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
             model=FeatureType)
         remote_metadata_list = []
         for remote_metadata in parsed_sub_element.remote_metadata:
+            if any(link in remote_metadata.link for link in METADATA_URL_BLACKLIST):
+                # skip every remote link which contains any of the string of the blacklist
+                continue
             remote_metadata_list.append(WebFeatureServiceRemoteMetadata(service=db_service,
                                                                         content_type=sub_element_content_type,
                                                                         object_id=db_sub_element.pk,

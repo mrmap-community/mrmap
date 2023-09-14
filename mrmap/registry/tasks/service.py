@@ -106,7 +106,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
         self.update_state(state=states.FAILURE)
         self.update_background_process(str(e))
         settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
-        return None
+        raise
 
     if collect_metadata_records:
         remote_metadata_list = None
@@ -190,3 +190,4 @@ def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     except Exception as e:
         settings.ROOT_LOGGER.exception(
             f"RemoteMetadata id: {remote_metadata.pk}", e, stack_info=True, exc_info=True)
+        raise

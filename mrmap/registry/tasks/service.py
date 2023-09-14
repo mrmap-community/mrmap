@@ -25,81 +25,88 @@ from urllib3.exceptions import MaxRetryError
     priority=10,
 )
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
-    self.update_state(state=states.STARTED, meta={
-                      'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
-    self.update_background_process()
+    try:
 
-    auth = None
-    if service_auth_pk:
-        match parse.parse_qs(parse.urlsplit(get_capabilities_url).query)['SERVICE'][0].lower():
-            case 'wms':
-                auth = WebMapServiceAuthentication.objects.get(
-                    id=service_auth_pk)
-            case 'wfs':
-                auth = WebFeatureServiceAuthentication.objects.get(
-                    id=service_auth_pk)
-            case _:
-                auth = None
+        self.update_state(state=states.STARTED, meta={
+            'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
+        self.update_background_process()
 
-    session = Session()
-    session.proxies = settings.PROXIES
-    request = Request(method="GET",
-                      url=get_capabilities_url,
-                      auth=auth.get_auth_for_request() if auth else None)
-    response = session.send(request.prepare())
+        auth = None
+        if service_auth_pk:
+            match parse.parse_qs(parse.urlsplit(get_capabilities_url).query)['SERVICE'][0].lower():
+                case 'wms':
+                    auth = WebMapServiceAuthentication.objects.get(
+                        id=service_auth_pk)
+                case 'wfs':
+                    auth = WebFeatureServiceAuthentication.objects.get(
+                        id=service_auth_pk)
+                case _:
+                    auth = None
 
-    self.update_state(state=states.STARTED, meta={
-                      'done': 1, 'total': 3, 'phase': 'parse capabilities document...'})
-    self.update_background_process('parse capabilities document...')
+        session = Session()
+        session.proxies = settings.PROXIES
+        request = Request(method="GET",
+                          url=get_capabilities_url,
+                          auth=auth.get_auth_for_request() if auth else None)
+        response = session.send(request.prepare())
 
-    parsed_service = get_parsed_service(capabilities_xml=response.content)
+        self.update_state(state=states.STARTED, meta={
+            'done': 1, 'total': 3, 'phase': 'parse capabilities document...'})
+        self.update_background_process('parse capabilities document...')
 
-    self.update_state(state=states.STARTED, meta={
-                      'done': 2, 'total': 3, 'phase': 'persisting service...'})
-    self.update_background_process('persisting service...')
+        parsed_service = get_parsed_service(capabilities_xml=response.content)
 
-    with transaction.atomic():
-        # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        if parsed_service.service_type.name == "wms":
-            db_service = WebMapService.capabilities.create(
-                parsed_service=parsed_service)
-            resource_name = "WebMapService"
-            self_url = reverse(
-                viewname='registry:wms-detail', args=[db_service.pk])
-        elif parsed_service.service_type.name == "wfs":
-            db_service = WebFeatureService.capabilities.create(
-                parsed_service=parsed_service)
-            resource_name = "WebFeatureService"
-            self_url = reverse(
-                viewname='registry:wfs-detail', args=[db_service.pk])
-        elif parsed_service.service_type.name == "csw":
-            db_service = CatalogueService.capabilities.create(
-                parsed_service=parsed_service)
-            resource_name = "CatalogueService"
-            self_url = reverse(
-                viewname='registry:csw-detail', args=[db_service.pk])
-        else:
-            self.update_background_process(
-                'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.')
-            raise NotImplementedError(
-                "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
+        self.update_state(state=states.STARTED, meta={
+            'done': 2, 'total': 3, 'phase': 'persisting service...'})
+        self.update_background_process('persisting service...')
 
-        if auth:
-            auth.service = db_service
-            auth.save()
+        with transaction.atomic():
+            # create all needed database objects and rollback if any error occours to avoid from database inconsistence
+            if parsed_service.service_type.name == "wms":
+                db_service = WebMapService.capabilities.create(
+                    parsed_service=parsed_service)
+                resource_name = "WebMapService"
+                self_url = reverse(
+                    viewname='registry:wms-detail', args=[db_service.pk])
+            elif parsed_service.service_type.name == "wfs":
+                db_service = WebFeatureService.capabilities.create(
+                    parsed_service=parsed_service)
+                resource_name = "WebFeatureService"
+                self_url = reverse(
+                    viewname='registry:wfs-detail', args=[db_service.pk])
+            elif parsed_service.service_type.name == "csw":
+                db_service = CatalogueService.capabilities.create(
+                    parsed_service=parsed_service)
+                resource_name = "CatalogueService"
+                self_url = reverse(
+                    viewname='registry:csw-detail', args=[db_service.pk])
+            else:
+                self.update_background_process(
+                    'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.')
+                raise NotImplementedError(
+                    "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
 
-    self.update_state(state=states.SUCCESS, meta={'done': 3, 'total': 3})
+            if auth:
+                auth.service = db_service
+                auth.save()
 
-    # TODO: use correct Serializer and render the json:api as result
-    return_dict = {
-        "data": {
-            "type": resource_name,
-            "id": str(db_service.pk),
-            "links": {
-                "self": self_url
+        self.update_state(state=states.SUCCESS, meta={'done': 3, 'total': 3})
+
+        # TODO: use correct Serializer and render the json:api as result
+        return_dict = {
+            "data": {
+                "type": resource_name,
+                "id": str(db_service.pk),
+                "links": {
+                    "self": self_url
+                }
             }
         }
-    }
+    except Exception as e:
+        self.update_state(state=states.FAILURE)
+        self.update_background_process(str(e))
+        settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
+        return None
 
     if collect_metadata_records:
         remote_metadata_list = None

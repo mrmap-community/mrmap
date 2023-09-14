@@ -14,6 +14,7 @@ from registry.models.security import (WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
 from requests import Request, Session
 from rest_framework.reverse import reverse
+from urllib3.exceptions import MaxRetryError
 
 
 @shared_task(
@@ -125,7 +126,7 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             'collecting metadata records...', db_service)
 
     else:
-        self.update_background_process('completed.', db_service)
+        self.update_background_process('successed', db_service)
 
     return return_dict
 
@@ -133,7 +134,11 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 @shared_task(bind=True,
              queue="download",
              base=BackgroundProcessBased,
-             priority=10,)
+             priority=10,
+             autoretry_for=(MaxRetryError,),
+             # retry after 30 minutes
+             retry_kwargs={'max_retries': 2, 'countdown': 1800}
+             )
 def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
@@ -151,6 +156,7 @@ def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     try:
         remote_metadata.fetch_remote_content()
         self.update_state(state=states.STARTED, meta={'done': 1, 'total': 2})
+
         metadata_record = remote_metadata.create_metadata_instance()
         self.update_state(state=states.STARTED, meta={'done': 2, 'total': 2})
         return {
@@ -162,6 +168,10 @@ def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
                 }
             }
         }
+    except MaxRetryError as e:
+        # fetch_remote_content went wrong
+        pass
     except Exception as e:
-        settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
+        settings.ROOT_LOGGER.exception(
+            f"RemoteMetadata id: {remote_metadata.pk}", e, stack_info=True, exc_info=True)
         return None

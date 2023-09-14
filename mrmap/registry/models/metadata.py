@@ -19,6 +19,10 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
 from registry.managers.metadata import IsoMetadataManager, KeywordManager
 from registry.models.document import MetadataDocumentModelMixin
 from requests import Request, Session
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
+
+from mrmap.registry.exceptions.service import NoContent
 
 
 class MimeType(models.Model):
@@ -228,16 +232,27 @@ class RemoteMetadata(models.Model):
 
         session = Session()
         session.proxies = PROXIES
+        retries = Retry(
+            total=3,
+            backoff_factor=0.1
+        )
+        session.mount(self.link, HTTPAdapter(max_retries=retries))
         # FIXME: Re add authentication
         request = Request(method="GET",
                           url=self.link,
                           # auth=auth,
                           )
+
         response = session.send(request.prepare())
-        self.remote_content = response.text
-        if save:
-            self.save()
-        return self.remote_content
+
+        if response.status_code == 200 and len(response.text) > 0:
+            self.remote_content = response.text
+            if save:
+                self.save()
+            return self.remote_content
+        else:
+            raise NoContent(
+                f"Can't fetch content from remote for RemoteMetadata with id {self.pk}")
 
     def parse(self):
         """ Return the parsed self.remote_content

@@ -183,6 +183,11 @@ ALLOWED_HOSTS = os.environ.get(
     "DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver"
 ).split(";")
 
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
+        [f"https://{host};http://{host}" for host in list(ALLOWED_HOSTS)])
+).split(";")
+
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
     CORS_ALLOWED_ORIGINS = os.environ.get(
         "DJANGO_CORS_ALLOWED_ORIGINS").split(";")

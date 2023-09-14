@@ -39,7 +39,8 @@ class BackgroundProcessManager(models.Manager):
                 When(Q(
                     pending_threads_count__lte=0,
                     running_threads_count__lte=0,
-                    successed_threads_count__gt=0),
+                    successed_threads_count__gt=0)
+                    | Q(phase__exact="successed"),
                     then=Value("successed")),
                 default=Value("unknown"),
                 output_field=CharField()

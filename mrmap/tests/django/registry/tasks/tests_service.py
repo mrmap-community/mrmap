@@ -22,9 +22,10 @@ class MockResponse:
             in_file = open(content, "rb")
             self.content = in_file.read()
             in_file.close()
-
+            self.text = self.content.decode('utf-8')
         if isinstance(content, str):
-            self.content = content
+            self.text = content
+            self.content = bytes(self.text, 'utf-8')
 
 
 def side_effect(request):

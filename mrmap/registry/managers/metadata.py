@@ -5,6 +5,7 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.utils import timezone
 from registry.enums.metadata import MetadataOrigin
+from registry.exceptions.metadata import UnknownMetadataKind
 from simple_history.models import HistoricalRecords
 
 
@@ -29,7 +30,8 @@ class IsoMetadataManager(models.Manager):
 
     def _create_contact(self, contact):
         from registry.models.metadata import MetadataContact
-        contact, _ = MetadataContact.objects.get_or_create(**contact.transform_to_model())
+        contact, _ = MetadataContact.objects.get_or_create(
+            **contact.transform_to_model())
         return contact
 
     def _create_dataset_metadata(self, parsed_metadata, origin_url):
@@ -111,6 +113,9 @@ class IsoMetadataManager(models.Manager):
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(
                                                          str(parsed_metadata.serializeDocument(), "UTF-8")))
+            else:
+                raise UnknownMetadataKind(
+                    "Parsed metadata object is neither describing a service nor describing a dataset. We can't handle it.")
             if update:
                 db_keyword_list = []
                 from mrmap.registry.models.metadata import \

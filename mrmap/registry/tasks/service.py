@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from notify.tasks import BackgroundProcessBased
 from ows_lib.xml_mapper.utils import get_parsed_service
+from registry.exceptions.metadata import UnknownMetadataKind
 from registry.models import CatalogueService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadata,
                                       WebFeatureServiceRemoteMetadata,
@@ -168,10 +169,17 @@ def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
                 }
             }
         }
-    except MaxRetryError as e:
+    except MaxRetryError:
         # fetch_remote_content went wrong
         pass
+    except UnknownMetadataKind:
+        try:
+            kind = remote_metadata.parsed_metadata._hierarchy_level
+        except Exception:
+            kind = 'unknown'
+        settings.ROOT_LOGGER.warning(
+            f"Can't handle RemoteMetadata with id: {remote_metadata.pk}, cause the kind '{kind}' is not supported.")
+
     except Exception as e:
         settings.ROOT_LOGGER.exception(
             f"RemoteMetadata id: {remote_metadata.pk}", e, stack_info=True, exc_info=True)
-        return None

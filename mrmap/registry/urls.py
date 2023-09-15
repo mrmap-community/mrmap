@@ -22,6 +22,10 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'allowed-wms-operations', security_views.NestedAllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
 
+    # historical
+    router.register(r'wms-historical',
+                    service_views.WebMapServiceHistoricalViewSet, basename='wms-historical'),
+
     # layer
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
           .register(r'styles', metadata_views.NestedStyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),

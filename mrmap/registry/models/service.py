@@ -119,7 +119,8 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs")
     capabilities = WebMapServiceCapabilitiesManager()
     security = WebMapServiceSecurityManager()
 

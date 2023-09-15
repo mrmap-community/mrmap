@@ -2,6 +2,7 @@ from typing import Any, MutableMapping, Optional, Tuple, TypeVar
 
 from django.db import models
 from django.db.models.constraints import UniqueConstraint
+from django.db.models.query import Prefetch
 
 T = TypeVar('T')
 
@@ -23,6 +24,17 @@ class UniqueConstraintDefaultValueManager(models.Manager):
 
 
 class DefaultHistoryManager(models.Manager):
+
+    def with_history(self):
+        """Return the last two historical records to diff them"""
+        return self.get_queryset()\
+            .prefetch_related(
+                Prefetch(
+                    'change_log',
+                    queryset=self.model.change_log.all(),
+                    to_attr='prefetched_history'
+                )
+        )
 
     def filter_first_history(self):
         return self.model.change_log.filter(history_type='+').select_related('history_user').only('history_relation', 'history_user__id', 'history_date')

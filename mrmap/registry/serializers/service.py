@@ -197,18 +197,26 @@ class LayerSerializer(
         return instance.styles_inherited
 
 
-class WebMapServiceHistorySerializer():
+class WebMapServiceHistorySerializer(ModelSerializer):
 
-    changes = SerializerMethodField()
+    history_type = SerializerMethodField()
 
-    def get_changes(self, obj):
-        # https://django-simple-history.readthedocs.io/en/latest/history_diffing.html#
-        # TODO: prefetch this obj.change_log.all()[:2]
-        new_record, old_record = obj.change_log.all()[:2]
-        delta = new_record.diff_against(old_record)
-        for change in delta.changes:
-            print("{} changed from {} to {}".format(
-                change.field, change.old, change.new))
+    def get_history_type(self, obj):
+        if obj.history_type == '+':
+            return "created"
+        elif obj.history_type == '~':
+            return "updated"
+        elif obj.history_type == '-':
+            return "deleted"
+
+    included_serializers = {
+        "history_user": UserSerializer,
+        "history_relation": "registry.serializers.service.WebMapServiceSerializer"
+    }
+
+    class Meta:
+        model = WebMapService.change_log.model
+        fields = '__all__'
 
 
 class WebMapServiceSerializer(
@@ -270,7 +278,6 @@ class WebMapServiceSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebMapServiceOperationUrlSerializer,
-
     }
 
     class Meta:

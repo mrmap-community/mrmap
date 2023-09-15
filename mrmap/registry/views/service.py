@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
@@ -10,7 +11,8 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import (DatasetMetadata, Keyword, MimeType,
+from registry.models.metadata import (DatasetMetadata, Keyword,
+                                      MetadataContact, MimeType,
                                       ReferenceSystem, Style)
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (CatalogueService,
@@ -24,9 +26,105 @@ from registry.serializers.service import (CatalogueServiceCreateSerializer,
                                           WebFeatureServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceCreateSerializer,
+                                          WebMapServiceHistorySerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_json_api.views import ModelViewSet
+
+
+class WebMapServiceHistoricalViewSet(
+    SerializerClassesMixin,
+    ModelViewSet
+):
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
+
+    queryset = WebMapService.change_log.all()
+    serializer_classes = {
+        "default": WebMapServiceHistorySerializer,
+    }
+
+    select_for_includes = {
+        "history_user": ["history_user"],
+        "history_relation": ["history_relation"]
+    }
+
+    filterset_fields = {
+        'history_relation': ['exact'],
+    }
+
+    def get_queryset(self):
+        defer_metadata_contact = [
+            f"metadata_contact__{field.name}"
+            for field in MetadataContact._meta.get_fields()
+            if field.name not in ["id", "pk"]
+        ]
+        defer_service_contact = [
+            f"metadata_contact__{field.name}"
+            for field in MetadataContact._meta.get_fields()
+            if field.name not in ["id", "pk"]
+        ]
+
+        qs = super().get_queryset().select_related("metadata_contact",
+                                                   "service_contact").defer(*defer_metadata_contact, *defer_service_contact)
+
+        include = self.request.GET.get("include", None)
+
+        if not include or "historyUser" not in include:
+            defer = [
+                f"history_user__{field.name}"
+                for field in get_user_model()._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("history_user").defer(*defer)
+        elif include and "historyUser" in include:
+            # TODO: select_for_includes setup does not work for history records...
+            qs = qs.select_related("history_user")
+
+        if not include or "history_relation__layers" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "history_relation__layers",
+                    queryset=Layer.objects.only(
+                        "id",
+                        "service_id",
+                        "tree_id",
+                        "lft",
+                    ),
+                )
+            )
+        if not include or "history_relation__metadata_contact" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "history_relation__metadata_contact",
+                    queryset=MetadataContact.objects.only(
+                        "id",
+                    ),
+                )
+            )
+        if not include or "history_relation__keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("history_relation__keywords",
+                         queryset=Keyword.objects.only("id"))
+            )
+        if not include or "history_relation__allowedOperations" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "history_relation__allowed_operations",
+                    queryset=AllowedWebMapServiceOperation.objects.only(
+                        "id", "secured_service__id")
+                )
+            )
+        if not include or "history_relation__operationUrls" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "history_relation__operation_urls",
+                    queryset=WebMapServiceOperationUrl.objects.only(
+                        "id", "service_id"),
+                )
+            )
+        return qs
 
 
 class WebMapServiceViewSet(

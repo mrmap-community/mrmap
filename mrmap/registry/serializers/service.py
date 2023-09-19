@@ -24,7 +24,7 @@ from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import (BooleanField, IntegerField,
-                                   SerializerMethodField, URLField)
+                                   SerializerMethodField, URLField, UUIDField)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
@@ -200,6 +200,7 @@ class LayerSerializer(
 class WebMapServiceHistorySerializer(ModelSerializer):
 
     history_type = SerializerMethodField()
+    id = UUIDField(source='history_id')
 
     def get_history_type(self, obj):
         if obj.history_type == '+':
@@ -216,7 +217,8 @@ class WebMapServiceHistorySerializer(ModelSerializer):
 
     class Meta:
         model = WebMapService.change_log.model
-        fields = '__all__'
+
+        exclude = ('history_id', )
 
 
 class WebMapServiceSerializer(

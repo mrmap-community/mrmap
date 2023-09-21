@@ -23,8 +23,9 @@ from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            ReferenceSystemSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import (BooleanField, IntegerField,
-                                   SerializerMethodField, URLField, UUIDField)
+from rest_framework.fields import (BooleanField, CharField, DictField,
+                                   IntegerField, SerializerMethodField,
+                                   URLField, UUIDField)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
@@ -199,8 +200,18 @@ class LayerSerializer(
 
 class WebMapServiceHistorySerializer(ModelSerializer):
 
-    history_type = SerializerMethodField()
     id = UUIDField(source='history_id')
+    history_type = SerializerMethodField()
+    delta = SerializerMethodField()
+
+    included_serializers = {
+        "history_user": UserSerializer,
+        "history_relation": "registry.serializers.service.WebMapServiceSerializer"
+    }
+
+    class Meta:
+        model = WebMapService.change_log.model
+        exclude = ('history_id', )
 
     def get_history_type(self, obj):
         if obj.history_type == '+':
@@ -210,15 +221,19 @@ class WebMapServiceHistorySerializer(ModelSerializer):
         elif obj.history_type == '-':
             return "deleted"
 
-    included_serializers = {
-        "history_user": UserSerializer,
-        "history_relation": "registry.serializers.service.WebMapServiceSerializer"
-    }
+    def get_delta(self, obj):
+        if hasattr(obj, "prev_prefetched_record"):
+            prev_record = obj.prev_prefetched_record
+        else:
+            prev_record = obj.prev_record
+        if prev_record:
+            model_delta = obj.diff_against(prev_record)
+            changes = {}
+            for change in model_delta.changes:
+                changes.update(
+                    {"field": change.field, "old": change.old, "new": change.new})
 
-    class Meta:
-        model = WebMapService.change_log.model
-
-        exclude = ('history_id', )
+            return changes
 
 
 class WebMapServiceSerializer(

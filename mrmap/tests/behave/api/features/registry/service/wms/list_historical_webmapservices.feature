@@ -9,8 +9,8 @@ Feature: Historical WebMapService List Endpoint
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
-        Then I expect that response json has an attribute "data.[0].id" with value "639cb553-8c30-4e72-a38d-10351ce81cf1"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "2"
+        Then I expect that response json has an attribute "data.[0].id" with value "40d6bddd-6e8b-4487-b3ed-ee2a4ac5dee2"
         Then I expect that "13" queries where made
 
     Scenario: Can include historyUser

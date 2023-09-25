@@ -23,9 +23,8 @@ from registry.serializers.metadata import (DatasetMetadataSerializer,
                                            ReferenceSystemSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import (BooleanField, CharField, DictField,
-                                   IntegerField, SerializerMethodField,
-                                   URLField, UUIDField)
+from rest_framework.fields import (BooleanField, IntegerField,
+                                   SerializerMethodField, URLField, UUIDField)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
@@ -228,9 +227,9 @@ class WebMapServiceHistorySerializer(ModelSerializer):
             prev_record = obj.prev_record
         if prev_record:
             model_delta = obj.diff_against(prev_record)
-            changes = {}
+            changes = []
             for change in model_delta.changes:
-                changes.update(
+                changes.append(
                     {"field": change.field, "old": change.old, "new": change.new})
 
             return changes

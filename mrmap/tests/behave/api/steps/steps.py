@@ -130,7 +130,10 @@ def step_impl(context, attribute, expected_value=None):
         if expected_value == 'false' or expected_value == 'true':
             context.test.assertEqual(bool(value), bool(expected_value))
         else:
-            context.test.assertEqual(str(value), expected_value)
+            try:
+                context.test.assertJSONEqual(str(value), expected_value)
+            except Exception as e:
+                context.test.assertEqual(str(value), expected_value)
 
 
 @then('I expect that "{expected_value}" queries where made')

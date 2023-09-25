@@ -263,7 +263,7 @@ class LayerViewSetMixin(
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
-                       "hits", "scale_max", "scale_min", "date_stamp"]
+                       "hits", "scale_max", "scale_min", "date_stamp", "lft", "rgt", "level"]
 
     def get_queryset(self):
         qs = super().get_queryset()

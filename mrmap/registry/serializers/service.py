@@ -287,7 +287,7 @@ class WebMapServiceSerializer(
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
         # See comment on github:
         # https://github.com/django/django/pull/5356#issuecomment-1340682072
-        # "layers": LayerSerializer,
+        "layers": LayerSerializer,
         "service_contact": MetadataContactSerializer,
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,

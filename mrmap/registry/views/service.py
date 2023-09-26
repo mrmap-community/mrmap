@@ -157,7 +157,21 @@ class WebMapServiceViewSet(
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-
+        "layers": [
+            Prefetch(
+                "layers",
+                queryset=Layer.objects.with_inherited_attributes().select_related("parent").prefetch_related(
+                    Prefetch(
+                        "keywords",
+                        queryset=Keyword.objects.only("id")
+                    ),
+                    Prefetch(
+                        "dataset_metadata",
+                        queryset=DatasetMetadata.objects.only("id")
+                    )
+                )
+            )
+        ],
         "keywords": ["keywords"],
         "operation_urls": [
             Prefetch(
@@ -210,6 +224,7 @@ class WebMapServiceViewSet(
                     ),
                 )
             )
+
         if not include or "keywords" not in include:
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))

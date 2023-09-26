@@ -12,12 +12,13 @@ Feature: WebMapService Retrieve Endpoint
         Then I expect that response json has an attribute "data"
         Then I expect that "13" queries where made
 
-    # disabled for now
-    # Scenario: Can include layers
-    #     Given I set a queryparam "include" with value "layers"
-    #     When I send the request with GET method
-    #     Then I expect the response status is 200
-    #     Then I expect that response json has an attribute "included.[0].type" with value "Layer"
+    Scenario: Can include layers
+        Given I set a queryparam "include" with value "layers"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "included.[0].type" with value "Layer"
+        Then I expect that "14" queries where made
+
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"

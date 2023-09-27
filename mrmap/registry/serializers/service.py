@@ -235,7 +235,7 @@ class WebMapServiceHistorySerializer(ModelSerializer):
             return changes
 
 
-class WebMapServiceSerializer(
+class WebMapServiceListSerializer(
     StringRepresentationSerializer,
     ObjectPermissionCheckerSerializer,
     HistoryInformationSerializer,
@@ -287,7 +287,7 @@ class WebMapServiceSerializer(
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
         # See comment on github:
         # https://github.com/django/django/pull/5356#issuecomment-1340682072
-        "layers": LayerSerializer,
+        # "layers": LayerSerializer,
         "service_contact": MetadataContactSerializer,
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,
@@ -299,6 +299,21 @@ class WebMapServiceSerializer(
     class Meta:
         model = WebMapService
         fields = "__all__"
+
+
+class WebMapServiceSerializer(
+    WebMapServiceListSerializer
+):
+
+    included_serializers = {
+        "layers": LayerSerializer,
+        "service_contact": MetadataContactSerializer,
+        "metadata_contact": MetadataContactSerializer,
+        "keywords": KeywordSerializer,
+        "created_by": UserSerializer,
+        "last_modified_by": UserSerializer,
+        "operation_urls": WebMapServiceOperationUrlSerializer,
+    }
 
 
 class WebMapServiceCreateSerializer(ModelSerializer):

@@ -27,6 +27,7 @@ from registry.serializers.service import (CatalogueServiceCreateSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceCreateSerializer,
                                           WebMapServiceHistorySerializer,
+                                          WebMapServiceListSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_json_api.views import ModelViewSet
@@ -150,6 +151,7 @@ class WebMapServiceViewSet(
     queryset = WebMapService.objects.all()
     serializer_classes = {
         "default": WebMapServiceSerializer,
+        "list": WebMapServiceListSerializer,
         "create": WebMapServiceCreateSerializer,
     }
     select_for_includes = {

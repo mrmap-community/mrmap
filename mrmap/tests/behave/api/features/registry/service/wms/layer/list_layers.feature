@@ -12,7 +12,6 @@ Feature: Layer List Endpoint
         Then I expect that response json has an attribute "meta.pagination.count" with value "9"
         Then I expect that "8" queries where made
 
-
     Scenario: Can sort by lft
         Given I set a queryparam "sort" with value "lft"
         When I send the request with GET method
@@ -93,3 +92,9 @@ Feature: Layer List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "User"
+
+    Scenario: Can include referenceSystems
+        Given I set a queryparam "include" with value "referenceSystems"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that response json has an attribute "included.[0].type" with value "ReferenceSystem"

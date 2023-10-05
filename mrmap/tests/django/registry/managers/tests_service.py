@@ -2,8 +2,9 @@ from pathlib import Path
 
 from django.test import TestCase
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.models.service import (CatalogueService, WebFeatureService,
-                                     WebMapService)
+from registry.models.metadata import ReferenceSystem
+from registry.models.service import (CatalogueService, Layer,
+                                     WebFeatureService, WebMapService)
 
 
 class WebMapServiceCapabilitiesManagerTest(TestCase):
@@ -19,6 +20,18 @@ class WebMapServiceCapabilitiesManagerTest(TestCase):
 
         db_service = WebMapService.objects.count()
         self.assertEqual(1, db_service)
+
+        db_layers = Layer.objects.count()
+        self.assertEqual(137, db_layers)
+
+        db_crs = ReferenceSystem.objects.all()
+        crs_expected = [900913, 4839, 4326, 4258, 3857, 3413,
+                        31468, 31467, 3045, 3044, 25833, 25832, 1000001]
+
+        self.assertEqual(len(crs_expected), len(db_crs))
+        for crs in crs_expected:
+            _ = ReferenceSystem(code=str(crs), prefix="EPSG")
+            self.assertIn(_, db_crs)
 
 
 class WebFeatureServiceCapabilitiesManagerTest(TestCase):

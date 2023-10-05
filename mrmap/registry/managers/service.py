@@ -78,12 +78,12 @@ class TransientObjectsManagerMixin(object):
         items = []
 
         for item in list:
-            # todo: slow get_or_create solution - maybe there is a better way to do this
+            # TODO: slow get_or_create solution - maybe there is a better way to do this
             if isinstance(item, str):
-                db_item, created = model_cls.objects.get_or_create(
+                db_item, _ = model_cls.objects.get_or_create(
                     **{to_snake(model_cls.__name__): item})
             else:
-                db_item, created = model_cls.objects.get_or_create(
+                db_item, _ = model_cls.objects.get_or_create(
                     **item.transform_to_model())
             items.append(db_item)
         return items
@@ -98,7 +98,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                                              WebMapServiceOperationUrl)
         parsed_service_contact = parsed_service.service_contact
 
-        db_service_contact, created = MetadataContact.objects.get_or_create(
+        db_service_contact, _ = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
 
         service: WebMapService = super().create(origin=MetadataOrigin.CAPABILITIES.value,

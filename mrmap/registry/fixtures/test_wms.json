@@ -146,6 +146,14 @@
         }
     },
     {
+        "model": "registry.referencesystem",
+        "pk": "1",
+        "fields": {
+            "code": "4326",
+            "prefix": "EPSG"
+        }
+    },
+    {
         "model": "registry.webmapservice",
         "pk": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
         "fields": {
@@ -188,6 +196,9 @@
                 [
                     "meteorology"
                 ]
+            ],
+            "reference_systems": [
+                1
             ]
         }
     },

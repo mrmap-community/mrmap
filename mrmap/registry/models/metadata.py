@@ -114,6 +114,9 @@ class ReferenceSystem(models.Model):
     def __str__(self):
         return f"{self.prefix}:{self.code}" if self.prefix else self.code
 
+    def __eq__(self, __value: object) -> bool:
+        return self.code == __value.code and self.prefix == __value.prefix
+
 
 class MetadataContact(models.Model):
     name = models.CharField(max_length=256,

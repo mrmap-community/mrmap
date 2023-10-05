@@ -156,7 +156,6 @@ class LayerSerializer(
         "last_modified_by": UserSerializer,
         "reference_systems": ReferenceSystemSerializer,
         # "dimensions": DimensionSerializer,
-        "styles": StyleSerializer,
     }
 
     class Meta:

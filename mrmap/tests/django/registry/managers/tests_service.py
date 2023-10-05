@@ -21,8 +21,8 @@ class WebMapServiceCapabilitiesManagerTest(TestCase):
         db_service = WebMapService.objects.count()
         self.assertEqual(1, db_service)
 
-        db_layers = Layer.objects.count()
-        self.assertEqual(137, db_layers)
+        db_layers = Layer.objects.all()
+        self.assertEqual(137, len(db_layers))
 
         db_crs = ReferenceSystem.objects.all()
         crs_expected = [900913, 4839, 4326, 4258, 3857, 3413,
@@ -32,6 +32,11 @@ class WebMapServiceCapabilitiesManagerTest(TestCase):
         for crs in crs_expected:
             _ = ReferenceSystem(code=str(crs), prefix="EPSG")
             self.assertIn(_, db_crs)
+
+        self.assertEqual(13, db_layers[0].reference_systems.count())
+        for crs in crs_expected:
+            _ = ReferenceSystem(code=str(crs), prefix="EPSG")
+            self.assertIn(_, db_layers[0].reference_systems.all())
 
 
 class WebFeatureServiceCapabilitiesManagerTest(TestCase):

@@ -65,10 +65,10 @@ class TransientObjectsManagerMixin(object):
 
     def _handle_transient_m2m_objects(self, db_obj: models.Model):
         m2m_fields = [field.name for field in db_obj._meta.local_many_to_many]
-        transient_fields = filter(lambda key: not key.startswith(
-            '__transient'), db_obj.__dict__.keys())
-        transient_m2m_fields = filter(
-            lambda key: key in m2m_fields, transient_fields)
+        transient_fields = filter(
+            lambda key: '__transient' in key, db_obj.__dict__.keys())
+        transient_m2m_fields = [
+            transient_field for transient_field in transient_fields if any(m2m_field in transient_field for m2m_field in m2m_fields)]
 
         for key in transient_m2m_fields:
             attr = getattr(db_obj, key.split("__transient_")[1])
@@ -167,7 +167,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                              **style.transform_to_model())
             if style.legend_url:
                 # legend_url is optional for style entities
-                db_mime_type, created = MimeType.objects.get_or_create(
+                db_mime_type, _ = MimeType.objects.get_or_create(
                     mime_type=style.legend_url.mime_type.transform_to_model())
                 legend_url_list.append(LegendUrl(style=db_style,
                                                  mime_type=db_mime_type,

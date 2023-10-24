@@ -15,6 +15,7 @@ Including another URLconf
 """
 
 from accounts.views.auth import LoginView, LogoutView
+from csw.views import CswServiceView
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
@@ -62,8 +63,13 @@ urlpatterns = [
         name="ows-context-detail"
     ),
     path('api/auth/login', LoginView.as_view()),
-    path('api/auth/logout', LogoutView.as_view())
+    path('api/auth/logout', LogoutView.as_view()),
 
+    path(
+        "csw",
+        CswServiceView.as_view(),
+        name="csw-endpoint"
+    ),
 
 ]
 

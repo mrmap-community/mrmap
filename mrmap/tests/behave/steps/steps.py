@@ -136,6 +136,15 @@ def step_impl(context, attribute, expected_value=None):
                 context.test.assertEqual(str(value), expected_value)
 
 
+@then('I expect that response xml content is:')
+@then(u'I expect that response xml content is')
+def step_impl(context):
+    context.test.maxDiff = None
+
+    context.test.assertXMLEqual(
+        context.response.content.decode("UTF-8").replace("\n", ""), context.text.replace("\n", ""))
+
+
 @then('I expect that "{expected_value}" queries where made')
 def step_impl(context, expected_value):
     context.test.assertNumQueries(expected_value)

@@ -395,6 +395,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       help_text=_("all keywords which are related to the content of this metadata."))
 
     language = None  # Todo
+    # TODO: check if xml_mapper_cls could be removed
     xml_mapper_cls = MdMetadata
 
     class Meta:
@@ -406,6 +407,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
 
     def save(self, *args, **kwargs):
         """Custom save function to set `is_customized` on update."""
+        # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
         if not self._state.adding:
             self.is_customized = True
         super().save(*args, **kwargs)
@@ -609,6 +611,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
 
     LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
     CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
+
     dataset_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="dataset_contact_metadata",
@@ -624,7 +627,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                      "information of the dataset."))
     spatial_res_type = models.CharField(max_length=20,
                                         choices=SPATIAL_RES_TYPE_CHOICES,
-                                        null=True,
+                                        default="",
                                         verbose_name=_("resolution type"),
                                         help_text=_("Ground resolution in meter or the equivalent scale."))
     spatial_res_value = models.FloatField(null=True,
@@ -636,13 +639,13 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                related_query_name="dataset_metadata",
                                                blank=True,
                                                verbose_name=_("reference systems"))
-    format = models.CharField(null=True,
+    format = models.CharField(default="",
                               blank=True,
                               max_length=20,
                               choices=DatasetFormatEnum.choices,
                               verbose_name=_("format"),
                               help_text=_("The format in which the described dataset is stored."))
-    charset = models.CharField(null=True,
+    charset = models.CharField(default="",
                                blank=True,
                                max_length=10,
                                choices=MetadataCharset.choices,
@@ -653,16 +656,16 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                               " consistence."))
     preview_image = models.ImageField(null=True,
                                       blank=True)
-    lineage_statement = models.TextField(null=True,
-                                         blank=True)
+    lineage_statement = models.TextField(blank=True,
+                                         default="")
     update_frequency_code = models.CharField(max_length=20,
                                              choices=UPDATE_FREQUENCY_CHOICES,
-                                             null=True,
-                                             blank=True)
+                                             blank=True,
+                                             default="")
     bounding_geometry = MultiPolygonField(null=True,
                                           blank=True, )
     dataset_id = models.CharField(max_length=4096,
-                                  null=True,  # empty dataset_id signals broken dataset metadata records
+                                  default="",  # empty dataset_id signals broken dataset metadata records
                                   help_text=_("identifier of the remote data"))
     dataset_id_code_space = models.CharField(max_length=4096,
                                              blank=True,
@@ -670,6 +673,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                              help_text=_("code space for the given identifier"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
+
     self_pointing_layers = models.ManyToManyField(to="registry.Layer",
                                                   through=DatasetMetadataRelation,
                                                   editable=False,

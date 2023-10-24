@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 def before_all(context):
     # see https://github.com/behave/behave-django/issues/114... fixure behaviour is broken with --simple
     # basicly there are users and groups
+
     fixtures = ['test_users.json']
     call_command("loaddata", *fixtures, verbosity=0)
 

@@ -60,6 +60,11 @@ class MissingVersionParameterException(MissingParameterException):
     message = "Could not determine version for the requested service."
 
 
+class MissingServiceParameterException(MissingParameterException):
+    locator = "service"
+    message = "Could not determine service for the requested service."
+
+
 class OperationNotSupportedException(OGCServiceException):
     code = "OperationNotSupported"
     message = "No such operation"

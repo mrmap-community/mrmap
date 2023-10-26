@@ -467,36 +467,60 @@ class FeatureTypeMetadata(AbstractMetadata):
         abstract = True
 
 
-class DatasetMetadataRelation(models.Model):
-    """ Model to store additional information for m2m relations for a dataset metadata which is related by a layer,
-        feature type or harvested by csw.
+class MetadataRelation(models.Model):
+    """ Model to store relations between metadata models and service resource like models, 
 
-        Cause dataset metadata records could be added by the user and could harvested from capabilities or csw, we need
-        to store additional information such as the origin (capabilities | added by user | csw) etc.
+        to:
+         * find available ogc services (wms, wfs, layer, feature_types) which can deliver relevant information by a filter constraint
+         * to find metadata information by a filter constraint
+
+
+
     """
+    # resource relations
     layer = models.ForeignKey(to="registry.Layer",
                               on_delete=models.CASCADE,
                               null=True,  # nullable to support polymorph using in DatasetMetadata model
                               blank=True,
-                              related_name="dataset_metadata_relations",
-                              related_query_name="dataset_metadata_relation")
+                              related_name="metadata_relations",
+                              related_query_name="metadata_relation")
     feature_type = models.ForeignKey(to="registry.FeatureType",
                                      on_delete=models.CASCADE,
                                      null=True,  # nullable to support polymorph using in DatasetMetadata model
                                      blank=True,
-                                     related_name="dataset_metadata_relations",
-                                     related_query_name="dataset_metadata_relation")
+                                     related_name="metadata_relations",
+                                     related_query_name="metadata_relation")
     csw = models.ForeignKey(to="registry.CatalogueService",
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in DatasetMetadata model
                             blank=True,
-                            related_name="dataset_metadata_relations",
-                            related_query_name="dataset_metadata_relation")
+                            related_name="metadata_relations",
+                            related_query_name="metadata_relation")
+    wms = models.ForeignKey(to="registry.WebMapService",
+                            on_delete=models.CASCADE,
+                            null=True,  # nullable to support polymorph using in DatasetMetadata model
+                            blank=True,
+                            related_name="metadata_relations",
+                            related_query_name="metadata_relation")
+    wfs = models.ForeignKey(to="registry.WebFeatureService",
+                            on_delete=models.CASCADE,
+                            null=True,  # nullable to support polymorph using in DatasetMetadata model
+                            blank=True,
+                            related_name="metadata_relations",
+                            related_query_name="metadata_relation")
+
+    # metadata relations
     dataset_metadata = models.ForeignKey(to="DatasetMetadata",
                                          on_delete=models.CASCADE,
-                                         related_name="dataset_metadata_relations",
-                                         related_query_name="dataset_metadata_relation")
-    # todo: check if we still need this field; we have no longer a polymorph metadata model, so the relation type
+                                         related_name="resource_relations",
+                                         related_query_name="resource_relation")
+
+    service_metadata = models.ForeignKey(to="ServiceMetadata",
+                                         on_delete=models.CASCADE,
+                                         related_name="resource_relations",
+                                         related_query_name="resource_relation")
+
+    # TODO: check if we still need this field; we have no longer a polymorph metadata model, so the relation type
     #  should be clear by the different field names
     relation_type = models.CharField(max_length=20,
                                      choices=MetadataRelationEnum.choices)
@@ -543,7 +567,67 @@ class DatasetMetadataRelation(models.Model):
         # todo: some more cases are possible
 
 
-class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
+class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
+
+    harvested_through = models.ManyToManyField(to="registry.CatalogueService",
+                                               through=MetadataRelation,
+                                               editable=False,
+                                               related_name="%(app_label)s_%(class)s_dataset_metadata",
+                                               related_query_name="%(app_label)s_%(class)s_dataset_metadata",
+                                               blank=True,
+                                               verbose_name=_(
+                                                   "services"),
+                                               help_text=_("all services from which this dataset was harvested."))
+
+    class Meta:
+        abstract = True
+
+    def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
+        from registry.models.service import (CatalogueService, FeatureType,
+                                             Layer)
+
+        kwargs = {}
+        if related_object._meta.model == Layer:
+            kwargs.update({"layer": related_object,
+                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object._meta.model == FeatureType:
+            kwargs.update({"feature_type": related_object,
+                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object._meta.model == CatalogueService:
+            kwargs.update({"csw": related_object,
+                           "relation_type": relation_type if relation_type else MetadataRelationEnum.HARVESTED_THROUGH.value,
+                           "origin": origin if origin else MetadataOriginEnum.CATALOGUE.value})
+            is_internal = True
+        relation, created = MetadataRelation.objects.get_or_create(
+            dataset_metadata=self,
+            is_internal=is_internal,
+            **kwargs
+        )
+        return relation
+
+    def remove_dataset_metadata_relation(self, related_object, relation_type, internal, origin):
+        from registry.models.service import (CatalogueService, FeatureType,
+                                             Layer)
+
+        kwargs = {}
+        if related_object._meta.model == Layer:
+            kwargs.update({"layer": related_object})
+        elif related_object._meta.model == FeatureType:
+            kwargs.update({"feature_type": related_object})
+        elif related_object._meta.model == CatalogueService:
+            kwargs.update({"csw": related_object})
+        MetadataRelation.objects.filter(
+            from_metadata=self,
+            relation_type=relation_type,
+            internal=internal,
+            origin=origin,
+            **kwargs
+        ).delete()
+
+
+class DatasetMetadata(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
@@ -675,33 +759,24 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                    help_text=_("flag to signal if this "))
 
     self_pointing_layers = models.ManyToManyField(to="registry.Layer",
-                                                  through=DatasetMetadataRelation,
+                                                  through=MetadataRelation,
                                                   editable=False,
-                                                  related_name="dataset_metadata",
-                                                  related_query_name="dataset_metadata",
+                                                  related_name="%(app_label)s_%(class)s_dataset_metadata",
+                                                  related_query_name="%(app_label)s_%(class)s_dataset_metadata",
                                                   blank=True,
                                                   verbose_name=_("layers"),
                                                   help_text=_("all layers which are linking to this dataset metadata in"
                                                               " there capabilities."))
     self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
-                                                         through=DatasetMetadataRelation,
+                                                         through=MetadataRelation,
                                                          editable=False,
-                                                         related_name="dataset_metadata",
-                                                         related_query_name="dataset_metadata",
+                                                         related_name="%(app_label)s_%(class)s_dataset_metadata",
+                                                         related_query_name="%(app_label)s_%(class)s_dataset_metadata",
                                                          blank=True,
                                                          verbose_name=_(
                                                              "feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
-    self_pointing_catalogue_service = models.ManyToManyField(to="registry.CatalogueService",
-                                                             through=DatasetMetadataRelation,
-                                                             editable=False,
-                                                             related_name="dataset_metadata",
-                                                             related_query_name="dataset_metadata",
-                                                             blank=True,
-                                                             verbose_name=_(
-                                                                 "services"),
-                                                             help_text=_("all services from which this dataset was harvested."))
 
     objects = UniqueConstraintDefaultValueManager()
     iso_metadata = IsoMetadataManager()
@@ -716,49 +791,11 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                     name='%(app_label)s_%(class)s_unique_together_dataset_id_dataset_id_code_space')
         ]
 
-    def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
-        from registry.models.service import (CatalogueService, FeatureType,
-                                             Layer)
 
-        kwargs = {}
-        if related_object._meta.model == Layer:
-            kwargs.update({"layer": related_object,
-                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object._meta.model == FeatureType:
-            kwargs.update({"feature_type": related_object,
-                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object._meta.model == CatalogueService:
-            kwargs.update({"csw": related_object,
-                           "relation_type": relation_type if relation_type else MetadataRelationEnum.HARVESTED_THROUGH.value,
-                           "origin": origin if origin else MetadataOriginEnum.CATALOGUE.value})
-            is_internal = True
-        relation, created = DatasetMetadataRelation.objects.get_or_create(
-            dataset_metadata=self,
-            is_internal=is_internal,
-            **kwargs
-        )
-        return relation
+class ServiceMetadata(MetadataRecord):
+    """ Concrete model class for service metadata records, which are parsed from iso metadata xml.
 
-    def remove_dataset_metadata_relation(self, related_object, relation_type, internal, origin):
-        from registry.models.service import (CatalogueService, FeatureType,
-                                             Layer)
-
-        kwargs = {}
-        if related_object._meta.model == Layer:
-            kwargs.update({"layer": related_object})
-        elif related_object._meta.model == FeatureType:
-            kwargs.update({"feature_type": related_object})
-        elif related_object._meta.model == CatalogueService:
-            kwargs.update({"csw": related_object})
-        DatasetMetadataRelation.objects.filter(
-            from_metadata=self,
-            relation_type=relation_type,
-            internal=internal,
-            origin=origin,
-            **kwargs
-        ).delete()
+    """
 
 
 class Dimension(models.Model):

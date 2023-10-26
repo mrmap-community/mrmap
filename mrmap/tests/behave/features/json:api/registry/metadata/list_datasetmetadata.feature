@@ -1,4 +1,4 @@
-Feature: DatasetMetadata List Endpoint
+Feature: DatasetMetadataRecord List Endpoint
     As an API client,
     I want to search dataset metadata records,
     so that I can search for.

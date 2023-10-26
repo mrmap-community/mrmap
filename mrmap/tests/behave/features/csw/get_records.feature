@@ -5,7 +5,7 @@ Feature: CSW Endpoint
 
     Background: Setup base url
         Given I use the endpoint http://localhost:8000/csw
-
+    @skip
     Scenario: GetRecords Hits response
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"

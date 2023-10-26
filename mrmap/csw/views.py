@@ -5,8 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.models.ogc_request import OGCRequest
-from pygeofilter.backends.django.evaluate import to_filter
-from pygeofilter.parsers.ecql import parse as parse_ecql
+from registry.models.metadata import MetadataRelation
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
                                            MissingVersionParameterException,
@@ -70,6 +69,8 @@ class CswServiceView(View):
         }  # TODO:
         q = self.ogc_request.filter_constraint(field_mapping=field_mapping)
 
+        MetadataRelation.objects.filter()
+
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method
 
@@ -79,7 +80,7 @@ class CswServiceView(View):
         if self.ogc_request.is_get_capabilities_request:
             return self.get_capabilities()
         elif self.ogc_request.is_get_records_request:
-            return self.get_records()
+            return self.get_records(request=request)
         # TODO: other csw operations
         else:
 

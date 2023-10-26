@@ -34,7 +34,7 @@ class IsoMetadataManager(models.Manager):
             **contact.transform_to_model())
         return contact
 
-    def _create_dataset_metadata(self, parsed_metadata, origin_url):
+    def _create_dataset_metadata_record(self, parsed_metadata, origin_url):
         db_metadata_contact = self._create_contact(
             contact=parsed_metadata.metadata_contact)
         db_dataset_contact = self._create_contact(
@@ -51,20 +51,17 @@ class IsoMetadataManager(models.Manager):
         }
 
         try:
-            # FIXME use empty string for dataset_id_code_space (avoid multiple identical rows)
             db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(defaults=defaults, dataset_id=parsed_metadata.dataset_id,
                                                                                                 dataset_id_code_space=parsed_metadata.dataset_id_code_space)
         except MultipleObjectsReturned:
-            # TODO clarify if datasets with NULL dataset_id/dataset_id_code_space can be ruled out somehow?
-            db_dataset_metadata = self.model.objects.create(
-                dataset_id=parsed_metadata.dataset_id,
-                dataset_id_code_space=field_dict["dataset_id_code_space"],
-                **defaults)
-            created = True
+            # if dataset_id and dataset_id_code_space is empty, this could happen
+            # fallback: search by file_identifier
+            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(
+                defaults=defaults, file_identifier=parsed_metadata.file_identifier)
 
         if not created:
             with transaction.atomic():
-                # todo: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
+                # TODO: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
                 if isinstance(field_dict["date_stamp"], date):
                     field_dict["date_stamp"] = datetime.combine(
                         field_dict["date_stamp"], datetime.min.time())
@@ -89,18 +86,18 @@ class IsoMetadataManager(models.Manager):
                                              **kwargs)
         return db_service_metadata
 
-    def update_or_create_from_parsed_metadata(self, parsed_metadata, related_object, origin_url):
+    def update_or_create_from_parsed_metadata(self, parsed_metadata, origin_url, related_object=None):
         self._reset_local_variables()
         with transaction.atomic():
             update = False
             if parsed_metadata.is_service:
-                # todo: update instead of creating, cause we generate service metadata records out of the box from
+                # TODO: update instead of creating, cause we generate service metadata records out of the box from
                 #  capabilities
                 db_metadata = self._create_service_metadata(
                     parsed_metadata=parsed_metadata)
             elif parsed_metadata.is_dataset:
-                db_metadata, exists, update = self._create_dataset_metadata(parsed_metadata=parsed_metadata,
-                                                                            origin_url=origin_url)
+                db_metadata, exists, update = self._create_dataset_metadata_record(parsed_metadata=parsed_metadata,
+                                                                                   origin_url=origin_url)
 
                 db_metadata.add_dataset_metadata_relation(
                     related_object=related_object)

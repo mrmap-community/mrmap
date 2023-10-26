@@ -1,6 +1,5 @@
 from django.db import models
-
-from registry.models.metadata import DatasetMetadata
+from registry.models.metadata import DatasetMetadataRecord
 
 
 class ConformityCheckConfigurationManager(models.Manager):
@@ -15,7 +14,7 @@ class ConformityCheckConfigurationManager(models.Manager):
 class ConformityCheckRunManager(models.Manager):
     """ Custom manager to extend ConformityCheckRun methods """
 
-    def has_running_check(self, metadata: DatasetMetadata):
+    def has_running_check(self, metadata: DatasetMetadataRecord):
         """ Checks if the given metadata object has a non-finished
         ConformityCheckRun.
 

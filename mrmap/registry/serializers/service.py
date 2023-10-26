@@ -7,8 +7,9 @@ from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer)
 from extras.validators import validate_get_capablities_uri
-from registry.models.metadata import (DatasetMetadata, Dimension, Keyword,
-                                      MetadataContact, ReferenceSystem, Style)
+from registry.models.metadata import (DatasetMetadataRecord, Dimension,
+                                      Keyword, MetadataContact,
+                                      ReferenceSystem, Style)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication)
@@ -17,7 +18,7 @@ from registry.models.service import (CatalogueService,
                                      Layer, WebFeatureService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapService, WebMapServiceOperationUrl)
-from registry.serializers.metadata import (DatasetMetadataSerializer,
+from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
                                            MetadataContactSerializer,
                                            ReferenceSystemSerializer,
@@ -71,7 +72,7 @@ class LayerSerializer(
     dataset_metadata = ResourceRelatedField(
         label=_("dataset metadata"),
         help_text=_("related dataset metadata objects"),
-        queryset=DatasetMetadata.objects,
+        queryset=DatasetMetadataRecord.objects,
         many=True,
         related_link_view_name="registry:layer-datasetmetadata-list",
         related_link_url_kwarg="parent_lookup_self_pointing_layers",
@@ -519,11 +520,12 @@ class CatalogueServiceSerializer(
     url = HyperlinkedIdentityField(
         view_name="registry:wfs-detail",
     )
-    dataset_metadata = ResourceRelatedField(
-        queryset=DatasetMetadata.objects,
+    harvested_datasets = ResourceRelatedField(
+        queryset=DatasetMetadataRecord.objects,
         many=True,
+        source="registry_datasetmetadatarecord_metadata_records",
         related_link_view_name="registry:csw-datasetmetadata-list",
-        related_link_url_kwarg="parent_lookup_self_pointing_catalogue_service",
+        related_link_url_kwarg="parent_lookup_harvested_through",
     )
     service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
@@ -550,7 +552,7 @@ class CatalogueServiceSerializer(
     )
 
     included_serializers = {
-        "dataset_metadata": DatasetMetadataSerializer,
+        "harvested_datasets": DatasetMetadataRecordSerializer,
         "service_contact": MetadataContactSerializer,
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,

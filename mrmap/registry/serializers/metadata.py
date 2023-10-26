@@ -1,5 +1,5 @@
 from extras.serializers import StringRepresentationSerializer
-from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
+from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
 from rest_framework.relations import HyperlinkedIdentityField
@@ -70,7 +70,7 @@ class MetadataContactSerializer(
         fields = "__all__"
 
 
-class DatasetMetadataSerializer(
+class DatasetMetadataRecordSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
 
@@ -133,5 +133,5 @@ class DatasetMetadataSerializer(
     }
 
     class Meta:
-        model = DatasetMetadata
+        model = DatasetMetadataRecord
         fields = "__all__"

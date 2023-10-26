@@ -22,7 +22,7 @@ def before_feature(context, feature):
     ):
         fixtures.extend(
             ['test_keywords.json', 'test_mapcontext.json', 'test_wms.json'])
-    elif 'DatasetMetadata' in feature.name:
+    elif 'DatasetMetadataRecord' in feature.name:
         fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
     elif (
         'AllowedWebMapServiceOperation' in feature.name
@@ -44,7 +44,7 @@ def before_feature(context, feature):
         or 'CatalogueService' in feature.name
     ):
         fixtures.extend(
-            ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json', 'test_datasetmetadata_relations.json'])
+            ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json'])
     elif 'BackgroundProcess' in feature.name:
         fixtures.extend(['test_background.json'])
 

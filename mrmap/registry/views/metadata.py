@@ -1,10 +1,10 @@
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
-from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
+from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
-from registry.serializers.metadata import (DatasetMetadataSerializer,
+from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
                                            MetadataContactSerializer,
@@ -115,8 +115,8 @@ class NestedStyleViewSet(
 
 
 class DatasetMetadataViewSetMixin:
-    queryset = DatasetMetadata.objects.all()
-    serializer_class = DatasetMetadataSerializer
+    queryset = DatasetMetadataRecord.objects.all()
+    serializer_class = DatasetMetadataRecordSerializer
     filterset_fields = {
         "title": ["exact", "icontains", "contains"],
         "abstract": ["exact", "icontains", "contains"],

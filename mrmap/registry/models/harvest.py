@@ -219,41 +219,41 @@ class TemporaryMdMetadataFile(models.Model):
         _file.close()
         with transaction.atomic():
             if md_metadata.is_service:
-                dataset_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                service_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
                     parsed_metadata=md_metadata,
                     origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url)
 
-                dataset_metadata.harvested_through.add(self.job.service)
+                service_metadata.harvested_through.add(self.job.service)
 
                 if exists and update:
-                    self.job.updated_dataset_records.add(dataset_metadata)
+                    self.job.updated_service_records.add(service_metadata)
                 elif exists and not update:
-                    self.job.existing_dataset_records.add(dataset_metadata)
+                    self.job.existing_service_records.add(service_metadata)
                 elif not exists:
-                    self.job.new_dataset_records.add(dataset_metadata)
+                    self.job.new_service_records.add(service_metadata)
 
                 if not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
                     self.job.done_at = now()
                     self.job.save()
                 self.delete()
-                return dataset_metadata
+                return service_metadata
 
             elif md_metadata.is_dataset:
-                dataset_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                service_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
                     parsed_metadata=md_metadata,
                     origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url)
 
-                dataset_metadata.harvested_through.add(self.job.service)
+                service_metadata.harvested_through.add(self.job.service)
 
                 if exists and update:
-                    self.job.updated_dataset_records.add(dataset_metadata)
+                    self.job.updated_dataset_records.add(service_metadata)
                 elif exists and not update:
-                    self.job.existing_dataset_records.add(dataset_metadata)
+                    self.job.existing_dataset_records.add(service_metadata)
                 elif not exists:
-                    self.job.new_dataset_records.add(dataset_metadata)
+                    self.job.new_dataset_records.add(service_metadata)
 
                 if not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
                     self.job.done_at = now()
                     self.job.save()
                 self.delete()
-                return dataset_metadata
+                return service_metadata

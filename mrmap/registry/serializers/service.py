@@ -1,3 +1,4 @@
+from operator import itemgetter
 from typing import List
 
 from accounts.models.groups import Organization
@@ -69,14 +70,15 @@ class LayerSerializer(
         related_link_url_kwarg="parent_lookup_layer_metadata",
     )
 
-    dataset_metadata = ResourceRelatedField(
-        label=_("dataset metadata"),
-        help_text=_("related dataset metadata objects"),
-        queryset=DatasetMetadataRecord.objects,
-        many=True,
-        related_link_view_name="registry:layer-datasetmetadata-list",
-        related_link_url_kwarg="parent_lookup_self_pointing_layers",
-    )
+    # dataset_metadata = ResourceRelatedField(
+    # label=_("dataset metadata"),
+    # help_text=_("related dataset metadata objects"),
+    # queryset=DatasetMetadataRecord.objects,
+    # source="registry_datasetmetadatarecord_metadata_records",
+    # many=True,
+    # related_link_view_name="registry:layer-datasetmetadata-list",
+    # related_link_url_kwarg="parent_lookup_self_pointing_layers",
+    # )
     bbox = GeometryField(
         source="bbox_lat_lon",
         label=_("bbox_l_l"),
@@ -232,7 +234,9 @@ class WebMapServiceHistorySerializer(ModelSerializer):
                 changes.append(
                     {"field": change.field, "old": change.old, "new": change.new})
 
-            return changes
+            # otherwise the order is not fix and reproducible for test cases
+            sorted_changes = sorted(changes, key=itemgetter('field'))
+            return sorted_changes
 
 
 class WebMapServiceListSerializer(

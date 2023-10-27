@@ -168,7 +168,7 @@ class WebMapServiceViewSet(
                         queryset=Keyword.objects.only("id")
                     ),
                     Prefetch(
-                        "metadata_relations",
+                        "registry_datasetmetadatarecord_metadata_records",
                         queryset=DatasetMetadataRecord.objects.only("id")
                     )
                 )
@@ -276,7 +276,7 @@ class LayerViewSetMixin(
         "styles": ["styles"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],
-        "dataset_metadata": ["metadata_relations"]
+        "dataset_metadata": ["registry_datasetmetadatarecord_metadata_records"]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
@@ -313,7 +313,7 @@ class LayerViewSetMixin(
         if not include or "datasetMetadata" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
-                    "metadata_relations", queryset=DatasetMetadataRecord.objects.only("id")
+                    "registry_datasetmetadatarecord_metadata_records", queryset=DatasetMetadataRecord.objects.only("id")
                 )
             )
 

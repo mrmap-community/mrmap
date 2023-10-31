@@ -84,7 +84,7 @@ class CswServiceView(View):
                 "dataset_metadata__dataset_id"),  output_field=CharField())
         )
 
-        # TODO: catch FieldError for unsupported fields
+        # TODO: catch FieldError for unsupported filter fields
         result = result.filter(q)
 
         result_type = self.ogc_request.ogc_query_params.get(

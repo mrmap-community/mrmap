@@ -395,7 +395,9 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
 
-    language = None  # Todo
+    language = None  # TODO
+    category = None  # TODO: Inspire + iso + various
+
     # TODO: check if xml_mapper_cls could be removed
     xml_mapper_cls = MdMetadata
 
@@ -549,8 +551,29 @@ class MetadataRelation(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                name="%(app_label)s_%(class)s_one_related_object_selected",
+                name="one_related_object_selected",
                 check=VALID_RELATIONS
+            ),
+            # service like resources can only have one describing service metadata
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_layer",
+                fields=["service_metadata", "layer"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_feature_type",
+                fields=["service_metadata", "feature_type"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_csw",
+                fields=["service_metadata", "csw"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_wms",
+                fields=["service_metadata", "wms"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_wfs",
+                fields=["service_metadata", "wfs"]
             )
         ]
 

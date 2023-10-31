@@ -3,6 +3,7 @@ from datetime import date, datetime
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 from registry.enums.metadata import MetadataOrigin
 from registry.exceptions.metadata import UnknownMetadataKind

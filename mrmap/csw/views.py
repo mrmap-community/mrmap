@@ -124,8 +124,7 @@ class CswServiceView(View):
                 elif record.service_metadata:
                     xml.gmd_records.append(
                         record.service_metadata.xml_backup)
-
-        return HttpResponse(status=200, content=xml.serialize(), content_type="application/xml")
+        return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method

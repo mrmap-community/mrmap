@@ -398,7 +398,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     language = None  # TODO
     category = None  # TODO: Inspire + iso + various
 
-    # TODO: check if xml_mapper_cls could be removed
+    # needed for Docuement mixin to load the backupfile into the correct xml mapper class
     xml_mapper_cls = MdMetadata
 
     class Meta:

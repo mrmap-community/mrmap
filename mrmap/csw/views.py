@@ -8,6 +8,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.models.ogc_request import OGCRequest
+from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.metadata import MetadataRelation
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
@@ -23,7 +24,6 @@ class CswServiceView(View):
     """
 
     def dispatch(self, request, *args, **kwargs):
-        print("huhu")
         self.start_time = datetime.datetime.now()
         self.ogc_request = OGCRequest.from_django_request(request)
 
@@ -76,13 +76,17 @@ class CswServiceView(View):
         }
         q = self.ogc_request.filter_constraint(field_mapping=field_mapping)
 
+        # TODO: implement type filter
+        # TODO: implement default ordering
+        # TODO: implement ordering parameter
+
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
 
         result = MetadataRelation.objects.annotate(
             resource_identifier=Concat(F("dataset_metadata__dataset_id_code_space"), F(
                 "dataset_metadata__dataset_id"),  output_field=CharField())
-        )
+        ).prefetch_related("dataset_metadata", "service_metadata")
 
         # TODO: catch FieldError for unsupported filter fields
         result = result.filter(q)
@@ -91,7 +95,31 @@ class CswServiceView(View):
             "resultType", "hits")
 
         if result_type == "hits":
-            result = result.count()
+            total_records = result.count()
+            xml = GetRecordsResponse(
+                total_records=total_records,
+                records_returned=total_records,
+                version="2.0.2",
+                time_stamp=self.start_time
+
+            )
+        else:
+            total_records = len(result)
+            xml = GetRecordsResponse(
+                total_records=total_records,
+                records_returned=total_records,
+                version="2.0.2",
+                time_stamp=self.start_time
+            )
+            for record in result:
+                if record.dataset_metadata:
+                    xml.gmd_records.append(
+                        record.dataset_metadata.xml_backup)
+                elif record.service_metadata:
+                    xml.gmd_records.append(
+                        record.service_metadata.xml_backup)
+
+        return HttpResponse(status=200, content=xml.serializeDocument(), content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method

@@ -83,6 +83,7 @@ class CswServiceView(View):
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
 
+        # TODO: only prefetch related if result_type is not hits
         result = MetadataRelation.objects.annotate(
             resource_identifier=Concat(F("dataset_metadata__dataset_id_code_space"), F(
                 "dataset_metadata__dataset_id"),  output_field=CharField())
@@ -90,24 +91,29 @@ class CswServiceView(View):
 
         # TODO: catch FieldError for unsupported filter fields
         result = result.filter(q)
+        total_records = result.count()
+
+        start_position = int(
+            self.ogc_request.ogc_query_params.get("startPosition", "1")) - 1
+        max_records = int(
+            self.ogc_request.ogc_query_params.get("maxRecords", "10"))
+
+        result = result[start_position: start_position + max_records]
 
         result_type = self.ogc_request.ogc_query_params.get(
             "resultType", "hits")
 
         if result_type == "hits":
-            total_records = result.count()
             xml = GetRecordsResponse(
                 total_records=total_records,
-                records_returned=total_records,
+                records_returned=len(result),
                 version="2.0.2",
                 time_stamp=self.start_time
-
             )
         else:
-            total_records = len(result)
             xml = GetRecordsResponse(
                 total_records=total_records,
-                records_returned=total_records,
+                records_returned=len(result),
                 version="2.0.2",
                 time_stamp=self.start_time
             )
@@ -119,7 +125,7 @@ class CswServiceView(View):
                     xml.gmd_records.append(
                         record.service_metadata.xml_backup)
 
-        return HttpResponse(status=200, content=xml.serializeDocument(), content_type="application/xml")
+        return HttpResponse(status=200, content=xml.serialize(), content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method

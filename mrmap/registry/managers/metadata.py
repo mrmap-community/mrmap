@@ -104,13 +104,13 @@ class IsoMetadataManager(models.Manager):
                     related_object=related_object)
                 if not exists:
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
-                                                     content=ContentFile(str(parsed_metadata.serializeDocument(), "UTF-8")))
+                                                     content=ContentFile(str(parsed_metadata.serialize(), "UTF-8")))
                 elif update:
                     # TODO: on update we need to check custom metadata
                     # TODO: delete old file
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(
-                                                         str(parsed_metadata.serializeDocument(), "UTF-8")))
+                                                         str(parsed_metadata.serialize(), "UTF-8")))
             else:
                 raise UnknownMetadataKind(
                     "Parsed metadata object is neither describing a service nor describing a dataset. We can't handle it.")

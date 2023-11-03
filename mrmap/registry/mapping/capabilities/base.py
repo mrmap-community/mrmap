@@ -21,7 +21,7 @@ class OgcServiceElementToXmlMappingBase(MappingBase):
         xml_metadata_url_mapper_cls = getattr(
             import_module(
                 get_import_path_for_xml_mapper(
-                    self._destination_obj.serializeDocument()
+                    self._destination_obj.serialize()
                 )
             ),
             "RemoteMetadata")

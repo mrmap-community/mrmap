@@ -8,6 +8,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.models.ogc_request import OGCRequest
+from ows_lib.xml_mapper.exceptions import OGCServiceException
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.metadata import MetadataRelation
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
@@ -75,6 +76,8 @@ class CswServiceView(View):
             "ResourceIdentifier": "resource_identifier"
         }
         q = self.ogc_request.filter_constraint(field_mapping=field_mapping)
+        if isinstance(q, OGCServiceException):
+            return q
 
         # TODO: implement type filter
         # TODO: implement default ordering
@@ -98,7 +101,12 @@ class CswServiceView(View):
         max_records = int(
             self.ogc_request.ogc_query_params.get("maxRecords", "10"))
 
-        result = result[start_position: start_position + max_records]
+        heap_count = start_position + max_records
+        next_record = heap_count + 1
+        next_record = next_record if next_record < total_records else total_records
+
+        result = result[start_position: heap_count]
+        records_returned = len(result)
 
         result_type = self.ogc_request.ogc_query_params.get(
             "resultType", "hits")
@@ -106,16 +114,18 @@ class CswServiceView(View):
         if result_type == "hits":
             xml = GetRecordsResponse(
                 total_records=total_records,
-                records_returned=len(result),
+                records_returned=records_returned,
                 version="2.0.2",
-                time_stamp=self.start_time
+                time_stamp=self.start_time,
+                next_record=0 if next_record == total_records else next_record
             )
         else:
             xml = GetRecordsResponse(
                 total_records=total_records,
-                records_returned=len(result),
+                records_returned=records_returned,
                 version="2.0.2",
-                time_stamp=self.start_time
+                time_stamp=self.start_time,
+                next_record=0 if next_record == total_records else next_record
             )
             for record in result:
                 if record.dataset_metadata:

@@ -69,6 +69,8 @@ services:
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
+    deploy:
+      replicas: 5
     command: >
       /bin/sh -c "celery -A MrMap worker -E -l INFO -Q default,download,db-routines"
     tty: true # To support colorized log output.

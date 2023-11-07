@@ -5,7 +5,7 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
-from registry.enums.metadata import MetadataOrigin
+from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.metadata import UnknownMetadataKind
 from simple_history.models import HistoricalRecords
 
@@ -35,7 +35,7 @@ class IsoMetadataManager(models.Manager):
             **contact.transform_to_model())
         return contact
 
-    def _create_dataset_metadata_record(self, parsed_metadata, origin_url):
+    def _create_dataset_metadata_record(self, parsed_metadata, origin_url, origin=MetadataOriginEnum.CATALOGUE.value):
         db_metadata_contact = self._create_contact(
             contact=parsed_metadata.metadata_contact)
         db_dataset_contact = self._create_contact(
@@ -46,7 +46,7 @@ class IsoMetadataManager(models.Manager):
         defaults = {
             'metadata_contact': db_metadata_contact,
             'dataset_contact': db_dataset_contact,
-            'origin': MetadataOrigin.ISO_METADATA.value,
+            'origin': origin,
             'origin_url': origin_url,
             **field_dict,
         }
@@ -87,7 +87,7 @@ class IsoMetadataManager(models.Manager):
                                              **kwargs)
         return db_service_metadata
 
-    def update_or_create_from_parsed_metadata(self, parsed_metadata, origin_url, related_object=None):
+    def update_or_create_from_parsed_metadata(self, parsed_metadata, origin_url, related_object=None, origin=MetadataOriginEnum.CATALOGUE.value):
         self._reset_local_variables()
         with transaction.atomic():
             update = False
@@ -95,10 +95,13 @@ class IsoMetadataManager(models.Manager):
                 # TODO: update instead of creating, cause we generate service metadata records out of the box from
                 #  capabilities
                 db_metadata = self._create_service_metadata(
-                    parsed_metadata=parsed_metadata)
+                    parsed_metadata=parsed_metadata,
+                    origin_url=origin_url,
+                    oritin=origin)
             elif parsed_metadata.is_dataset:
                 db_metadata, exists, update = self._create_dataset_metadata_record(parsed_metadata=parsed_metadata,
-                                                                                   origin_url=origin_url)
+                                                                                   origin_url=origin_url,
+                                                                                   origin=origin)
 
                 db_metadata.add_dataset_metadata_relation(
                     related_object=related_object)

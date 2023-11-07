@@ -33,6 +33,16 @@ services:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
       IPYTHONENABLE: "True"
+    ports:
+      - "0.0.0.0:3002:5678"
+
+  celery-beat:
+    command: >
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
+    environment:
+      PYDEVD_LOAD_VALUES_ASYNC: "True"
+      PYTHONUNBUFFERED: "1"
+      IPYTHONENABLE: "True"
     #ports:
     #  - "0.0.0.0:3002:5678"
 

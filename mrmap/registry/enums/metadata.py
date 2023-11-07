@@ -22,6 +22,7 @@ class MetadataOriginEnum(TextChoices):
     """
     CAPABILITIES = "Capabilities"
     UPLOAD = "Upload"
+    FILE_SYSTEM_IMPORT = "File System Import"
     EDITOR = "Editor"
     CATALOGUE = "Catalogue"
 
@@ -47,11 +48,6 @@ class DatasetFormatEnum(TextChoices):
 
 class MetadataCharset(TextChoices):
     UTF8 = "utf8"
-
-
-class MetadataOrigin(TextChoices):
-    CAPABILITIES = "capabilities"
-    ISO_METADATA = "iso metadata"
 
 
 class ReferenceSystemPrefixEnum(TextChoices):

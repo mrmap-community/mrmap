@@ -32,7 +32,11 @@ with open('/etc/os-release', 'r') as file:
 
 
 def check_path_access(path: str):
+
     has_access = os.access(path, os.R_OK | os.X_OK | os.W_OK)
+    if not os.path.exists(path) and has_access:
+        os.makedirs(path)
+
     if not has_access:
         warn(
             message=f"no full access to path {path}. Fallback to current base directory.")
@@ -435,6 +439,8 @@ ERROR_MASK_TXT = (
 
 LOG_DIR = os.environ.get(
     "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
+
+
 LOG_DIR = LOG_DIR if check_path_access(
     LOG_DIR) else f"{BASE_DIR}/logs"
 
@@ -444,6 +450,17 @@ LOG_FILE_BACKUP_COUNT = 5
 # create log dir if it does not exist
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
+
+
+FILE_IMPORT_DIR = os.environ.get(
+    "MRMAP_FILE_IMPORT_DIR", f"/var/mrmap/import")
+
+FILE_IMPORT_DIR = FILE_IMPORT_DIR if check_path_access(
+    FILE_IMPORT_DIR) else f"{BASE_DIR}/import"
+
+if not os.path.exists(FILE_IMPORT_DIR):
+    os.makedirs(FILE_IMPORT_DIR)
+
 
 LOGGING = {
     "version": 1,

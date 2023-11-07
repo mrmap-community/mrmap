@@ -13,7 +13,7 @@ from MrMap.settings import PROXIES
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
-                                     MetadataOrigin, MetadataOriginEnum,
+                                     MetadataOriginEnum,
                                      ReferenceSystemPrefixEnum)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import IsoMetadataManager, KeywordManager
@@ -353,7 +353,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                                    "the uuid of the described layer/featuretype shall be used to "
                                                    "identify the generated iso metadata xml."))
     origin = models.CharField(max_length=20,
-                              choices=MetadataOrigin.choices,
+                              choices=MetadataOriginEnum.choices,
                               editable=False,
                               verbose_name=_("origin"),
                               help_text=_("Where the metadata record comes from."))

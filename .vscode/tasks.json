@@ -142,6 +142,27 @@
             ]
         },
         {
+            "label": "Docker Compose: mrmap celery-beat",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
+                "up",
+                "--remove-orphans",
+                "--build",
+                "--exit-code-from",
+                "celery-beat",
+                "--abort-on-container-exit",
+                "celery-beat"
+            ]
+        },
+        {
             "label": "Docker Compose: run pre commit checks",
             "type": "shell",
             "command": "docker",

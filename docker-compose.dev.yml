@@ -121,6 +121,16 @@ services:
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q default,download,db-routines"
 
+  celery-beat:
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    command: >
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
+
   sonarqube:
     # initial admin account: admin:admin 
     image: sonarqube

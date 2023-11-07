@@ -17,7 +17,7 @@ from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query import Prefetch, Q
 from extras.managers import DefaultHistoryManager
 from mptt.managers import TreeManager
-from registry.enums.metadata import MetadataOrigin
+from registry.enums.metadata import MetadataOriginEnum
 from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, Style, TimeExtent,
@@ -101,7 +101,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         db_service_contact, _ = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
 
-        service: WebMapService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
+        service: WebMapService = super().create(origin=MetadataOriginEnum.CAPABILITIES.value,
                                                 service_contact=db_service_contact,
                                                 metadata_contact=db_service_contact,
                                                 **parsed_service.transform_to_model())
@@ -219,7 +219,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         from registry.models.service import Layer
         node = Layer(service=db_service,
                      parent=db_parent,
-                     origin=MetadataOrigin.CAPABILITIES.value,
+                     origin=MetadataOriginEnum.CAPABILITIES.value,
                      **parsed_layer.transform_to_model())
         self._update_transient_objects({"layer_list": [node]})
 
@@ -320,7 +320,7 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         db_service_contact, created = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
 
-        service: WebFeatureService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
+        service: WebFeatureService = super().create(origin=MetadataOriginEnum.CAPABILITIES.value,
                                                     service_contact=db_service_contact,
                                                     metadata_contact=db_service_contact,
                                                     **parsed_service.transform_to_model())
@@ -382,7 +382,7 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         from registry.models.service import FeatureType
         for parsed_feature_type in parsed_service.feature_types:
             db_feature_type = FeatureType(service=db_service,
-                                          origin=MetadataOrigin.CAPABILITIES.value,
+                                          origin=MetadataOriginEnum.CAPABILITIES.value,
                                           **parsed_feature_type.transform_to_model())
             self._update_transient_objects(
                 {"feature_type_list": [db_feature_type]})
@@ -436,7 +436,7 @@ class CatalogueServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
         db_service_contact, created = MetadataContact.objects.get_or_create(
             **parsed_service_contact.transform_to_model())
 
-        service: CatalogueService = super().create(origin=MetadataOrigin.CAPABILITIES.value,
+        service: CatalogueService = super().create(origin=MetadataOriginEnum.CAPABILITIES.value,
                                                    service_contact=db_service_contact,
                                                    metadata_contact=db_service_contact,
                                                    **parsed_service.transform_to_model())

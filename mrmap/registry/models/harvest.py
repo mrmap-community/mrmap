@@ -14,6 +14,7 @@ from eulxml import xmlmap
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
+from registry.enums.metadata import MetadataOriginEnum
 from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
@@ -156,17 +157,15 @@ class HarvestingJob(models.Model):
 
         md_metadata: XmlMdMetadata
         db_md_metadata_file_list = []
-        _counter = 0
-        for md_metadata in get_records_response.gmd_records:
+        for idx, md_metadata in enumerate(get_records_response.gmd_records):
             db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
                 job=self)
             # save the file without saving the instance in db... this will be done with bulk_create
             db_md_metadata_file.md_metadata_file.save(
-                name=f"record_nr_{_counter + start_position}",
+                name=f"record_nr_{idx + start_position}",
                 content=ContentFile(content=md_metadata.serialize()),
                 save=False)
             db_md_metadata_file_list.append(db_md_metadata_file)
-            _counter += 1
 
         db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
             objs=db_md_metadata_file_list)
@@ -176,18 +175,19 @@ class HarvestingJob(models.Model):
 
 def response_file_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/xml_documents/<id>/<filename>
-    return 'get_records_response/{0}/{1}'.format(instance.pk, filename)
+    return 'temporary_md_metadata_file/{0}/{1}'.format(instance.pk, filename)
 
 
 class TemporaryMdMetadataFile(models.Model):
     job: HarvestingJob = models.ForeignKey(
         to=HarvestingJob,
         on_delete=models.CASCADE,
-        verbose_name=_("harvesting job"))
+        verbose_name=_("harvesting job"),
+        null=True)
     md_metadata_file: FieldFile = models.FileField(
         verbose_name=_("response"),
         help_text=_(
-            "the content of the http response"),
+            "the content of the http response, or of the imported file"),
         upload_to=response_file_path,
         editable=False)
 
@@ -218,42 +218,44 @@ class TemporaryMdMetadataFile(models.Model):
             xmlclass=XmlMdMetadata)
         _file.close()
         with transaction.atomic():
+            db_metadata = None
             if md_metadata.is_service:
-                service_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
                     parsed_metadata=md_metadata,
-                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url)
-
-                service_metadata.harvested_through.add(self.job.service)
-
-                if exists and update:
-                    self.job.updated_service_records.add(service_metadata)
-                elif exists and not update:
-                    self.job.existing_service_records.add(service_metadata)
-                elif not exists:
-                    self.job.new_service_records.add(service_metadata)
-
-                if not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
-                    self.job.done_at = now()
-                    self.job.save()
-                self.delete()
-                return service_metadata
-
+                    origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
             elif md_metadata.is_dataset:
-                service_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
                     parsed_metadata=md_metadata,
-                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url)
+                    origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
+            else:
+                raise Exception("file is neither server nor dataset record ")
+            if db_metadata:
+                if self.job:
+                    self.update_relations(
+                        md_metadata, exists, update, db_metadata)
 
-                service_metadata.harvested_through.add(self.job.service)
-
-                if exists and update:
-                    self.job.updated_dataset_records.add(service_metadata)
-                elif exists and not update:
-                    self.job.existing_dataset_records.add(service_metadata)
-                elif not exists:
-                    self.job.new_dataset_records.add(service_metadata)
-
-                if not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
+                if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
                     self.job.done_at = now()
                     self.job.save()
                 self.delete()
-                return service_metadata
+                return db_metadata
+
+    def update_relations(self, md_metadata, exists, update, db_metadata):
+        db_metadata.harvested_through.add(self.job.service)
+
+        if md_metadata.is_service:
+            if exists and update:
+                self.job.updated_service_records.add(db_metadata)
+            elif exists and not update:
+                self.job.existing_service_records.add(db_metadata)
+            elif not exists:
+                self.job.new_service_records.add(db_metadata)
+        elif md_metadata.is_dataset:
+            if exists and update:
+                self.job.updated_dataset_records.add(db_metadata)
+            elif exists and not update:
+                self.job.existing_dataset_records.add(db_metadata)
+            elif not exists:
+                self.job.new_dataset_records.add(db_metadata)

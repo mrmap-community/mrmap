@@ -1,13 +1,15 @@
 
 from django.db.models.expressions import F
 from django.db.models.fields import CharField
-from django.db.models.functions import Concat, datetime
+from django.db.models.functions import Cast, Coalesce, Concat, datetime
 from django.db.models.query_utils import Q
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.models.ogc_request import OGCRequest
+from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
+                                                        ServiceType)
 from ows_lib.xml_mapper.exceptions import OGCServiceException
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.metadata import MetadataRelation
@@ -50,10 +52,15 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
         # TODO: build capabilities document for mrmap csw server
-        content = ""
+
+        csw_capabilities = CatalogueService(
+            service_type=ServiceType(version="2.0.2", _name="CSW")
+        )
 
         return HttpResponse(
-            status=200, content=content, content_type="application/xml"
+            status=200,
+            content=csw_capabilities.serializeDocument(),
+            content_type="application/xml"
         )
 
     def get_records(self, request):
@@ -80,17 +87,40 @@ class CswServiceView(View):
             return q
 
         # TODO: implement type filter
-        # TODO: implement default ordering
-        # TODO: implement ordering parameter
 
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
 
         # TODO: only prefetch related if result_type is not hits
         result = MetadataRelation.objects.annotate(
-            resource_identifier=Concat(F("dataset_metadata__dataset_id_code_space"), F(
-                "dataset_metadata__dataset_id"),  output_field=CharField())
-        ).prefetch_related("dataset_metadata", "service_metadata")
+            resource_identifier=Concat(
+                F("dataset_metadata__dataset_id_code_space"),
+                F("dataset_metadata__dataset_id"),
+                output_field=CharField()
+            ),
+            file_identifier=Coalesce(
+                "dataset_metadata__file_identifier",
+                "service_metadata__file_identifier",
+                Cast("layer__id", CharField()),
+                Cast("feature_type__id", CharField()),
+                Cast("wms__id", CharField()),
+                Cast("wfs__id", CharField()),
+                Cast("csw__id", CharField()),
+                output_field=CharField()
+            )
+        ).prefetch_related(
+            "dataset_metadata",
+            "service_metadata"
+
+        )
+
+        # .order_by(
+        #     # Default action is to
+        #     # present the records
+        #     # in the order in which
+        #     # they are retrieved
+        #     "-file_identifier"
+        # )
 
         # TODO: catch FieldError for unsupported filter fields
         result = result.filter(q)

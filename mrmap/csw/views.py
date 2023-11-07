@@ -1,4 +1,6 @@
 
+import socket
+
 from django.db.models.expressions import F
 from django.db.models.fields import CharField
 from django.db.models.functions import Cast, Coalesce, Concat, datetime
@@ -9,7 +11,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
+                                                        ServiceMetadataContact,
                                                         ServiceType)
+from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.exceptions import OGCServiceException
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.metadata import MetadataRelation
@@ -44,7 +48,7 @@ class CswServiceView(View):
         elif not self.ogc_request.service_type:
             return MissingServiceParameterException(ogc_request=self.ogc_request)
 
-    def get_capabilities(self):
+    def get_capabilities(self, request):
         """Return the camouflaged capabilities document of the founded service.
         .. note::
            See :meth:`registry.models.document.DocumentModelMixin.xml_secured` for details of xml_secured function.
@@ -52,9 +56,24 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
         # TODO: build capabilities document for mrmap csw server
+        try:
+            HOSTNAME = socket.gethostname()
+        except:
+            HOSTNAME = 'localhost'
 
         csw_capabilities = CatalogueService(
             service_type=ServiceType(version="2.0.2", _name="CSW")
+        )
+        csw_capabilities.title = "Mr. Map CSW"
+        csw_capabilities.service_contact = ServiceMetadataContact(name="test")
+
+        csw_capabilities.operation_urls.extend(
+            [
+                OperationUrl(method="Get", operation="GetCapabilities",
+                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
+                OperationUrl(method="Get", operation="GetRecords",
+                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"])
+            ]
         )
 
         return HttpResponse(
@@ -173,7 +192,7 @@ class CswServiceView(View):
         :rtype: dict or :class:`requests.models.Request`
         """
         if self.ogc_request.is_get_capabilities_request:
-            return self.get_capabilities()
+            return self.get_capabilities(request=request)
         elif self.ogc_request.is_get_records_request:
             return self.get_records(request=request)
         # TODO: other csw operations

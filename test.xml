@@ -662,5 +662,5 @@
             </gmd:metadataConstraints>
         </gmd:MD_Metadata>
     </csw:SearchResults>
-</csw:GetRecordsResponse
+</csw:GetRecordsResponse>
 

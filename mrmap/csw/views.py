@@ -1,7 +1,7 @@
 
-import socket
-
-from django.db.models.expressions import F
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.expressions import ArraySubquery
+from django.db.models.expressions import F, OuterRef
 from django.db.models.fields import CharField
 from django.db.models.functions import Cast, Coalesce, Concat, datetime
 from django.db.models.query_utils import Q
@@ -16,7 +16,7 @@ from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.exceptions import OGCServiceException
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
-from registry.models.metadata import MetadataRelation
+from registry.models.metadata import Keyword, MetadataRelation
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
                                            MissingVersionParameterException,
@@ -48,6 +48,37 @@ class CswServiceView(View):
         elif not self.ogc_request.service_type:
             return MissingServiceParameterException(ogc_request=self.ogc_request)
 
+    def get_basic_queryset(self):
+        # TODO: only prefetch related if result_type is not hits
+        return MetadataRelation.objects.annotate(
+            resource_identifier=Concat(
+                F("dataset_metadata__dataset_id_code_space"),
+                F("dataset_metadata__dataset_id"),
+                output_field=CharField()
+            ),
+            file_identifier=Coalesce(
+                "dataset_metadata__file_identifier",
+                "service_metadata__file_identifier",
+                Cast("layer__id", CharField()),
+                Cast("feature_type__id", CharField()),
+                Cast("wms__id", CharField()),
+                Cast("wfs__id", CharField()),
+                Cast("csw__id", CharField()),
+                output_field=CharField()
+            ),
+            keywords=ArraySubquery(
+                Keyword.objects.filter(
+                    Q(datasetmetadatarecord_metadata=OuterRef(
+                        "dataset_metadata__pk"))
+                    | Q(servicemetadatarecord_metadata=OuterRef(
+                        "service_metadata__pk"))
+                ).distinct("keyword").values("keyword")
+            )
+        ).prefetch_related(
+            "dataset_metadata",
+            "service_metadata"
+        )
+
     def get_capabilities(self, request):
         """Return the camouflaged capabilities document of the founded service.
         .. note::
@@ -56,10 +87,8 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
         # TODO: build capabilities document for mrmap csw server
-        try:
-            HOSTNAME = socket.gethostname()
-        except:
-            HOSTNAME = 'localhost'
+
+        keywords = self.get_basic_queryset().values_list("keywords", flat=True)
 
         csw_capabilities = CatalogueService(
             service_type=ServiceType(version="2.0.2", _name="CSW")
@@ -105,33 +134,11 @@ class CswServiceView(View):
         if isinstance(q, OGCServiceException):
             return q
 
-        # TODO: implement type filter
-
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
+        result = self.get_basic_queryset()
 
-        # TODO: only prefetch related if result_type is not hits
-        result = MetadataRelation.objects.annotate(
-            resource_identifier=Concat(
-                F("dataset_metadata__dataset_id_code_space"),
-                F("dataset_metadata__dataset_id"),
-                output_field=CharField()
-            ),
-            file_identifier=Coalesce(
-                "dataset_metadata__file_identifier",
-                "service_metadata__file_identifier",
-                Cast("layer__id", CharField()),
-                Cast("feature_type__id", CharField()),
-                Cast("wms__id", CharField()),
-                Cast("wfs__id", CharField()),
-                Cast("csw__id", CharField()),
-                output_field=CharField()
-            )
-        ).prefetch_related(
-            "dataset_metadata",
-            "service_metadata"
-
-        )
+        # TODO: implement type filter
 
         # .order_by(
         #     # Default action is to

@@ -40,7 +40,7 @@ class WebMapServiceToXmlMappingBase(OgcServiceToXmlMappingBase, metaclass=Mappin
 
         for layer in self.source.layers.filter(is_active=True):
             xml_layer_mapper_cls = getattr(import_module(get_import_path_for_xml_mapper(
-                self._destination_obj.serialize())), "Layer")
+                self._destination_obj.serializeDocument())), "Layer")
             layer_mapper_cls = forward_mapping_factory(
                 from_obj=Layer, to_obj=xml_layer_mapper_cls, base_mapping=LayerToXmlMappingBase, mappings=mappings)
             layer_mapper = layer_mapper_cls(source_obj=layer)

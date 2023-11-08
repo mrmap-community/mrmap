@@ -27,7 +27,7 @@ class WebFeatureServiceToXmlMappingBase(OgcServiceToXmlMappingBase, metaclass=Ma
 
         for feature_type in self.source.featuretypes.filter(is_active=True):
             xml_feature_type_mapper_cls = getattr(import_module(get_import_path_for_xml_mapper(
-                self._destination_obj.serialize())), "FeatureType")
+                self._destination_obj.serializeDocument())), "FeatureType")
             mapper_cls = forward_mapping_factory(
                 from_obj=FeatureType, to_obj=xml_feature_type_mapper_cls, base_mapping=FeatureTypeToXmlMappingBase, mappings=mappings)
             mapper = mapper_cls(source_obj=feature_type)

@@ -3,7 +3,7 @@ from pathlib import Path
 from django.test import TestCase
 from eulxml.xmlmap import load_xmlobject_from_file
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
-from registry.models.metadata import DatasetMetadataRecord
+from registry.models.metadata import DatasetMetadataRecord, Keyword
 
 
 class IsoMetadataManagerTest(TestCase):
@@ -22,3 +22,6 @@ class IsoMetadataManagerTest(TestCase):
 
         db_count = DatasetMetadataRecord.objects.count()
         self.assertEqual(1, db_count)
+
+        db_keyword_count = Keyword.objects.count()
+        self.assertEqual(6, db_keyword_count)

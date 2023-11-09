@@ -1,5 +1,7 @@
 from datetime import date, datetime
+from logging import Logger
 
+from django.conf import settings
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import models, transaction
@@ -8,6 +10,8 @@ from django.utils import timezone
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.metadata import UnknownMetadataKind
 from simple_history.models import HistoricalRecords
+
+logger: Logger = settings.ROOT_LOGGER
 
 
 class IsoMetadataManager(models.Manager):
@@ -117,24 +121,36 @@ class IsoMetadataManager(models.Manager):
             else:
                 raise UnknownMetadataKind(
                     "Parsed metadata object is neither describing a service nor describing a dataset. We can't handle it.")
-            if update:
+            if not exists and update or not exists and not update:
                 db_keyword_list = []
-                from mrmap.registry.models.metadata import \
+                from registry.models.metadata import \
                     Keyword  # to prevent from circular imports
                 for keyword in parsed_metadata.keywords:
-                    db_keyword, created = Keyword.objects.get_or_create(
-                        **keyword.transform_to_model())
-                    db_keyword_list.append(db_keyword)
-                db_metadata.keywords.set(*db_keyword_list)
+                    kwargs = keyword.transform_to_model()
+                    if not kwargs:
+                        continue
+                    try:
+                        db_keyword, created = Keyword.objects.get_or_create(
+                            **kwargs)
+                        db_keyword_list.append(db_keyword)
+                    except MultipleObjectsReturned:
+                        logger.warning(
+                            f"Multiple objects returned for model 'Keyword' with kwargs '{kwargs}'")
+                db_metadata.keywords.set(db_keyword_list)
 
                 db_reference_system_list = []
-                from mrmap.registry.models.metadata import \
+                from registry.models.metadata import \
                     ReferenceSystem  # to prevent from circular imports
                 for reference_system in parsed_metadata.reference_systems:
-                    db_reference_system, created = ReferenceSystem.objects.get_or_create(
-                        **reference_system.transform_to_model())
-                    db_reference_system_list.append(db_reference_system)
-                db_metadata.reference_systems.set(*db_reference_system_list)
+                    kwargs = reference_system.transform_to_model()
+                    try:
+                        db_reference_system, created = ReferenceSystem.objects.get_or_create(
+                            **kwargs)
+                        db_reference_system_list.append(db_reference_system)
+                    except MultipleObjectsReturned:
+                        logger.warning(
+                            f"Multiple objects returned for model 'ReferenceSystem' with kwargs '{kwargs}'")
+                db_metadata.reference_systems.set(db_reference_system_list)
 
             # TODO: categories
 

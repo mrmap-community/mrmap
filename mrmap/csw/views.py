@@ -1,7 +1,6 @@
-
-from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.gis.db.models.fields import MultiPolygonField
 from django.contrib.postgres.expressions import ArraySubquery
-from django.db.models.expressions import F, OuterRef
+from django.db.models.expressions import Case, F, OuterRef, Value, When
 from django.db.models.fields import CharField
 from django.db.models.functions import Cast, Coalesce, Concat, datetime
 from django.db.models.query_utils import Q
@@ -19,7 +18,6 @@ from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.metadata import Keyword, MetadataRelation
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
-                                           MissingVersionParameterException,
                                            OperationNotSupportedException)
 
 
@@ -50,7 +48,50 @@ class CswServiceView(View):
 
     def get_basic_queryset(self):
         # TODO: only prefetch related if result_type is not hits
+
+        # # "creator": "",  # TODO: find out what the creator field is exactly represented inside the iso metadata record
+
+        # "type": "type",
+        # "dc:type": "type",
+
         return MetadataRelation.objects.annotate(
+            title=Coalesce(
+                "dataset_metadata__title",
+                "service_metadata__title",
+                "layer__title",
+                "feature_type__title",
+                "wms__title",
+                "wfs__title",
+                "csw__title"
+            ),
+            abstract=Coalesce(
+                "dataset_metadata__abstract",
+                "service_metadata__abstract",
+                "layer__abstract",
+                "feature_type__abstract",
+                "wms__abstract",
+                "wfs__abstract",
+                "csw__abstract"
+            ),
+            bounding_geometry=Coalesce(
+                "dataset_metadata__bounding_geometry",
+                # TODO: "service_metadata__bounding_geometry",
+                "layer__bbox_lat_lon",
+                "feature_type__bbox_lat_lon",
+                # TODO: get from child layers "wms__bbox_lat_lon",
+                # TODO: get from child featuretypes "wfs__bbox_lat_lon",
+                # TODO: "csw__bbox_lat_lon"
+                output_field=MultiPolygonField()
+            ),
+            date_stamp=Coalesce(
+                "dataset_metadata__date_stamp",
+                "service_metadata__date_stamp",
+                "layer__date_stamp",
+                "feature_type__date_stamp",
+                "wms__date_stamp",
+                "wfs__date_stamp",
+                "csw__date_stamp"
+            ),
             resource_identifier=Concat(
                 F("dataset_metadata__dataset_id_code_space"),
                 F("dataset_metadata__dataset_id"),
@@ -66,13 +107,18 @@ class CswServiceView(View):
                 Cast("csw__id", CharField()),
                 output_field=CharField()
             ),
+            hierarchy_level=Case(
+                When(dataset_metadata__isnull=False, then=Value("dataset")),
+                When(service_metadata__isnull=False, then=Value("service")),
+                default=Value("dataset")
+            ),
             keywords=ArraySubquery(
                 Keyword.objects.filter(
                     Q(datasetmetadatarecord_metadata=OuterRef(
                         "dataset_metadata__pk"))
                     | Q(servicemetadatarecord_metadata=OuterRef(
                         "service_metadata__pk"))
-                ).distinct("keyword").values("keyword")
+                ).distinct("keyword").values_list("keyword", flat=True)
             )
         ).prefetch_related(
             "dataset_metadata",
@@ -86,12 +132,16 @@ class CswServiceView(View):
         :return: the camouflaged capabilities document.
         :rtype: :class:`django.http.response.HttpResponse`
         """
-        # TODO: build capabilities document for mrmap csw server
 
-        keywords = self.get_basic_queryset().values_list("keywords", flat=True)
+        all_related_keywords = self.get_basic_queryset().values_list("keywords", flat=True)
+        keywords = []
+        # TODO: look for a way to collect them inside the queryset as simple sting list
+        for keyword_list in all_related_keywords:
+            keywords += list(set(keyword_list) - set(keywords))
 
         csw_capabilities = CatalogueService(
-            service_type=ServiceType(version="2.0.2", _name="CSW")
+            service_type=ServiceType(version="2.0.2", _name="CSW"),
+            keywords=keywords
         )
         csw_capabilities.title = "Mr. Map CSW"
         csw_capabilities.service_contact = ServiceMetadataContact(name="test")
@@ -120,14 +170,14 @@ class CswServiceView(View):
             "abstract": "abstract",
             "dc:abstract": "abstract",
             "description": "abstract",
-            "subject": "keywords",  # TODO: keywords right?
-            "creator": "",  # TODO: find out what the creator field is exactly represented inside the iso metadata record
+            # "subject": "keywords",  # TODO: keywords right?
+            # "creator": "",  # TODO: find out what the creator field is exactly represented inside the iso metadata record
             "coverage": "bounding_geometry",
             "ows:BoundingBox": "bounding_geometry",
             "date": "date_stamp",
             "dc:modified": "date_stamp",
-            "type": "type",
-            "dc:type": "type",
+            "type": "hierarchy_level",
+            "dc:type": "hierarchy_level",
             "ResourceIdentifier": "resource_identifier"
         }
         q = self.ogc_request.filter_constraint(field_mapping=field_mapping)

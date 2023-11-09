@@ -143,6 +143,8 @@ class IsoMetadataManager(models.Manager):
                     ReferenceSystem  # to prevent from circular imports
                 for reference_system in parsed_metadata.reference_systems:
                     kwargs = reference_system.transform_to_model()
+                    if not kwargs:
+                        continue
                     try:
                         db_reference_system, created = ReferenceSystem.objects.get_or_create(
                             **kwargs)

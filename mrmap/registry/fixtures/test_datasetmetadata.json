@@ -17,7 +17,7 @@
         }
     },
     {
-        "model": "registry.datasetmetadata",
+        "model": "registry.datasetmetadatarecord",
         "pk": "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4",
         "fields": {
             "xml_backup_file": "xml_documents/b503fa55-fd5e-4e07-82c7-cdf41552d53b/md_metadata.xml",
@@ -39,14 +39,14 @@
             "hits": 0,
             "dataset_contact": 1,
             "metadata_contact": 1,
-            "spatial_res_type": null,
+            "spatial_res_type": "",
             "spatial_res_value": null,
-            "format": null,
-            "charset": null,
+            "format": "",
+            "charset": "",
             "inspire_top_consistence": false,
             "preview_image": "",
-            "lineage_statement": null,
-            "update_frequency_code": null,
+            "lineage_statement": "",
+            "update_frequency_code": "",
             "bounding_geometry": "SRID=4326;MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))",
             "dataset_id": "de.dwd.geoserver.fach.RBSN_RR",
             "dataset_id_code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
@@ -56,11 +56,14 @@
                     "Niederschlag"
                 ]
             ],
-            "reference_systems": []
+            "reference_systems": [],
+            "harvested_through": [
+                "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+            ]
         }
     },
     {
-        "model": "registry.datasetmetadata",
+        "model": "registry.datasetmetadatarecord",
         "pk": "9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e",
         "fields": {
             "xml_backup_file": "xml_documents/14b3c007-c24a-4ef7-8d96-b13cfb52660c/md_metadata.xml",
@@ -82,14 +85,14 @@
             "hits": 0,
             "dataset_contact": 1,
             "metadata_contact": 1,
-            "spatial_res_type": null,
+            "spatial_res_type": "",
             "spatial_res_value": null,
-            "format": null,
-            "charset": null,
+            "format": "",
+            "charset": "",
             "inspire_top_consistence": false,
             "preview_image": "",
-            "lineage_statement": null,
-            "update_frequency_code": null,
+            "lineage_statement": "",
+            "update_frequency_code": "",
             "bounding_geometry": "SRID=4326;MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))",
             "dataset_id": "de.dwd.geoserver.fach.RBSN_RH",
             "dataset_id_code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
@@ -99,7 +102,10 @@
                     "Luftfeuchtigkeit"
                 ]
             ],
-            "reference_systems": []
+            "reference_systems": [],
+            "harvested_through": [
+                "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+            ]
         }
     }
 ]

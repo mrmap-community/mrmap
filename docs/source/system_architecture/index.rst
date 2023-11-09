@@ -27,3 +27,4 @@ Below is a simplified overview of the MrMap docker compose stack:
 .. image:: ../images/docker_stack.svg
   :width: 100%
   :alt: Docker stack
+

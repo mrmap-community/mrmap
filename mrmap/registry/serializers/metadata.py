@@ -1,5 +1,5 @@
 from extras.serializers import StringRepresentationSerializer
-from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
+from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
 from rest_framework.relations import HyperlinkedIdentityField
@@ -70,7 +70,7 @@ class MetadataContactSerializer(
         fields = "__all__"
 
 
-class DatasetMetadataSerializer(
+class DatasetMetadataRecordSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
 
@@ -88,7 +88,7 @@ class DatasetMetadataSerializer(
         related_link_view_name="registry:datasetmetadata-featuretypes-list",
         related_link_url_kwarg="parent_lookup_dataset_metadata_relation__dataset_metadata",
     )
-    self_pointing_catalogue_service = ResourceRelatedField(
+    harvested_through = ResourceRelatedField(
         queryset=CatalogueService.objects,
         many=True,
         related_link_view_name="registry:datasetmetadata-csws-list",
@@ -133,5 +133,5 @@ class DatasetMetadataSerializer(
     }
 
     class Meta:
-        model = DatasetMetadata
+        model = DatasetMetadataRecord
         fields = "__all__"

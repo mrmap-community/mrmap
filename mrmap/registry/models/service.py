@@ -329,11 +329,11 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
             return str(self.pk)
 
     def get_dataset_table_url(self) -> str:
-        if self.dataset_metadata.exists():
+        if self.registry_datasetmetadatarecord_metadata_records.exists():
             try:
                 return (
                     reverse(f"{self._meta.app_label}:dataset_metadata_list")
-                    + f'?id__in={",".join([str(dataset.pk) for dataset in self.dataset_metadata.all()])}'
+                    + f'?id__in={",".join([str(dataset.pk) for dataset in self.registry_datasetmetadatarecord_metadata_records.all()])}'
                 )
             except NoReverseMatch:
                 pass

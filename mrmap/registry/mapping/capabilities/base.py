@@ -4,7 +4,7 @@ from importlib import import_module
 from odin.mapping import MappingBase, define, forward_mapping_factory
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.utils import get_import_path_for_xml_mapper
-from registry.models.metadata import DatasetMetadata
+from registry.models.metadata import DatasetMetadataRecord
 
 
 class OgcServiceElementToXmlMappingBase(MappingBase):
@@ -26,9 +26,9 @@ class OgcServiceElementToXmlMappingBase(MappingBase):
             ),
             "RemoteMetadata")
         remote_metadata_mapper_cls = forward_mapping_factory(
-            from_obj=DatasetMetadata, to_obj=xml_metadata_url_mapper_cls, mappings=[define(from_field="origin_url", to_field="link")])
+            from_obj=DatasetMetadataRecord, to_obj=xml_metadata_url_mapper_cls, mappings=[define(from_field="origin_url", to_field="link")])
         _remote_metadata = []
-        for remote_metadata in self.source.dataset_metadata_relations.all():
+        for remote_metadata in self.source.metadata_relations.all():
             _remote_metadata.append(
                 remote_metadata_mapper_cls.apply(source_obj=remote_metadata))
         return _remote_metadata

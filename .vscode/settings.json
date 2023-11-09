@@ -1,9 +1,9 @@
 {
   "cucumberautocomplete.steps": [
-    "mrmap/tests/behave/api/steps/*.py",
+    "mrmap/tests/behave/steps/*.py",
   ],
   "cucumberautocomplete.strictGherkinCompletion": true,
-  "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/**/features/*feature",
+  "cucumberautocomplete.syncfeatures": "mrmap/tests/behave/features/*feature",
   "cucumberautocomplete.smartSnippets": true,
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
   "python.linting.flake8Enabled": true,
@@ -37,7 +37,9 @@
     "typescriptreact"
   ],
   "files.associations": {
-    "*.yaml": "home-assistant"
+    "*.yaml": "home-assistant",
+    "*.ttml": "xml",
+    "*.ttss": "css"
   },
   "[python]": {
     "editor.defaultFormatter": "ms-python.autopep8"

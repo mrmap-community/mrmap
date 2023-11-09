@@ -1,10 +1,10 @@
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
-from registry.models.metadata import (DatasetMetadata, Keyword, Licence,
+from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
-from registry.serializers.metadata import (DatasetMetadataSerializer,
+from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
                                            MetadataContactSerializer,
@@ -115,8 +115,8 @@ class NestedStyleViewSet(
 
 
 class DatasetMetadataViewSetMixin:
-    queryset = DatasetMetadata.objects.all()
-    serializer_class = DatasetMetadataSerializer
+    queryset = DatasetMetadataRecord.objects.all()
+    serializer_class = DatasetMetadataRecordSerializer
     filterset_fields = {
         "title": ["exact", "icontains", "contains"],
         "abstract": ["exact", "icontains", "contains"],
@@ -145,9 +145,9 @@ class DatasetMetadataViewSetMixin:
                 ),
             )
         ],
-        "self_pointing_catalogue_service": [
+        "harvested_through": [
             Prefetch(
-                "self_pointing_catalogue_service",
+                "harvested_through",
                 queryset=CatalogueService.objects.prefetch_related("keywords"),
             )
         ],
@@ -193,10 +193,10 @@ class DatasetMetadataViewSetMixin:
                     queryset=FeatureType.objects.only("id", "service_id"),
                 )
             )
-        if not include or "selfPointingCatalogueService" not in include:
+        if not include or "harvestedThrough" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
-                    "self_pointing_catalogue_service",
+                    "harvested_through",
                     queryset=CatalogueService.objects.only("id"),
                 )
             )

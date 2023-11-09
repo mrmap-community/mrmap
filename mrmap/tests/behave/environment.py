@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 def before_all(context):
     # see https://github.com/behave/behave-django/issues/114... fixure behaviour is broken with --simple
     # basicly there are users and groups
+
     fixtures = ['test_users.json']
     call_command("loaddata", *fixtures, verbosity=0)
 
@@ -21,7 +22,7 @@ def before_feature(context, feature):
     ):
         fixtures.extend(
             ['test_keywords.json', 'test_mapcontext.json', 'test_wms.json'])
-    elif 'DatasetMetadata' in feature.name:
+    elif 'DatasetMetadataRecord' in feature.name:
         fixtures.extend(['test_keywords.json', 'test_datasetmetadata.json'])
     elif (
         'AllowedWebMapServiceOperation' in feature.name
@@ -43,7 +44,7 @@ def before_feature(context, feature):
         or 'CatalogueService' in feature.name
     ):
         fixtures.extend(
-            ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json', 'test_datasetmetadata_relations.json'])
+            ['test_keywords.json', 'test_datasetmetadata.json', 'test_csw.json'])
     elif 'BackgroundProcess' in feature.name:
         fixtures.extend(['test_background.json'])
 

@@ -27,7 +27,21 @@ class Migration(migrations.Migration):
             objs.append(WebFeatureServiceOperation(operation=key))
         WebFeatureServiceOperation.objects.bulk_create(objs=objs)
 
+    def create_file_system_import_task(apps, schema_editor):
+        from django_celery_beat.models import IntervalSchedule, PeriodicTask
+        schedule, created = IntervalSchedule.objects.get_or_create(
+            every=1,
+            period=IntervalSchedule.MINUTES,
+        )
+        PeriodicTask.objects.create(
+            interval=schedule,
+            name="check for new metadata to import",
+            task="registry.tasks.harvest.check_for_files_to_import"
+
+        )
+
     operations = [
         migrations.RunPython(create_wms_operations),
         migrations.RunPython(create_wfs_operations),
+        migrations.RunPython(create_file_system_import_task),
     ]

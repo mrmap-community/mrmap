@@ -9,7 +9,7 @@ from mptt.fields import TreeForeignKey
 from mptt.models import MPTTModel
 from registry.managers.mapcontext import (MapContextLayerManager,
                                           MapContextManager)
-from registry.models import DatasetMetadata, Layer
+from registry.models import DatasetMetadataRecord, Layer
 from registry.models.metadata import Style
 from simple_history.models import HistoricalRecords
 
@@ -278,7 +278,7 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
         verbose_name=_("description"),
         help_text=_("a short description for this map context layer"))
     dataset_metadata = models.ForeignKey(
-        to=DatasetMetadata,
+        to=DatasetMetadataRecord,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

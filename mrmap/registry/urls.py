@@ -65,7 +65,7 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     # catalogue service
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
-    .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='csw-datasetmetadata', parents_query_lookups=['self_pointing_catalogue_service']),
+    .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='csw-datasetmetadata', parents_query_lookups=['harvested_through']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='csw-keywords', parents_query_lookups=['catalogueservice_metadata']),

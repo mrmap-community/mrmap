@@ -13,12 +13,12 @@ from MrMap.settings import PROXIES
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
-                                     MetadataOrigin, MetadataOriginEnum,
-                                     MetadataRelationEnum,
+                                     MetadataOriginEnum,
                                      ReferenceSystemPrefixEnum)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import IsoMetadataManager, KeywordManager
 from registry.models.document import MetadataDocumentModelMixin
+from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
@@ -206,7 +206,7 @@ class RemoteMetadata(models.Model):
 
         To create the concrete metadata records the following workflow is necessary:
             1. fetch the remote content with fetch_remote_content(). After that the remote content was fetched.
-            2. create the concrete metadata record (ServiceMetadata | DatasetMetadata) with create_metadata_instance()
+            2. create the concrete metadata record (ServiceMetadataRecord | DatasetMetadataRecord) with create_metadata_instance()
 
         todo: maybe this model could be refactored as general document class
     """
@@ -272,15 +272,16 @@ class RemoteMetadata(models.Model):
 
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
-        from registry.models.service import WebFeatureService, WebMapService
-        if isinstance(self.describes, (WebMapService, WebFeatureService)):
-            metadata_cls = ServiceMetadata
+        from registry.models.service import (CatalogueService,
+                                             WebFeatureService, WebMapService)
+        if isinstance(self.describes, (WebMapService, WebFeatureService, CatalogueService)):
+            metadata_cls = ServiceMetadataRecord
         else:
-            metadata_cls = DatasetMetadata
-        db_metadata, update, exists = metadata_cls.iso_metadata.update_or_create_from_parsed_metadata(parsed_metadata=self.parse(),
-                                                                                                      related_object=self.describes,
-                                                                                                      origin_url=self.link,
-                                                                                                      **kwargs)
+            metadata_cls = DatasetMetadataRecord
+        db_metadata, _, _ = metadata_cls.iso_metadata.update_or_create_from_parsed_metadata(parsed_metadata=self.parse(),
+                                                                                            related_object=self.describes,
+                                                                                            origin_url=self.link,
+                                                                                            **kwargs)
         return db_metadata
 
 
@@ -352,7 +353,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                                    "the uuid of the described layer/featuretype shall be used to "
                                                    "identify the generated iso metadata xml."))
     origin = models.CharField(max_length=20,
-                              choices=MetadataOrigin.choices,
+                              choices=MetadataOriginEnum.choices,
                               editable=False,
                               verbose_name=_("origin"),
                               help_text=_("Where the metadata record comes from."))
@@ -394,18 +395,31 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
 
-    language = None  # Todo
+    language = None  # TODO
+    category = None  # TODO: Inspire + iso + various
+
+    # needed for Docuement mixin to load the backupfile into the correct xml mapper class
     xml_mapper_cls = MdMetadata
 
     class Meta:
         abstract = True
         ordering = ["title"]
+        indexes = [
+            models.Index(fields=["file_identifier", "title"])
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="%(app_label)s_%(class)s_unique_file_identifier",
+                fields=["file_identifier"]
+            )
+        ]
 
     def __str__(self):
         return f"{self.title} ({self.pk})"
 
     def save(self, *args, **kwargs):
         """Custom save function to set `is_customized` on update."""
+        # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
         if not self._state.adding:
             self.is_customized = True
         super().save(*args, **kwargs)
@@ -465,39 +479,66 @@ class FeatureTypeMetadata(AbstractMetadata):
         abstract = True
 
 
-class DatasetMetadataRelation(models.Model):
-    """ Model to store additional information for m2m relations for a dataset metadata which is related by a layer,
-        feature type or harvested by csw.
+class MetadataRelation(models.Model):
+    """ Model to store relations between metadata models and service resource like models, 
 
-        Cause dataset metadata records could be added by the user and could harvested from capabilities or csw, we need
-        to store additional information such as the origin (capabilities | added by user | csw) etc.
+        to:
+         * find available ogc services (wms, wfs, layer, feature_types) which can deliver relevant information by a filter constraint
+         * to find metadata information by a filter constraint
+
+        Note:
+        This is the most important table in the system, to find concrete service data!
+        This cross table allows us to join all the different model types in one database query
+
     """
+    # resource relations
     layer = models.ForeignKey(to="registry.Layer",
                               on_delete=models.CASCADE,
-                              null=True,  # nullable to support polymorph using in DatasetMetadata model
+                              null=True,  # nullable to support polymorph using in MetadataRecord model
                               blank=True,
-                              related_name="dataset_metadata_relations",
-                              related_query_name="dataset_metadata_relation")
+                              related_name="metadata_relations",
+                              related_query_name="metadata_relation")
     feature_type = models.ForeignKey(to="registry.FeatureType",
                                      on_delete=models.CASCADE,
-                                     null=True,  # nullable to support polymorph using in DatasetMetadata model
+                                     null=True,  # nullable to support polymorph using in MetadataRecord model
                                      blank=True,
-                                     related_name="dataset_metadata_relations",
-                                     related_query_name="dataset_metadata_relation")
+                                     related_name="metadata_relations",
+                                     related_query_name="metadata_relation")
     csw = models.ForeignKey(to="registry.CatalogueService",
                             on_delete=models.CASCADE,
-                            null=True,  # nullable to support polymorph using in DatasetMetadata model
+                            null=True,  # nullable to support polymorph using in MetadataRecord model
                             blank=True,
-                            related_name="dataset_metadata_relations",
-                            related_query_name="dataset_metadata_relation")
-    dataset_metadata = models.ForeignKey(to="DatasetMetadata",
+                            related_name="metadata_relations",
+                            related_query_name="metadata_relation")
+    wms = models.ForeignKey(to="registry.WebMapService",
+                            on_delete=models.CASCADE,
+                            null=True,  # nullable to support polymorph using in MetadataRecord model
+                            blank=True,
+                            related_name="metadata_relations",
+                            related_query_name="metadata_relation")
+    wfs = models.ForeignKey(to="registry.WebFeatureService",
+                            on_delete=models.CASCADE,
+                            null=True,  # nullable to support polymorph using in MetadataRecord model
+                            blank=True,
+                            related_name="metadata_relations",
+                            related_query_name="metadata_relation")
+
+    # metadata relations
+    dataset_metadata = models.ForeignKey(to="DatasetMetadataRecord",
                                          on_delete=models.CASCADE,
-                                         related_name="dataset_metadata_relations",
-                                         related_query_name="dataset_metadata_relation")
-    # todo: check if we still need this field; we have no longer a polymorph metadata model, so the relation type
-    #  should be clear by the different field names
-    relation_type = models.CharField(max_length=20,
-                                     choices=MetadataRelationEnum.choices)
+                                         null=True,
+                                         blank=True,
+                                         related_name="resource_relations",
+                                         related_query_name="resource_relation")
+
+    service_metadata = models.ForeignKey(to="ServiceMetadataRecord",
+                                         on_delete=models.CASCADE,
+                                         null=True,
+                                         blank=True,
+                                         related_name="resource_relations",
+                                         related_query_name="resource_relation")
+
+    # relation describtive
     is_internal = models.BooleanField(default=False,
                                       verbose_name=_("internal relation?"),
                                       help_text=_("true means that this relation is created by a user and the dataset "
@@ -510,38 +551,68 @@ class DatasetMetadataRelation(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                name="%(app_label)s_%(class)s_one_related_object_selected",
-                check=Q((Q(layer=True, feature_type=False, csw=False) |
-                         Q(layer=False, feature_type=True, csw=False) |
-                         Q(layer=False, feature_type=False, csw=True)) and
-                        ~Q(Q(layer=True) and Q(feature_type=True) and Q(csw=True)) and
-                        ~Q(Q(layer=False) and Q(feature_type=False) and Q(csw=False)))
-                # TODO: some more cases are possible
+                name="one_related_object_selected",
+                check=VALID_RELATIONS
+            ),
+            # service like resources can only have one describing service metadata
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_layer",
+                fields=["service_metadata", "layer"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_feature_type",
+                fields=["service_metadata", "feature_type"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_csw",
+                fields=["service_metadata", "csw"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_wms",
+                fields=["service_metadata", "wms"]
+            ),
+            models.UniqueConstraint(
+                name="unique_service_metadata_representation_for_wfs",
+                fields=["service_metadata", "wfs"]
             )
         ]
 
-    def __str__(self):
-        self_str = f"{self.dataset_metadata.title} linked by "
-        if self.layer:
-            self_str += f" layer {self.layer.title}"
-        elif self.feature_type:
-            self_str += f" feature type {self.feature_type.title}"
-        elif self.csw:
-            self_str += f" csw {self.csw.title}"
-        return self_str
 
-    def clean(self):
-        """ Raise ValidationError if layer and feature type are null or if both are configured. """
-        if not self.layer and not self.feature_type and not self.csw:
-            raise ValidationError(
-                "either layer, feature type or csw must be linked.")
-        elif self.layer and self.feature_type and self.csw:
-            raise ValidationError(
-                "link layer, feature type and csw is not supported.")
-        # todo: some more cases are possible
+class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
+    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
+                                                  through=MetadataRelation,
+                                                  editable=False,
+                                                  related_name="%(app_label)s_%(class)s_metadata_records",
+                                                  related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                  blank=True,
+                                                  verbose_name=_("layers"),
+                                                  help_text=_("all layers which are linking to this dataset metadata in"
+                                                              " there capabilities."))
+    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
+                                                         through=MetadataRelation,
+                                                         editable=False,
+                                                         related_name="%(app_label)s_%(class)s_metadata_records",
+                                                         related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                         blank=True,
+                                                         verbose_name=_(
+                                                             "feature types"),
+                                                         help_text=_("all feature types which are linking to this "
+                                                                     "dataset metadata in there capabilities."))
+    harvested_through = models.ManyToManyField(to="registry.CatalogueService",
+                                               related_name="%(app_label)s_%(class)s_metadata_records",
+                                               related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                               editable=False,
+                                               blank=True,
+                                               verbose_name=_("services"),
+                                               help_text=_("all services from which this dataset was harvested."))
+
+    class Meta:
+        abstract = True
+
+    iso_metadata = IsoMetadataManager()
 
 
-class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
+class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
@@ -609,6 +680,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
 
     LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
     CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
+
     dataset_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="dataset_contact_metadata",
@@ -624,7 +696,7 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                      "information of the dataset."))
     spatial_res_type = models.CharField(max_length=20,
                                         choices=SPATIAL_RES_TYPE_CHOICES,
-                                        null=True,
+                                        default="",
                                         verbose_name=_("resolution type"),
                                         help_text=_("Ground resolution in meter or the equivalent scale."))
     spatial_res_value = models.FloatField(null=True,
@@ -636,13 +708,13 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                related_query_name="dataset_metadata",
                                                blank=True,
                                                verbose_name=_("reference systems"))
-    format = models.CharField(null=True,
+    format = models.CharField(default="",
                               blank=True,
                               max_length=20,
                               choices=DatasetFormatEnum.choices,
                               verbose_name=_("format"),
                               help_text=_("The format in which the described dataset is stored."))
-    charset = models.CharField(null=True,
+    charset = models.CharField(default="",
                                blank=True,
                                max_length=10,
                                choices=MetadataCharset.choices,
@@ -653,54 +725,25 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
                                                               " consistence."))
     preview_image = models.ImageField(null=True,
                                       blank=True)
-    lineage_statement = models.TextField(null=True,
-                                         blank=True)
+    lineage_statement = models.TextField(blank=True,
+                                         default="")
     update_frequency_code = models.CharField(max_length=20,
                                              choices=UPDATE_FREQUENCY_CHOICES,
-                                             null=True,
-                                             blank=True)
+                                             blank=True,
+                                             default="")
     bounding_geometry = MultiPolygonField(null=True,
                                           blank=True, )
     dataset_id = models.CharField(max_length=4096,
-                                  null=True,  # empty dataset_id signals broken dataset metadata records
+                                  default="",  # empty dataset_id signals broken dataset metadata records
                                   help_text=_("identifier of the remote data"))
     dataset_id_code_space = models.CharField(max_length=4096,
                                              blank=True,
-                                             default='',
+                                             default="",
                                              help_text=_("code space for the given identifier"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
-    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
-                                                  through=DatasetMetadataRelation,
-                                                  editable=False,
-                                                  related_name="dataset_metadata",
-                                                  related_query_name="dataset_metadata",
-                                                  blank=True,
-                                                  verbose_name=_("layers"),
-                                                  help_text=_("all layers which are linking to this dataset metadata in"
-                                                              " there capabilities."))
-    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
-                                                         through=DatasetMetadataRelation,
-                                                         editable=False,
-                                                         related_name="dataset_metadata",
-                                                         related_query_name="dataset_metadata",
-                                                         blank=True,
-                                                         verbose_name=_(
-                                                             "feature types"),
-                                                         help_text=_("all feature types which are linking to this "
-                                                                     "dataset metadata in there capabilities."))
-    self_pointing_catalogue_service = models.ManyToManyField(to="registry.CatalogueService",
-                                                             through=DatasetMetadataRelation,
-                                                             editable=False,
-                                                             related_name="dataset_metadata",
-                                                             related_query_name="dataset_metadata",
-                                                             blank=True,
-                                                             verbose_name=_(
-                                                                 "services"),
-                                                             help_text=_("all services from which this dataset was harvested."))
 
     objects = UniqueConstraintDefaultValueManager()
-    iso_metadata = IsoMetadataManager()
 
     class Meta:
         verbose_name = _("dataset metadata")
@@ -708,53 +751,89 @@ class DatasetMetadata(MetadataTermsOfUse, AbstractMetadata):
         constraints = [
             # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
             # identifier
-            models.UniqueConstraint(fields=['dataset_id', 'dataset_id_code_space'],
-                                    name='%(app_label)s_%(class)s_unique_together_dataset_id_dataset_id_code_space')
+            models.UniqueConstraint(
+                fields=['dataset_id', 'dataset_id_code_space'],
+                # empty values signals that, this dataset is broken.
+                # This is a real world problem for that we support storing "duplicated" entries
+                # For all correct dataset records the unique constraint shall be used!
+                condition=~Q(dataset_id="", dataset_id_code_space=""),
+                name='%(app_label)s_%(class)s_unique_together_dataset_id_dataset_id_code_space')
+        ]
+        indexes = [
+            models.Index(fields=["dataset_id", "dataset_id_code_space"])
         ]
 
-    def add_dataset_metadata_relation(self, related_object, origin=None, relation_type=None, is_internal=False):
-        from registry.models.service import (CatalogueService, FeatureType,
-                                             Layer)
+    def add_dataset_metadata_relation(self, related_object=None, origin=None, is_internal=False):
+        from registry.models.service import FeatureType, Layer
 
         kwargs = {}
-        if related_object._meta.model == Layer:
+        if related_object and related_object._meta.model == Layer:
             kwargs.update({"layer": related_object,
-                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object._meta.model == FeatureType:
+        elif related_object and related_object._meta.model == FeatureType:
             kwargs.update({"feature_type": related_object,
-                           "relation_type": relation_type if relation_type else MetadataRelationEnum.DESCRIBES.value,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object._meta.model == CatalogueService:
-            kwargs.update({"csw": related_object,
-                           "relation_type": relation_type if relation_type else MetadataRelationEnum.HARVESTED_THROUGH.value,
-                           "origin": origin if origin else MetadataOriginEnum.CATALOGUE.value})
-            is_internal = True
-        relation, created = DatasetMetadataRelation.objects.get_or_create(
+
+        relation, _ = MetadataRelation.objects.get_or_create(
             dataset_metadata=self,
             is_internal=is_internal,
             **kwargs
         )
         return relation
 
-    def remove_dataset_metadata_relation(self, related_object, relation_type, internal, origin):
-        from registry.models.service import (CatalogueService, FeatureType,
-                                             Layer)
+    def remove_dataset_metadata_relation(self, related_object, internal, origin):
+        from registry.models.service import FeatureType, Layer
 
         kwargs = {}
         if related_object._meta.model == Layer:
             kwargs.update({"layer": related_object})
         elif related_object._meta.model == FeatureType:
             kwargs.update({"feature_type": related_object})
-        elif related_object._meta.model == CatalogueService:
-            kwargs.update({"csw": related_object})
-        DatasetMetadataRelation.objects.filter(
-            from_metadata=self,
-            relation_type=relation_type,
-            internal=internal,
+        else:
+            return
+        MetadataRelation.objects.filter(
+            dataset_metadata=self,
+            is_internal=internal,
             origin=origin,
             **kwargs
         ).delete()
+
+
+class ServiceMetadataRecord(MetadataRecord):
+    """ Concrete model class for service metadata records, which are parsed from iso metadata xml.
+
+    """
+
+    self_pointing_wms = models.ManyToManyField(to="registry.WebMapService",
+                                                  through=MetadataRelation,
+                                                  editable=False,
+                                                  related_name="%(app_label)s_%(class)s_service_metadata",
+                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
+                                                  blank=True,
+                                                  verbose_name=_(
+                                                      "web map services"),
+                                                  help_text=_("all wms which are linking to this service metadata in"
+                                                              " there capabilities."))
+    self_pointing_wfs = models.ManyToManyField(to="registry.WebFeatureService",
+                                                  through=MetadataRelation,
+                                                  editable=False,
+                                                  related_name="%(app_label)s_%(class)s_service_metadata",
+                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
+                                                  blank=True,
+                                                  verbose_name=_(
+                                                      "web feature services"),
+                                                  help_text=_("all wfs which are linking to this service metadata in"
+                                                              " there capabilities."))
+    self_pointing_wfs = models.ManyToManyField(to="registry.CatalogueService",
+                                                  through=MetadataRelation,
+                                                  editable=False,
+                                                  related_name="%(app_label)s_%(class)s_service_metadata",
+                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
+                                                  blank=True,
+                                                  verbose_name=_(
+                                                      "catalogue services"),
+                                                  help_text=_("all csw which are linking to this service metadata in"
+                                                              " there capabilities."))
 
 
 class Dimension(models.Model):
@@ -785,7 +864,7 @@ class Dimension(models.Model):
                                      related_query_name="feature_type_dimension",
                                      verbose_name=_("feature type"),
                                      help_text=_("the related feature type of this dimension entity"))
-    dataset_metadata = models.ForeignKey(to=DatasetMetadata,
+    dataset_metadata = models.ForeignKey(to=DatasetMetadataRecord,
                                          on_delete=models.CASCADE,
                                          null=True,
                                          blank=True,

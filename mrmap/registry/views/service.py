@@ -11,7 +11,7 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.metadata import (DatasetMetadata, Keyword,
+from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, Style)
 from registry.models.security import AllowedWebMapServiceOperation
@@ -168,8 +168,8 @@ class WebMapServiceViewSet(
                         queryset=Keyword.objects.only("id")
                     ),
                     Prefetch(
-                        "dataset_metadata",
-                        queryset=DatasetMetadata.objects.only("id")
+                        "registry_datasetmetadatarecord_metadata_records",
+                        queryset=DatasetMetadataRecord.objects.only("id")
                     )
                 )
             )
@@ -276,7 +276,7 @@ class LayerViewSetMixin(
         "styles": ["styles"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],
-        "dataset_metadata": ["dataset_metadata"]
+        "dataset_metadata": ["registry_datasetmetadatarecord_metadata_records"]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
@@ -313,7 +313,7 @@ class LayerViewSetMixin(
         if not include or "datasetMetadata" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
-                    "dataset_metadata", queryset=DatasetMetadata.objects.only("id")
+                    "registry_datasetmetadatarecord_metadata_records", queryset=DatasetMetadataRecord.objects.only("id")
                 )
             )
 
@@ -475,7 +475,6 @@ class FeatureTypeViewSetMixin(
         "output_formats": ["output_formats"],
         "keywords": ["keywords"],
         "reference_systems": ["reference_systems"],
-        "dataset_metadata": ["dataset_metadata"]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
@@ -499,12 +498,7 @@ class FeatureTypeViewSetMixin(
                     "reference_systems", queryset=ReferenceSystem.objects.only("id")
                 )
             )
-        if not include or "datasetMetadata" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "dataset_metadata", queryset=DatasetMetadata.objects.only("id")
-                )
-            )
+
         if not include or "output_formats" not in include:
             qs = qs.prefetch_related(
                 Prefetch(
@@ -601,7 +595,7 @@ class CatalogueServiceViewSetMixin(
         #     qs = qs.prefetch_related(
         #         Prefetch(
         #             "dataset_metadata",
-        #             queryset=DatasetMetadata.objects.only(
+        #             queryset=DatasetMetadataRecord.objects.only(
         #                 "id",
         #                 "service_id",
         #             )

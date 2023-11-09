@@ -70,8 +70,9 @@ drf-spectacular==0.25.1
 drf-spectacular-jsonapi==0.3.2
 
 django-axis-order==0.1.0
-django-ows-lib==0.5.4
+django-ows-lib==0.9.2
 
 camel-converter==3.0.0
 
 django-rest-knox==4.2.0
+

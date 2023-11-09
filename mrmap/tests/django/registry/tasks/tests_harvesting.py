@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from MrMap.settings import BASE_DIR
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
-from registry.models.metadata import DatasetMetadata
+from registry.models.metadata import DatasetMetadataRecord
 from registry.models.service import CatalogueService
 from registry.tasks.harvest import (call_fetch_records,
                                     call_fetch_total_records,
@@ -120,4 +120,4 @@ class TemporaryMdMetadataFileToDbTaskTest(TestCase):
         # job is done
         self.assertFalse(harvesting_job.done_at, None)
         # dataset metadata object was created
-        self.assertEqual(DatasetMetadata.objects.count(), 1)
+        self.assertEqual(DatasetMetadataRecord.objects.count(), 1)

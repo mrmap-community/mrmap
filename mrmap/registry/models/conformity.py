@@ -12,7 +12,7 @@ from registry.enums.conformity import (ConformityTypeEnum, ReportType,
                                        RulePropertyEnum)
 from registry.managers.conformity import (ConformityCheckConfigurationManager,
                                           ConformityCheckRunManager)
-from registry.models.metadata import DatasetMetadata
+from registry.models.metadata import DatasetMetadataRecord
 from registry.models.service import FeatureType, Layer, WebMapService
 
 
@@ -171,7 +171,7 @@ class DatasetMetadataConformityCheckRun(ConformityCheckRun):
     """
     Model holding the relation of a resource to the results of a check.
     """
-    dataset_metadata = models.ForeignKey(DatasetMetadata, on_delete=models.CASCADE, null=True, blank=True,
+    dataset_metadata = models.ForeignKey(DatasetMetadataRecord, on_delete=models.CASCADE, null=True, blank=True,
                                          verbose_name=_("dataset metadata"),
                                          help_text=_("the dataset metadata targeted by this check"))
 

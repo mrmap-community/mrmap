@@ -8,7 +8,7 @@ from notify.tasks import BackgroundProcessBased
 from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.exceptions.metadata import UnknownMetadataKind
 from registry.models import CatalogueService, WebFeatureService, WebMapService
-from registry.models.metadata import (DatasetMetadata,
+from registry.models.metadata import (DatasetMetadataRecord,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.models.security import (WebFeatureServiceAuthentication,
@@ -171,7 +171,7 @@ def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
         self.update_state(state=states.STARTED, meta={'done': 2, 'total': 2})
         return {
             "data": {
-                "type": "DatasetMetadata" if isinstance(metadata_record, DatasetMetadata) else "ServiceMetadata",
+                "type": "DatasetMetadataRecord" if isinstance(metadata_record, DatasetMetadataRecord) else "ServiceMetadata",
                 "id": f"{metadata_record.pk}",
                 "links": {
                     "self": f"{reverse(viewname='registry:datasetmetadata-detail', args=[metadata_record.pk])}"

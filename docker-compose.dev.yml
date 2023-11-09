@@ -56,7 +56,7 @@ services:
     tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/sh -c "python -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped tests/behave/api/features && python -m coverage xml -i -o acceptance-tests-coverage-report.xml"
+      /bin/sh -c "python -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped tests/behave/features && python -m coverage xml -i -o acceptance-tests-coverage-report.xml"
     hostname: "mrmap-behave"
     volumes:
       - type: bind
@@ -120,6 +120,16 @@ services:
       - ./docker/backend/.mrmap.dev.env
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q default,download,db-routines"
+
+  celery-beat:
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    command: >
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
 
   sonarqube:
     # initial admin account: admin:admin 

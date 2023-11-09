@@ -14,8 +14,10 @@ from eulxml import xmlmap
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
+from registry.enums.metadata import MetadataOriginEnum
 from registry.managers.havesting import TemporaryMdMetadataFileManager
-from registry.models.metadata import DatasetMetadata
+from registry.models.metadata import (DatasetMetadataRecord,
+                                      ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from requests import Response
 
@@ -27,13 +29,9 @@ class HarvestingJob(models.Model):
         on_delete=models.CASCADE,
         verbose_name=_("service"),
         help_text=_("the csw for that this job is running"))
-    record_type: str = models.CharField(
-        max_length=10,
-        default="dataset",
-        choices=[("dataset", "dataset"), ("service", "service"),
-                 ("tile", "tile"), ("series", "series")],
-        verbose_name=_("record type"),
-        help_text=_("the type of the record, which shall be harvested."))
+
+    harvest_datasets = models.BooleanField(default=True)
+    harvest_services = models.BooleanField(default=True)
     total_records: int = models.IntegerField(
         null=True,
         blank=True,
@@ -55,16 +53,28 @@ class HarvestingJob(models.Model):
         editable=False,
         verbose_name=_("date done"),
         help_text=_("timestamp of done"))
-    new_records = models.ManyToManyField(
-        to=DatasetMetadata,
+    new_dataset_records = models.ManyToManyField(
+        to=DatasetMetadataRecord,
         related_name="harvested_by",
         editable=False,)
-    existing_records = models.ManyToManyField(
-        to=DatasetMetadata,
+    existing_dataset_records = models.ManyToManyField(
+        to=DatasetMetadataRecord,
         related_name="ignored_by",
         editable=False,)
-    updated_records = models.ManyToManyField(
-        to=DatasetMetadata,
+    updated_dataset_records = models.ManyToManyField(
+        to=DatasetMetadataRecord,
+        related_name="updated_by",
+        editable=False,)
+    new_service_records = models.ManyToManyField(
+        to=ServiceMetadataRecord,
+        related_name="harvested_by",
+        editable=False,)
+    existing_service_records = models.ManyToManyField(
+        to=ServiceMetadataRecord,
+        related_name="ignored_by",
+        editable=False,)
+    updated_service_records = models.ManyToManyField(
+        to=ServiceMetadataRecord,
         related_name="updated_by",
         editable=False,)
 
@@ -106,12 +116,20 @@ class HarvestingJob(models.Model):
             transaction.on_commit(lambda: group(tasks).apply_async())
         return ret
 
+    def get_record_types(self):
+        record_types = []
+        if self.harvest_datasets:
+            record_types.append("dataset")
+        if self.harvest_services:
+            record_types.append("service")
+        return record_types
+
     def fetch_total_records(self) -> int:
         client = self.service.client
 
         response: Response = client.send_request(
             request=client.get_records_request(
-                xml_constraint=client.get_constraint(record_type=self.record_type)),
+                xml_constraint=client.get_constraint(record_types=self.get_record_types())),
             timeout=60)
 
         get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
@@ -127,7 +145,8 @@ class HarvestingJob(models.Model):
             max_records=self.step_size,
             start_position=start_position,
             result_type="results",
-            xml_constraint=client.get_constraint(record_type=self.record_type)
+            xml_constraint=client.get_constraint(
+                record_types=self.get_record_types())
         )
         response: Response = client.send_request(
             request=request,
@@ -138,17 +157,15 @@ class HarvestingJob(models.Model):
 
         md_metadata: XmlMdMetadata
         db_md_metadata_file_list = []
-        _counter = 0
-        for md_metadata in get_records_response.gmd_records:
+        for idx, md_metadata in enumerate(get_records_response.gmd_records):
             db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
                 job=self)
             # save the file without saving the instance in db... this will be done with bulk_create
             db_md_metadata_file.md_metadata_file.save(
-                name=f"record_nr_{_counter + start_position}",
+                name=f"record_nr_{idx + start_position}",
                 content=ContentFile(content=md_metadata.serialize()),
                 save=False)
             db_md_metadata_file_list.append(db_md_metadata_file)
-            _counter += 1
 
         db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
             objs=db_md_metadata_file_list)
@@ -158,18 +175,19 @@ class HarvestingJob(models.Model):
 
 def response_file_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/xml_documents/<id>/<filename>
-    return 'get_records_response/{0}/{1}'.format(instance.pk, filename)
+    return 'temporary_md_metadata_file/{0}/{1}'.format(instance.pk, filename)
 
 
 class TemporaryMdMetadataFile(models.Model):
     job: HarvestingJob = models.ForeignKey(
         to=HarvestingJob,
         on_delete=models.CASCADE,
-        verbose_name=_("harvesting job"))
+        verbose_name=_("harvesting job"),
+        null=True)
     md_metadata_file: FieldFile = models.FileField(
         verbose_name=_("response"),
         help_text=_(
-            "the content of the http response"),
+            "the content of the http response, or of the imported file"),
         upload_to=response_file_path,
         editable=False)
 
@@ -193,27 +211,51 @@ class TemporaryMdMetadataFile(models.Model):
             pass
         super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
-    def md_metadata_file_to_db(self) -> DatasetMetadata:
+    def md_metadata_file_to_db(self) -> (DatasetMetadataRecord | ServiceMetadataRecord):
         _file: FieldFile = self.md_metadata_file.open()
         md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
             string=_file.read(),
             xmlclass=XmlMdMetadata)
         _file.close()
+        with transaction.atomic():
+            db_metadata = None
+            if md_metadata.is_service:
+                db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                    parsed_metadata=md_metadata,
+                    origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
+            elif md_metadata.is_dataset:
+                db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                    parsed_metadata=md_metadata,
+                    origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
+            else:
+                raise Exception("file is neither server nor dataset record ")
+            if db_metadata:
+                if self.job:
+                    self.update_relations(
+                        md_metadata, exists, update, db_metadata)
 
-        dataset_metadata, update, exists = DatasetMetadata.iso_metadata.update_or_create_from_parsed_metadata(
-            parsed_metadata=md_metadata,
-            related_object=self.job.service,
-            origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url)
+                if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
+                    self.job.done_at = now()
+                    self.job.save()
+                self.delete()
+                return db_metadata
 
-        if exists and update:
-            self.job.updated_records.add(dataset_metadata)
-        elif exists and not update:
-            self.job.existing_records.add(dataset_metadata)
-        elif not exists:
-            self.job.new_records.add(dataset_metadata)
+    def update_relations(self, md_metadata, exists, update, db_metadata):
+        db_metadata.harvested_through.add(self.job.service)
 
-        if not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
-            self.job.done_at = now()
-            self.job.save()
-        self.delete()
-        return dataset_metadata
+        if md_metadata.is_service:
+            if exists and update:
+                self.job.updated_service_records.add(db_metadata)
+            elif exists and not update:
+                self.job.existing_service_records.add(db_metadata)
+            elif not exists:
+                self.job.new_service_records.add(db_metadata)
+        elif md_metadata.is_dataset:
+            if exists and update:
+                self.job.updated_dataset_records.add(db_metadata)
+            elif exists and not update:
+                self.job.existing_dataset_records.add(db_metadata)
+            elif not exists:
+                self.job.new_dataset_records.add(db_metadata)

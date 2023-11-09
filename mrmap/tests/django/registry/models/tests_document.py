@@ -7,6 +7,7 @@ from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
     WebFeatureService as XmlWebFeatureService
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     WebMapService as XmlWebMapService
+from ows_lib.xml_mapper.utils import get_import_path_for_xml_mapper
 from registry.models.metadata import Keyword
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)

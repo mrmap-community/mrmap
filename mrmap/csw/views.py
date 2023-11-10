@@ -1,5 +1,7 @@
 from django.contrib.gis.db.models.fields import MultiPolygonField
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.expressions import ArraySubquery
+from django.db.models.aggregates import Count
 from django.db.models.expressions import Case, F, OuterRef, Value, When
 from django.db.models.fields import CharField
 from django.db.models.functions import Cast, Coalesce, Concat, datetime
@@ -112,14 +114,14 @@ class CswServiceView(View):
                 When(service_metadata__isnull=False, then=Value("service")),
                 default=Value("dataset")
             ),
-            keywords=ArraySubquery(
+            all_related_keywords=ArraySubquery(
                 Keyword.objects.filter(
                     Q(datasetmetadatarecord_metadata=OuterRef(
                         "dataset_metadata__pk"))
                     | Q(servicemetadatarecord_metadata=OuterRef(
                         "service_metadata__pk"))
                 ).distinct("keyword").values_list("keyword", flat=True)
-            )
+            ),
         ).prefetch_related(
             "dataset_metadata",
             "service_metadata"
@@ -133,11 +135,16 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
 
-        all_related_keywords = self.get_basic_queryset().values_list("keywords", flat=True)
-        keywords = []
-        # TODO: look for a way to collect them inside the queryset as simple sting list
-        for keyword_list in all_related_keywords:
-            keywords += list(set(keyword_list) - set(keywords))
+        # select keywords by most freuqency linked by dataset or service; first 10 are used
+        relation_ids = self.get_basic_queryset().all(
+        ).aggregate(pks=ArrayAgg("pk", distinct=True))["pks"]
+
+        keywords = Keyword.objects.filter(
+            Q(datasetmetadatarecord_metadata__resource_relation__in=relation_ids) |
+            Q(servicemetadatarecord_metadata__resource_relation__in=relation_ids)
+        ).annotate(
+            frequency=Count("pk"),
+        ).order_by("-frequency").values_list("keyword", flat=True)[:10]
 
         csw_capabilities = CatalogueService(
             service_type=ServiceType(version="2.0.2", _name="CSW"),

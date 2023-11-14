@@ -1,5 +1,9 @@
+import os
+
 from django.contrib.gis.db.models.fields import MultiPolygonField
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.expressions import ArraySubquery
+from django.db.models.aggregates import Count
 from django.db.models.expressions import Case, F, OuterRef, Value, When
 from django.db.models.fields import CharField
 from django.db.models.functions import Cast, Coalesce, Concat, datetime
@@ -8,12 +12,14 @@ from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
+from eulxml.xmlmap import load_xmlobject_from_file
 from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
-                                                        ServiceMetadataContact,
-                                                        ServiceType)
+                                                        ServiceMetadataContact)
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.exceptions import OGCServiceException
+from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
+    GetRecordsResponse as GetRecordByIdResponse
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.metadata import Keyword, MetadataRelation
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
@@ -112,14 +118,14 @@ class CswServiceView(View):
                 When(service_metadata__isnull=False, then=Value("service")),
                 default=Value("dataset")
             ),
-            keywords=ArraySubquery(
+            all_related_keywords=ArraySubquery(
                 Keyword.objects.filter(
                     Q(datasetmetadatarecord_metadata=OuterRef(
                         "dataset_metadata__pk"))
                     | Q(servicemetadatarecord_metadata=OuterRef(
                         "service_metadata__pk"))
                 ).distinct("keyword").values_list("keyword", flat=True)
-            )
+            ),
         ).prefetch_related(
             "dataset_metadata",
             "service_metadata"
@@ -133,31 +139,45 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
 
-        all_related_keywords = self.get_basic_queryset().values_list("keywords", flat=True)
-        keywords = []
-        # TODO: look for a way to collect them inside the queryset as simple sting list
-        for keyword_list in all_related_keywords:
-            keywords += list(set(keyword_list) - set(keywords))
+        # select keywords by most freuqency linked by dataset or service; first 10 are used
+        relation_ids = self.get_basic_queryset().all(
+        ).aggregate(pks=ArrayAgg("pk", distinct=True))["pks"]
 
-        csw_capabilities = CatalogueService(
-            service_type=ServiceType(version="2.0.2", _name="CSW"),
-            keywords=keywords
-        )
-        csw_capabilities.title = "Mr. Map CSW"
-        csw_capabilities.service_contact = ServiceMetadataContact(name="test")
+        keywords = Keyword.objects.filter(
+            Q(datasetmetadatarecord_metadata__resource_relation__in=relation_ids) |
+            Q(servicemetadatarecord_metadata__resource_relation__in=relation_ids)
+        ).annotate(
+            frequency=Count("pk"),
+        ).order_by("-frequency").values_list("keyword", flat=True)[:10]
 
-        csw_capabilities.operation_urls.extend(
+        cap_file = os.path.dirname(
+            os.path.abspath(__file__)) + "/capabilitites.xml"
+
+        capabilitites_doc: CatalogueService = load_xmlobject_from_file(
+            cap_file, xmlclass=CatalogueService)
+        capabilitites_doc.keywords = keywords
+
+        capabilitites_doc.title = "Mr. Map CSW"
+        capabilitites_doc.service_contact = ServiceMetadataContact(name="test")
+
+        capabilitites_doc.operation_urls.extend(
             [
                 OperationUrl(method="Get", operation="GetCapabilities",
                              url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
                 OperationUrl(method="Get", operation="GetRecords",
+                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
+                OperationUrl(method="Post", operation="GetRecords",
+                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
+                OperationUrl(method="Get", operation="GetRecordById",
+                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
+                OperationUrl(method="Post", operation="GetRecordById",
                              url=request.build_absolute_uri('csw'), mime_types=["application/xml"])
             ]
         )
 
         return HttpResponse(
             status=200,
-            content=csw_capabilities.serializeDocument(),
+            content=capabilitites_doc.serializeDocument(pretty=True),
             content_type="application/xml"
         )
 
@@ -166,8 +186,10 @@ class CswServiceView(View):
         # this dict mapps the ogc specificated filterable attributes to our database schema(s)
         field_mapping = {
             "title": "title",
+            "Title": "title",
             "dc:title": "title",
             "abstract": "abstract",
+            "Abstract": "abstract",
             "dc:abstract": "abstract",
             "description": "abstract",
             # "subject": "keywords",  # TODO: keywords right?
@@ -176,9 +198,14 @@ class CswServiceView(View):
             "ows:BoundingBox": "bounding_geometry",
             "date": "date_stamp",
             "dc:modified": "date_stamp",
+            "modified": "date_stamp",
+            "Modified": "date_stamp",
             "type": "hierarchy_level",
             "dc:type": "hierarchy_level",
-            "ResourceIdentifier": "resource_identifier"
+            "ResourceIdentifier": "resource_identifier",
+            "identifier": "file_identifier",
+            "Identifier": "file_identifier",
+
         }
         q = self.ogc_request.filter_constraint(field_mapping=field_mapping)
         if isinstance(q, OGCServiceException):
@@ -242,6 +269,27 @@ class CswServiceView(View):
                         record.service_metadata.xml_backup)
         return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xml")
 
+    def get_record_by_id(self, request):
+        requested_entities = self.ogc_request.requested_entities
+        if len(requested_entities) == 1:
+            records = self.get_basic_queryset().filter(
+                file_identifier=requested_entities[0])
+        else:
+            records = self.get_basic_queryset().filter(
+                file_identifier__in=requested_entities)
+        xml = GetRecordByIdResponse(
+            version="2.0.2",
+            time_stamp=self.start_time,
+        )
+        for record in records:
+            if record.dataset_metadata:
+                xml.gmd_records.append(
+                    record.dataset_metadata.xml_backup)
+            elif record.service_metadata:
+                xml.gmd_records.append(
+                    record.service_metadata.xml_backup)
+        return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xml")
+
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method
 
@@ -252,7 +300,8 @@ class CswServiceView(View):
             return self.get_capabilities(request=request)
         elif self.ogc_request.is_get_records_request:
             return self.get_records(request=request)
+        elif self.ogc_request.is_get_record_by_id_request:
+            return self.get_record_by_id(request=request)
         # TODO: other csw operations
         else:
-
             return OperationNotSupportedException(ogc_request=self.ogc_request)

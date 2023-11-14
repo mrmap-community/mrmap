@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<csw:Capabilities xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
+    xmlns:gml="http://www.opengis.net/gml"
+    xmlns:ows="http://www.opengis.net/ows"
+    xmlns:ogc="http://www.opengis.net/ogc"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <ows:ServiceIdentification>
+        <ows:ServiceType>CSW</ows:ServiceType>
+        <ows:ServiceTypeVersion>2.0.2</ows:ServiceTypeVersion>
+        <ows:Fees>None</ows:Fees>
+        <ows:AccessConstraints>None</ows:AccessConstraints>
+    </ows:ServiceIdentification>
+
+    <ows:OperationsMetadata>
+
+        <ows:Operation name="GetRecords">
+            <ows:Parameter name="resultType">
+                <ows:Value>hits</ows:Value>
+                <ows:Value>results</ows:Value>
+            </ows:Parameter>
+            <ows:Parameter name="outputFormat">
+                <ows:Value>application/xml</ows:Value>
+            </ows:Parameter>
+            <ows:Parameter xmlns:gmd="http://www.isotc211.org/2005/gmd" name="outputSchema">
+                <ows:Value>http://www.isotc211.org/2005/gmd</ows:Value>
+            </ows:Parameter>
+            <ows:Parameter xmlns:gmd="http://www.isotc211.org/2005/gmd" name="typeNames">
+                <ows:Value>gmd:MD_Metadata</ows:Value>
+            </ows:Parameter>
+            <ows:Parameter name="CONSTRAINTLANGUAGE">
+                <ows:Value>FILTER</ows:Value>
+                <ows:Value>CQL_TEXT</ows:Value>
+            </ows:Parameter>
+            <ows:Constraint name="PostEncoding">
+                <ows:Value>XML</ows:Value>
+            </ows:Constraint>
+            <ows:Constraint name="SupportedISOQueryables">
+                <ows:Value>Abstract</ows:Value>
+                <ows:Value>Title</ows:Value>
+                <ows:Value>ResourceIdentifier</ows:Value>
+                <ows:Value>Type</ows:Value>
+                <ows:Value>Modified</ows:Value>
+            </ows:Constraint>
+        </ows:Operation>
+        <ows:Operation name="GetRecordById">
+            <ows:Parameter xmlns:gmd="http://www.isotc211.org/2005/gmd" name="outputSchema">
+                <ows:Value>http://www.isotc211.org/2005/gmd</ows:Value>
+            </ows:Parameter>
+            <ows:Parameter name="outputFormat">
+                <ows:Value>application/xml</ows:Value>
+            </ows:Parameter>
+            <ows:Parameter name="resultType">
+                <ows:Value>hits</ows:Value>
+                <ows:Value>results</ows:Value>
+            </ows:Parameter>
+            <ows:Parameter name="ElementSetName">
+                <ows:Value>full</ows:Value>
+            </ows:Parameter>
+            <ows:Constraint name="PostEncoding">
+                <ows:Value>XML</ows:Value>
+            </ows:Constraint>
+        </ows:Operation>
+        <ows:Parameter name="service">
+            <ows:Value>http://www.opengis.net/cat/csw/2.0.2</ows:Value>
+        </ows:Parameter>
+        <ows:Parameter name="version">
+            <ows:Value>2.0.2</ows:Value>
+        </ows:Parameter>
+    </ows:OperationsMetadata>
+    <ogc:Filter_Capabilities>
+        <ogc:Spatial_Capabilities>
+            <ogc:GeometryOperands>
+                <ogc:GeometryOperand>gml:Envelope</ogc:GeometryOperand>
+                <ogc:GeometryOperand>gml:Point</ogc:GeometryOperand>
+                <ogc:GeometryOperand>gml:LineString</ogc:GeometryOperand>
+                <ogc:GeometryOperand>gml:Polygon</ogc:GeometryOperand>
+            </ogc:GeometryOperands>
+            <ogc:SpatialOperators>
+                <ogc:SpatialOperator name="BBOX" />
+                <ogc:SpatialOperator name="Equals" />
+                <ogc:SpatialOperator name="Overlaps" />
+                <ogc:SpatialOperator name="Disjoint" />
+                <ogc:SpatialOperator name="Intersects" />
+                <ogc:SpatialOperator name="Touches" />
+                <ogc:SpatialOperator name="Crosses" />
+                <ogc:SpatialOperator name="Within" />
+                <ogc:SpatialOperator name="Contains" />
+            </ogc:SpatialOperators>
+        </ogc:Spatial_Capabilities>
+        <ogc:Scalar_Capabilities>
+            <ogc:LogicalOperators />
+            <ogc:ComparisonOperators>
+                <ogc:ComparisonOperator>EqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>Like</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>LessThan</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>GreaterThan</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>LessThanEqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>GreaterThanEqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>NotEqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>Between</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>NullCheck</ogc:ComparisonOperator>
+            </ogc:ComparisonOperators>
+        </ogc:Scalar_Capabilities>
+    </ogc:Filter_Capabilities>
+</csw:Capabilities>
+

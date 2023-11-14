@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-09-25 07:46+0200\n"
+"POT-Creation-Date: 2023-11-14 12:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:209
+#: MrMap/settings.py:213
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:210
+#: MrMap/settings.py:214
 msgid "German"
 msgstr "Deutsch"
 
@@ -30,43 +30,43 @@ msgstr "Deutsch"
 msgid "Accounts"
 msgstr "Account"
 
-#: accounts/models/groups.py:24 registry/models/metadata.py:125
+#: accounts/models/groups.py:24 registry/models/metadata.py:128
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
-#: accounts/models/groups.py:27 registry/models/metadata.py:128
+#: accounts/models/groups.py:27 registry/models/metadata.py:131
 msgid "E-Mail"
 msgstr "E-Mail"
 
-#: accounts/models/groups.py:30 registry/models/metadata.py:131
+#: accounts/models/groups.py:30 registry/models/metadata.py:134
 msgid "Phone"
 msgstr "Telefon"
 
-#: accounts/models/groups.py:33 registry/models/metadata.py:134
+#: accounts/models/groups.py:33 registry/models/metadata.py:137
 msgid "Facsimile"
 msgstr "Fax"
 
-#: accounts/models/groups.py:36 registry/models/metadata.py:137
+#: accounts/models/groups.py:36 registry/models/metadata.py:140
 msgid "City"
 msgstr "Stadt"
 
-#: accounts/models/groups.py:39 registry/models/metadata.py:140
+#: accounts/models/groups.py:39 registry/models/metadata.py:143
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: accounts/models/groups.py:46 registry/models/metadata.py:143
+#: accounts/models/groups.py:46 registry/models/metadata.py:146
 msgid "Address type"
 msgstr "Adresse"
 
-#: accounts/models/groups.py:49 registry/models/metadata.py:146
+#: accounts/models/groups.py:49 registry/models/metadata.py:149
 msgid "Address"
 msgstr "Adresse"
 
-#: accounts/models/groups.py:56 registry/models/metadata.py:149
+#: accounts/models/groups.py:56 registry/models/metadata.py:152
 msgid "State or province"
 msgstr "Bundesland"
 
-#: accounts/models/groups.py:59 registry/models/metadata.py:152
+#: accounts/models/groups.py:59 registry/models/metadata.py:155
 msgid "Country"
 msgstr "Land"
 
@@ -157,6 +157,10 @@ msgstr "Gruppe in denen dieser Nutzer Mitglied ist."
 #: accounts/serializers/users.py:41
 msgid "groups where this user shall be member of"
 msgstr "Gruppen in denen dieser Nutzer Mitglied sein soll."
+
+#: csw/apps.py:9
+msgid "csw"
+msgstr ""
 
 #: extras/validators.py:17
 msgid "The given requested method is not GetCapabilities."
@@ -323,7 +327,7 @@ msgid "returns layers with bbox that intersects the passed geometry"
 msgstr ""
 "liefert alle Ebenen die sich mit der übermittelten Geometrie überschneiden"
 
-#: registry/models/conformity.py:140 registry/models/harvest.py:28
+#: registry/models/conformity.py:140 registry/models/harvest.py:30
 #: registry/models/service.py:355 registry/models/service.py:573
 msgid "service"
 msgstr "Dienst"
@@ -332,7 +336,7 @@ msgstr "Dienst"
 msgid "the service targeted by this check"
 msgstr "Der Dienst der von dieser Überprüfung betroffen ist."
 
-#: registry/models/conformity.py:151 registry/models/metadata.py:774
+#: registry/models/conformity.py:151 registry/models/metadata.py:856
 #: registry/models/monitoring.py:158 registry/models/monitoring.py:186
 #: registry/models/service.py:424
 msgid "layer"
@@ -342,7 +346,7 @@ msgstr "Ebene:"
 msgid "the layer targeted by this check"
 msgstr "Die Ebene die von dieser Überprüfung betroffen ist."
 
-#: registry/models/conformity.py:163 registry/models/metadata.py:783
+#: registry/models/conformity.py:163 registry/models/metadata.py:865
 #: registry/models/service.py:603 registry/models/service.py:678
 msgid "feature type"
 msgstr "Featuretype:"
@@ -351,9 +355,9 @@ msgstr "Featuretype:"
 msgid "the feature type targeted by this check"
 msgstr "Der Merkmalstyp der von dieser Überprüfung betroffen ist. "
 
-#: registry/models/conformity.py:175 registry/models/metadata.py:703
-#: registry/models/metadata.py:704 registry/models/metadata.py:791
-#: registry/serializers/service.py:72
+#: registry/models/conformity.py:175 registry/models/metadata.py:749
+#: registry/models/metadata.py:750 registry/models/metadata.py:873
+#: registry/serializers/service.py:74
 msgid "dataset metadata"
 msgstr "Datensatz Metadaten"
 
@@ -369,56 +373,50 @@ msgstr "XML Sicherung"
 msgid "the original xml as backup to restore the xml field."
 msgstr "Das Original XML als Sicherung, um es wieder herzustellen."
 
-#: registry/models/harvest.py:29
+#: registry/models/harvest.py:31
 msgid "the csw for that this job is running"
 msgstr "Die Ebene für diesen Stil"
 
-#: registry/models/harvest.py:35
-msgid "record type"
-msgstr "Auflösungstyp"
-
-#: registry/models/harvest.py:36
-msgid "the type of the record, which shall be harvested."
-msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
-
-#: registry/models/harvest.py:41
+#: registry/models/harvest.py:39
 msgid "total records"
 msgstr "Postleitzahl"
 
-#: registry/models/harvest.py:42
+#: registry/models/harvest.py:40
 msgid "total count of records which will be harvested by this job"
 msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
-#: registry/models/harvest.py:50
+#: registry/models/harvest.py:48
 msgid "date started"
 msgstr "Zeitpunkt"
 
-#: registry/models/harvest.py:51
+#: registry/models/harvest.py:49
 msgid "timestamp of start"
 msgstr "Zeitstempel des Startzeitpunktes"
 
-#: registry/models/harvest.py:56
+#: registry/models/harvest.py:54
 msgid "date done"
 msgstr "Beendet am"
 
-#: registry/models/harvest.py:57
+#: registry/models/harvest.py:55
 msgid "timestamp of done"
 msgstr "Zeitstempel des Endezeitpunktes"
 
-#: registry/models/harvest.py:168
+#: registry/models/harvest.py:185
 msgid "harvesting job"
 msgstr "Ernteaufgabe"
 
-#: registry/models/harvest.py:170
+#: registry/models/harvest.py:188
 msgid "response"
 msgstr "Antworten protokollieren"
 
-#: registry/models/harvest.py:172
-msgid "the content of the http response"
+#: registry/models/harvest.py:190
+#, fuzzy
+#| msgid "the content of the http response"
+msgid "the content of the http response, or of the imported file"
 msgstr "Zeigt den Gesundheitszustand der Ressource."
 
 #: registry/models/mapcontext.py:25 registry/models/mapcontext.py:272
-#: registry/models/metadata.py:54 registry/models/metadata.py:364
+#: registry/models/metadata.py:54 registry/models/metadata.py:368
 #: registry/serializers/mapcontext.py:20
 msgid "title"
 msgstr "Titel"
@@ -435,7 +433,7 @@ msgstr "Sprache"
 msgid "language of context document"
 msgstr "Sprache des Dokuments"
 
-#: registry/models/mapcontext.py:37 registry/models/metadata.py:367
+#: registry/models/mapcontext.py:37 registry/models/metadata.py:371
 msgid "abstract"
 msgstr "Beschreibung"
 
@@ -547,7 +545,7 @@ msgstr "Erstellt am"
 msgid "the layer for that this style is for."
 msgstr "Die Ebene für diesen Stil"
 
-#: registry/models/metadata.py:49 registry/models/metadata.py:760
+#: registry/models/metadata.py:49 registry/models/metadata.py:842
 msgid "name"
 msgstr "Nutzername"
 
@@ -592,45 +590,45 @@ msgstr "Erstellt am"
 msgid "the style entity which is linked to this legend url"
 msgstr "Der Stil der mit dieser Legenendurl verknüpft ist"
 
-#: registry/models/metadata.py:121
+#: registry/models/metadata.py:124
 msgid "Name"
 msgstr "Name"
 
-#: registry/models/metadata.py:122
+#: registry/models/metadata.py:125
 msgid "The name of the organization"
 msgstr "Organisation entfernen"
 
-#: registry/models/metadata.py:214
+#: registry/models/metadata.py:217
 msgid "download link"
 msgstr "Download"
 
-#: registry/models/metadata.py:215
+#: registry/models/metadata.py:218
 msgid "the url where the metadata could be downloaded from."
 msgstr "Die URL von der der Metadatensatz heruntergeladen werden kann."
 
-#: registry/models/metadata.py:217
+#: registry/models/metadata.py:220
 msgid "remote content"
 msgstr "Original Inhalt"
 
-#: registry/models/metadata.py:218
+#: registry/models/metadata.py:221
 msgid "the fetched content of the download url."
 msgstr "Der Inhalt der heruntergeladenen URL."
 
-#: registry/models/metadata.py:221
+#: registry/models/metadata.py:224
 msgid "described resource"
 msgstr "Neue Ressource"
 
-#: registry/models/metadata.py:222
+#: registry/models/metadata.py:225
 msgid "the uuid of the described service, layer or feature type"
 msgstr "Die UUID des beschriebenen Dienstes, Ebene oder Merkmaltypen."
 
-#: registry/models/metadata.py:289 registry/models/metadata.py:299
+#: registry/models/metadata.py:293 registry/models/metadata.py:303
 #: registry/models/monitoring.py:144 registry/models/security.py:145
-#: registry/models/service.py:128 registry/serializers/service.py:57
+#: registry/models/service.py:128 registry/serializers/service.py:59
 msgid "web map service"
 msgstr "Ihre registrierten Web Map Services"
 
-#: registry/models/metadata.py:290 registry/models/metadata.py:300
+#: registry/models/metadata.py:294 registry/models/metadata.py:304
 msgid ""
 "the service where this remote metadata is related to. This remote metadata "
 "was found in the GetCapabilites document of the related service."
@@ -638,136 +636,136 @@ msgstr ""
 "Der Dienst bei dem dieser Metadatensatz verknüpft ist. Dieser Metadatensatz "
 "wurde im GetCapabilities Dokument gefunden."
 
-#: registry/models/metadata.py:310
+#: registry/models/metadata.py:314
 msgid "access constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: registry/models/metadata.py:311
+#: registry/models/metadata.py:315
 msgid "access constraints for the given resource."
 msgstr "Kategorien auswählen"
 
-#: registry/models/metadata.py:314
+#: registry/models/metadata.py:318
 msgid "fees"
 msgstr "Gebühren"
 
-#: registry/models/metadata.py:315
+#: registry/models/metadata.py:319
 msgid "Costs and of terms of use for the given resource."
 msgstr "Kosten und Nutzungsbedingungen für die Ressource."
 
-#: registry/models/metadata.py:334
+#: registry/models/metadata.py:338
 msgid "date stamp"
 msgstr "Zeitpunkt"
 
-#: registry/models/metadata.py:335
+#: registry/models/metadata.py:339
 msgid ""
 "date that the metadata was created. If this is a metadata record which is "
 "parsed from remote iso metadata, the date stamp of the remote iso metadata "
 "will be used."
 msgstr "Datum an dem der Metadatensatz erstellt wurde."
 
-#: registry/models/metadata.py:346
+#: registry/models/metadata.py:350
 msgid "file identifier"
 msgstr "Dateienidentifikator"
 
-#: registry/models/metadata.py:347
+#: registry/models/metadata.py:351
 msgid ""
 "the parsed file identifier from the iso metadata xml (gmd:fileIdentifier) OR "
 "for example if it is a layer/featuretypethe uuid of the described layer/"
 "featuretype shall be used to identify the generated iso metadata xml."
 msgstr "Gefundener Dateienidentifikator"
 
-#: registry/models/metadata.py:354 registry/models/metadata.py:504
+#: registry/models/metadata.py:358 registry/models/metadata.py:548
 msgid "origin"
 msgstr "Herkunft"
 
-#: registry/models/metadata.py:355
+#: registry/models/metadata.py:359
 msgid "Where the metadata record comes from."
 msgstr "Gesundheitszustand der Ressource"
 
-#: registry/models/metadata.py:360
+#: registry/models/metadata.py:364
 msgid "origin url"
 msgstr "Original"
 
-#: registry/models/metadata.py:361
+#: registry/models/metadata.py:365
 msgid ""
 "the url of the document where the information of this metadata record comes "
 "from"
 msgstr "URL des Dokumentes"
 
-#: registry/models/metadata.py:365
+#: registry/models/metadata.py:369
 msgid "a short descriptive title for this metadata"
 msgstr "Eine kurze Beschreibung des Titels für diesen Metadatensatz"
 
-#: registry/models/metadata.py:368
+#: registry/models/metadata.py:372
 msgid "brief summary of the content of this metadata."
 msgstr "Kurzfassung des Inhalts"
 
-#: registry/models/metadata.py:371
+#: registry/models/metadata.py:375
 msgid "is broken"
 msgstr "Ist defekt"
 
-#: registry/models/metadata.py:372 registry/models/metadata.py:379
+#: registry/models/metadata.py:376 registry/models/metadata.py:383
 msgid "TODO"
 msgstr "TODO"
 
-#: registry/models/metadata.py:375
+#: registry/models/metadata.py:379
 msgid "is customized"
 msgstr "Ist verändert"
 
-#: registry/models/metadata.py:376
+#: registry/models/metadata.py:380
 msgid "If the metadata record is customized, this flag is True"
 msgstr "Wenn der Metadatensatz verändert wurde ist Bit gesetzt."
 
-#: registry/models/metadata.py:381
+#: registry/models/metadata.py:385
 msgid "is searchable"
 msgstr "Durchsuchbar"
 
-#: registry/models/metadata.py:382
+#: registry/models/metadata.py:386
 msgid "only searchable metadata will be returned from the search api"
 msgstr ""
 "Nur Metadatensätze welche gesucht werden dürfen, werden von der "
 "Suchschnittstelle zurückgeliefert."
 
-#: registry/models/metadata.py:384 registry/models/service.py:45
+#: registry/models/metadata.py:388 registry/models/service.py:45
 msgid "hits"
 msgstr "Treffer"
 
-#: registry/models/metadata.py:386 registry/models/service.py:46
+#: registry/models/metadata.py:390 registry/models/service.py:46
 msgid "how many times this metadata was requested by a client"
 msgstr "Wie offt dieser Metadatensatz angefragt wurde"
 
-#: registry/models/metadata.py:391 registry/serializers/service.py:63
-#: registry/serializers/service.py:366
+#: registry/models/metadata.py:395 registry/serializers/service.py:65
+#: registry/serializers/service.py:385
 msgid "keywords"
 msgstr "Schlüsselwörter"
 
-#: registry/models/metadata.py:392
+#: registry/models/metadata.py:396
 msgid "all keywords which are related to the content of this metadata."
 msgstr ""
 "Alle Schlüsselwörter, welche mit dem Inhalt des Metadatensatzes in "
 "Verbindung stehen."
 
-#: registry/models/metadata.py:420
+#: registry/models/metadata.py:437
 msgid "service contact"
 msgstr "Service Metadaten"
 
-#: registry/models/metadata.py:421
+#: registry/models/metadata.py:438
 msgid "This is the contact for the service provider."
 msgstr "Dies ist der Kontakt des Dienstanbieters."
 
-#: registry/models/metadata.py:425
+#: registry/models/metadata.py:442
 msgid "metadata contact"
 msgstr "Metadaten Datum"
 
-#: registry/models/metadata.py:426
+#: registry/models/metadata.py:443
 msgid "This is the contact for the metadata information."
 msgstr "Dies ist der Kontakt für die Metadateninformationen."
 
-#: registry/models/metadata.py:499
+#: registry/models/metadata.py:543
 msgid "internal relation?"
 msgstr "Interne verknüpfung?"
 
-#: registry/models/metadata.py:500
+#: registry/models/metadata.py:544
 msgid ""
 "true means that this relation is created by a user and the dataset is maybe "
 "not linked in a capabilities document for example."
@@ -775,21 +773,50 @@ msgstr ""
 "Wahr bedeutet, das diese Relation von einem Benutzer erstellt wurde und der "
 "Datensatz vielleicht nicht in einemMetadatensatz vernküpft ist."
 
-#: registry/models/metadata.py:505
+#: registry/models/metadata.py:549
 msgid "determines where this relation was found or it is added by a user."
 msgstr ""
 "Bestimmt wo diese Beziehung gefunden wurde oder ob diese von einem Benutzer "
 "erstellt wurde."
 
-#: registry/models/metadata.py:613 registry/models/metadata.py:619
+#: registry/models/metadata.py:588 registry/models/service.py:425
+msgid "layers"
+msgstr "Ebenen"
+
+#: registry/models/metadata.py:589
+msgid ""
+"all layers which are linking to this dataset metadata in there capabilities."
+msgstr ""
+"Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
+"sind."
+
+#: registry/models/metadata.py:598 registry/models/service.py:604
+msgid "feature types"
+msgstr "Merkmalstypen"
+
+#: registry/models/metadata.py:599
+msgid ""
+"all feature types which are linking to this dataset metadata in there "
+"capabilities."
+msgstr "Alle Merksmalstypen, welche mit diesem Metadatensatz verknüpft sind."
+
+#: registry/models/metadata.py:606
+msgid "services"
+msgstr "Dienste"
+
+#: registry/models/metadata.py:607
+msgid "all services from which this dataset was harvested."
+msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
+
+#: registry/models/metadata.py:688 registry/models/metadata.py:694
 msgid "contact"
 msgstr "Kontakt"
 
-#: registry/models/metadata.py:614
+#: registry/models/metadata.py:689
 msgid "this is the contact which provides this dataset."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: registry/models/metadata.py:620
+#: registry/models/metadata.py:695
 msgid ""
 "this is the contact which is responsible for the metadata information of the "
 "dataset."
@@ -797,107 +824,123 @@ msgstr ""
 "Dies ist der Kontakt, welcher für die Metadateninformationen verantwortlich "
 "ist."
 
-#: registry/models/metadata.py:625
+#: registry/models/metadata.py:700
 msgid "resolution type"
 msgstr "Auflösungstyp"
 
-#: registry/models/metadata.py:626
+#: registry/models/metadata.py:701
 msgid "Ground resolution in meter or the equivalent scale."
 msgstr "Bodenaufläsung in Metern oder Maßstab."
 
-#: registry/models/metadata.py:629
+#: registry/models/metadata.py:704
 msgid "resolution value"
 msgstr "Bodenauflösung"
 
-#: registry/models/metadata.py:630
+#: registry/models/metadata.py:705
 msgid "The value depending on the selected resolution type."
 msgstr "Dieser Wert hängt von dem ausgewählten Auflösungstypen ab."
 
-#: registry/models/metadata.py:635 registry/models/service.py:318
-#: registry/serializers/service.py:128 registry/serializers/service.py:375
+#: registry/models/metadata.py:710 registry/models/service.py:318
+#: registry/serializers/service.py:131 registry/serializers/service.py:394
 msgid "reference systems"
 msgstr "Referenzsysteme"
 
-#: registry/models/metadata.py:640
+#: registry/models/metadata.py:715
 msgid "format"
 msgstr "Format"
 
-#: registry/models/metadata.py:641
+#: registry/models/metadata.py:716
 msgid "The format in which the described dataset is stored."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
-#: registry/models/metadata.py:646
+#: registry/models/metadata.py:721
 msgid "charset"
 msgstr "Zeichensatz"
 
-#: registry/models/metadata.py:647
+#: registry/models/metadata.py:722
 msgid "The charset which is used by the stored data."
 msgstr "Die Gruppe, die diesen Dienst registriert hat"
 
-#: registry/models/metadata.py:649
+#: registry/models/metadata.py:724
 msgid "Flag to signal if the described data has a topologically consistence."
 msgstr ""
 "Bit zum signalisieren, ob die beschriebene Information eine topologische "
 "Konsistenz besitzt."
 
-#: registry/models/metadata.py:663
+#: registry/models/metadata.py:738
 msgid "identifier of the remote data"
 msgstr "Identifikator für die entfernten Daten"
 
-#: registry/models/metadata.py:667
+#: registry/models/metadata.py:742
 msgid "code space for the given identifier"
 msgstr "Namensraum für den Indenifkator"
 
-#: registry/models/metadata.py:669
+#: registry/models/metadata.py:744
 msgid "flag to signal if this "
 msgstr "Bit um dies zu signalisieren "
 
-#: registry/models/metadata.py:676 registry/models/service.py:425
-msgid "layers"
-msgstr "Ebenen"
+#: registry/models/metadata.py:814 registry/models/service.py:129
+msgid "web map services"
+msgstr "Ihre registrierten Web Map Services"
 
-#: registry/models/metadata.py:677
+#: registry/models/metadata.py:815
+#, fuzzy
+#| msgid ""
+#| "all layers which are linking to this dataset metadata in there "
+#| "capabilities."
 msgid ""
-"all layers which are linking to this dataset metadata in there capabilities."
+"all wms which are linking to this service metadata in there capabilities."
 msgstr ""
 "Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
 "sind."
 
-#: registry/models/metadata.py:686 registry/models/service.py:604
-msgid "feature types"
-msgstr "Merkmalstypen"
+#: registry/models/metadata.py:824 registry/models/service.py:147
+msgid "web feature services"
+msgstr "Ihre registrierten Web Feature Services"
 
-#: registry/models/metadata.py:687
+#: registry/models/metadata.py:825
+#, fuzzy
+#| msgid ""
+#| "all layers which are linking to this dataset metadata in there "
+#| "capabilities."
 msgid ""
-"all feature types which are linking to this dataset metadata in there "
-"capabilities."
-msgstr "Alle Merksmalstypen, welche mit diesem Metadatensatz verknüpft sind."
+"all wfs which are linking to this service metadata in there capabilities."
+msgstr ""
+"Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
+"sind."
 
-#: registry/models/metadata.py:696
-msgid "services"
-msgstr "Dienste"
+#: registry/models/metadata.py:834 registry/models/service.py:161
+msgid "catalogue services"
+msgstr "Zugehöriger Dienst"
 
-#: registry/models/metadata.py:697
-msgid "all services from which this dataset was harvested."
-msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
+#: registry/models/metadata.py:835
+#, fuzzy
+#| msgid ""
+#| "all layers which are linking to this dataset metadata in there "
+#| "capabilities."
+msgid ""
+"all csw which are linking to this service metadata in there capabilities."
+msgstr ""
+"Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
+"sind."
 
-#: registry/models/metadata.py:761
+#: registry/models/metadata.py:843
 msgid "the type of the content stored in extent field."
 msgstr "Die Art des Inhalts"
 
-#: registry/models/metadata.py:763
+#: registry/models/metadata.py:845
 msgid "units"
 msgstr "Einheiten"
 
-#: registry/models/metadata.py:764
+#: registry/models/metadata.py:846
 msgid "measurement units specifier"
 msgstr "Maßeinheitenspezifizierer"
 
-#: registry/models/metadata.py:765
+#: registry/models/metadata.py:847
 msgid "extent"
 msgstr "Räumliche Ausdehnung"
 
-#: registry/models/metadata.py:766
+#: registry/models/metadata.py:848
 msgid ""
 "The extent string declares what value(s) along the Dimension axis are "
 "appropriate for this specific geospatial data object."
@@ -905,23 +948,23 @@ msgstr ""
 "Der Erweiterungstext beschreibt, welche Werte entlang der Achse, angemessen "
 "für diese Art Geodaten ist."
 
-#: registry/models/metadata.py:775
+#: registry/models/metadata.py:857
 msgid "the related layer of this dimension entity"
 msgstr "Die verknüpfte Ebene dieses Eintrags"
 
-#: registry/models/metadata.py:784
+#: registry/models/metadata.py:866
 msgid "the related feature type of this dimension entity"
 msgstr "Der verknüpfte Merkmalstyp des Dimensionseintrages"
 
-#: registry/models/metadata.py:792
+#: registry/models/metadata.py:874
 msgid "the related dataset metadata of this dimension entity"
 msgstr "Gesundheitszustand der Ressource"
 
-#: registry/models/metadata.py:818
+#: registry/models/metadata.py:900
 msgid "related dimension"
 msgstr "verknüpfter Dimensionseintrag"
 
-#: registry/models/metadata.py:819
+#: registry/models/metadata.py:901
 msgid "the related dimension where this interval was found."
 msgstr "Die vernüpfte Dimension des Intervals."
 
@@ -1014,7 +1057,7 @@ msgid ""
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
 #: registry/models/security.py:160 registry/models/security.py:175
-#: registry/models/service.py:146 registry/serializers/service.py:358
+#: registry/models/service.py:146 registry/serializers/service.py:377
 msgid "web feature service"
 msgstr "Ihre registrierten Web Feature Services"
 
@@ -1123,20 +1166,8 @@ msgstr "URL"
 msgid "the base url of the service"
 msgstr "Die Basis-URL des Dienstes."
 
-#: registry/models/service.py:129
-msgid "web map services"
-msgstr "Ihre registrierten Web Map Services"
-
-#: registry/models/service.py:147
-msgid "web feature services"
-msgstr "Ihre registrierten Web Feature Services"
-
 #: registry/models/service.py:160
 msgid "catalogue service"
-msgstr "Zugehöriger Dienst"
-
-#: registry/models/service.py:161
-msgid "catalogue services"
 msgstr "Zugehöriger Dienst"
 
 #: registry/models/service.py:176
@@ -1231,11 +1262,11 @@ msgstr "Gehört zu Ebene"
 msgid "the ancestor of this layer."
 msgstr "Schnittstellen des Layers für "
 
-#: registry/models/service.py:371 registry/serializers/service.py:90
+#: registry/models/service.py:371 registry/serializers/service.py:93
 msgid "is queryable"
 msgstr "Abfragbar"
 
-#: registry/models/service.py:373 registry/serializers/service.py:92
+#: registry/models/service.py:373 registry/serializers/service.py:95
 msgid ""
 "flag to signal if this layer provides factual information or not. Parsed "
 "from capabilities."
@@ -1243,11 +1274,11 @@ msgstr ""
 "Bit um zu signalisieren, ob die Ebene Sachinformationen liefert oder nicht. "
 "Aus dem Capabilities-XML übernommen."
 
-#: registry/models/service.py:380 registry/serializers/service.py:98
+#: registry/models/service.py:380 registry/serializers/service.py:101
 msgid "is opaque"
 msgstr "Durchsichtig"
 
-#: registry/models/service.py:382 registry/serializers/service.py:100
+#: registry/models/service.py:382 registry/serializers/service.py:103
 msgid ""
 "flag to signal if this layer support transparency content or not. Parsed "
 "from capabilities."
@@ -1255,11 +1286,11 @@ msgstr ""
 "Bit um zu signalisieren, ob die Ebene transparent geschaltet werden kann "
 "oder nicht. Aus dem Capabilities-XML übernommen."
 
-#: registry/models/service.py:389 registry/serializers/service.py:106
+#: registry/models/service.py:389 registry/serializers/service.py:109
 msgid "is cascaded"
 msgstr "Kaskadiert"
 
-#: registry/models/service.py:391 registry/serializers/service.py:108
+#: registry/models/service.py:391 registry/serializers/service.py:111
 msgid ""
 "WMS cascading allows to expose layers coming from other WMS servers as if "
 "they were local layers"
@@ -1350,120 +1381,120 @@ msgstr "Wurzelknoten kann nicht verschoben werden"
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
-#: registry/serializers/service.py:58
+#: registry/serializers/service.py:60
 msgid "the web map service, where this layer is part of."
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
-#: registry/serializers/service.py:64
+#: registry/serializers/service.py:66
 msgid "keywords help to find layers by matching keywords."
 msgstr "Schlagwörter helfen, um Ebenen anhand gleicher zu finden."
 
-#: registry/serializers/service.py:73
+#: registry/serializers/service.py:75
 #, fuzzy
 #| msgid "dataset metadata"
 msgid "related dataset metadata objects"
 msgstr "Datensatz Metadaten"
 
-#: registry/serializers/service.py:81
+#: registry/serializers/service.py:84
 #, fuzzy
 #| msgid "bbox"
 msgid "bbox_l_l"
 msgstr "bbox"
 
-#: registry/serializers/service.py:82 registry/serializers/service.py:87
+#: registry/serializers/service.py:85 registry/serializers/service.py:90
 msgid "this is the spatial extent of the layer."
 msgstr "Dies ist die räumliche Ausdehnung der Ebene."
 
-#: registry/serializers/service.py:86
+#: registry/serializers/service.py:89
 msgid "bbox"
 msgstr "bbox"
 
-#: registry/serializers/service.py:114
+#: registry/serializers/service.py:117
 msgid "minimal scale"
 msgstr "Minimale Skalierung"
 
-#: registry/serializers/service.py:115
+#: registry/serializers/service.py:118
 msgid "the minimum scale value."
 msgstr "minimaler Maßstabswert"
 
-#: registry/serializers/service.py:118
+#: registry/serializers/service.py:121
 msgid "maximum scale"
 msgstr "maximaler Maßstabswert"
 
-#: registry/serializers/service.py:119
+#: registry/serializers/service.py:122
 msgid "the maximum scale value."
 msgstr "maximaler Maßstabswert"
 
-#: registry/serializers/service.py:121 registry/serializers/service.py:142
+#: registry/serializers/service.py:124 registry/serializers/service.py:145
 msgid "styles"
 msgstr "Style"
 
-#: registry/serializers/service.py:122
+#: registry/serializers/service.py:125
 msgid "related styles of this layer."
 msgstr "Schnittstellen des Layers für "
 
-#: registry/serializers/service.py:129
+#: registry/serializers/service.py:132
 msgid "available reference systems of this layer."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
-#: registry/serializers/service.py:135
+#: registry/serializers/service.py:138
 #, fuzzy
 #| msgid "related dimension"
 msgid "dimensions"
 msgstr "verknüpfter Dimensionseintrag"
 
-#: registry/serializers/service.py:136
+#: registry/serializers/service.py:139
 #, fuzzy
 #| msgid "available reference systems of this layer."
 msgid "available dimensions of this layer."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
-#: registry/serializers/service.py:143
+#: registry/serializers/service.py:146
 #, fuzzy
 #| msgid "related styles of this layer."
 msgid "available styles of this layer."
 msgstr "Schnittstellen des Layers für "
 
-#: registry/serializers/service.py:279 registry/serializers/service.py:432
-#: registry/serializers/service.py:531
+#: registry/serializers/service.py:283 registry/serializers/service.py:451
+#: registry/serializers/service.py:551
 msgid "operation urls"
 msgstr "Erlaubte Bereiche"
 
-#: registry/serializers/service.py:280 registry/serializers/service.py:433
-#: registry/serializers/service.py:532
+#: registry/serializers/service.py:284 registry/serializers/service.py:452
+#: registry/serializers/service.py:552
 msgid "this are the urls to use for the ogc operations."
 msgstr "Die URL für diese Operation."
 
-#: registry/serializers/service.py:307
+#: registry/serializers/service.py:326
 msgid "get capabilities url"
 msgstr "Capabilities"
 
-#: registry/serializers/service.py:308
+#: registry/serializers/service.py:327
 msgid "a valid get capabilities url."
 msgstr "Capabilities"
 
-#: registry/serializers/service.py:314
+#: registry/serializers/service.py:333
 msgid "authentication credentials"
 msgstr "Authentifizierungstyp"
 
-#: registry/serializers/service.py:315
+#: registry/serializers/service.py:334
 msgid "Optional authentication credentials to request the remote service."
 msgstr "Die optionalen Authentifizierungsdaten um den Dienst abzufragen."
 
-#: registry/serializers/service.py:318
+#: registry/serializers/service.py:337
 msgid "owner"
 msgstr "Besitzer"
 
-#: registry/serializers/service.py:319
+#: registry/serializers/service.py:338
 msgid "The selected organization grants all rights on the registered service."
 msgstr ""
 "Wählen Sie die Organisation aus, für die der Dienst registriert werden soll."
 
-#: registry/serializers/service.py:322
+#: registry/serializers/service.py:341
 msgid "collect metadata records"
 msgstr "Metadaten wiederherstellen"
 
-#: registry/serializers/service.py:323
+#: registry/serializers/service.py:342
 msgid ""
 "If checked, Mr. Map collects all related metadata documents after the "
 "registration task."
@@ -1471,15 +1502,15 @@ msgstr ""
 "Wenn Sie die Checkbox aktivieren, sammelt Mr. Map alle verbundenen "
 "Metadatendokumente nach der Registrierung herunter."
 
-#: registry/serializers/service.py:360
+#: registry/serializers/service.py:379
 msgid "the web feature service, where this featuretype is part of."
 msgstr "Die Extra-Dienste denen dieses Element angehört."
 
-#: registry/serializers/service.py:367
+#: registry/serializers/service.py:386
 msgid "keywords help to find featuretypes by matching keywords."
 msgstr "Schlagwörter helfen, um Ebenen anhand gleicher zu finden."
 
-#: registry/serializers/service.py:376
+#: registry/serializers/service.py:395
 msgid "available reference systems of this featuretype."
 msgstr "Alle Referenzsystem die dieses Element unterstützt."
 
@@ -1501,6 +1532,12 @@ msgstr "Diese Ressource ist aktiviert."
 #: registry/settings.py:34
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
+
+#~ msgid "record type"
+#~ msgstr "Auflösungstyp"
+
+#~ msgid "the type of the record, which shall be harvested."
+#~ msgstr "Gesamtanzahl der durch diesen Prozess geernteten Datensätze"
 
 #~ msgid "token"
 #~ msgstr "token"

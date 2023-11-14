@@ -453,7 +453,7 @@ if not os.path.exists(LOG_DIR):
 
 
 FILE_IMPORT_DIR = os.environ.get(
-    "MRMAP_FILE_IMPORT_DIR", f"/var/mrmap/import")
+    "MRMAP_FILE_IMPORT_DIR", "/var/mrmap/import")
 
 FILE_IMPORT_DIR = FILE_IMPORT_DIR if check_path_access(
     FILE_IMPORT_DIR) else f"{BASE_DIR}/import"

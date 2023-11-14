@@ -15,8 +15,7 @@ from django.views.generic.base import View
 from eulxml.xmlmap import load_xmlobject_from_file
 from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
-                                                        ServiceMetadataContact,
-                                                        ServiceType)
+                                                        ServiceMetadataContact)
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.exceptions import OGCServiceException
 from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \

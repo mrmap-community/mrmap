@@ -480,7 +480,7 @@ class FeatureTypeMetadata(AbstractMetadata):
 
 
 class MetadataRelation(models.Model):
-    """ Model to store relations between metadata models and service resource like models, 
+    """ Model to store relations between metadata models and service resource like models,
 
         to:
          * find available ogc services (wms, wfs, layer, feature_types) which can deliver relevant information by a filter constraint

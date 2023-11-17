@@ -126,6 +126,12 @@ class CswServiceView(View):
                         "service_metadata__pk"))
                 ).distinct("keyword").values_list("keyword", flat=True)
             ),
+            search=Concat(
+                "title",
+                Value(" "),
+                "abstract",
+                output_field=CharField()
+            ),
         ).prefetch_related(
             "dataset_metadata",
             "service_metadata"
@@ -202,19 +208,22 @@ class CswServiceView(View):
             "Modified": "date_stamp",
             "type": "hierarchy_level",
             "dc:type": "hierarchy_level",
+            "Type": "hierachy_level",
             "ResourceIdentifier": "resource_identifier",
             "identifier": "file_identifier",
             "Identifier": "file_identifier",
-
+            "AnyText": "search"
         }
         q = self.ogc_request.filter_constraint(field_mapping=field_mapping)
         if isinstance(q, OGCServiceException):
             return q
 
+        print(q)
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
         result = self.get_basic_queryset()
 
+        print(result)
         # TODO: implement type filter
 
         # .order_by(
@@ -262,6 +271,7 @@ class CswServiceView(View):
             )
             for record in result:
                 if record.dataset_metadata:
+                    print(record.dataset_metadata.xml_backup_string)
                     xml.gmd_records.append(
                         record.dataset_metadata.xml_backup)
                 elif record.service_metadata:

@@ -107,5 +107,19 @@
                 "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
             ]
         }
+    },
+    {
+        "model": "registry.metadatarelation",
+        "pk": "1",
+        "fields": {
+            "dataset_metadata": "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4"
+        }
+    },
+    {
+        "model": "registry.metadatarelation",
+        "pk": "1",
+        "fields": {
+            "dataset_metadata": "9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e"
+        }
     }
 ]

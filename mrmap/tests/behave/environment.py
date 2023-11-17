@@ -1,6 +1,9 @@
 from behave.model_core import Status
 from behave_django.testcase import BehaviorDrivenTestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from MrMap.settings import BASE_DIR
+from registry.models.metadata import DatasetMetadataRecord
 from rest_framework.test import APIClient
 
 
@@ -54,6 +57,17 @@ def before_feature(context, feature):
 
     if fixtures:
         call_command("loaddata", *fixtures, verbosity=0)
+        if 'test_datasetmetadata.json' in fixtures:
+            # fix dataset xml files
+            rbsn_rr_file = open(
+                f"{BASE_DIR}/tests/django/test_data/RBSN_RR.xml", mode="rb")
+            rbsn_rr_bytes = rbsn_rr_file.read()
+            rbsn_rr = DatasetMetadataRecord.objects.get(
+                pk="d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4")
+            rbsn_rr.xml_backup_file = SimpleUploadedFile(
+                'rbsn_rr.xml', rbsn_rr_bytes)
+            rbsn_rr.save()
+            rbsn_rr_file.close()
 
 
 def before_scenario(context, scenario):

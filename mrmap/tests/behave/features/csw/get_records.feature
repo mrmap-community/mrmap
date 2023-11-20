@@ -47,6 +47,30 @@ Feature: MrMap CatalogueService Endpoint
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "InvalidQuery"
         Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "Constraint"
 
+    Scenario: GetRecords results response with unsupported typeNames
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "typeNames" with value "csw:record"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "NotSupported"
+        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "typeNames"
+
+    Scenario: GetRecords results response with unsupported outputSchema
+        Given I set a queryparam "REQUEST" with value "GetRecords"
+        Given I set a queryparam "version" with value "2.0.2"
+        Given I set a queryparam "service" with value "CSW"
+        Given I set a queryparam "resultType" with value "results"
+        Given I set a queryparam "outputSchema" with value "http://www.opengis.net/cat/csw/2.0.2"
+        When I send the request with GET method
+        Then I expect the response status is 200
+        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@code" with value "NotSupported"
+        Then I expect that there is a xpath ".//*[local-name()='ServiceException']/@locator" with value "outputSchema"
+
+
+
     Scenario: GetRecordById results response
         Given I set a queryparam "REQUEST" with value "GetRecords"
         Given I set a queryparam "version" with value "2.0.2"

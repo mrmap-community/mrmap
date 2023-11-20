@@ -1,6 +1,6 @@
 import os
 
-from csw.exceptions import InvalidQuery
+from csw.exceptions import InvalidQuery, NotSupported
 from django.contrib.gis.db.models.fields import MultiPolygonField
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.expressions import ArraySubquery
@@ -53,6 +53,19 @@ class CswServiceView(View):
             return MissingRequestParameterException(ogc_request=self.ogc_request)
         elif not self.ogc_request.service_type:
             return MissingServiceParameterException(ogc_request=self.ogc_request)
+        # TODO: HAndle ELEMENTSETNAME parameter, handle resultType parameter
+        # FIXME: if post method, this will not cover the check
+
+        elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":
+            return NotSupported(
+                ogc_request=self.ogc_request,
+                locator="outputSchema",
+                message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
+        elif self.ogc_request.ogc_query_params.get("typeNames", "gmd:MD_Metadata") != "gmd:MD_Metadata":
+            return NotSupported(
+                ogc_request=self.ogc_request,
+                locator="typeNames",
+                message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
 
     def get_field_map(self):
         # this dict mapps the ogc specificated filterable attributes to our database schema(s)
@@ -276,6 +289,9 @@ class CswServiceView(View):
                 time_stamp=self.start_time,
                 next_record=0 if next_record == total_records else next_record
             )
+        elif result_type == "validate":
+            pass
+            # TODO: return Acknowledgement
         else:
             xml = GetRecordsResponse(
                 total_records=total_records,

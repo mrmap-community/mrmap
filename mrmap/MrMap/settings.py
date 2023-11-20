@@ -438,7 +438,7 @@ ERROR_MASK_TXT = (
 
 
 LOG_DIR = os.environ.get(
-    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
+    "MRMAP_LOG_DIR", "/var/log/mrmap")
 
 
 LOG_DIR = LOG_DIR if check_path_access(

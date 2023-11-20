@@ -24,10 +24,13 @@ ARG MRMAP_PRODUCTION
 COPY --from=compile-image /opt/venv /opt/venv
 
 # TODO: gettext are only needed for dev environment
-RUN apk update
-RUN apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl
-#RUN apk cache clean
-RUN rm -rf /var/cache/apk/*
+RUN apk update \
+    && apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl \
+    && rm -rf /var/cache/apk/* \
+    && mkdir -p /var/mrmap/backend/media \
+    && mkdir -p /var/log/mrmap \
+    && mkdir -p /var/mrmap/import \
+    && mkdir -p /var/www/mrmap/backend
 
 # set work directory
 WORKDIR /opt/mrmap

@@ -8,6 +8,7 @@ from django.db import reset_queries
 from django.http import SimpleCookie
 from knox.models import AuthToken
 from lxml import etree
+from lxml.etree import fromstring
 from rest_framework.authtoken.models import Token
 
 
@@ -115,10 +116,9 @@ def step_impl(context, expected_status: int):
 
 @then('I expect that there is a xpath "{xpath}" with value "{expected_value}"')
 def step_impl(context, xpath: str, expected_value: str):
-    f = StringIO(context.response.content.decode("UTF-8"))
-    tree = etree.parse(f)
-    r = tree.xpath(xpath)
-
+    parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')
+    h = fromstring(context.response.content, parser=parser)
+    r = h.xpath(xpath)
     context.test.assertEqual(
         r[0], expected_value
     )

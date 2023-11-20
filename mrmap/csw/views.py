@@ -1,8 +1,10 @@
 import os
 
+from csw.exceptions import InvalidQuery
 from django.contrib.gis.db.models.fields import MultiPolygonField
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.expressions import ArraySubquery
+from django.core.exceptions import FieldError
 from django.db.models.aggregates import Count
 from django.db.models.expressions import Case, F, OuterRef, Value, When
 from django.db.models.fields import CharField
@@ -51,6 +53,34 @@ class CswServiceView(View):
             return MissingRequestParameterException(ogc_request=self.ogc_request)
         elif not self.ogc_request.service_type:
             return MissingServiceParameterException(ogc_request=self.ogc_request)
+
+    def get_field_map(self):
+        # this dict mapps the ogc specificated filterable attributes to our database schema(s)
+        field_mapping = {
+            "title": "title",
+            "Title": "title",
+            "dc:title": "title",
+            "abstract": "abstract",
+            "Abstract": "abstract",
+            "dc:abstract": "abstract",
+            "description": "abstract",
+            # "subject": "keywords",  # TODO: keywords right?
+            # "creator": "",  # TODO: find out what the creator field is exactly represented inside the iso metadata record
+            "coverage": "bounding_geometry",
+            "ows:BoundingBox": "bounding_geometry",
+            "date": "date_stamp",
+            "dc:modified": "date_stamp",
+            "modified": "date_stamp",
+            "Modified": "date_stamp",
+            "type": "hierarchy_level",
+            "dc:type": "hierarchy_level",
+            "Type": "hierachy_level",
+            "ResourceIdentifier": "resource_identifier",
+            "identifier": "file_identifier",
+            "Identifier": "file_identifier",
+            "AnyText": "search"
+        }
+        return field_mapping
 
     def get_basic_queryset(self):
         # TODO: only prefetch related if result_type is not hits
@@ -189,43 +219,17 @@ class CswServiceView(View):
 
     def get_records(self, request):
 
-        # this dict mapps the ogc specificated filterable attributes to our database schema(s)
-        field_mapping = {
-            "title": "title",
-            "Title": "title",
-            "dc:title": "title",
-            "abstract": "abstract",
-            "Abstract": "abstract",
-            "dc:abstract": "abstract",
-            "description": "abstract",
-            # "subject": "keywords",  # TODO: keywords right?
-            # "creator": "",  # TODO: find out what the creator field is exactly represented inside the iso metadata record
-            "coverage": "bounding_geometry",
-            "ows:BoundingBox": "bounding_geometry",
-            "date": "date_stamp",
-            "dc:modified": "date_stamp",
-            "modified": "date_stamp",
-            "Modified": "date_stamp",
-            "type": "hierarchy_level",
-            "dc:type": "hierarchy_level",
-            "Type": "hierachy_level",
-            "ResourceIdentifier": "resource_identifier",
-            "identifier": "file_identifier",
-            "Identifier": "file_identifier",
-            "AnyText": "search"
-        }
+        field_mapping = self.get_field_map()
+
         q = self.ogc_request.filter_constraint(field_mapping=field_mapping)
         if isinstance(q, OGCServiceException):
             return q
 
-        print(q)
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
         result = self.get_basic_queryset()
 
-        print(result)
-        # TODO: implement type filter
-
+        # TODO: implement a default order by created at
         # .order_by(
         #     # Default action is to
         #     # present the records
@@ -235,7 +239,18 @@ class CswServiceView(View):
         # )
 
         # TODO: catch FieldError for unsupported filter fields
-        result = result.filter(q)
+        try:
+            result = result.filter(q)
+        except FieldError as e:
+            requested_field = str(e).split(":")[0].split("'")[1]
+            available_fields = field_mapping.keys()
+
+            return InvalidQuery(
+                ogc_request=self.ogc_request,
+                locator="Constraint" if self.ogc_request.is_get else "csw:Query",
+                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"
+            )
+
         total_records = result.count()
 
         start_position = int(

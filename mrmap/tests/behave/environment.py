@@ -1,8 +1,10 @@
+import os
+
 from behave.model_core import Status
 from behave_django.testcase import BehaviorDrivenTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from MrMap.settings import BASE_DIR
+from MrMap.settings import BASE_DIR, MEDIA_ROOT
 from registry.models.metadata import DatasetMetadataRecord
 from rest_framework.test import APIClient
 
@@ -65,9 +67,19 @@ def before_feature(context, feature):
             rbsn_rr = DatasetMetadataRecord.objects.get(
                 pk="d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4")
             rbsn_rr.xml_backup_file = SimpleUploadedFile(
-                'rbsn_rr.xml', rbsn_rr_bytes)
+                'md_metadata.xml', rbsn_rr_bytes)
             rbsn_rr.save()
             rbsn_rr_file.close()
+
+            rbsn_rh_file = open(
+                f"{BASE_DIR}/tests/django/test_data/RBSN_RH.xml", mode="rb")
+            rbsn_rh_bytes = rbsn_rh_file.read()
+            rbsn_rh = DatasetMetadataRecord.objects.get(
+                pk="9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e")
+            rbsn_rh.xml_backup_file = SimpleUploadedFile(
+                'md_metadata.xml', rbsn_rh_bytes)
+            rbsn_rh.save()
+            rbsn_rh_file.close()
 
 
 def before_scenario(context, scenario):

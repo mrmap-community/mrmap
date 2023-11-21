@@ -1,5 +1,4 @@
 import json
-from io import StringIO
 from unittest.mock import Mock, patch
 
 from behave import given, step, then
@@ -114,14 +113,17 @@ def step_impl(context, expected_status: int):
         context.response.status_code, int(expected_status))
 
 
+@then('I expect that there is a xpath "{xpath}"')
 @then('I expect that there is a xpath "{xpath}" with value "{expected_value}"')
-def step_impl(context, xpath: str, expected_value: str):
+def step_impl(context, xpath: str, expected_value: str = None):
     parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')
     h = fromstring(context.response.content, parser=parser)
     r = h.xpath(xpath)
-    context.test.assertEqual(
-        r[0], expected_value
-    )
+
+    if expected_value:
+        context.test.assertEqual(
+            r[0], expected_value
+        )
 
 
 def _traverse_json(context, attribute):

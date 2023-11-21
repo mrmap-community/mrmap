@@ -20,6 +20,7 @@ from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
                                                         ServiceMetadataContact)
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.exceptions import OGCServiceException
+from ows_lib.xml_mapper.xml_responses.csw.achnowledgment import Acknowledgement
 from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
     GetRecordsResponse as GetRecordByIdResponse
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
@@ -290,8 +291,11 @@ class CswServiceView(View):
                 next_record=0 if next_record == total_records else next_record
             )
         elif result_type == "validate":
-            pass
-            # TODO: return Acknowledgement
+            # no errors while here. So the request was acknowledget as successfully
+            xml = Acknowledgement(
+                time_stamp=self.start_time,
+                echoed_get_records_request=self.ogc_request.xml_request
+            )
         else:
             xml = GetRecordsResponse(
                 total_records=total_records,

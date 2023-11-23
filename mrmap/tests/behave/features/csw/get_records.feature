@@ -1,4 +1,3 @@
-@huhu
 Feature: MrMap CatalogueService Endpoint
     As an API client,
     I want to retreive metadata records,

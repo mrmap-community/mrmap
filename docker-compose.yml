@@ -73,7 +73,7 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     # deploy:
-    #   replicas: 5
+    #   replicas: 10
     command: >
       /bin/sh -c "celery -A MrMap worker -E -l INFO -Q default,download,db-routines"
     tty: true # To support colorized log output.

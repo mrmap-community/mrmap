@@ -97,12 +97,12 @@ class DatasetMetadataRecordSerializer(
     dataset_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name='registry:datasetmetadata-datasetcontact-list',
-        related_link_url_kwarg='parent_lookup_dataset_contact_metadata'
+        related_link_url_kwarg='parent_lookup_datasetmetadatarecord_dataset_contact'
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name='registry:datasetmetadata-metadatacontact-list',
-        related_link_url_kwarg='parent_lookup_metadata_contact_metadata'
+        related_link_url_kwarg='parent_lookup_datasetmetadatarecord_metadata_contact'
     )
     licence = ResourceRelatedField(
         queryset=Licence.objects,

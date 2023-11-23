@@ -189,16 +189,22 @@ class TemporaryMdMetadataFile(models.Model):
         help_text=_(
             "the content of the http response, or of the imported file"),
         upload_to=response_file_path,
-        editable=False)
+    )
+    re_schedule = models.BooleanField(
+        default=False,
+        help_text=_("to re run to db task")
+    )
 
     objects: TemporaryMdMetadataFileManager = TemporaryMdMetadataFileManager()
 
     def save(self, *args, **kwargs) -> None:
         from registry.tasks.harvest import \
             call_md_metadata_file_to_db  # to avoid circular import errors
-        adding = self._state.adding
+        adding = self._state.adding or self.re_schedule
+        self.re_schedule = False
         super().save(*args, **kwargs)
         if adding:
+
             transaction.on_commit(
                 lambda: call_md_metadata_file_to_db.delay(md_metadata_file_id=self.pk))
 
@@ -230,7 +236,8 @@ class TemporaryMdMetadataFile(models.Model):
                     origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
                     origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
             else:
-                raise Exception("file is neither server nor dataset record ")
+                raise NotImplementedError(
+                    "file is neither server nor dataset record ")
             if db_metadata:
                 if self.job:
                     self.update_relations(

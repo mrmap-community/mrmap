@@ -6,21 +6,25 @@ from django.contrib.gis.db.models import MultiPolygonField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.db.models.enums import TextChoices
+from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
-from extras.managers import UniqueConstraintDefaultValueManager
+from extras.managers import (DefaultHistoryManager,
+                             UniqueConstraintDefaultValueManager)
 from MrMap.settings import PROXIES
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOriginEnum,
-                                     ReferenceSystemPrefixEnum)
+                                     ReferenceSystemPrefixEnum, SpatialResType)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import IsoMetadataManager, KeywordManager
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
 from requests.adapters import HTTPAdapter
+from simple_history.models import HistoricalRecords
 from urllib3 import Retry
 
 
@@ -184,9 +188,7 @@ class MetadataContact(models.Model):
 
 
 class Keyword(models.Model):
-    keyword = models.CharField(max_length=255,
-                               unique=True,
-                               db_index=True,)
+    keyword = models.CharField(max_length=300)
 
     objects = KeywordManager()
 
@@ -195,6 +197,15 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ["keyword"]
+        indexes = [
+            models.Index(fields=["keyword"])
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="%(app_label)s_%(class)s_unique_keywords",
+                fields=["keyword"]
+            )
+        ]
 
     def natural_key(self):
         return (self.keyword,)
@@ -549,6 +560,7 @@ class MetadataRelation(models.Model):
                               help_text=_("determines where this relation was found or it is added by a user."))
 
     class Meta:
+
         constraints = [
             models.CheckConstraint(
                 name="one_related_object_selected",
@@ -598,6 +610,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                              "feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
+
     harvested_through = models.ManyToManyField(to="registry.CatalogueService",
                                                related_name="%(app_label)s_%(class)s_metadata_records",
                                                related_query_name="%(app_label)s_%(class)s_metadata_record",
@@ -606,8 +619,44 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                verbose_name=_("services"),
                                                help_text=_("all services from which this dataset was harvested."))
 
+    bounding_geometry = MultiPolygonField(null=True,
+                                          blank=True, )
+    metadata_contact = models.ForeignKey(to=MetadataContact,
+                                         on_delete=models.RESTRICT,
+                                         related_name="%(class)s_metadata_contact",
+                                         related_query_name="%(class)s_metadata_contact",
+                                         verbose_name=_("contact"),
+                                         help_text=_("this is the contact which is responsible for the metadata "
+                                                     "information of the dataset."))
+    reference_systems = models.ManyToManyField(to=ReferenceSystem,
+                                               related_name="%(class)s",
+                                               related_query_name="%(class)s",
+                                               blank=True,
+                                               verbose_name=_("reference systems"))
+    inspire_interoperability = models.BooleanField(default=False,
+                                                   help_text=_("flag to signal if this "))
+
+    spatial_res_type = models.CharField(max_length=20,
+                                        choices=SpatialResType.choices,
+                                        default="",
+                                        verbose_name=_("resolution type"),
+                                        help_text=_("Ground resolution in meter or the equivalent scale."))
+    spatial_res_value = models.FloatField(null=True,
+                                          blank=True,
+                                          verbose_name=_("resolution value"),
+                                          help_text=_("The value depending on the selected resolution type."))
+
     class Meta:
         abstract = True
+
+        constraints = [
+            models.CheckConstraint(
+                name="check_spatial_res",
+                check=Q(spatial_res_type="", spatial_res_value=None)
+                | Q(spatial_res_type=SpatialResType.GROUND_DISTANCE, spatial_res_value__gte=0)
+                | Q(spatial_res_type=SpatialResType.SCALE_DISTANCE, spatial_res_value__gte=0)
+            )
+        ]
 
     iso_metadata = IsoMetadataManager()
 
@@ -672,9 +721,6 @@ class DatasetMetadataRecord(MetadataRecord):
         ("tile", "tile"),
     ]
 
-    SPATIAL_RES_TYPE_CHOICES = [("groundDistance", "groundDistance"),
-                                ("scaleDenominator", "scaleDenominator")]
-
     INDETERMINATE_POSITION_CHOICES = [
         ("now", "now"), ("before", "before"), ("after", "after"), ("unknown", "unknown")]
 
@@ -683,31 +729,18 @@ class DatasetMetadataRecord(MetadataRecord):
 
     dataset_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
-                                        related_name="dataset_contact_metadata",
-                                        related_query_name="dataset_contact_metadata",
+                                        related_name="%(class)s_dataset_contact",
+                                        related_query_name="%(class)s_dataset_contact",
                                         verbose_name=_("contact"),
                                         help_text=_("this is the contact which provides this dataset."))
-    metadata_contact = models.ForeignKey(to=MetadataContact,
-                                         on_delete=models.RESTRICT,
-                                         related_name="metadata_contact_metadata",
-                                         related_query_name="metadata_contact_metadata",
-                                         verbose_name=_("contact"),
-                                         help_text=_("this is the contact which is responsible for the metadata "
-                                                     "information of the dataset."))
-    spatial_res_type = models.CharField(max_length=20,
-                                        choices=SPATIAL_RES_TYPE_CHOICES,
-                                        default="",
-                                        verbose_name=_("resolution type"),
-                                        help_text=_("Ground resolution in meter or the equivalent scale."))
-    spatial_res_value = models.FloatField(null=True,
-                                          blank=True,
-                                          verbose_name=_("resolution value"),
-                                          help_text=_("The value depending on the selected resolution type."))
-    reference_systems = models.ManyToManyField(to=ReferenceSystem,
-                                               related_name="dataset_metadata",
-                                               related_query_name="dataset_metadata",
-                                               blank=True,
-                                               verbose_name=_("reference systems"))
+    dataset_id = models.CharField(max_length=4096,
+                                  default="",  # empty dataset_id signals broken dataset metadata records
+                                  help_text=_("identifier of the remote data"))
+    dataset_id_code_space = models.CharField(max_length=4096,
+                                             blank=True,
+                                             default="",
+                                             help_text=_("code space for the given identifier"))
+
     format = models.CharField(default="",
                               blank=True,
                               max_length=20,
@@ -725,25 +758,19 @@ class DatasetMetadataRecord(MetadataRecord):
                                                               " consistence."))
     preview_image = models.ImageField(null=True,
                                       blank=True)
+
     lineage_statement = models.TextField(blank=True,
                                          default="")
     update_frequency_code = models.CharField(max_length=20,
                                              choices=UPDATE_FREQUENCY_CHOICES,
                                              blank=True,
                                              default="")
-    bounding_geometry = MultiPolygonField(null=True,
-                                          blank=True, )
-    dataset_id = models.CharField(max_length=4096,
-                                  default="",  # empty dataset_id signals broken dataset metadata records
-                                  help_text=_("identifier of the remote data"))
-    dataset_id_code_space = models.CharField(max_length=4096,
-                                             blank=True,
-                                             default="",
-                                             help_text=_("code space for the given identifier"))
-    inspire_interoperability = models.BooleanField(default=False,
-                                                   help_text=_("flag to signal if this "))
+
+    change_log = HistoricalRecords(
+        related_name="change_logs")
 
     objects = UniqueConstraintDefaultValueManager()
+    history = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("dataset metadata")
@@ -824,7 +851,7 @@ class ServiceMetadataRecord(MetadataRecord):
                                                       "web feature services"),
                                                   help_text=_("all wfs which are linking to this service metadata in"
                                                               " there capabilities."))
-    self_pointing_wfs = models.ManyToManyField(to="registry.CatalogueService",
+    self_pointing_csw = models.ManyToManyField(to="registry.CatalogueService",
                                                   through=MetadataRelation,
                                                   editable=False,
                                                   related_name="%(app_label)s_%(class)s_service_metadata",
@@ -834,6 +861,11 @@ class ServiceMetadataRecord(MetadataRecord):
                                                       "catalogue services"),
                                                   help_text=_("all csw which are linking to this service metadata in"
                                                               " there capabilities."))
+
+    objects = Manager()
+    change_log = HistoricalRecords(
+        related_name="change_logs")
+    history = DefaultHistoryManager()
 
 
 class Dimension(models.Model):

@@ -20,7 +20,6 @@ logger: Logger = settings.ROOT_LOGGER
 
 @shared_task(
     queue="default",
-    priority=2
 )
 def create_harvesting_job(service_id):
     return HarvestingJob.objects.create(service__pk=service_id)
@@ -30,7 +29,6 @@ def create_harvesting_job(service_id):
     queue="default",
     autoretry_for=(Timeout,),
     retry_kwargs={'max_retries': 5},
-    priority=10,
 )
 def call_fetch_total_records(harvesting_job_id):
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
@@ -42,7 +40,6 @@ def call_fetch_total_records(harvesting_job_id):
     queue="download",
     autoretry_for=(Timeout,),
     retry_kwargs={'max_retries': 5},
-    priority=3
 )
 def call_fetch_records(harvesting_job_id,
                        start_position,
@@ -55,7 +52,6 @@ def call_fetch_records(harvesting_job_id,
 @shared_task(
     queue="db-routines",
     retry_kwargs={'max_retries': 5},
-    priority=6
 )
 def call_md_metadata_file_to_db(md_metadata_file_id: int):
     temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
@@ -66,7 +62,6 @@ def call_md_metadata_file_to_db(md_metadata_file_id: int):
 
 @shared_task(
     queue="db-routines",
-    priority=8
 )
 def check_for_files_to_import():
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")

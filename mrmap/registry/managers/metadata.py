@@ -81,14 +81,39 @@ class IsoMetadataManager(models.Manager):
                     update = True
         return db_dataset_metadata, not created, update
 
-    def _create_service_metadata(self, parsed_metadata, *args, **kwargs):
+    def _create_service_metadata(self, parsed_metadata, origin_url, origin=MetadataOriginEnum.CATALOGUE.value):
         db_metadata_contact = self._create_contact(
-            contact=parsed_metadata.metadata_contact).save()
+            contact=parsed_metadata.metadata_contact)
 
-        db_service_metadata = super().create(metadata_contact=db_metadata_contact,
-                                             *args,
-                                             **kwargs)
-        return db_service_metadata
+        field_dict = parsed_metadata.transform_to_model()
+        update = False
+        defaults = {
+            'metadata_contact': db_metadata_contact,
+            'origin': origin,
+            'origin_url': origin_url,
+            **field_dict,
+        }
+        file_identifier = defaults.pop("file_identifier")
+
+        db_service_metadata, created = self.model.objects.select_for_update(
+        ).get_or_create(defaults=defaults, file_identifier=file_identifier)
+
+        if not created:
+            with transaction.atomic():
+                # TODO: raises AttributeError: 'datetime.date' object has no attribute 'tzinfo' if date_stamp is date
+                if isinstance(field_dict["date_stamp"], date):
+                    field_dict["date_stamp"] = datetime.combine(
+                        field_dict["date_stamp"], datetime.min.time())
+                dt_aware = timezone.make_aware(
+                    field_dict["date_stamp"], timezone.get_current_timezone())
+                if dt_aware > db_service_metadata.date_stamp:
+                    [setattr(db_service_metadata, key, value)
+                     for key, value in field_dict]
+                    db_service_metadata.metadata_contact = db_metadata_contact
+                    db_service_metadata.last_modified_by = self.current_user
+                    db_service_metadata.save()
+                    update = True
+        return db_service_metadata, not created, update
 
     def update_or_create_from_parsed_metadata(self, parsed_metadata, origin_url, related_object=None, origin=MetadataOriginEnum.CATALOGUE.value):
         self._reset_local_variables()
@@ -97,10 +122,10 @@ class IsoMetadataManager(models.Manager):
             if parsed_metadata.is_service:
                 # TODO: update instead of creating, cause we generate service metadata records out of the box from
                 #  capabilities
-                db_metadata = self._create_service_metadata(
+                db_metadata, exists, update = self._create_service_metadata(
                     parsed_metadata=parsed_metadata,
                     origin_url=origin_url,
-                    oritin=origin)
+                    origin=origin)
             elif parsed_metadata.is_dataset:
                 db_metadata, exists, update = self._create_dataset_metadata_record(parsed_metadata=parsed_metadata,
                                                                                    origin_url=origin_url,

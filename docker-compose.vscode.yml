@@ -33,8 +33,8 @@ services:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
       IPYTHONENABLE: "True"
-    ports:
-      - "0.0.0.0:3002:5678"
+    # ports:
+    #   - "0.0.0.0:3002:5678"
 
   celery-beat:
     command: >
@@ -48,7 +48,7 @@ services:
 
   behave:
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave  --noinput --tags=huhu --no-skipped --stop tests/behave/features --simple"
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave  --noinput --tags=~skip --no-skipped --stop tests/behave/features --simple"
     ports:
       - "0.0.0.0:3010:5678"
 

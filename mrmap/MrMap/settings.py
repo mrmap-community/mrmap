@@ -101,7 +101,8 @@ INSTALLED_APPS = [
     "notify",
     "csw",
     "drf_spectacular",
-    "drf_spectacular_jsonapi"
+    "drf_spectacular_jsonapi",
+    "django_pgviews"
 ]
 
 MIDDLEWARE = [

@@ -25,7 +25,7 @@ COPY --from=compile-image /opt/venv /opt/venv
 
 # TODO: gettext are only needed for dev environment
 RUN apk update \
-    && apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl \
+    && apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl py3-psycopg \
     && rm -rf /var/cache/apk/* \
     && mkdir -p /var/mrmap/backend/media \
     && mkdir -p /var/log/mrmap \

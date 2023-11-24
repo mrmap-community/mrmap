@@ -2,15 +2,133 @@ from datetime import date, datetime
 from logging import Logger
 
 from django.conf import settings
+from django.contrib.gis.db.models.fields import MultiPolygonField
+from django.contrib.postgres.expressions import ArraySubquery
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import models, transaction
+from django.db.models.expressions import Case, F, OuterRef, Value, When
+from django.db.models.fields import CharField
+from django.db.models.functions import Cast, Coalesce, Concat, datetime
+from django.db.models.query import Prefetch
+from django.db.models.query_utils import Q
 from django.utils import timezone
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.metadata import UnknownMetadataKind
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
+
+
+class MetadataRelationManager(models.Manager):
+
+    def for_search(self):
+        from registry.models.metadata import Keyword
+
+        # there is a filter used.
+        # We need to annotate filterable fields.
+        # But we only add annotation for needed fields.
+        # So if the filter condition does not lookup for hierarchy_level for example, we don't need to add it to the queryset.
+        # TODO: implement a default order by created at
+        # add order to get reproduceable query results
+        qs = self.get_queryset().order_by("pk")
+
+        qs = qs.annotate(
+            hierarchy_level=Case(
+                When(dataset_metadata__isnull=False,
+                     then=Value("dataset"),
+                     ),
+                When(service_metadata__isnull=False,
+                     then=Value("service"),
+                     ),
+                default=Value("dataset"),
+                output_field=CharField()
+            ),
+            title=Coalesce(
+                "dataset_metadata__title",
+                "service_metadata__title",
+                "layer__title",
+                "feature_type__title",
+                "wms__title",
+                "wfs__title",
+                "csw__title"
+            ),
+            abstract=Coalesce(
+                "dataset_metadata__abstract",
+                "service_metadata__abstract",
+                "layer__abstract",
+                "feature_type__abstract",
+                "wms__abstract",
+                "wfs__abstract",
+                "csw__abstract"
+            ),
+            bounding_geometry=Coalesce(
+                "dataset_metadata__bounding_geometry",
+                # TODO: "service_metadata__bounding_geometry",
+                "layer__bbox_lat_lon",
+                "feature_type__bbox_lat_lon",
+                # TODO: get from child layers "wms__bbox_lat_lon",
+                # TODO: get from child featuretypes "wfs__bbox_lat_lon",
+                # TODO: "csw__bbox_lat_lon"
+                output_field=MultiPolygonField()
+            ),
+            modified_at=Coalesce(
+                "dataset_metadata__date_stamp",
+                "service_metadata__date_stamp",
+                "layer__date_stamp",
+                "feature_type__date_stamp",
+                "wms__date_stamp",
+                "wfs__date_stamp",
+                "csw__date_stamp"
+            ),
+            resource_identifier=Concat(
+                F("dataset_metadata__dataset_id_code_space"),
+                F("dataset_metadata__dataset_id"),
+                output_field=CharField()
+            ),
+            file_identifier=Coalesce(
+                "dataset_metadata__file_identifier",
+                "service_metadata__file_identifier",
+                Cast("layer__id", CharField()),
+                Cast("feature_type__id", CharField()),
+                Cast("wms__id", CharField()),
+                Cast("wfs__id", CharField()),
+                Cast("csw__id", CharField()),
+                output_field=CharField()
+            ),
+            keywords=Case(
+                When(
+                    hierarchy_level=Value("dataset"),
+                    then=ArraySubquery(
+                        Keyword.objects.filter(
+                            Q(datasetmetadatarecord_metadata__pk=OuterRef(
+                                "dataset_metadata__pk"))
+                            | Q(layer_metadata__pk=OuterRef("layer__pk"))
+                            | Q(featuretype_metadata__pk=OuterRef("feature_type__pk"))
+                        ).distinct("keyword").values("keyword")
+                    )
+                ),
+                default=ArraySubquery(
+                    Keyword.objects.filter(
+                        Q(servicemetadatarecord_metadata__pk=OuterRef(
+                            "service_metadata__pk"))
+                        | Q(webmapservice_metadata__pk=OuterRef("wms__pk"))
+                        | Q(webfeatureservice_metadata__pk=OuterRef("wfs__pk"))
+                        | Q(catalogueservice_metadata__pk=OuterRef("csw__pk"))
+                    ).distinct("keyword").values("keyword")
+                )
+            ),
+            search=Concat(
+                "title",
+                Value(" '|' "),
+                "abstract",
+                Value(" '|' "),
+                "keywords",
+                output_field=CharField()
+            )
+        )
+
+        return qs
 
 
 class IsoMetadataManager(models.Manager):

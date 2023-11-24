@@ -4,11 +4,12 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import connection, models
 from django.db.models import Q
 from django.db.models.enums import TextChoices
 from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
+from django_pgviews import view as pg
 from eulxml import xmlmap
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
@@ -19,7 +20,8 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOriginEnum,
                                      ReferenceSystemPrefixEnum, SpatialResType)
 from registry.exceptions.service import NoContent
-from registry.managers.metadata import IsoMetadataManager, KeywordManager
+from registry.managers.metadata import (IsoMetadataManager, KeywordManager,
+                                        MetadataRelationManager)
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
@@ -559,6 +561,8 @@ class MetadataRelation(models.Model):
                               verbose_name=_("origin"),
                               help_text=_("determines where this relation was found or it is added by a user."))
 
+    objects = MetadataRelationManager()
+
     class Meta:
 
         constraints = [
@@ -588,6 +592,23 @@ class MetadataRelation(models.Model):
                 fields=["service_metadata", "wfs"]
             )
         ]
+
+
+class MetadataRelationView(pg.MaterializedView):
+    title = models.CharField(max_length=4096)
+    abstract = models.CharField(max_length=4096)
+    keywords = models.CharField(max_length=4096)
+    search = models.TextField(max_length=20)
+
+    @classmethod
+    def get_sql(cls):
+        repr(MetadataRelation.objects.for_search())
+        last_query = connection.queries[-1].get('sql')
+        return pg.ViewSQL(last_query, None)
+
+    class Meta:
+        managed = False
+        db_table = 'registry_metadata_relation_view'
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):

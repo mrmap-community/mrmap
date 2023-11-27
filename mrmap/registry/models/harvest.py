@@ -17,6 +17,7 @@ from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.enums.metadata import MetadataOriginEnum
 from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import (DatasetMetadataRecord,
+                                      MetadataRelationView,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from requests import Response
@@ -247,6 +248,9 @@ class TemporaryMdMetadataFile(models.Model):
                     self.job.done_at = now()
                     self.job.save()
                 self.delete()
+                # re sync view after obj has saved
+                transaction.on_commit(
+                    lambda: MetadataRelationView.refresh(concurrently=True))
                 return db_metadata
 
     def update_relations(self, md_metadata, exists, update, db_metadata):

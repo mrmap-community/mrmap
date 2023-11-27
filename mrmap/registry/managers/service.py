@@ -19,8 +19,9 @@ from extras.managers import DefaultHistoryManager
 from mptt.managers import TreeManager
 from registry.enums.metadata import MetadataOriginEnum
 from registry.models.metadata import (Dimension, Keyword, LegendUrl,
-                                      MetadataContact, MimeType,
-                                      ReferenceSystem, Style, TimeExtent,
+                                      MetadataContact, MetadataRelationView,
+                                      MimeType, ReferenceSystem, Style,
+                                      TimeExtent,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.settings import METADATA_URL_BLACKLIST
@@ -62,6 +63,9 @@ class TransientObjectsManagerMixin(object):
                     set_attr_key = None
                     get_attr_key = None
                 value[0]._meta.model.objects.bulk_create(objs=value)
+                # re sync view after objects has saved
+                transaction.on_commit(
+                    lambda: MetadataRelationView.refresh(concurrently=True))
 
     def _handle_transient_m2m_objects(self, db_obj: models.Model):
         m2m_fields = [field.name for field in db_obj._meta.local_many_to_many]

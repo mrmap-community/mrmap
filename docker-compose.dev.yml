@@ -111,7 +111,7 @@ services:
       - docker/backend/.mrmap.dev.env
     command: /bin/sh -c "python manage.py runserver 0.0.0.0:8001"
 
-  celery-worker:
+  celery-worker-default:
     build:
       args:
         MRMAP_PRODUCTION: "False"
@@ -119,7 +119,27 @@ services:
       - ./docker/backend/.mrmap.env
       - ./docker/backend/.mrmap.dev.env
     command: >
-      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q default,download,db-routines"
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q default"
+
+  celery-worker-download:
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    command: >
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q download"
+
+  celery-worker-db-routines:
+    build:
+      args:
+        MRMAP_PRODUCTION: "False"
+    env_file:
+      - ./docker/backend/.mrmap.env
+      - ./docker/backend/.mrmap.dev.env
+    command: >
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q db-routines"
 
   celery-beat:
     build:

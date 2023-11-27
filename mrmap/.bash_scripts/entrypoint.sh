@@ -15,6 +15,18 @@ else
   printf "${GREEN}database migrations applied${NOCOLOR}\n"
 fi
 
+echo "sync postgres views"
+python manage.py sync_pgviews --force
+
+if [ $? != 0 ]; 
+then
+  exit 1
+  printf "${RED}failed to sync pg views${NOCOLOR}\n"
+else
+  printf "${GREEN}views successfull applied${NOCOLOR}\n"
+fi
+
+
 echo '
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMNmhyyyyhhhddmMMMMMMMMMMMMM

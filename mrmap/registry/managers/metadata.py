@@ -9,8 +9,7 @@ from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models.expressions import Case, F, OuterRef, Value, When
 from django.db.models.fields import CharField
-from django.db.models.functions import Cast, Coalesce, Concat, datetime
-from django.db.models.query import Prefetch
+from django.db.models.functions import Cast, Coalesce, Concat
 from django.db.models.query_utils import Q
 from django.utils import timezone
 from registry.enums.metadata import MetadataOriginEnum

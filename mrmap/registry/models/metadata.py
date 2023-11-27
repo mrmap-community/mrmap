@@ -3,10 +3,10 @@ from uuid import uuid4
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
-from django.db import connection, models
+from django.db import connection, models, transaction
 from django.db.models import Q
-from django.db.models.enums import TextChoices
 from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
 from django_pgviews import view as pg
@@ -435,7 +435,13 @@ class AbstractMetadata(MetadataDocumentModelMixin):
         # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
         if not self._state.adding:
             self.is_customized = True
-        super().save(*args, **kwargs)
+        obj = super().save(*args, **kwargs)
+
+        # re sync view after obj has saved
+        transaction.on_commit(
+            lambda: MetadataRelationView.refresh(concurrently=True))
+
+        return obj
 
 
 class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
@@ -595,20 +601,44 @@ class MetadataRelation(models.Model):
 
 
 class MetadataRelationView(pg.MaterializedView):
-    title = models.CharField(max_length=4096)
-    abstract = models.CharField(max_length=4096)
-    keywords = models.CharField(max_length=4096)
-    search = models.TextField(max_length=20)
+    concurrent_index = 'id'
+
+    # just adding all queryable fields so django can handle it.
+
+    hierarchy_level = models.TextField()
+    title = models.TextField()
+    abstract = models.TextField()
+    bounding_geometry = MultiPolygonField()
+    modified_at = models.DateTimeField()
+    resource_identifier = models.TextField()
+    file_identifier = models.TextField()
+    keywords = ArrayField(base_field=models.CharField())
+    search = models.TextField()
+
+    # metadata relations
+    dataset_metadata = models.ForeignKey(to="DatasetMetadataRecord",
+                                         on_delete=models.CASCADE,
+                                         null=True,
+                                         blank=True,
+                                         related_name="%(class)s_resource_relations",
+                                         related_query_name="%(class)s_resource_relation")
+
+    service_metadata = models.ForeignKey(to="ServiceMetadataRecord",
+                                         on_delete=models.CASCADE,
+                                         null=True,
+                                         blank=True,
+                                         related_name="%(class)s_resource_relations",
+                                         related_query_name="%(class)s_resource_relation")
 
     @classmethod
     def get_sql(cls):
-        repr(MetadataRelation.objects.for_search())
+        list(MetadataRelation.objects.for_search())
         last_query = connection.queries[-1].get('sql')
         return pg.ViewSQL(last_query, None)
 
     class Meta:
         managed = False
-        db_table = 'registry_metadata_relation_view'
+        db_table = 'registry_metadatarelation_view'
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
@@ -680,6 +710,12 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         ]
 
     iso_metadata = IsoMetadataManager()
+
+    def save(self, *args, **kwargs):
+        obj = super().save(*args, **kwargs)
+
+        MetadataRelationView.refresh(concurrently=True)
+        return obj
 
 
 class DatasetMetadataRecord(MetadataRecord):

@@ -12,7 +12,7 @@ services:
     env_file:
       - ./docker/postgis/.db.env
   redis:
-    image: library/redis:7.2.0-alpine
+    image: library/redis:7.2.3-alpine
     volumes:
       - type: volume
         source: mem-db-data
@@ -38,7 +38,7 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     tty: true # To support colorized log output.
-    hostname: "mrmap-backend"
+    hostname: "backend"
     volumes:
       - type: bind
         source: ./mrmap
@@ -73,11 +73,11 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     # deploy:
-    #   replicas: 10
+    #   replicas: 2
     command: >
       /bin/sh -c "celery -A MrMap worker -E -l INFO -Q default"
     tty: true # To support colorized log output.
-    hostname: "mrmap-celery-worker"
+    hostname: "celery-worker-default"
     volumes:
       - type: bind
         source: ./mrmap
@@ -106,11 +106,11 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     # deploy:
-    #   replicas: 10
+    #   replicas: 2
     command: >
       /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download"
     tty: true # To support colorized log output.
-    hostname: "mrmap-celery-worker"
+    hostname: "celery-worker-default"
     volumes:
       - type: bind
         source: ./mrmap
@@ -139,11 +139,11 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     # deploy:
-    #   replicas: 10
+    #   replicas: 5
     command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q routines"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q db-routines"
     tty: true # To support colorized log output.
-    hostname: "mrmap-celery-worker"
+    hostname: "celery-worker-default"
     volumes:
       - type: bind
         source: ./mrmap
@@ -164,6 +164,8 @@ services:
     depends_on:
       - postgis
       - redis
+    cap_add:
+      - SYS_PTRACE
 
   celery-beat:
     build:

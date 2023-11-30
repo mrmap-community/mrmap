@@ -17,7 +17,6 @@ from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.enums.metadata import MetadataOriginEnum
 from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import (DatasetMetadataRecord,
-                                      MetadataRelationView,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from requests import Response
@@ -205,7 +204,6 @@ class TemporaryMdMetadataFile(models.Model):
         self.re_schedule = False
         super().save(*args, **kwargs)
         if adding:
-
             transaction.on_commit(
                 lambda: call_md_metadata_file_to_db.delay(md_metadata_file_id=self.pk))
 
@@ -219,39 +217,38 @@ class TemporaryMdMetadataFile(models.Model):
         super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self) -> (DatasetMetadataRecord | ServiceMetadataRecord):
-        _file: FieldFile = self.md_metadata_file.open()
-        md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
-            string=_file.read(),
-            xmlclass=XmlMdMetadata)
-        _file.close()
-        with transaction.atomic():
-            db_metadata = None
-            if md_metadata.is_service:
-                db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                    parsed_metadata=md_metadata,
-                    origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
-            elif md_metadata.is_dataset:
-                db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                    parsed_metadata=md_metadata,
-                    origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                    origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
-            else:
-                raise NotImplementedError(
-                    "file is neither server nor dataset record ")
-            if db_metadata:
-                if self.job:
-                    self.update_relations(
-                        md_metadata, exists, update, db_metadata)
+        self.md_metadata_file.open("r")
+        with self.md_metadata_file as _file:
 
-                if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
-                    self.job.done_at = now()
-                    self.job.save()
-                self.delete()
-                # re sync view after obj has saved
-                transaction.on_commit(
-                    lambda: MetadataRelationView.refresh(concurrently=True))
-                return db_metadata
+            md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
+                string=_file.read(),
+                xmlclass=XmlMdMetadata)
+            with transaction.atomic():
+                db_metadata = None
+                if md_metadata.is_service:
+                    db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                        parsed_metadata=md_metadata,
+                        origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                        origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
+                elif md_metadata.is_dataset:
+                    db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                        parsed_metadata=md_metadata,
+                        origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                        origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
+                else:
+                    raise NotImplementedError(
+                        "file is neither server nor dataset record ")
+                if db_metadata:
+                    if self.job:
+                        self.update_relations(
+                            md_metadata, exists, update, db_metadata)
+
+                    if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
+                        self.job.done_at = now()
+                        self.job.save()
+
+                    self.delete()
+                    return db_metadata
 
     def update_relations(self, md_metadata, exists, update, db_metadata):
         db_metadata.harvested_through.add(self.job.service)

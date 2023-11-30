@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
+from django.core.files import File
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Q
@@ -89,7 +90,10 @@ class ServiceAuthentication(models.Model):
     @property
     def key(self):
         try:
-            return self.key_file.open().read()
+            self.key_file.open("r")
+            with self.key_file as key_file:
+                key_string = key_file.read()
+            return key_string
         except FileNotFoundError:
             return None
 

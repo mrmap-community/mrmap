@@ -21,6 +21,71 @@ logger: Logger = settings.ROOT_LOGGER
 
 class MetadataRelationManager(models.Manager):
 
+    def search_for_datasets(self):
+        from registry.models.metadata import Keyword
+
+        # there is a filter used.
+        # We need to annotate filterable fields.
+        # But we only add annotation for needed fields.
+        # So if the filter condition does not lookup for hierarchy_level for example, we don't need to add it to the queryset.
+        # TODO: implement a default order by created at
+        # add order to get reproduceable query results
+        qs = self.get_queryset().order_by("pk")
+
+        qs = qs.filter(dataset_metadata__isnull=False).annotate(
+            hierarchy_level=Value("dataset"),
+            title=Coalesce(
+                "dataset_metadata__title",
+                "layer__title",
+                "feature_type__title"
+            ),
+            abstract=Coalesce(
+                "dataset_metadata__abstract",
+                "layer__abstract",
+                "feature_type__abstract"
+            ),
+            bounding_geometry=Coalesce(
+                "dataset_metadata__bounding_geometry",
+                "layer__bbox_lat_lon",
+                "feature_type__bbox_lat_lon",
+                output_field=MultiPolygonField()
+            ),
+            modified_at=Coalesce(
+                "dataset_metadata__date_stamp",
+                "layer__date_stamp",
+                "feature_type__date_stamp",
+            ),
+            resource_identifier=Concat(
+                F("dataset_metadata__code_space"),
+                F("dataset_metadata__code"),
+                output_field=CharField()
+            ),
+            # file_identifier=Coalesce(
+            #     "dataset_metadata__file_identifier",
+            #     Cast("layer__id", CharField()),
+            #     Cast("feature_type__id", CharField()),
+            #     output_field=CharField()
+            # ),
+            # keywords=ArraySubquery(
+            #     Keyword.objects.filter(
+            #         Q(datasetmetadatarecord_metadata__pk=OuterRef(
+            #             "dataset_metadata__pk"))
+            #         | Q(layer_metadata__pk=OuterRef("layer__pk"))
+            #         | Q(featuretype_metadata__pk=OuterRef("feature_type__pk"))
+            #     ).distinct("keyword").values("keyword")
+            # ),
+            # search=Concat(
+            #     "title",
+            #     Value(" '|' "),
+            #     "abstract",
+            #     Value(" '|' "),
+            #     "keywords",
+            #     output_field=CharField()
+            # )
+        )
+
+        return qs
+
     def for_search(self):
         from registry.models.metadata import Keyword
 
@@ -81,8 +146,8 @@ class MetadataRelationManager(models.Manager):
                 "csw__date_stamp"
             ),
             resource_identifier=Concat(
-                F("dataset_metadata__dataset_id_code_space"),
-                F("dataset_metadata__dataset_id"),
+                F("dataset_metadata__code_space"),
+                F("dataset_metadata__code"),
                 output_field=CharField()
             ),
             file_identifier=Coalesce(
@@ -172,10 +237,10 @@ class IsoMetadataManager(models.Manager):
         }
 
         try:
-            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(defaults=defaults, dataset_id=parsed_metadata.dataset_id,
-                                                                                                dataset_id_code_space=parsed_metadata.dataset_id_code_space)
+            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(defaults=defaults, code=parsed_metadata.code,
+                                                                                                code_space=parsed_metadata.code_space)
         except MultipleObjectsReturned:
-            # if dataset_id and dataset_id_code_space is empty, this could happen
+            # if code and code_space is empty, this could happen
             # fallback: search by file_identifier
             db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(
                 defaults=defaults, file_identifier=parsed_metadata.file_identifier)
@@ -210,10 +275,15 @@ class IsoMetadataManager(models.Manager):
             'origin_url': origin_url,
             **field_dict,
         }
-        file_identifier = defaults.pop("file_identifier")
 
-        db_service_metadata, created = self.model.objects.select_for_update(
-        ).get_or_create(defaults=defaults, file_identifier=file_identifier)
+        try:
+            db_service_metadata, created = self.model.objects.select_for_update(
+            ).get_or_create(defaults=defaults, code=parsed_metadata.code, code_space=parsed_metadata.code_space)
+        except MultipleObjectsReturned:
+            # if code and code_space is empty, this could happen
+            # fallback: search by file_identifier
+            db_service_metadata, created = self.model.objects.select_for_update().get_or_create(
+                defaults=defaults, file_identifier=parsed_metadata.file_identifier)
 
         if not created:
             with transaction.atomic():

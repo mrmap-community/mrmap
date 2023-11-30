@@ -4,12 +4,14 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import \
+    GinIndex  # add the Postgres recommended GIN index
+from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import ValidationError
-from django.db import connection, models, transaction
+from django.db import models
 from django.db.models import Q
 from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
-from django_pgviews import view as pg
 from eulxml import xmlmap
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
@@ -411,6 +413,16 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     language = None  # TODO
     category = None  # TODO: Inspire + iso + various
 
+    # TODO: django 5 will provide a GeneratedField, which is then computed by the db.
+    # Full consistent management by the dbms!
+    # That for the SearchVectorField could be removed and replace by a
+    # GeneratedField(
+    #   db_persist=True,
+    #   expression=SearchVector("title", "abstract", "keywords__keyword"),
+    #   output_field=SearchVectorField())
+    # now we have to provide the values for that field by our own... :(
+    search_vector = SearchVectorField(null=True)
+
     # needed for Docuement mixin to load the backupfile into the correct xml mapper class
     xml_mapper_cls = MdMetadata
 
@@ -418,7 +430,8 @@ class AbstractMetadata(MetadataDocumentModelMixin):
         abstract = True
         ordering = ["title"]
         indexes = [
-            models.Index(fields=["file_identifier", "title"])
+            models.Index(fields=["title", "file_identifier"]),
+            GinIndex(fields=["search_vector"])
         ]
         constraints = [
             models.UniqueConstraint(
@@ -435,13 +448,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
         # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
         if not self._state.adding:
             self.is_customized = True
-        obj = super().save(*args, **kwargs)
-
-        # re sync view after obj has saved
-        transaction.on_commit(
-            lambda: MetadataRelationView.refresh(concurrently=True))
-
-        return obj
+        return super().save(*args, **kwargs)
 
 
 class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
@@ -600,47 +607,6 @@ class MetadataRelation(models.Model):
         ]
 
 
-class MetadataRelationView(pg.MaterializedView):
-    concurrent_index = 'id'
-
-    # just adding all queryable fields so django can handle it.
-
-    hierarchy_level = models.TextField()
-    title = models.TextField()
-    abstract = models.TextField()
-    bounding_geometry = MultiPolygonField()
-    modified_at = models.DateTimeField()
-    resource_identifier = models.TextField()
-    file_identifier = models.TextField()
-    keywords = ArrayField(base_field=models.CharField())
-    search = models.TextField()
-
-    # metadata relations
-    dataset_metadata = models.ForeignKey(to="DatasetMetadataRecord",
-                                         on_delete=models.CASCADE,
-                                         null=True,
-                                         blank=True,
-                                         related_name="%(class)s_resource_relations",
-                                         related_query_name="%(class)s_resource_relation")
-
-    service_metadata = models.ForeignKey(to="ServiceMetadataRecord",
-                                         on_delete=models.CASCADE,
-                                         null=True,
-                                         blank=True,
-                                         related_name="%(class)s_resource_relations",
-                                         related_query_name="%(class)s_resource_relation")
-
-    @classmethod
-    def get_sql(cls):
-        list(MetadataRelation.objects.for_search())
-        last_query = connection.queries[-1].get('sql')
-        return pg.ViewSQL(last_query, None)
-
-    class Meta:
-        managed = False
-        db_table = 'registry_metadatarelation_view'
-
-
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     self_pointing_layers = models.ManyToManyField(to="registry.Layer",
                                                   through=MetadataRelation,
@@ -696,6 +662,13 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                           blank=True,
                                           verbose_name=_("resolution value"),
                                           help_text=_("The value depending on the selected resolution type."))
+    code = models.CharField(max_length=4096,
+                            default="",  # empty code signals broken dataset metadata records; means not inspire identifiable
+                            help_text=_("identifier of the remote data"))
+    code_space = models.CharField(max_length=4096,
+                                  blank=True,
+                                  default="",
+                                  help_text=_("code space for the given identifier"))
 
     class Meta:
         abstract = True
@@ -710,12 +683,6 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         ]
 
     iso_metadata = IsoMetadataManager()
-
-    def save(self, *args, **kwargs):
-        obj = super().save(*args, **kwargs)
-
-        MetadataRelationView.refresh(concurrently=True)
-        return obj
 
 
 class DatasetMetadataRecord(MetadataRecord):
@@ -790,13 +757,6 @@ class DatasetMetadataRecord(MetadataRecord):
                                         related_query_name="%(class)s_dataset_contact",
                                         verbose_name=_("contact"),
                                         help_text=_("this is the contact which provides this dataset."))
-    dataset_id = models.CharField(max_length=4096,
-                                  default="",  # empty dataset_id signals broken dataset metadata records
-                                  help_text=_("identifier of the remote data"))
-    dataset_id_code_space = models.CharField(max_length=4096,
-                                             blank=True,
-                                             default="",
-                                             help_text=_("code space for the given identifier"))
 
     format = models.CharField(default="",
                               blank=True,
@@ -836,16 +796,16 @@ class DatasetMetadataRecord(MetadataRecord):
             # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
             # identifier
             models.UniqueConstraint(
-                fields=['dataset_id', 'dataset_id_code_space'],
+                fields=['code', 'code_space'],
                 # empty values signals that, this dataset is broken.
                 # This is a real world problem for that we support storing "duplicated" entries
                 # For all correct dataset records the unique constraint shall be used!
-                condition=~Q(dataset_id="", dataset_id_code_space=""),
-                name='%(app_label)s_%(class)s_unique_together_dataset_id_dataset_id_code_space')
+                condition=~Q(code="", code_space=""),
+                name='%(app_label)s_%(class)s_unique_together_code__and_code_space')
         ]
         indexes = [
-            models.Index(fields=["dataset_id", "dataset_id_code_space"])
-        ]
+            models.Index(fields=["code", "code_space"]),
+        ] + AbstractMetadata.Meta.indexes
 
     def add_dataset_metadata_relation(self, related_object=None, origin=None, is_internal=False):
         from registry.models.service import FeatureType, Layer
@@ -923,6 +883,10 @@ class ServiceMetadataRecord(MetadataRecord):
     change_log = HistoricalRecords(
         related_name="change_logs")
     history = DefaultHistoryManager()
+
+    class Meta:
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
 
 class Dimension(models.Model):

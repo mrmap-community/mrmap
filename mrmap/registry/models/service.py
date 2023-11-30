@@ -30,8 +30,9 @@ from registry.managers.service import (CatalogueServiceCapabilitiesManager,
                                        WebFeatureServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
-                                      MimeType, ServiceMetadata, Style)
+from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
+                                      LayerMetadata, MimeType, ServiceMetadata,
+                                      Style)
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
@@ -127,6 +128,8 @@ class WebMapService(HistoricalRecordMixin, OgcService):
     class Meta:
         verbose_name = _("web map service")
         verbose_name_plural = _("web map services")
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     @cached_property
     def root_layer(self):
@@ -145,6 +148,8 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
     class Meta:
         verbose_name = _("web feature service")
         verbose_name_plural = _("web feature services")
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> WebFeatureServiceClient:
@@ -159,6 +164,8 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     class Meta:
         verbose_name = _("catalogue service")
         verbose_name_plural = _("catalogue services")
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> CatalogueServiceClient:
@@ -428,6 +435,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         # So long we use mptt, we can't fix it.
         # See also the deprecated not of index_together ==> https://docs.djangoproject.com/en/4.1/ref/models/options/#index-together
         # indexes = [Index(fields=("tree_id", "lft", "rght"))]
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
         index_together = [
             # with_inherited_attributes() manager function will collect anchestors with this three attributes.
@@ -602,6 +611,9 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
+
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the feature type and his related service.

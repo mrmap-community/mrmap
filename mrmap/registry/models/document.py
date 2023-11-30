@@ -2,6 +2,7 @@ from abc import abstractmethod
 from warnings import warn
 
 from django.core.exceptions import ImproperlyConfigured
+from django.core.files import File
 from django.db import models
 from django.http import HttpRequest
 from django.urls import reverse
@@ -51,7 +52,9 @@ class DocumentModelMixin(models.Model):
         :rtype: str
         """
         try:
-            string = self.xml_backup_file.open().read()
+            self.xml_backup_file.open("r")
+            with self.xml_backup_file as file:
+                string = file.read()
             return string if isinstance(string, str) else string.decode("UTF-8")
         except (FileNotFoundError, ValueError):
             return ""

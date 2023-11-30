@@ -48,8 +48,8 @@
             "lineage_statement": "",
             "update_frequency_code": "",
             "bounding_geometry": "SRID=4326;MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))",
-            "dataset_id": "de.dwd.geoserver.fach.RBSN_RR",
-            "dataset_id_code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
+            "code": "de.dwd.geoserver.fach.RBSN_RR",
+            "code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
             "inspire_interoperability": false,
             "keywords": [
                 [
@@ -94,8 +94,8 @@
             "lineage_statement": "",
             "update_frequency_code": "",
             "bounding_geometry": "SRID=4326;MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))",
-            "dataset_id": "de.dwd.geoserver.fach.RBSN_RH",
-            "dataset_id_code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
+            "code": "de.dwd.geoserver.fach.RBSN_RH",
+            "code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
             "inspire_interoperability": false,
             "keywords": [
                 [

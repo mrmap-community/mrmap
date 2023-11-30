@@ -28,7 +28,10 @@ RUN apk update \
     && apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl py3-psycopg \
     && rm -rf /var/cache/apk/* \
     && mkdir -p /var/mrmap/backend/media \
-    && mkdir -p /var/log/mrmap \
+    && mkdir -p /var/log/mrmap/backend \
+    && mkdir -p /var/log/mrmap/celery-worker-default \
+    && mkdir -p /var/log/mrmap/celery-worker-db-routines \
+    && mkdir -p /var/log/mrmap/celery-worker-download \
     && mkdir -p /var/mrmap/import \
     && mkdir -p /var/www/mrmap/backend
 

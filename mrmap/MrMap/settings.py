@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import re
+import socket
 from glob import glob
 from warnings import warn
 
@@ -102,7 +103,6 @@ INSTALLED_APPS = [
     "csw",
     "drf_spectacular",
     "drf_spectacular_jsonapi",
-    "django_pgviews"
 ]
 
 MIDDLEWARE = [
@@ -254,6 +254,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
         "HOST": os.environ.get("SQL_HOST"),
         "PORT": os.environ.get("SQL_PORT"),
+        "CONN_MAX_AGE": 0,
     }
 }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
@@ -440,7 +441,7 @@ ERROR_MASK_TXT = (
 
 
 LOG_DIR = os.environ.get(
-    "MRMAP_LOG_DIR", "/var/log/mrmap")
+    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}")
 
 
 LOG_DIR = LOG_DIR if check_path_access(
@@ -546,6 +547,7 @@ REST_FRAMEWORK = {
 #     'AUTO_REFRESH': True,
 # }
 
+MATERIALIZED_VIEWS_CHECK_SQL_CHANGED = True
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',

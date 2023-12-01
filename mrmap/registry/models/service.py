@@ -11,7 +11,7 @@ from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
 from extras.utils import update_url_base, update_url_query_params
-from mptt.models import MPTTModel, TreeForeignKey
+from mptt2.models import Node
 from MrMap.settings import PROXIES
 from ows_lib.client.csw.mixins import \
     CatalogueServiceMixin as CatalogueServiceClient
@@ -133,7 +133,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     @cached_property
     def root_layer(self):
-        return self.layers.get(parent=None)
+        return self.layers.get(mptt_parent=None)
 
     @property
     def client(self) -> WebMapServiceClient:
@@ -347,7 +347,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         return ""
 
 
-class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
+class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
@@ -361,16 +361,6 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         related_query_name="layer",
         verbose_name=_("service"),
         help_text=_("the extras service where this element is part of"),
-    )
-    parent = TreeForeignKey(
-        to="self",
-        on_delete=models.CASCADE,
-        null=True,
-        editable=False,
-        related_name="children",
-        related_query_name="child",
-        verbose_name=_("parent layer"),
-        help_text=_("the ancestor of this layer."),
     )
     is_queryable: bool = models.BooleanField(
         default=False,
@@ -422,7 +412,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         ),
     )
     change_log = HistoricalRecords(
-        related_name="change_logs", excluded_fields=["lft", "rght", "tree_id", "level"]
+        related_name="change_logs"
     )
 
     objects = LayerManager()
@@ -431,18 +421,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
 
-        # FIXME: can't set new Index object for mptt fields, cause _meta.get_field() does not provide mptt fields. This will raise an Error on model check.
-        # So long we use mptt, we can't fix it.
-        # See also the deprecated not of index_together ==> https://docs.djangoproject.com/en/4.1/ref/models/options/#index-together
-        # indexes = [Index(fields=("tree_id", "lft", "rght"))]
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
-
-        index_together = [
-            # with_inherited_attributes() manager function will collect anchestors with this three attributes.
-            # For faster lookup we need an index of this three fields in the correct order.
-            ["tree_id", "lft", "rght"]
-        ]
+        ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes
 
         # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 

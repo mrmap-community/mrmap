@@ -1,6 +1,6 @@
 from django.apps import apps
 from django.contrib import admin
-from mptt.admin import MPTTModelAdmin
+from mptt2.admin import MPTTModelAdmin
 from registry.models.mapcontext import MapContextLayer
 
 # all other models

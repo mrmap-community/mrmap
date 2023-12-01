@@ -63,10 +63,10 @@ class LayerFilterSet(GeoFilterSet):
             'is_active': ['exact'],
             'is_opaque': ['exact'],
             'is_cascaded': ['exact'],
-            'lft': ['exact', 'gt', 'gte', 'lt', 'lte'],
-            'rght': ['exact', 'gt', 'gte', 'lt', 'lte'],
-            'tree_id': ['exact'],
-            'level': ['exact', 'gt', 'gte', 'lt', 'lte'],
+            'mptt_lft': ['exact', 'gt', 'gte', 'lt', 'lte'],
+            'mptt_rgt': ['exact', 'gt', 'gte', 'lt', 'lte'],
+            'mptt_tree': ['exact'],
+            'mptt_depth': ['exact', 'gt', 'gte', 'lt', 'lte'],
             'service': ['exact']
         }
 

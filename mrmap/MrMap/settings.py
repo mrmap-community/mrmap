@@ -94,7 +94,7 @@ INSTALLED_APPS = [
     "django_celery_results",
     "django_filters",
     "simple_history",
-    "mptt",
+    "mptt2",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "extras",  # to support template lookup
     "accounts",

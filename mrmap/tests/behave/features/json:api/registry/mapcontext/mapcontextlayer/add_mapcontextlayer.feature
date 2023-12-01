@@ -15,7 +15,7 @@ Feature: MapContextLayer Add Endpoint
                         "title": "mc2_node1.2.1"
                     },
                     "relationships": {
-                        "parent": {
+                        "mptt_parent": {
                             "data": {
                                 "type": "MapContextLayer",
                                 "id": "8"

@@ -1,5 +1,15 @@
 [
   {
+    "model": "mptt2.tree",
+    "pk": 1,
+    "fields": {}
+  },
+  {
+    "model": "mptt2.tree",
+    "pk": 2,
+    "fields": {}
+  },
+  {
     "model": "registry.historicalmapcontext",
     "pk": "a92bc333-1d8c-4ace-bd7a-fc2d22d415a2",
     "fields": {
@@ -78,7 +88,11 @@
       "rendering_layer": "226e655b-b6cd-48a4-95e2-8bfe1c933790",
       "layer_style": null,
       "selection_layer": null,
-      "parent": 1,
+      "mptt_parent": 1,
+      "mptt_lft": 1,
+      "mptt_rgt": 10,
+      "mptt_tree": 1,
+      "mptt_depth": 0,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -105,7 +119,11 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 1,
+      "mptt_parent": 1,
+      "mptt_lft": 2,
+      "mptt_rgt": 7,
+      "mptt_tree": 1,
+      "mptt_depth": 1,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -132,7 +150,11 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 2,
+      "mptt_parent": 2,
+      "mptt_lft": 3,
+      "mptt_rgt": 4,
+      "mptt_tree": 1,
+      "mptt_depth": 2,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -159,7 +181,11 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 2,
+      "mptt_parent": 2,
+      "mptt_": 5,
+      "mptt_rgt": 6,
+      "mptt_tree": 1,
+      "mptt_depth": 2,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -186,7 +212,11 @@
       "rendering_layer": null,
       "layer_style": null,
       "selection_layer": null,
-      "parent": 1,
+      "mptt_parent": 1,
+      "mptt_lft": 8,
+      "mptt_rgt": 9,
+      "mptt_tree": 1,
+      "mptt_depth": 1,
       "map_context": 1,
       "dataset_metadata": null,
       "history_date": "2022-02-01T13:54:31.098Z",
@@ -202,7 +232,7 @@
     "model": "registry.mapcontextlayer",
     "pk": 1,
     "fields": {
-      "parent": null,
+      "mptt_parent": null,
       "map_context": 1,
       "title": "mc1_node1",
       "description": null,
@@ -213,17 +243,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 1,
-      "rght": 10,
-      "tree_id": 1,
-      "level": 0
+      "mptt_lft": 1,
+      "mptt_rgt": 10,
+      "mptt_tree": 1,
+      "mptt_depth": 0
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 2,
     "fields": {
-      "parent": 1,
+      "mptt_parent": 1,
       "map_context": 1,
       "title": "mc1_node1.1",
       "description": null,
@@ -234,17 +264,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 2,
-      "rght": 7,
-      "tree_id": 1,
-      "level": 1
+      "mptt_lft": 2,
+      "mptt_rgt": 7,
+      "mptt_tree": 1,
+      "mptt_depth": 1
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 3,
     "fields": {
-      "parent": 2,
+      "mptt_parent": 2,
       "map_context": 1,
       "title": "mc1_node1.1.1",
       "description": null,
@@ -255,17 +285,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 3,
-      "rght": 4,
-      "tree_id": 1,
-      "level": 2
+      "mptt_lft": 3,
+      "mptt_rgt": 4,
+      "mptt_tree": 1,
+      "mptt_depth": 2
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 4,
     "fields": {
-      "parent": 2,
+      "mptt_parent": 2,
       "map_context": 1,
       "title": "mc1_node1.1.2",
       "description": null,
@@ -276,17 +306,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 5,
-      "rght": 6,
-      "tree_id": 1,
-      "level": 2
+      "mptt_": 5,
+      "mptt_rgt": 6,
+      "mptt_tree": 1,
+      "mptt_depth": 2
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 5,
     "fields": {
-      "parent": 1,
+      "mptt_parent": 1,
       "map_context": 1,
       "title": "mc1_node1.2",
       "description": null,
@@ -297,17 +327,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 8,
-      "rght": 9,
-      "tree_id": 1,
-      "level": 1
+      "mptt_lft": 8,
+      "mptt_rgt": 9,
+      "mptt_tree": 1,
+      "mptt_depth": 1
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 6,
     "fields": {
-      "parent": null,
+      "mptt_parent": null,
       "map_context": 2,
       "title": "mc2_node1",
       "description": null,
@@ -318,17 +348,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 1,
-      "rght": 12,
-      "tree_id": 2,
-      "level": 0
+      "mptt_lft": 1,
+      "mptt_rgt": 12,
+      "mptt_tree": 2,
+      "mptt_depth": 0
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 7,
     "fields": {
-      "parent": 6,
+      "mptt_parent": 6,
       "map_context": 2,
       "title": "mc2_node1.1",
       "description": null,
@@ -339,17 +369,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 2,
-      "rght": 3,
-      "tree_id": 2,
-      "level": 1
+      "mptt_lft": 2,
+      "mptt_rgt": 3,
+      "mptt_tree": 2,
+      "mptt_depth": 1
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 8,
     "fields": {
-      "parent": 6,
+      "mptt_parent": 6,
       "map_context": 2,
       "title": "mc2_node1.2",
       "description": null,
@@ -360,17 +390,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 4,
-      "rght": 9,
-      "tree_id": 2,
-      "level": 1
+      "mptt_lft": 4,
+      "mptt_rgt": 9,
+      "mptt_tree": 2,
+      "mptt_depth": 1
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 9,
     "fields": {
-      "parent": 8,
+      "mptt_parent": 8,
       "map_context": 2,
       "title": "mc2_node1.2.1",
       "description": null,
@@ -381,17 +411,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 5,
-      "rght": 6,
-      "tree_id": 2,
-      "level": 2
+      "mptt_lft": 5,
+      "mptt_rgt": 6,
+      "mptt_tree": 2,
+      "mptt_depth": 2
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 10,
     "fields": {
-      "parent": 8,
+      "mptt_parent": 8,
       "map_context": 2,
       "title": "mc2_node1.2.2",
       "description": null,
@@ -402,17 +432,17 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 7,
-      "rght": 8,
-      "tree_id": 2,
-      "level": 2
+      "mptt_lft": 7,
+      "mptt_rgt": 8,
+      "mptt_tree": 2,
+      "mptt_depth": 2
     }
   },
   {
     "model": "registry.mapcontextlayer",
     "pk": 11,
     "fields": {
-      "parent": 6,
+      "mptt_parent": 6,
       "map_context": 2,
       "title": "mc2_node1.3",
       "description": null,
@@ -423,10 +453,10 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "lft": 10,
-      "rght": 11,
-      "tree_id": 2,
-      "level": 1
+      "mptt_lft": 10,
+      "mptt_rgt": 11,
+      "mptt_tree": 2,
+      "mptt_depth": 1
     }
   },
   {

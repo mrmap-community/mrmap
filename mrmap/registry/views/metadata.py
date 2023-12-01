@@ -132,7 +132,7 @@ class DatasetMetadataViewSetMixin:
         "self_pointing_layers": [
             Prefetch(
                 "self_pointing_layers",
-                queryset=Layer.objects.select_related("parent").prefetch_related(
+                queryset=Layer.objects.select_related("mptt_parent").prefetch_related(
                     "keywords", "styles", "reference_systems"
                 ),
             ),
@@ -181,8 +181,8 @@ class DatasetMetadataViewSetMixin:
                     queryset=Layer.objects.only(
                         "id",
                         "service_id",
-                        "tree_id",
-                        "lft",
+                        "mptt_tree_id",
+                        "mptt_lft",
                     ),
                 )
             )

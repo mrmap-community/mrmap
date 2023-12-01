@@ -73,8 +73,8 @@ class AllowedWebMapServiceOperationSerializer(
                     "id",
                     "service_id",
                     "parent_id",
-                    "tree_id",
-                    "lft"),
+                    "mptt_tree",
+                    "mptt_lft"),
                 to_attr="descendant_pks"
             )
             _secured_layers = Layer.objects.filter(

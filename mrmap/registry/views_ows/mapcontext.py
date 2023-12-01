@@ -31,10 +31,10 @@ class OwsContextView(JSONDetailView):
             "map_context_layers",
             # TODO: maybe there is a better way to select parents in dynamic depth
             queryset=MapContextLayer.objects.all().select_related(
-                "parent",
-                "parent__parent",
-                "parent__parent__parent",
-                "parent__parent__parent__parent",
+                "mptt_parent",
+                "mptt_parent__mptt_parent",
+                "mptt_parent__mptt_parent__mptt_parent",
+                "mptt_parent__mptt_parent__mptt_parent__mptt_parent",
                 "rendering_layer",
                 "rendering_layer__service"
             ).prefetch_related(prefetch_map_context_layer_last_history, prefetch_get_map_url))

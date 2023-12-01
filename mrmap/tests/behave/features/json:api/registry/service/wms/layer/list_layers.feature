@@ -13,11 +13,11 @@ Feature: Layer List Endpoint
         Then I expect that "8" queries where made
 
     Scenario: Can sort by lft
-        Given I set a queryparam "sort" with value "lft"
+        Given I set a queryparam "sort" with value "mpttLft"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "9"
-        Then I expect that response json has an attribute "data.[0].attributes.lft" with value "1"
+        Then I expect that response json has an attribute "data.[0].attributes.mpttLft" with value "1"
 
     Scenario: Can search by title
         Given I set a queryparam "filter[search]" with value "node1.3.1"

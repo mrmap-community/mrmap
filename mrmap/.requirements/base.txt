@@ -8,7 +8,7 @@ django-filter==23.4
 # adds object permissions
 django-guardian==2.4.0
 # adds mptt tree model
-django-mptt==0.15.0
+django-mptt2==0.2.0
 # adds redis cache backend for django
 django-redis==5.4.0
 # adds captcha 

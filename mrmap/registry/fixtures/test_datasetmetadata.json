@@ -34,7 +34,7 @@
             "abstract": "Messwerte des Niederschlags an den DWD Stationen im Regional Basic Synoptic Network der WMO. Erweitert um weitere Stationen der Grundversorgung.",
             "is_broken": false,
             "is_customized": true,
-            "insufficient_quality": null,
+            "insufficient_quality": "",
             "is_searchable": false,
             "hits": 0,
             "dataset_contact": 1,
@@ -59,7 +59,8 @@
             "reference_systems": [],
             "harvested_through": [
                 "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
-            ]
+            ],
+            "search_vector": ""
         }
     },
     {
@@ -80,7 +81,7 @@
             "abstract": "Messwerte der relativen Feuchte an den DWD Stationen im Regional Basic Synoptic Network der WMO. Erweitert um weitere Stationen der Grundversorgung.",
             "is_broken": false,
             "is_customized": true,
-            "insufficient_quality": null,
+            "insufficient_quality": "",
             "is_searchable": false,
             "hits": 0,
             "dataset_contact": 1,
@@ -105,7 +106,8 @@
             "reference_systems": [],
             "harvested_through": [
                 "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
-            ]
+            ],
+            "search_vector": ""
         }
     },
     {

@@ -10,6 +10,8 @@ from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.db.models.expressions import F
+from django.db.models.fields.generated import GeneratedField
 from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
@@ -358,7 +360,6 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       editable=False,
                                       db_index=True)
     file_identifier = models.CharField(max_length=1000,
-                                       null=True,
                                        editable=False,
                                        default=uuid4,
                                        db_index=True,
@@ -381,10 +382,13 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                              "comes from"))
     title: str = models.CharField(max_length=1000,
                                   verbose_name=_("title"),
-                                  help_text=_("a short descriptive title for this metadata"))
-    abstract = models.TextField(null=True,
-                                verbose_name=_("abstract"),
-                                help_text=_("brief summary of the content of this metadata."))
+                                  help_text=_(
+                                      "a short descriptive title for this metadata"),
+                                  default="")
+    abstract = models.TextField(verbose_name=_("abstract"),
+                                help_text=_(
+                                    "brief summary of the content of this metadata."),
+                                default="")
     is_broken = models.BooleanField(default=False,
                                     editable=False,
                                     verbose_name=_("is broken"),
@@ -393,7 +397,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                         editable=False,
                                         verbose_name=_("is customized"),
                                         help_text=_("If the metadata record is customized, this flag is True"))
-    insufficient_quality = models.TextField(null=True,
+    insufficient_quality = models.TextField(default="",
                                             blank=True,
                                             help_text=_("TODO"))
     is_searchable = models.BooleanField(default=False,
@@ -413,15 +417,12 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     language = None  # TODO
     category = None  # TODO: Inspire + iso + various
 
-    # TODO: django 5 will provide a GeneratedField, which is then computed by the db.
-    # Full consistent management by the dbms!
-    # That for the SearchVectorField could be removed and replace by a
-    # GeneratedField(
-    #   db_persist=True,
-    #   expression=SearchVector("title", "abstract", "keywords__keyword"),
-    #   output_field=SearchVectorField())
-    # now we have to provide the values for that field by our own... :(
-    search_vector = SearchVectorField(null=True)
+    # config="english" is just a dummy; to get imutable searchvector results
+    search_vector = GeneratedField(
+        expression=SearchVector("title", "abstract", config="english"),
+        output_field=SearchVectorField(),
+        db_persist=True
+    )
 
     # needed for Docuement mixin to load the backupfile into the correct xml mapper class
     xml_mapper_cls = MdMetadata
@@ -784,7 +785,9 @@ class DatasetMetadataRecord(MetadataRecord):
                                              default="")
 
     change_log = HistoricalRecords(
-        related_name="change_logs")
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
 
     objects = UniqueConstraintDefaultValueManager()
     history = DefaultHistoryManager()
@@ -881,7 +884,9 @@ class ServiceMetadataRecord(MetadataRecord):
 
     objects = Manager()
     change_log = HistoricalRecords(
-        related_name="change_logs")
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     history = DefaultHistoryManager()
 
     class Meta:

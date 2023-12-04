@@ -121,7 +121,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
 class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(
-        related_name="change_logs")
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     capabilities = WebMapServiceCapabilitiesManager()
     security = WebMapServiceSecurityManager()
 
@@ -141,7 +143,10 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     capabilities = WebFeatureServiceCapabilitiesManager()
     security = WebFeatureServiceSecurityManager()
 
@@ -157,7 +162,10 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
 
 class CatalogueService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     capabilities = CatalogueServiceCapabilitiesManager()
     objects = DefaultHistoryManager()
 
@@ -412,7 +420,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         ),
     )
     change_log = HistoricalRecords(
-        related_name="change_logs"
+        related_name="change_logs",
+        excluded_fields="search_vector"
     )
 
     objects = LayerManager()
@@ -585,7 +594,10 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         ),
     )
 
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     objects = DefaultHistoryManager()
 
     class Meta:

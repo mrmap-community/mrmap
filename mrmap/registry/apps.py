@@ -53,5 +53,6 @@ class RegistryConfig(AppConfig):
         from . import signals  # noqa
         post_migrate.connect(create_wms_operations, sender=self)
         post_migrate.connect(create_wfs_operations, sender=self)
-        post_migrate.connect(create_file_system_import_task, sender=self)
+
+       # post_migrate.connect(create_file_system_import_task, sender=self)
         post_migrate.connect(find_orphan_metadata_objects, sender=self)

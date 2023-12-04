@@ -58,7 +58,8 @@
             "title": "MapServer countires example",
             "service_url": "",
             "service_contact": "1",
-            "metadata_contact": "1"
+            "metadata_contact": "1",
+            "search_vector": ""
         }
     },
     {
@@ -69,7 +70,8 @@
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "ms:Countries",
             "origin": "capabilities",
-            "title": "Countries"
+            "title": "Countries",
+            "search_vector": ""
         }
     },
     {
@@ -80,7 +82,8 @@
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "ms:Rivers",
             "origin": "capabilities",
-            "title": "Rivers"
+            "title": "Rivers",
+            "search_vector": ""
         }
     },
     {

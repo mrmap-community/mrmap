@@ -66,7 +66,9 @@ class MapContext(models.Model):
     # contextMetadata
     # extension
 
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+    )
     objects = MapContextManager()
 
     class Meta:

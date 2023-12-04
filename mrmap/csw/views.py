@@ -238,9 +238,9 @@ class CswServiceView(View):
             # Filter by AnyText with like operator and wildcards does not use a correct ts_vector query.
 
             dataset_metadata_records_result = dataset_metadata_records.filter(
-                q)
+                q).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
             service_metadata_records_result = service_metadata_records.filter(
-                q)
+                q).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
         except FieldError as e:
             requested_field = str(e).split(":")[0].split("'")[1]
             available_fields = field_mapping.keys()
@@ -266,10 +266,12 @@ class CswServiceView(View):
             self.ogc_request.ogc_query_params.get("maxRecords", "10"))
 
         heap_count = start_position + max_records
+
+        result = result_list[start_position: heap_count]
+
         next_record = heap_count + 1
         next_record = next_record if next_record < total_records else total_records
 
-        result = result_list[start_position: heap_count]
         records_returned = len(result)
 
         result_type = self.ogc_request.ogc_query_params.get(

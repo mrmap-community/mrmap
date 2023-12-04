@@ -419,7 +419,8 @@ class AbstractMetadata(MetadataDocumentModelMixin):
 
     # config="english" is just a dummy; to get imutable searchvector results
     search_vector = GeneratedField(
-        expression=SearchVector("title", "abstract", config="english"),
+        expression=SearchVector(F("title"), F("abstract"), F("file_identifier"),
+                                config="english"),
         output_field=SearchVectorField(),
         db_persist=True
     )
@@ -670,6 +671,34 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                   blank=True,
                                   default="",
                                   help_text=_("code space for the given identifier"))
+
+    # duplicated; otherwise django can't create mirgrations for generatedfield based on title, abstract, file_identifier.
+    # django.core.exceptions.AppRegistryNotReady: Models aren't loaded yet. will be raised
+    title: str = models.CharField(max_length=1000,
+                                  verbose_name=_("title"),
+                                  help_text=_(
+                                      "a short descriptive title for this metadata"),
+                                  default="")
+    abstract = models.TextField(verbose_name=_("abstract"),
+                                help_text=_(
+                                    "brief summary of the content of this metadata."),
+                                default="")
+    file_identifier = models.CharField(max_length=1000,
+                                       editable=False,
+                                       default=uuid4,
+                                       db_index=True,
+                                       verbose_name=_("file identifier"),
+                                       help_text=_("the parsed file identifier from the iso metadata xml "
+                                                   "(gmd:fileIdentifier) OR for example if it is a layer/featuretype"
+                                                   "the uuid of the described layer/featuretype shall be used to "
+                                                   "identify the generated iso metadata xml."))
+    # config="english" is just a dummy; to get imutable searchvector results
+    search_vector = GeneratedField(
+        expression=SearchVector(F("title"), F("abstract"), F("file_identifier"), F("code"), F("code_space"),
+                                config="english"),
+        output_field=SearchVectorField(),
+        db_persist=True
+    )
 
     class Meta:
         abstract = True

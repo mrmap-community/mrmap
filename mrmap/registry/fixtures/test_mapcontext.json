@@ -182,7 +182,7 @@
       "layer_style": null,
       "selection_layer": null,
       "mptt_parent": 2,
-      "mptt_": 5,
+      "mptt_lft": 5,
       "mptt_rgt": 6,
       "mptt_tree": 1,
       "mptt_depth": 2,
@@ -306,7 +306,7 @@
       "layer_style": null,
       "preview_image": "",
       "selection_layer": null,
-      "mptt_": 5,
+      "mptt_lft": 5,
       "mptt_rgt": 6,
       "mptt_tree": 1,
       "mptt_depth": 2

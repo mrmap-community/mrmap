@@ -3,10 +3,12 @@ from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
+from mptt2.models import Tree
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
 from rest_framework.fields import CharField, IntegerField
-from rest_framework_json_api.relations import ResourceRelatedField
+from rest_framework_json_api.relations import (
+    ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  SerializerMethodField)
@@ -25,6 +27,31 @@ class MapContextLayerSerializer(
     #     label=_("description"),
     #     help_text=_("a short description for this map context layer")
     # )
+    mptt_tree_id = IntegerField(
+        # queryset=Tree.objects,
+        label=_("tree id"),
+        # model=Tree,
+        read_only=True
+    )
+    mptt_parent = ResourceRelatedField(
+        queryset=MapContextLayer.objects,
+        label=_("parent"),
+        help_text=_("the parent of this node"),
+        model=MapContextLayer,
+    )
+    mptt_lft = IntegerField(
+        label=_('mptt left value'),
+        read_only=True
+    )
+    mptt_rgt = IntegerField(
+        label=_('mptt right value'),
+        read_only=True
+    )
+    mptt_depth = IntegerField(
+        label=_('mptt depth value'),
+        read_only=True
+    )
+
     url = HyperlinkedIdentityField(
         view_name='registry:mapcontextlayer-detail',
     )
@@ -51,13 +78,14 @@ class MapContextLayerSerializer(
         if request and request.method.lower() == 'patch':
             position = validated_data.get('position', None)
             if isinstance(position, int):
-                # move action detected
-                parent = validated_data.get('parent', self.instance.parent)
+                # move/insert action detected
+                parent = validated_data.get(
+                    'mptt_parent', self.instance.mptt_parent)
                 if not parent:
                     raise ValidationError(_('root node can not be moved'))
                 else:
-                    validated_data['parent'] = parent
-                child_layers_count = parent.child_layers.count()
+                    validated_data['mptt_parent'] = parent
+                child_layers_count = parent.chilren.count()
                 if position > child_layers_count or position < 0:
                     raise ValidationError(
                         {"position": _('position index out of range')})
@@ -66,8 +94,8 @@ class MapContextLayerSerializer(
     def update(self, instance, validated_data):
         position = validated_data.pop('position', None)
         if isinstance(position, int):
-            parent = validated_data['parent']
-            child_layers = parent.child_layers.all()
+            parent = validated_data['mptt_parent']
+            child_layers = parent.chilren.all()
             child_layers_count = child_layers.count()
             if position == 0:
                 # first child
@@ -87,6 +115,30 @@ class MapContextLayerSerializer(
                         target=target,
                         position='left')
         return super().update(instance, validated_data)
+
+    def create(self, validated_data):
+        position = validated_data.pop('position', None)
+        node = MapContextLayer(**validated_data)
+        parent = validated_data['mptt_parent']
+        if isinstance(position, int):
+            parent = validated_data['mptt_parent']
+            child_layers = parent.chilren.all()
+            child_layers_count = child_layers.count()
+            if position == 0:
+                # first child
+                node.insert_at(parent, 'first-child')
+            elif position == child_layers_count:
+                # last child
+                node.insert_at(parent, 'last-child')
+            else:
+                # new child somewhere between
+                target = child_layers[position]
+                node.insert_at(target, 'left')
+        else:
+            return node.insert_at(parent)
+
+    def get_mptt_tree_id(self, instance):
+        return instance.mptt_tree_id
 
 
 class MapContextDefaultSerializer(

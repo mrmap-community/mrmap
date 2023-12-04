@@ -59,6 +59,7 @@ def before_feature(context, feature):
 
     if fixtures:
         call_command("loaddata", *fixtures, verbosity=0)
+
         if 'test_datasetmetadata.json' in fixtures:
             # fix dataset xml files
             rbsn_rr_file = open(

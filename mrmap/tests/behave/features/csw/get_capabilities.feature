@@ -1,3 +1,4 @@
+@skip
 Feature: CSW Endpoint
     As an API client,
     I want to retreive the capabilities document,

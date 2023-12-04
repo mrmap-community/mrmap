@@ -32,9 +32,9 @@ Feature: MapContextLayer Move Endpoint
         When I send the request with PATCH method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.attributes.mpttLft" with value "2"
-        Then I expect that response json has an attribute "data.attributes.mpttRght" with value "3"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "3"
         Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.mpttLevel" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can move 10 as authenticated user to parent 6, position 1
         Given I set the request payload to:
@@ -61,9 +61,9 @@ Feature: MapContextLayer Move Endpoint
         When I send the request with PATCH method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.attributes.mpttLft" with value "4"
-        Then I expect that response json has an attribute "data.attributes.mpttRght" with value "5"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "5"
         Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.mpttLevel" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can move 10 as authenticated user to parent 6, position 2
         Given I set the request payload to:
@@ -90,9 +90,9 @@ Feature: MapContextLayer Move Endpoint
         When I send the request with PATCH method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.attributes.mpttLft" with value "8"
-        Then I expect that response json has an attribute "data.attributes.mpttRght" with value "9"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "9"
         Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.mpttLevel" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can move 10 as authenticated user to parent 6, position 3 (last-child)
         Given I set the request payload to:
@@ -119,9 +119,9 @@ Feature: MapContextLayer Move Endpoint
         When I send the request with PATCH method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.attributes.mpttLft" with value "10"
-        Then I expect that response json has an attribute "data.attributes.mpttRght" with value "11"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "11"
         Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.mpttLevel" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can not move 10 as authenticated user to parent 6, position 4 (out-of-range)
         Given I set the request payload to:
@@ -178,9 +178,9 @@ Feature: MapContextLayer Move Endpoint
         When I send the request with PATCH method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.attributes.mpttLft" with value "4"
-        Then I expect that response json has an attribute "data.attributes.mpttRght" with value "5"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "5"
         Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.mpttLevel" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
 
     Scenario: Validation Error is raised on moving root node

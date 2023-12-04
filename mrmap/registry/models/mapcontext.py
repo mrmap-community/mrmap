@@ -291,7 +291,7 @@ class MapContextLayer(RenderingOffering, SelectionOffering, Node):
 
     @property
     def folder_name(self) -> str:
-        if self.is_root_node():
+        if self.is_root_node:
             return f"/{self.id}"
         else:
             return f"{self.mptt_parent.folder_name}/{self.id}"

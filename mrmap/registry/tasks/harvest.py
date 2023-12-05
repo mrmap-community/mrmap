@@ -1,9 +1,9 @@
 
 import os
-from logging import Logger
 from os import walk
 
 from celery import shared_task
+from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -15,7 +15,7 @@ from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from requests.exceptions import Timeout
 
-logger: Logger = settings.ROOT_LOGGER
+logger = get_task_logger(__name__)
 
 
 @shared_task(

@@ -19,6 +19,7 @@ services:
         target: /data
     networks:
       - mrmap-internal
+
   mapserver:
     image: camptocamp/mapserver:7.6
     volumes:
@@ -66,84 +67,18 @@ services:
     ports:
       - "0.0.0.0:8001:8001"
 
-  celery-worker-default:
+  celery-worker:
     build:
       context: ./mrmap
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
-    # deploy:
-    #   replicas: 2
+    deploy:
+      replicas: 10
     command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q default"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines"
     tty: true # To support colorized log output.
-    hostname: "celery-worker-default"
-    volumes:
-      - type: bind
-        source: ./mrmap
-        target: /opt/mrmap
-      - type: volume
-        source: backend-media
-        target: /var/mrmap/backend/media
-      - type: volume
-        source: backend-log
-        target: /var/log/mrmap/backend
-      - type: volume
-        source: backend-import
-        target: /var/mrmap/import
-    networks:
-      - mrmap-internal
-    env_file:
-      - ./docker/backend/.mrmap.env
-    depends_on:
-      - postgis
-      - redis
-
-  celery-worker-download:
-    build:
-      context: ./mrmap
-      dockerfile: ../docker/backend/alpine.Dockerfile
-      args:
-        MRMAP_PRODUCTION: "True"
-    # deploy:
-    #   replicas: 2
-    command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download"
-    tty: true # To support colorized log output.
-    hostname: "celery-worker-default"
-    volumes:
-      - type: bind
-        source: ./mrmap
-        target: /opt/mrmap
-      - type: volume
-        source: backend-media
-        target: /var/mrmap/backend/media
-      - type: volume
-        source: backend-log
-        target: /var/log/mrmap/backend
-      - type: volume
-        source: backend-import
-        target: /var/mrmap/import
-    networks:
-      - mrmap-internal
-    env_file:
-      - ./docker/backend/.mrmap.env
-    depends_on:
-      - postgis
-      - redis
-
-  celery-worker-db-routines:
-    build:
-      context: ./mrmap
-      dockerfile: ../docker/backend/alpine.Dockerfile
-      args:
-        MRMAP_PRODUCTION: "True"
-    # deploy:
-    #   replicas: 5
-    command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q db-routines"
-    tty: true # To support colorized log output.
-    hostname: "celery-worker-default"
+    hostname: "celery-worker"
     volumes:
       - type: bind
         source: ./mrmap

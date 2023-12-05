@@ -121,7 +121,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Docker Compose: mrmap celery-worker-default",
+            "label": "Docker Compose: mrmap celery-worker",
             "type": "shell",
             "command": "docker",
             "args": [
@@ -136,51 +136,9 @@
                 "--remove-orphans",
                 "--build",
                 "--exit-code-from",
-                "celery-worker-default",
+                "celery-worker",
                 "--abort-on-container-exit",
-                "celery-worker-default"
-            ]
-        },
-        {
-            "label": "Docker Compose: mrmap celery-worker-download",
-            "type": "shell",
-            "command": "docker",
-            "args": [
-                "compose",
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.vscode.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "celery-worker-download",
-                "--abort-on-container-exit",
-                "celery-worker-download"
-            ]
-        },
-        {
-            "label": "Docker Compose: mrmap celery-worker-db-routines",
-            "type": "shell",
-            "command": "docker",
-            "args": [
-                "compose",
-                "-f",
-                "${workspaceFolder}/docker-compose.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.dev.yml",
-                "-f",
-                "${workspaceFolder}/docker-compose.vscode.yml",
-                "up",
-                "--remove-orphans",
-                "--build",
-                "--exit-code-from",
-                "celery-worker-db-routines",
-                "--abort-on-container-exit",
-                "celery-worker-db-routines"
+                "celery-worker"
             ]
         },
         {

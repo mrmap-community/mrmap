@@ -251,14 +251,8 @@ class CswServiceView(View):
                 message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"
             )
 
-        result_list = sorted(
-            chain(dataset_metadata_records_result,
-                  service_metadata_records_result),
-            # TODO: order by correct querparameter
-            key=lambda instance: instance.pk
-        )
-
-        total_records = len(result_list)
+        total_records = dataset_metadata_records_result.count(
+        ) + service_metadata_records_result.count()
 
         start_position = int(
             self.ogc_request.ogc_query_params.get("startPosition", "1")) - 1
@@ -266,6 +260,13 @@ class CswServiceView(View):
             self.ogc_request.ogc_query_params.get("maxRecords", "10"))
 
         heap_count = start_position + max_records
+
+        result_list = sorted(
+            chain(dataset_metadata_records_result[start_position: heap_count],
+                  service_metadata_records_result[start_position: heap_count]),
+            # TODO: order by correct querparameter
+            key=lambda instance: instance.pk
+        )
 
         result = result_list[start_position: heap_count]
 

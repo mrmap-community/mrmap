@@ -300,6 +300,8 @@ CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_DEFAULT_QUEUE = "default"
 CELERY_DEFAULT_EXCHANGE = "default"
 
+CELERYD_MAX_TASKS_PER_CHILD = 1000
+
 CELERY_QUEUES = (
     Queue(
         name="default",
@@ -441,7 +443,7 @@ ERROR_MASK_TXT = (
 
 
 LOG_DIR = os.environ.get(
-    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}")
+    "MRMAP_LOG_DIR", "/var/log/mrmap")
 
 
 LOG_DIR = LOG_DIR if check_path_access(
@@ -486,17 +488,17 @@ LOGGING = {
             "facility": "user",
             "address": ("localhost", 1514),
         },
-        "file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "maxBytes": LOG_FILE_MAX_SIZE,
-            "backupCount": LOG_FILE_BACKUP_COUNT,
-            "filename": LOG_DIR + "logs.log",
-            "formatter": "verbose",
-        },
+        # "file": {
+        #     "class": "logging.handlers.RotatingFileHandler",
+        #     "maxBytes": LOG_FILE_MAX_SIZE,
+        #     "backupCount": LOG_FILE_BACKUP_COUNT,
+        #     "filename": LOG_DIR + f"/{socket.gethostname()}-logs.log",
+        #     "formatter": "verbose",
+        # },
     },
     "loggers": {
         "MrMap.root": {
-            "handlers": ["file", "syslog"],
+            "handlers": ["syslog"],
             "level": "DEBUG" if DEBUG else "INFO",
             "disabled": False,
             "propagate": True,

@@ -258,6 +258,7 @@ class CswServiceView(View):
             self.ogc_request.ogc_query_params.get("startPosition", "1")) - 1
         max_records = int(
             self.ogc_request.ogc_query_params.get("maxRecords", "10"))
+        max_records = max_records if max_records <= 1000 else 1000
 
         heap_count = start_position + max_records
 

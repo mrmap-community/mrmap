@@ -11,6 +11,7 @@ services:
       - mrmap-internal
     env_file:
       - ./docker/postgis/.db.env
+
   redis:
     image: library/redis:7.2.3-alpine
     volumes:
@@ -19,6 +20,8 @@ services:
         target: /data
     networks:
       - mrmap-internal
+    environment:
+      - loglevel=error
 
   mapserver:
     image: camptocamp/mapserver:7.6
@@ -73,8 +76,8 @@ services:
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
-    deploy:
-      replicas: 10
+    # deploy:
+    #   replicas: 10
     command: >
       /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines"
     tty: true # To support colorized log output.
@@ -101,6 +104,13 @@ services:
       - redis
     cap_add:
       - SYS_PTRACE
+    healthcheck:
+      test: celery -A MrMap inspect -d celery-worker reserved || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 1
+      start_period: 15s
+    restart: always
 
   celery-beat:
     build:

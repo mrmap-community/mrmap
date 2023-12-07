@@ -41,7 +41,6 @@ services:
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
-    tty: true # To support colorized log output.
     hostname: "backend"
     volumes:
       - type: bind
@@ -80,7 +79,9 @@ services:
     #   replicas: 10
     command: >
       /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines"
-    tty: true # To support colorized log output.
+    # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
+    # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
+    #tty: true # To support colorized log output.
     hostname: "celery-worker"
     volumes:
       - type: bind

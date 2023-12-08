@@ -40,6 +40,7 @@ def call_fetch_total_records(harvesting_job_id):
     queue="download",
     autoretry_for=(Timeout,),
     retry_kwargs={'max_retries': 5},
+    rate_limit='20/m'
 )
 def call_fetch_records(harvesting_job_id,
                        start_position,

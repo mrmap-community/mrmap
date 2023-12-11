@@ -1,4 +1,4 @@
-Django==5.0rc1
+Django==5.0
 # adds runserver_plus
 django-extensions==3.2.3
 # adds history models

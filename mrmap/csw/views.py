@@ -31,7 +31,8 @@ from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
     GetRecordsResponse as GetRecordByIdResponse
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
-                                      MetadataRelation, ServiceMetadataRecord)
+                                      MetadataContact, MetadataRelation,
+                                      ServiceMetadataRecord)
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
                                            OperationNotSupportedException)
@@ -205,6 +206,7 @@ class CswServiceView(View):
             #         "pk")).distinct("keyword").values("keyword")
             # ),
         )
+
         service_metadata_records = ServiceMetadataRecord.objects.annotate(
             hierarchy_level=Value("service"),
             resource_identifier=Concat(
@@ -250,6 +252,14 @@ class CswServiceView(View):
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
                 message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"
             )
+
+        # contact_stats = MetadataContact.objects.filter(
+        #     datasetmetadatarecord_metadata_contact__in=dataset_metadata_records_result
+        # ).annotate(
+        #     frequency=Count("pk")
+        # ).order_by("-frequency").values_list("name", "frequency")
+
+        # print(contact_stats)
 
         total_records = dataset_metadata_records_result.count(
         ) + service_metadata_records_result.count()

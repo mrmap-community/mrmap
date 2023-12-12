@@ -215,9 +215,10 @@ class IsoMetadataManager(models.Manager):
             self.current_user = HistoricalRecords.context.request.user
 
     def _create_contact(self, contact):
-        from registry.models.metadata import MetadataContact
-        contact, _ = MetadataContact.objects.get_or_create(
-            **contact.transform_to_model())
+        if contact:
+            from registry.models.metadata import MetadataContact
+            contact, _ = MetadataContact.objects.get_or_create(
+                **contact.transform_to_model())
         return contact
 
     def _create_dataset_metadata_record(self, parsed_metadata, origin_url, origin=MetadataOriginEnum.CATALOGUE.value):

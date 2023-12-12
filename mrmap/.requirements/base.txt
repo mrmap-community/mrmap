@@ -66,11 +66,10 @@ channels-redis==4.1.0
 odin==2.9.0
 
 
-drf-spectacular==0.25.1
-drf-spectacular-jsonapi==0.3.2
+drf-spectacular-jsonapi==0.4.1
 
 
-django-ows-lib==0.12.1
+django-ows-lib==0.12.6
 
 camel-converter==3.0.0
 

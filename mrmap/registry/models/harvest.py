@@ -1,4 +1,6 @@
 import os
+import sys
+import traceback
 from datetime import datetime
 from typing import List
 
@@ -194,6 +196,12 @@ class TemporaryMdMetadataFile(models.Model):
         default=False,
         help_text=_("to re run to db task")
     )
+    import_error = models.TextField(
+        verbose_name=_("import error"),
+        help_text=_("raised error while importing"),
+        default="",
+        blank=True
+    )
 
     objects: TemporaryMdMetadataFileManager = TemporaryMdMetadataFileManager()
 
@@ -223,32 +231,39 @@ class TemporaryMdMetadataFile(models.Model):
             md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
                 string=_file.read(),
                 xmlclass=XmlMdMetadata)
-            with transaction.atomic():
-                db_metadata = None
-                if md_metadata.is_service:
-                    db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                        parsed_metadata=md_metadata,
-                        origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                        origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
-                elif md_metadata.is_dataset:
-                    db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                        parsed_metadata=md_metadata,
-                        origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                        origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
-                else:
-                    raise NotImplementedError(
-                        "file is neither server nor dataset record ")
-                if db_metadata:
-                    if self.job:
-                        self.update_relations(
-                            md_metadata, exists, update, db_metadata)
+            try:
+                with transaction.atomic():
+                    db_metadata = None
+                    if md_metadata.is_service:
+                        db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                            parsed_metadata=md_metadata,
+                            origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                            origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
+                    elif md_metadata.is_dataset:
+                        db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                            parsed_metadata=md_metadata,
+                            origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                            origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
+                    else:
+                        raise NotImplementedError(
+                            f"file is neither server nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
+                    if db_metadata:
+                        if self.job:
+                            self.update_relations(
+                                md_metadata, exists, update, db_metadata)
 
-                    if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
-                        self.job.done_at = now()
-                        self.job.save()
+                        if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
+                            self.job.done_at = now()
+                            self.job.save()
 
-                    self.delete()
-                    return db_metadata
+                        self.delete()
+                        return db_metadata
+            except Exception as e:
+                exc_info = sys.exc_info()
+                self.import_error = ''.join(
+                    traceback.format_exception(*exc_info))
+                self.save()
+                raise e
 
     def update_relations(self, md_metadata, exists, update, db_metadata):
         db_metadata.harvested_through.add(self.job.service)

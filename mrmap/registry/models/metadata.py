@@ -109,10 +109,12 @@ class Licence(models.Model):
 
 
 class ReferenceSystem(models.Model):
-    code = models.CharField(max_length=100)
+    # to inspect incorrect iso metadata records with wrong referencesystem setup, we allow empty default values.
+    code = models.CharField(max_length=100,
+                            default="")
     prefix = models.CharField(max_length=255,
                               choices=ReferenceSystemPrefixEnum.choices,
-                              default=ReferenceSystemPrefixEnum.EPSG.value)
+                              default="")
 
     class Meta:
         constraints = [

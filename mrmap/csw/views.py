@@ -9,6 +9,7 @@ from django.contrib.postgres.search import (SearchQuery, SearchRank,
                                             SearchVector)
 from django.core.exceptions import FieldError
 from django.db import transaction
+from django.db.models import Count, F, Func
 from django.db.models.aggregates import Count
 from django.db.models.expressions import Case, F, OuterRef, Value, When
 from django.db.models.fields import CharField
@@ -142,23 +143,21 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
 
-        # select keywords by most freuqency linked by dataset or service; first 10 are used
-        relation_ids = self.get_basic_queryset().all(
-        ).aggregate(pks=ArrayAgg("pk", distinct=True))["pks"]
+        dataset_keywords_qs = DatasetMetadataRecord.objects.annotate(keyword=Func(F("keywords_list"), function="unnest")).values(
+            "keyword").order_by("keyword").annotate(
+            frequency=Count("id")).order_by("-frequency").values_list("keyword", "frequency")[:10]
 
-        keywords = Keyword.objects.filter(
-            Q(datasetmetadatarecord_metadata__resource_relation__in=relation_ids) |
-            Q(servicemetadatarecord_metadata__resource_relation__in=relation_ids)
-        ).annotate(
-            frequency=Count("pk"),
-        ).order_by("-frequency").values_list("keyword", flat=True)[:10]
+        service_keywords_qs = ServiceMetadataRecord.objects.annotate(keyword=Func(F("keywords_list"), function="unnest")).values(
+            "keyword").order_by("keyword").annotate(
+            frequency=Count("id")).order_by("-frequency").values_list("keyword", "frequency")
 
         cap_file = os.path.dirname(
             os.path.abspath(__file__)) + "/capabilitites.xml"
 
         capabilitites_doc: CatalogueService = load_xmlobject_from_file(
             cap_file, xmlclass=CatalogueService)
-        capabilitites_doc.keywords = keywords
+        capabilitites_doc.keywords = [
+            keyword for keyword, frequency in dataset_keywords_qs]
 
         capabilitites_doc.title = "Mr. Map CSW"
         capabilitites_doc.service_contact = ServiceMetadataContact(name="test")
@@ -177,6 +176,8 @@ class CswServiceView(View):
                              url=request.build_absolute_uri('csw'), mime_types=["application/xml"])
             ]
         )
+        from django.shortcuts import render
+        return render(request, "csw/debug.html", {"content": capabilitites_doc.serializeDocument(pretty=True).decode("utf-8")})
 
         return HttpResponse(
             status=200,
@@ -195,7 +196,7 @@ class CswServiceView(View):
         # Cause our MetadataRelation cross table model relates to the concrete models and does not provide the field names by it self
         # we need to construct the concrete filter by our self
         dataset_metadata_records = DatasetMetadataRecord.objects.annotate(
-            hierarchy_level=Value("dataset"), 
+            hierarchy_level=Value("dataset"),
         )
 
         service_metadata_records = ServiceMetadataRecord.objects.annotate(

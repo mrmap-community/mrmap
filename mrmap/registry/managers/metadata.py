@@ -55,11 +55,7 @@ class MetadataRelationManager(models.Manager):
                 "layer__date_stamp",
                 "feature_type__date_stamp",
             ),
-            resource_identifier=Concat(
-                F("dataset_metadata__code_space"),
-                F("dataset_metadata__code"),
-                output_field=CharField()
-            ),
+
             # file_identifier=Coalesce(
             #     "dataset_metadata__file_identifier",
             #     Cast("layer__id", CharField()),
@@ -145,9 +141,9 @@ class MetadataRelationManager(models.Manager):
                 "wfs__date_stamp",
                 "csw__date_stamp"
             ),
-            resource_identifier=Concat(
-                F("dataset_metadata__code_space"),
-                F("dataset_metadata__code"),
+            resource_identifier=Coalesce(
+                F("dataset_metadata__resource_identifier"),
+                F("service_metadata__dataset_metadata__resource_identifier"),
                 output_field=CharField()
             ),
             file_identifier=Coalesce(
@@ -234,6 +230,7 @@ class IsoMetadataManager(models.Manager):
             'dataset_contact': db_dataset_contact,
             'origin': origin,
             'origin_url': origin_url,
+            'keywords_list': list(filter(lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords])),
             **field_dict,
         }
 
@@ -260,6 +257,8 @@ class IsoMetadataManager(models.Manager):
                     db_dataset_metadata.metadata_contact = db_dataset_contact
                     db_dataset_metadata.dataset_contact = db_dataset_contact
                     db_dataset_metadata.last_modified_by = self.current_user
+                    db_dataset_metadata.keywords_list = list(filter(
+                        lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords]))
                     db_dataset_metadata.save()
                     update = True
         return db_dataset_metadata, not created, update
@@ -274,6 +273,7 @@ class IsoMetadataManager(models.Manager):
             'metadata_contact': db_metadata_contact,
             'origin': origin,
             'origin_url': origin_url,
+            'keywords_list': list(filter(lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords])),
             **field_dict,
         }
 
@@ -299,6 +299,8 @@ class IsoMetadataManager(models.Manager):
                      for key, value in field_dict]
                     db_service_metadata.metadata_contact = db_metadata_contact
                     db_service_metadata.last_modified_by = self.current_user
+                    db_service_metadata.keywords_list = list(filter(
+                        lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords]))
                     db_service_metadata.save()
                     update = True
         return db_service_metadata, not created, update
@@ -334,21 +336,6 @@ class IsoMetadataManager(models.Manager):
                 raise UnknownMetadataKind(
                     "Parsed metadata object is neither describing a service nor describing a dataset. We can't handle it.")
             if not exists and update or not exists and not update:
-                db_keyword_list = []
-                from registry.models.metadata import \
-                    Keyword  # to prevent from circular imports
-                for keyword in parsed_metadata.keywords:
-                    kwargs = keyword.transform_to_model()
-                    if not kwargs:
-                        continue
-                    try:
-                        db_keyword, created = Keyword.objects.get_or_create(
-                            **kwargs)
-                        db_keyword_list.append(db_keyword)
-                    except MultipleObjectsReturned:
-                        logger.warning(
-                            f"Multiple objects returned for model 'Keyword' with kwargs '{kwargs}'")
-                db_metadata.keywords.set(db_keyword_list)
 
                 db_reference_system_list = []
                 from registry.models.metadata import \

@@ -10,8 +10,9 @@ from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
-from django.db.models.expressions import F
+from django.db.models.expressions import CombinedExpression, F, Func
 from django.db.models.fields.generated import GeneratedField
+from django.db.models.functions import Concat
 from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
@@ -410,19 +411,34 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                help_text=_(
                                    "how many times this metadata was requested by a client"),
                                editable=False, )
+    # Deprecated; TODO: remove keywords
     keywords = models.ManyToManyField(to=Keyword,
                                       related_name="%(class)s_metadata",
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
 
+    keywords_list = ArrayField(
+        base_field=models.CharField(max_length=300),
+        default=list
+    )
+
     language = None  # TODO
     category = None  # TODO: Inspire + iso + various
 
     # config="english" is just a dummy; to get imutable searchvector results
+
     search_vector = GeneratedField(
-        expression=SearchVector(F("title"), F("abstract"), F("file_identifier"),
-                                config="english"),
+        expression=SearchVector(
+            F("title"),
+            F("abstract"),
+
+            Func(
+                "keywords_list",
+                function="array_to_tsvector",
+                output_field=SearchVectorField()
+            ),
+            config="english"),
         output_field=SearchVectorField(),
         db_persist=True
     )
@@ -441,6 +457,10 @@ class AbstractMetadata(MetadataDocumentModelMixin):
             models.UniqueConstraint(
                 name="%(app_label)s_%(class)s_unique_file_identifier",
                 fields=["file_identifier"]
+            ),
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_non_empty_lexeme_inside_keywords_list",
+                check=~Q(keywords_list__contains=[""])
             )
         ]
 
@@ -667,12 +687,23 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                           verbose_name=_("resolution value"),
                                           help_text=_("The value depending on the selected resolution type."))
     code = models.CharField(max_length=4096,
+                            blank=True,
                             default="",  # empty code signals broken dataset metadata records; means not inspire identifiable
                             help_text=_("identifier of the remote data"))
     code_space = models.CharField(max_length=4096,
                                   blank=True,
                                   default="",
                                   help_text=_("code space for the given identifier"))
+    resource_identifier = GeneratedField(
+        expression=CombinedExpression(
+            F("code_space"),
+            "||",
+            F("code"),
+            output_field=models.CharField()
+        ),
+        output_field=models.CharField(),
+        db_persist=True
+    )
 
     # duplicated; otherwise django can't create mirgrations for generatedfield based on title, abstract, file_identifier.
     # django.core.exceptions.AppRegistryNotReady: Models aren't loaded yet. will be raised
@@ -694,10 +725,21 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                    "(gmd:fileIdentifier) OR for example if it is a layer/featuretype"
                                                    "the uuid of the described layer/featuretype shall be used to "
                                                    "identify the generated iso metadata xml."))
+
     # config="english" is just a dummy; to get imutable searchvector results
     search_vector = GeneratedField(
-        expression=SearchVector(F("title"), F("abstract"), F("file_identifier"), F("code"), F("code_space"),
-                                config="english"),
+        expression=SearchVector(
+            F("title"),
+            F("abstract"),
+            F("file_identifier"),
+            F("code"),
+            F("code_space"),
+            Func(
+                "keywords_list",
+                function="array_to_tsvector",
+                output_field=SearchVectorField()
+            ),
+            config="english"),
         output_field=SearchVectorField(),
         db_persist=True
     )
@@ -706,13 +748,22 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         abstract = True
 
         constraints = [
+            # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
+            # identifier
+            models.UniqueConstraint(
+                fields=['code', 'code_space'],
+                # empty values signals that, this dataset is broken.
+                # This is a real world problem for that we support storing "duplicated" entries
+                # For all correct dataset records the unique constraint shall be used!
+                condition=~Q(code="", code_space=""),
+                name='%(app_label)s_%(class)s_unique_together_code__and_code_space'),
             models.CheckConstraint(
-                name="check_spatial_res",
+                name="%(app_label)s_%(class)s_check_spatial_res",
                 check=Q(spatial_res_type="", spatial_res_value=None)
                 | Q(spatial_res_type=SpatialResType.GROUND_DISTANCE, spatial_res_value__gte=0)
                 | Q(spatial_res_type=SpatialResType.SCALE_DISTANCE, spatial_res_value__gte=0)
             )
-        ]
+        ] + AbstractMetadata.Meta.constraints
 
     iso_metadata = IsoMetadataManager()
 
@@ -827,16 +878,7 @@ class DatasetMetadataRecord(MetadataRecord):
         verbose_name = _("dataset metadata")
         verbose_name_plural = _("dataset metadata")
         constraints = [
-            # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
-            # identifier
-            models.UniqueConstraint(
-                fields=['code', 'code_space'],
-                # empty values signals that, this dataset is broken.
-                # This is a real world problem for that we support storing "duplicated" entries
-                # For all correct dataset records the unique constraint shall be used!
-                condition=~Q(code="", code_space=""),
-                name='%(app_label)s_%(class)s_unique_together_code__and_code_space')
-        ]
+        ] + MetadataRecord.Meta.constraints
         indexes = [
             models.Index(fields=["code", "code_space"]),
         ] + AbstractMetadata.Meta.indexes
@@ -923,6 +965,9 @@ class ServiceMetadataRecord(MetadataRecord):
     class Meta:
         indexes = [
         ] + AbstractMetadata.Meta.indexes
+        constraints = [
+
+        ] + MetadataRecord.Meta.constraints
 
 
 class Dimension(models.Model):

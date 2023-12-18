@@ -105,9 +105,13 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         service: WebMapService = super().create(origin=MetadataOriginEnum.CAPABILITIES.value,
                                                 service_contact=db_service_contact,
                                                 metadata_contact=db_service_contact,
-                                                keywords_list=list(
-                                                    filter(lambda k: k != "" and k != None, parsed_service.keywords)),
                                                 **parsed_service.transform_to_model())
+        # keywords
+        keyword_list = self.get_or_create_list(
+            list=list(filter(
+                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_service.keywords])),
+            model_cls=Keyword)
+        service.keywords.add(*keyword_list)
         # xml
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(
@@ -203,14 +207,19 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         node = Layer(service=db_service,
                      mptt_parent=db_parent,
                      origin=MetadataOriginEnum.CAPABILITIES.value,
-                     keywords_list=list(
-                         filter(lambda k: k != "" and k != None, parsed_layer.keywords)),
+
                      **parsed_layer.transform_to_model())
         self._update_transient_objects({"layer_list": [node]})
 
         node.mptt_tree = tree
         node.mptt_depth = level
         node.mptt_lft = cursor
+
+        node.__transient_keywords = self.get_or_create_list(
+            list=list(filter(
+                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_layer.keywords])),
+            model_cls=Keyword
+        )
 
         node.__transient_reference_systems = self.get_or_create_list(
             list=parsed_layer.reference_systems,
@@ -305,9 +314,15 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         service: WebFeatureService = super().create(origin=MetadataOriginEnum.CAPABILITIES.value,
                                                     service_contact=db_service_contact,
                                                     metadata_contact=db_service_contact,
-                                                    keywords_list=list(
-                                                        filter(lambda k: k != "" and k != None, parsed_service.keywords)),
+
                                                     **parsed_service.transform_to_model())
+
+        # keywords
+        keyword_list = self.get_or_create_list(
+            list=list(filter(
+                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_service.keywords])),
+            model_cls=Keyword)
+        service.keywords.add(*keyword_list)
         # xml
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(
@@ -360,11 +375,15 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         for parsed_feature_type in parsed_service.feature_types:
             db_feature_type = FeatureType(service=db_service,
                                           origin=MetadataOriginEnum.CAPABILITIES.value,
-                                          keywords_list=list(
-                                              filter(lambda k: k != "" and k != None, parsed_feature_type.keywords)),
                                           **parsed_feature_type.transform_to_model())
             self._update_transient_objects(
                 {"feature_type_list": [db_feature_type]})
+
+            db_feature_type.__transient_keywords = self.get_or_create_list(
+                list=list(filter(
+                    lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_feature_type.keywords])),
+                model_cls=Keyword
+            )
 
             db_feature_type.__transient_reference_systems = self.get_or_create_list(
                 list=parsed_feature_type.reference_systems,
@@ -414,10 +433,14 @@ class CatalogueServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
         service: CatalogueService = super().create(origin=MetadataOriginEnum.CAPABILITIES.value,
                                                    service_contact=db_service_contact,
                                                    metadata_contact=db_service_contact,
-                                                   keywords_list=list(
-                                                       filter(lambda k: k != "" and k != None, parsed_service.keywords)),
-
                                                    **parsed_service.transform_to_model())
+        # keywords
+        keyword_list = self.get_or_create_list(
+            list=list(filter(
+                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_service.keywords])),
+            model_cls=Keyword)
+        service.keywords.add(*keyword_list)
+
         # xml
         service.xml_backup_file.save(name='capabilities.xml',
                                      content=ContentFile(

@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pgtrigger
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
@@ -25,8 +26,7 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOriginEnum,
                                      ReferenceSystemPrefixEnum, SpatialResType)
 from registry.exceptions.service import NoContent
-from registry.managers.metadata import (IsoMetadataManager, KeywordManager,
-                                        MetadataRelationManager)
+from registry.managers.metadata import IsoMetadataManager, KeywordManager
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
@@ -411,23 +411,17 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                help_text=_(
                                    "how many times this metadata was requested by a client"),
                                editable=False, )
-    # Deprecated; TODO: remove keywords
-    keywords = models.ManyToManyField(to=Keyword,
-                                      related_name="%(class)s_metadata",
-                                      related_query_name="%(class)s_metadata",
-                                      verbose_name=_("keywords"),
-                                      help_text=_("all keywords which are related to the content of this metadata."))
 
     keywords_list = ArrayField(
         base_field=models.CharField(max_length=300),
-        default=list
+        default=list,
+        editable=False,
     )
 
     language = None  # TODO
     category = None  # TODO: Inspire + iso + various
 
     # config="english" is just a dummy; to get imutable searchvector results
-
     search_vector = GeneratedField(
         expression=SearchVector(
             F("title"),
@@ -472,6 +466,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
         # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
         if not self._state.adding:
             self.is_customized = True
+
         return super().save(*args, **kwargs)
 
 
@@ -597,8 +592,6 @@ class MetadataRelation(models.Model):
                               choices=MetadataOriginEnum.choices,
                               verbose_name=_("origin"),
                               help_text=_("determines where this relation was found or it is added by a user."))
-
-    objects = MetadataRelationManager()
 
     class Meta:
 
@@ -866,6 +859,13 @@ class DatasetMetadataRecord(MetadataRecord):
                                              blank=True,
                                              default="")
 
+    keywords = models.ManyToManyField(to=Keyword,
+                                      through="DatasetMetadataRecordKeywords",
+                                      related_name="%(class)s_metadata",
+                                      related_query_name="%(class)s_metadata",
+                                      verbose_name=_("keywords"),
+                                      help_text=_("all keywords which are related to the content of this metadata."))
+
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector"
@@ -919,6 +919,38 @@ class DatasetMetadataRecord(MetadataRecord):
         ).delete()
 
 
+class DatasetMetadataRecordKeywords(models.Model):
+    dataset = models.ForeignKey(to=DatasetMetadataRecord,
+                                on_delete=models.CASCADE)
+    keyword = models.ForeignKey(to=Keyword,
+                                on_delete=models.CASCADE)
+
+    class Meta:
+        triggers = [
+            pgtrigger.Trigger(
+                name="sync_dataset_metadata_record_keywords_list",
+                level=pgtrigger.Row,
+                when=pgtrigger.After,
+                operation=pgtrigger.Update | pgtrigger.Delete | pgtrigger.Insert,
+                func=f"""
+                    UPDATE {DatasetMetadataRecord._meta.db_table}
+                    SET {DatasetMetadataRecord._meta.get_field("keywords_list").db_column} = array(
+                        SELECT {Keyword._meta.get_field("keyword").db_column} 
+                        FROM {Keyword._meta.db_table}""" + pgtrigger.Func("""
+                        WHERE id IN (
+                            SELECT {columns.keyword}
+                            FROM {meta.db_table}
+                            WHERE {columns.dataset} = NEW.{columns.dataset}
+                        )
+                    )
+                    WHERE id = NEW.dataset_id;
+                    RETURN NULL;
+                """),
+            )
+
+        ]
+
+
 class ServiceMetadataRecord(MetadataRecord):
     """ Concrete model class for service metadata records, which are parsed from iso metadata xml.
 
@@ -955,6 +987,13 @@ class ServiceMetadataRecord(MetadataRecord):
                                                   help_text=_("all csw which are linking to this service metadata in"
                                                               " there capabilities."))
 
+    keywords = models.ManyToManyField(to=Keyword,
+                                      through="ServiceMetadataRecordKeywords",
+                                      related_name="%(class)s_metadata",
+                                      related_query_name="%(class)s_metadata",
+                                      verbose_name=_("keywords"),
+                                      help_text=_("all keywords which are related to the content of this metadata."))
+
     objects = Manager()
     change_log = HistoricalRecords(
         related_name="change_logs",
@@ -968,6 +1007,38 @@ class ServiceMetadataRecord(MetadataRecord):
         constraints = [
 
         ] + MetadataRecord.Meta.constraints
+
+
+class ServiceMetadataRecordKeywords(models.Model):
+    service = models.ForeignKey(to=ServiceMetadataRecord,
+                                on_delete=models.CASCADE)
+    keyword = models.ForeignKey(to=Keyword,
+                                on_delete=models.CASCADE)
+
+    class Meta:
+        triggers = [
+            pgtrigger.Trigger(
+                name="sync_service_metadata_record_keywords_list",
+                level=pgtrigger.Row,
+                when=pgtrigger.After,
+                operation=pgtrigger.Update | pgtrigger.Delete | pgtrigger.Insert,
+                func=f"""
+                    UPDATE {ServiceMetadataRecord._meta.db_table}
+                    SET {ServiceMetadataRecord._meta.get_field("keywords_list").db_column} = array(
+                        SELECT {Keyword._meta.get_field("keyword").db_column} 
+                        FROM {Keyword._meta.db_table}""" + pgtrigger.Func("""
+                        WHERE id IN (
+                            SELECT {columns.keyword}
+                            FROM {meta.db_table}
+                            WHERE {columns.service} = NEW.{columns.service}
+                        )
+                    )
+                    WHERE id = NEW.dataset_id;
+                    RETURN NULL;
+                """),
+            )
+
+        ]
 
 
 class Dimension(models.Model):

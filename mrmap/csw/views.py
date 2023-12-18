@@ -9,7 +9,7 @@ from django.contrib.postgres.search import (SearchQuery, SearchRank,
                                             SearchVector)
 from django.core.exceptions import FieldError
 from django.db import transaction
-from django.db.models import Count, F, Func
+from django.db.models import Count, F, Func, Sum
 from django.db.models.aggregates import Count
 from django.db.models.expressions import Case, F, OuterRef, Value, When
 from django.db.models.fields import CharField
@@ -143,21 +143,26 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
 
+        # .annotate(
+#            frequency=Count("id")).order_by("-frequency").values("keyword", "frequency")
+
         dataset_keywords_qs = DatasetMetadataRecord.objects.annotate(keyword=Func(F("keywords_list"), function="unnest")).values(
-            "keyword").order_by("keyword").annotate(
-            frequency=Count("id")).order_by("-frequency").values_list("keyword", "frequency")[:10]
+            "keyword").order_by("keyword")[:10]
 
         service_keywords_qs = ServiceMetadataRecord.objects.annotate(keyword=Func(F("keywords_list"), function="unnest")).values(
-            "keyword").order_by("keyword").annotate(
-            frequency=Count("id")).order_by("-frequency").values_list("keyword", "frequency")
+            "keyword").order_by("keyword")[:10]
+
+        keywords = dataset_keywords_qs.union(service_keywords_qs, all=True).order_by(
+            "keyword").annotate(
+            frequency=Count("id")).order_by("-frequency").values("keyword", "frequency")
 
         cap_file = os.path.dirname(
             os.path.abspath(__file__)) + "/capabilitites.xml"
 
         capabilitites_doc: CatalogueService = load_xmlobject_from_file(
             cap_file, xmlclass=CatalogueService)
-        capabilitites_doc.keywords = [
-            keyword for keyword, frequency in dataset_keywords_qs]
+
+        capabilitites_doc.keywords = keywords
 
         capabilitites_doc.title = "Mr. Map CSW"
         capabilitites_doc.service_contact = ServiceMetadataContact(name="test")
@@ -313,11 +318,18 @@ class CswServiceView(View):
     def get_record_by_id(self, request):
         requested_entities = self.ogc_request.requested_entities
         if len(requested_entities) == 1:
-            records = self.get_basic_queryset().filter(
+            dataset_metadata_records = DatasetMetadataRecord.objects.filter(
+                file_identifier=requested_entities[0])
+
+            service_metadata_records = ServiceMetadataRecord.objects.filter(
                 file_identifier=requested_entities[0])
         else:
-            records = self.get_basic_queryset().filter(
+            dataset_metadata_records = DatasetMetadataRecord.objects.filter(
                 file_identifier__in=requested_entities)
+
+            service_metadata_records = ServiceMetadataRecord.objects.filter(
+                file_identifier__in=requested_entities)
+        records = chain(dataset_metadata_records, service_metadata_records)
         xml = GetRecordByIdResponse(
             version="2.0.2",
             time_stamp=self.start_time,

@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     "csw",
     "drf_spectacular",
     "drf_spectacular_jsonapi",
+    "pgtrigger",
 ]
 
 MIDDLEWARE = [

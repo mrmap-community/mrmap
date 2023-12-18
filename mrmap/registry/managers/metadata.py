@@ -2,193 +2,15 @@ from datetime import date, datetime
 from logging import Logger
 
 from django.conf import settings
-from django.contrib.gis.db.models.fields import MultiPolygonField
-from django.contrib.postgres.expressions import ArraySubquery
 from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models.expressions import Case, F, OuterRef, Value, When
-from django.db.models.fields import CharField
-from django.db.models.functions import Cast, Coalesce, Concat
-from django.db.models.query_utils import Q
 from django.utils import timezone
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.metadata import UnknownMetadataKind
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
-
-
-class MetadataRelationManager(models.Manager):
-
-    def search_for_datasets(self):
-        from registry.models.metadata import Keyword
-
-        # there is a filter used.
-        # We need to annotate filterable fields.
-        # But we only add annotation for needed fields.
-        # So if the filter condition does not lookup for hierarchy_level for example, we don't need to add it to the queryset.
-        # TODO: implement a default order by created at
-        # add order to get reproduceable query results
-        qs = self.get_queryset().order_by("pk")
-
-        qs = qs.filter(dataset_metadata__isnull=False).annotate(
-            hierarchy_level=Value("dataset"),
-            title=Coalesce(
-                "dataset_metadata__title",
-                "layer__title",
-                "feature_type__title"
-            ),
-            abstract=Coalesce(
-                "dataset_metadata__abstract",
-                "layer__abstract",
-                "feature_type__abstract"
-            ),
-            bounding_geometry=Coalesce(
-                "dataset_metadata__bounding_geometry",
-                "layer__bbox_lat_lon",
-                "feature_type__bbox_lat_lon",
-                output_field=MultiPolygonField()
-            ),
-            modified_at=Coalesce(
-                "dataset_metadata__date_stamp",
-                "layer__date_stamp",
-                "feature_type__date_stamp",
-            ),
-
-            # file_identifier=Coalesce(
-            #     "dataset_metadata__file_identifier",
-            #     Cast("layer__id", CharField()),
-            #     Cast("feature_type__id", CharField()),
-            #     output_field=CharField()
-            # ),
-            # keywords=ArraySubquery(
-            #     Keyword.objects.filter(
-            #         Q(datasetmetadatarecord_metadata__pk=OuterRef(
-            #             "dataset_metadata__pk"))
-            #         | Q(layer_metadata__pk=OuterRef("layer__pk"))
-            #         | Q(featuretype_metadata__pk=OuterRef("feature_type__pk"))
-            #     ).distinct("keyword").values("keyword")
-            # ),
-            # search=Concat(
-            #     "title",
-            #     Value(" '|' "),
-            #     "abstract",
-            #     Value(" '|' "),
-            #     "keywords",
-            #     output_field=CharField()
-            # )
-        )
-
-        return qs
-
-    def for_search(self):
-        from registry.models.metadata import Keyword
-
-        # there is a filter used.
-        # We need to annotate filterable fields.
-        # But we only add annotation for needed fields.
-        # So if the filter condition does not lookup for hierarchy_level for example, we don't need to add it to the queryset.
-        # TODO: implement a default order by created at
-        # add order to get reproduceable query results
-        qs = self.get_queryset().order_by("pk")
-
-        qs = qs.annotate(
-            hierarchy_level=Case(
-                When(dataset_metadata__isnull=False,
-                     then=Value("dataset"),
-                     ),
-                When(service_metadata__isnull=False,
-                     then=Value("service"),
-                     ),
-                default=Value("dataset"),
-                output_field=CharField()
-            ),
-            title=Coalesce(
-                "dataset_metadata__title",
-                "service_metadata__title",
-                "layer__title",
-                "feature_type__title",
-                "wms__title",
-                "wfs__title",
-                "csw__title"
-            ),
-            abstract=Coalesce(
-                "dataset_metadata__abstract",
-                "service_metadata__abstract",
-                "layer__abstract",
-                "feature_type__abstract",
-                "wms__abstract",
-                "wfs__abstract",
-                "csw__abstract"
-            ),
-            bounding_geometry=Coalesce(
-                "dataset_metadata__bounding_geometry",
-                # TODO: "service_metadata__bounding_geometry",
-                "layer__bbox_lat_lon",
-                "feature_type__bbox_lat_lon",
-                # TODO: get from child layers "wms__bbox_lat_lon",
-                # TODO: get from child featuretypes "wfs__bbox_lat_lon",
-                # TODO: "csw__bbox_lat_lon"
-                output_field=MultiPolygonField()
-            ),
-            modified_at=Coalesce(
-                "dataset_metadata__date_stamp",
-                "service_metadata__date_stamp",
-                "layer__date_stamp",
-                "feature_type__date_stamp",
-                "wms__date_stamp",
-                "wfs__date_stamp",
-                "csw__date_stamp"
-            ),
-            resource_identifier=Coalesce(
-                F("dataset_metadata__resource_identifier"),
-                F("service_metadata__dataset_metadata__resource_identifier"),
-                output_field=CharField()
-            ),
-            file_identifier=Coalesce(
-                "dataset_metadata__file_identifier",
-                "service_metadata__file_identifier",
-                Cast("layer__id", CharField()),
-                Cast("feature_type__id", CharField()),
-                Cast("wms__id", CharField()),
-                Cast("wfs__id", CharField()),
-                Cast("csw__id", CharField()),
-                output_field=CharField()
-            ),
-            keywords=Case(
-                When(
-                    hierarchy_level=Value("dataset"),
-                    then=ArraySubquery(
-                        Keyword.objects.filter(
-                            Q(datasetmetadatarecord_metadata__pk=OuterRef(
-                                "dataset_metadata__pk"))
-                            | Q(layer_metadata__pk=OuterRef("layer__pk"))
-                            | Q(featuretype_metadata__pk=OuterRef("feature_type__pk"))
-                        ).distinct("keyword").values("keyword")
-                    )
-                ),
-                default=ArraySubquery(
-                    Keyword.objects.filter(
-                        Q(servicemetadatarecord_metadata__pk=OuterRef(
-                            "service_metadata__pk"))
-                        | Q(webmapservice_metadata__pk=OuterRef("wms__pk"))
-                        | Q(webfeatureservice_metadata__pk=OuterRef("wfs__pk"))
-                        | Q(catalogueservice_metadata__pk=OuterRef("csw__pk"))
-                    ).distinct("keyword").values("keyword")
-                )
-            ),
-            search=Concat(
-                "title",
-                Value(" '|' "),
-                "abstract",
-                Value(" '|' "),
-                "keywords",
-                output_field=CharField()
-            )
-        )
-
-        return qs
 
 
 class IsoMetadataManager(models.Manager):
@@ -230,7 +52,6 @@ class IsoMetadataManager(models.Manager):
             'dataset_contact': db_dataset_contact,
             'origin': origin,
             'origin_url': origin_url,
-            'keywords_list': list(filter(lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords])),
             **field_dict,
         }
 
@@ -257,8 +78,6 @@ class IsoMetadataManager(models.Manager):
                     db_dataset_metadata.metadata_contact = db_dataset_contact
                     db_dataset_metadata.dataset_contact = db_dataset_contact
                     db_dataset_metadata.last_modified_by = self.current_user
-                    db_dataset_metadata.keywords_list = list(filter(
-                        lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords]))
                     db_dataset_metadata.save()
                     update = True
         return db_dataset_metadata, not created, update
@@ -273,7 +92,6 @@ class IsoMetadataManager(models.Manager):
             'metadata_contact': db_metadata_contact,
             'origin': origin,
             'origin_url': origin_url,
-            'keywords_list': list(filter(lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords])),
             **field_dict,
         }
 
@@ -299,8 +117,7 @@ class IsoMetadataManager(models.Manager):
                      for key, value in field_dict]
                     db_service_metadata.metadata_contact = db_metadata_contact
                     db_service_metadata.last_modified_by = self.current_user
-                    db_service_metadata.keywords_list = list(filter(
-                        lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords]))
+
                     db_service_metadata.save()
                     update = True
         return db_service_metadata, not created, update
@@ -336,6 +153,22 @@ class IsoMetadataManager(models.Manager):
                 raise UnknownMetadataKind(
                     "Parsed metadata object is neither describing a service nor describing a dataset. We can't handle it.")
             if not exists and update or not exists and not update:
+                db_keyword_list = []
+                from registry.models.metadata import \
+                    Keyword  # to prevent from circular imports
+                for keyword in list(filter(
+                        lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords])):
+                    kwargs = keyword.transform_to_model()
+                    if not kwargs:
+                        continue
+                    try:
+                        db_keyword, created = Keyword.objects.get_or_create(
+                            **kwargs)
+                        db_keyword_list.append(db_keyword)
+                    except MultipleObjectsReturned:
+                        logger.warning(
+                            f"Multiple objects returned for model 'Keyword' with kwargs '{kwargs}'")
+                db_metadata.keywords.set(db_keyword_list)
 
                 db_reference_system_list = []
                 from registry.models.metadata import \

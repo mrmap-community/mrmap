@@ -158,7 +158,7 @@ class IsoMetadataManager(models.Manager):
                     Keyword  # to prevent from circular imports
                 for keyword in list(filter(
                         lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_metadata.keywords])):
-                    kwargs = keyword.transform_to_model()
+                    kwargs = {"keyword": keyword}
                     if not kwargs:
                         continue
                     try:

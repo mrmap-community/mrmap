@@ -1,19 +1,13 @@
 from uuid import uuid4
 
-import pgtrigger
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
-from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.indexes import \
-    GinIndex  # add the Postgres recommended GIN index
-from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
-from django.db.models.expressions import CombinedExpression, F, Func
+from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
-from django.db.models.functions import Concat
 from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
@@ -411,31 +405,14 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                help_text=_(
                                    "how many times this metadata was requested by a client"),
                                editable=False, )
-
-    keywords_list = ArrayField(
-        base_field=models.CharField(max_length=300),
-        default=list,
-        editable=False,
-    )
+    keywords = models.ManyToManyField(to=Keyword,
+                                      related_name="%(class)s_metadata",
+                                      related_query_name="%(class)s_metadata",
+                                      verbose_name=_("keywords"),
+                                      help_text=_("all keywords which are related to the content of this metadata."))
 
     language = None  # TODO
     category = None  # TODO: Inspire + iso + various
-
-    # config="english" is just a dummy; to get imutable searchvector results
-    search_vector = GeneratedField(
-        expression=SearchVector(
-            F("title"),
-            F("abstract"),
-
-            Func(
-                "keywords_list",
-                function="array_to_tsvector",
-                output_field=SearchVectorField()
-            ),
-            config="english"),
-        output_field=SearchVectorField(),
-        db_persist=True
-    )
 
     # needed for Docuement mixin to load the backupfile into the correct xml mapper class
     xml_mapper_cls = MdMetadata
@@ -445,17 +422,12 @@ class AbstractMetadata(MetadataDocumentModelMixin):
         ordering = ["title"]
         indexes = [
             models.Index(fields=["title", "file_identifier"]),
-            GinIndex(fields=["search_vector"])
         ]
         constraints = [
             models.UniqueConstraint(
                 name="%(app_label)s_%(class)s_unique_file_identifier",
                 fields=["file_identifier"]
             ),
-            models.CheckConstraint(
-                name="%(app_label)s_%(class)s_non_empty_lexeme_inside_keywords_list",
-                check=~Q(keywords_list__contains=[""])
-            )
         ]
 
     def __str__(self):
@@ -698,45 +670,6 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         db_persist=True
     )
 
-    # duplicated; otherwise django can't create mirgrations for generatedfield based on title, abstract, file_identifier.
-    # django.core.exceptions.AppRegistryNotReady: Models aren't loaded yet. will be raised
-    title: str = models.CharField(max_length=1000,
-                                  verbose_name=_("title"),
-                                  help_text=_(
-                                      "a short descriptive title for this metadata"),
-                                  default="")
-    abstract = models.TextField(verbose_name=_("abstract"),
-                                help_text=_(
-                                    "brief summary of the content of this metadata."),
-                                default="")
-    file_identifier = models.CharField(max_length=1000,
-                                       editable=False,
-                                       default=uuid4,
-                                       db_index=True,
-                                       verbose_name=_("file identifier"),
-                                       help_text=_("the parsed file identifier from the iso metadata xml "
-                                                   "(gmd:fileIdentifier) OR for example if it is a layer/featuretype"
-                                                   "the uuid of the described layer/featuretype shall be used to "
-                                                   "identify the generated iso metadata xml."))
-
-    # config="english" is just a dummy; to get imutable searchvector results
-    search_vector = GeneratedField(
-        expression=SearchVector(
-            F("title"),
-            F("abstract"),
-            F("file_identifier"),
-            F("code"),
-            F("code_space"),
-            Func(
-                "keywords_list",
-                function="array_to_tsvector",
-                output_field=SearchVectorField()
-            ),
-            config="english"),
-        output_field=SearchVectorField(),
-        db_persist=True
-    )
-
     class Meta:
         abstract = True
 
@@ -859,13 +792,6 @@ class DatasetMetadataRecord(MetadataRecord):
                                              blank=True,
                                              default="")
 
-    keywords = models.ManyToManyField(to=Keyword,
-                                      through="DatasetMetadataRecordKeywords",
-                                      related_name="%(class)s_metadata",
-                                      related_query_name="%(class)s_metadata",
-                                      verbose_name=_("keywords"),
-                                      help_text=_("all keywords which are related to the content of this metadata."))
-
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector"
@@ -919,38 +845,6 @@ class DatasetMetadataRecord(MetadataRecord):
         ).delete()
 
 
-class DatasetMetadataRecordKeywords(models.Model):
-    dataset = models.ForeignKey(to=DatasetMetadataRecord,
-                                on_delete=models.CASCADE)
-    keyword = models.ForeignKey(to=Keyword,
-                                on_delete=models.CASCADE)
-
-    class Meta:
-        triggers = [
-            pgtrigger.Trigger(
-                name="sync_dataset_metadata_record_keywords_list",
-                level=pgtrigger.Row,
-                when=pgtrigger.After,
-                operation=pgtrigger.Update | pgtrigger.Delete | pgtrigger.Insert,
-                func=f"""
-                    UPDATE {DatasetMetadataRecord._meta.db_table}
-                    SET {DatasetMetadataRecord._meta.get_field("keywords_list").db_column} = array(
-                        SELECT {Keyword._meta.get_field("keyword").db_column} 
-                        FROM {Keyword._meta.db_table}""" + pgtrigger.Func("""
-                        WHERE id IN (
-                            SELECT {columns.keyword}
-                            FROM {meta.db_table}
-                            WHERE {columns.dataset} = NEW.{columns.dataset}
-                        )
-                    )
-                    WHERE id = NEW.dataset_id;
-                    RETURN NULL;
-                """),
-            )
-
-        ]
-
-
 class ServiceMetadataRecord(MetadataRecord):
     """ Concrete model class for service metadata records, which are parsed from iso metadata xml.
 
@@ -987,13 +881,6 @@ class ServiceMetadataRecord(MetadataRecord):
                                                   help_text=_("all csw which are linking to this service metadata in"
                                                               " there capabilities."))
 
-    keywords = models.ManyToManyField(to=Keyword,
-                                      through="ServiceMetadataRecordKeywords",
-                                      related_name="%(class)s_metadata",
-                                      related_query_name="%(class)s_metadata",
-                                      verbose_name=_("keywords"),
-                                      help_text=_("all keywords which are related to the content of this metadata."))
-
     objects = Manager()
     change_log = HistoricalRecords(
         related_name="change_logs",
@@ -1007,38 +894,6 @@ class ServiceMetadataRecord(MetadataRecord):
         constraints = [
 
         ] + MetadataRecord.Meta.constraints
-
-
-class ServiceMetadataRecordKeywords(models.Model):
-    service = models.ForeignKey(to=ServiceMetadataRecord,
-                                on_delete=models.CASCADE)
-    keyword = models.ForeignKey(to=Keyword,
-                                on_delete=models.CASCADE)
-
-    class Meta:
-        triggers = [
-            pgtrigger.Trigger(
-                name="sync_service_metadata_record_keywords_list",
-                level=pgtrigger.Row,
-                when=pgtrigger.After,
-                operation=pgtrigger.Update | pgtrigger.Delete | pgtrigger.Insert,
-                func=f"""
-                    UPDATE {ServiceMetadataRecord._meta.db_table}
-                    SET {ServiceMetadataRecord._meta.get_field("keywords_list").db_column} = array(
-                        SELECT {Keyword._meta.get_field("keyword").db_column} 
-                        FROM {Keyword._meta.db_table}""" + pgtrigger.Func("""
-                        WHERE id IN (
-                            SELECT {columns.keyword}
-                            FROM {meta.db_table}
-                            WHERE {columns.service} = NEW.{columns.service}
-                        )
-                    )
-                    WHERE id = NEW.dataset_id;
-                    RETURN NULL;
-                """),
-            )
-
-        ]
 
 
 class Dimension(models.Model):

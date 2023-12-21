@@ -109,7 +109,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
         # keywords
         keyword_list = self.get_or_create_list(
             list=list(filter(
-                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_service.keywords])),
+                lambda k: k != "" and k != None, parsed_service.keywords)),
             model_cls=Keyword)
         service.keywords.add(*keyword_list)
         # xml
@@ -217,7 +217,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
 
         node.__transient_keywords = self.get_or_create_list(
             list=list(filter(
-                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_layer.keywords])),
+                lambda k: k != "" and k != None,  parsed_layer.keywords)),
             model_cls=Keyword
         )
 
@@ -320,7 +320,7 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
         # keywords
         keyword_list = self.get_or_create_list(
             list=list(filter(
-                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_service.keywords])),
+                lambda k: k != "" and k != None, parsed_service.keywords)),
             model_cls=Keyword)
         service.keywords.add(*keyword_list)
         # xml
@@ -381,7 +381,7 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
 
             db_feature_type.__transient_keywords = self.get_or_create_list(
                 list=list(filter(
-                    lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_feature_type.keywords])),
+                    lambda k: k != "" and k != None, parsed_feature_type.keywords)),
                 model_cls=Keyword
             )
 
@@ -437,7 +437,7 @@ class CatalogueServiceCapabilitiesManager(TransientObjectsManagerMixin, models.M
         # keywords
         keyword_list = self.get_or_create_list(
             list=list(filter(
-                lambda k: k != "" and k != None, [keyword.keyword for keyword in parsed_service.keywords])),
+                lambda k: k != "" and k != None, parsed_service.keywords)),
             model_cls=Keyword)
         service.keywords.add(*keyword_list)
 

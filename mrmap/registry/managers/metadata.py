@@ -6,6 +6,7 @@ from django.core.exceptions import MultipleObjectsReturned
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.utils import timezone
+from extras.managers import UniqueConstraintDefaultValueManager
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.metadata import UnknownMetadataKind
 from simple_history.models import HistoricalRecords
@@ -196,3 +197,37 @@ class KeywordManager(models.Manager):
 
     def get_by_natural_key(self, keyword):
         return self.get(keyword=keyword)
+
+
+class DatasetMetadataRecordManager(UniqueConstraintDefaultValueManager):
+
+    def bulk_create(self, *args, **kwargs):
+        from registry.models.materialized_views import \
+            SearchableDatasetMetadataRecord
+        objs = super().bulk_create(*args, **kwargs)
+        SearchableDatasetMetadataRecord.refresh()
+        return objs
+
+    def bulk_update(self, *args, **kwargs) -> int:
+        objs = super().bulk_update(*args, **kwargs)
+        from registry.models.materialized_views import \
+            SearchableDatasetMetadataRecord
+        SearchableDatasetMetadataRecord.refresh()
+        return objs
+
+
+class ServiceMetadataRecordManager(UniqueConstraintDefaultValueManager):
+
+    def bulk_create(self, *args, **kwargs):
+        objs = super().bulk_create(*args, **kwargs)
+        from registry.models.materialized_views import \
+            SearchableServiceMetadataRecord
+        SearchableServiceMetadataRecord.refresh()
+        return objs
+
+    def bulk_update(self, *args, **kwargs) -> int:
+        objs = super().bulk_update(*args, **kwargs)
+        from registry.models.materialized_views import \
+            SearchableServiceMetadataRecord
+        SearchableServiceMetadataRecord.refresh()
+        return objs

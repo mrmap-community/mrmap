@@ -8,7 +8,6 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
-from django.db.models.manager import Manager
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from extras.managers import (DefaultHistoryManager,
@@ -20,7 +19,9 @@ from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOriginEnum,
                                      ReferenceSystemPrefixEnum, SpatialResType)
 from registry.exceptions.service import NoContent
-from registry.managers.metadata import IsoMetadataManager, KeywordManager
+from registry.managers.metadata import (DatasetMetadataRecordManager,
+                                        IsoMetadataManager, KeywordManager,
+                                        ServiceMetadataRecordManager)
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
@@ -797,7 +798,7 @@ class DatasetMetadataRecord(MetadataRecord):
         excluded_fields="search_vector"
     )
 
-    objects = UniqueConstraintDefaultValueManager()
+    objects = DatasetMetadataRecordManager()
     history = DefaultHistoryManager()
 
     class Meta:
@@ -881,7 +882,7 @@ class ServiceMetadataRecord(MetadataRecord):
                                                   help_text=_("all csw which are linking to this service metadata in"
                                                               " there capabilities."))
 
-    objects = Manager()
+    objects = ServiceMetadataRecordManager()
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector"

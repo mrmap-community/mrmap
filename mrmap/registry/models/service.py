@@ -11,7 +11,7 @@ from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
 from extras.utils import update_url_base, update_url_query_params
-from mptt.models import MPTTModel, TreeForeignKey
+from mptt2.models import Node
 from MrMap.settings import PROXIES
 from ows_lib.client.csw.mixins import \
     CatalogueServiceMixin as CatalogueServiceClient
@@ -30,8 +30,9 @@ from registry.managers.service import (CatalogueServiceCapabilitiesManager,
                                        WebFeatureServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
-from registry.models.metadata import (FeatureTypeMetadata, LayerMetadata,
-                                      MimeType, ServiceMetadata, Style)
+from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
+                                      LayerMetadata, MimeType, ServiceMetadata,
+                                      Style)
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
@@ -120,17 +121,21 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
 class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(
-        related_name="change_logs")
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     capabilities = WebMapServiceCapabilitiesManager()
     security = WebMapServiceSecurityManager()
 
     class Meta:
         verbose_name = _("web map service")
         verbose_name_plural = _("web map services")
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     @cached_property
     def root_layer(self):
-        return self.layers.get(parent=None)
+        return self.layers.get(mptt_parent=None)
 
     @property
     def client(self) -> WebMapServiceClient:
@@ -138,13 +143,18 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     capabilities = WebFeatureServiceCapabilitiesManager()
     security = WebFeatureServiceSecurityManager()
 
     class Meta:
         verbose_name = _("web feature service")
         verbose_name_plural = _("web feature services")
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> WebFeatureServiceClient:
@@ -152,13 +162,18 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
 
 class CatalogueService(HistoricalRecordMixin, OgcService):
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     capabilities = CatalogueServiceCapabilitiesManager()
     objects = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("catalogue service")
         verbose_name_plural = _("catalogue services")
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> CatalogueServiceClient:
@@ -340,7 +355,7 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         return ""
 
 
-class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
+class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     """Concrete model class to store parsed layers.
 
     :attr objects: custom models manager :class:`registry.managers.service.LayerManager`
@@ -354,16 +369,6 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         related_query_name="layer",
         verbose_name=_("service"),
         help_text=_("the extras service where this element is part of"),
-    )
-    parent = TreeForeignKey(
-        to="self",
-        on_delete=models.CASCADE,
-        null=True,
-        editable=False,
-        related_name="children",
-        related_query_name="child",
-        verbose_name=_("parent layer"),
-        help_text=_("the ancestor of this layer."),
     )
     is_queryable: bool = models.BooleanField(
         default=False,
@@ -415,7 +420,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         ),
     )
     change_log = HistoricalRecords(
-        related_name="change_logs", excluded_fields=["lft", "rght", "tree_id", "level"]
+        related_name="change_logs",
+        excluded_fields="search_vector"
     )
 
     objects = LayerManager()
@@ -424,16 +430,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, MPTTModel):
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
 
-        # FIXME: can't set new Index object for mptt fields, cause _meta.get_field() does not provide mptt fields. This will raise an Error on model check.
-        # So long we use mptt, we can't fix it.
-        # See also the deprecated not of index_together ==> https://docs.djangoproject.com/en/4.1/ref/models/options/#index-together
-        # indexes = [Index(fields=("tree_id", "lft", "rght"))]
-
-        index_together = [
-            # with_inherited_attributes() manager function will collect anchestors with this three attributes.
-            # For faster lookup we need an index of this three fields in the correct order.
-            ["tree_id", "lft", "rght"]
-        ]
+        indexes = [
+        ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes
 
         # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 
@@ -596,12 +594,18 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         ),
     )
 
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
     objects = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
+
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the feature type and his related service.

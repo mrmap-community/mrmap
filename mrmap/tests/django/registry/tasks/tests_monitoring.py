@@ -44,7 +44,7 @@ def setup_capabilitites_file():
         f"{BASE_DIR}/tests/django/test_data/capabilities/wms/1.1.1.xml", mode="rb")
 
     wms.xml_backup_file = SimpleUploadedFile(
-        'capabilitites.xml', cap_file.read())
+        'capabilitites.xml', cap_file.read(), content_type="application/xml")
     wms.save()
 
 

@@ -68,13 +68,13 @@ class AllowedWebMapServiceOperationSerializer(
             secured_layer_pks = [
                 secured_layer.pk for secured_layer in secured_layers]
             prefetch_children = Prefetch(
-                "children",
+                "chilren",
                 queryset=Layer.objects.only(
                     "id",
                     "service_id",
-                    "parent_id",
-                    "tree_id",
-                    "lft"),
+                    "mptt_parent_id",
+                    "mptt_tree_id",
+                    "mptt_lft"),
                 to_attr="descendant_pks"
             )
             _secured_layers = Layer.objects.filter(

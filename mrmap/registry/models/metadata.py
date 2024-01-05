@@ -6,21 +6,27 @@ from django.contrib.gis.db.models import MultiPolygonField
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.db.models.expressions import CombinedExpression, F
+from django.db.models.fields.generated import GeneratedField
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
-from extras.managers import UniqueConstraintDefaultValueManager
+from extras.managers import (DefaultHistoryManager,
+                             UniqueConstraintDefaultValueManager)
 from MrMap.settings import PROXIES
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
                                      MetadataOriginEnum,
-                                     ReferenceSystemPrefixEnum)
+                                     ReferenceSystemPrefixEnum, SpatialResType)
 from registry.exceptions.service import NoContent
-from registry.managers.metadata import IsoMetadataManager, KeywordManager
+from registry.managers.metadata import (DatasetMetadataRecordManager,
+                                        IsoMetadataManager, KeywordManager,
+                                        ServiceMetadataRecordManager)
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
 from requests.adapters import HTTPAdapter
+from simple_history.models import HistoricalRecords
 from urllib3 import Retry
 
 
@@ -99,10 +105,12 @@ class Licence(models.Model):
 
 
 class ReferenceSystem(models.Model):
-    code = models.CharField(max_length=100)
+    # to inspect incorrect iso metadata records with wrong referencesystem setup, we allow empty default values.
+    code = models.CharField(max_length=100,
+                            default="")
     prefix = models.CharField(max_length=255,
                               choices=ReferenceSystemPrefixEnum.choices,
-                              default=ReferenceSystemPrefixEnum.EPSG.value)
+                              default="")
 
     class Meta:
         constraints = [
@@ -184,9 +192,7 @@ class MetadataContact(models.Model):
 
 
 class Keyword(models.Model):
-    keyword = models.CharField(max_length=255,
-                               unique=True,
-                               db_index=True,)
+    keyword = models.CharField(max_length=300)
 
     objects = KeywordManager()
 
@@ -195,6 +201,15 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ["keyword"]
+        indexes = [
+            models.Index(fields=["keyword"])
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="%(app_label)s_%(class)s_unique_keywords",
+                fields=["keyword"]
+            )
+        ]
 
     def natural_key(self):
         return (self.keyword,)
@@ -343,7 +358,6 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       editable=False,
                                       db_index=True)
     file_identifier = models.CharField(max_length=1000,
-                                       null=True,
                                        editable=False,
                                        default=uuid4,
                                        db_index=True,
@@ -366,10 +380,13 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                              "comes from"))
     title: str = models.CharField(max_length=1000,
                                   verbose_name=_("title"),
-                                  help_text=_("a short descriptive title for this metadata"))
-    abstract = models.TextField(null=True,
-                                verbose_name=_("abstract"),
-                                help_text=_("brief summary of the content of this metadata."))
+                                  help_text=_(
+                                      "a short descriptive title for this metadata"),
+                                  default="")
+    abstract = models.TextField(verbose_name=_("abstract"),
+                                help_text=_(
+                                    "brief summary of the content of this metadata."),
+                                default="")
     is_broken = models.BooleanField(default=False,
                                     editable=False,
                                     verbose_name=_("is broken"),
@@ -378,7 +395,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                         editable=False,
                                         verbose_name=_("is customized"),
                                         help_text=_("If the metadata record is customized, this flag is True"))
-    insufficient_quality = models.TextField(null=True,
+    insufficient_quality = models.TextField(default="",
                                             blank=True,
                                             help_text=_("TODO"))
     is_searchable = models.BooleanField(default=False,
@@ -405,13 +422,13 @@ class AbstractMetadata(MetadataDocumentModelMixin):
         abstract = True
         ordering = ["title"]
         indexes = [
-            models.Index(fields=["file_identifier", "title"])
+            models.Index(fields=["title", "file_identifier"]),
         ]
         constraints = [
             models.UniqueConstraint(
                 name="%(app_label)s_%(class)s_unique_file_identifier",
                 fields=["file_identifier"]
-            )
+            ),
         ]
 
     def __str__(self):
@@ -422,7 +439,8 @@ class AbstractMetadata(MetadataDocumentModelMixin):
         # FIXME: if the record is updated by harvesting process, the customized flag shall not be set to True
         if not self._state.adding:
             self.is_customized = True
-        super().save(*args, **kwargs)
+
+        return super().save(*args, **kwargs)
 
 
 class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
@@ -549,6 +567,7 @@ class MetadataRelation(models.Model):
                               help_text=_("determines where this relation was found or it is added by a user."))
 
     class Meta:
+
         constraints = [
             models.CheckConstraint(
                 name="one_related_object_selected",
@@ -598,6 +617,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                              "feature types"),
                                                          help_text=_("all feature types which are linking to this "
                                                                      "dataset metadata in there capabilities."))
+
     harvested_through = models.ManyToManyField(to="registry.CatalogueService",
                                                related_name="%(app_label)s_%(class)s_metadata_records",
                                                related_query_name="%(app_label)s_%(class)s_metadata_record",
@@ -606,8 +626,71 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                verbose_name=_("services"),
                                                help_text=_("all services from which this dataset was harvested."))
 
+    bounding_geometry = MultiPolygonField(null=True,
+                                          blank=True, )
+    metadata_contact = models.ForeignKey(to=MetadataContact,
+                                         on_delete=models.RESTRICT,
+                                         related_name="%(class)s_metadata_contact",
+                                         related_query_name="%(class)s_metadata_contact",
+                                         verbose_name=_("contact"),
+                                         help_text=_("this is the contact which is responsible for the metadata "
+                                                     "information of the dataset."))
+    reference_systems = models.ManyToManyField(to=ReferenceSystem,
+                                               related_name="%(class)s",
+                                               related_query_name="%(class)s",
+                                               blank=True,
+                                               verbose_name=_("reference systems"))
+    inspire_interoperability = models.BooleanField(default=False,
+                                                   help_text=_("flag to signal if this "))
+
+    spatial_res_type = models.CharField(max_length=20,
+                                        choices=SpatialResType.choices,
+                                        default="",
+                                        verbose_name=_("resolution type"),
+                                        help_text=_("Ground resolution in meter or the equivalent scale."))
+    spatial_res_value = models.FloatField(null=True,
+                                          blank=True,
+                                          verbose_name=_("resolution value"),
+                                          help_text=_("The value depending on the selected resolution type."))
+    code = models.CharField(max_length=4096,
+                            blank=True,
+                            default="",  # empty code signals broken dataset metadata records; means not inspire identifiable
+                            help_text=_("identifier of the remote data"))
+    code_space = models.CharField(max_length=4096,
+                                  blank=True,
+                                  default="",
+                                  help_text=_("code space for the given identifier"))
+    resource_identifier = GeneratedField(
+        expression=CombinedExpression(
+            F("code_space"),
+            "||",
+            F("code"),
+            output_field=models.CharField()
+        ),
+        output_field=models.CharField(),
+        db_persist=True
+    )
+
     class Meta:
         abstract = True
+
+        constraints = [
+            # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
+            # identifier
+            models.UniqueConstraint(
+                fields=['code', 'code_space'],
+                # empty values signals that, this dataset is broken.
+                # This is a real world problem for that we support storing "duplicated" entries
+                # For all correct dataset records the unique constraint shall be used!
+                condition=~Q(code="", code_space=""),
+                name='%(app_label)s_%(class)s_unique_together_code__and_code_space'),
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_check_spatial_res",
+                check=Q(spatial_res_type="", spatial_res_value=None)
+                | Q(spatial_res_type=SpatialResType.GROUND_DISTANCE, spatial_res_value__gte=0)
+                | Q(spatial_res_type=SpatialResType.SCALE_DISTANCE, spatial_res_value__gte=0)
+            )
+        ] + AbstractMetadata.Meta.constraints
 
     iso_metadata = IsoMetadataManager()
 
@@ -672,9 +755,6 @@ class DatasetMetadataRecord(MetadataRecord):
         ("tile", "tile"),
     ]
 
-    SPATIAL_RES_TYPE_CHOICES = [("groundDistance", "groundDistance"),
-                                ("scaleDenominator", "scaleDenominator")]
-
     INDETERMINATE_POSITION_CHOICES = [
         ("now", "now"), ("before", "before"), ("after", "after"), ("unknown", "unknown")]
 
@@ -683,31 +763,11 @@ class DatasetMetadataRecord(MetadataRecord):
 
     dataset_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
-                                        related_name="dataset_contact_metadata",
-                                        related_query_name="dataset_contact_metadata",
+                                        related_name="%(class)s_dataset_contact",
+                                        related_query_name="%(class)s_dataset_contact",
                                         verbose_name=_("contact"),
                                         help_text=_("this is the contact which provides this dataset."))
-    metadata_contact = models.ForeignKey(to=MetadataContact,
-                                         on_delete=models.RESTRICT,
-                                         related_name="metadata_contact_metadata",
-                                         related_query_name="metadata_contact_metadata",
-                                         verbose_name=_("contact"),
-                                         help_text=_("this is the contact which is responsible for the metadata "
-                                                     "information of the dataset."))
-    spatial_res_type = models.CharField(max_length=20,
-                                        choices=SPATIAL_RES_TYPE_CHOICES,
-                                        default="",
-                                        verbose_name=_("resolution type"),
-                                        help_text=_("Ground resolution in meter or the equivalent scale."))
-    spatial_res_value = models.FloatField(null=True,
-                                          blank=True,
-                                          verbose_name=_("resolution value"),
-                                          help_text=_("The value depending on the selected resolution type."))
-    reference_systems = models.ManyToManyField(to=ReferenceSystem,
-                                               related_name="dataset_metadata",
-                                               related_query_name="dataset_metadata",
-                                               blank=True,
-                                               verbose_name=_("reference systems"))
+
     format = models.CharField(default="",
                               blank=True,
                               max_length=20,
@@ -725,43 +785,30 @@ class DatasetMetadataRecord(MetadataRecord):
                                                               " consistence."))
     preview_image = models.ImageField(null=True,
                                       blank=True)
+
     lineage_statement = models.TextField(blank=True,
                                          default="")
     update_frequency_code = models.CharField(max_length=20,
                                              choices=UPDATE_FREQUENCY_CHOICES,
                                              blank=True,
                                              default="")
-    bounding_geometry = MultiPolygonField(null=True,
-                                          blank=True, )
-    dataset_id = models.CharField(max_length=4096,
-                                  default="",  # empty dataset_id signals broken dataset metadata records
-                                  help_text=_("identifier of the remote data"))
-    dataset_id_code_space = models.CharField(max_length=4096,
-                                             blank=True,
-                                             default="",
-                                             help_text=_("code space for the given identifier"))
-    inspire_interoperability = models.BooleanField(default=False,
-                                                   help_text=_("flag to signal if this "))
 
-    objects = UniqueConstraintDefaultValueManager()
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
+
+    objects = DatasetMetadataRecordManager()
+    history = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("dataset metadata")
         verbose_name_plural = _("dataset metadata")
         constraints = [
-            # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
-            # identifier
-            models.UniqueConstraint(
-                fields=['dataset_id', 'dataset_id_code_space'],
-                # empty values signals that, this dataset is broken.
-                # This is a real world problem for that we support storing "duplicated" entries
-                # For all correct dataset records the unique constraint shall be used!
-                condition=~Q(dataset_id="", dataset_id_code_space=""),
-                name='%(app_label)s_%(class)s_unique_together_dataset_id_dataset_id_code_space')
-        ]
+        ] + MetadataRecord.Meta.constraints
         indexes = [
-            models.Index(fields=["dataset_id", "dataset_id_code_space"])
-        ]
+            models.Index(fields=["code", "code_space"]),
+        ] + AbstractMetadata.Meta.indexes
 
     def add_dataset_metadata_relation(self, related_object=None, origin=None, is_internal=False):
         from registry.models.service import FeatureType, Layer
@@ -824,7 +871,7 @@ class ServiceMetadataRecord(MetadataRecord):
                                                       "web feature services"),
                                                   help_text=_("all wfs which are linking to this service metadata in"
                                                               " there capabilities."))
-    self_pointing_wfs = models.ManyToManyField(to="registry.CatalogueService",
+    self_pointing_csw = models.ManyToManyField(to="registry.CatalogueService",
                                                   through=MetadataRelation,
                                                   editable=False,
                                                   related_name="%(app_label)s_%(class)s_service_metadata",
@@ -834,6 +881,20 @@ class ServiceMetadataRecord(MetadataRecord):
                                                       "catalogue services"),
                                                   help_text=_("all csw which are linking to this service metadata in"
                                                               " there capabilities."))
+
+    objects = ServiceMetadataRecordManager()
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        excluded_fields="search_vector"
+    )
+    history = DefaultHistoryManager()
+
+    class Meta:
+        indexes = [
+        ] + AbstractMetadata.Meta.indexes
+        constraints = [
+
+        ] + MetadataRecord.Meta.constraints
 
 
 class Dimension(models.Model):

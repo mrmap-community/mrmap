@@ -1,7 +1,7 @@
 ################################
 # Base build Image
 ################################  
-FROM python:3.11.4-alpine3.17 AS compile-image
+FROM python:3.11.7-alpine3.18 AS compile-image
 ARG MRMAP_PRODUCTION
 RUN apk update && \
     apk add --no-cache build-base libressl-dev gdal
@@ -19,15 +19,21 @@ RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements
 ################################
 # MrMap Image
 ################################    
-FROM python:3.11.4-alpine3.18 AS runtime-image
+FROM python:3.11.7-alpine3.18 AS runtime-image
 ARG MRMAP_PRODUCTION
 COPY --from=compile-image /opt/venv /opt/venv
 
 # TODO: gettext are only needed for dev environment
-RUN apk update
-RUN apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl
-#RUN apk cache clean
-RUN rm -rf /var/cache/apk/*
+RUN apk update \
+    && apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl py3-psycopg \
+    && rm -rf /var/cache/apk/* \
+    && mkdir -p /var/mrmap/backend/media \
+    && mkdir -p /var/log/mrmap/backend \
+    && mkdir -p /var/log/mrmap/celery-worker-default \
+    && mkdir -p /var/log/mrmap/celery-worker-db-routines \
+    && mkdir -p /var/log/mrmap/celery-worker-download \
+    && mkdir -p /var/mrmap/import \
+    && mkdir -p /var/www/mrmap/backend
 
 # set work directory
 WORKDIR /opt/mrmap

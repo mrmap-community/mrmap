@@ -320,7 +320,8 @@ class WebMapServiceSerializer(
     }
 
 
-class WebMapServiceCreateSerializer(ModelSerializer):
+class WebMapServiceCreateSerializer(
+        ModelSerializer):
 
     get_capabilities_url = URLField(
         label=_("get capabilities url"),
@@ -470,7 +471,8 @@ class WebFeatureServiceSerializer(
         fields = "__all__"
 
 
-class WebFeatureServiceCreateSerializer(ModelSerializer):
+class WebFeatureServiceCreateSerializer(
+        ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
@@ -501,7 +503,8 @@ class CatalogueServiceOperationUrlSerializer(ModelSerializer):
     #     return instance.get_url(request=self.context["request"])
 
 
-class CatalogueServiceCreateSerializer(ModelSerializer):
+class CatalogueServiceCreateSerializer(
+        ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False

@@ -119,7 +119,7 @@ services:
       - ./docker/backend/.mrmap.env
       - ./docker/backend/.mrmap.dev.env
     command: >
-      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q default,download,db-routines"
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q download,default,db-routines"
 
   celery-beat:
     build:

@@ -90,8 +90,8 @@ class WebMapServiceHistoricalViewSet(
                     queryset=Layer.objects.only(
                         "id",
                         "service_id",
-                        "tree_id",
-                        "lft",
+                        "mptt_tree_id",
+                        "mptt_lft",
                     ),
                 )
             )
@@ -162,7 +162,7 @@ class WebMapServiceViewSet(
         "layers": [
             Prefetch(
                 "layers",
-                queryset=Layer.objects.with_inherited_attributes().select_related("parent").prefetch_related(
+                queryset=Layer.objects.with_inherited_attributes().select_related("mptt_parent").prefetch_related(
                     Prefetch(
                         "keywords",
                         queryset=Keyword.objects.only("id")
@@ -221,8 +221,8 @@ class WebMapServiceViewSet(
                     queryset=Layer.objects.only(
                         "id",
                         "service_id",
-                        "tree_id",
-                        "lft",
+                        "mptt_tree_id",
+                        "mptt_lft",
                     ),
                 )
             )
@@ -280,7 +280,7 @@ class LayerViewSetMixin(
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
-                       "hits", "scale_max", "scale_min", "date_stamp", "lft", "rgt", "level"]
+                       "hits", "scale_max", "scale_min", "date_stamp", "mptt_lft", "mptt_rgt", "mptt_depth"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -293,9 +293,9 @@ class LayerViewSetMixin(
             ]
             qs = qs.select_related("service").defer(*defer)
 
-        if not include or "parent" not in include:
+        if not include or "mpttParent" not in include:
             # TODO optimize queryset with defer
-            qs = qs.select_related("parent")
+            qs = qs.select_related("mptt_parent")
         if not include or "styles" not in include:
             qs = qs.prefetch_related(
                 Prefetch("styles", queryset=Style.objects.only("id", "layer_id"))

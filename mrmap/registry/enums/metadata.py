@@ -52,3 +52,8 @@ class MetadataCharset(TextChoices):
 
 class ReferenceSystemPrefixEnum(TextChoices):
     EPSG = "EPSG"
+
+
+class SpatialResType(TextChoices):
+    GROUND_DISTANCE = "groundDistance"
+    SCALE_DISTANCE = "scaleDenominator"

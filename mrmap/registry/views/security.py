@@ -99,8 +99,8 @@ class AllowedWebMapServiceOperationViewSetMixin():
                     queryset=Layer.objects.only(
                         "id",
                         "service_id",
-                        "tree_id",
-                        "lft",
+                        "mptt_tree_id",
+                        "mptt_lft",
                     ),
                 )
             )

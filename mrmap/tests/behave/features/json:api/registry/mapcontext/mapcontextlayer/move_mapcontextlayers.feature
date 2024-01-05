@@ -18,7 +18,7 @@ Feature: MapContextLayer Move Endpoint
                         "position": "0"
                     },
                     "relationships": {
-                        "parent": {
+                        "mptt_parent": {
                             "data": {
                                 "id": "6",
                                 "type": "MapContextLayer"
@@ -31,10 +31,10 @@ Feature: MapContextLayer Move Endpoint
         Given I am logged in as mrmap with password mrmap
         When I send the request with PATCH method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.attributes.lft" with value "2"
-        Then I expect that response json has an attribute "data.attributes.rght" with value "3"
-        Then I expect that response json has an attribute "data.attributes.treeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.level" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttLft" with value "2"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "3"
+        Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can move 10 as authenticated user to parent 6, position 1
         Given I set the request payload to:
@@ -47,7 +47,7 @@ Feature: MapContextLayer Move Endpoint
                         "position": "1"
                     },
                     "relationships": {
-                        "parent": {
+                        "mptt_parent": {
                             "data": {
                                 "id": "6",
                                 "type": "MapContextLayer"
@@ -60,10 +60,10 @@ Feature: MapContextLayer Move Endpoint
         Given I am logged in as User2 with password User2
         When I send the request with PATCH method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.attributes.lft" with value "4"
-        Then I expect that response json has an attribute "data.attributes.rght" with value "5"
-        Then I expect that response json has an attribute "data.attributes.treeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.level" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttLft" with value "4"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "5"
+        Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can move 10 as authenticated user to parent 6, position 2
         Given I set the request payload to:
@@ -76,7 +76,7 @@ Feature: MapContextLayer Move Endpoint
                         "position": "2"
                     },
                     "relationships": {
-                        "parent": {
+                        "mptt_parent": {
                             "data": {
                                 "id": "6",
                                 "type": "MapContextLayer"
@@ -89,10 +89,10 @@ Feature: MapContextLayer Move Endpoint
         Given I am logged in as User2 with password User2
         When I send the request with PATCH method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.attributes.lft" with value "8"
-        Then I expect that response json has an attribute "data.attributes.rght" with value "9"
-        Then I expect that response json has an attribute "data.attributes.treeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.level" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttLft" with value "8"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "9"
+        Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can move 10 as authenticated user to parent 6, position 3 (last-child)
         Given I set the request payload to:
@@ -105,7 +105,7 @@ Feature: MapContextLayer Move Endpoint
                         "position": "3"
                     },
                     "relationships": {
-                        "parent": {
+                        "mptt_parent": {
                             "data": {
                                 "id": "6",
                                 "type": "MapContextLayer"
@@ -118,10 +118,10 @@ Feature: MapContextLayer Move Endpoint
         Given I am logged in as User2 with password User2
         When I send the request with PATCH method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.attributes.lft" with value "10"
-        Then I expect that response json has an attribute "data.attributes.rght" with value "11"
-        Then I expect that response json has an attribute "data.attributes.treeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.level" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttLft" with value "10"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "11"
+        Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
     Scenario: Can not move 10 as authenticated user to parent 6, position 4 (out-of-range)
         Given I set the request payload to:
@@ -134,7 +134,7 @@ Feature: MapContextLayer Move Endpoint
                         "position": "4"
                     },
                     "relationships": {
-                        "parent": {
+                        "mptt_parent": {
                             "data": {
                                 "id": "6",
                                 "type": "MapContextLayer"
@@ -164,7 +164,7 @@ Feature: MapContextLayer Move Endpoint
                         "position": "1"
                     },
                     "relationships": {
-                        "parent": {
+                        "mptt_parent": {
                             "data": {
                                 "id": "6",
                                 "type": "MapContextLayer"
@@ -177,10 +177,10 @@ Feature: MapContextLayer Move Endpoint
         Given I am logged in as User2 with password User2
         When I send the request with PATCH method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.attributes.lft" with value "4"
-        Then I expect that response json has an attribute "data.attributes.rght" with value "5"
-        Then I expect that response json has an attribute "data.attributes.treeId" with value "2"
-        Then I expect that response json has an attribute "data.attributes.level" with value "1"
+        Then I expect that response json has an attribute "data.attributes.mpttLft" with value "4"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "5"
+        Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "1"
 
 
     Scenario: Validation Error is raised on moving root node

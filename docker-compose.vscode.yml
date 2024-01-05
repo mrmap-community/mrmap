@@ -6,6 +6,8 @@ services:
     # entrypoint: >
     #   /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py makemigrations accounts registry notify"
     # entrypoint: >
+    #   /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py sync_pgviews --force"
+    # entrypoint: >
     #   /bin/bash -c "python /opt/mrmap/manage.py graph_models -a -g -o models.png"
     # entrypoint: >
     #   /bin/bash -c "python -u -m debugpy --listen 0.0.0.0:5678
@@ -27,8 +29,12 @@ services:
       - "0.0.0.0:8001:8001"
 
   celery-worker:
+    # command: >
+    #   /bin/sh -c "celery -A MrMap worker --task-events --loglevel DEBUG --queues download,default,db-routines --autoscale=10,1"
+
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/venv/bin/watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG --concurrency=5 -Q default,download,db-routines"
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 -m celery -A MrMap worker --task-events --loglevel DEBUG --queues download,default,db-routines "
+
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
@@ -48,7 +54,7 @@ services:
 
   behave:
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave  --noinput --tags=huhu --no-skipped --stop tests/behave/features --simple"
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py behave  --noinput --tags=~skip --no-skipped --stop tests/behave/features --simple"
     ports:
       - "0.0.0.0:3010:5678"
 

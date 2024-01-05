@@ -5,8 +5,7 @@ from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from mptt.fields import TreeForeignKey
-from mptt.models import MPTTModel
+from mptt2.models import Node
 from registry.managers.mapcontext import (MapContextLayerManager,
                                           MapContextManager)
 from registry.models import DatasetMetadataRecord, Layer
@@ -67,7 +66,9 @@ class MapContext(models.Model):
     # contextMetadata
     # extension
 
-    change_log = HistoricalRecords(related_name="change_logs")
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+    )
     objects = MapContextManager()
 
     class Meta:
@@ -254,14 +255,7 @@ class SelectionOffering(models.Model):
             }
 
 
-class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
-    parent = TreeForeignKey(
-        to="MapContextLayer",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="child_layers",
-        related_query_name="child_layer")
+class MapContextLayer(RenderingOffering, SelectionOffering, Node):
     map_context = models.ForeignKey(
         to=MapContext,
         on_delete=models.CASCADE,
@@ -287,7 +281,7 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
 
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields=["lft", "rght", "tree_id", "level"])
+    )
     objects = MapContextLayerManager()
 
     def __str__(self):
@@ -299,10 +293,10 @@ class MapContextLayer(RenderingOffering, SelectionOffering, MPTTModel):
 
     @property
     def folder_name(self) -> str:
-        if self.is_root_node():
+        if self.is_root_node:
             return f"/{self.id}"
         else:
-            return f"{self.parent.folder_name}/{self.id}"
+            return f"{self.mptt_parent.folder_name}/{self.id}"
 
     @property
     def updated(self) -> datetime:

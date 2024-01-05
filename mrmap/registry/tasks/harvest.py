@@ -1,9 +1,9 @@
 
 import os
-from logging import Logger
 from os import walk
 
 from celery import shared_task
+from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -15,12 +15,11 @@ from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from requests.exceptions import Timeout
 
-logger: Logger = settings.ROOT_LOGGER
+logger = get_task_logger(__name__)
 
 
 @shared_task(
     queue="default",
-    priority=2
 )
 def create_harvesting_job(service_id):
     return HarvestingJob.objects.create(service__pk=service_id)
@@ -30,7 +29,6 @@ def create_harvesting_job(service_id):
     queue="default",
     autoretry_for=(Timeout,),
     retry_kwargs={'max_retries': 5},
-    priority=10,
 )
 def call_fetch_total_records(harvesting_job_id):
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
@@ -42,7 +40,7 @@ def call_fetch_total_records(harvesting_job_id):
     queue="download",
     autoretry_for=(Timeout,),
     retry_kwargs={'max_retries': 5},
-    priority=3
+    rate_limit='20/m'
 )
 def call_fetch_records(harvesting_job_id,
                        start_position,
@@ -55,7 +53,6 @@ def call_fetch_records(harvesting_job_id,
 @shared_task(
     queue="db-routines",
     retry_kwargs={'max_retries': 5},
-    priority=6
 )
 def call_md_metadata_file_to_db(md_metadata_file_id: int):
     temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
@@ -66,7 +63,6 @@ def call_md_metadata_file_to_db(md_metadata_file_id: int):
 
 @shared_task(
     queue="db-routines",
-    priority=8
 )
 def check_for_files_to_import():
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")

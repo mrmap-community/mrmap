@@ -90,18 +90,20 @@ INSTALLED_APPS = [
     "rest_framework_gis",
     "rest_framework_json_api",
     "knox",  # token auth
-    "django_celery_beat",
+    # "django_celery_beat",
     "django_celery_results",
     "django_filters",
     "simple_history",
-    "mptt",
+    "mptt2",
     "MrMap",  # added so we can use general commands in MrMap/management/commands
     "extras",  # to support template lookup
     "accounts",
     "registry",
     "notify",
+    "csw",
     "drf_spectacular",
-    "drf_spectacular_jsonapi"
+    "drf_spectacular_jsonapi",
+    "django_pgviews",
 ]
 
 MIDDLEWARE = [
@@ -121,6 +123,7 @@ TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        # "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -223,8 +226,8 @@ USE_TZ = True
 # configure your proxy like "http://10.0.0.1:8080"
 # or with username and password: "http://username:password@10.0.0.1:8080"
 PROXIES = {
-    "http": os.getenv("http_proxy", ""),
-    "https": os.getenv("https_proxy", ""),
+    "http": os.getenv("http_proxy", os.getenv("HTTP_PROXY", "")),
+    "https": os.getenv("https_proxy", os.getenv("HTTPS_PROXY", "")),
 }
 
 # configure if you want to validate ssl certificates
@@ -252,6 +255,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
         "HOST": os.environ.get("SQL_HOST"),
         "PORT": os.environ.get("SQL_PORT"),
+        "CONN_MAX_AGE": 0,
     }
 }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
@@ -291,11 +295,13 @@ CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+# CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_DEFAULT_QUEUE = "default"
 CELERY_DEFAULT_EXCHANGE = "default"
+
+CELERYD_MAX_TASKS_PER_CHILD = 1000
 
 CELERY_QUEUES = (
     Queue(
@@ -438,7 +444,7 @@ ERROR_MASK_TXT = (
 
 
 LOG_DIR = os.environ.get(
-    "MRMAP_LOG_DIR", f"/var/log/mrmap/{socket.gethostname()}/")
+    "MRMAP_LOG_DIR", "/var/log/mrmap")
 
 
 LOG_DIR = LOG_DIR if check_path_access(
@@ -483,17 +489,17 @@ LOGGING = {
             "facility": "user",
             "address": ("localhost", 1514),
         },
-        "file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "maxBytes": LOG_FILE_MAX_SIZE,
-            "backupCount": LOG_FILE_BACKUP_COUNT,
-            "filename": LOG_DIR + "logs.log",
-            "formatter": "verbose",
-        },
+        # "file": {
+        #     "class": "logging.handlers.RotatingFileHandler",
+        #     "maxBytes": LOG_FILE_MAX_SIZE,
+        #     "backupCount": LOG_FILE_BACKUP_COUNT,
+        #     "filename": LOG_DIR + f"/{socket.gethostname()}-logs.log",
+        #     "formatter": "verbose",
+        # },
     },
     "loggers": {
         "MrMap.root": {
-            "handlers": ["file", "syslog"],
+            "handlers": ["syslog"],
             "level": "DEBUG" if DEBUG else "INFO",
             "disabled": False,
             "propagate": True,
@@ -544,6 +550,7 @@ REST_FRAMEWORK = {
 #     'AUTO_REFRESH': True,
 # }
 
+MATERIALIZED_VIEWS_CHECK_SQL_CHANGED = True
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',

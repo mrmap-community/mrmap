@@ -6,6 +6,8 @@ from django.contrib.auth import get_user_model
 from django.db import reset_queries
 from django.http import SimpleCookie
 from knox.models import AuthToken
+from lxml import etree
+from lxml.etree import fromstring
 from rest_framework.authtoken.models import Token
 
 
@@ -109,6 +111,19 @@ def step_impl(context):
 def step_impl(context, expected_status: int):
     context.test.assertEqual(
         context.response.status_code, int(expected_status))
+
+
+@then('I expect that there is a xpath "{xpath}"')
+@then('I expect that there is a xpath "{xpath}" with value "{expected_value}"')
+def step_impl(context, xpath: str, expected_value: str = None):
+    parser = etree.XMLParser(ns_clean=True, recover=True, encoding='utf-8')
+    h = fromstring(context.response.content, parser=parser)
+    r = h.xpath(xpath)
+
+    if expected_value:
+        context.test.assertEqual(
+            r[0], expected_value
+        )
 
 
 def _traverse_json(context, attribute):

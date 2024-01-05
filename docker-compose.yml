@@ -11,14 +11,18 @@ services:
       - mrmap-internal
     env_file:
       - ./docker/postgis/.db.env
+
   redis:
-    image: library/redis:7.2.0-alpine
+    image: library/redis:7.2.3-alpine
     volumes:
       - type: volume
         source: mem-db-data
         target: /data
     networks:
       - mrmap-internal
+    environment:
+      - loglevel=error
+
   mapserver:
     image: camptocamp/mapserver:7.6
     volumes:
@@ -37,8 +41,7 @@ services:
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
-    tty: true # To support colorized log output.
-    hostname: "mrmap-backend"
+    hostname: "backend"
     volumes:
       - type: bind
         source: ./mrmap
@@ -73,11 +76,13 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     # deploy:
-    #   replicas: 5
+    #   replicas: 10
     command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q default,download,db-routines"
-    tty: true # To support colorized log output.
-    hostname: "mrmap-celery-worker"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines"
+    # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
+    # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
+    #tty: true # To support colorized log output.
+    hostname: "celery-worker"
     volumes:
       - type: bind
         source: ./mrmap
@@ -98,6 +103,15 @@ services:
     depends_on:
       - postgis
       - redis
+    cap_add:
+      - SYS_PTRACE
+    healthcheck:
+      test: celery -A MrMap inspect -d celery-worker reserved || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 1
+      start_period: 15s
+    restart: always
 
   celery-beat:
     build:

@@ -1,3 +1,5 @@
+from collections.abc import Iterable, Sequence
+
 from django.db import models, transaction
 
 

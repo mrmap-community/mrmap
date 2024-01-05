@@ -107,10 +107,10 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     .register(r'licence', metadata_views.NestedLicenceViewSet, basename='datasetmetadata-licence', parents_query_lookups=['datasetmetadata']),
     router.register(r'dataset-metadata',
                     metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
-    .register(r'dataset-contact', metadata_views.NestedDatasetContactViewSet, basename='datasetmetadata-datasetcontact', parents_query_lookups=['dataset_contact_metadata']),
+    .register(r'dataset-contact', metadata_views.NestedDatasetContactViewSet, basename='datasetmetadata-datasetcontact', parents_query_lookups=['datasetmetadatarecord_dataset_contact']),
     router.register(r'dataset-metadata',
                     metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
-    .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='datasetmetadata-metadatacontact', parents_query_lookups=['metadata_contact_metadata']),
+    .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='datasetmetadata-metadatacontact', parents_query_lookups=['datasetmetadatarecord_metadata_contact']),
     router.register(r'dataset-metadata',
                     metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
     .register(r'referencesystems', metadata_views.NestedReferenceSystemViewSet, basename='datasetmetadata-referencesystems', parents_query_lookups=['dataset_metadata']),

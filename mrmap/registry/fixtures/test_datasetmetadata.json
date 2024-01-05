@@ -20,7 +20,7 @@
         "model": "registry.datasetmetadatarecord",
         "pk": "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4",
         "fields": {
-            "xml_backup_file": "xml_documents/b503fa55-fd5e-4e07-82c7-cdf41552d53b/md_metadata.xml",
+            "xml_backup_file": "xml_documents/d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4/md_metadata.xml",
             "access_constraints": "Zugriffseinschränkungen: Es gelten keine Bedingungen.",
             "fees": null,
             "use_limitation": null,
@@ -34,7 +34,7 @@
             "abstract": "Messwerte des Niederschlags an den DWD Stationen im Regional Basic Synoptic Network der WMO. Erweitert um weitere Stationen der Grundversorgung.",
             "is_broken": false,
             "is_customized": true,
-            "insufficient_quality": null,
+            "insufficient_quality": "",
             "is_searchable": false,
             "hits": 0,
             "dataset_contact": 1,
@@ -48,8 +48,8 @@
             "lineage_statement": "",
             "update_frequency_code": "",
             "bounding_geometry": "SRID=4326;MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))",
-            "dataset_id": "de.dwd.geoserver.fach.RBSN_RR",
-            "dataset_id_code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
+            "code": "de.dwd.geoserver.fach.RBSN_RR",
+            "code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
             "inspire_interoperability": false,
             "keywords": [
                 [
@@ -59,14 +59,15 @@
             "reference_systems": [],
             "harvested_through": [
                 "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
-            ]
+            ],
+            "search_vector": ""
         }
     },
     {
         "model": "registry.datasetmetadatarecord",
         "pk": "9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e",
         "fields": {
-            "xml_backup_file": "xml_documents/14b3c007-c24a-4ef7-8d96-b13cfb52660c/md_metadata.xml",
+            "xml_backup_file": "xml_documents/9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e/md_metadata.xml",
             "access_constraints": "Zugriffseinschränkungen: Es gelten keine Bedingungen.",
             "fees": null,
             "use_limitation": null,
@@ -80,7 +81,7 @@
             "abstract": "Messwerte der relativen Feuchte an den DWD Stationen im Regional Basic Synoptic Network der WMO. Erweitert um weitere Stationen der Grundversorgung.",
             "is_broken": false,
             "is_customized": true,
-            "insufficient_quality": null,
+            "insufficient_quality": "",
             "is_searchable": false,
             "hits": 0,
             "dataset_contact": 1,
@@ -94,8 +95,8 @@
             "lineage_statement": "",
             "update_frequency_code": "",
             "bounding_geometry": "SRID=4326;MULTIPOLYGON (((5.87 47.27, 5.87 55.06, 15.04 55.06, 15.04 47.27, 5.87 47.27)))",
-            "dataset_id": "de.dwd.geoserver.fach.RBSN_RH",
-            "dataset_id_code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
+            "code": "de.dwd.geoserver.fach.RBSN_RH",
+            "code_space": "https://registry.gdi-de.org/id/de.bund.dwd/",
             "inspire_interoperability": false,
             "keywords": [
                 [
@@ -105,7 +106,22 @@
             "reference_systems": [],
             "harvested_through": [
                 "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
-            ]
+            ],
+            "search_vector": ""
+        }
+    },
+    {
+        "model": "registry.metadatarelation",
+        "pk": "1",
+        "fields": {
+            "dataset_metadata": "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4"
+        }
+    },
+    {
+        "model": "registry.metadatarelation",
+        "pk": "2",
+        "fields": {
+            "dataset_metadata": "9e57ada9-d3bf-403f-bd6c-eb4d38f0ef8e"
         }
     }
 ]

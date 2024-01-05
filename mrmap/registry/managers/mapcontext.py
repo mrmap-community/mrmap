@@ -1,6 +1,6 @@
 from django.db import models
 from extras.managers import DefaultHistoryManager
-from mptt.managers import TreeManager
+from mptt2.managers import TreeManager
 
 
 class MapContextManager(DefaultHistoryManager, models.Manager):

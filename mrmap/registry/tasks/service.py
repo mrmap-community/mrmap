@@ -21,8 +21,7 @@ from urllib3.exceptions import MaxRetryError
 @shared_task(
     bind=True,
     queue="default",
-    base=BackgroundProcessBased,
-    priority=10,
+    base=BackgroundProcessBased
 )
 def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
     try:
@@ -144,7 +143,6 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 @shared_task(bind=True,
              queue="download",
              base=BackgroundProcessBased,
-             priority=10,
              autoretry_for=(MaxRetryError,),
              # retry after 30 minutes
              retry_kwargs={'max_retries': 2, 'countdown': 1800}

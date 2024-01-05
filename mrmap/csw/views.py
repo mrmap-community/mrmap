@@ -99,7 +99,7 @@ class CswServiceView(View):
             "Modified": "date_stamp",
             "type": "hierarchy_level",
             "dc:type": "hierarchy_level",
-            "Type": "hierachy_level",
+            "Type": "hierarchy_level",
             "ResourceIdentifier": "resource_identifier",
             "identifier": "file_identifier",
             "Identifier": "file_identifier",

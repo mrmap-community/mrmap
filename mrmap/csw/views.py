@@ -2,19 +2,11 @@ import os
 from itertools import chain
 
 from csw.exceptions import InvalidQuery, NotSupported
-from django.contrib.gis.db.models.fields import MultiPolygonField
-from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
-from django.contrib.postgres.expressions import ArraySubquery
-from django.contrib.postgres.search import (SearchQuery, SearchRank,
-                                            SearchVector)
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import FieldError
 from django.db import transaction
-from django.db.models import Count, F, Func, Sum
 from django.db.models.aggregates import Count
-from django.db.models.expressions import Case, F, OuterRef, Value, When
-from django.db.models.fields import CharField
-from django.db.models.functions import Cast, Coalesce, Concat, datetime
-from django.db.models.query import Prefetch
+from django.db.models.functions import datetime
 from django.db.models.query_utils import Q
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
@@ -34,7 +26,6 @@ from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
-                                      MetadataContact, MetadataRelation,
                                       ServiceMetadataRecord)
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
@@ -107,32 +98,6 @@ class CswServiceView(View):
         }
         return field_mapping
 
-    def get_basic_queryset(self):
-
-        qs = MetadataRelation.objects.search_for_datasets()
-
-        if self.ogc_request.is_get_capabilities_request:
-            return qs
-
-        # TODO: if resultType is hits, we don't need to select all cols; pk of MetadataRelation is sufficient
-        if self.ogc_request.ogc_query_params.get(
-                "resultType", "hits") != "hits":
-
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "dataset_metadata",
-                    queryset=DatasetMetadataRecord.objects.distinct(
-                        "pk").only("xml_backup_file")
-                ),
-                Prefetch(
-                    "service_metadata",
-                    queryset=ServiceMetadataRecord.objects.distinct(
-                        "pk").only("xml_backup_file")
-                ),
-            )
-
-        return qs
-
     def get_filter_constraint(self):
         field_mapping = self.get_field_map()
         return self.ogc_request.filter_constraint(field_mapping=field_mapping)
@@ -145,18 +110,16 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
 
-        # .annotate(
-#            frequency=Count("id")).order_by("-frequency").values("keyword", "frequency")
-
-        dataset_keywords_qs = DatasetMetadataRecord.objects.annotate(keyword=Func(F("keywords_list"), function="unnest")).values(
-            "keyword").order_by("keyword")[:10]
-
-        service_keywords_qs = ServiceMetadataRecord.objects.annotate(keyword=Func(F("keywords_list"), function="unnest")).values(
-            "keyword").order_by("keyword")[:10]
-
-        keywords = dataset_keywords_qs.union(service_keywords_qs, all=True).order_by(
-            "keyword").annotate(
-            frequency=Count("id")).order_by("-frequency").values("keyword", "frequency")
+        dataset_record_ids = DatasetMetadataRecord.objects.all().aggregate(
+            pks=ArrayAgg("pk", distinct=True))["pks"]
+        service_record_ids = DatasetMetadataRecord.objects.all().aggregate(
+            pks=ArrayAgg("pk", distinct=True))["pks"]
+        keywords = Keyword.objects.filter(
+            Q(datasetmetadatarecord_metadata__in=dataset_record_ids) |
+            Q(servicemetadatarecord_metadata__in=service_record_ids)
+        ).annotate(
+            frequency=Count("pk"),
+        ).order_by("-frequency").values_list("keyword", flat=True)[:10]
 
         cap_file = os.path.dirname(
             os.path.abspath(__file__)) + "/capabilitites.xml"
@@ -183,8 +146,6 @@ class CswServiceView(View):
                              url=request.build_absolute_uri('csw'), mime_types=["application/xml"])
             ]
         )
-        from django.shortcuts import render
-        return render(request, "csw/debug.html", {"content": capabilitites_doc.serializeDocument(pretty=True).decode("utf-8")})
 
         return HttpResponse(
             status=200,
@@ -255,9 +216,9 @@ class CswServiceView(View):
         ) + service_metadata_records_result.count()
 
         start_position = int(
-            self.ogc_request.ogc_query_params.get("startPosition", "1")) - 1
+            self.ogc_request.xml_request.start_position or 1) - 1
         max_records = int(
-            self.ogc_request.ogc_query_params.get("maxRecords", "10"))
+            self.ogc_request.xml_request.max_records or 10)
         max_records = max_records if max_records <= 1000 else 1000
 
         heap_count = start_position + max_records
@@ -276,8 +237,7 @@ class CswServiceView(View):
 
         records_returned = len(result)
 
-        result_type = self.ogc_request.ogc_query_params.get(
-            "resultType", "hits")
+        result_type = self.ogc_request.xml_request.result_type or "hits"
 
         if result_type == "hits":
             xml = GetRecordsResponse(
@@ -308,9 +268,6 @@ class CswServiceView(View):
                 except XMLSyntaxError:
                     continue
 
-        from django.shortcuts import render
-        return render(request, "csw/debug.html", {"content": xml.serializeDocument(pretty=True).decode("utf-8")})
-
         return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xhtml+xml")
 
     def get_record_by_id(self, request):
@@ -333,12 +290,7 @@ class CswServiceView(View):
             time_stamp=self.start_time,
         )
         for record in records:
-            if record.dataset_metadata:
-                xml.gmd_records.append(
-                    record.dataset_metadata.xml_backup)
-            elif record.service_metadata:
-                xml.gmd_records.append(
-                    record.service_metadata.xml_backup)
+            xml.gmd_records.append(record.xml_backup)
         return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):

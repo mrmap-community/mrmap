@@ -91,6 +91,7 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
 
 
 class SearchableDatasetMetadataRecord(SearchableMetadataRecordAbstract):
+    hierarchy_level = models.CharField(max_length=100, default="")
     base_model = DatasetMetadataRecord
 
     @classmethod
@@ -111,6 +112,7 @@ def update_dataset_view(*args, **kwargs):
 
 
 class SearchableServiceMetadataRecord(SearchableMetadataRecordAbstract):
+    hierarchy_level = models.CharField(max_length=100, default="")
     base_model = ServiceMetadataRecord
 
     @classmethod

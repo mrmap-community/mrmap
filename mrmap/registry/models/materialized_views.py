@@ -68,10 +68,14 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
 
     @classmethod
     def get_sql(cls):
+        # sql debug cursor is only available on debug True. So we need to force it temporaly
+        # https://docs.djangoproject.com/en/5.0/faq/models/#how-can-i-see-the-raw-sql-queries-django-is-running
+        connection.force_debug_cursor = True
         # repr() --> this will trigger the execition
         list(cls.get_queryset().all())
         # get the last query; this should be the execution from the line below
         last_query = connection.queries[-1].get('sql')
+        connection.force_debug_cursor = False
         return pg.ViewSQL(last_query, None)
 
     class Meta:
@@ -87,6 +91,7 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
 
 
 class SearchableDatasetMetadataRecord(SearchableMetadataRecordAbstract):
+    hierarchy_level = models.CharField(max_length=100, default="")
     base_model = DatasetMetadataRecord
 
     @classmethod
@@ -107,6 +112,7 @@ def update_dataset_view(*args, **kwargs):
 
 
 class SearchableServiceMetadataRecord(SearchableMetadataRecordAbstract):
+    hierarchy_level = models.CharField(max_length=100, default="")
     base_model = ServiceMetadataRecord
 
     @classmethod

@@ -1,3 +1,4 @@
+from django.urls import path
 from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views

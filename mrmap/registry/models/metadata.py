@@ -407,6 +407,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                    "how many times this metadata was requested by a client"),
                                editable=False, )
     keywords = models.ManyToManyField(to=Keyword,
+                                      blank=True,
                                       related_name="%(class)s_metadata",
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),

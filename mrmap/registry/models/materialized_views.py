@@ -83,7 +83,7 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
         managed = False
         indexes = [
             models.Index(fields=["title",]),
-            models.Index(fields=["abstract",]),
+            # models.Index(fields=["abstract",]),
             models.Index(fields=["file_identifier"]),
             models.Index(fields=["resource_identifier"]),
             GinIndex(fields=["search_vector"]),

@@ -208,6 +208,10 @@ class Keyword(models.Model):
             models.UniqueConstraint(
                 name="%(app_label)s_%(class)s_unique_keywords",
                 fields=["keyword"]
+            ),
+            models.CheckConstraint(
+                check=~Q(keyword="") | ~Q(keyword__isnull=True),
+                name="%(app_label)s_%(class)s_non_empty_keywords",
             )
         ]
 

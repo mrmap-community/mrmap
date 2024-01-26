@@ -46,7 +46,7 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
                 "keywords__keyword",
                 distinct=True,
                 # non empty lexeme inside keywords_list
-                filter=~Q(keywords__keyword=""),
+                filter=~Q(keywords__keyword__isnull=True),
                 default=[]
 
             )

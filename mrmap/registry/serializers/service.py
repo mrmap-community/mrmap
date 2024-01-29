@@ -149,6 +149,12 @@ class LayerSerializer(
         read_only=True,
 
     )
+    is_spatial_secured = BooleanField(
+        label=_("is spatial secured"),
+        help_text=_(
+            "true is the layer is spatial secured by a allowed operation object."),
+        read_only=True
+    )
 
     included_serializers = {
         "service": "registry.serializers.service.WebMapServiceSerializer",

@@ -162,7 +162,7 @@ class WebMapServiceViewSet(
         "layers": [
             Prefetch(
                 "layers",
-                queryset=Layer.objects.with_inherited_attributes().select_related("mptt_parent").prefetch_related(
+                queryset=Layer.objects.with_inherited_attributes().select_related("mptt_parent", "mptt_tree").prefetch_related(
                     Prefetch(
                         "keywords",
                         queryset=Keyword.objects.only("id")
@@ -170,16 +170,17 @@ class WebMapServiceViewSet(
                     Prefetch(
                         "registry_datasetmetadatarecord_metadata_records",
                         queryset=DatasetMetadataRecord.objects.only("id")
-                    )
+                    ),
+
                 )
             )
         ],
         "keywords": ["keywords"],
-        "operation_urls": [
+        "operationUrls": [
             Prefetch(
                 "operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.select_related(
-                    "service"
+                    "service",
                 ).prefetch_related("mime_types"),
             )
         ],

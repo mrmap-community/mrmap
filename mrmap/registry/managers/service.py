@@ -10,7 +10,7 @@ from django.contrib.postgres.aggregates import JSONBAgg
 from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models.aggregates import Max
+from django.db.models import Exists
 from django.db.models.expressions import F, OuterRef, Subquery, Value
 from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
@@ -19,9 +19,10 @@ from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from mptt2.models import Tree
 from registry.enums.metadata import MetadataOriginEnum
-from registry.models.metadata import (Dimension, Keyword, LegendUrl,
-                                      MetadataContact, MimeType,
-                                      ReferenceSystem, Style, TimeExtent,
+from registry.models.metadata import (DatasetMetadataRecord, Dimension,
+                                      Keyword, LegendUrl, MetadataContact,
+                                      MimeType, ReferenceSystem, Style,
+                                      TimeExtent,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.settings import METADATA_URL_BLACKLIST
@@ -640,6 +641,8 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         return Style.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
 
     def with_inherited_attributes(self):
+        from registry.models.security import AllowedWebMapServiceOperation
+
         return self.get_queryset().annotate(
             anchestors_include_self=ArraySubquery(
                 (
@@ -653,7 +656,8 @@ class LayerManager(DefaultHistoryManager, TreeManager):
                             queryset=Dimension.objects.distinct("name")),
                         Prefetch(
                             "style",
-                            queryset=Style.objects.distinct("name"))
+                            queryset=Style.objects.distinct("name")),
+
                     )
                     .values(
                         json=JSONObject(
@@ -701,4 +705,10 @@ class LayerManager(DefaultHistoryManager, TreeManager):
             scale_min_inherited=self.get_inherited_scale_min(),
             scale_max_inherited=self.get_inherited_scale_max(),
             bbox_inherited=self.get_inherited_bbox_lat_lon(),
+            is_spatial_secured=Exists(
+                AllowedWebMapServiceOperation.objects.filter(
+                    secured_layers__id__exact=OuterRef("pk"),
+                    allowed_area__isnull=False
+                )
+            )
         )

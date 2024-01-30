@@ -40,6 +40,7 @@ class WebMapServiceOperationViewSetMixin():
     queryset = WebMapServiceOperation.objects.all()
     serializer_class = WebMapServiceOperationSerializer
     search_fields = ('operation', )
+    ordering_fields = ["operation"]
 
 
 class WebMapServiceOperationViewSet(
@@ -60,6 +61,7 @@ class WebFeatureServiceOperationViewSetMixin():
     queryset = WebFeatureServiceOperation.objects.all()
     serializer_class = WebFeatureServiceOperationSerializer
     search_fields = ('operation', )
+    ordering_fields = ["operation"]
 
 
 class WebFeatureServiceOperationViewSet(

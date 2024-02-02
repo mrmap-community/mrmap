@@ -293,10 +293,11 @@ class MapContextLayer(RenderingOffering, SelectionOffering, Node):
 
     @property
     def folder_name(self) -> str:
+        # TODO: use array index notation /0/1 ...
         if self.is_root_node:
             return f"/{self.id}"
         else:
-            return f"{self.mptt_parent.folder_name}/{self.id}"
+            return f"{self.mptt_parent.folder_name}"
 
     @property
     def updated(self) -> datetime:

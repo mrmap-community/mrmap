@@ -193,11 +193,17 @@ class WebMapServiceOperation(models.Model):
         primary_key=True, max_length=30, choices=SecureableWMSOperationEnum.choices
     )
 
+    def __str__(self) -> str:
+        return self.operation
+
 
 class WebFeatureServiceOperation(models.Model):
     operation = models.CharField(
         primary_key=True, max_length=30, choices=SecureableWFSOperationEnum.choices
     )
+
+    def __str__(self) -> str:
+        return self.operation
 
 
 class AllowedOperation(models.Model):

@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models.query import Prefetch
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              NestedModelViewSet,
@@ -249,6 +251,10 @@ class WebMapServiceViewSet(
                 )
             )
         return qs
+
+    @method_decorator(cache_page(60 * 60 * 2))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class LayerViewSetMixin(

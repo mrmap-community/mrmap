@@ -24,7 +24,10 @@ class WebMapServiceAuthenticationSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class WebMapServiceOperationSerializer(ModelSerializer):
+class WebMapServiceOperationSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
     url = HyperlinkedIdentityField(
         view_name='registry:wmsoperation-detail',
     )
@@ -34,7 +37,10 @@ class WebMapServiceOperationSerializer(ModelSerializer):
         fields = '__all__'
 
 
-class WebFeatureServiceOperationSerializer(ModelSerializer):
+class WebFeatureServiceOperationSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
     url = HyperlinkedIdentityField(
         view_name='registry:wfsoperation-detail',
     )

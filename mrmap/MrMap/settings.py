@@ -565,8 +565,8 @@ SPECTACULAR_SETTINGS = {
 }
 
 if not MRMAP_PRODUCTION:
-    REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(
-        "extras.utils.BrowsableAPIRendererWithoutForms")
+    # REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"].append(
+    #     "extras.utils.BrowsableAPIRendererWithoutForms")
 
     INSTALLED_APPS.extend(
         [

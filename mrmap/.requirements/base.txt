@@ -69,7 +69,7 @@ odin==2.9.0
 drf-spectacular-jsonapi==0.4.1
 
 
-django-ows-lib==0.13.0
+django-ows-lib==0.14.0
 
 camel-converter==3.0.0
 

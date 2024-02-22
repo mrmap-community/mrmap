@@ -210,6 +210,7 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                      origin=MetadataOriginEnum.CAPABILITIES.value,
 
                      **parsed_layer.transform_to_model())
+
         self._update_transient_objects({"layer_list": [node]})
 
         node.mptt_tree = tree

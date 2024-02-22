@@ -28,6 +28,7 @@ from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import (BooleanField, IntegerField,
                                    SerializerMethodField, URLField, UUIDField)
 from rest_framework_gis.fields import GeometryField
+from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
@@ -87,7 +88,8 @@ class LayerSerializer(
     bbox_lat_lon = GeometryField(
         source="bbox_inherited",
         label=_("bbox"),
-        help_text=_("this is the spatial extent of the layer."))
+        help_text=_("this is the spatial extent of the layer."),
+        auto_bbox=True)
     is_queryable = BooleanField(
         source="is_queryable_inherited",
         label=_("is queryable"),

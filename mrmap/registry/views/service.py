@@ -1,10 +1,5 @@
-import time
-
 from django.contrib.auth import get_user_model
-from django.core.signals import request_finished, request_started
 from django.db.models.query import Prefetch
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              NestedModelViewSet,
@@ -35,7 +30,6 @@ from registry.serializers.service import (CatalogueServiceCreateSerializer,
                                           WebMapServiceListSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
-from rest_framework.response import Response
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -255,58 +249,6 @@ class WebMapServiceViewSet(
                 )
             )
         return qs
-
-    # @method_decorator(cache_page(60 * 60 * 2))
-    def retrieve(self, request, *args, **kwargs):
-        global db_time
-        global serializer_time
-
-        db_start = time.time()
-        instance = self.get_object()
-        db_time = time.time() - db_start
-
-        serializer_start = time.time()
-        serializer = self.get_serializer(instance)
-        data = serializer.data
-        serializer_time = time.time() - serializer_start
-
-        return Response(data)
-
-    def dispatch(self, request, *args, **kwargs):
-        global dispatch_time
-        global render_time
-
-        dispatch_start = time.time()
-        ret = super().dispatch(request, *args, **kwargs)
-
-        render_start = time.time()
-        ret.render()
-        render_time = time.time() - render_start
-
-        dispatch_time = time.time() - dispatch_start
-
-        return ret
-
-
-def started(sender, **kwargs):
-    global started
-    started = time.time()
-
-
-def finished(sender, **kwargs):
-    total = time.time() - started
-    api_view_time = dispatch_time - (render_time + serializer_time + db_time)
-    request_response_time = total - dispatch_time
-
-    print("Database lookup               | %.4fs" % db_time)
-    print("Serialization                 | %.4fs" % serializer_time)
-    print("Django request/response       | %.4fs" % request_response_time)
-    print("API view                      | %.4fs" % api_view_time)
-    print("Response rendering            | %.4fs" % render_time)
-
-
-request_started.connect(started)
-request_finished.connect(finished)
 
 
 class LayerViewSetMixin(

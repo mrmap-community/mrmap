@@ -104,6 +104,11 @@ class BuildOgcServiceTaskTest(TestCase):
         self.assertDictEqual(d1=result.result, d2=expected_result,
                              msg="Task result does not match expection.")
 
+        self.assertEqual(
+            db_service.version,
+            "1.3.0"
+        )
+
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')

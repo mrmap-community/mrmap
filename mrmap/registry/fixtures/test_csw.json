@@ -145,8 +145,7 @@
             "abstract": "abstract1",
             "service_url": "",
             "service_contact": "1",
-            "metadata_contact": "1",
-            "search_vector": ""
+            "metadata_contact": "1"
         }
     },
     {
@@ -162,8 +161,7 @@
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1",
-            "version": "2.0.2",
-            "search_vector": ""
+            "version": "2.0.2"
         }
     },
     {
@@ -183,8 +181,7 @@
                 [
                     "meteorology"
                 ]
-            ],
-            "search_vector": ""
+            ]
         }
     },
     {

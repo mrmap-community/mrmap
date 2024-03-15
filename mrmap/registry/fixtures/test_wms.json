@@ -185,8 +185,7 @@
                 [
                     "meteorology"
                 ]
-            ],
-            "search_vector": ""
+            ]
         }
     },
     {
@@ -214,8 +213,7 @@
             ],
             "reference_systems": [
                 1
-            ],
-            "search_vector": ""
+            ]
         }
     },
     {
@@ -232,8 +230,7 @@
             "mptt_tree": 1,
             "mptt_depth": 1,
             "mptt_lft": 2,
-            "mptt_rgt": 9,
-            "search_vector": ""
+            "mptt_rgt": 9
         }
     },
     {
@@ -250,8 +247,7 @@
             "mptt_tree": 1,
             "mptt_depth": 2,
             "mptt_lft": 3,
-            "mptt_rgt": 4,
-            "search_vector": ""
+            "mptt_rgt": 4
         }
     },
     {
@@ -268,8 +264,7 @@
             "mptt_tree": 1,
             "mptt_depth": 2,
             "mptt_lft": 5,
-            "mptt_rgt": 6,
-            "search_vector": ""
+            "mptt_rgt": 6
         }
     },
     {
@@ -286,8 +281,7 @@
             "mptt_tree": 1,
             "mptt_depth": 2,
             "mptt_lft": 7,
-            "mptt_rgt": 8,
-            "search_vector": ""
+            "mptt_rgt": 8
         }
     },
     {
@@ -304,8 +298,7 @@
             "mptt_tree": 1,
             "mptt_depth": 1,
             "mptt_lft": 10,
-            "mptt_rgt": 11,
-            "search_vector": ""
+            "mptt_rgt": 11
         }
     },
     {
@@ -322,8 +315,7 @@
             "mptt_tree": 1,
             "mptt_depth": 1,
             "mptt_lft": 12,
-            "mptt_rgt": 15,
-            "search_vector": ""
+            "mptt_rgt": 15
         }
     },
     {
@@ -341,8 +333,7 @@
             "mptt_tree": 1,
             "mptt_depth": 2,
             "mptt_lft": 13,
-            "mptt_rgt": 14,
-            "search_vector": ""
+            "mptt_rgt": 14
         }
     },
     {
@@ -372,8 +363,7 @@
             "abstract": "wms2 abstract",
             "service_url": "",
             "service_contact": "2",
-            "metadata_contact": "2",
-            "search_vector": ""
+            "metadata_contact": "2"
         }
     },
     {
@@ -392,8 +382,7 @@
             "mptt_tree": 2,
             "mptt_depth": 0,
             "mptt_lft": 1,
-            "mptt_rgt": 2,
-            "search_vector": ""
+            "mptt_rgt": 2
         }
     },
     {

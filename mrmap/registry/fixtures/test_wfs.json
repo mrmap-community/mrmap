@@ -77,8 +77,7 @@
                 [
                     "meteorology"
                 ]
-            ],
-            "search_vector": ""
+            ]
         }
     },
     {
@@ -97,8 +96,7 @@
                 [
                     "meteorology"
                 ]
-            ],
-            "search_vector": ""
+            ]
         }
     },
     {
@@ -111,8 +109,7 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
             "title": "node2",
-            "is_active": true,
-            "search_vector": ""
+            "is_active": true
         }
     },
     {
@@ -125,8 +122,7 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
             "title": "node3",
-            "is_active": true,
-            "search_vector": ""
+            "is_active": true
         }
     },
     {
@@ -139,8 +135,7 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
             "title": "node4",
-            "is_active": false,
-            "search_vector": ""
+            "is_active": false
         }
     },
     {
@@ -165,8 +160,7 @@
             "abstract": "wfs2 abstract",
             "service_url": "",
             "service_contact": "1",
-            "metadata_contact": "1",
-            "search_vector": ""
+            "metadata_contact": "1"
         }
     },
     {
@@ -179,8 +173,7 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": "capabilities",
             "title": "wfs2-node1",
-            "abstract": "wfs2-node1",
-            "search_vector": ""
+            "abstract": "wfs2-node1"
         }
     }
 ]

@@ -2,6 +2,7 @@ from extras.serializers import StringRepresentationSerializer
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
+from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer
@@ -37,6 +38,8 @@ class ReferenceSystemSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
 
+    wkt = SerializerMethodField()
+
     url = HyperlinkedIdentityField(
         view_name="registry:referencesystem-detail",
     )
@@ -44,6 +47,9 @@ class ReferenceSystemSerializer(
     class Meta:
         model = ReferenceSystem
         fields = "__all__"
+
+    def get_wkt(self, obj):
+        return obj.wkt
 
 
 class StyleSerializer(

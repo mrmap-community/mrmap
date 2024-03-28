@@ -144,6 +144,18 @@ class ReferenceSystem(models.Model):
         if _crs:
             return _crs.wkt
 
+    @property
+    def is_xy_order(self):
+        _crs = self.crs
+        if _crs:
+            return _crs.is_xy_order
+
+    @property
+    def is_yx_order(self):
+        _crs = self.crs
+        if _crs:
+            return _crs.is_yx_order
+
 
 class MetadataContact(models.Model):
     name = models.CharField(max_length=256,

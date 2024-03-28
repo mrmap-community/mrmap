@@ -52,6 +52,8 @@ class ReferenceSystemRetrieveSerializer(
         ModelSerializer):
 
     wkt = SerializerMethodField()
+    is_xy_order = SerializerMethodField()
+    is_yx_order = SerializerMethodField()
 
     url = HyperlinkedIdentityField(
         view_name="registry:referencesystem-detail",
@@ -63,6 +65,12 @@ class ReferenceSystemRetrieveSerializer(
 
     def get_wkt(self, obj):
         return obj.wkt
+
+    def get_is_xy_order(self, obj):
+        return obj.is_xy_order
+
+    def get_is_yx_order(self, obj):
+        return obj.is_yx_order
 
 
 class StyleSerializer(

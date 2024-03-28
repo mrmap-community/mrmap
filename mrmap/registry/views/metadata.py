@@ -1,6 +1,6 @@
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import NestedModelViewSet
+from extras.viewsets import NestedModelViewSet, SerializerClassesMixin
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
@@ -8,7 +8,8 @@ from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
                                            MetadataContactSerializer,
-                                           ReferenceSystemSerializer,
+                                           ReferenceSystemDefaultSerializer,
+                                           ReferenceSystemRetrieveSerializer,
                                            StyleSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
@@ -60,9 +61,12 @@ class NestedLicenceViewSet(
     pass
 
 
-class ReferenceSystemViewSetMixin():
+class ReferenceSystemViewSetMixin(SerializerClassesMixin):
     queryset = ReferenceSystem.objects.all()
-    serializer_class = ReferenceSystemSerializer
+    serializer_classes = {
+        "default": ReferenceSystemDefaultSerializer,
+        "retrieve": ReferenceSystemRetrieveSerializer,
+    }
     filterset_fields = {
         "code": ["exact", "icontains", "contains"],
         "prefix": ["exact", "icontains", "contains"]

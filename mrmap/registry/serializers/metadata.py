@@ -34,7 +34,20 @@ class LicenceSerializer(
         fields = "__all__"
 
 
-class ReferenceSystemSerializer(
+class ReferenceSystemDefaultSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name="registry:referencesystem-detail",
+    )
+
+    class Meta:
+        model = ReferenceSystem
+        fields = "__all__"
+
+
+class ReferenceSystemRetrieveSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
 

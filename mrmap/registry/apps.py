@@ -39,7 +39,7 @@ def find_orphan_metadata_objects(sender, **kwargs):
         resource_relation__isnull=True)
     # TODO: move this to a manager as check function
     # print info object instead
-    print("orphans:", orphans.count())
+    print("metadata orphans:", orphans.count())
 
 
 class RegistryConfig(AppConfig):
@@ -54,5 +54,5 @@ class RegistryConfig(AppConfig):
         post_migrate.connect(create_wms_operations, sender=self)
         post_migrate.connect(create_wfs_operations, sender=self)
 
-       # post_migrate.connect(create_file_system_import_task, sender=self)
+        # post_migrate.connect(create_file_system_import_task, sender=self)
         post_migrate.connect(find_orphan_metadata_objects, sender=self)

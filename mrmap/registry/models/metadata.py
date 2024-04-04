@@ -1,6 +1,5 @@
 from uuid import uuid4
 
-from axis_order_cache.registry import Registry
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
@@ -11,6 +10,7 @@ from django.db.models import Q
 from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
 from django.utils.translation import gettext_lazy as _
+from epsg_cache.registry import Registry
 from eulxml import xmlmap
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
@@ -143,6 +143,12 @@ class ReferenceSystem(models.Model):
         _crs = self.crs
         if _crs:
             return _crs.wkt
+
+    @property
+    def extent(self):
+        _crs = self.crs
+        if _crs:
+            return _crs.extent
 
     @property
     def is_xy_order(self):

@@ -2,10 +2,10 @@
 
 import json
 
-from axis_order_cache.utils import adjust_axis_order
 from django.contrib.gis.geos import GEOSGeometry
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from epsg_cache.utils import adjust_axis_order
 from ows_lib.client.wfs.mixins import \
     WebFeatureServiceMixin as WebFeatureServiceClient
 from registry.models.service import WebFeatureService

@@ -52,6 +52,7 @@ class ReferenceSystemRetrieveSerializer(
         ModelSerializer):
 
     wkt = SerializerMethodField()
+    bbox = SerializerMethodField()
     is_xy_order = SerializerMethodField()
     is_yx_order = SerializerMethodField()
 
@@ -65,6 +66,10 @@ class ReferenceSystemRetrieveSerializer(
 
     def get_wkt(self, obj):
         return obj.wkt
+
+    def get_bbox(self, obj):
+        if obj.extent:
+            return obj.extent.envelope.geojson
 
     def get_is_xy_order(self, obj):
         return obj.is_xy_order

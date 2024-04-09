@@ -3,12 +3,14 @@ from uuid import uuid4
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
+from django.contrib.gis.gdal.error import GDALException
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
 from django.utils.translation import gettext_lazy as _
+from epsg_cache.registry import Registry
 from eulxml import xmlmap
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
@@ -26,8 +28,11 @@ from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
 from requests.adapters import HTTPAdapter
+from requests.exceptions import ConnectionError
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
+
+CRS_Registry = Registry(proxies=PROXIES)
 
 
 class MimeType(models.Model):
@@ -124,6 +129,38 @@ class ReferenceSystem(models.Model):
 
     def __eq__(self, __value: object) -> bool:
         return self.code == __value.code and self.prefix == __value.prefix
+
+    @property
+    def crs(self):
+        if self.prefix == ReferenceSystemPrefixEnum.EPSG:
+            try:
+                return CRS_Registry.get(srid=self.code)
+            except (ConnectionError, GDALException):
+                pass
+
+    @property
+    def wkt(self):
+        _crs = self.crs
+        if _crs:
+            return _crs.wkt
+
+    @property
+    def extent(self):
+        _crs = self.crs
+        if _crs:
+            return _crs.extent
+
+    @property
+    def is_xy_order(self):
+        _crs = self.crs
+        if _crs:
+            return _crs.is_xy_order
+
+    @property
+    def is_yx_order(self):
+        _crs = self.crs
+        if _crs:
+            return _crs.is_yx_order
 
 
 class MetadataContact(models.Model):

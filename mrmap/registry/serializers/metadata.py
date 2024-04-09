@@ -2,6 +2,7 @@ from extras.serializers import StringRepresentationSerializer
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
+from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer
@@ -33,7 +34,7 @@ class LicenceSerializer(
         fields = "__all__"
 
 
-class ReferenceSystemSerializer(
+class ReferenceSystemDefaultSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
 
@@ -44,6 +45,37 @@ class ReferenceSystemSerializer(
     class Meta:
         model = ReferenceSystem
         fields = "__all__"
+
+
+class ReferenceSystemRetrieveSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+
+    wkt = SerializerMethodField()
+    bbox = SerializerMethodField()
+    is_xy_order = SerializerMethodField()
+    is_yx_order = SerializerMethodField()
+
+    url = HyperlinkedIdentityField(
+        view_name="registry:referencesystem-detail",
+    )
+
+    class Meta:
+        model = ReferenceSystem
+        fields = "__all__"
+
+    def get_wkt(self, obj):
+        return obj.wkt
+
+    def get_bbox(self, obj):
+        if obj.extent:
+            return obj.extent.envelope.geojson
+
+    def get_is_xy_order(self, obj):
+        return obj.is_xy_order
+
+    def get_is_yx_order(self, obj):
+        return obj.is_yx_order
 
 
 class StyleSerializer(

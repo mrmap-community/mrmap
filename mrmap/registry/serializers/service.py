@@ -22,13 +22,12 @@ from registry.models.service import (CatalogueService,
 from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
                                            MetadataContactSerializer,
-                                           ReferenceSystemSerializer,
+                                           ReferenceSystemDefaultSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
 from rest_framework.fields import (BooleanField, IntegerField,
                                    SerializerMethodField, URLField, UUIDField)
 from rest_framework_gis.fields import GeometryField
-from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
@@ -165,7 +164,7 @@ class LayerSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        "reference_systems": ReferenceSystemSerializer,
+        "reference_systems": ReferenceSystemDefaultSerializer,
         # "dimensions": DimensionSerializer,
     }
 
@@ -415,7 +414,7 @@ class FeatureTypeSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        # TODO: "reference_systems": ReferenceSystemSerializer
+        # TODO: "reference_systems": ReferenceSystemDefaultSerializer
     }
 
     class Meta:

@@ -69,7 +69,7 @@ urlpatterns = [
         "csw",
         CswServiceView.as_view(),
         name="csw-endpoint"
-    ),
+    )
 
 ]
 

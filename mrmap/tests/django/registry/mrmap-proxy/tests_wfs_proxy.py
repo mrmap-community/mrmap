@@ -1,11 +1,11 @@
 
 from accounts.models.users import User
-from axis_order_cache.utils import adjust_axis_order
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
 from django.test import Client, TestCase
+from epsg_cache.utils import adjust_axis_order
 from eulxml.xmlmap import load_xmlobject_from_string
 from MrMap.settings import BASE_DIR
 from ows_lib.xml_mapper.xml_requests.wfs.get_feature import (GetFeatureRequest,

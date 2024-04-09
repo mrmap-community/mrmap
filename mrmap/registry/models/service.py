@@ -194,21 +194,21 @@ class OperationUrl(models.Model):
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
     url: str = models.URLField(
         max_length=4096,
-        editable=False,
+        # editable=False,
         verbose_name=_("url"),
         help_text=_("the url for this operation"),
     )
     operation: str = models.CharField(
         max_length=30,
         choices=OGCOperationEnum.choices,
-        editable=False,
+        # editable=False,
         verbose_name=_("operation"),
         help_text=_("the operation you can perform with this url."),
     )
     mime_types = models.ManyToManyField(
         to="MimeType",  # use string to avoid from circular import error
         blank=True,
-        editable=False,
+        # editable=False,
         related_name="%(class)s_operation_urls",
         related_query_name="%(class)s_operation_url",
         verbose_name=_("internet mime type"),
@@ -241,7 +241,7 @@ class WebMapServiceOperationUrl(OperationUrl):
     service = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,
-        editable=False,
+        # editable=False,
         related_name="operation_urls",
         related_query_name="operation_url",
         verbose_name=_("related web map service"),

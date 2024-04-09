@@ -3,12 +3,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from accounts.models.users import User
-from axis_order_cache.models import Origin, SpatialReference
-from axis_order_cache.registry import Registry
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
 from django.test import Client, TestCase
+from epsg_cache.models import Origin, SpatialReference
+from epsg_cache.registry import Registry
 from lxml import etree, objectify
 from MrMap.settings import BASE_DIR
 from PIL import Image, ImageChops

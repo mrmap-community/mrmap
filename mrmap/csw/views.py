@@ -8,7 +8,8 @@ from django.db import transaction
 from django.db.models.aggregates import Count
 from django.db.models.functions import datetime
 from django.db.models.query_utils import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.http.request import HttpRequest as HttpRequest
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
@@ -201,7 +202,8 @@ class CswServiceView(View):
             return InvalidQuery(
                 ogc_request=self.ogc_request,
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
-                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"
+                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {
+                    ', '.join(available_fields)}"
             )
 
         # contact_stats = MetadataContact.objects.filter(
@@ -309,3 +311,81 @@ class CswServiceView(View):
         # TODO: other csw operations
         else:
             return OperationNotSupportedException(ogc_request=self.ogc_request)
+
+
+# TODO: log the request on this view. HTTP_Referer, searchUrl, searchText, HTTP_USER_AGENT, catalogueId
+
+@method_decorator(csrf_exempt, name="dispatch")
+class MapBenderSearchApi(View):
+
+    def dispatch(self, request: HttpRequest, *args: os.Any, **kwargs: os.Any) -> HttpResponse:
+        self.start_time = datetime.datetime.now()
+        response = super().dispatch(request, *args, **kwargs)
+        return response
+
+    def build_ogc_filter(self):
+        pass
+
+    def get(self, request: HttpRequest, *args: os.Any, **kwargs: os.Any) -> HttpResponse:
+        search_text = request.GET.get("searchText")
+        catalogue_id = request.GET.get("catalogueId")
+        # validate tot wms,wfs,wmc,georss
+        search_resources = request.GET.get("searchResources")
+        target = request.GET.get("target")
+        # example: &searchBbox=7.18159618172,50.2823608933,7.26750846535,50.3502633407
+        search_bbox = request.GET.get("searchBbox")
+        search_type_bbox = request.GET.get(
+            "searchTypeBbox")  # inside / outside
+        language_code = request.GET.get("languageCode")
+        output_format = request.GET.get("outputFormat")
+        search_pages = request.GET.get("searchPages")
+
+        self.stop_time = datetime.datetime.now()
+
+        del_link_search_text = [f"{key}=*" if key == "searchText" else f"{
+            key}={value}" for key, value in request.GET.items()].join("&")
+        del_link_search_resources = [f"{key}={value}" if key != "searchResources" else f"{
+            key}={value}" for key, value in request.GET.items()].join("&")
+
+        data = {
+            "dataset": {
+                "md": {
+                    "nresults": 0,  # TODO
+                    "p": 1,  # TODO
+                    "rpp": 10,
+                    "genTime": self.stop_time - self.start_time,
+                },
+                "srv": [
+
+                ]
+            },
+            "searchFilter": {
+                "origUrl": [f"{key}={value}" for key, value in request.GET.items()].join("&"),
+                "searchText": {
+                    "title": "Suchbegriff(e):",
+                    "delLink": del_link_search_text,
+                    "item": [
+                        {
+                            "title": "wald",  # TODO
+                            "delLink": del_link_search_text,
+                        }
+                    ]
+                },
+                "searchResources": {
+                    "title": "Art der Ressource:",
+                    "delLink": del_link_search_resources,
+                    "item": [
+                        {
+                            "title": "Datensätze",  # TODO
+                            "delLink": del_link_search_resources,
+                        }
+                    ]
+                }
+            }
+        }
+
+        JsonResponse(data)
+
+        response = super().get(request, *args, **kwargs)
+
+        return response

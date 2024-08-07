@@ -1,21 +1,21 @@
 import os
 from itertools import chain
-from django.urls import reverse
-from requests import Request, Session
 
 from csw.exceptions import InvalidQuery, NotSupported
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import FieldError
 from django.db import transaction
+from django.db.models import Prefetch
 from django.db.models.aggregates import Count
 from django.db.models.functions import datetime
 from django.db.models.query_utils import Q
 from django.http import HttpResponse, JsonResponse
 from django.http.request import HttpRequest as HttpRequest
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from eulxml.xmlmap import load_xmlobject_from_file
+from eulxml.xmlmap import load_xmlobject_from_file, load_xmlobject_from_string
 from lxml.etree import XMLSyntaxError
 from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
@@ -26,18 +26,19 @@ from ows_lib.xml_mapper.xml_responses.csw.achnowledgment import Acknowledgement
 from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
     GetRecordsResponse as GetRecordByIdResponse
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
-from mrmap.MrMap import settings
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
+from registry.models.service import CatalogueService as DBCatalogueService
+from registry.models.service import CatalogueServiceOperationUrl
 from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
                                            OperationNotSupportedException)
+from requests import Request, Session
 
-from registry.models.service import CatalogueService as DBCatalogueService, CatalogueServiceOperationUrl
-from django.db.models import Prefetch
+from mrmap.MrMap import settings
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -330,7 +331,44 @@ class MapBenderSearchApi(View):
         response = super().dispatch(request, *args, **kwargs)
         return response
 
+    def build_cql_filter(self):
+        # TODO: implement , seperated search values
+        search_text = self.request.GET.get("searchText")
+        if search_text == "*":
+            search_text = ""
+        any_text_filters = search_text.split(",")
+
+        cql_filter_expr = ""
+
+        for any_text in any_text_filters:
+            if cql_filter_expr != "":
+                cql_filter_expr += f"OR AnyText LIKE '{any_text}'"
+            else:
+                cql_filter_expr += f"AnyText LIKE '{any_text}'"
+
+        # example: &searchBbox=7.18159618172,50.2823608933,7.26750846535,50.3502633407
+        search_bbox = self.request.GET.get("searchBbox")
+        if search_bbox:
+            # TODO: the_geom col name need to be checked by capabilitites of the remote csw to set the corret geometry col
+            if cql_filter_expr != "":
+                cql_filter_expr += f"AND BBOX(the_geom, {search_bbox})"
+            else:
+                cql_filter_expr += f"BBOX(the_geom, {search_bbox})"
+
+        # TODO: implement inside or outside bbox as cql filter
+        # search_type_bbox = request.GET.get(
+        #    "searchTypeBbox")  # inside / outside
+
+        # TODO: implement or filter for hierachy levels
+        # search_resources = self.request.GET.get("searchResources")  # dataset
+
+        # TODO:
+        # language_code = request.GET.get("languageCode")
+        return cql_filter_expr
+
     def remote_search(self):
+        srv = []
+
         try:
             get_records_url = CatalogueServiceOperationUrl.object.get(
                 service=DBCatalogueService.objects.get(pk=self.catalogue_id),
@@ -338,32 +376,10 @@ class MapBenderSearchApi(View):
                 method=HttpMethodEnum.GET,
                 mime_types__contains=["application/xml"]
             )
-            # TODO: implement , seperated search values
-            search_text = self.request.GET.get("searchText")
-            if search_text == "*":
-                search_text = ""
-            search_variables = search_text.split(",")
 
-            # TODO: implement additional geometry filter
-            # example: &searchBbox=7.18159618172,50.2823608933,7.26750846535,50.3502633407
-            # search_bbox = request.GET.get("searchBbox")
-            # search_type_bbox = request.GET.get(
-            #    "searchTypeBbox")  # inside / outside
+            search_pages = self.request.GET.get("searchPages", 1)
+            max_results = self.request.GET.get("maxResults", 10)
 
-            # TODO: implement or filter for hierachy levels
-            # search_resources = self.request.GET.get("searchResources")  # dataset
-
-            # TODO:
-            # language_code = request.GET.get("languageCode")
-
-            # TODO: current page
-            # search_pages = request.GET.get("searchPages")
-
-            # TODO: max/page
-            # max_results = request.GET.get("maxResults")
-
-            # TODO: implement multiple search filters by OR condition
-            cql_filter_expr = f"AnyText LIKE '{search_text}'"
             csw_request = Request(
                 method="GET",
                 url=get_records_url,
@@ -372,17 +388,45 @@ class MapBenderSearchApi(View):
                     "SERVICE": "CSW",
                     "VERSION": "2.0.2",
                     "contraintLanguage": "CQL_TEXT",
-                    "constraint": f"AnyText LIKE '{search_text}'",
+                    "constraint": self.build_cql_filter(),
                     "typeNames": "gmd:MD_Metadata",
                     "RESULTTYPE": "full",
                     "outputschema": "http://www.isotc211.org/2005/gmd",
+                    "maxRecords": max_results,
+                    "startPosition": (search_pages * max_results) - max_results + 1
                 }
             )
+
             session = Session()
             session.proxies = settings.PROXIES
             gmd_metadata_response = session.send(csw_request.prepare())
 
-            # TODO: parse every returned gmd_metadata and transform it to MapBenderSearchApi JSON srv array
+            if gmd_metadata_response.status_code >= 200 and gmd_metadata_response.status_code < 400:
+                parsed_get_records: GetRecordsResponse = load_xmlobject_from_string(
+                    gmd_metadata_response.content, GetRecordsResponse)
+
+                for gmd_metadata in parsed_get_records.gmd_records:
+                    srv.append({
+                        "id": "TODO",
+                        "date": gmd_metadata.date_stamp,
+                        "datasetId": "TODO",
+                        "previewUrl": "TODO",
+                        "respOrg": gmd_metadata.child,
+                        "bbox": gmd_metadata.bounding_geometry.bbox,
+                        "title": gmd_metadata.title,
+                        "abstract": gmd_metadata.abstract,
+                        "mdLink": "TODO",
+                        "htmlLink": "TODO",
+                    })
+                return {
+                    "md": {
+                        "nresults": parsed_get_records.total_records,
+                        "p": self.request.GET.get("searchPages", 1),
+                        "rpp": self.request.GET.get("maxResults", 10),
+                        "genTime": self.stop_time - self.start_time,
+                    },
+                    "srv": srv
+                }
         except DBCatalogueService.DoesNotExist:
             # TODO: response with error code
             pass
@@ -393,10 +437,17 @@ class MapBenderSearchApi(View):
         return True if self.catalogue_id else False
 
     def get(self, request: HttpRequest, *args: os.Any, **kwargs: os.Any) -> HttpResponse:
-        if self.is_remote_search:
-            self.remote_search()
-
         self.stop_time = datetime.datetime.now()
+        dataset = {
+            "md": {
+                "nresults": 0,
+                "p": 0,
+                "rpp": self.request.GET.get("maxResults", 10),
+                "genTime": 0,
+            }
+        }
+        if self.is_remote_search:
+            dataset = self.remote_search()
 
         del_link_search_text = [f"{key}=*" if key == "searchText" else f"{
             key}= {value}" for key, value in request.GET.items()].join(" &")
@@ -404,17 +455,7 @@ class MapBenderSearchApi(View):
             key}= {value}" for key, value in request.GET.items()].join(" &")
 
         data = {
-            "dataset": {
-                "md": {
-                    "nresults": 0,  # TODO: maxresults count
-                    "p": 1,  # TODO: current page number
-                    "rpp": 10,  # TODO: rows per page
-                    "genTime": self.stop_time - self.start_time,
-                },
-                "srv": [
-
-                ]
-            },
+            "dataset": dataset,
             "searchFilter": {
                 "origUrl": [f"{key}={value}" for key, value in request.GET.items()].join("&"),
                 "searchText": {
@@ -427,7 +468,6 @@ class MapBenderSearchApi(View):
                         }
                     ]
                 },
-
                 "searchResources": {
                     "title": "Art der Ressource:",
                     "delLink": del_link_search_resources,

@@ -1,8 +1,10 @@
 import os
 from itertools import chain
+from typing import Any
 
 from csw.exceptions import InvalidQuery, NotSupported
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.search import SearchQuery
 from django.core.exceptions import FieldError
 from django.db import transaction
 from django.db.models import Prefetch
@@ -38,7 +40,7 @@ from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            OperationNotSupportedException)
 from requests import Request, Session
 
-from mrmap.MrMap import settings
+from MrMap import settings
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -210,8 +212,7 @@ class CswServiceView(View):
             return InvalidQuery(
                 ogc_request=self.ogc_request,
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
-                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {
-                    ', '.join(available_fields)}"
+                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"
             )
 
         # contact_stats = MetadataContact.objects.filter(
@@ -326,17 +327,20 @@ class CswServiceView(View):
 @method_decorator(csrf_exempt, name="dispatch")
 class MapBenderSearchApi(View):
 
-    def dispatch(self, request: HttpRequest, *args: os.Any, **kwargs: os.Any) -> HttpResponse:
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         self.start_time = datetime.datetime.now()
         response = super().dispatch(request, *args, **kwargs)
         return response
 
-    def build_cql_filter(self):
+    def get_search_text_filter(self):
         # TODO: implement , seperated search values
         search_text = self.request.GET.get("searchText")
         if search_text == "*":
             search_text = ""
-        any_text_filters = search_text.split(",")
+        return search_text.split(",")
+
+    def build_cql_filter(self):
+        any_text_filters = self.get_search_text_filter()
 
         cql_filter_expr = ""
 
@@ -431,28 +435,76 @@ class MapBenderSearchApi(View):
             # TODO: response with error code
             pass
 
+    def local_search(self):
+        dataset_metadata_records = SearchableDatasetMetadataRecord.objects.all()
+        service_metadata_records = SearchableServiceMetadataRecord.objects.all()
+        any_text_filters = self.get_search_text_filter()
+        search_query = SearchQuery()
+        for any_text in any_text_filters:
+            search_query |= SearchQuery(any_text)
+
+        dataset_metadata_records_result = dataset_metadata_records.filter(
+            search_vector=search_query).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
+        service_metadata_records_result = service_metadata_records.filter(
+            search_vector=search_query).only("xml_backup_file", "pk", "date_stamp", "bounding_geometry", "title", "abstract",)
+
+        total_records = dataset_metadata_records_result.count(
+        ) + service_metadata_records_result.count()
+
+        search_pages = int(self.request.GET.get("searchPages", 1) or 1)
+        max_records = int(self.request.GET.get("maxResults", 10) or 10)
+        start_position = search_pages * max_records - max_records
+
+        heap_count = start_position + max_records
+
+        result_list = sorted(
+            chain(dataset_metadata_records_result[start_position: heap_count],
+                  service_metadata_records_result[start_position: heap_count]),
+            # TODO: order by correct querparameter
+            key=lambda instance: instance.pk
+        )
+
+        result = result_list[start_position: heap_count]
+        srv = []
+        for record in result:
+            gmd_metadata = record.xml_backup
+            srv.append({
+                "id": record.pk,
+                "date": gmd_metadata.date_stamp,
+                "datasetId": "TODO",
+                "previewUrl": "TODO",
+                "respOrg": gmd_metadata.child,
+                "bbox": gmd_metadata.bounding_geometry.bbox,
+                "title": gmd_metadata.title,
+                "abstract": gmd_metadata.abstract,
+                "mdLink": "TODO",
+                "htmlLink": "TODO",
+            })
+        return {
+            "md": {
+                "nresults": total_records,
+                "p": search_pages,
+                "rpp": max_records,
+                "genTime": 0,
+            },
+            "srv": srv
+        }
+
     @property
     def is_remote_search(self):
         self.catalogue_id = self.request.GET.get("catalogueId")
         return True if self.catalogue_id else False
 
-    def get(self, request: HttpRequest, *args: os.Any, **kwargs: os.Any) -> HttpResponse:
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         self.stop_time = datetime.datetime.now()
-        dataset = {
-            "md": {
-                "nresults": 0,
-                "p": 0,
-                "rpp": self.request.GET.get("maxResults", 10),
-                "genTime": 0,
-            }
-        }
+
         if self.is_remote_search:
             dataset = self.remote_search()
+        else:
+            dataset = self.local_search()
 
-        del_link_search_text = [f"{key}=*" if key == "searchText" else f"{
-            key}= {value}" for key, value in request.GET.items()].join(" &")
-        del_link_search_resources = [f"{key}={value}" if key != "searchResources" else f"{
-            key}= {value}" for key, value in request.GET.items()].join(" &")
+        del_link_search_text = [f"{key}=*" if key == "searchText" else f"{key} = {value}" for key, value in request.GET.items()].join(" &")
+        del_link_search_resources = [f"{key}={value}" if key != "searchResources" else f"{key} = {value}" for key, value in request.GET.items()].join(" &")
 
         data = {
             "dataset": dataset,
@@ -492,8 +544,4 @@ class MapBenderSearchApi(View):
             }
         }
 
-        JsonResponse(data)
-
-        response = super().get(request, *args, **kwargs)
-
-        return response
+        return JsonResponse(data)

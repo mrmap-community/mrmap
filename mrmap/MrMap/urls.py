@@ -15,7 +15,7 @@ Including another URLconf
 """
 
 from accounts.views.auth import LoginView, LogoutView
-from csw.views import CswServiceView
+from csw.views import CswServiceView, MapBenderSearchApi
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
@@ -69,6 +69,12 @@ urlpatterns = [
         "csw",
         CswServiceView.as_view(),
         name="csw-endpoint"
+    ),
+
+    path(
+        "mapbender/search",
+        MapBenderSearchApi.as_view(),
+        name="mapbender-search"
     )
 
 ]

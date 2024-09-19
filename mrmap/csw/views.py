@@ -7,18 +7,17 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.search import SearchQuery
 from django.core.exceptions import FieldError
 from django.db import transaction
-from django.db.models import Prefetch
 from django.db.models.aggregates import Count
 from django.db.models.functions import datetime
 from django.db.models.query_utils import Q
 from django.http import HttpResponse, JsonResponse
 from django.http.request import HttpRequest as HttpRequest
-from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from eulxml.xmlmap import load_xmlobject_from_file, load_xmlobject_from_string
 from lxml.etree import XMLSyntaxError
+from MrMap import settings
 from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
                                                         ServiceMetadataContact)
@@ -39,8 +38,6 @@ from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
                                            MissingServiceParameterException,
                                            OperationNotSupportedException)
 from requests import Request, Session
-
-from MrMap import settings
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -212,7 +209,7 @@ class CswServiceView(View):
             return InvalidQuery(
                 ogc_request=self.ogc_request,
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
-                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"
+                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"  # nopep8
             )
 
         # contact_stats = MetadataContact.objects.filter(
@@ -326,6 +323,10 @@ class CswServiceView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class MapBenderSearchApi(View):
+    """
+    example requests:
+    http://localhost:8001/mapbender/search?searchText=wald&catalogueId=4&searchResources=dataset&target=webclient
+    """
 
     def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         self.start_time = datetime.datetime.now()
@@ -374,7 +375,7 @@ class MapBenderSearchApi(View):
         srv = []
 
         try:
-            get_records_url = CatalogueServiceOperationUrl.object.get(
+            get_records_url = CatalogueServiceOperationUrl.objects.get(
                 service=DBCatalogueService.objects.get(pk=self.catalogue_id),
                 operation=OGCOperationEnum.GET_RECORDS,
                 method=HttpMethodEnum.GET,
@@ -503,13 +504,13 @@ class MapBenderSearchApi(View):
         else:
             dataset = self.local_search()
 
-        del_link_search_text = [f"{key}=*" if key == "searchText" else f"{key} = {value}" for key, value in request.GET.items()].join(" &")
-        del_link_search_resources = [f"{key}={value}" if key != "searchResources" else f"{key} = {value}" for key, value in request.GET.items()].join(" &")
+        del_link_search_text = "&".join([f"{key}=*" if key == "searchText" else f"{key}={value}" for key, value in request.GET.items()])  # nopep8
+        del_link_search_resources = "&".join([f"{key}={value}" if key != "searchResources" else f"{key}={value}" for key, value in request.GET.items()])  # nopep8
 
         data = {
-            "dataset": dataset,
+            "dataset": dataset or [],
             "searchFilter": {
-                "origUrl": [f"{key}={value}" for key, value in request.GET.items()].join("&"),
+                "origUrl": "&".join([f"{key}={value}" for key, value in request.GET.items()]),
                 "searchText": {
                     "title": "Suchbegriff(e):",
                     "delLink": del_link_search_text,

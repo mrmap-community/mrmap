@@ -15,13 +15,14 @@ Including another URLconf
 """
 
 from accounts.views.auth import LoginView, LogoutView
-from csw.views import CswServiceView, MapBenderSearchApi
+from csw.views import CswServiceView
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.cache import cache_page
 from drf_spectacular.views import (SpectacularJSONAPIView,
                                    SpectacularSwaggerView)
+from mapbender_compatibility.views import MapBenderSearchApi
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView

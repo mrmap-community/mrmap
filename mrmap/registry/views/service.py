@@ -195,7 +195,7 @@ class WebMapServiceViewSet(
         background_process = BackgroundProcess.objects.create(
             phase="Background process created",
             process_type=ProcessNameEnum.REGISTERING.value,
-            description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'
+            description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
         )
 
         return {
@@ -571,6 +571,21 @@ class CatalogueServiceViewSetMixin(
         'abstract': ['exact', 'icontains', 'contains']
     }
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
+    select_for_includes = {
+        "service_contact": ["service_contact"],
+        "metadata_contact": ["metadata_contact"],
+    }
+    prefetch_for_includes = {
+        "keywords": ["keywords"],
+        "operation_urls": [
+            Prefetch(
+                "operation_urls",
+                queryset=CatalogueServiceOperationUrl.objects.select_related(
+                    "service"
+                ).prefetch_related("mime_types"),
+            )
+        ],
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
 
@@ -605,6 +620,11 @@ class CatalogueServiceViewSetMixin(
         if not include or "keywords" not in include:
             qs = qs.prefetch_related(
                 Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "harvestedDatasets" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("registry_datasetmetadatarecord_metadata_records",
+                         queryset=DatasetMetadataRecord.objects.only("id"))
             )
         if not include or "operationUrls" not in include:
             qs = qs.prefetch_related(

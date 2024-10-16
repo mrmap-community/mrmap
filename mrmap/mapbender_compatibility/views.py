@@ -4,7 +4,6 @@ from urllib import parse
 
 from django.contrib.postgres.search import SearchQuery
 from django.db.models.functions import datetime
-from django.db.models.query_utils import Q
 from django.http import HttpResponse, JsonResponse
 from django.http.request import HttpRequest as HttpRequest
 from django.utils.decorators import method_decorator
@@ -26,6 +25,7 @@ class MapBenderSearchApi(View):
     """
     example requests:
     http://localhost:8001/mapbender/search?searchText=wald&catalogueId=4&searchResources=dataset&target=webclient
+    http://localhost:8001/mapbender/search?searchText=wald&catalogueId=4&searchResources=dataset&target=webclient&searchBbox=7.18159618172,50.2823608933,7.26750846535,50.3502633407
     """
 
     def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:

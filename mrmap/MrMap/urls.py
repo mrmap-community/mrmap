@@ -22,6 +22,7 @@ from django.urls import include, path
 from django.views.decorators.cache import cache_page
 from drf_spectacular.views import (SpectacularJSONAPIView,
                                    SpectacularSwaggerView)
+from mapbender_compatibility.views import MapBenderSearchApi
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
@@ -69,6 +70,12 @@ urlpatterns = [
         "csw",
         CswServiceView.as_view(),
         name="csw-endpoint"
+    ),
+
+    path(
+        "mapbender/search",
+        MapBenderSearchApi.as_view(),
+        name="mapbender-search"
     )
 
 ]

@@ -177,7 +177,7 @@ class LayerSerializer(
         reference_systems: List[ReferenceSystem] = []
         dimensions: List[Dimension] = []
         styles: List[Style] = []
-        for layer in instance.anchestors_include_self:
+        for layer in instance.ancestors_include_self:
             for crs in layer.get("reference_systems_inherited", []):
                 reference_systems.append(ReferenceSystem(**crs))
             for dimension in layer.get("dimensions_inherited", []):

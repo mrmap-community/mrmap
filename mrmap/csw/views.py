@@ -1,5 +1,6 @@
 import os
 from itertools import chain
+from typing import Any
 
 from csw.exceptions import InvalidQuery, NotSupported
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -9,6 +10,7 @@ from django.db.models.aggregates import Count
 from django.db.models.functions import datetime
 from django.db.models.query_utils import Q
 from django.http import HttpResponse
+from django.http.request import HttpRequest as HttpRequest
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
@@ -201,7 +203,7 @@ class CswServiceView(View):
             return InvalidQuery(
                 ogc_request=self.ogc_request,
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
-                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"
+                message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"  # nopep8
             )
 
         # contact_stats = MetadataContact.objects.filter(

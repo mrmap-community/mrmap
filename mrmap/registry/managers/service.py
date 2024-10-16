@@ -645,7 +645,7 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         from registry.models.security import AllowedWebMapServiceOperation
 
         return self.get_queryset().annotate(
-            anchestors_include_self=ArraySubquery(
+            ancestors_include_self=ArraySubquery(
                 (
                     self.get_ancestors_per_layer(include_self=True)
                     .prefetch_related(

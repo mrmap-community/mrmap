@@ -66,7 +66,7 @@ channels-redis==4.1.0
 odin==2.9.0
 
 
-drf-spectacular-jsonapi==0.4.1
+drf-spectacular-jsonapi==0.5.2
 
 django-ows-lib==0.15.0
 

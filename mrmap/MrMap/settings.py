@@ -536,7 +536,7 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": (
         "rest_framework_json_api.filters.QueryParameterValidationFilter",
         "rest_framework_json_api.filters.OrderingFilter",
-        "extras.filters.CustomDjangoFilterBackend",
+        "rest_framework_json_api.django_filters.backends.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
     ),
     "SEARCH_PARAM": "filter[search]",

@@ -39,7 +39,7 @@ gunicorn==23.0.0
 # asgi application server
 uvicorn==0.32.0
 # adds rest based views
-djangorestframework==3.15.2
+djangorestframework==3.14.0
 # adds geojson filters
 djangorestframework-gis==1.1
 # adds jsonapi implementation on top of django rest framework

@@ -19,6 +19,7 @@ class WebMapServiceFilterSet(FilterSet):
     class Meta:
         model = WebMapService
         fields = {
+            'id': ['exact', 'icontains', 'contains', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains']
         }

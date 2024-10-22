@@ -16,7 +16,10 @@ class HarvestingJobViewSet(
     HarvestingJobViewSetMixin,
     ModelViewSet
 ):
-    pass
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'service__id': ['exact', 'icontains', 'contains', 'in'],
+    }
 
 
 class NestedHarvestingJobViewSet(

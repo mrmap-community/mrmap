@@ -21,6 +21,7 @@ class UserViewSetMixin():
     ordering_fields = ["id", "username", "first_name",
                        "last_name", "email", "is_active", "date_joined"]
     filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
         'username': ['exact', 'icontains', 'contains'],
         'first_name': ['exact', 'icontains', 'contains'],
         'last_name': ['exact', 'icontains', 'contains'],

@@ -54,6 +54,7 @@ class LayerFilterSet(GeoFilterSet):
     class Meta:
         model = Layer
         fields = {
+            'id': ['exact', 'icontains', 'contains', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains'],
             'identifier': ['exact', 'icontains', 'contains'],
@@ -85,6 +86,7 @@ class WebFeatureServiceFilterSet(GeoFilterSet):
     class Meta:
         model = WebFeatureService
         fields = {
+            'id': ['exact', 'icontains', 'contains', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains']
         }
@@ -103,6 +105,7 @@ class FeatureTypeFilterSet(GeoFilterSet):
     class Meta:
         model = FeatureType
         fields = {
+            'id': ['exact', 'icontains', 'contains', 'in'],
             'title': ['exact', 'icontains', 'contains'],
             'abstract': ['exact', 'icontains', 'contains']
         }

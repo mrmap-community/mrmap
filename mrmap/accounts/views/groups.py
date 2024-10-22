@@ -9,6 +9,10 @@ from rest_framework_json_api.views import ModelViewSet
 class GroupViewSetMixin():
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'name': ['exact', 'icontains', 'contains'],
+    }
 
     def get_queryset(self):
         queryset = super(GroupViewSetMixin, self).get_queryset()

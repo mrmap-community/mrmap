@@ -567,6 +567,7 @@ class CatalogueServiceViewSetMixin(
     }
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
         'title': ['exact', 'icontains', 'contains'],
         'abstract': ['exact', 'icontains', 'contains']
     }

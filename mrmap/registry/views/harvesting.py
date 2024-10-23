@@ -10,16 +10,18 @@ class HarvestingJobViewSetMixin():
     queryset = HarvestingJob.objects.all()
     serializer_class = HarvestingJobSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    ordering_fields = ["id"]
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'service__id': ['exact', 'icontains', 'contains', 'in'],
+    }
 
 
 class HarvestingJobViewSet(
     HarvestingJobViewSetMixin,
     ModelViewSet
 ):
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
-        'service__id': ['exact', 'icontains', 'contains', 'in'],
-    }
+    pass
 
 
 class NestedHarvestingJobViewSet(

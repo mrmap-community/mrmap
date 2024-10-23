@@ -3,6 +3,7 @@ from django.db.models.query import Prefetch
 from extras.serializers import StringRepresentationSerializer
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
+                                      WebFeatureServiceAuthentication,
                                       WebFeatureServiceOperation,
                                       WebMapServiceAuthentication,
                                       WebMapServiceOperation)
@@ -34,6 +35,16 @@ class WebMapServiceOperationSerializer(
 
     class Meta:
         model = WebMapServiceOperation
+        fields = '__all__'
+
+
+class WebFeatureServiceAuthenticationSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:wfsauth-detail',
+    )
+
+    class Meta:
+        model = WebFeatureServiceAuthentication
         fields = '__all__'
 
 

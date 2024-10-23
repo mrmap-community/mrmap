@@ -3,6 +3,7 @@ from django.db.models.query import Prefetch
 from extras.viewsets import NestedModelViewSet
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
+                                      WebFeatureServiceAuthentication,
                                       WebFeatureServiceOperation,
                                       WebMapServiceAuthentication,
                                       WebMapServiceOperation)
@@ -10,6 +11,7 @@ from registry.models.service import Layer, WebMapService
 from registry.serializers.security import (
     AllowedWebFeatureServiceOperationSerializer,
     AllowedWebMapServiceOperationSerializer,
+    WebFeatureServiceAuthenticationSerializer,
     WebFeatureServiceOperationSerializer,
     WebMapServiceAuthenticationSerializer, WebMapServiceOperationSerializer)
 from rest_framework.permissions import DjangoObjectPermissions
@@ -24,14 +26,14 @@ class WebMapServiceAuthenticationViewSetMixin():
 
 class WebMapServiceAuthenticationViewSet(
     WebMapServiceAuthenticationViewSetMixin,
-    ReadOnlyModelViewSet
+    ModelViewSet
 ):
     pass
 
 
 class NestedWebMapServiceAuthenticationViewSet(
-        WebMapServiceAuthenticationViewSetMixin,
-        NestedModelViewSet
+    WebMapServiceAuthenticationViewSetMixin,
+    NestedModelViewSet
 ):
     pass
 
@@ -62,6 +64,26 @@ class WebFeatureServiceOperationViewSetMixin():
     serializer_class = WebFeatureServiceOperationSerializer
     search_fields = ('operation', )
     ordering_fields = ["operation"]
+
+
+class WebFeatureServiceAuthenticationViewSetMixin():
+    queryset = WebFeatureServiceAuthentication.objects.all()
+    serializer_class = WebFeatureServiceAuthenticationSerializer
+    search_fields = ('username', 'service__title', 'service__id')
+
+
+class WebFeatureServiceAuthenticationViewSet(
+    WebFeatureServiceAuthenticationViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedFeatureServiceAuthenticationViewSet(
+        WebFeatureServiceAuthenticationViewSetMixin,
+        NestedModelViewSet
+):
+    pass
 
 
 class WebFeatureServiceOperationViewSet(

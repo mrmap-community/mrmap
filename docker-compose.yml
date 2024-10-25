@@ -106,11 +106,12 @@ services:
     cap_add:
       - SYS_PTRACE
     healthcheck:
-      test: celery -A MrMap inspect -d celery-worker reserved || exit 1
-      interval: 15s
+      test: celery -A MrMap inspect ping || exit 1
+      interval: 1m
       timeout: 10s
-      retries: 1
-      start_period: 15s
+      retries: 3
+      start_period: 40s
+
     restart: always
 
   celery-beat:

@@ -438,6 +438,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                         help_text=_("If the metadata record is customized, this flag is True"))
     insufficient_quality = models.TextField(default="",
                                             blank=True,
+                                            editable=False,
                                             help_text=_("TODO"))
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),

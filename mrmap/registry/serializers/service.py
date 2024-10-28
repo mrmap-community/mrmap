@@ -82,16 +82,21 @@ class LayerSerializer(
     bbox = GeometryField(
         source="bbox_lat_lon",
         label=_("bbox_l_l"),
-        help_text=_("this is the spatial extent of the layer."))
+        help_text=_("this is the spatial extent of the layer."),
+        read_only=True,
+    )
 
     bbox_lat_lon = GeometryField(
         source="bbox_inherited",
         label=_("bbox"),
         help_text=_("this is the spatial extent of the layer."),
+        read_only=True,
         auto_bbox=True)
+
     is_queryable = BooleanField(
         source="is_queryable_inherited",
         label=_("is queryable"),
+        read_only=True,
         help_text=_(
             "flag to signal if this layer provides factual information or not."
             " Parsed from capabilities."
@@ -100,6 +105,7 @@ class LayerSerializer(
     is_opaque = BooleanField(
         source="is_opaque_inherited",
         label=_("is opaque"),
+        read_only=True,
         help_text=_(
             "flag to signal if this layer support transparency content or not. "
             "Parsed from capabilities."
@@ -108,6 +114,7 @@ class LayerSerializer(
     is_cascaded = BooleanField(
         source="is_cascaded_inherited",
         label=_("is cascaded"),
+        read_only=True,
         help_text=_(
             "WMS cascading allows to expose layers coming from other WMS servers "
             "as if they were local layers"
@@ -116,10 +123,12 @@ class LayerSerializer(
     scale_min = IntegerField(
         source="scale_min_inherited",
         label=_("minimal scale"),
+        read_only=True,
         help_text=_("the minimum scale value."))
     scale_max = IntegerField(
         source="scale_max_inherited",
         label=_("maximum scale"),
+        read_only=True,
         help_text=_("the maximum scale value."))
     styles = SerializerMethodResourceRelatedField(
         label=_("styles"),
@@ -148,7 +157,6 @@ class LayerSerializer(
         model=Style,
         many=True,
         read_only=True,
-
     )
     is_spatial_secured = BooleanField(
         label=_("is spatial secured"),

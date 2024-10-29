@@ -43,6 +43,9 @@ class WebMapServiceOperationViewSetMixin():
     serializer_class = WebMapServiceOperationSerializer
     search_fields = ('operation', )
     ordering_fields = ["operation"]
+    filterset_fields = {
+        'operation': ['exact', 'icontains', 'contains', 'in'],
+    }
 
 
 class WebMapServiceOperationViewSet(
@@ -64,6 +67,9 @@ class WebFeatureServiceOperationViewSetMixin():
     serializer_class = WebFeatureServiceOperationSerializer
     search_fields = ('operation', )
     ordering_fields = ["operation"]
+    filterset_fields = {
+        'operation': ['exact', 'icontains', 'contains', 'in'],
+    }
 
 
 class WebFeatureServiceAuthenticationViewSetMixin():

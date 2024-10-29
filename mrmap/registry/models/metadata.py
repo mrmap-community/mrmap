@@ -427,6 +427,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     abstract = models.TextField(verbose_name=_("abstract"),
                                 help_text=_(
                                     "brief summary of the content of this metadata."),
+                                blank=True,
                                 default="")
     is_broken = models.BooleanField(default=False,
                                     editable=False,

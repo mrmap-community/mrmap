@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
 from extras.viewsets import NestedModelViewSet
+from registry.filters.security import AllowedWebMapServiceOperationFilterSet
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
@@ -110,6 +111,14 @@ class AllowedWebMapServiceOperationViewSetMixin():
     queryset = AllowedWebMapServiceOperation.objects.all()
     serializer_class = AllowedWebMapServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]
+
+    filterset_class = AllowedWebMapServiceOperationFilterSet
+
+    search_fields = (
+        "description",
+        "secured_service__title",
+        "secured_layers__title"
+    )
 
     def get_queryset(self):
         qs = super().get_queryset()

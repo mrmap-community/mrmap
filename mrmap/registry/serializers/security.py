@@ -80,9 +80,12 @@ class AllowedWebMapServiceOperationSerializer(
     def validate(self, attrs):
         data = super().validate(attrs)
 
-        secured_service = attrs.get(
-            'secured_service', self.instance.secured_service)
-        # only available on create
+        if self.instance:
+            secured_service = attrs.get(
+                'secured_service', self.instance.secured_service)
+        else:
+            secured_service = attrs.get('secured_service')
+
         secured_layers = attrs.get('secured_layers')
         if secured_layers:
             secured_layer_pks = [

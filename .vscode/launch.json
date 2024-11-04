@@ -19,8 +19,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.11/site-packages",
-                    "remoteRoot": "/opt/venv/lib/python3.11/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.12/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.12/site-packages"
                 }
             ],
             "justMyCode": false
@@ -39,8 +39,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.11/site-packages",
-                    "remoteRoot": "/opt/venv/lib/python3.11/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.12/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.12/site-packages"
                 }
             ],
             "justMyCode": false
@@ -59,8 +59,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.11/site-packages",
-                    "remoteRoot": "/opt/venv/lib/python3.11/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.12/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.12/site-packages"
                 }
             ],
             "justMyCode": false
@@ -79,8 +79,8 @@
                     "remoteRoot": "/opt/mrmap"
                 },
                 {
-                    "localRoot": "${workspaceFolder}/.venv/lib/python3.11/site-packages",
-                    "remoteRoot": "/opt/venv/lib/python3.11/site-packages"
+                    "localRoot": "${workspaceFolder}/.venv/lib/python3.12/site-packages",
+                    "remoteRoot": "/opt/venv/lib/python3.12/site-packages"
                 }
             ],
             "justMyCode": false

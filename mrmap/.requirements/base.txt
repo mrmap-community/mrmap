@@ -43,7 +43,7 @@ djangorestframework==3.14.0
 # adds geojson filters
 djangorestframework-gis==1.1
 # adds jsonapi implementation on top of django rest framework
-djangorestframework-jsonapi==7.0.2
+djangorestframework-jsonapi==7.1.0
 #djangorestframework-jsonapi[django-filter]==7.0.2
 # adds nested rest views registration
 drf-extensions==0.7.1

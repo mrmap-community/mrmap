@@ -1,8 +1,9 @@
 ################################
 # Base build Image
 ################################  
-FROM python:3.11.7-alpine3.18 AS compile-image
+FROM python:3.12.7-alpine3.20 AS compile-image
 ARG MRMAP_PRODUCTION
+
 RUN apk update && \
     apk add --no-cache build-base libressl-dev gdal
 
@@ -19,7 +20,7 @@ RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements
 ################################
 # MrMap Image
 ################################    
-FROM python:3.11.7-alpine3.18 AS runtime-image
+FROM python:3.12.7-alpine3.20 AS runtime-image
 ARG MRMAP_PRODUCTION
 COPY --from=compile-image /opt/venv /opt/venv
 

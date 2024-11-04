@@ -18,6 +18,7 @@ class KeywordViewSetMixin():
     queryset = Keyword.objects.all()
     serializer_class = KeywordSerializer
     filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
         "keyword": ["exact", "icontains", "contains"],
     }
     search_fields = ("keyword",)
@@ -68,10 +69,11 @@ class ReferenceSystemViewSetMixin(SerializerClassesMixin):
         "retrieve": ReferenceSystemRetrieveSerializer,
     }
     filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
         "code": ["exact", "icontains", "contains"],
         "prefix": ["exact", "icontains", "contains"]
     }
-    search_fields = ("code", "prefix")
+    search_fields = ("id", "code", "prefix")
 
 
 class ReferenceSystemViewSet(
@@ -92,10 +94,12 @@ class StyleViewSetMixin():
     queryset = Style.objects.all().select_related("layer")
     serializer_class = StyleSerializer
     filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
         "name": ["exact", "icontains", "contains"],
         "title": ["exact", "icontains", "contains"],
     }
     search_fields = (
+        "id",
         "name",
         "title",
     )
@@ -122,6 +126,7 @@ class DatasetMetadataViewSetMixin:
     queryset = DatasetMetadataRecord.objects.all()
     serializer_class = DatasetMetadataRecordSerializer
     filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
         "title": ["exact", "icontains", "contains"],
         "abstract": ["exact", "icontains", "contains"],
         "keywords__keyword": ["exact", "icontains", "contains"],
@@ -234,6 +239,34 @@ class NestedDatasetMetadataViewSet(
 class MetadataContactViewSetMixin():
     queryset = MetadataContact.objects.all()
     serializer_class = MetadataContactSerializer
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'name': ['exact', 'icontains', 'contains'],
+        'person_name': ['exact', 'icontains', 'contains'],
+        'email': ['exact', 'icontains', 'contains'],
+        'phone': ['exact', 'icontains', 'contains'],
+        'facsimile': ['exact', 'icontains', 'contains'],
+        'city': ['exact', 'icontains', 'contains'],
+        'postal_code': ['exact', 'icontains', 'contains'],
+        'address_type': ['exact', 'icontains', 'contains'],
+        'address': ['exact', 'icontains', 'contains'],
+        'state_or_province': ['exact', 'icontains', 'contains'],
+        'country': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = (
+        "id",
+        "name",
+        "person_name",
+        "email",
+        "phone",
+        "facsimile",
+        "city",
+        "postal_code",
+        "address_type",
+        "address",
+        "state_or_province",
+        "country"
+    )
 
 
 class MetadataContactViewSet(
@@ -255,6 +288,34 @@ class ServiceContactViewSet(
     ModelViewSet
 ):
     resource_name = 'ServiceContact'
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'name': ['exact', 'icontains', 'contains'],
+        'person_name': ['exact', 'icontains', 'contains'],
+        'email': ['exact', 'icontains', 'contains'],
+        'phone': ['exact', 'icontains', 'contains'],
+        'facsimile': ['exact', 'icontains', 'contains'],
+        'city': ['exact', 'icontains', 'contains'],
+        'postal_code': ['exact', 'icontains', 'contains'],
+        'address_type': ['exact', 'icontains', 'contains'],
+        'address': ['exact', 'icontains', 'contains'],
+        'state_or_province': ['exact', 'icontains', 'contains'],
+        'country': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = (
+        "id",
+        "name",
+        "person_name",
+        "email",
+        "phone",
+        "facsimile",
+        "city",
+        "postal_code",
+        "address_type",
+        "address",
+        "state_or_province",
+        "country"
+    )
 
 
 class NestedServiceContactViewSet(
@@ -269,6 +330,34 @@ class DatasetContactViewSet(
     ModelViewSet
 ):
     resource_name = 'DatasetContact'
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'name': ['exact', 'icontains', 'contains'],
+        'person_name': ['exact', 'icontains', 'contains'],
+        'email': ['exact', 'icontains', 'contains'],
+        'phone': ['exact', 'icontains', 'contains'],
+        'facsimile': ['exact', 'icontains', 'contains'],
+        'city': ['exact', 'icontains', 'contains'],
+        'postal_code': ['exact', 'icontains', 'contains'],
+        'address_type': ['exact', 'icontains', 'contains'],
+        'address': ['exact', 'icontains', 'contains'],
+        'state_or_province': ['exact', 'icontains', 'contains'],
+        'country': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = (
+        "id",
+        "name",
+        "person_name",
+        "email",
+        "phone",
+        "facsimile",
+        "city",
+        "postal_code",
+        "address_type",
+        "address",
+        "state_or_province",
+        "country"
+    )
 
 
 class NestedDatasetContactViewSet(

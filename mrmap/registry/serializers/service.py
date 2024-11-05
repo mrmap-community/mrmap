@@ -13,7 +13,8 @@ from registry.models.metadata import (DatasetMetadataRecord, Dimension,
                                       ReferenceSystem, Style)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
-                                      WebMapServiceAuthentication)
+                                      WebMapServiceAuthentication,
+                                      WebMapServiceProxySetting)
 from registry.models.service import (CatalogueService,
                                      CatalogueServiceOperationUrl, FeatureType,
                                      Layer, WebFeatureService,
@@ -301,6 +302,36 @@ class WebMapServiceListSerializer(
         many=True,
         read_only=True,
     )
+    proxy_setting = ResourceRelatedField(
+        model=WebMapServiceProxySetting,
+        related_link_view_name="registry:wms-proxy-settings-list",
+        related_link_url_kwarg="parent_lookup_secured_service",
+        read_only=True
+    )
+    camouflage = BooleanField(
+        label=_("camouflage"),
+        help_text=_(
+            "true means the service only accessable via mrmap proxy"),
+        read_only=True
+    )
+    log_response = BooleanField(
+        label=_("log response"),
+        help_text=_(
+            "true means that all responses via mrmap proxy are detected and logged"),
+        read_only=True
+    )
+    is_secured = BooleanField(
+        label=_("is secured"),
+        help_text=_(
+            "true means the service is secured by a allowed operation object."),
+        read_only=True
+    )
+    is_spatial_secured = BooleanField(
+        label=_("is spatial secured"),
+        help_text=_(
+            "true means the service is spatial secured by a allowed operation object."),
+        read_only=True
+    )
 
     included_serializers = {
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
@@ -424,6 +455,31 @@ class FeatureTypeSerializer(
         "last_modified_by": UserSerializer,
         # TODO: "reference_systems": ReferenceSystemDefaultSerializer
     }
+
+    camouflage = BooleanField(
+        label=_("camouflage"),
+        help_text=_(
+            "true means the service only accessable via mrmap proxy"),
+        read_only=True
+    )
+    log_response = BooleanField(
+        label=_("log response"),
+        help_text=_(
+            "true means that all responses via mrmap proxy are detected and logged"),
+        read_only=True
+    )
+    is_secured = BooleanField(
+        label=_("is secured"),
+        help_text=_(
+            "true means the service is secured by a allowed operation object."),
+        read_only=True
+    )
+    is_spatial_secured = BooleanField(
+        label=_("is spatial secured"),
+        help_text=_(
+            "true means the service is spatial secured by a allowed operation object."),
+        read_only=True
+    )
 
     class Meta:
         model = FeatureType

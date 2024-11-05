@@ -20,6 +20,8 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wms-keywords', parents_query_lookups=['webmapservice_metadata']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
+          .register(r'proxy-settings', security_views.NestedWebMapServiceProxySettingViewSet, basename='wms-proxy-settings', parents_query_lookups=['secured_service']),
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'allowed-wms-operations', security_views.NestedAllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
 
     # historical
@@ -50,6 +52,11 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(
         r'wfs', service_views.WebFeatureServiceViewSet, basename='wfs')
     .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='wfs-keywords', parents_query_lookups=['webfeatureservice_metadata']),
+    router.register(r'wfs', service_views.WebMapServiceViewSet, basename='wms')
+          .register(r'proxy-settings', security_views.NestedWebFeatureServiceProxySettingViewSet, basename='wfs-proxy-settings', parents_query_lookups=['secured_service']),
+
+    router.register(r'wfs', service_views.WebMapServiceViewSet, basename='wms')
+          .register(r'allowed-wms-operations', security_views.NestedAllowedWebFeatureServiceOperationViewSet, basename='wfs-allowedwmsoperation', parents_query_lookups=['secured_service']),
 
     # feature types
     router.register(r'featuretypes',
@@ -138,6 +145,11 @@ router = ExtendedSimpleRouter(trailing_slash=False)
                     security_views.AllowedWebMapServiceOperationViewSet, basename='allowedwmsoperation'),
     router.register(r'security/allowed-wfs-operations',
                     security_views.AllowedWebFeatureServiceOperationViewSet, basename='allowedwfsoperation'),
+
+    router.register(r'security/wms-proxy-settings',
+                    security_views.WebMapServiceProxySettingViewSet, basename='webmapserviceproxysetting'),
+    router.register(r'security/wfs-proxy-settings',
+                    security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting'),
 
     # monitoring
     router.register(r'monitoring/wms-get-capabilities-result',

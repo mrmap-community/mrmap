@@ -5,8 +5,10 @@ from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebFeatureServiceOperation,
+                                      WebFeatureServiceProxySetting,
                                       WebMapServiceAuthentication,
-                                      WebMapServiceOperation)
+                                      WebMapServiceOperation,
+                                      WebMapServiceProxySetting)
 from registry.models.service import Layer
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import ResourceRelatedField
@@ -132,4 +134,28 @@ class AllowedWebFeatureServiceOperationSerializer(
 
     class Meta:
         model = AllowedWebFeatureServiceOperation
+        fields = '__all__'
+
+
+class WebMapServiceProxySettingSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapserviceproxysetting-detail',
+    )
+
+    class Meta:
+        model = WebMapServiceProxySetting
+        fields = '__all__'
+
+
+class WebFeatureServiceProxySettingSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapserviceproxysetting-detail',
+    )
+
+    class Meta:
+        model = WebFeatureServiceProxySetting
         fields = '__all__'

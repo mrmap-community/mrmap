@@ -148,7 +148,7 @@ class WebMapServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebMapServices` from the system
     """
-    queryset = WebMapService.objects.all()
+    queryset = WebMapService.capabilities.with_security_information()
     serializer_classes = {
         "default": WebMapServiceSerializer,
         "list": WebMapServiceListSerializer,
@@ -370,7 +370,7 @@ class WebFeatureServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebFeatureService` from the system
     """
-    queryset = WebFeatureService.objects.all()
+    queryset = WebFeatureService.capabilities.with_security_information()
     serializer_classes = {
         "default": WebFeatureServiceSerializer,
         "create": WebFeatureServiceCreateSerializer,

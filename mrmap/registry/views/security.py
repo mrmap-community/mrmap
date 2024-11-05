@@ -6,15 +6,19 @@ from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebFeatureServiceOperation,
+                                      WebFeatureServiceProxySetting,
                                       WebMapServiceAuthentication,
-                                      WebMapServiceOperation)
-from registry.models.service import Layer, WebMapService
+                                      WebMapServiceOperation,
+                                      WebMapServiceProxySetting)
+from registry.models.service import Layer, WebFeatureService, WebMapService
 from registry.serializers.security import (
     AllowedWebFeatureServiceOperationSerializer,
     AllowedWebMapServiceOperationSerializer,
     WebFeatureServiceAuthenticationSerializer,
     WebFeatureServiceOperationSerializer,
-    WebMapServiceAuthenticationSerializer, WebMapServiceOperationSerializer)
+    WebFeatureServiceProxySettingSerializer,
+    WebMapServiceAuthenticationSerializer, WebMapServiceOperationSerializer,
+    WebMapServiceProxySettingSerializer)
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
@@ -225,5 +229,125 @@ class NestedAllowedWebFeatureServiceOperationViewSet(
 
         list:
             Retrieves all `AllowedWebFeatureServiceOperation` objects
+
+    """
+
+
+class WebMapServiceProxySettingViewSetMixin():
+    queryset = WebMapServiceProxySetting.objects.all()
+    serializer_class = WebMapServiceProxySettingSerializer
+    permission_classes = [DjangoObjectPermissions]
+
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        "camouflage": ["exact", "icontains", "contains"],
+        "log_response": ["exact", "icontains", "contains"],
+        "secured_service__title": ['exact', 'icontains', 'contains'],
+    }
+    search_fields = (
+        "id",
+        "secured_service__title",
+    )
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+
+        if not include or "securedService" not in include:
+            defer = [
+                f"secured_service__{field.name}"
+                for field in WebMapService._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("secured_service").defer(*defer)
+
+        return qs
+
+
+class WebMapServiceProxySettingViewSet(
+        WebMapServiceProxySettingViewSetMixin,
+        ModelViewSet
+):
+    """ Endpoints for resource `WebMapServiceProxySetting`
+        create:
+            Endpoint to create new `WebMapServiceProxySetting` object
+        list:
+            Retrieves all `WebMapServiceProxySetting` objects
+        retrieve:
+            Retrieve one specific `WebMapServiceProxySetting` by the given id
+        partial_update:
+            Endpoint to update some fields of a `WebMapServiceProxySetting`
+
+    """
+
+
+class NestedWebMapServiceProxySettingViewSet(
+        WebMapServiceProxySettingViewSetMixin,
+        NestedModelViewSet
+):
+    """ Nested list endpoint for resource `WebMapServiceProxySetting`
+
+        list:
+            Retrieves all `WebMapServiceProxySetting` objects
+
+    """
+
+
+class WebFeatureServiceProxySettingViewSetMixin():
+    queryset = WebFeatureServiceProxySetting.objects.all()
+    serializer_class = WebFeatureServiceProxySettingSerializer
+    permission_classes = [DjangoObjectPermissions]
+
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        "camouflage": ["exact", "icontains", "contains"],
+        "log_response": ["exact", "icontains", "contains"],
+        "secured_service__title": ['exact', 'icontains', 'contains'],
+    }
+    search_fields = (
+        "id",
+        "secured_service__title",
+    )
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+
+        if not include or "securedService" not in include:
+            defer = [
+                f"secured_service__{field.name}"
+                for field in WebFeatureService._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("secured_service").defer(*defer)
+
+        return qs
+
+
+class WebFeatureServiceProxySettingViewSet(
+        WebFeatureServiceProxySettingViewSetMixin,
+        ModelViewSet
+):
+    """ Endpoints for resource `WebFeatureServiceProxySetting`
+        create:
+            Endpoint to create new `WebFeatureServiceProxySetting` object
+        list:
+            Retrieves all `WebFeatureServiceProxySetting` objects
+        retrieve:
+            Retrieve one specific `WebFeatureServiceProxySetting` by the given id
+        partial_update:
+            Endpoint to update some fields of a `WebFeatureServiceProxySetting`
+
+    """
+
+
+class NestedWebFeatureServiceProxySettingViewSet(
+        WebFeatureServiceProxySettingViewSetMixin,
+        NestedModelViewSet
+):
+    """ Nested list endpoint for resource `WebFeatureServiceProxySetting`
+
+        list:
+            Retrieves all `WebFeatureServiceProxySetting` objects
 
     """

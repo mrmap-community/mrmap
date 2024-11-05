@@ -11,6 +11,7 @@ from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Exists
+from django.db.models import Value as V
 from django.db.models.expressions import F, OuterRef, Subquery, Value
 from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
@@ -302,6 +303,27 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                                                    db_service=db_service)
         return db_service
 
+    def with_security_information(self):
+        from registry.models.security import AllowedWebMapServiceOperation
+
+        return self.get_queryset().annotate(
+            camouflage=Coalesce(
+                F("proxy_setting__camouflage"), V(False)),
+            log_response=Coalesce(
+                F("proxy_setting__log_response"), V(False)),
+            is_secured=Exists(
+                AllowedWebMapServiceOperation.objects.filter(
+                    secured_service__id__exact=OuterRef("pk"),
+                )
+            ),
+            is_spatial_secured=Exists(
+                AllowedWebMapServiceOperation.objects.filter(
+                    secured_service__id__exact=OuterRef("pk"),
+                    allowed_area__isnull=False
+                )
+            )
+        )
+
 
 class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Manager):
     def _create_service_instance(self, parsed_service):
@@ -419,6 +441,27 @@ class WebFeatureServiceCapabilitiesManager(TransientObjectsManagerMixin, models.
             self._create_feature_types_and_related_objects(parsed_service=parsed_service,
                                                            db_service=db_service)
         return db_service
+
+    def with_security_information(self):
+        from registry.models.security import AllowedWebFeatureServiceOperation
+
+        return self.get_queryset().annotate(
+            camouflage=Coalesce(
+                F("proxy_setting__camouflage"), V(False)),
+            log_response=Coalesce(
+                F("proxy_setting__log_response"), V(False)),
+            is_secured=Exists(
+                AllowedWebFeatureServiceOperation.objects.filter(
+                    secured_service__id__exact=OuterRef("pk"),
+                )
+            ),
+            is_spatial_secured=Exists(
+                AllowedWebFeatureServiceOperation.objects.filter(
+                    secured_service__id__exact=OuterRef("pk"),
+                    allowed_area__isnull=False
+                )
+            )
+        )
 
 
 class CatalogueServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Manager):
@@ -706,6 +749,11 @@ class LayerManager(DefaultHistoryManager, TreeManager):
             scale_min_inherited=self.get_inherited_scale_min(),
             scale_max_inherited=self.get_inherited_scale_max(),
             bbox_inherited=self.get_inherited_bbox_lat_lon(),
+            is_secured=Exists(
+                AllowedWebMapServiceOperation.objects.filter(
+                    secured_layers__id__exact=OuterRef("pk"),
+                )
+            ),
             is_spatial_secured=Exists(
                 AllowedWebMapServiceOperation.objects.filter(
                     secured_layers__id__exact=OuterRef("pk"),

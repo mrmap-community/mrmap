@@ -438,7 +438,7 @@ class WebMapServiceProxySetting(ProxySetting):
         on_delete=models.CASCADE,
         related_name="proxy_setting",
         related_query_name="proxy_setting",
-        verbose_name=_("proxy settings"),
+        verbose_name=_("service"),
         help_text=_("the security proxy settings for this service."),
     )
 
@@ -449,7 +449,7 @@ class WebFeatureServiceProxySetting(ProxySetting):
         on_delete=models.CASCADE,
         related_name="proxy_setting",
         related_query_name="proxy_setting",
-        verbose_name=_("proxy settings"),
+        verbose_name=_("service"),
         help_text=_("the security proxy settings for this service."),
     )
 

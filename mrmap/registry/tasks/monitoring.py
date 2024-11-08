@@ -162,6 +162,6 @@ def run_wms_monitoring(self, setting_pk, run_pk=None, *args, **kwargs):
             probe_pk=probe.pk, run_pk=run.pk))
 
     # starting checks in parallel mode
-    group(tasks).apply_async()
+    group(tasks).apply_async(link=finish_run.s(run_pk=run.pk))
 
     run.save()

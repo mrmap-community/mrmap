@@ -53,7 +53,7 @@ uritemplate==4.1.1
 redis==5.1.1
 # adds background task processing 
 celery==5.4.0
-# django-celery-beat==2.5.0
+django-celery-beat==2.7.0
 # adds database results for celery tasks
 django-celery-results==2.5.1
 # adds websockets

@@ -1,8 +1,14 @@
-from celery import current_task, shared_task, states
+from datetime import datetime
+from typing import List
+
+from celery import current_task, group, shared_task, states
 from django_celery_results.models import TaskResult
 from registry.exceptions.service import OperationNotSupported
-from registry.models.monitoring import (LayerGetFeatureInfoResult,
+from registry.models.monitoring import (GetCapabilititesProbe, GetMapProbe,
+                                        LayerGetFeatureInfoResult,
                                         LayerGetMapResult,
+                                        WebMapServiceMonitoringRun,
+                                        WebMapServiceMonitoringSetting,
                                         WMSGetCapabilitiesResult)
 from registry.models.service import Layer, WebMapService
 from rest_framework.reverse import reverse
@@ -108,3 +114,51 @@ def check_get_feature_info_operation(self, layer_pk, *args, **kwargs):
             }
         }
     }
+
+
+@shared_task(bind=True)
+def run_get_capabilitites_probe_check(self, probe_pk, run_pk, *args, **kwargs):
+    run = WebMapServiceMonitoringRun.objects.get(pk=run_pk)
+    probe: GetCapabilititesProbe = GetCapabilititesProbe.objects.get(
+        pk=probe_pk)
+    result = probe.run_check(run=run)
+    # TODO: check if this is the last of the group and set date_done
+
+    # run.date_done = datetime.now()
+
+
+def run_get_map_probe_check(self, probe_pk, run_pk, *args, **kwargs):
+    run = WebMapServiceMonitoringRun.objects.get(pk=run_pk)
+    probe: GetMapProbe = GetMapProbe.objects.get(pk=probe_pk)
+    result = probe.run_check(run=run)
+    # TODO: check if this is the last of the group and set date_done
+    # run.date_done = datetime.now()
+
+
+@shared_task(bind=True)
+def run_wms_monitoring(self, setting_pk, run_pk=None, *args, **kwargs):
+    setting: WebMapServiceMonitoringSetting = WebMapServiceMonitoringSetting.objects.prefetch_related(
+        "registry_getcapabilititesprobe", "registry_getmapprobe").get(pk=setting_pk)
+    get_capabilitites_probes: List[GetCapabilititesProbe] = setting.registry_getcapabilititesprobe.all(
+    )
+    get_map_probes: List[GetMapProbe] = setting.registry_getcapabilititesprobe.all(
+    )
+
+    if run_pk:
+        run = WebMapServiceMonitoringRun.objects.get(pk=run_pk)
+    else:
+        run = WebMapServiceMonitoringRun.objects.create(
+            trigger_run_wms_monitoring=False)
+    tasks = []
+    for probe in get_capabilitites_probes:
+        tasks.append(run_get_capabilitites_probe_check.s(
+            probe_pk=probe.pk, run_pk=run.pk))
+
+    for probe in get_map_probes:
+        tasks.append(run_get_map_probe_check.s(
+            probe_pk=probe.pk, run_pk=run.pk))
+
+    # starting checks in parallel mode
+    group(tasks).apply_async()
+
+    run.save()

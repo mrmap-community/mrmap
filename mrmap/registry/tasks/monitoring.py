@@ -121,18 +121,21 @@ def run_get_capabilitites_probe_check(self, probe_pk, run_pk, *args, **kwargs):
     run = WebMapServiceMonitoringRun.objects.get(pk=run_pk)
     probe: GetCapabilititesProbe = GetCapabilititesProbe.objects.get(
         pk=probe_pk)
-    result = probe.run_check(run=run)
-    # TODO: check if this is the last of the group and set date_done
-
-    # run.date_done = datetime.now()
+    probe.run_check(run=run)
 
 
+@shared_task(bind=True)
 def run_get_map_probe_check(self, probe_pk, run_pk, *args, **kwargs):
     run = WebMapServiceMonitoringRun.objects.get(pk=run_pk)
     probe: GetMapProbe = GetMapProbe.objects.get(pk=probe_pk)
-    result = probe.run_check(run=run)
-    # TODO: check if this is the last of the group and set date_done
-    # run.date_done = datetime.now()
+    probe.run_check(run=run)
+
+
+@shared_task(bind=True)
+def finish_run(self, run_pk, *args, **kwargs):
+    run = WebMapServiceMonitoringRun.objects.get(pk=run_pk)
+    run.date_done = datetime.now()
+    run.save()
 
 
 @shared_task(bind=True)

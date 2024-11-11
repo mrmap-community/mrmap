@@ -1,7 +1,6 @@
 from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
-from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
@@ -149,15 +148,7 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(r'security/wms-proxy-settings',
                     security_views.WebMapServiceProxySettingViewSet, basename='webmapserviceproxysetting'),
     router.register(r'security/wfs-proxy-settings',
-                    security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting'),
-
-    # monitoring
-    router.register(r'monitoring/wms-get-capabilities-result',
-                    monitoring_views.WMSGetCapabilitiesResultViewSet, basename='wmsgetcapabilitiesresult'),
-    router.register(r'monitoring/layer-get-map-result',
-                    monitoring_views.LayerGetMapResultViewSet, basename='layergetmapresult'),
-    router.register(r'monitoring/layer-get-feature-info-result',
-                    monitoring_views.LayerGetFeatureInfoResultViewSet, basename='layergetfeatureinforesult'),
+                    security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting')
 )
 
 urlpatterns = router.urls

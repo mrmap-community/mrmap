@@ -127,51 +127,6 @@
                     "allowedwebfeatureserviceoperation"
                 ],
                 [
-                    "add_wmsgetcapabilitiesresult",
-                    "registry",
-                    "wmsgetcapabilitiesresult"
-                ],
-                [
-                    "change_wmsgetcapabilitiesresult",
-                    "registry",
-                    "wmsgetcapabilitiesresult"
-                ],
-                [
-                    "delete_wmsgetcapabilitiesresult",
-                    "registry",
-                    "wmsgetcapabilitiesresult"
-                ],
-                [
-                    "add_layergetmapresult",
-                    "registry",
-                    "layergetmapresult"
-                ],
-                [
-                    "change_layergetmapresult",
-                    "registry",
-                    "layergetmapresult"
-                ],
-                [
-                    "delete_layergetmapresult",
-                    "registry",
-                    "layergetmapresult"
-                ],
-                [
-                    "add_layergetfeatureinforesult",
-                    "registry",
-                    "layergetfeatureinforesult"
-                ],
-                [
-                    "change_layergetfeatureinforesult",
-                    "registry",
-                    "layergetfeatureinforesult"
-                ],
-                [
-                    "delete_layergetfeatureinforesult",
-                    "registry",
-                    "layergetfeatureinforesult"
-                ],
-                [
                     "add_harvestingjob",
                     "registry",
                     "harvestingjob"

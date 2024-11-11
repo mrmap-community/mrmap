@@ -4,10 +4,10 @@ from pathlib import Path
 
 class MockResponse:
 
-    def __init__(self, status_code, content, elapsed=timedelta(seconds=1)):
+    def __init__(self, status_code, content, elapsed=timedelta(seconds=1), url=""):
         self.status_code = status_code
         self.elapsed = elapsed
-
+        self.url = url
         if isinstance(content, Path):
             in_file = open(content, "rb")
             self.content: bytes = in_file.read()

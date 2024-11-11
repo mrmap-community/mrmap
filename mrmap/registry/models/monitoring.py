@@ -13,7 +13,6 @@ from django_celery_beat.models import PeriodicTask
 from django_celery_results.models import GroupResult, TaskResult
 from epsg_cache.utils import adjust_axis_order
 from lxml import etree
-from ows_lib.xml_mapper.utils import get_parsed_service
 from PIL import Image, UnidentifiedImageError
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.service import Layer, WebMapService
@@ -54,7 +53,8 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
 class WebMapServiceMonitoringRun(models.Model):
     setting: WebMapServiceMonitoringSetting = models.ForeignKey(
         to=WebMapServiceMonitoringSetting,
-        on_delete=models.PROTECT
+        on_delete=models.PROTECT,
+
     )
     date_created = models.DateTimeField(
         auto_now_add=True,

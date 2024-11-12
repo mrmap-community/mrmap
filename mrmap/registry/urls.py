@@ -1,6 +1,7 @@
 from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
+from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
@@ -148,7 +149,22 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(r'security/wms-proxy-settings',
                     security_views.WebMapServiceProxySettingViewSet, basename='webmapserviceproxysetting'),
     router.register(r'security/wfs-proxy-settings',
-                    security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting')
+                    security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting'),
+
+    # monitoring
+    router.register(r'monitoring/wms-monitoring-settings',
+                    monitoring_views.WebMapServiceMonitoringSettingViewSet, basename='webmapservicemonitoringsetting'),
+    router.register(r'monitoring/wms-monitoring-get-capabilities-probes',
+                    monitoring_views.GetCapabilititesProbeViewSet, basename='webmapservicemonitoring-getcapabilitites-probe'),
+    router.register(r'monitoring/wms-monitoring-get-map-probes',
+                    monitoring_views.GetMapProbeViewSet, basename='webmapservicemonitoring-getmap-probe'),
+    router.register(r'monitoring/wms-monitoring-runs',
+                    monitoring_views.WebMapServiceMonitoringRunViewSet, basename='webmapservicemonitoringrun'),
+    router.register(r'monitoring/wms-monitoring-get-capabilitites-probe-results',
+                    monitoring_views.GetCapabilititesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilitites-probe-result'),
+    router.register(r'monitoring/wms-monitoring-get-map-probe-results',
+                    monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result'),
+
 )
 
 urlpatterns = router.urls

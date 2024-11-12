@@ -35,48 +35,37 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     # REST API
     # registry api urls
+    path("api/beat/", include("extras.urls", namespace="beat")),
     path("api/registry/", include("registry.urls", namespace="registry")),
     path("api/accounts/", include("accounts.urls", namespace="accounts")),
     path("api/notify/", include("notify.urls", namespace="notify")),
-    path(
-        "api/schema",
-        cache_page(timeout=60 * 15,
-                   cache="local-memory")(SpectacularJSONAPIView.as_view()),
-        name="openapi-schema"),
+    path("api/schema",
+         cache_page(timeout=60 * 15,
+                    cache="local-memory")(SpectacularJSONAPIView.as_view()),
+         name="openapi-schema"),
 
     path('api/schema/swagger-ui',
          SpectacularSwaggerView.as_view(url_name='openapi-schema'), name='swagger-ui'),
     # ows views
-    path(
-        "mrmap-proxy/wms/<pk>",
-        WebMapServiceProxy.as_view(),
-        name="wms-operation",
-    ),
-    path(
-        "mrmap-proxy/wfs/<pk>",
-        WebFeatureServiceProxy.as_view(),
-        name="wfs-operation",
-
-    ),
-    path(
-        "mrmap-proxy/ows/<pk>",
-        OwsContextView.as_view(),
-        name="ows-context-detail"
-    ),
+    path("mrmap-proxy/wms/<pk>",
+         WebMapServiceProxy.as_view(),
+         name="wms-operation"),
+    path("mrmap-proxy/wfs/<pk>",
+         WebFeatureServiceProxy.as_view(),
+         name="wfs-operation"),
+    path("mrmap-proxy/ows/<pk>",
+         OwsContextView.as_view(),
+         name="ows-context-detail"),
     path('api/auth/login', LoginView.as_view()),
     path('api/auth/logout', LogoutView.as_view()),
 
-    path(
-        "csw",
-        CswServiceView.as_view(),
-        name="csw-endpoint"
-    ),
+    path("csw",
+         CswServiceView.as_view(),
+         name="csw-endpoint"),
 
-    path(
-        "mapbender/search",
-        MapBenderSearchApi.as_view(),
-        name="mapbender-search"
-    )
+    path("mapbender/search",
+         MapBenderSearchApi.as_view(),
+         name="mapbender-search")
 
 ]
 

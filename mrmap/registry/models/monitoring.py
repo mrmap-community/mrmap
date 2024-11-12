@@ -192,7 +192,7 @@ class Probe(models.Model):
 
 
 class WebMapServiceProbe(Probe):
-    settings = models.ForeignKey(
+    setting = models.ForeignKey(
         to=WebMapServiceMonitoringSetting,
         on_delete=models.CASCADE,
         related_name="%(app_label)s_%(class)s",

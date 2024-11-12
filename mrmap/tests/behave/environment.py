@@ -1,10 +1,8 @@
-import os
-
 from behave.model_core import Status
 from behave_django.testcase import BehaviorDrivenTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from MrMap.settings import BASE_DIR, MEDIA_ROOT
+from MrMap.settings import BASE_DIR
 from registry.models.metadata import DatasetMetadataRecord
 from rest_framework.test import APIClient
 
@@ -54,6 +52,9 @@ def before_feature(context, feature):
     if ('AllowedWebMapServiceOperation' in feature.name
             and 'Related' in feature.name):
         fixtures.extend(['test_wms.json', 'test_allowed_wms_operation.json'])
+
+    if ('Monitoring' in feature.name):
+        fixtures.extend(['test_wms.json', 'test_monitoring.json'])
 
     if fixtures:
         call_command("loaddata", *fixtures, verbosity=0)

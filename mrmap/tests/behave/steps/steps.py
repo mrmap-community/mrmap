@@ -40,6 +40,7 @@ def step_impl(context, url):
     context.endpoint = url
 
 
+@given('I set the request payload to:')
 @given('I set the request payload to')
 def step_impl(context):
     context.payload = context.text

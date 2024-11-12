@@ -2,6 +2,7 @@ from datetime import datetime
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django_celery_beat.models import CrontabSchedule
 from guardian.core import ObjectPermissionChecker
 from rest_framework_json_api.relations import \
     SerializerMethodResourceRelatedField
@@ -70,3 +71,18 @@ class HistoryInformationSerializer(ModelSerializer):
 
     def get_last_modified_by(self, instance):
         return instance.last_history[0].history_user if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None
+
+
+class CrontabScheduleSerializer(
+    ModelSerializer
+):
+    class Meta:
+        model = CrontabSchedule
+        fields = (
+            'minute',
+            'hour',
+            'day_of_month',
+            'month_of_year',
+            'day_of_week',
+            # 'timezone' ==> not JSON serializable
+        )

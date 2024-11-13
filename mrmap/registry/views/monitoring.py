@@ -1,21 +1,20 @@
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from registry.models.monitoring import (GetCapabilititesProbe,
-                                        GetCapabilititesProbeResult,
+from extras.viewsets import NestedModelViewSet
+from registry.models.monitoring import (GetCapabilitiesProbe,
+                                        GetCapabilitiesProbeResult,
                                         GetMapProbe, GetMapProbeResult,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.serializers.monitoring import (
-    GetCapabilititesProbeResultSerializer, GetCapabilititesProbeSerializer,
+    GetCapabilitiesProbeResultSerializer, GetCapabilitiesProbeSerializer,
     GetMapProbeResultSerializer, GetMapProbeSerializer,
     WebMapServiceMonitoringRunSerializer,
     WebMapServiceMonitoringSettingSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
 
-class WebMapServiceMonitoringSettingViewSet(
-    ModelViewSet,
-):
+class WebMapServiceMonitoringSettingViewSetMixin:
     """ Endpoints for resource `WebMapServiceMonitoringSetting`
 
         create:
@@ -37,10 +36,10 @@ class WebMapServiceMonitoringSettingViewSet(
         "crontab": ["crontab"],
     }
     prefetch_for_includes = {
-        "registry_getcapabilititesprobes": [
+        "registry_getcapabilitiesprobes": [
             Prefetch(
-                "registry_getcapabilititesprobes",
-                queryset=GetCapabilititesProbe.objects.all()
+                "registry_getcapabilitiessprobes",
+                queryset=GetCapabilitiesProbe.objects.all()
             )
         ],
         "registry_getmapprobes": [
@@ -59,9 +58,21 @@ class WebMapServiceMonitoringSettingViewSet(
     ordering_fields = ["id", "name", "service"]
 
 
-class WebMapServiceMonitoringRunViewSet(
-    ModelViewSet,
+class WebMapServiceMonitoringSettingViewSet(
+    WebMapServiceMonitoringSettingViewSetMixin,
+    ModelViewSet
 ):
+    pass
+
+
+class NestedWebMapServiceMonitoringSettingViewSet(
+    WebMapServiceMonitoringSettingViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class WebMapServiceMonitoringRunViewSetMixin():
     """ Endpoints for resource `WebMapServiceMonitoringRun`
 
         create:
@@ -82,10 +93,10 @@ class WebMapServiceMonitoringRunViewSet(
         "setting": ["setting"],
     }
     prefetch_for_includes = {
-        "registry_getcapabilititesproberesults": [
+        "registry_getcapabilitiesproberesults": [
             Prefetch(
-                "registry_getcapabilititesproberesults",
-                queryset=GetCapabilititesProbeResult.objects.all().select_related("run")
+                "registry_getcapabilitiesproberesults",
+                queryset=GetCapabilitiesProbeResult.objects.all().select_related("run")
             )
         ],
         "registry_getmapproberesults": [
@@ -107,25 +118,37 @@ class WebMapServiceMonitoringRunViewSet(
     ordering_fields = ["id", "success"]
 
 
-class GetCapabilititesProbeResultViewSet(
-    ModelViewSet,
+class WebMapServiceMonitoringRunViewSet(
+    WebMapServiceMonitoringRunViewSetMixin,
+    ModelViewSet
 ):
-    """ Endpoints for resource `GetCapabilititesProbeResult`
+    pass
+
+
+class NestedWebMapServiceMonitoringRunViewSet(
+    WebMapServiceMonitoringRunViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class GetCapabilitiesProbeResultViewSetMixin():
+    """ Endpoints for resource `GetCapabilitiesProbeResult`
 
         create:
-            Endpoint to register new `GetCapabilititesProbeResult` object
+            Endpoint to register new `GetCapabilitiesProbeResult` object
         list:
-            Retrieves all registered `GetCapabilititesProbeResult` objects
+            Retrieves all registered `GetCapabilitiesProbeResult` objects
         retrieve:
-            Retrieve one specific `GetCapabilititesProbeResult` by the given id
+            Retrieve one specific `GetCapabilitiesProbeResult` by the given id
         partial_update:
-            Endpoint to update some fields of a `GetCapabilititesProbeResult`
+            Endpoint to update some fields of a `GetCapabilitiesProbeResult`
         destroy:
-            Endpoint to remove a registered `GetCapabilititesProbeResult` from the system
+            Endpoint to remove a registered `GetCapabilitiesProbeResult` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = GetCapabilititesProbeResult.objects.all()
-    serializer_class = GetCapabilititesProbeResultSerializer
+    queryset = GetCapabilitiesProbeResult.objects.all()
+    serializer_class = GetCapabilitiesProbeResultSerializer
     select_for_includes = {
         "run": ["run"],
     }
@@ -152,9 +175,21 @@ class GetCapabilititesProbeResultViewSet(
     ]
 
 
-class GetMapProbeResultViewSet(
-    ModelViewSet,
+class GetCapabilitiesProbeResultViewSet(
+    GetCapabilitiesProbeResultViewSetMixin,
+    ModelViewSet
 ):
+    pass
+
+
+class NestedGetCapabilitiesProbeResultViewSet(
+    GetCapabilitiesProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class GetMapProbeResultViewSetMixin():
     """ Endpoints for resource `GetMapProbeResult`
 
         create:
@@ -195,25 +230,37 @@ class GetMapProbeResultViewSet(
     ]
 
 
-class GetCapabilititesProbeViewSet(
-    ModelViewSet,
+class GetMapProbeResultViewSet(
+    GetMapProbeResultViewSetMixin,
+    ModelViewSet
 ):
-    """ Endpoints for resource `GetCapabilititesProbe`
+    pass
+
+
+class NestedGetMapProbeResultViewSet(
+    GetMapProbeResultViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class GetCapabilitiesProbeViewSetMixin():
+    """ Endpoints for resource `GetCapabilitiesProbe`
 
         create:
-            Endpoint to register new `GetCapabilititesProbe` object
+            Endpoint to register new `GetCapabilitiesProbe` object
         list:
-            Retrieves all registered `GetCapabilititesProbe` objects
+            Retrieves all registered `GetCapabilitiesProbe` objects
         retrieve:
-            Retrieve one specific `GetCapabilititesProbe` by the given id
+            Retrieve one specific `GetCapabilitiesProbe` by the given id
         partial_update:
-            Endpoint to update some fields of a `GetCapabilititesProbe`
+            Endpoint to update some fields of a `GetCapabilitiesProbe`
         destroy:
-            Endpoint to remove a registered `GetCapabilititesProbe` from the system
+            Endpoint to remove a registered `GetCapabilitiesProbe` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = GetCapabilititesProbe.objects.all()
-    serializer_class = GetCapabilititesProbeSerializer
+    queryset = GetCapabilitiesProbe.objects.all()
+    serializer_class = GetCapabilitiesProbeSerializer
     select_for_includes = {
         "setting": ["setting"],
     }
@@ -239,9 +286,21 @@ class GetCapabilititesProbeViewSet(
     ]
 
 
-class GetMapProbeViewSet(
-    ModelViewSet,
+class GetCapabilitiesProbeViewSet(
+    GetCapabilitiesProbeViewSetMixin,
+    ModelViewSet
 ):
+    pass
+
+
+class NestedGetCapabilitiesProbeViewSet(
+    GetCapabilitiesProbeViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class GetMapProbeViewSetMixin():
     """ Endpoints for resource `GetMapProbe`
 
         create:
@@ -278,3 +337,17 @@ class GetMapProbeViewSet(
     ordering_fields = [
         "id",
     ]
+
+
+class GetMapProbeViewSet(
+    GetMapProbeViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedGetMapProbeViewSet(
+    GetMapProbeViewSetMixin,
+    NestedModelViewSet
+):
+    pass

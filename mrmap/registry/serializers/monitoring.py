@@ -2,8 +2,8 @@ from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import CrontabSchedule
 from extras.serializers import StringRepresentationSerializer
 from registry.models.metadata import ReferenceSystem
-from registry.models.monitoring import (GetCapabilititesProbe,
-                                        GetCapabilititesProbeResult,
+from registry.models.monitoring import (GetCapabilitiesProbe,
+                                        GetCapabilitiesProbeResult,
                                         GetMapProbe, GetMapProbeResult,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
@@ -32,16 +32,18 @@ class WebMapServiceMonitoringSettingSerializer(
         queryset=CrontabSchedule.objects
     )
     get_capabilitites_probes = ResourceRelatedField(
-        source="registry_getcapabilititesprobe",
+        source="registry_getcapabilitiesprobe",
         many=True,
-        queryset=GetCapabilititesProbe.objects,
+        required=False,
+        read_only=True,
         label=_("Get Capabilitites Probes"),
         help_text=_("Add probes to check get capabilitites"),
     )
     get_map_probes = ResourceRelatedField(
         source="registry_getmapprobe",
         many=True,
-        queryset=GetMapProbe.objects,
+        required=False,
+        read_only=True,
         label=_("Get Map Probes"),
         help_text=_("Add probes to check get map"),
     )
@@ -70,9 +72,9 @@ class WebMapServiceMonitoringRunSerializer(
         queryset=WebMapService.objects,
     )
     get_capabilitites_probe_results = ResourceRelatedField(
-        source="registry_getcapabilititesproberesult",
+        source="registry_getcapabilitiesproberesult",
         many=True,
-        queryset=GetCapabilititesProbeResult.objects,
+        queryset=GetCapabilitiesProbeResult.objects,
         label=_("Get Capabilities Probe Results"),
         help_text=_("results for get capabilities requests"),
     )
@@ -95,12 +97,12 @@ class WebMapServiceMonitoringRunSerializer(
         )
 
 
-class GetCapabilititesProbeResultSerializer(
+class GetCapabilitiesProbeResultSerializer(
     StringRepresentationSerializer,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
-        view_name='registry:webmapservicemonitoring-getcapabilitites-probe-result-detail',
+        view_name='registry:webmapservicemonitoring-getcapabilities-probe-result-detail',
     )
     run = ResourceRelatedField(
         label=_("monitoring setting"),
@@ -109,7 +111,7 @@ class GetCapabilititesProbeResultSerializer(
     )
 
     class Meta:
-        model = GetCapabilititesProbeResult
+        model = GetCapabilitiesProbeResult
         fields = (
             'url',
             'run',
@@ -147,7 +149,7 @@ class GetMapProbeResultSerializer(
         )
 
 
-class GetCapabilititesProbeSerializer(
+class GetCapabilitiesProbeSerializer(
     StringRepresentationSerializer,
     ModelSerializer
 ):
@@ -156,7 +158,7 @@ class GetCapabilititesProbeSerializer(
     )
 
     class Meta:
-        model = GetCapabilititesProbe
+        model = GetCapabilitiesProbe
         fields = (
             'url',
             'timeout',
@@ -173,6 +175,7 @@ class GetMapProbeSerializer(
     url = HyperlinkedIdentityField(
         view_name='registry:webmapservicemonitoring-getmap-probe-detail',
     )
+
     layers = ResourceRelatedField(
         label=_("layers"),
         help_text=_("the setting which to used for this run."),

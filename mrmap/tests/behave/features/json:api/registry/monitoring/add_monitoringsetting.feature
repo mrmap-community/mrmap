@@ -29,22 +29,6 @@ Feature: WebMapServiceMonitoringSetting Add Endpoint
                                 "id": "1",
                                 "type": "CrontabSchedule"
                             }
-                        },
-                        "getCapabilititesProbes": {
-                            "data": [
-                                {
-                                    "id": "1",
-                                    "type": "GetCapabilititesProbe"
-                                }
-                            ]
-                        },
-                        "getMapProbes": {
-                            "data": [
-                                {
-                                    "id": "1",
-                                    "type": "GetMapProbe"
-                                }
-                            ]
                         }
                     }
                 }
@@ -74,22 +58,6 @@ Feature: WebMapServiceMonitoringSetting Add Endpoint
                                 "id": "1",
                                 "type": "CrontabSchedule"
                             }
-                        },
-                        "getCapabilititesProbes": {
-                            "data": [
-                                {
-                                    "id": "1",
-                                    "type": "GetCapabilititesProbe"
-                                }
-                            ]
-                        },
-                        "getMapProbes": {
-                            "data": [
-                                {
-                                    "id": "1",
-                                    "type": "GetMapProbe"
-                                }
-                            ]
                         }
                     }
                 }

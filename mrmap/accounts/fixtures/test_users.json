@@ -172,19 +172,19 @@
                     "webmapservicemonitoringrun"
                 ],
                 [
-                    "add_getcapabilititesproberesult",
+                    "add_getcapabilitiesproberesult",
                     "registry",
-                    "getcapabilititesproberesult"
+                    "getcapabilitiesproberesult"
                 ],
                 [
-                    "change_getcapabilititesproberesult",
+                    "change_getcapabilitiesproberesult",
                     "registry",
-                    "getcapabilititesproberesult"
+                    "getcapabilitiesproberesult"
                 ],
                 [
-                    "delete_getcapabilititesproberesult",
+                    "delete_getcapabilitiesproberesult",
                     "registry",
-                    "getcapabilititesproberesult"
+                    "getcapabilitiesproberesult"
                 ],
                 [
                     "add_getmapproberesult",
@@ -202,19 +202,19 @@
                     "getmapproberesult"
                 ],
                 [
-                    "add_getcapabilititesprobe",
+                    "add_getcapabilitiesprobe",
                     "registry",
-                    "getcapabilititesprobe"
+                    "getcapabilitiesprobe"
                 ],
                 [
-                    "change_getcapabilititesprobe",
+                    "change_getcapabilitiesprobe",
                     "registry",
-                    "getcapabilititesprobe"
+                    "getcapabilitiesprobe"
                 ],
                 [
-                    "delete_getcapabilititesprobe",
+                    "delete_getcapabilitiesprobe",
                     "registry",
-                    "getcapabilititesprobe"
+                    "getcapabilitiesprobe"
                 ],
                 [
                     "add_getmapprobe",

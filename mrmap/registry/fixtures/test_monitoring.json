@@ -43,7 +43,7 @@
         }
     },
     {
-        "model": "registry.getcapabilititesproberesult",
+        "model": "registry.getcapabilitiesproberesult",
         "pk": "1",
         "fields": {
             "run": "1",
@@ -69,7 +69,7 @@
         }
     },
     {
-        "model": "registry.getcapabilititesprobe",
+        "model": "registry.getcapabilitiesprobe",
         "pk": "1",
         "fields": {
             "setting": "1",

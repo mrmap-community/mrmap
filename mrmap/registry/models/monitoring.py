@@ -144,7 +144,7 @@ class WebMapServiceProbeResult(ProbeResult):
         abstract = True
 
 
-class GetCapabilititesProbeResult(WebMapServiceProbeResult):
+class GetCapabilitiesProbeResult(WebMapServiceProbeResult):
     check_response_is_valid_xml_success = BooleanField(
         null=True, blank=True, default=None)
     check_response_is_valid_xml_message = models.TextField(
@@ -197,7 +197,7 @@ class WebMapServiceProbe(Probe):
         on_delete=models.CASCADE,
         related_name="%(app_label)s_%(class)s",
         related_query_name="%(app_label)s_%(class)ss",
-        verbose_name=_("Run"),
+        verbose_name=_("Setting"),
     )
 
     check_response_does_not_contain = ArrayField(
@@ -222,7 +222,7 @@ class WebMapServiceProbe(Probe):
             self.result.check_response_does_not_contain_message = "OK"
 
 
-class GetCapabilititesProbe(WebMapServiceProbe):
+class GetCapabilitiesProbe(WebMapServiceProbe):
     check_response_is_valid_xml = BooleanField(default=True)
 
     check_response_does_contain = ArrayField(
@@ -253,7 +253,7 @@ class GetCapabilititesProbe(WebMapServiceProbe):
             self.result.check_response_is_valid_xml_message = f"response is not a valide xml. {e}"  # noqa
 
     def run_checks(self, run: WebMapServiceMonitoringRun, celery_task_result: TaskResult, *args, **kwargs) -> GetMapProbeResult:
-        result = GetCapabilititesProbeResult.objects.create(
+        result = GetCapabilitiesProbeResult.objects.create(
             run=run,
             celery_task_result=celery_task_result
         )

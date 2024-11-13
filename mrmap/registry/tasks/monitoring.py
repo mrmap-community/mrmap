@@ -3,7 +3,7 @@ from typing import List
 from celery import chain, group, shared_task
 from django.utils import timezone
 from django_celery_results.models import GroupResult, TaskResult
-from registry.models.monitoring import (GetCapabilititesProbe, GetMapProbe,
+from registry.models.monitoring import (GetCapabilitiesProbe, GetMapProbe,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 
@@ -12,7 +12,7 @@ from registry.models.monitoring import (GetCapabilititesProbe, GetMapProbe,
 def run_get_capabilitites_probe_check(self, probe_pk, run_pk, *args, **kwargs):
     task_result, _ = TaskResult.objects.get_or_create(
         task_id=self.request.id)
-    probe: GetCapabilititesProbe = GetCapabilititesProbe.objects.get(
+    probe: GetCapabilitiesProbe = GetCapabilitiesProbe.objects.get(
         pk=probe_pk)
     return probe.run_checks(
         run=WebMapServiceMonitoringRun.objects.get(pk=run_pk),
@@ -46,10 +46,10 @@ def finish_run(self, task_results, run_pk, *args, **kwargs):
 @shared_task(bind=True)
 def run_wms_monitoring(self, setting_pk, run_pk=None, *args, **kwargs):
     setting: WebMapServiceMonitoringSetting = WebMapServiceMonitoringSetting.objects.prefetch_related(
-        "registry_getcapabilititesprobe", "registry_getmapprobe").get(pk=setting_pk)
-    get_capabilitites_probes: List[GetCapabilititesProbe] = setting.registry_getcapabilititesprobe.all(
+        "registry_getcapabilitiesprobe", "registry_getmapprobe").get(pk=setting_pk)
+    get_capabilitites_probes: List[GetCapabilitiesProbe] = setting.registry_getcapabilitiesprobe.all(
     )
-    get_map_probes: List[GetMapProbe] = setting.registry_getcapabilititesprobe.all(
+    get_map_probes: List[GetMapProbe] = setting.registry_getcapabilitiesprobe.all(
     )
 
     if run_pk:

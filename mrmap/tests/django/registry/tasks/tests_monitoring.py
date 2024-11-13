@@ -8,8 +8,8 @@ from django.test.utils import override_settings
 from django.urls.base import reverse
 from django_celery_beat.models import IntervalSchedule
 from MrMap.settings import BASE_DIR
-from registry.models.monitoring import (GetCapabilititesProbe,
-                                        GetCapabilititesProbeResult,
+from registry.models.monitoring import (GetCapabilitiesProbe,
+                                        GetCapabilitiesProbeResult,
                                         GetMapProbe, GetMapProbeResult,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import Layer, WebMapService
@@ -84,7 +84,7 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
     @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
     def test_run_wms_monitoring(self, mocked_run_checks):
         setup_capabilitites_file()
-        cap_probe = GetCapabilititesProbe.objects.create(
+        cap_probe = GetCapabilitiesProbe.objects.create(
             settings=self.monitoring_settings,
             check_response_is_valid_xml=True,
         )
@@ -96,10 +96,10 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
         eager_result = run_wms_monitoring.delay(
             setting_pk=self.monitoring_settings.pk)
 
-        self.assertEqual(1, GetCapabilititesProbeResult.objects.count())
+        self.assertEqual(1, GetCapabilitiesProbeResult.objects.count())
         self.assertEqual(1, GetMapProbeResult.objects.count())
         try:
-            get_cap_result = GetCapabilititesProbeResult.objects.get(
+            get_cap_result = GetCapabilitiesProbeResult.objects.get(
                 run__pk=eager_result.result,
             )
             self.assertTrue(
@@ -146,7 +146,7 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
     @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
     def test_run_wms_monitoring_with_service_exceptions(self, mocked_run_checks):
         setup_capabilitites_file(service_exception_url=True)
-        cap_probe = GetCapabilititesProbe.objects.create(
+        cap_probe = GetCapabilitiesProbe.objects.create(
             settings=self.monitoring_settings,
             check_response_is_valid_xml=True,
         )
@@ -158,11 +158,11 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
         eager_result = run_wms_monitoring.delay(
             setting_pk=self.monitoring_settings.pk)
 
-        self.assertEqual(1, GetCapabilititesProbeResult.objects.count())
+        self.assertEqual(1, GetCapabilitiesProbeResult.objects.count())
         self.assertEqual(1, GetMapProbeResult.objects.count())
 
         try:
-            get_cap_result = GetCapabilititesProbeResult.objects.get(
+            get_cap_result = GetCapabilitiesProbeResult.objects.get(
                 run__pk=eager_result.result,
             )
             self.assertTrue(

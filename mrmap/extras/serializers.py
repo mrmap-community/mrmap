@@ -74,6 +74,7 @@ class HistoryInformationSerializer(ModelSerializer):
 
 
 class CrontabScheduleSerializer(
+    StringRepresentationSerializer,
     ModelSerializer
 ):
     class Meta:
@@ -84,5 +85,9 @@ class CrontabScheduleSerializer(
             'day_of_month',
             'month_of_year',
             'day_of_week',
+            'string_representation'
             # 'timezone' ==> not JSON serializable
         )
+
+    def get_string_representation(self, obj) -> str:
+        return obj.human_readable

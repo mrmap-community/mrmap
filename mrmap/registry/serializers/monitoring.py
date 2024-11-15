@@ -8,6 +8,7 @@ from registry.models.monitoring import (GetCapabilitiesProbe,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import Layer, WebMapService
+from rest_framework.fields import IntegerField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField,
                                                  HyperlinkedIdentityField,
@@ -104,6 +105,7 @@ class GetCapabilitiesProbeResultSerializer(
     url = HyperlinkedIdentityField(
         view_name='registry:webmapservicemonitoring-getcapabilities-probe-result-detail',
     )
+
     run = ResourceRelatedField(
         label=_("monitoring setting"),
         help_text=_("the setting which to used for this run."),
@@ -156,6 +158,9 @@ class GetCapabilitiesProbeSerializer(
     url = HyperlinkedIdentityField(
         view_name='registry:webmapservicemonitoring-getcapabilities-probe-detail',
     )
+    timeout = IntegerField(
+        default=30
+    )
 
     class Meta:
         model = GetCapabilitiesProbe
@@ -175,7 +180,9 @@ class GetMapProbeSerializer(
     url = HyperlinkedIdentityField(
         view_name='registry:webmapservicemonitoring-getmap-probe-detail',
     )
-
+    timeout = IntegerField(
+        default=30
+    )
     layers = ResourceRelatedField(
         label=_("layers"),
         help_text=_("the setting which to used for this run."),

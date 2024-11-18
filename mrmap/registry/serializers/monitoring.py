@@ -33,18 +33,16 @@ class WebMapServiceMonitoringSettingSerializer(
         queryset=CrontabSchedule.objects
     )
     get_capabilitites_probes = ResourceRelatedField(
-        source="registry_getcapabilitiesprobe",
         many=True,
         required=False,
-        read_only=True,
+        queryset=GetCapabilitiesProbe.objects,
         label=_("Get Capabilitites Probes"),
         help_text=_("Add probes to check get capabilitites"),
     )
     get_map_probes = ResourceRelatedField(
-        source="registry_getmapprobe",
         many=True,
         required=False,
-        read_only=True,
+        queryset=GetMapProbe.objects,
         label=_("Get Map Probes"),
         help_text=_("Add probes to check get map"),
     )
@@ -167,7 +165,6 @@ class GetCapabilitiesProbeSerializer(
         fields = (
             'url',
             'timeout',
-            "setting",
             "check_response_is_valid_xml",
             "check_response_does_contain"
         )
@@ -200,7 +197,6 @@ class GetMapProbeSerializer(
         model = GetMapProbe
         fields = (
             'url',
-            "setting",
             'timeout',
             'layers',
             'reference_system',

@@ -261,13 +261,10 @@ class GetCapabilitiesProbeViewSetMixin():
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     queryset = GetCapabilitiesProbe.objects.all()
     serializer_class = GetCapabilitiesProbeSerializer
-    select_for_includes = {
-        "setting": ["setting"],
-    }
+
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'timeout': ['exact', 'icontains', 'contains'],
-        "setting__id": ['exact', 'icontains', 'contains', 'in'],
         'check_response_is_valid_xml': ['exact'],
         # 'check_response_does_contain': ['contains', 'contained_by', 'overlap', 'len'],
 
@@ -317,9 +314,7 @@ class GetMapProbeViewSetMixin():
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     queryset = GetMapProbe.objects.all()
     serializer_class = GetMapProbeSerializer
-    select_for_includes = {
-        "setting": ["setting"],
-    }
+
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'layers__id': ['exact', 'icontains', 'contains', 'in'],

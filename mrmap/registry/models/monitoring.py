@@ -16,7 +16,6 @@ from lxml import etree
 from PIL import Image, UnidentifiedImageError
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.service import Layer, WebMapService
-from registry.settings import MONITORING_REQUEST_TIMEOUT
 from requests import Response
 from requests.exceptions import ConnectTimeout, ReadTimeout, RequestException
 
@@ -37,6 +36,18 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
         related_query_name="web_map_service_monitoring",
         verbose_name=_("web map service"),
         help_text=_("this is the service which shall be monitored"))
+
+    get_capabilities_probes = models.ManyToManyField(
+        to='registry.GetCapabilitiesProbe',
+        verbose_name=_('Get Capabilities Probes'),
+        help_text=_('define multiple get capabilities probes for this service')
+    )
+
+    get_map_probes = models.ManyToManyField(
+        to='registry.GetMapProbe',
+        verbose_name=_('Get Map Probes'),
+        help_text=_('define multiple get map probes for this service')
+    )
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -192,14 +203,6 @@ class Probe(models.Model):
 
 
 class WebMapServiceProbe(Probe):
-    setting = models.ForeignKey(
-        to=WebMapServiceMonitoringSetting,
-        on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)s",
-        related_query_name="%(app_label)s_%(class)ss",
-        verbose_name=_("Setting"),
-    )
-
     check_response_does_not_contain = ArrayField(
         base_field=CharField(
             max_length=256

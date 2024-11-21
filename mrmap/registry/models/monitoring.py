@@ -5,7 +5,6 @@ from typing import List
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.contrib.postgres.fields import ArrayField
 from django.db import transaction
 from django.db.models.fields import BooleanField, CharField
 from django.utils.translation import gettext_lazy as _
@@ -200,11 +199,12 @@ class WebMapServiceProbe(Probe):
         help_text=_('The related setting object')
     )
 
-    check_response_does_not_contain = ArrayField(
-        base_field=CharField(
-            max_length=256
-        ),
-        default=get_error_exceptions_default
+    check_response_does_not_contain = models.CharField(
+        max_length=256,
+        default="ExceptionReport>, ServiceException>",
+        verbose_name=_("Check response does not contain"),
+        help_text=_(
+            "comma seperated search strings like: ExceptionReport>, ServiceException>")
     )
 
     class Meta:
@@ -212,7 +212,7 @@ class WebMapServiceProbe(Probe):
 
     def check_does_not_contain(self, response: Response):
         self.result.check_response_does_not_contain_message = ""
-        for string in self.check_response_does_not_contain:
+        for string in self.check_response_does_not_contain.split(','):
             if response.text.find(string) > -1:
                 self.result.check_response_does_not_contain_success = False
                 self.result.check_response_does_not_contain_message += f"{string} is part of the response. "  # noqa
@@ -225,16 +225,16 @@ class WebMapServiceProbe(Probe):
 class GetCapabilitiesProbe(WebMapServiceProbe):
     check_response_is_valid_xml = BooleanField(default=True)
 
-    check_response_does_contain = ArrayField(
-        base_field=CharField(
-            max_length=256
-        ),
-        default=get_title_abstract_default
+    check_response_does_contain = CharField(
+        max_length=256,
+        default="Title>,Abstract>",
+        verbose_name=_("Check response does contain"),
+        help_text=_("comma seperated search strings like: Title>,Abstract>")
     )
 
     def check_does_contain(self, response: Response):
         self.result.check_response_does_contain_message = ""
-        for string in self.check_response_does_contain:
+        for string in self.check_response_does_contain.split(','):
             if response.text.find(string) < 0:
                 self.result.check_response_does_contain_success = False
                 self.result.check_response_does_contain_message += f"{string} is not part of the response. "  # noqa

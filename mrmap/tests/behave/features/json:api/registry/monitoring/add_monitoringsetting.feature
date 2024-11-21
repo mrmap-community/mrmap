@@ -1,6 +1,6 @@
 Feature: WebMapServiceMonitoringSetting Add Endpoint
     As an API client,
-    I want to add catalogue services,
+    I want to add monitoring setting,
     so that I can manage them with Mr.Map.
 
     Background: Setup baseurl, content-type and payload
@@ -15,19 +15,57 @@ Feature: WebMapServiceMonitoringSetting Add Endpoint
                 "data": {
                     "type": "WebMapServiceMonitoringSetting",
                     "attributes": {
-                        "name": "some new setting"
+                        "name": "some new setting",
+                        "getCapabilitiesProbes": {
+                            "data": [
+                                {
+                                    "type": "GetCapabilitiesProbe",
+                                    "attributes": {
+                                        "timeout": 30,
+                                        "checkResponseIsValidXml": true,
+                                        "checkResponseDoesContain": [
+                                            "title>",
+                                            "abstract>"
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "getMapProbes": {
+                            "data": [
+                                {
+                                    "type": "GetMapProbe",
+                                    "attributes": {
+                                        "timeout": 30,
+                                        "height": 256,
+                                        "width": 256,
+                                        "checkResponseIsImage": true
+                                    },
+                                    "relationships": {
+                                        "layers": {
+                                            "data": [
+                                                {
+                                                    "id": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
+                                                    "type": "Layer"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "crontab": {
+                            "type": "CrontabSchedule",
+                            "attributes": {
+                                "hour": "1"
+                            }
+                        }
                     },
                     "relationships": {
                         "service": {
                             "data": {
                                 "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
                                 "type": "WebMapService"
-                            }
-                        },
-                        "crontab": {
-                            "data": {
-                                "id": "1",
-                                "type": "CrontabSchedule"
                             }
                         }
                     }
@@ -44,19 +82,19 @@ Feature: WebMapServiceMonitoringSetting Add Endpoint
                 "data": {
                     "type": "WebMapServiceMonitoringSetting",
                     "attributes": {
-                        "name": "some new setting"
+                        "name": "some new setting",
+                        "crontab": {
+                            "type": "CrontabSchedule",
+                            "attributes": {
+                                "hour": "1"
+                            }
+                        }
                     },
                     "relationships": {
                         "service": {
                             "data": {
                                 "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
                                 "type": "WebMapService"
-                            }
-                        },
-                        "crontab": {
-                            "data": {
-                                "id": "1",
-                                "type": "CrontabSchedule"
                             }
                         }
                     }

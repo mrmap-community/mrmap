@@ -1,6 +1,6 @@
 Feature: WebMapServiceMonitoringSetting List Endpoint
     As an API client,
-    I want to search for csw,
+    I want to search for monitoring settings,
     so that I can find relevant features.
 
     Background: Setup baseurl, content-type and payload

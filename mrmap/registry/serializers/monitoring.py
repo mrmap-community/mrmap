@@ -9,10 +9,133 @@ from registry.models.monitoring import (GetCapabilitiesProbe,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import Layer, WebMapService
 from rest_framework.fields import IntegerField
+from rest_framework.utils import model_meta
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField,
                                                  HyperlinkedIdentityField,
                                                  ModelSerializer)
+
+
+class GetCapabilitiesProbeSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapservicemonitoring-getcapabilities-probe-detail',
+    )
+    timeout = IntegerField(
+        default=30
+    )
+
+    class Meta:
+        model = GetCapabilitiesProbe
+        fields = (
+            'url',
+            'setting',
+            'timeout',
+            "check_response_is_valid_xml",
+            "check_response_does_contain"
+        )
+
+
+class GetMapProbeSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapservicemonitoring-getmap-probe-detail',
+    )
+    timeout = IntegerField(
+        default=30
+    )
+    layers = ResourceRelatedField(
+        label=_("layers"),
+        help_text=_("the setting which to used for this run."),
+        many=True,
+        queryset=Layer.objects,
+    )
+    reference_system = ResourceRelatedField(
+        label=_("monitoring setting"),
+        help_text=_("the setting which to used for this run."),
+        many=True,
+        queryset=ReferenceSystem.objects,
+    )
+
+    class Meta:
+        model = GetMapProbe
+        fields = (
+            'url',
+            'setting',
+            'timeout',
+            'layers',
+            'reference_system',
+            'height',
+            'width',
+            'bbox_lat_lon',
+            "check_response_is_image",
+        )
+
+
+class NestedGetCapabilitiesProbeSerializer(
+    ModelSerializer
+):
+    timeout = IntegerField(
+        default=30
+    )
+
+    class Meta:
+        model = GetCapabilitiesProbe
+        fields = (
+            'timeout',
+            "check_response_is_valid_xml",
+            "check_response_does_contain"
+        )
+
+
+class NestedGetMapProbeSerializer(
+    ModelSerializer
+):
+    timeout = IntegerField(
+        default=30
+    )
+    layers = ResourceRelatedField(
+        label=_("layers"),
+        help_text=_("the setting which to used for this run."),
+        many=True,
+        required=False,
+        queryset=Layer.objects,
+    )
+    reference_system = ResourceRelatedField(
+        label=_("monitoring setting"),
+        help_text=_("the setting which to used for this run."),
+        many=True,
+        required=False,
+        queryset=ReferenceSystem.objects,
+    )
+
+    class Meta:
+        model = GetMapProbe
+        fields = (
+            'timeout',
+            'layers',
+            'reference_system',
+            'height',
+            'width',
+            'bbox_lat_lon',
+            "check_response_is_image",
+        )
+
+
+class NestedCrontabScheduleSerializer(ModelSerializer):
+    class Meta:
+        model = CrontabSchedule
+        fields = (
+            'minute',
+            'hour',
+            'day_of_month',
+            'month_of_year',
+            'day_of_week'
+        )
 
 
 class WebMapServiceMonitoringSettingSerializer(
@@ -30,21 +153,19 @@ class WebMapServiceMonitoringSettingSerializer(
     crontab = ResourceRelatedField(
         label=_("crontab"),
         help_text=_("the crontab configuration for this setting."),
-        queryset=CrontabSchedule.objects
+        queryset=CrontabSchedule.objects,
     )
     get_capabilitites_probes = ResourceRelatedField(
         many=True,
+        source='registry_getcapabilitiesprobes',
         required=False,
-        queryset=GetCapabilitiesProbe.objects,
-        label=_("Get Capabilitites Probes"),
-        help_text=_("Add probes to check get capabilitites"),
+        read_only=True,
     )
     get_map_probes = ResourceRelatedField(
         many=True,
+        source='registry_getmapprobes',
         required=False,
-        queryset=GetMapProbe.objects,
-        label=_("Get Map Probes"),
-        help_text=_("Add probes to check get map"),
+        read_only=True,
     )
 
     class Meta:
@@ -146,62 +267,4 @@ class GetMapProbeResultSerializer(
             'check_response_image_message',
             'check_response_does_not_contain_success',
             'check_response_does_not_contain_message'
-        )
-
-
-class GetCapabilitiesProbeSerializer(
-    StringRepresentationSerializer,
-    ModelSerializer
-):
-    url = HyperlinkedIdentityField(
-        view_name='registry:webmapservicemonitoring-getcapabilities-probe-detail',
-    )
-    timeout = IntegerField(
-        default=30
-    )
-
-    class Meta:
-        model = GetCapabilitiesProbe
-        fields = (
-            'url',
-            'timeout',
-            "check_response_is_valid_xml",
-            "check_response_does_contain"
-        )
-
-
-class GetMapProbeSerializer(
-    StringRepresentationSerializer,
-    ModelSerializer
-):
-    url = HyperlinkedIdentityField(
-        view_name='registry:webmapservicemonitoring-getmap-probe-detail',
-    )
-    timeout = IntegerField(
-        default=30
-    )
-    layers = ResourceRelatedField(
-        label=_("layers"),
-        help_text=_("the setting which to used for this run."),
-        many=True,
-        queryset=Layer.objects,
-    )
-    reference_system = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
-        many=True,
-        queryset=ReferenceSystem.objects,
-    )
-
-    class Meta:
-        model = GetMapProbe
-        fields = (
-            'url',
-            'timeout',
-            'layers',
-            'reference_system',
-            'height',
-            'width',
-            'bbox_lat_lon',
-            "check_response_is_image",
         )

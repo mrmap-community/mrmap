@@ -33,21 +33,6 @@ class WebMapServiceMonitoringSettingViewSetMixin:
     serializer_class = WebMapServiceMonitoringSettingSerializer
     select_for_includes = {
         "service": ["service"],
-        "crontab": ["crontab"],
-    }
-    prefetch_for_includes = {
-        "registry_getcapabilitiesprobes": [
-            Prefetch(
-                "registry_getcapabilitiessprobes",
-                queryset=GetCapabilitiesProbe.objects.all()
-            )
-        ],
-        "registry_getmapprobes": [
-            Prefetch(
-                "registry_getmapprobes",
-                queryset=GetMapProbe.objects.all()
-            )
-        ],
     }
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],

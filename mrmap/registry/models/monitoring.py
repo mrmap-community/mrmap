@@ -37,27 +37,15 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
         verbose_name=_("web map service"),
         help_text=_("this is the service which shall be monitored"))
 
-    get_capabilities_probes = models.ManyToManyField(
-        to='registry.GetCapabilitiesProbe',
-        verbose_name=_('Get Capabilities Probes'),
-        help_text=_('define multiple get capabilities probes for this service')
-    )
-
-    get_map_probes = models.ManyToManyField(
-        to='registry.GetMapProbe',
-        verbose_name=_('Get Map Probes'),
-        help_text=_('define multiple get map probes for this service')
-    )
-
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if not self.task:
+        if not self.pk and not self.task:
             self.task = "registry.tasks.monitoring.run_wms_monitoring"
-        if not self.kwargs:
+        if not self.pk and not self.kwargs:
             self.kwargs = {
                 "setting_pk": self.pk
             }
-        if not self.queue:
+        if not self.pk and not self.queue:
             self.queue = "monitoring"
 
 
@@ -203,6 +191,15 @@ class Probe(models.Model):
 
 
 class WebMapServiceProbe(Probe):
+    setting = models.ForeignKey(
+        to=WebMapServiceMonitoringSetting,
+        on_delete=models.CASCADE,
+        related_name='%(app_label)s_%(class)ss',
+        related_query_name='%(app_label)s_%(class)s',
+        verbose_name=_('Setting'),
+        help_text=_('The related setting object')
+    )
+
     check_response_does_not_contain = ArrayField(
         base_field=CharField(
             max_length=256

@@ -202,6 +202,7 @@ class WebMapServiceProbe(Probe):
     check_response_does_not_contain = models.CharField(
         max_length=256,
         default="ExceptionReport>, ServiceException>",
+        blank=True,
         verbose_name=_("Check response does not contain"),
         help_text=_(
             "comma seperated search strings like: ExceptionReport>, ServiceException>")
@@ -228,6 +229,7 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
     check_response_does_contain = CharField(
         max_length=256,
         default="Title>,Abstract>",
+        blank=True,
         verbose_name=_("Check response does contain"),
         help_text=_("comma seperated search strings like: Title>,Abstract>")
     )

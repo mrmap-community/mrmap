@@ -34,7 +34,8 @@ class GetCapabilitiesProbeSerializer(
             'setting',
             'timeout',
             "check_response_is_valid_xml",
-            "check_response_does_contain"
+            "check_response_does_contain",
+            'check_response_does_not_contain',
         )
 
 
@@ -73,68 +74,7 @@ class GetMapProbeSerializer(
             'width',
             'bbox_lat_lon',
             "check_response_is_image",
-        )
-
-
-class NestedGetCapabilitiesProbeSerializer(
-    ModelSerializer
-):
-    timeout = IntegerField(
-        default=30
-    )
-
-    class Meta:
-        model = GetCapabilitiesProbe
-        fields = (
-            'timeout',
-            "check_response_is_valid_xml",
-            "check_response_does_contain"
-        )
-
-
-class NestedGetMapProbeSerializer(
-    ModelSerializer
-):
-    timeout = IntegerField(
-        default=30
-    )
-    layers = ResourceRelatedField(
-        label=_("layers"),
-        help_text=_("the setting which to used for this run."),
-        many=True,
-        required=False,
-        queryset=Layer.objects,
-    )
-    reference_system = ResourceRelatedField(
-        label=_("monitoring setting"),
-        help_text=_("the setting which to used for this run."),
-        many=True,
-        required=False,
-        queryset=ReferenceSystem.objects,
-    )
-
-    class Meta:
-        model = GetMapProbe
-        fields = (
-            'timeout',
-            'layers',
-            'reference_system',
-            'height',
-            'width',
-            'bbox_lat_lon',
-            "check_response_is_image",
-        )
-
-
-class NestedCrontabScheduleSerializer(ModelSerializer):
-    class Meta:
-        model = CrontabSchedule
-        fields = (
-            'minute',
-            'hour',
-            'day_of_month',
-            'month_of_year',
-            'day_of_week'
+            'check_response_does_not_contain',
         )
 
 

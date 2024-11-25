@@ -1,0 +1,123 @@
+[
+    {
+        "model": "django_celery_beat.CrontabSchedule",
+        "pk": 1,
+        "fields": {
+            "minute": "*",
+            "hour": "0",
+            "day_of_month": "*",
+            "month_of_year": "*",
+            "day_of_week": "*",
+            "timezone": "UTC"
+        }
+    },
+    {
+        "model": "django_celery_beat.periodictask",
+        "pk": "1",
+        "fields": {
+            "name": "test settings",
+            "task": "registry.tasks.monitoring.run_wms_monitoring",
+            "kwargs": {
+                "setting_pk": "1"
+            },
+            "queue": "monitoring",
+            "crontab": "1",
+            "date_changed": "2013-03-16T17:41:28+00:00"
+        }
+    },
+    {
+        "model": "registry.webmapservicemonitoringsetting",
+        "pk": "1",
+        "fields": {
+            "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
+        }
+    },
+    {
+        "model": "registry.webmapservicemonitoringrun",
+        "pk": "1",
+        "fields": {
+            "setting": "1",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "date_done": "2013-03-16T18:41:28+00:00",
+            "group_result": null
+        }
+    },
+    {
+        "model": "registry.getcapabilitiesproberesult",
+        "pk": "1",
+        "fields": {
+            "run": "1",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "check_response_is_valid_xml_success": true,
+            "check_response_is_valid_xml_message": "OK",
+            "check_response_does_not_contain_success": true,
+            "check_response_does_not_contain_message": "OK",
+            "check_response_does_contain_success": true,
+            "check_response_does_contain_message": "OK"
+        }
+    },
+    {
+        "model": "registry.getmapproberesult",
+        "pk": "1",
+        "fields": {
+            "run": "1",
+            "date_created": "2013-03-16T17:41:28+00:00",
+            "check_response_image_success": true,
+            "check_response_image_message": "OK",
+            "check_response_does_not_contain_success": true,
+            "check_response_does_not_contain_message": "OK"
+        }
+    },
+    {
+        "model": "registry.getcapabilitiesprobe",
+        "pk": "1",
+        "fields": {
+            "setting": "1",
+            "check_response_is_valid_xml": true,
+            "check_response_does_contain": [
+                "title>",
+                "abstract>"
+            ],
+            "check_response_does_not_contain": [
+                "ExceptionReport>",
+                "ServiceException>"
+            ]
+        }
+    },
+    {
+        "model": "registry.getmapprobe",
+        "pk": "1",
+        "fields": {
+            "setting": "1",
+            "layers": [
+                "16b93d90-6e2e-497a-b26d-cadbe60ab76e"
+            ],
+            "height": 265,
+            "width": 265,
+            "check_response_is_image": true,
+            "check_response_does_not_contain": [
+                "ExceptionReport>",
+                "ServiceException>"
+            ]
+        }
+    },
+    {
+        "model": "guardian.groupobjectpermission",
+        "pk": 1,
+        "fields": {
+            "permission": [
+                "change_webmapservicemonitoringsetting",
+                "registry",
+                "webmapservicemonitoringsetting"
+            ],
+            "content_type": [
+                "registry",
+                "webmapservicemonitoringsetting"
+            ],
+            "object_pk": "1",
+            "group": [
+                "Group1"
+            ]
+        }
+    }
+]

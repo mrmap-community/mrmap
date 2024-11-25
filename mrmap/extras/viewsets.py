@@ -3,7 +3,9 @@ from typing import OrderedDict
 from django.db.models.query import Prefetch
 from django.http import JsonResponse
 from django.views.generic.detail import BaseDetailView
+from django_celery_beat.models import CrontabSchedule
 from django_celery_results.models import TaskResult
+from extras.serializers import CrontabScheduleSerializer
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import TaskResultSerializer
 from rest_framework import mixins, status
@@ -13,7 +15,7 @@ from rest_framework.settings import api_settings
 from rest_framework.test import APIRequestFactory
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.views import (AutoPrefetchMixin,
+from rest_framework_json_api.views import (AutoPrefetchMixin, ModelViewSet,
                                            PreloadIncludesMixin, RelatedMixin)
 
 
@@ -83,7 +85,8 @@ class AsyncCreateMixin:
         task = self.get_task_function().delay(
             **self.get_task_kwargs(request=request, serializer=serializer))
         task_result, created = TaskResult.objects.get_or_create(
-            task_id=task.id, task_name=f"{task_function.__class__.__module__}.{task_function.__class__.__name__}"
+            task_id=task.id, task_name=f"{task_function.__class__.__module__}.{
+                task_function.__class__.__name__}"
         )
 
         # TODO: add auth information and other headers we need here
@@ -157,3 +160,43 @@ class NestedModelViewSet(
     A viewset that provides default `list()` action for nested usage.
     """
     http_method_names = ["get", "head", "options"]
+
+
+class CrontabScheduleViewSet(
+    ModelViewSet,
+):
+    """ Endpoints for resource `WebMapServiceMonitoringSetting`
+
+        create:
+            Endpoint to register new `WebMapServiceMonitoringSetting` object
+        list:
+            Retrieves all registered `WebMapServiceMonitoringSetting` objects
+        retrieve:
+            Retrieve one specific `WebMapServiceMonitoringSetting` by the given id
+        partial_update:
+            Endpoint to update some fields of a `WebMapServiceMonitoringSetting`
+        destroy:
+            Endpoint to remove a registered `WebMapServiceMonitoringSetting` from the system
+    """
+    queryset = CrontabSchedule.objects.all()
+    serializer_class = CrontabScheduleSerializer
+
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'minute': ['exact', 'icontains', 'contains'],
+        'hour': ['exact', 'icontains', 'contains'],
+        'day_of_month': ['exact', 'icontains', 'contains'],
+        'month_of_year': ['exact', 'icontains', 'contains'],
+        'day_of_week': ['exact', 'icontains', 'contains'],
+        # 'timezone': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ("id",)
+    ordering_fields = [
+        "id",
+        "minute",
+        "hour",
+        "day_of_month",
+        "month_of_year",
+        "day_of_week",
+        # "timezone"
+    ]

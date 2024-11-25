@@ -152,12 +152,39 @@ router = ExtendedSimpleRouter(trailing_slash=False)
                     security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting'),
 
     # monitoring
-    router.register(r'monitoring/wms-get-capabilities-result',
-                    monitoring_views.WMSGetCapabilitiesResultViewSet, basename='wmsgetcapabilitiesresult'),
-    router.register(r'monitoring/layer-get-map-result',
-                    monitoring_views.LayerGetMapResultViewSet, basename='layergetmapresult'),
-    router.register(r'monitoring/layer-get-feature-info-result',
-                    monitoring_views.LayerGetFeatureInfoResultViewSet, basename='layergetfeatureinforesult'),
+    router.register(r'monitoring/wms-monitoring-settings',
+                    monitoring_views.WebMapServiceMonitoringSettingViewSet, basename='webmapservicemonitoringsetting')
+    .register(r'get-capabilities-probes',
+              monitoring_views.NestedGetCapabilitiesProbeViewSet,
+              basename='webmapservicemonitoringsetting-getcap-probes',
+              parents_query_lookups=['setting']),
+    router.register(r'monitoring/wms-monitoring-settings',
+                    monitoring_views.WebMapServiceMonitoringSettingViewSet, basename='webmapservicemonitoringsetting')
+    .register(r'get-map-probes',
+              monitoring_views.NestedGetMapProbeViewSet,
+              basename='webmapservicemonitoringsetting-getmap-probes',
+              parents_query_lookups=['setting']),
+    router.register(r'monitoring/wms-monitoring-get-capabilities-probes',
+                    monitoring_views.GetCapabilitiesProbeViewSet, basename='webmapservicemonitoring-getcapabilities-probe'),
+    router.register(r'monitoring/wms-monitoring-get-map-probes',
+                    monitoring_views.GetMapProbeViewSet, basename='webmapservicemonitoring-getmap-probe'),
+    router.register(r'monitoring/wms-monitoring-runs',
+                    monitoring_views.WebMapServiceMonitoringRunViewSet, basename='webmapservicemonitoringrun')
+    .register(r'get-cap-probe-results',
+              monitoring_views.NestedGetCapabilitiesProbeResultViewSet,
+              basename='webmapservicemonitoringsetting-getcap-probe-results',
+              parents_query_lookups=['run']),
+    router.register(r'monitoring/wms-monitoring-runs',
+                    monitoring_views.WebMapServiceMonitoringRunViewSet, basename='webmapservicemonitoringrun')
+    .register(r'get-map-probe-results',
+              monitoring_views.NestedGetMapProbeResultViewSet,
+              basename='webmapservicemonitoringsetting-getmap-probe-results',
+              parents_query_lookups=['run']),
+    router.register(r'monitoring/wms-monitoring-get-capabilitites-probe-results',
+                    monitoring_views.GetCapabilitiesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilities-probe-result'),
+    router.register(r'monitoring/wms-monitoring-get-map-probe-results',
+                    monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result'),
+
 )
 
 urlpatterns = router.urls

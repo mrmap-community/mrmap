@@ -37,14 +37,14 @@ services:
 
   backend:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
     hostname: "backend"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
       - type: volume
         source: backend-static
@@ -71,7 +71,7 @@ services:
 
   celery-worker:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
@@ -85,7 +85,7 @@ services:
     hostname: "celery-worker"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
       - type: volume
         source: backend-media
@@ -116,7 +116,7 @@ services:
 
   celery-beat:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: "True"
@@ -126,7 +126,7 @@ services:
     hostname: "mrmap-celery-beat"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
       - type: volume
         source: backend-media

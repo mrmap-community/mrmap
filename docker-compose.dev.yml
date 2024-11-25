@@ -36,7 +36,7 @@ services:
     hostname: "mrmap-test"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -60,7 +60,7 @@ services:
     hostname: "mrmap-behave"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -87,7 +87,7 @@ services:
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -130,31 +130,6 @@ services:
       - ./docker/backend/.mrmap.dev.env
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
-
-  sonarqube:
-    # initial admin account: admin:admin 
-    image: sonarqube
-    hostname: "mrmap-sonarqube"
-    ports:
-      - "0.0.0.0:9000:9000"
-    volumes:
-      - type: volume
-        source: sonar-db
-        target: /opt/sonarqube/data
-    networks:
-      - sonar
-
-  sonar-scanner:
-    image: sonarsource/sonar-scanner-cli
-    volumes:
-      - type: bind
-        source: ./mrmap
-        target: /opt/mrmap
-    depends_on:
-      - sonarqube
-    networks:
-      - sonar
-    working_dir: /opt/mrmap
 
 networks:
   sonar:

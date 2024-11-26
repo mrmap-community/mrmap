@@ -41,8 +41,8 @@ Docker-Engine config
     Environment="NO_PROXY=localhost,127.0.0.1/"
 
 
-Docker clien config file
-------------------------
+Docker client config file
+-------------------------
 
 .. code-block:: console
 
@@ -67,7 +67,7 @@ Download the project from `github <https://github.com/mrmap-community/mrmap/arch
 2. Start MrMap
 ==============
 
-Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker compose -f docker-compose.yml up --build``. After that, all services should be started properly and MrMap should be reachable under http://localhost:8001/api/schema/swagger-ui/
+Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker compose -f docker-compose.yml up --build frontend``. After that, MrMap should be reachable under https://localhost
 
 .. note::
   The initial credentials of MrMap are: username = ``mrmap``, password = ``mrmap``

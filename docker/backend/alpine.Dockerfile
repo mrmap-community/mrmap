@@ -5,7 +5,7 @@ FROM python:3.12.7-alpine3.20 AS compile-image
 ARG MRMAP_PRODUCTION
 
 RUN apk update && \
-    apk add --no-cache build-base libressl-dev gdal
+    apk add --no-cache build-base gdal libressl-dev
 
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv $VIRTUAL_ENV

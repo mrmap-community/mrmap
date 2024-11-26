@@ -2,6 +2,15 @@
 version: '3.8'
 services:
 
+  frontend:
+    build:
+      context: ./
+      dockerfile: ./docker/nginx.Dockerfile
+      args:
+        #
+        - VITE_API_BASE_URL=localhost:8001
+        - VITE_API_SCHEMA=http
+
   # Extend the existing postgis container with an accessible port for development purposes
   postgis:
     ports:
@@ -36,7 +45,7 @@ services:
     hostname: "mrmap-test"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -60,7 +69,7 @@ services:
     hostname: "mrmap-behave"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -87,7 +96,7 @@ services:
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind
-        source: ./mrmap
+        source: ./backend
         target: /opt/mrmap
     networks:
       - mrmap-internal
@@ -109,6 +118,8 @@ services:
     env_file:
       - docker/backend/.mrmap.env
       - docker/backend/.mrmap.dev.env
+    ports:
+      - "0.0.0.0:8001:8001"
     command: /bin/sh -c "python manage.py runserver 0.0.0.0:8001"
 
   celery-worker:
@@ -130,31 +141,6 @@ services:
       - ./docker/backend/.mrmap.dev.env
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
-
-  sonarqube:
-    # initial admin account: admin:admin 
-    image: sonarqube
-    hostname: "mrmap-sonarqube"
-    ports:
-      - "0.0.0.0:9000:9000"
-    volumes:
-      - type: volume
-        source: sonar-db
-        target: /opt/sonarqube/data
-    networks:
-      - sonar
-
-  sonar-scanner:
-    image: sonarsource/sonar-scanner-cli
-    volumes:
-      - type: bind
-        source: ./mrmap
-        target: /opt/mrmap
-    depends_on:
-      - sonarqube
-    networks:
-      - sonar
-    working_dir: /opt/mrmap
 
 networks:
   sonar:

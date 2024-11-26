@@ -24,7 +24,7 @@ The complete documentation for MrMap can be found at [github page](https://mrmap
 
 ## Installation
 
-Please see [the documentation](https://mrmap-community.github.io/mrmap/) for
+Please see [the documentation](https://mrmap.readthedocs.io/en/master/) for
 instructions on installing MrMap.
 
 ## Providing Feedback

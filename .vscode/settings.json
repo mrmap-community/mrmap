@@ -12,9 +12,10 @@
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit",
-    "source.organizeImports": "explicit"
+    "source.fixAll": "always",
+    "source.organizeImports": "always"
   },
+  "editor.tabSize": 2,
   "javascript.format.enable": false,
   "typescript.format.enable": false,
   "eslint.format.enable": true,

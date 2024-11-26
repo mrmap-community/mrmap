@@ -4,6 +4,51 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Frontend: run dev",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "${workspaceFolder}/frontend",
+                "run",
+                "dev"
+            ],
+        },
+        {
+            "label": "Frontend: run test",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "${workspaceFolder}/frontend",
+                "run",
+                "test"
+            ]
+        },
+        {
+            "label": "Frontend: run test with coverage",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "${workspaceFolder}/frontend",
+                "run",
+                "test-coverage",
+            ]
+        },
+        {
+            "label": "Frontend: run lint",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "--prefix",
+                "${workspaceFolder}/frontend",
+                "run",
+                "lint",
+                "--fix"
+            ]
+        },
+        {
             "label": "Docker Compose: mrmap startup",
             "type": "shell",
             "command": "docker",

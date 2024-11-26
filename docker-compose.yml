@@ -1,6 +1,17 @@
 # docker compose file for productive useage
 version: '3.8'
 services:
+  frontend:
+    build:
+      context: ./
+      dockerfile: ./docker/nginx.Dockerfile
+      args:
+        - VITE_API_BASE_URL=localhost:8001
+        - VITE_API_SCHEMA=http
+    hostname: "nginx"
+    ports:
+      - "8021:80"
+
   postgis:
     image: postgis/postgis:15-3.3-alpine
     volumes:

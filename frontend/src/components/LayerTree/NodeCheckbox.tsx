@@ -18,10 +18,10 @@ const TreeNodeCheckbox = ({
     return owsContext.findResourceByFolder(node.properties.folder ?? '')
   },[node])
 
-  const handleChange = useCallback((event: ChangeEvent | MouseEvent, checked?: boolean) => {
+  const handleChange = useCallback((event: ChangeEvent | MouseEvent, checked: boolean) => {
     event.stopPropagation()
     if (feature === undefined) return
-    setFeatureActive(feature, (checked ?? !feature.properties.active) || true)
+    setFeatureActive(feature, checked)
   }, [feature, setFeatureActive])
 
 
@@ -38,7 +38,6 @@ const TreeNodeCheckbox = ({
       indeterminate={isIndeterminate}
       tabIndex={-1}
       onChange={handleChange}
-      onClick={handleChange}
     />
   )
 }

@@ -1,11 +1,11 @@
 import { BBox, Geometry } from 'geojson';
 
+import { v4 as uuidv4 } from 'uuid';
 import { parseWms } from '../XMLParser/parseCapabilities';
 import { Capabilites, WmsCapabilitites } from '../XMLParser/types';
 import { Position } from './enums';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties } from './types';
 import { collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, prepareGetCapabilititesUrl, updateFolders, wmsToOWSResources } from './utils';
-
 
 const VALID_PATH = new RegExp('(\/\d*)+')
 
@@ -19,7 +19,7 @@ export class OWSResource implements IOWSResource {
 
   constructor(
     properties: OWSResourceProperties,
-    id: string | number = Date.now().toString(),
+    id: string | number = uuidv4(),
     bbox: BBox | undefined = undefined,
     geometry: Geometry | undefined = undefined
   ) {
@@ -102,11 +102,11 @@ export class OWSContext implements IOWSContext {
   features: OWSResource[];
   type: 'FeatureCollection';
 
-  capabilititesMap: { [url: string]: { capabilitites: Capabilites, features: OWSResource[] } };
+  capabilititesMap: { [url: string]: { capabilitites: Capabilites, features: OWSResource[] } }; // map to store all capabilities which are part of this ows context
   crsIntersection: string[]; // extension to calculate the reference systems which all active features supports
 
   constructor(
-    id: string = Date.now().toString(),
+    id: string = uuidv4(),
     features: OWSResource[] = [],
     bbox: BBox = [-180, -90, 180, 90],
     properties: OWSContextProperties = {

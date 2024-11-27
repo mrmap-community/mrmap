@@ -1,9 +1,9 @@
+import { v4 as uuidv4 } from 'uuid';
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
 import { OWSResource as IOWSResource, OWSContext, StyleSet, TreeifiedOWSResource } from "./types";
 
-
 export const OWSContextDocument = (
-    id: string = Date.now().toString(),
+    id: string = uuidv4(),
     language: string = 'en',
     title: string = 'mrmap ows context',
     features: IOWSResource[] = []
@@ -148,7 +148,7 @@ export const treeify = (features: IOWSResource[]): TreeifiedOWSResource[] => {
 
         if (depth === 0) {
             // root node
-            trees.push({ ...feature, id: Date.now().toString(), children: [] })
+            trees.push({ ...feature, id: uuidv4(), children: [] })
         } else {
             // find root node first
             let node = trees.find(tree => tree.properties.folder === `/${folders?.[0]}`)

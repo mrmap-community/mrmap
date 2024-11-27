@@ -4,7 +4,7 @@ import { parseWms } from '../XMLParser/parseCapabilities';
 import { Capabilites, WmsCapabilitites } from '../XMLParser/types';
 import { Position } from './enums';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties } from './types';
-import { collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, updateFolders, wmsToOWSResources } from './utils';
+import { collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, prepareGetCapabilititesUrl, updateFolders, wmsToOWSResources } from './utils';
 
 
 const VALID_PATH = new RegExp('(\/\d*)+')
@@ -103,7 +103,7 @@ export class OWSContext implements IOWSContext {
   type: 'FeatureCollection';
 
   capabilititesMap: { [url: string]: { capabilitites: Capabilites, features: OWSResource[] } };
-  crsIntersection: string[];
+  crsIntersection: string[]; // extension to calculate the reference systems which all active features supports
 
   constructor(
     id: string = Date.now().toString(),
@@ -125,22 +125,25 @@ export class OWSContext implements IOWSContext {
     this.capabilititesMap = capabilititesMap
     this.crsIntersection = []
   }
+  [name: string]: unknown;
 
   async initialize() {
     await this.collectWmsCapabilities()
 
   }
 
-  appendWms(url: string, capabilitites: string): this {
+  appendWms(href: string, capabilitites: string): this {
     const parsedWms = parseWms(capabilitites)
 
-    const additionalFeatures = wmsToOWSResources(parsedWms, this.getNextRootId()).map(resource => new OWSResource(resource.properties))
+    const url = prepareGetCapabilititesUrl(href, 'WMS')
+
+    const additionalFeatures = wmsToOWSResources(url.href, parsedWms, this.getNextRootId()).map(resource => new OWSResource(resource.properties))
     this.features.push(...additionalFeatures)
 
-    if (url in this.capabilititesMap) {
-      this.capabilititesMap[url].features = [...this.capabilititesMap[url].features, ...additionalFeatures]
+    if (url.href in this.capabilititesMap) {
+      this.capabilititesMap[url.href].features = [...this.capabilititesMap[url.href].features, ...additionalFeatures]
     } else {
-      this.capabilititesMap[url] = { capabilitites: parsedWms, features: additionalFeatures }
+      this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures }
     }
 
     return this
@@ -557,6 +560,7 @@ export class OWSContext implements IOWSContext {
     const wmsGetMapOp = target.getWmsGetMapOperation()
     const getCapabilitiesOp = target.getWmsGetCapabilitiesOperation()
     const referenceSystems: string[] = []
+
     if (getCapabilitiesOp !== undefined &&
       getCapabilitiesOp.href in this.capabilititesMap &&
       wmsGetMapOp?.href !== undefined) {
@@ -566,22 +570,17 @@ export class OWSContext implements IOWSContext {
       const layerIdentifiers = layers.split(',')
 
       const capabilitites = this.capabilititesMap[getCapabilitiesOp?.href].capabilitites as WmsCapabilitites
-
+      
       referenceSystems.push(
         ...layerIdentifiers.reduce<string[]>((acc, identifier) => {
           const inheritedProps = collectInheritedLayerProperties(capabilitites.rootLayer, identifier)
-          console.debug('inheritedProps', inheritedProps)
           if (inheritedProps !== undefined) {
             acc = [...new Set([...acc, ...inheritedProps.referenceSystems])]
           }
-          console.log('merged inheritedProps', acc)
           return acc
         }, [])
       )
-    } else {
-      console.error(this.capabilititesMap, wmsGetMapOp, getCapabilitiesOp)
-    }
-    console.log('final', referenceSystems)
+    } 
 
     return referenceSystems
   }
@@ -590,6 +589,5 @@ export class OWSContext implements IOWSContext {
     this.crsIntersection = this.getActiveFeatures().reduce<string[]>((acc, feature) => {
       return [...new Set([...acc, ...this.getInheritedCrs(feature)])]
     }, [])
-    console.log('new crsIntersections', this.crsIntersection)
   }
 }

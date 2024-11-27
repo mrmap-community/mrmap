@@ -34,6 +34,14 @@ export const updateOrAppendSearchParam = (params: URLSearchParams, key: string, 
     }
 }
 
+export const prepareGetCapabilititesUrl = (href: string, serviceType: string, version?: string): URL => {
+    const url = new URL(href)
+    const params = url.searchParams
+    updateOrAppendSearchParam(params, 'SERVICE', serviceType)
+    updateOrAppendSearchParam(params, 'REQUEST', 'GetCapabilitites')
+    version && updateOrAppendSearchParam(params, 'VERSION', version)
+    return url
+}
 
 export const prepareGetMapUrl = (
     capabilities: WmsCapabilitites,
@@ -50,7 +58,7 @@ export const prepareGetMapUrl = (
     return url
 }
 
-export const layerToFeature = (capabilities: WmsCapabilitites, node: WmsLayer, folder: string): IOWSResource => {
+export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCapabilitites, node: WmsLayer, folder: string): IOWSResource => {
 
     return {
         type: "Feature",
@@ -63,7 +71,7 @@ export const layerToFeature = (capabilities: WmsCapabilitites, node: WmsLayer, f
                     operations: [
                         {
                             code: "GetCapabilities",
-                            href: capabilities.operationUrls.getCapabilities.get,
+                            href: getCapabilitiesHref,
                             method: "GET",
                             type: "application/xml"
                         },
@@ -96,6 +104,7 @@ export const layerToFeature = (capabilities: WmsCapabilitites, node: WmsLayer, f
 
 
 export const deflatLayerTree = (
+    getCapabilitiesHref: string,
     features: IOWSResource[],
     capabilities: WmsCapabilitites,
     parentFolder: string,
@@ -106,18 +115,19 @@ export const deflatLayerTree = (
     const _node: WmsLayer = node ?? capabilities.rootLayer
 
     const folder = `${parentFolder}/${currentIndex}`
-    features.push(layerToFeature(capabilities, _node, folder))
+    features.push(layerToFeature(getCapabilitiesHref, capabilities, _node, folder))
 
     // iterate children if they exists
     _node.children?.forEach((subnode, index) => {
-        subnode !== undefined && deflatLayerTree(features, capabilities, folder, index, subnode)
+        subnode !== undefined && deflatLayerTree(getCapabilitiesHref, features, capabilities, folder, index, subnode)
     })
 
     return features
 }
 
-export const wmsToOWSResources = (capabilities: WmsCapabilitites, treeId: number = 0): IOWSResource[] => {
+export const wmsToOWSResources = (href: string, capabilities: WmsCapabilitites, treeId: number = 0): IOWSResource[] => {
     return deflatLayerTree(
+        href,
         [],
         capabilities,
         '',

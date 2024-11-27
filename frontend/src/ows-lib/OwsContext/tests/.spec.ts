@@ -71,7 +71,7 @@ test('wmsToOWSContext', () => {
         }
     }
     
-    const features = wmsToOWSResources(capabilities)
+    const features = wmsToOWSResources('http://example.com/?SERVICE=wms&REQUEST=GetCapabilities',capabilities)
 
     expect(features).toBeDefined()
     expect(features.length).equals(5)

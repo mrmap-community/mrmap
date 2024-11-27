@@ -109,7 +109,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   }, [owsContext])
 
   useEffect(() => {
-    console.log('owsContext', owsContext)
+    //console.log('owsContext', owsContext)
   }, [owsContext])
 
   // /** crs handling*/

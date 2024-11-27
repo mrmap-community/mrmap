@@ -168,14 +168,46 @@ export class OWSContext implements IOWSContext {
     return nextRootId
   }
 
-  moveFeature(source: OWSResource, target: OWSResource, position: Position = Position.lastChild): OWSResource[] {
+  isMoveNeeded(source: OWSResource, target: OWSResource, position: Position) {
     if (target.properties.folder === undefined ||
       source.properties.folder === undefined ||
       source === target
-    ) return this.features
+    ) return false
+
+    if (source.isSiblingOf(target)){
+      if (position === Position.left && source.getFolderIndex() === target.getFolderIndex() -1){
+        //console.log('no move needed. source is left sibling of target')
+        return false
+      }
+      if (position === Position.right && source.getFolderIndex() - 1 === target.getFolderIndex()){
+        //console.log('no move needed. source is right sibling of target.')
+        return false
+      }
+    }
+
+    if (position === Position.firstChild && source.isChildOf(target)) {
+      if (source.getFolderIndex() === 0){
+        //console.log('no move needed. source is the first child of target')
+        return false
+      } 
+    }
+
+    if (position === Position.lastChild && source.isChildOf(target)) {
+      if (source.getFolderIndex() === this.getLastChildFoderIndex(target)){
+        //console.log('no move needed. source is the last child of target')
+        return false
+      } 
+    }
+
+    return true
+  }
+
+  moveFeature(source: OWSResource, target: OWSResource, position: Position = Position.lastChild): OWSResource[] {
+    if (!this.isMoveNeeded(source, target, position)) return this.features
 
     this.validateFolderStructure()
 
+    
     // first of all, get the objects before manipulating data. 
     // All filter functions will retun subsets with shallow copys
     const currentSourceSubtree = this.getDescandantsOf(source, true)
@@ -195,7 +227,7 @@ export class OWSContext implements IOWSContext {
     if (position === Position.left) {
       const targetIndex = target.getFolderIndex()
       const newStartIndex = targetIndex || 0
-
+      
       // move source subtrees to target position
       updateFolders(currentSourceSubtree, target.getParentFolder() ?? '', newStartIndex)
 

@@ -89,8 +89,6 @@ export const ReferenceManyInput = (
   const values: RaRecord[] = methods.watch(source);
   const valuesRef = useRef(values);
 
-  console.log(source, values)
-
   const { append: appendValue } = useFieldArray({
     control: methods.control, // control props comes from useForm (optional: if you are using FormProvider)
     name: source, // unique name for your Field Array
@@ -202,9 +200,7 @@ export const ReferenceManyInput = (
                     key: `${reference}-${fieldDefinition.props.source}`,
                     ...fieldDefinition.props,
                   }
-                  if (fieldDefinition.props.source === 'referenceSystem') console.log(fieldDefinition);
-                  if (fieldDefinition.props.source === 'layers') console.log(fieldDefinition);
-
+                  
                   if (fieldDefinition.props.source === target) {
                     props.hidden = true
                     props.defaultValue = targetValue

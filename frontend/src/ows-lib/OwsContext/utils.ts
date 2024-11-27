@@ -266,8 +266,8 @@ export const updateFolders = (
             subtreeDepthIndexes[lastDepth.toString()] = 0
         }
 
-        if (!subtreeDepthIndexes.hasOwnProperty(currentDepth.toString())) {
-            // set starting index if not exist
+        if (lastDepth < currentDepth) {
+            // we climb down the tree. In that case the currentDepth index need to be reseted
             subtreeDepthIndexes[currentDepth.toString()] = 0
         }
 

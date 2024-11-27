@@ -33,7 +33,10 @@ const getReducedKarteRp = async({task}, use) => {
   owsContext = undefined; // teardown owsContext
 }
 
+
+
+
 export const owsContextTest = test.extend<OwsContextFixture>({
   karteRp: getKarteRp,
-  reducedKarteRp: getReducedKarteRp
+  reducedKarteRp: getReducedKarteRp,
 })

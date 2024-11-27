@@ -332,6 +332,30 @@ owsContextTest('sortByFolder', ({karteRp}) => {
     expect(karteRp.sortFeaturesByFolder()).toMatchObject(featuresCopy)
 })
 
+owsContextTest('moveFeature move complete tree', ({karteRp}) => {
+    const index = karteRp.features.push(getOwsResource('/1', '/1', 1))
+    karteRp.features.push(getOwsResource('/1/0', '/1/0', 2))
+    karteRp.features.push(getOwsResource('/1/1', '/1/1', 3))
+    karteRp.features.push(getOwsResource('/1/1/0', '/1/1/0', 4))
+    karteRp.features.push(getOwsResource('/1/1/1', '/1/1/1', 5))
+    karteRp.features.push(getOwsResource('/1/1/1/0', '/1/1/1/0', 5))
+    
+    const features = karteRp.moveFeature(karteRp.features[index-1], karteRp.features[0], Position.left)
+    
+    expect(features?.[0].properties.folder).equals('/0')
+    expect(features?.[0].properties.title).equals('/1')
+    
+    expect(features?.[1].properties.folder).equals('/0/0')
+    expect(features?.[1].properties.title).equals('/1/0')
+
+    expect(features?.[2].properties.folder).equals('/0/1')
+    expect(features?.[2].properties.title).equals('/1/1')
+
+    expect(features?.[6].properties.folder).equals('/1')
+    expect(features?.[6].properties.title).equals('Karte RP')
+
+})
+
 owsContextTest('moveFeature Land 0 as lastChild of Karte RP', ({karteRp}) => {
     const features = karteRp.moveFeature(karteRp.features[2], karteRp.features[0])
     

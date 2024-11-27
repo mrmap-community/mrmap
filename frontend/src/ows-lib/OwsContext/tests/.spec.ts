@@ -9,11 +9,13 @@ import { OWSResource as IOWSResource } from '../types'
 import { treeify, updateFolders, wmsToOWSResources } from '../utils'
 import { owsContextTest } from './test'
 
-const getOwsResource = (title:string, folder: string): OWSResource => {
+const getOwsResource = (title:string, folder: string, id?: number): OWSResource => {
     return new OWSResource({
         title: title,
         updated: '',
-        folder: folder})
+        folder: folder,
+        
+    },id)
 }
 
 
@@ -576,17 +578,17 @@ owsContextTest('validateFolderStructure', ({ karteRp }) => {
 
 test('updateFoders without start index', () => {
     const resources: OWSResource[] = [
-        getOwsResource('/1', '/1'),
-        getOwsResource('/1/2', '/1/2'),
-        getOwsResource('/1/2/0', '/1/2/0'),
-        getOwsResource('/1/2/3', '/1/2/3'),
+        getOwsResource('/1', '/1', 1),
+        getOwsResource('/1/2', '/1/2', 2),
+        getOwsResource('/1/2/0', '/1/2/0', 3),
+        getOwsResource('/1/2/3', '/1/2/3', 4),
     ]
 
     const expected: OWSResource[] = [
-        getOwsResource('/1', '/0/0/0'),
-        getOwsResource('/1/2', '/0/0/0/0'),
-        getOwsResource('/1/2/0', '/0/0/0/0/0'),
-        getOwsResource('/1/2/3', '/0/0/0/0/1'),
+        getOwsResource('/1', '/0/0/0', 1),
+        getOwsResource('/1/2', '/0/0/0/0', 2),
+        getOwsResource('/1/2/0', '/0/0/0/0/0', 3),
+        getOwsResource('/1/2/3', '/0/0/0/0/1', 4),
 
     ]
 
@@ -599,17 +601,17 @@ test('updateFoders without start index', () => {
 
 test('updateFoders with start index', () => {
     const resources: OWSResource[] = [
-        getOwsResource('/1', '/1'),
-        getOwsResource('/1/2', '/1/2'),
-        getOwsResource('/1/2/0', '/1/2/0'),
-        getOwsResource('/1/2/3', '/1/2/3'),
+        getOwsResource('/1', '/1', 1),
+        getOwsResource('/1/2', '/1/2', 2),
+        getOwsResource('/1/2/0', '/1/2/0', 3),
+        getOwsResource('/1/2/3', '/1/2/3', 4),
     ]
 
     const expected: OWSResource[] = [
-        getOwsResource('/1', '/0/0/2'),
-        getOwsResource('/1/2', '/0/0/2/0'),
-        getOwsResource('/1/2/0', '/0/0/2/0/0'),
-        getOwsResource('/1/2/3', '/0/0/2/0/1'),
+        getOwsResource('/1', '/0/0/2', 1),
+        getOwsResource('/1/2', '/0/0/2/0', 2),
+        getOwsResource('/1/2/0', '/0/0/2/0/0', 3),
+        getOwsResource('/1/2/3', '/0/0/2/0/1', 4),
     ]
 
     updateFolders(resources, '/0/0', 2)
@@ -620,18 +622,18 @@ test('updateFoders with start index', () => {
 
 test('updateFolders without new folderpath without start index', () => {
     const resources: OWSResource[] = [
-        getOwsResource('/1', '/1'),
-        getOwsResource('/1/2', '/1/2'),
-        getOwsResource('/1/2/0', '/1/2/0'),
-        getOwsResource('/1/2/3', '/1/2/3'),
+        getOwsResource('/1', '/1', 1),
+        getOwsResource('/1/2', '/1/2', 2),
+        getOwsResource('/1/2/0', '/1/2/0', 3),
+        getOwsResource('/1/2/3', '/1/2/3', 4),
 
     ]
 
     const expected: OWSResource[] = [
-        getOwsResource('/1', '/0'),
-        getOwsResource('/1/2', '/0/0'),
-        getOwsResource('/1/2/0', '/0/0/0'),
-        getOwsResource('/1/2/3', '/0/0/1'),
+        getOwsResource('/1', '/0', 1),
+        getOwsResource('/1/2', '/0/0', 2),
+        getOwsResource('/1/2/0', '/0/0/0', 3),
+        getOwsResource('/1/2/3', '/0/0/1',4 ),
     ]
 
     updateFolders(resources, '', )
@@ -642,19 +644,19 @@ test('updateFolders without new folderpath without start index', () => {
 
 test('updateFoders with new path without start index', () => {
     const resources = [
-        getOwsResource('/1', '/1'),
-        getOwsResource('/1/2', '/1/2'),
-        getOwsResource('/1/2/0', '/1/2/0'),
-        getOwsResource('/1/2/3', '/1/2/3'),
-        getOwsResource('/1/3', '/1/4'),
+        getOwsResource('/1', '/1', 1),
+        getOwsResource('/1/2', '/1/2', 2),
+        getOwsResource('/1/2/0', '/1/2/0', 3),
+        getOwsResource('/1/2/3', '/1/2/3',4 ),
+        getOwsResource('/1/3', '/1/4', 5),
     ]
 
     const expected = [
-        getOwsResource('/1', '/2/4/0'),
-        getOwsResource('/1/2', '/2/4/0/0'),
-        getOwsResource('/1/2/0', '/2/4/0/0/0'),
-        getOwsResource('/1/2/3', '/2/4/0/0/1'),
-        getOwsResource('/1/3', '/2/4/0/1'),
+        getOwsResource('/1', '/2/4/0', 1),
+        getOwsResource('/1/2', '/2/4/0/0', 2),
+        getOwsResource('/1/2/0', '/2/4/0/0/0', 3),
+        getOwsResource('/1/2/3', '/2/4/0/0/1',4 ),
+        getOwsResource('/1/3', '/2/4/0/1', 5),
     ]
 
     updateFolders(resources, '/2/4', )

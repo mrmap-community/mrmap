@@ -103,6 +103,7 @@ const MrMapFrontend = (): ReactElement => {
         authProvider={authProvider(undefined, undefined, undefined, authToken, setAuthToken)}
         layout={MyLayout}
         store={localStorageStore(STORE_VERSION)}
+        disableTelemetry={true}
       >
         {resourceDefinitions.map((resource) => (
           <Resource key={resource.name} {...resource} />

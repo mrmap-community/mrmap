@@ -166,8 +166,11 @@ class HarvestingJob(models.Model):
                 total_steps = tasks.__len__()  # how many call_fetch_records task will be run
                 # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
                 total_steps += self.total_records
-                BackgroundProcess.objects.select_for_update().filter(
-                    pk=self.background_process_id).update(total_steps=total_steps)
+                with transaction.atomic():
+                    bg_p = BackgroundProcess.objects.select_for_update().filter(
+                        pk=self.background_process_id)[0]
+                    bg_p.total_steps = total_steps
+                    bg_p.save()
         return ret
 
     def _http_request(self):

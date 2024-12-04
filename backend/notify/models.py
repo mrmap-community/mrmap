@@ -24,6 +24,17 @@ class BackgroundProcess(models.Model):
         max_length=512,
         verbose_name=_('phase'),
         help_text=_('Current phase of the process'))
+    total_steps = models.IntegerField(
+        verbose_name=_('total'),
+        help_text=_('total steps of processing'),
+        null=True,
+        default=None
+    )
+    done_steps = models.IntegerField(
+        verbose_name=_('done'),
+        help_text=_('done steps of processing'),
+        default=0
+    )
     process_type = models.CharField(
         max_length=32,
         choices=ProcessNameEnum.choices,

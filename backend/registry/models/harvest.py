@@ -13,6 +13,9 @@ from django.db.models.query_utils import Q
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from extras.managers import DefaultHistoryManager
+from notify.enums import ProcessNameEnum
+from notify.models import BackgroundProcess
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
@@ -22,6 +25,7 @@ from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from requests import Response
+from simple_history.models import HistoricalRecords
 
 
 class HarvestingJob(models.Model):
@@ -31,7 +35,6 @@ class HarvestingJob(models.Model):
         on_delete=models.CASCADE,
         verbose_name=_("service"),
         help_text=_("the csw for that this job is running"))
-
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
     total_records: int = models.IntegerField(
@@ -40,9 +43,6 @@ class HarvestingJob(models.Model):
         editable=False,
         verbose_name=_("total records"),
         help_text=_("total count of records which will be harvested by this job"))
-    step_size: int = models.IntegerField(
-        default=50,
-        blank=True)
     started_at: datetime = models.DateTimeField(
         null=True,
         blank=True,
@@ -79,6 +79,19 @@ class HarvestingJob(models.Model):
         to=ServiceMetadataRecord,
         related_name="updated_by",
         editable=False,)
+    background_process = models.ForeignKey(
+        to=BackgroundProcess,
+        on_delete=models.SET_NULL,
+        null=True,
+        default=None,
+        # editable=False,
+    )
+
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+    )
+
+    objects = DefaultHistoryManager()
 
     class Meta:
         constraints = [
@@ -94,6 +107,7 @@ class HarvestingJob(models.Model):
     def save(self, *args, **kwargs) -> None:
         from registry.tasks.harvest import (  # to avoid circular import errors
             call_fetch_records, call_fetch_total_records)
+
         adding = self._state.adding
         ret = super().save(*args, **kwargs)
 
@@ -101,22 +115,72 @@ class HarvestingJob(models.Model):
         # 1. fetch total_records
         # 2. get statistic information about the average response duration with different step sizes
         # 3. start harvesting with the best average response duration step settings
+
+        request = self._http_request()
+
         if adding:
+            background_process = BackgroundProcess.objects.create(
+                phase="Get total records of the catalogue",
+                process_type=ProcessNameEnum.HARVESTING.value,
+                description=f'Harvesting job for service {self.service.pk}'  # noqa
+            )
+
             transaction.on_commit(
-                lambda: call_fetch_total_records.delay(harvesting_job_id=self.pk))
+                lambda: HarvestingJob.objects.filter(pk=self.pk).update(
+                    background_process=background_process)
+            )
+
+            transaction.on_commit(
+                lambda: call_fetch_total_records.delay(
+                    harvesting_job_id=self.pk,
+                    http_request=request,
+                    background_process_pk=background_process.pk
+                )
+            )
+            return ret
+
         if self.total_records == 0:
             self.done_at = now()
             ret = self.save()
+
         elif self.total_records and not self.done_at:
-            round_trips = (self.total_records // self.step_size)
-            if self.total_records % self.step_size > 0:
+
+            round_trips = (self.total_records // self.service.max_step_size)
+            if self.total_records % self.service.max_step_size > 0:
                 round_trips += 1
+
             tasks = []
             for number in range(1, round_trips + 1):
-                tasks.append(call_fetch_records.s(
-                    harvesting_job_id=self.pk, start_position=number * self.step_size))
+                tasks.append(
+                    call_fetch_records.s(
+                        harvesting_job_id=self.pk,
+                        start_position=number * self.service.max_step_size,
+                        http_request=request,
+                        background_process_pk=self.background_process_id if self.background_process_id else None
+                    )
+                )
+
             transaction.on_commit(lambda: group(tasks).apply_async())
+
+            if self.background_process_id:
+                total_steps = tasks.__len__()  # how many call_fetch_records task will be run
+                # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
+                total_steps += self.total_records
+                BackgroundProcess.objects.select_for_update().filter(
+                    pk=self.background_process_id).update(total_steps=total_steps)
         return ret
+
+    def _http_request(self):
+        first_history = self.change_log.first()
+        created_by = first_history.history_user if first_history else None
+
+        return {
+            "path": "somepath",
+            "method": "GET",
+            "content_type": "application/json",
+            "data": {},
+            "user_pk": created_by.pk
+        } if created_by else None
 
     def get_record_types(self):
         record_types = []
@@ -144,7 +208,7 @@ class HarvestingJob(models.Model):
     def fetch_records(self, start_position) -> List[int]:
         client = self.service.client
         request = client.get_records_request(
-            max_records=self.step_size,
+            max_records=self.service.max_step_size,
             start_position=start_position,
             result_type="results",
             xml_constraint=client.get_constraint(
@@ -210,10 +274,17 @@ class TemporaryMdMetadataFile(models.Model):
             call_md_metadata_file_to_db  # to avoid circular import errors
         adding = self._state.adding or self.re_schedule
         self.re_schedule = False
+
         super().save(*args, **kwargs)
+
         if adding:
             transaction.on_commit(
-                lambda: call_md_metadata_file_to_db.delay(md_metadata_file_id=self.pk))
+                lambda: call_md_metadata_file_to_db.delay(
+                    md_metadata_file_id=self.pk,
+                    harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
+                    http_request=self.job._http_request(),
+                    background_process_pk=self.job.background_process_id if self.job.background_process_id else None
+                ))
 
     def delete(self, *args, **kwargs):
         try:
@@ -224,7 +295,7 @@ class TemporaryMdMetadataFile(models.Model):
             pass
         super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
-    def md_metadata_file_to_db(self) -> (DatasetMetadataRecord | ServiceMetadataRecord):
+    def md_metadata_file_to_db(self):
         self.md_metadata_file.open("r")
         with self.md_metadata_file as _file:
 
@@ -252,12 +323,12 @@ class TemporaryMdMetadataFile(models.Model):
                             self.update_relations(
                                 md_metadata, exists, update, db_metadata)
 
-                        if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exists():
+                        if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exclude(import_error__isnull=False).exists():
                             self.job.done_at = now()
                             self.job.save()
 
                         self.delete()
-                        return db_metadata
+                        return db_metadata, update, exists
             except Exception as e:
                 exc_info = sys.exc_info()
                 self.import_error = ''.join(

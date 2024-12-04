@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.generic.detail import BaseDetailView
 from django_celery_beat.models import CrontabSchedule
 from django_celery_results.models import TaskResult
+from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.serializers import CrontabScheduleSerializer
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import TaskResultSerializer

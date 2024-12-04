@@ -35,6 +35,7 @@ class TaskResultSerializer(ModelSerializer):
 class BackgroundProcessSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
+
     url = HyperlinkedIdentityField(
         view_name='notify:backgroundprocess-detail',
     )
@@ -72,6 +73,10 @@ class BackgroundProcessSerializer(
         fields = "__all__"
 
     def get_progress(self, instance) -> float:
+        if instance.total_steps and instance.total_steps > 0:
+            # there is an explecit step definitions stored on the model
+            return round(instance.done_steps / instance.total_steps * 100, 2)
+
         if instance.all_threads_count == 0:
             return 0
         aggregated_running_task_progress = 0.0

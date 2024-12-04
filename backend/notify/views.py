@@ -14,10 +14,56 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
     queryset = TaskResult.objects.all()
     serializer_class = TaskResultSerializer
     filterset_fields = {
-        "task_name": ["exact", "icontains", "contains"],
-        "status": ["exact"],
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'task_id': ['exact', 'icontains', 'contains', 'in'],
+        'periodic_task_name': ['exact', 'icontains', 'contains'],
+        'task_name': ['exact', 'icontains', 'contains'],
+        'task_args': ['exact', 'icontains', 'contains'],
+        'task_kwargs': ['exact', 'icontains', 'contains'],
+        'status': ['exact', 'icontains', 'contains'],
+        'worker': ['exact', 'icontains', 'contains'],
+        'content_type': ['exact', 'icontains', 'contains'],
+        'content_encoding': ['exact', 'icontains', 'contains'],
+        'result': ['exact', 'icontains', 'contains'],
+        'traceback': ['exact', 'icontains', 'contains'],
+        'meta': ['exact', 'icontains', 'contains'],
         "date_created": ["exact", "gt", "lt", "range"],
+        'date_done': ["exact", "gt", "lt", "range"],
     }
+    search_fields = [
+        "id",
+        'task_id',
+        'periodic_task_name',
+        'task_name',
+        'task_args',
+        'task_kwargs',
+        'status',
+        'worker',
+        'content_type',
+        'content_encoding',
+        'result',
+        'date_created',
+        'date_done',
+        'traceback',
+        'meta',
+    ]
+    ordering_fields = [
+        "id",
+        'task_id',
+        'periodic_task_name',
+        'task_name',
+        'task_args',
+        'task_kwargs',
+        'status',
+        'worker',
+        'content_type',
+        'content_encoding',
+        'result',
+        'date_created',
+        'date_done',
+        'traceback',
+        'meta',
+    ]
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -40,14 +86,20 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
             return Response(serializer.data)
 
 
-class BackgroundProcessViewSetMixin():
+class BackgroundProcessViewSetMixin(
+
+):
     queryset = BackgroundProcess.objects.process_info()
     serializer_class = BackgroundProcessSerializer
     filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
         "process_type": ["exact", "icontains", "contains"],
         "description": ["exact", "icontains", "contains"],
         "phase": ["exact", "icontains", "contains"],
     }
+    ordering_fields = [
+        "id",
+    ]
 
 
 class BackgroundProcessViewSet(

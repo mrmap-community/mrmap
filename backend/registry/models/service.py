@@ -162,6 +162,13 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
 
 class CatalogueService(HistoricalRecordMixin, OgcService):
+    # TODO: the max step size should be checked by registrating the service, harvesting the service, updating the service.
+    max_step_size = models.IntegerField(
+        verbose_name=_("max step size"),
+        help_text=_(
+            "the maximum step size this csw can handle by a single GetRecords request."),
+        default=50,
+    )
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector"
@@ -348,7 +355,8 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
             try:
                 return (
                     reverse(f"{self._meta.app_label}:dataset_metadata_list")
-                    + f'?id__in={",".join([str(dataset.pk) for dataset in self.registry_datasetmetadatarecord_metadata_records.all()])}'
+                    + f'?id__in={",".join([str(dataset.pk)
+                                          for dataset in self.registry_datasetmetadatarecord_metadata_records.all()])}'
                 )
             except NoReverseMatch:
                 pass
@@ -635,7 +643,8 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             return self.describe_feature_type_document
         else:
             settings.ROOT_LOGGER.error(
-                msg=f"can't fetch describe feature type document. response status code: {response.status_code}; response body: {response.content}"
+                msg=f"can't fetch describe feature type document. response status code: {
+                    response.status_code}; response body: {response.content}"
             )
 
     def parse(self):

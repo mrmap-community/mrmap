@@ -1,4 +1,4 @@
-import React, { type ReactNode, useCallback, useEffect, useState } from 'react'
+import React, { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { type Identifier, type RaRecord, useDataProvider } from 'react-admin'
 
 import Alert, { type AlertColor } from '@mui/material/Alert'
@@ -56,6 +56,19 @@ const TaskShortInfoLive = React.forwardRef<HTMLDivElement, TaskShortInfoLiveProp
       setTask(message.payload.records?.[0])
     }, [])
 
+    const title = useMemo(()=> {
+      switch(task?.processType){
+        case "registering":
+          return "Register new Service"
+        case "harvesting":
+          return "Harvesting"
+        case "monitoring":
+          return "Monitoring"
+        default:
+          return "Running Task"
+      }
+    },[task])
+
     useEffect(() => {
       // subscribe on mount
       dataProvider.subscribe(`resource/BackgroundProcess/${taskId}`, updateFromRealtimeBus)
@@ -66,16 +79,14 @@ const TaskShortInfoLive = React.forwardRef<HTMLDivElement, TaskShortInfoLiveProp
     return (
       <SnackbarContent
         ref={ref}
-      // role="alert"
-
       >
         <Alert
           severity={getColor(task?.status ?? '')}
           sx={{ width: '100%' }}
-          title={task?.processType === 'registering' ? 'Register new Service' : 'Running Task'}
+          title={title}
           onClose={() => { closeSnackbar(id) }}
         >
-          <AlertTitle> {task?.processType === 'registering' ? 'Register new Service' : 'New Task'} </AlertTitle>
+          <AlertTitle> {title} </AlertTitle>
 
           {task?.status !== 'success' ? task?.phase : ''}
           <LinearProgressWithLabel

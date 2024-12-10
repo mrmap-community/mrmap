@@ -79,6 +79,7 @@ class BackgroundProcessSerializer(
 
         if instance.all_threads_count == 0:
             return 0
+
         aggregated_running_task_progress = 0.0
         running_thread: TaskResult
         for running_thread in instance.running_threads_list:
@@ -88,5 +89,6 @@ class BackgroundProcessSerializer(
                 aggregated_running_task_progress += \
                     int(meta_info['done']) / int(meta_info['total'])
             except (AttributeError, KeyError):
+                # possible if task is finished (successed or failed or other states)
                 pass
-        return (aggregated_running_task_progress + instance.successed_threads_count + instance.failed_threads_count - instance.pending_threads_count) * 100 / instance.all_threads_count
+        return (aggregated_running_task_progress + instance.ready_threads_count - instance.unready_threads_count) * 100 / instance.all_threads_count

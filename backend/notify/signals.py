@@ -3,7 +3,6 @@ from logging import Logger
 from django.conf import settings
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from django_celery_results.models import TaskResult
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
 from notify.utils import build_action_payload, send_msg

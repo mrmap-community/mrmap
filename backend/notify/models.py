@@ -1,4 +1,3 @@
-
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -18,6 +17,11 @@ class BackgroundProcess(models.Model):
         auto_now_add=True,
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the process was created in UTC'),
+        null=True,
+        blank=True)
+    done_at = models.DateTimeField(
+        verbose_name=_('Completed DateTime'),
+        help_text=_('Datetime field when the process was completed in UTC'),
         null=True,
         blank=True)
     phase = models.CharField(

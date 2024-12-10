@@ -2,7 +2,7 @@
 import os
 from os import walk
 
-from celery import shared_task, states
+from celery import chord, shared_task
 from celery.utils.log import get_task_logger
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -10,9 +10,8 @@ from django.utils import timezone
 from eulxml import xmlmap
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
-from notify.tasks import BackgroundProcessBased
+from notify.tasks import BackgroundProcessBased, finish_background_process
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from requests.exceptions import Timeout
 
 logger = get_task_logger(__name__)
@@ -25,6 +24,7 @@ def create_harvesting_job(
     service_id,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
+    from registry.models.harvest import HarvestingJob
     return HarvestingJob.objects.create(service__pk=service_id)
 
 
@@ -40,28 +40,14 @@ def call_fetch_total_records(
     harvesting_job_id,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_state(
-        state=states.STARTED,
-        meta={
-            'done': 0,
-            'total': 1,
-            'phase': 'find out how many records the catalogue provides...'
-        }
-    )
     self.update_background_process()
+
+    from registry.models.harvest import HarvestingJob
 
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
     total_records = harvesting_job.fetch_total_records()
 
-    self.update_state(
-        state=states.SUCCESS,
-        meta={
-            'done': 1,
-            'total': 1,
-            'phase': f'catalogue provides {total_records} records.'
-        }
-    )
     self.update_background_process(
         phase=f'The catalogue provides {total_records} records. Harvesting is running...'  # noqa
     )
@@ -82,34 +68,52 @@ def call_fetch_records(
     start_position,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
+    self.update_background_process()
+
+    from registry.models.harvest import HarvestingJob
+
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
-
-    self.update_state(
-        state=states.STARTED,
-        meta={
-            'done': 0,
-            'total': 1,
-            'phase': f'fetching record {start_position} till {start_position + harvesting_job.service.max_step_size}.'
-        }
-    )
-    self.update_background_process()
 
     fetched_records = harvesting_job.fetch_records(
         start_position=start_position)
 
-    self.update_state(
-        state=states.SUCCESS,
-        meta={
-            'done': 1,
-            'total': 1,
-            'phase': f'fetched {fetched_records.__len__()} records.'
-        }
-    )
     self.update_background_process(
         step_done=True
     )
     return fetched_records
+
+
+@shared_task(
+    bind=True,
+    queue="db-routines",
+    base=BackgroundProcessBased
+)
+def call_chord_md_metadata_file_to_db(
+    self,
+    md_metadata_file_ids: [int],
+    http_request,
+    background_process_pk,
+    **kwargs
+):
+
+    ids = [
+        x
+        for xs in md_metadata_file_ids
+        for x in xs
+    ]
+    to_db_tasks = [
+        call_md_metadata_file_to_db.s(
+            md_metadata_file_id=id,
+            http_request=http_request,
+            background_process_pk=background_process_pk)
+        for id in ids
+    ]
+    chord(to_db_tasks)(finish_background_process.s())
+
+    self.update_background_process(
+        phase='parse and store ISO Metadatarecords to db...'
+    )
 
 
 @shared_task(
@@ -123,39 +127,14 @@ def call_md_metadata_file_to_db(
     md_metadata_file_id: int,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-
-    self.update_state(
-        state=states.STARTED,
-        meta={
-            'done': 0,
-            'total': 1,
-            'phase': f'parse and store ISO Metadatarecord to db.'
-        }
-    )
     self.update_background_process()
+
+    from registry.models.harvest import TemporaryMdMetadataFile
 
     temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
         pk=md_metadata_file_id)
     db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
 
-    is_new = not exists and not update
-    is_updated = not is_new and update
-
-    if is_updated:
-        action = "updated"
-    elif is_new:
-        action = "new"
-    else:
-        action = "keeped as it is"
-
-    self.update_state(
-        state=states.SUCCESS,
-        meta={
-            'done': 1,
-            'total': 1,
-            'phase': f'{action} {type(db_metadata)} {db_metadata.pk}.'
-        }
-    )
     self.update_background_process(
         step_done=True
     )
@@ -185,6 +164,8 @@ def check_for_files_to_import(
                 with transaction.atomic():
                     metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(filename=filename,
                                                                                        xmlclass=WrappedIsoMetadata)
+                    from registry.models.harvest import TemporaryMdMetadataFile
+
                     for iso_metadata in metadata_xml.iso_metadata:
                         db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
                         # save the file without saving the instance in db...

@@ -31,6 +31,8 @@ const getColor = (status: string): AlertColor => {
       return 'success'
     case 'failed':
       return 'error'
+    case 'running':
+      return 'info'
     default:
       return 'info'
   }

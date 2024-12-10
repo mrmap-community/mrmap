@@ -1,10 +1,12 @@
+import operator
 import os
 import sys
 import traceback
 from datetime import datetime
+from functools import reduce
 from typing import List
 
-from celery import group
+from celery import chord, states
 from django.contrib.gis.db import models
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -24,6 +26,7 @@ from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
+from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
 
@@ -156,21 +159,33 @@ class HarvestingJob(models.Model):
                         harvesting_job_id=self.pk,
                         start_position=number * self.service.max_step_size,
                         http_request=request,
-                        background_process_pk=self.background_process_id if self.background_process_id else None
+                        background_process_pk=self.background_process_id if self.background_process_id else None,
+
                     )
                 )
 
-            transaction.on_commit(lambda: group(tasks).apply_async())
+            transaction.on_commit(lambda: chord(tasks)(call_chord_md_metadata_file_to_db.s(
+                http_request=request,
+                background_process_pk=self.background_process_id if self.background_process_id else None,
+            )))
 
             if self.background_process_id:
+                """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
+                    The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
+                    The processing of harvesting can take a long time, in that the catalogue can changes his content. 
+                    So it can be 1000010 records or 99980 or something else. 
+                    The state of the remote CSW is not freezed after the first total_records call is done.
+
+                    An other fact is, that the get records request can response with currupt metadata records, which we can't handle.
+                    In that case, no TemporaryMdMetadataFile object is created and no call_md_metadata_file_to_db task is created.
+                """
                 total_steps = tasks.__len__()  # how many call_fetch_records task will be run
                 # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
                 total_steps += self.total_records
                 with transaction.atomic():
-                    bg_p = BackgroundProcess.objects.select_for_update().filter(
-                        pk=self.background_process_id)[0]
-                    bg_p.total_steps = total_steps
-                    bg_p.save()
+                    BackgroundProcess.objects.select_for_update().filter(
+                        pk=self.background_process_id).update(total_steps=total_steps)
+
         return ret
 
     def _http_request(self):
@@ -236,7 +251,7 @@ class HarvestingJob(models.Model):
                 save=False)
             db_md_metadata_file_list.append(db_md_metadata_file)
 
-        db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
+        db_objs = TemporaryMdMetadataFile.objects.bulk_create(
             objs=db_md_metadata_file_list)
 
         return [db_obj.pk for db_obj in db_objs]
@@ -326,9 +341,14 @@ class TemporaryMdMetadataFile(models.Model):
                             self.update_relations(
                                 md_metadata, exists, update, db_metadata)
 
-                        if self.job and not TemporaryMdMetadataFile.objects.filter(job=self.job).exclude(pk=self.pk).exclude(import_error__isnull=False).exists():
-                            self.job.done_at = now()
-                            self.job.save()
+                        if self.job and self.job.background_process_id:
+                            condition = reduce(
+                                operator.or_, [Q(status__contains=s) for s in states.READY_STATES])
+                            if not self.job.background_process.threads.exclude(condition).exists():
+                                # primitive check if this is the last running task of this harvesting processing.
+                                # This could be potentially be wrong, if there is any unscheduled
+                                self.job.done_at = now()
+                                self.job.save()
 
                         self.delete()
                         return db_metadata, update, exists

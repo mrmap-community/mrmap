@@ -11,7 +11,7 @@ import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
 import useResourceSchema from '../hooks/useResourceSchema'
 import { type JsonApiDocument, type JsonApiErrorObject } from '../types/jsonapi'
-import { getIncludeOptions, getSparseFieldOptions } from '../utils'
+import { FieldDefinition, getIncludeOptions, getSparseFieldOptions } from '../utils'
 
 interface FieldWrapperProps {
   children: ReactNode[]
@@ -28,7 +28,7 @@ interface ListGuesserProps extends Partial<ListProps> {
   additionalActions?: ReactNode
   defaultOmit?: string[]
   onRowClick?: (clickedRecord: RaRecord) => void
-  
+  updateFieldDefinitions?: FieldDefinition[];
 }
 
 
@@ -61,6 +61,7 @@ const ListGuesser = ({
   additionalActions = undefined,
   onRowClick = undefined,
   defaultOmit = [],
+  updateFieldDefinitions,
   ...props
 }: ListGuesserProps): ReactElement => {
 
@@ -77,7 +78,19 @@ const ListGuesser = ({
   const { operation } = useResourceSchema(operationId)
 
   const fieldDefinitions = useFieldsForOperation(operationId, false, false)
-  const fields = useMemo(()=>fieldDefinitions.map(def => createElement(def.component, def.props)),[fieldDefinitions])
+  const fields = useMemo(
+    () => fieldDefinitions.map(fieldDefinition => {
+      const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
+      return createElement(
+        update?.component || fieldDefinition.component, 
+        {
+          ...fieldDefinition.props,
+          key: `${fieldDefinition.props.source}`,
+          ...update?.props
+        }
+      )
+    })
+  ,[fieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
   const filters = useMemo(() => fieldSchemas.map(def => createElement(def.component, def.props)), [fieldSchemas])

@@ -24,7 +24,7 @@ const EditGuesser = (
 
   const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
   const fields = useMemo(
-    ()=> 
+    () => 
       fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
         fieldDefinition => {
 

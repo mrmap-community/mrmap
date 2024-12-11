@@ -96,7 +96,7 @@ def call_chord_md_metadata_file_to_db(
     background_process_pk,
     **kwargs
 ):
-
+    # build flat list from incomming id's which are passed by parent chord to this as his callback.
     ids = [
         x
         for xs in md_metadata_file_ids
@@ -109,7 +109,10 @@ def call_chord_md_metadata_file_to_db(
             background_process_pk=background_process_pk)
         for id in ids
     ]
-    chord(to_db_tasks)(finish_background_process.s())
+    chord(to_db_tasks)(finish_background_process.s(
+        http_request=http_request,
+        background_process_pk=background_process_pk
+    ))
 
     self.update_background_process(
         phase='parse and store ISO Metadatarecords to db...'

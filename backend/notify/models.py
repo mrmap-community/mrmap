@@ -67,3 +67,7 @@ class BackgroundProcess(models.Model):
         verbose_name_plural = _('Background Processes')
 
     objects = BackgroundProcessManager()
+
+    def __str__(self):
+
+        return f"{self.process_type} {self.related_id}"

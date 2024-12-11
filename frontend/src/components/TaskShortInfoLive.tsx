@@ -10,22 +10,20 @@ import { type CustomContentProps, SnackbarContent, useSnackbar } from 'notistack
 
 import { type CrudEvent } from '../providers/dataProvider'
 
-const LinearProgressWithLabel = (props: LinearProgressProps & { value: number }): ReactNode => {
+export const LinearProgressWithLabel = (props: LinearProgressProps & { value: number }): ReactNode => {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <Box sx={{ width: '100%', mr: 1 }}>
         <LinearProgress variant="determinate" {...props} />
       </Box>
-      <Box sx={{ minWidth: 35 }}>
-        <Typography variant="body2" color="text.secondary">{`${Math.round(
-          props.value
-        )}%`}</Typography>
+      <Box sx={{ minWidth: 40 }}>
+        <Typography variant="body2" color="text.secondary">{`${props.value.toFixed(2)}%`}</Typography>
       </Box>
     </Box>
   )
 }
 
-const getColor = (status: string): AlertColor => {
+export const getColor = (status: string): AlertColor => {
   switch (status) {
     case 'successed':
       return 'success'
@@ -90,7 +88,8 @@ const TaskShortInfoLive = React.forwardRef<HTMLDivElement, TaskShortInfoLiveProp
         >
           <AlertTitle> {title} </AlertTitle>
 
-          {task?.status !== 'success' ? task?.phase : ''}
+          {task?.status !== 'success' ? task?.phase : ''}<br/>
+          {task?.doneSteps} of {task?.totalSteps} steps done.
           <LinearProgressWithLabel
             value={task?.progress ?? 0}
             color={getColor(task?.status ?? '')}

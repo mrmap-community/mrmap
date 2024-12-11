@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useDataProvider, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import axios from 'axios'
@@ -29,6 +29,7 @@ interface ListGuesserProps extends Partial<ListProps> {
   defaultOmit?: string[]
   onRowClick?: (clickedRecord: RaRecord) => void
   updateFieldDefinitions?: FieldDefinition[];
+  refetchInterval?: number | false
 }
 
 
@@ -62,8 +63,10 @@ const ListGuesser = ({
   onRowClick = undefined,
   defaultOmit = [],
   updateFieldDefinitions,
+  refetchInterval=false,
   ...props
 }: ListGuesserProps): ReactElement => {
+  const dataProvider = useDataProvider()
 
   const { name, hasShow, hasEdit } = useResourceDefinition(props)
   const { api } = useHttpClientContext()
@@ -187,11 +190,14 @@ const ListGuesser = ({
     return <div />
   }
 
+
+
   return (
     <List
       filters={filters}
       actions={<ListActions filters={filters} />}
       queryOptions={{
+        refetchInterval,
         onError,
         meta: (relatedResource !== undefined && relatedResource !== '')
           ? {

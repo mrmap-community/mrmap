@@ -21,6 +21,7 @@ import { WmsShow } from './WebMapService/WmsShow';
 
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
+import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
 import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServiceMonitoringSetting';
 
@@ -56,7 +57,7 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   {name: "CrontabSchedule"},
-  {name: "BackgroundProcess", list: ListBackgroundProcess},
+  {name: "BackgroundProcess", list: ListBackgroundProcess, show: ShowBackgroundProcess},
 
   {name: "AllowedWebMapServiceOperation", icon: VpnLockIcon, create: CreateAllowedWebMapServiceOperation, edit: EditAllowedWebMapServiceOperation},
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon},

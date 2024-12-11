@@ -28,6 +28,7 @@ const ListBackgroundProcess = (): ReactNode => {
           props: {source: "progress", getColor: getColor}
         }
       ]}
+      refetchInterval={5000}
     />
 
   )

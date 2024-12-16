@@ -1,0 +1,315 @@
+{% extends 'metadata/bootstrap.html' %}
+
+{% load django_bootstrap5 %}
+{# Load CSS and JavaScript #}
+{% bootstrap_css %}
+{% bootstrap_javascript %}
+
+{# Display django.contrib.messages as Bootstrap alerts #}
+{% bootstrap_messages %}
+
+{% block bootstrap5_content %}
+<div class="container">
+  <nav>
+      <div class="nav nav-tabs" id="nav-tab" role="tablist">
+          <a class="nav-link active" id="nav-overview-tab" data-bs-toggle="tab" href="#nav-overview" role="tab"
+              aria-controls="nav-overview" aria-selected="true">{{ _("Overview") }}</a>
+          <a class="nav-link" id="nav-properties-tab" data-bs-toggle="tab" href="#nav-properties" role="tab"
+              aria-controls="nav-properties" aria-selected="false">{{ _("Properties") }}</a>
+          <a class="nav-link" id="nav-contact-tab" data-bs-toggle="tab" href="#nav-contact" role="tab"
+              aria-controls="nav-contact" aria-selected="false">{{ _("Contact") }}</a>
+          <a class="nav-link" id="nav-tou-tab" data-bs-toggle="tab" href="#nav-tou" role="tab"
+              aria-controls="nav-tou" aria-selected="false">{{ _("Terms of use") }}</a>
+          <a class="nav-link" id="nav-quality-tab" data-bs-toggle="tab" href="#nav-quality" role="tab"
+              aria-controls="nav-quality" aria-selected="false">{{ _("Quality") }}</a>
+          <a class="nav-link" id="nav-interfaces-tab" data-bs-toggle="tab" href="#nav-interfaces" role="tab"
+              aria-controls="nav-interfaces" aria-selected="false">{{ _("Interfaces") }}</a>    
+      </div>
+  </nav>
+  <div class="tab-content" id="nav-tabContent">
+      <div class="tab-pane fade show active" id="nav-overview" role="tabpanel" aria-labelledby="nav-overview-tab">
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Metadata") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("File identifier") }}</th>
+                <td>{{ metadata.file_identifier }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Metadata date") }}</th>
+                <td>{{ metadata.date_stamp }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Metadata language") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Identification") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Resource title") }}</th>
+                <td>{{ metadata.title }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Resource abstract") }}</th>
+                <td>{{ metadata.abstract }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Kind of resource") }}</th>
+                <td>dataset</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Preview") }}</th>
+                <td>{{ metadata.preview_image }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Unique resource identifier") }}</th>
+                <td>{{ metadata.resource_identifier }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Spatial Extent") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Preview") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Metadata contact") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Responsible organisation") }}</th>
+                <td>{{ metadata.metadata_contact.name }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Responsible organisation email") }}</th>
+                <td>{{ metadata.metadata_contact.email }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+      </div>
+    
+      <div class="tab-pane fade" id="nav-properties" role="tabpanel" aria-labelledby="nav-properties-tab">
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("General") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Language") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Themes") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Keywords") }}</th>
+                <td>{% for keyword in metadata.keywords.all %}{{ keyword }},{% endfor %}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Geographic information") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Coordinate reference system") }}</th>
+                <td><td>{% for crs in metadata.reference_systems.all %}{{ crs.prefix }}:{{ crs.code }},{% endfor %}</td></td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Geographic Extent") }}</th>
+                <td>{{ metadata.bounding_geometry }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Temporal extent") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Temporal extent - start") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Temporal extent - end") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Date of publication") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Date of last revision") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Date of creation") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Format") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Original dataset format") }}</th>
+                <td>{{ metadata.format }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Encoding") }}</th>
+                <td>{{ metadata.charset }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+      </div>
+      <div class="tab-pane fade" id="nav-contact" role="tabpanel" aria-labelledby="nav-contact-tab">
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Dataset-/Serviceprovider") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Responsible organisation") }}</th>
+                <td>{{ metadata.dataset_contact.name }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Responsible organisation email") }}</th>
+                <td>{{ metadata.dataset_contact.email }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+      </div>
+      <div class="tab-pane fade" id="nav-tou" role="tabpanel" aria-labelledby="nav-tou-tab">
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Conditions applying to access and use") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Use limitations") }}</th>
+                <td>{{ metadata.use_limitations }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Fees") }}</th>
+                <td>{{ metadata.fees }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Limitations on public access") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Code for access constraints") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Other access constraints") }}</th>
+                <td>{{ metadata.access_constraints }}</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("License URL") }}</th>
+                <td>{{ metadata.license_id  }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+      </div>
+      <div class="tab-pane fade" id="nav-quality" role="tabpanel" aria-labelledby="nav-quality-tab">
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Lineage") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Lineage") }}</th>
+                <td>{{ metadata.lineage_statement }}</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Resolution") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Comparable scale") }}</th>
+                <td></td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Ground resolution") }}</th>
+                <td></td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Conformity") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Title of specification") }}</th>
+                <td>resolve relation!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Date of Ssecification") }}</th>
+                <td>resolve relation!</td>
+              </tr>
+              <tr>
+                <th scope="row">{{ _("Degree of conformity") }}</th>
+                <td>resolve relation!</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+      </div>
+      <div class="tab-pane fade" id="nav-interfaces" role="tabpanel" aria-labelledby="nav-interfaces-tab">
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Online access") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">{{ _("Links to resources ...") }}</th>
+                <td>not yet implemented!</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+        <fieldset class="border rounded-3 p-3">
+          <legend class="float-none w-auto px-3" >{{ _("Metadata") }}</legend>
+          <table class="table">
+            <tbody>
+              <tr>
+                <th scope="row">ISO19139</th>
+                <td><a href="{{ metadata.origin_url}}">ISO19139 file</a></td>
+              </tr>
+              <tr>
+                <th scope="row">RDF</th>
+                <td>not yet implemented!</td>
+              </tr>
+            <tbody>
+          </table>   
+        </fieldset>
+      </div>
+  </div>
+  <div>
+    {% autoescape off %}{% bootstrap_messages %}{% endautoescape %}
+  </div>
+{% endblock %}

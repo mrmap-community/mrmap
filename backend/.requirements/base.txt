@@ -70,3 +70,5 @@ django-ows-lib==0.15.0
 camel-converter==4.0.1
 django-rest-knox==5.0.2
 django-pgviews-redux==0.10.1
+
+django-bootstrap5==24.3

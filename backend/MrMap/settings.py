@@ -103,6 +103,8 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "drf_spectacular_jsonapi",
     "django_pgviews",
+    "metadata",
+    "django_bootstrap5",
 ]
 
 MIDDLEWARE = [

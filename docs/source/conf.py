@@ -21,7 +21,7 @@ import sys
 import django
 from sphinx.builders.html import StandaloneHTMLBuilder
 
-sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../mrmap'))  # noqa : to fix the following imports
+sys.path.insert(0, os.path.join(os.path.abspath('.'), '../../backend'))  # noqa : to fix the following imports
 
 from MrMap import VERSION
 from MrMap.settings import LOG_DIR
@@ -106,6 +106,7 @@ StandaloneHTMLBuilder.supported_image_types = [
 
 
 smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
-smv_branch_whitelist = r'^develop$'              # Include develop branch
+# smv_branch_whitelist = r'^develop$'              # Include develop branch
+smv_branch_whitelist = r'^armin1$'   
 # Use branches from all remotes
 smv_remote_whitelist = None

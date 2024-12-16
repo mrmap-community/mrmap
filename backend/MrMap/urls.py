@@ -33,6 +33,8 @@ urlpatterns = [
     path("captcha/", include("captcha.urls")),
     # translation support
     path("i18n/", include("django.conf.urls.i18n")),
+    # persistent metadata endpoints
+    path("metadata/", include("metadata.urls", namespace="metadata")),
     # REST API
     # registry api urls
     path("api/beat/", include("extras.urls", namespace="beat")),

@@ -132,6 +132,10 @@ Test documentation builds properly
 
     $ sphinx-multiversion docs/source docs/build/html -b linkcheck
 
+.. code-block:: console
+
+    $ sphinx-multiversion docs/source docs/build/html 
+
 The documentation should be successfully build in the ``docs/build`` folder. Open the ``docs/build/index.html`` to test it.
 
 

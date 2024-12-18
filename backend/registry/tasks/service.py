@@ -1,10 +1,9 @@
 from urllib import parse
 
-from celery import shared_task, states
-from celery.canvas import group
+from celery import chord, shared_task, states
 from django.conf import settings
 from django.db import transaction
-from notify.tasks import BackgroundProcessBased
+from notify.tasks import BackgroundProcessBased, finish_background_process
 from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.exceptions.metadata import UnknownMetadataKind
 from registry.models import CatalogueService, WebFeatureService, WebMapService
@@ -23,12 +22,20 @@ from urllib3.exceptions import MaxRetryError
     queue="default",
     base=BackgroundProcessBased
 )
-def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records: bool, service_auth_pk: None, **kwargs):
+def build_ogc_service(
+        self,
+        get_capabilities_url: str,
+        collect_metadata_records: bool,
+        service_auth_pk: None,
+        http_request,
+        background_process_pk,
+        **kwargs):
     try:
-
         self.update_state(state=states.STARTED, meta={
             'done': 0, 'total': 3, 'phase': 'download capabilities document...'})
-        self.update_background_process()
+        self.update_background_process(
+            phase=f"download capabilities document from {get_capabilities_url}"
+        )
 
         auth = None
         if service_auth_pk:
@@ -47,17 +54,29 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
         request = Request(method="GET",
                           url=get_capabilities_url,
                           auth=auth.get_auth_for_request() if auth else None)
-        response = session.send(request.prepare())
+        response = session.send(
+            request=request.prepare(),
+            timeout=15,
+        )
 
-        self.update_state(state=states.STARTED, meta={
-            'done': 1, 'total': 3, 'phase': 'parse capabilities document...'})
-        self.update_background_process('parse capabilities document...')
+        self.update_state(
+            state=states.STARTED,
+            meta={'done': 1, 'total': 3,
+                  'phase': 'parse capabilities document...'}
+        )
+        self.update_background_process(
+            phase='parse capabilities document...'
+        )
 
         parsed_service = get_parsed_service(capabilities_xml=response.content)
 
-        self.update_state(state=states.STARTED, meta={
-            'done': 2, 'total': 3, 'phase': 'persisting service...'})
-        self.update_background_process('persisting service...')
+        self.update_state(
+            state=states.STARTED,
+            meta={'done': 2, 'total': 3, 'phase': 'persisting service...'}
+        )
+        self.update_background_process(
+            phase='persisting service...'
+        )
 
         with transaction.atomic():
             # create all needed database objects and rollback if any error occours to avoid from database inconsistence
@@ -89,7 +108,10 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
                 auth.service = db_service
                 auth.save()
 
-        self.update_state(state=states.SUCCESS, meta={'done': 3, 'total': 3})
+        self.update_state(
+            state=states.SUCCESS,
+            meta={'done': 3, 'total': 3}
+        )
 
         # TODO: use correct Serializer and render the json:api as result
         return_dict = {
@@ -101,11 +123,13 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
                 }
             }
         }
+    except (ConnectionError, TimeoutError) as e:
+        raise e
     except Exception as e:
         self.update_state(state=states.FAILURE)
-        self.update_background_process(str(e))
+        self.update_background_process(phase=str(e))
         settings.ROOT_LOGGER.exception(e, stack_info=True, exc_info=True)
-        raise
+        raise e
 
     if collect_metadata_records:
         remote_metadata_list = None
@@ -116,26 +140,36 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
             remote_metadata_list = WebFeatureServiceRemoteMetadata.objects.filter(
                 service__pk=db_service.pk)
         if remote_metadata_list:
-            # TODO: create Task Result objects for all child threads, so we can append them directly to the Background Process to avoid
-            #  progress bar melting after increasement
-            job = group([fetch_remote_metadata_xml.s(remote_metadata.pk, db_service.__class__.__name__, **kwargs)
-                        for remote_metadata in remote_metadata_list])
-            group_result = job.apply_async()
-            group_result.save()
+            task_kwargs = {
+                "http_request": http_request,
+                "background_process_pk": background_process_pk
+            }
 
-            data = return_dict["data"]
-            data.update({
-                "meta": {
-                    "collect_metadata_records_job_id": str(group_result.id)
-                }
-            })
+            tasks = [
+                fetch_remote_metadata_xml.s(
+                    remote_metadata.pk,
+                    db_service.__class__.__name__,
+                    **task_kwargs
+                )
+                for remote_metadata in remote_metadata_list]
+            chord(tasks)(finish_background_process.s(**task_kwargs))
+
             self.update_background_process(
-                'collecting metadata records...', db_service)
+                phase='collecting metadata records...',
+                service=db_service,
+                total_steps=tasks.__len__()
+            )
         else:
-            self.update_background_process('successed', db_service)
+            self.update_background_process(
+                completed=True,
+                service=db_service,
+            )
 
     else:
-        self.update_background_process('successed', db_service)
+        self.update_background_process(
+            completed=True,
+            service=db_service,
+        )
 
     return return_dict
 
@@ -143,14 +177,15 @@ def build_ogc_service(self, get_capabilities_url: str, collect_metadata_records:
 @shared_task(bind=True,
              queue="download",
              base=BackgroundProcessBased,
-             autoretry_for=(MaxRetryError,),
-             # retry after 30 minutes
-             retry_kwargs={'max_retries': 2, 'countdown': 1800}
              )
-def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
+def fetch_remote_metadata_xml(
+    self,
+    remote_metadata_id,
+    class_name,
+    **kwargs
+):
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
-    self.update_background_process()
 
     remote_metadata = None
     if class_name == 'WebMapService':
@@ -190,4 +225,7 @@ def fetch_remote_metadata_xml(self, remote_metadata_id, class_name, **kwargs):
     except Exception as e:
         settings.ROOT_LOGGER.exception(
             f"RemoteMetadata id: {remote_metadata.pk}", e, stack_info=True, exc_info=True)
-        raise
+
+    self.update_background_process(
+        step_done=True
+    )

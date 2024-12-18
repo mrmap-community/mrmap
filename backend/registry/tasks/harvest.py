@@ -1,5 +1,5 @@
-
 import os
+import traceback
 from os import walk
 
 from celery import chord, shared_task
@@ -12,7 +12,6 @@ from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
 from notify.tasks import BackgroundProcessBased, finish_background_process
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
-from requests.exceptions import Timeout
 
 logger = get_task_logger(__name__)
 
@@ -31,8 +30,6 @@ def create_harvesting_job(
 @shared_task(
     bind=True,
     queue="default",
-    autoretry_for=(Timeout,),
-    retry_kwargs={'max_retries': 5},
     base=BackgroundProcessBased
 )
 def call_fetch_total_records(
@@ -58,8 +55,6 @@ def call_fetch_total_records(
 @shared_task(
     bind=True,
     queue="download",
-    autoretry_for=(Timeout,),
-    retry_kwargs={'max_retries': 5},
     base=BackgroundProcessBased
 )
 def call_fetch_records(
@@ -122,7 +117,6 @@ def call_chord_md_metadata_file_to_db(
 @shared_task(
     bind=True,
     queue="db-routines",
-    retry_kwargs={'max_retries': 5},
     base=BackgroundProcessBased
 )
 def call_md_metadata_file_to_db(
@@ -130,19 +124,26 @@ def call_md_metadata_file_to_db(
     md_metadata_file_id: int,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_background_process()
+    try:
+        self.update_background_process()
 
-    from registry.models.harvest import TemporaryMdMetadataFile
+        from registry.models.harvest import TemporaryMdMetadataFile
 
-    temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
-        pk=md_metadata_file_id)
-    db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
+        temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
+            pk=md_metadata_file_id)
+        db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
 
-    self.update_background_process(
-        step_done=True
-    )
+        self.update_background_process(
+            step_done=True
+        )
 
-    return db_metadata.pk
+        return db_metadata.pk
+    except Exception as e:
+        tbe = traceback.TracebackException.from_exception(e)
+        TemporaryMdMetadataFile.objects.select_for_update(
+        ).filter(pk=md_metadata_file_id).update(
+            import_error=tbe.stack
+        )
 
 
 @shared_task(

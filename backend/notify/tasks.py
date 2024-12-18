@@ -6,9 +6,11 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import F
+from django.db.models.functions import Coalesce
 from django.utils.timezone import now
 from django_celery_results.models import TaskResult
 from notify.models import BackgroundProcess
+from requests.exceptions import ConnectionError, Timeout
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -26,11 +28,23 @@ def get_background_process(task, *args, **kwargs):
 
 class BackgroundProcessBased(Task):
     thread_appended = False
+    autoretry_for = (Timeout, ConnectionError)
+    retry_backoff = 30
+    retry_backoff_max = 5*60
+    retry_jitter = False
+    max_retries = 10
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        self.update_background_process(
+            phase=f"An error occours: {einfo}",
+            completed=True
+        )
 
     def update_background_process(
         self,
         phase: str = "",
         service=None,
+        total_steps=None,
         step_done=False,
         completed=False,
     ):
@@ -57,6 +71,11 @@ class BackgroundProcessBased(Task):
                                 related_resource_type=service_ct,
                                 related_id=service.pk
                         )
+                    if total_steps:
+                        bg_p = BackgroundProcess.objects.select_for_update().filter(
+                            pk=self.background_process.pk).update(
+                                total_steps=total_steps
+                        )
                     if step_done:
                         bg_p = BackgroundProcess.objects.select_for_update().filter(
                             pk=self.background_process.pk)[0]
@@ -67,7 +86,8 @@ class BackgroundProcessBased(Task):
                     if completed:
                         bg_p = BackgroundProcess.objects.select_for_update().filter(
                             pk=self.background_process.pk).update(
-                                done_steps=F("total_steps"),
+                                total_steps=Coalesce(F("total_steps"), 1),
+                                done_steps=Coalesce(F("total_steps"), 1),
                                 done_at=now(),
                                 phase="completed"
                         )
@@ -82,6 +102,7 @@ class BackgroundProcessBased(Task):
 )
 def finish_background_process(
     self,
+    *args,
     **kwargs
 ):
     self.update_background_process(

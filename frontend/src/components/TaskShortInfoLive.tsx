@@ -47,14 +47,24 @@ const TaskShortInfoLive = React.forwardRef<HTMLDivElement, TaskShortInfoLiveProp
       taskId
     } = props
 
+
     const dataProvider = useDataProvider()
     const { closeSnackbar } = useSnackbar()
 
-    const [task, setTask] = useState<RaRecord>()
+    const [task, setTask] = useState<RaRecord | undefined>()
+    
 
     const updateFromRealtimeBus = useCallback((message: CrudEvent) => {
       setTask(message.payload.records?.[0])
     }, [])
+
+    const updateFromRestApi = useCallback(()=> {
+      dataProvider.getOne("BackgroundProcess", {id: taskId}).then(({data}) => {
+        if (task === undefined){
+          setTask(data)
+        }
+      })
+    }, [dataProvider, taskId, task, setTask])
 
     const title = useMemo(()=> {
       switch(task?.processType){
@@ -69,12 +79,21 @@ const TaskShortInfoLive = React.forwardRef<HTMLDivElement, TaskShortInfoLiveProp
       }
     },[task])
 
+    const stepInfo = useMemo(()=>{
+      return task?.doneSteps && task?.totalSteps && `${task?.doneSteps} of ${task?.totalSteps} steps done.`
+    }, [task])
+
     useEffect(() => {
       // subscribe on mount
       dataProvider.subscribe(`resource/BackgroundProcess/${taskId}`, updateFromRealtimeBus)
+      // initial from remote api on mount
+      updateFromRestApi()
+
       // unsubscribe on unmount
       return () => dataProvider.unsubscribe(`resource/BackgroundProcess/${taskId}`, updateFromRealtimeBus)
     }, [dataProvider])
+
+    
 
     return (
       <SnackbarContent
@@ -89,7 +108,7 @@ const TaskShortInfoLive = React.forwardRef<HTMLDivElement, TaskShortInfoLiveProp
           <AlertTitle> {title} </AlertTitle>
 
           {task?.status !== 'success' ? task?.phase : ''}<br/>
-          {task?.doneSteps} of {task?.totalSteps} steps done.
+          {stepInfo}
           <LinearProgressWithLabel
             value={task?.progress ?? 0}
             color={getColor(task?.status ?? '')}

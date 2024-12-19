@@ -124,7 +124,8 @@ class HarvestingJob(models.Model):
             background_process = BackgroundProcess.objects.create(
                 phase="Get total records of the catalogue",
                 process_type=ProcessNameEnum.HARVESTING.value,
-                description=f'Harvesting job for service {self.service.pk}'  # noqa
+                description=f'Harvesting job for service {self.service.pk}',  # noqa
+                service=self.service
             )
 
             transaction.on_commit(

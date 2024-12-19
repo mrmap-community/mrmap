@@ -1,5 +1,5 @@
 import { type ReactNode, useMemo } from 'react'
-import { useRecordContext } from 'react-admin'
+import { Link, useCreatePath, useRecordContext } from 'react-admin'
 
 import Alert, { type AlertColor } from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
@@ -44,7 +44,8 @@ const BackgroundProcessAlert = (
   {
     snackId,
   }: BackgroundProcessAlertProps) => {
-
+    
+  const createPath = useCreatePath();
   const { closeSnackbar } = useSnackbar()
   const record = useRecordContext()
 
@@ -53,13 +54,27 @@ const BackgroundProcessAlert = (
       case "registering":
         return "Register new Service"
       case "harvesting":
-        return "Harvesting"
+        const link = record.service && <Link to={createPath({resource: "CatalogueService", type: "show", id: record.service.id})}>{record.service.id}</Link>
+        return link !== undefined ? `Harvesting of ${link}`: 'Harvesting'
       case "monitoring":
         return "Monitoring"
       default:
         return "Running Task"
     }
   },[record])
+
+  const info = useMemo(()=>{
+    switch(record?.status){
+      case "completed":
+        // TODO: translate
+        return "completed"
+      case "pending":
+        // TODO: translate
+        return "wating for schedule"
+      default:
+        return record?.phase
+    }
+  },[])
 
   const stepInfo = useMemo(()=>{
     return record?.doneSteps && record?.totalSteps && `${record?.doneSteps ?? 0} of ${record?.totalSteps ?? 0} steps done.`
@@ -74,7 +89,7 @@ const BackgroundProcessAlert = (
     >
       <AlertTitle> {title} </AlertTitle>
 
-      {record?.status === 'completed' ? record?.status : record?.phase}<br/>
+      {info}<br/>
       {stepInfo}
 
       <LinearProgressWithLabel

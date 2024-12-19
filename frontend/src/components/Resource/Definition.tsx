@@ -13,10 +13,10 @@ import CustomerIcon from '@mui/icons-material/Person';
 import PlagiarismIcon from '@mui/icons-material/Plagiarism';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import CatalogueServiceList from '../Lists/CatalogueServiceList';
 import WmsList from '../Lists/WmsList';
 import CreateAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/CreateAllowedWebMapServiceOperation';
 import EditAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/EditAllowedWebMapServiceOperation';
+import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import { WmsShow } from './WebMapService/WmsShow';
 
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';

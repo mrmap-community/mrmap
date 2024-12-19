@@ -221,7 +221,7 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
           resource: jsonApiResourceType,
           schema: relationSchema as OpenAPIV3.NonArraySchemaObject,
           isRequired: isRequired, 
-          isReadOnly: _relationSchema.readOnly ?? false,
+          isReadOnly: relationSchema.readOnly ?? false,
           kind: 'relationship'
         }
       }

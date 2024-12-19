@@ -87,8 +87,7 @@ class HarvestingJob(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         default=None,
-        # editable=False,
-    )
+        editable=False,)
 
     change_log = HistoricalRecords(
         related_name="change_logs",

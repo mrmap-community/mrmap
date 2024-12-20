@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useDataProvider, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import axios from 'axios'
@@ -12,6 +12,7 @@ import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
 import useResourceSchema from '../hooks/useResourceSchema'
 import { type JsonApiDocument, type JsonApiErrorObject } from '../types/jsonapi'
 import { FieldDefinition, getIncludeOptions, getSparseFieldOptions } from '../utils'
+import RealtimeList from './Realtime/RealtimeList'
 
 interface FieldWrapperProps {
   children: ReactNode[]
@@ -23,6 +24,7 @@ interface ListActionsProps {
 }
 
 interface ListGuesserProps extends Partial<ListProps> {
+  realtime?: boolean
   relatedResource?: string
   rowActions?: ReactNode
   additionalActions?: ReactNode
@@ -57,6 +59,7 @@ const ListActions = (
 }
 
 const ListGuesser = ({
+  realtime=false,
   relatedResource = '',
   rowActions = undefined,
   additionalActions = undefined,
@@ -66,8 +69,7 @@ const ListGuesser = ({
   refetchInterval=false,
   ...props
 }: ListGuesserProps): ReactElement => {
-  const dataProvider = useDataProvider()
-
+  const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit } = useResourceDefinition(props)
   const { api } = useHttpClientContext()
 
@@ -193,7 +195,7 @@ const ListGuesser = ({
 
 
   return (
-    <List
+    <ListComponent
       filters={filters}
       actions={<ListActions filters={filters} />}
       queryOptions={{
@@ -270,7 +272,7 @@ const ListGuesser = ({
         }
       </DatagridConfigurable >
 
-    </List >
+    </ListComponent >
   )
 }
 

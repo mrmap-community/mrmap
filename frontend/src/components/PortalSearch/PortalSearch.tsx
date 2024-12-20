@@ -41,7 +41,6 @@ const PortalSearch = (): ReactNode => {
   const [search, setSearch] = useState("")
 
   const handleSubmit = useCallback((event) => {
-    console.log(event)
     event.preventDefault();
     alert("Form Submitted");
   }, []);

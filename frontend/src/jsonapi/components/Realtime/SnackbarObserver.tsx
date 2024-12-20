@@ -3,7 +3,7 @@ import { useDataProvider } from 'react-admin'
 
 import { useSnackbar } from 'notistack'
 
-import { type CrudEvent } from '../../providers/dataProvider'
+import { type CrudEvent } from '../../../providers/dataProvider'
 
 const SnackbarObserver = (): ReactNode => {
   const dataProvider = useDataProvider()

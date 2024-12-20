@@ -10,7 +10,7 @@ import useResizeObserver from '@react-hook/resize-observer';
 import { SnackbarProvider } from 'notistack';
 
 import { useHttpClientContext } from '../../context/HttpClientContext';
-import SnackbarObserver from '../../jsonapi/components/SnackbarObserver';
+import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
 import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
 import Menu from './Menu';

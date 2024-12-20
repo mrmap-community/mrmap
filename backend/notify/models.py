@@ -32,13 +32,11 @@ class BackgroundProcess(models.Model):
         verbose_name=_('total'),
         help_text=_('total steps of processing'),
         null=True,
-        default=None
-    )
+        default=None)
     done_steps = models.IntegerField(
         verbose_name=_('done'),
         help_text=_('done steps of processing'),
-        default=0
-    )
+        default=0)
     process_type = models.CharField(
         max_length=32,
         choices=ProcessNameEnum.choices,
@@ -47,8 +45,7 @@ class BackgroundProcess(models.Model):
     description = models.CharField(
         max_length=512,
         verbose_name=_('description'),
-        help_text=_('Human readable description of what this process does')
-    )
+        help_text=_('Human readable description of what this process does'))
     related_resource_type = models.ForeignKey(
         to=ContentType,
         on_delete=models.CASCADE,
@@ -56,8 +53,7 @@ class BackgroundProcess(models.Model):
         blank=True)
     related_id = models.UUIDField(
         null=True,
-        blank=True
-    )
+        blank=True)
     service = GenericForeignKey(
         ct_field='related_resource_type',
         fk_field='related_id')

@@ -21,6 +21,7 @@ const getColor = (record: RaRecord): AlertColor => {
 const ListBackgroundProcess = (): ReactNode => {
   return (
     <ListGuesser
+      realtime={true}
       resource='BackgroundProcess'
       updateFieldDefinitions={[
         {
@@ -28,7 +29,7 @@ const ListBackgroundProcess = (): ReactNode => {
           props: {source: "progress", getColor: getColor}
         }
       ]}
-      refetchInterval={5000}
+      refetchInterval={20000}
     />
 
   )

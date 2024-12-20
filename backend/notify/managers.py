@@ -4,7 +4,7 @@ from functools import reduce
 from celery import states
 from django.db import models
 from django.db.models import Case, Count, F, Q, Value, When
-from django.db.models.fields import CharField
+from django.db.models.fields import CharField, FloatField
 from django.db.models.functions import Round
 from django.db.models.query import Prefetch
 from django_celery_results.models import TaskResult
@@ -39,12 +39,14 @@ class BackgroundProcessManager(models.Manager):
             progress=Case(
                 When(
                     Q(done_at__isnull=False),
-                    then=Value(100)),
+                    then=Value(100.0)),
                 When(
-                    Q(total_steps__gt=0),
-                    then=Round(F("done_steps") / F("total_steps")
-                               * 100, precision=2)
-                )
+                    Q(total_steps__isnull=True),
+                    then=Value(0.0)  # noqa
+                ),
+                # 1.0 factor is needed to force cast the F field to a decimal number...
+                default=Round(F("done_steps") * 1.0 / F("total_steps") * 100.0, precission=2),  # noqa
+                output_field=FloatField()
             )
         ).order_by('-date_created')
         qs = qs.prefetch_related(

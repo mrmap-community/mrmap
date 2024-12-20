@@ -144,7 +144,7 @@ class HarvestingJob(models.Model):
 
         if self.total_records == 0:
             self.done_at = now()
-            ret = self.save()
+            ret = super().save(*args, **kwargs)
 
         elif self.total_records and not self.done_at:
 

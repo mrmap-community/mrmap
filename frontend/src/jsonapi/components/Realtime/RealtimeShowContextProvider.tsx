@@ -3,7 +3,7 @@ import { RaRecord, ShowContextProvider, ShowControllerProps, useDataProvider, us
 import { CrudEvent } from '../../../providers/dataProvider';
 
 
-export interface RealtimeShowProps extends ShowControllerProps, PropsWithChildren {
+export interface RealtimeShowContextProviderProps extends ShowControllerProps, PropsWithChildren {
   isStaleCheckInterval?: number;
   isStale?: (timestamp: number, record: RaRecord) => boolean;
 }
@@ -14,7 +14,7 @@ const RealtimeShowContextProvider = ({
   isStaleCheckInterval,
   isStale,
   ...rest
- }: RealtimeShowProps) => {
+ }: RealtimeShowContextProviderProps) => {
   const resource = useResourceContext(rest);
   if (!resource) {
       throw new Error(

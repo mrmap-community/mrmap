@@ -54,8 +54,8 @@ const BackgroundProcessAlert = (
       case "registering":
         return "Register new Service"
       case "harvesting":
-        const link = record.service && <Link to={createPath({resource: "CatalogueService", type: "show", id: record.service.id})}>{record.service.id}</Link>
-        return link !== undefined ? `Harvesting of ${link}`: 'Harvesting'
+        const link = record.relatedId && <Link to={createPath({resource: "CatalogueService", type: "show", id: record.relatedId})}>Harvesting of {record.relatedId}</Link>
+        return link !== undefined ? link: 'Harvesting'
       case "monitoring":
         return "Monitoring"
       default:

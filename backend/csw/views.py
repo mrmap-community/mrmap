@@ -97,6 +97,7 @@ class CswServiceView(View):
             "identifier": "file_identifier",
             "Identifier": "file_identifier",
             "AnyText": "search_vector"
+            # TODO: operates on filter
         }
         return field_mapping
 
@@ -293,7 +294,9 @@ class CswServiceView(View):
         )
         for record in records:
             xml.gmd_records.append(record.xml_backup)
-        return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xml")
+        return HttpResponse(
+            status=200, content=xml.serialize(pretty=True), 
+            content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):
         """Http get/post method

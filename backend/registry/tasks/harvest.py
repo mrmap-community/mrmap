@@ -1,19 +1,17 @@
-
 import os
+import traceback
 from os import walk
 
-from celery import shared_task
+from celery import chord, shared_task
 from celery.utils.log import get_task_logger
-from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from eulxml import xmlmap
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
+from notify.tasks import BackgroundProcessBased, finish_background_process
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
-from requests.exceptions import Timeout
 
 logger = get_task_logger(__name__)
 
@@ -21,50 +19,141 @@ logger = get_task_logger(__name__)
 @shared_task(
     queue="default",
 )
-def create_harvesting_job(service_id):
+def create_harvesting_job(
+    service_id,
+    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
+):
+    from registry.models.harvest import HarvestingJob
     return HarvestingJob.objects.create(service__pk=service_id)
 
 
 @shared_task(
+    bind=True,
     queue="default",
-    autoretry_for=(Timeout,),
-    retry_kwargs={'max_retries': 5},
+    base=BackgroundProcessBased
 )
-def call_fetch_total_records(harvesting_job_id):
+def call_fetch_total_records(
+    self,
+    harvesting_job_id,
+    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
+):
+    self.update_background_process()
+
+    from registry.models.harvest import HarvestingJob
+
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
-    return harvesting_job.fetch_total_records()
+    total_records = harvesting_job.fetch_total_records()
+
+    self.update_background_process(
+        phase=f'The catalogue provides {total_records} records. Harvesting is running...'  # noqa
+    )
+
+    return total_records
 
 
 @shared_task(
+    bind=True,
     queue="download",
-    autoretry_for=(Timeout,),
-    retry_kwargs={'max_retries': 5},
-    rate_limit='20/m'
+    base=BackgroundProcessBased
 )
-def call_fetch_records(harvesting_job_id,
-                       start_position,
-                       **kwargs):
+def call_fetch_records(
+    self,
+    harvesting_job_id,
+    start_position,
+    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
+):
+    self.update_background_process()
+
+    from registry.models.harvest import HarvestingJob
+
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=harvesting_job_id)
-    return harvesting_job.fetch_records(start_position=start_position)
+
+    fetched_records = harvesting_job.fetch_records(
+        start_position=start_position)
+
+    self.update_background_process(
+        step_done=True
+    )
+    return fetched_records
+
+
+@shared_task(
+    bind=True,
+    queue="db-routines",
+    base=BackgroundProcessBased
+)
+def call_chord_md_metadata_file_to_db(
+    self,
+    md_metadata_file_ids: [int],
+    http_request,
+    background_process_pk,
+    **kwargs
+):
+    # build flat list from incomming id's which are passed by parent chord to this as his callback.
+    ids = [
+        x
+        for xs in md_metadata_file_ids
+        for x in xs
+    ]
+    to_db_tasks = [
+        call_md_metadata_file_to_db.s(
+            md_metadata_file_id=id,
+            http_request=http_request,
+            background_process_pk=background_process_pk)
+        for id in ids
+    ]
+    chord(to_db_tasks)(finish_background_process.s(
+        http_request=http_request,
+        background_process_pk=background_process_pk
+    ))
+
+    self.update_background_process(
+        phase='parse and store ISO Metadatarecords to db...'
+    )
+
+
+@shared_task(
+    bind=True,
+    queue="db-routines",
+    base=BackgroundProcessBased
+)
+def call_md_metadata_file_to_db(
+    self,
+    md_metadata_file_id: int,
+    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
+):
+    try:
+        self.update_background_process()
+
+        from registry.models.harvest import TemporaryMdMetadataFile
+
+        temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
+            pk=md_metadata_file_id)
+        db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
+
+        self.update_background_process(
+            step_done=True
+        )
+
+        return db_metadata.pk
+    except Exception as e:
+        tbe = traceback.TracebackException.from_exception(e)
+        TemporaryMdMetadataFile.objects.select_for_update(
+        ).filter(pk=md_metadata_file_id).update(
+            import_error=tbe.stack
+        )
 
 
 @shared_task(
     queue="db-routines",
-    retry_kwargs={'max_retries': 5},
 )
-def call_md_metadata_file_to_db(md_metadata_file_id: int):
-    temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
-        pk=md_metadata_file_id)
-    dataset_metadata = temporary_md_metadata_file.md_metadata_file_to_db()
-    return dataset_metadata.pk
+def check_for_files_to_import(
+    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
+):
+    # TODO: create backgroundprocess object to track this processing
 
-
-@shared_task(
-    queue="db-routines",
-)
-def check_for_files_to_import():
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")
     dt = timezone.now()
 
@@ -79,6 +168,8 @@ def check_for_files_to_import():
                 with transaction.atomic():
                     metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(filename=filename,
                                                                                        xmlclass=WrappedIsoMetadata)
+                    from registry.models.harvest import TemporaryMdMetadataFile
+
                     for iso_metadata in metadata_xml.iso_metadata:
                         db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
                         # save the file without saving the instance in db...

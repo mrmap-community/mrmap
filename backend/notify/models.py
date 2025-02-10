@@ -1,4 +1,3 @@
-
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
@@ -20,10 +19,24 @@ class BackgroundProcess(models.Model):
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
         blank=True)
+    done_at = models.DateTimeField(
+        verbose_name=_('Completed DateTime'),
+        help_text=_('Datetime field when the process was completed in UTC'),
+        null=True,
+        blank=True)
     phase = models.CharField(
         max_length=512,
         verbose_name=_('phase'),
         help_text=_('Current phase of the process'))
+    total_steps = models.IntegerField(
+        verbose_name=_('total'),
+        help_text=_('total steps of processing'),
+        null=True,
+        default=None)
+    done_steps = models.IntegerField(
+        verbose_name=_('done'),
+        help_text=_('done steps of processing'),
+        default=0)
     process_type = models.CharField(
         max_length=32,
         choices=ProcessNameEnum.choices,
@@ -32,8 +45,7 @@ class BackgroundProcess(models.Model):
     description = models.CharField(
         max_length=512,
         verbose_name=_('description'),
-        help_text=_('Human readable description of what this process does')
-    )
+        help_text=_('Human readable description of what this process does'))
     related_resource_type = models.ForeignKey(
         to=ContentType,
         on_delete=models.CASCADE,
@@ -41,8 +53,7 @@ class BackgroundProcess(models.Model):
         blank=True)
     related_id = models.UUIDField(
         null=True,
-        blank=True
-    )
+        blank=True)
     service = GenericForeignKey(
         ct_field='related_resource_type',
         fk_field='related_id')
@@ -52,3 +63,7 @@ class BackgroundProcess(models.Model):
         verbose_name_plural = _('Background Processes')
 
     objects = BackgroundProcessManager()
+
+    def __str__(self):
+
+        return f"{self.process_type} {self.related_id}"

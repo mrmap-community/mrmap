@@ -20,10 +20,9 @@ from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from mptt2.models import Tree
 from registry.enums.metadata import MetadataOriginEnum
-from registry.models.metadata import (DatasetMetadataRecord, Dimension,
-                                      Keyword, LegendUrl, MetadataContact,
-                                      MimeType, ReferenceSystem, Style,
-                                      TimeExtent,
+from registry.models.metadata import (Dimension, Keyword, LegendUrl,
+                                      MetadataContact, MimeType,
+                                      ReferenceSystem, Style, TimeExtent,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.settings import METADATA_URL_BLACKLIST

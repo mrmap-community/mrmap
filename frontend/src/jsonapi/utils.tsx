@@ -221,7 +221,7 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
           resource: jsonApiResourceType,
           schema: relationSchema as OpenAPIV3.NonArraySchemaObject,
           isRequired: isRequired, 
-          isReadOnly: _relationSchema.readOnly ?? false,
+          isReadOnly: relationSchema.readOnly ?? false,
           kind: 'relationship'
         }
       }
@@ -346,7 +346,7 @@ export const getFieldForFormat = (
       definition.component = forInput ? TextInput: UrlField;
       definition.props.validate = [
         ...(definition.props.validate > 0 ? definition.props.validate: []),
-        regex(/^(http(s):\/\/.)[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/)
+        regex(/^(http(s?):\/\/.)[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/)
       ]
       break;
     case 'email':

@@ -105,7 +105,7 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(r'metadata-contacts',
                     metadata_views.MetadataContactViewSet, basename='metadatacontact'),
 
-    # metadata records
+    # dataset metadata records
     router.register(r'dataset-metadata',
                     metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
     .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='datasetmetadata-keywords', parents_query_lookups=['datasetmetadata_metadata']),
@@ -130,6 +130,13 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(r'dataset-metadata',
                     metadata_views.DatasetMetadataViewSet, basename='datasetmetadata')
     .register(r'featuretypes', service_views.NestedFeatureTypeViewSet, basename='datasetmetadata-featuretypes', parents_query_lookups=['dataset_metadata_relation__dataset_metadata']),
+
+    # service metadata records
+    router.register(r'service-metadata',
+                    metadata_views.ServiceMetadataViewSet, basename='servicemetadata'),
+    router.register(r'service-metadata',
+                    metadata_views.ServiceMetadataViewSet, basename='servicemetadata')
+    .register(r'csws', service_views.NestedCatalogueServiceViewSet, basename='servicemetadata-csws', parents_query_lookups=['service_metadata_relation__service_metadata']),
 
     # security
     router.register(r'security/wms-authentication',

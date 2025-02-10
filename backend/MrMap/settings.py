@@ -293,6 +293,7 @@ CELERY_RESULT_BACKEND = "django-db"
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+CELERY_RESULT_EXTENDED = True
 CELERY_TIMEZONE = TIME_ZONE
 # CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes

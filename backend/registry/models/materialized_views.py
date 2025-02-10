@@ -99,6 +99,7 @@ class SearchableDatasetMetadataRecord(SearchableMetadataRecordAbstract):
         return super().get_queryset().annotate(
             hierarchy_level=Value("dataset")
         )
+        # TODO: operates on filter
 
     class Meta:
         managed = False

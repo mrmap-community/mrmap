@@ -3,7 +3,7 @@ import { CreateButton, useRecordContext } from 'react-admin';
 
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 
-import ListGuesser from '../../jsonapi/components/ListGuesser';
+import ListGuesser from '../../../jsonapi/components/ListGuesser';
 
 const HarvestButton = (): ReactNode => {
   const record = useRecordContext()

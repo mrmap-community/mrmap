@@ -4,8 +4,8 @@ from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from extras.serializers import StringRepresentationSerializer
 from notify.models import BackgroundProcess
-from rest_framework.fields import (CharField, DateTimeField, IntegerField,
-                                   SerializerMethodField)
+from rest_framework.fields import (CharField, DateTimeField, FloatField,
+                                   IntegerField, SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
 
@@ -35,6 +35,7 @@ class TaskResultSerializer(ModelSerializer):
 class BackgroundProcessSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
+
     url = HyperlinkedIdentityField(
         view_name='notify:backgroundprocess-detail',
     )
@@ -58,7 +59,7 @@ class BackgroundProcessSerializer(
         read_only=True,
         label=_("date created"),
         help_text=_("the datetime when the first thread was created"))
-    progress = SerializerMethodField(
+    progress = FloatField(
         read_only=True,
         label=_("progress"),
         help_text=_("the current progress aggregated from all threads from 0 to 100"))
@@ -70,18 +71,3 @@ class BackgroundProcessSerializer(
     class Meta:
         model = BackgroundProcess
         fields = "__all__"
-
-    def get_progress(self, instance) -> float:
-        if instance.all_threads_count == 0:
-            return 0
-        aggregated_running_task_progress = 0.0
-        running_thread: TaskResult
-        for running_thread in instance.running_threads_list:
-            meta_info = json.loads(
-                running_thread.meta) if running_thread.meta else {}
-            try:
-                aggregated_running_task_progress += \
-                    int(meta_info['done']) / int(meta_info['total'])
-            except (AttributeError, KeyError):
-                pass
-        return (aggregated_running_task_progress + instance.successed_threads_count + instance.failed_threads_count - instance.pending_threads_count) * 100 / instance.all_threads_count

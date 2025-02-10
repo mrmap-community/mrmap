@@ -407,6 +407,12 @@ class WebFeatureServiceViewSet(
     task_function = build_ogc_service
 
     def get_task_kwargs(self, request, serializer):
+        background_process = BackgroundProcess.objects.create(
+            phase="Background process created",
+            process_type=ProcessNameEnum.REGISTERING.value,
+            description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
+        )
+
         return {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
@@ -417,7 +423,8 @@ class WebFeatureServiceViewSet(
                 "content_type": request.content_type,
                 "data": request.GET,
                 "user_pk": request.user.pk,
-            }
+            },
+            "background_process_pk": background_process.pk
         }
 
     def get_queryset(self):
@@ -591,6 +598,11 @@ class CatalogueServiceViewSetMixin(
     task_function = build_ogc_service
 
     def get_task_kwargs(self, request, serializer):
+        background_process = BackgroundProcess.objects.create(
+            phase="Background process created",
+            process_type=ProcessNameEnum.REGISTERING.value,
+            description=f'Register new service with url {serializer.validated_data["get_capabilities_url"]}'  # noqa
+        )
         return {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": False,  # CSW has no remote metadata records
@@ -601,7 +613,9 @@ class CatalogueServiceViewSetMixin(
                 "content_type": request.content_type,
                 "data": request.GET,
                 "user_pk": request.user.pk,
-            }
+            },
+            "background_process_pk": background_process.pk
+
         }
 
     def get_queryset(self):

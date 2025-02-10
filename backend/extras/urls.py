@@ -5,7 +5,7 @@ app_name = 'beat'
 
 router = ExtendedSimpleRouter(trailing_slash=False)
 (
-    router.register(r'crontab', CrontabScheduleViewSet, basename='crontab')
+    router.register(r'crontabs', CrontabScheduleViewSet, basename='crontab')
 )
 
 urlpatterns = router.urls

@@ -1,6 +1,7 @@
 from extras.serializers import StringRepresentationSerializer
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
-                                      MetadataContact, ReferenceSystem, Style)
+                                      MetadataContact, ReferenceSystem,
+                                      ServiceMetadataRecord, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
 from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
@@ -166,4 +167,51 @@ class DatasetMetadataRecordSerializer(
 
     class Meta:
         model = DatasetMetadataRecord
+        fields = "__all__"
+
+
+class ServiceMetadataRecordSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+
+    url = HyperlinkedIdentityField(view_name="registry:servicemetadata-detail")
+
+    harvested_through = ResourceRelatedField(
+        queryset=CatalogueService.objects,
+        many=True,
+        related_link_view_name="registry:servicemetadata-csws-list",
+        related_link_url_kwarg="parent_lookup_service_metadata_relation__service_metadata",
+    )
+    metadata_contact = ResourceRelatedField(
+        queryset=MetadataContact.objects,
+        related_link_view_name='registry:servicemetadata-metadatacontact-list',
+        related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata_contact'
+    )
+    licence = ResourceRelatedField(
+        queryset=Licence.objects,
+        related_link_view_name='registry:servicemetadata-licence-list',
+        related_link_url_kwarg='parent_lookup_servicemetadata'
+    )
+    keywords = ResourceRelatedField(
+        queryset=Keyword.objects,
+        many=True,
+        related_link_view_name='registry:servicemetadata-keywords-list',
+        related_link_url_kwarg='parent_lookup_servicemetadata_metadata'
+    )
+    reference_systems = ResourceRelatedField(
+        queryset=ReferenceSystem.objects,
+        many=True,
+        related_link_view_name='registry:servicemetadata-referencesystems-list',
+        related_link_url_kwarg='parent_lookup_service_metadata'
+    )
+
+    included_serializers = {
+        "metadata_contact": MetadataContactSerializer,
+        "keywords": KeywordSerializer,
+        # "created_by": UserSerializer,
+        # "last_modified_by": UserSerializer,
+    }
+
+    class Meta:
+        model = ServiceMetadataRecord
         fields = "__all__"

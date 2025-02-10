@@ -2,7 +2,8 @@ from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, SerializerClassesMixin
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
-                                      MetadataContact, ReferenceSystem, Style)
+                                      MetadataContact, ReferenceSystem,
+                                      ServiceMetadataRecord, Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
 from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
@@ -10,6 +11,7 @@ from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            MetadataContactSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            ReferenceSystemRetrieveSerializer,
+                                           ServiceMetadataRecordSerializer,
                                            StyleSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
@@ -365,3 +367,74 @@ class NestedDatasetContactViewSet(
     NestedModelViewSet
 ):
     resource_name = 'DatasetContact'
+
+
+class ServiceMetadataViewSetMixin:
+    queryset = ServiceMetadataRecord.objects.all()
+    serializer_class = ServiceMetadataRecordSerializer
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        "title": ["exact", "icontains", "contains"],
+        "abstract": ["exact", "icontains", "contains"],
+        "keywords__keyword": ["exact", "icontains", "contains"],
+    }
+    search_fields = ("title", "abstract", "keywords__keyword")
+    ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
+    select_for_includes = {
+        "metadata_contact": ["metadata_contact"],
+    }
+    prefetch_for_includes = {
+        "harvested_through": [
+            Prefetch(
+                "harvested_through",
+                queryset=CatalogueService.objects.prefetch_related("keywords"),
+            )
+        ],
+        "keywords": ["keywords"],
+        "reference_systems": ["reference_systems"],
+        # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
+    }
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+        if not include or "metadataContact" not in include:
+            defer = [
+                f"metadata_contact__{field.name}"
+                for field in MetadataContact._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("metadata_contact").defer(*defer)
+        if not include or "harvestedThrough" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "harvested_through",
+                    queryset=CatalogueService.objects.only("id"),
+                )
+            )
+        if not include or "keywords" not in include:
+            qs = qs.prefetch_related(
+                Prefetch("keywords", queryset=Keyword.objects.only("id"))
+            )
+        if not include or "referenceSystems" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
+                )
+            )
+        return qs
+
+
+class ServiceMetadataViewSet(
+        ServiceMetadataViewSetMixin,
+        ModelViewSet
+):
+    pass
+
+
+class NestedServiceMetadataViewSet(
+    ServiceMetadataViewSetMixin,
+    NestedModelViewSet
+):
+    pass

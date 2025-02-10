@@ -2,6 +2,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from notify.models import BackgroundProcess
 from registry.models.harvest import HarvestingJob
+from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  ResourceRelatedField,
@@ -21,6 +22,10 @@ class HarvestingJobSerializer(
         help_text=_("the parent of this node"),
         read_only=True,
     )
+
+    included_serializers = {
+        'service': CatalogueServiceSerializer,
+    }
 
     class Meta:
         model = HarvestingJob

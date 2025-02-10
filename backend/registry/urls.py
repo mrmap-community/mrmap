@@ -1,9 +1,11 @@
+from django.urls import path
 from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
+from registry.views.relationship_views import HarvestingJobRelationshipView
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'registry'
@@ -86,6 +88,7 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     # harvesting
     router.register(r'harvesting/harvesting-jobs',
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob'),
+
 
     # map context
     router.register(
@@ -194,4 +197,10 @@ router = ExtendedSimpleRouter(trailing_slash=False)
 
 )
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path(
+        "harvesting/harvesting-jobs/<pk>/relationships/<related_field>",
+        HarvestingJobRelationshipView.as_view(),
+        name="harvesting-job-relationships"
+    )
+]

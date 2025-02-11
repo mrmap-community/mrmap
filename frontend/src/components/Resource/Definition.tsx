@@ -35,6 +35,8 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "FeatureType", icon: NotListedLocationIcon},
   {name: "CatalogueService", icon: PlagiarismIcon, list: CatalogueServiceList},
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob},
+  {name: "TemporaryMdMetadataFile"},
+
 
   {name: "Keyword", icon: LocalOfferIcon},
   {name: "DatasetMetadataRecord", icon: DatasetIcon},

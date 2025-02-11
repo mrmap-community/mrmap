@@ -88,6 +88,8 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     # harvesting
     router.register(r'harvesting/harvesting-jobs',
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob'),
+    router.register(r'harvestubg/temporary-md-metadata-file',
+                    harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
 
 
     # map context
@@ -197,10 +199,13 @@ router = ExtendedSimpleRouter(trailing_slash=False)
 
 )
 
-urlpatterns = router.urls + [
-    path(
-        "harvesting/harvesting-jobs/<pk>/relationships/<related_field>",
-        HarvestingJobRelationshipView.as_view(),
-        name="harvesting-job-relationships"
-    )
-]
+urlpatterns = router.urls
+# + [
+#    path(
+#        # ^harvesting/harvesting-jobs/(?P<pk>[^/.]+)$
+#        # route=r'^bla/(?P<pk>[^/.]+)/relationships/(?P<related_field>[-/w]+)$',
+#        route='harvesting/harvesting-jobs/<pk>/relationships/<related_field>',
+#        view=HarvestingJobRelationshipView.as_view(),#
+#        name="harvesting-job-relationships"
+#    ),
+# ]

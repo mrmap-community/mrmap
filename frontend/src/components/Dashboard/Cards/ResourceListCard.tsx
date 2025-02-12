@@ -11,9 +11,10 @@ import { Link } from 'react-router-dom';
 
 import { Avatar, Box, Button } from '@mui/material';
 
+import { PropsWithChildren } from 'react';
 import CardWithIcon from './CardWithIcon';
 
-export interface ResourceListCardProps {
+export interface ResourceListCardProps extends PropsWithChildren {
     resource: string
     sort?: SortPayload
     withList?: boolean
@@ -23,7 +24,8 @@ const ResourceListCard = (
     {
         resource,
         sort,
-        withList = true
+        withList = true,
+        children
     }: ResourceListCardProps
 ) => {
   const translate = useTranslate();
@@ -43,6 +45,7 @@ const ResourceListCard = (
                   <WithListContext render={({ total }) => <>{total}</>} />
               }
           > 
+            {children}
             {
                 hasCreate ?
                 <CreateButton/>: null

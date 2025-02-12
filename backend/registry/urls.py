@@ -1,11 +1,11 @@
 from django.urls import path
+from registry.views import anno_stats as anno_views
 from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
-from registry.views.relationship_views import HarvestingJobRelationshipView
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'registry'
@@ -196,10 +196,15 @@ router = ExtendedSimpleRouter(trailing_slash=False)
                     monitoring_views.GetCapabilitiesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilities-probe-result'),
     router.register(r'monitoring/wms-monitoring-get-map-probe-results',
                     monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result'),
-
 )
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path(
+        route=r'statistical/dataset-metadata-records',
+        view=anno_views.StatisticalDatasetMetadataRecordListView.as_view(),
+        name='statistical-dataset-metadata-records'
+    )
+]
 # + [
 #    path(
 #        # ^harvesting/harvesting-jobs/(?P<pk>[^/.]+)$

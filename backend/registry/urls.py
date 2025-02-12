@@ -1,3 +1,5 @@
+from django.urls import path
+from registry.views import anno_stats as anno_views
 from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
@@ -86,6 +88,9 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     # harvesting
     router.register(r'harvesting/harvesting-jobs',
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob'),
+    router.register(r'harvestubg/temporary-md-metadata-file',
+                    harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
+
 
     # map context
     router.register(
@@ -191,7 +196,21 @@ router = ExtendedSimpleRouter(trailing_slash=False)
                     monitoring_views.GetCapabilitiesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilities-probe-result'),
     router.register(r'monitoring/wms-monitoring-get-map-probe-results',
                     monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result'),
-
 )
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+    path(
+        route=r'statistical/dataset-metadata-records',
+        view=anno_views.StatisticalDatasetMetadataRecordListView.as_view(),
+        name='statistical-dataset-metadata-records'
+    )
+]
+# + [
+#    path(
+#        # ^harvesting/harvesting-jobs/(?P<pk>[^/.]+)$
+#        # route=r'^bla/(?P<pk>[^/.]+)/relationships/(?P<related_field>[-/w]+)$',
+#        route='harvesting/harvesting-jobs/<pk>/relationships/<related_field>',
+#        view=HarvestingJobRelationshipView.as_view(),#
+#        name="harvesting-job-relationships"
+#    ),
+# ]

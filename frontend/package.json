@@ -36,6 +36,7 @@
     "react-leaflet": "^4.2.1",
     "react-leaflet-draw": "^0.20.4",
     "react-use-websocket": "^4.9.0",
+    "recharts": "^2.15.1",
     "sortablejs": "^1.15.3",
     "uuid": "^10.0.0"
   },

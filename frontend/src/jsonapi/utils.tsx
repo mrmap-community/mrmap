@@ -1,5 +1,5 @@
 import OpenAPIClientAxios, { type OpenAPIV3, type Operation, type ParameterObject } from 'openapi-client-axios'
-import { ArrayField, ArrayInput, AutocompleteArrayInput, BooleanField, BooleanInput, ChipField, DateField, DateInput, DateTimeInput, EmailField, NumberField, NumberInput, ReferenceArrayField, ReferenceField, SingleFieldList, TextField, TextInput, TimeInput, UrlField, type RaRecord } from 'react-admin'
+import { ArrayField, ArrayInput, AutocompleteArrayInput, BooleanField, BooleanInput, ChipField, DateField, DateInput, DateTimeInput, EmailField, NumberField, NumberInput, ReferenceArrayField, SingleFieldList, TextField, TextInput, TimeInput, UrlField, type RaRecord } from 'react-admin'
 
 import { ComponentType } from 'react'
 import {
@@ -12,6 +12,7 @@ import CreateSuggestionDialog from '../components/Dialog/CreateSuggestionDialog'
 import GeoJsonField from '../components/Field/GeoJsonField'
 import TruncatedTextField from '../components/Field/TruncatedTextField'
 import GeoJsonInput from '../components/Input/GeoJsonInput'
+import JsonApiReferenceField from './components/ReferenceField'
 import SchemaAutocompleteInput from './components/SchemaAutocompleteInput'
 import { getEncapsulatedSchema } from './openapi/parser'
 import { type JsonApiDocument, type JsonApiPrimaryData, type ResourceIdentifierObject, type ResourceLinkage } from './types/jsonapi'
@@ -445,7 +446,7 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
   } else if (fieldSchema?.kind === 'relationship' ) {
     const hasCreate = api.getOperation(`create_${fieldSchema.reference}`) !== undefined
     return {
-      component: forInput ? SchemaAutocompleteInput: ReferenceField, 
+      component: forInput ? SchemaAutocompleteInput: JsonApiReferenceField, 
       props: {
         ...commonProps, 
         ...(forInput ? 

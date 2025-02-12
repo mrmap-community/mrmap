@@ -132,6 +132,11 @@ class DatasetMetadataViewSetMixin:
         "title": ["exact", "icontains", "contains"],
         "abstract": ["exact", "icontains", "contains"],
         "keywords__keyword": ["exact", "icontains", "contains"],
+        "harvested_by": ['exact', 'icontains', 'contains', 'in'],
+        "harvested_by__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
+        "ignored_by": ['exact', 'icontains', 'contains', 'in'],
+        "updated_by": ['exact', 'icontains', 'contains', 'in'],
+        "updated_by__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
     }
     search_fields = ("title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]

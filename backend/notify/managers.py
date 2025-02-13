@@ -45,7 +45,14 @@ class BackgroundProcessManager(models.Manager):
                     then=Value(0.0)  # noqa
                 ),
                 # 1.0 factor is needed to force cast the F field to a decimal number...
-                default=Round(F("done_steps") * 1.0 / F("total_steps") * 100.0, precission=2),  # noqa
+                default=Case(
+                    When(
+                        total_steps__gt=0,
+                        then=Round(F("done_steps") * 1.0 / F("total_steps") * 100.0, precission=2),  # noqa
+
+                    ),
+                    default=0.0
+                ),
                 output_field=FloatField()
             )
         ).order_by('-date_created')

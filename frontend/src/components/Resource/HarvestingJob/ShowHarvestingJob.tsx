@@ -2,6 +2,7 @@ import { BooleanField, NumberField, Show, TabbedShowLayout, useRecordContext } f
 import JsonApiReferenceManyCount from '../../../jsonapi/components/JsonApiReferenceManyCountField';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
+import ProgressField from '../../Field/ProgressField';
 
 const HarvestingJobTabbedShowLayout = () => {
   const record = useRecordContext();
@@ -15,6 +16,7 @@ const HarvestingJobTabbedShowLayout = () => {
           <BooleanField source="harvestDatasets"/>
           <BooleanField source="harvestServices"/>
           <NumberField source="totalRecords"/>
+          <ProgressField source="backgroundProcess.progress"/>
           <JsonApiReferenceManyCount source="newDatasetRecords"/>
 
         </TabbedShowLayout.Tab>
@@ -37,10 +39,11 @@ const HarvestingJobTabbedShowLayout = () => {
             filter={{'updated_by': record?.id}}
           />
         </TabbedShowLayout.Tab>
-        <TabbedShowLayout.Tab label="Errors" path="errors">
+        <TabbedShowLayout.Tab label="Logs" path="logs">
           <ListGuesser
-            resource='TemporaryMdMetadataFile'
-            filter={{'job': record?.id}}
+            relatedResource='BackgroundProcess'
+            relatedResourceId={record?.backgroundProcess?.id}
+            resource='BackgroundProcessLog'
           />
         </TabbedShowLayout.Tab>
 

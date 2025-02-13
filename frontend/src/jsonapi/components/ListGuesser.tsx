@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, Identifier, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import axios from 'axios'
@@ -26,6 +26,7 @@ interface ListActionsProps {
 interface ListGuesserProps extends Partial<ListProps> {
   realtime?: boolean
   relatedResource?: string
+  relatedResourceId?: Identifier
   rowActions?: ReactNode
   additionalActions?: ReactNode
   defaultOmit?: string[]
@@ -61,6 +62,7 @@ const ListActions = (
 const ListGuesser = ({
   realtime=false,
   relatedResource = '',
+  relatedResourceId = undefined,
   rowActions = undefined,
   additionalActions = undefined,
   onRowClick = undefined,
@@ -72,7 +74,6 @@ const ListGuesser = ({
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit } = useResourceDefinition(props)
   const { api } = useHttpClientContext()
-
   const [open] = useSidebarState()
 
   const [selectedRecord, setSelectedRecord] = useState<RaRecord>()
@@ -81,7 +82,6 @@ const ListGuesser = ({
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource !== '' ?`list_related_${name}_of_${relatedResource}`: `list_${name}`, [relatedResource, name])
 
   const { operation } = useResourceSchema(operationId)
-
   const fieldDefinitions = useFieldsForOperation(operationId, false, false)
   const fields = useMemo(
     () => fieldDefinitions.map(fieldDefinition => {
@@ -205,7 +205,7 @@ const ListGuesser = ({
           ? {
             relatedResource: {
               resource: relatedResource,
-              id
+              id: relatedResourceId ?? id
             },
             jsonApiParams: { ...jsonApiQuery }
           }

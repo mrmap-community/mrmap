@@ -16,11 +16,12 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
-from notify.enums import ProcessNameEnum
-from notify.models import BackgroundProcess
+from notify.enums import LogTypeEnum, ProcessNameEnum
+from notify.models import BackgroundProcess, BackgroundProcessLog
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
+from registry.enums.harvesting import ErrorType
 from registry.enums.metadata import MetadataOriginEnum
 from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import (DatasetMetadataRecord,
@@ -211,15 +212,39 @@ class HarvestingJob(models.Model):
     def fetch_total_records(self) -> int:
         client = self.service.client
 
-        response: Response = client.send_request(
+        first_response: Response = client.send_request(
             request=client.get_records_request(
                 xml_constraint=client.get_constraint(record_types=self.get_record_types())),
             timeout=60)
 
-        get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
+        get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=first_response.content,
                                                                                      xmlclass=GetRecordsResponse)
+        total_records = get_records_response.total_records
+        if not total_records:
+            # try again, cause some csw server implementations are broken and don't support our default TypeName query param
+            second_response: Response = client.send_request(
+                request=client.get_records_request(
+                    type_names="csw:Record",
+                    xml_constraint=client.get_constraint(record_types=self.get_record_types())),
+                timeout=60)
+            get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=second_response.content,
+                                                                                         xmlclass=GetRecordsResponse)
+
+            total_records = get_records_response.total_records
+            if not total_records:
+                # terminate celery workflow by returning total records = 0
+                self.total_records = 0
+                description = f"Can't get total records from remote service by requesting {second_response.request.url} url. \n"
+                description += f"http status code: {second_response.status_code}\n"
+                description += f"response:\n{second_response.text}"
+                BackgroundProcessLog.objects.create(
+                    background_process=self.background_process,
+                    log_type=LogTypeEnum.ERROR.value,
+                    description=description
+                )
+
         self.started_at = now()
-        self.total_records = get_records_response.total_records
+        self.total_records = total_records
         self.save()
         return self.total_records
 
@@ -235,6 +260,17 @@ class HarvestingJob(models.Model):
         response: Response = client.send_request(
             request=request,
             timeout=60)
+
+        if "<ExceptionReport" in response.text:
+            description = f"Can't get records from remote service by requesting {response.request.url} url. \n"
+            description += f"http status code: {response.status_code}\n"
+            description += f"response:\n{response.text}"
+            BackgroundProcessLog.objects.create(
+                background_process=self.background_process,
+                log_type=LogTypeEnum.ERROR.value,
+                description=description
+            )
+            return []
 
         get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
                                                                                      xmlclass=GetRecordsResponse)
@@ -353,6 +389,16 @@ class TemporaryMdMetadataFile(models.Model):
                         self.delete()
                         return db_metadata, update, exists
             except Exception as e:
+                import traceback
+                description = f"Can't handle this TemporaryMdMetadataFile with id {self.pk}. \n"
+                description += "The following error is occured:\n"
+                description += traceback.format_exc()
+                BackgroundProcessLog.objects.create(
+                    background_process=self.background_process,
+                    log_type=LogTypeEnum.ERROR.value,
+                    description=description
+                )
+
                 exc_info = sys.exc_info()
                 self.import_error = ''.join(
                     traceback.format_exception(*exc_info))

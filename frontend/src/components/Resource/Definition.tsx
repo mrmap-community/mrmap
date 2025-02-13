@@ -22,6 +22,7 @@ import { WmsShow } from './WebMapService/WmsShow';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
+import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
 import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServiceMonitoringSetting';
@@ -39,7 +40,7 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   {name: "Keyword", icon: LocalOfferIcon},
-  {name: "DatasetMetadataRecord", icon: DatasetIcon},
+  {name: "DatasetMetadataRecord", icon: DatasetIcon, show: ShowDatasetMetadataRecord},
   {name: "ServiceMetadataRecord", icon: DatasetIcon},
 
   // monitoring
@@ -61,6 +62,7 @@ const RESOURCES: Array<ResourceProps> = [
 
   {name: "CrontabSchedule"},
   {name: "BackgroundProcess", list: ListBackgroundProcess, show: ShowBackgroundProcess},
+  {name: "BackgroundProcessLog", },
 
   {name: "AllowedWebMapServiceOperation", icon: VpnLockIcon, create: CreateAllowedWebMapServiceOperation, edit: EditAllowedWebMapServiceOperation},
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon},

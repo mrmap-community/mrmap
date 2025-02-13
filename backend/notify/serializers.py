@@ -3,9 +3,10 @@ import json
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from extras.serializers import StringRepresentationSerializer
-from notify.models import BackgroundProcess
+from notify.models import BackgroundProcess, BackgroundProcessLog
 from rest_framework.fields import (CharField, DateTimeField, FloatField,
                                    IntegerField, SerializerMethodField)
+from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
 
@@ -30,6 +31,19 @@ class TaskResultSerializer(ModelSerializer):
 
     def get_result(self, obj):
         return json.loads(obj.result if obj.result else '{}')
+
+
+class BackgroundProcessLogSerializer(
+        StringRepresentationSerializer,
+        ModelSerializer):
+
+    url = HyperlinkedIdentityField(
+        view_name='notify:backgroundprocesslog-detail',
+    )
+
+    class Meta:
+        model = BackgroundProcessLog
+        fields = "__all__"
 
 
 class BackgroundProcessSerializer(
@@ -67,7 +81,17 @@ class BackgroundProcessSerializer(
         read_only=True,
         label=_("status"),
         help_text=_("the current status, aggregated from all threads."))
+    logs = ResourceRelatedField(
+        queryset=BackgroundProcessLog.objects,
+        many=True,
+        related_link_view_name='notify:backgroundprocess-logs-list',
+        related_link_url_kwarg='parent_lookup_backgroundprocess'
+    )
 
     class Meta:
         model = BackgroundProcess
         fields = "__all__"
+
+    included_serializers = {
+        'logs': BackgroundProcessLogSerializer,
+    }

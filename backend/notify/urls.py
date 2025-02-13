@@ -11,7 +11,12 @@ router = ExtendedSimpleRouter(trailing_slash=False)
 
     # background prcesses
     router.register(r'background-processes',
-                    views.BackgroundProcessViewSet, basename='backgroundprocess'),
+                    views.BackgroundProcessViewSet, basename='backgroundprocess')
+    .register(r'logs', views.NestedBackgroundProcessLogViewSet, basename='backgroundprocess-logs', parents_query_lookups=['background_process']),
+
+    router.register(r'background-processes-log',
+                    views.BackgroundProcessLogViewSet, basename='backgroundprocesslog'),
+
 )
 
 urlpatterns = router.urls

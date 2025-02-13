@@ -2,8 +2,10 @@ import json
 
 from celery import states
 from django_celery_results.models import TaskResult
-from notify.models import BackgroundProcess
-from notify.serializers import (BackgroundProcessSerializer,
+from extras.viewsets import NestedModelViewSet
+from notify.models import BackgroundProcess, BackgroundProcessLog
+from notify.serializers import (BackgroundProcessLogSerializer,
+                                BackgroundProcessSerializer,
                                 TaskResultSerializer)
 from rest_framework import status
 from rest_framework.response import Response
@@ -105,5 +107,35 @@ class BackgroundProcessViewSetMixin(
 class BackgroundProcessViewSet(
     BackgroundProcessViewSetMixin,
     ReadOnlyModelViewSet
+):
+    pass
+
+
+class BackgroundProcessLogViewSetMixin(
+
+):
+    queryset = BackgroundProcessLog.objects.all()
+    serializer_class = BackgroundProcessLogSerializer
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        "log_type": ["exact", "icontains", "contains"],
+        "description": ["exact", "icontains", "contains"],
+        "date": ["exact", "icontains", "contains"],
+    }
+    ordering_fields = [
+        "id",
+    ]
+
+
+class BackgroundProcessLogViewSet(
+    BackgroundProcessLogViewSetMixin,
+    ReadOnlyModelViewSet
+):
+    pass
+
+
+class NestedBackgroundProcessLogViewSet(
+    BackgroundProcessLogViewSetMixin,
+    NestedModelViewSet
 ):
     pass

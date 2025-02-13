@@ -158,6 +158,7 @@ class DatasetMetadataRecordSerializer(
     included_serializers = {
         "self_pointing_layers": "registry.serializers.service.LayerSerializer",
         "self_pointing_feature_types": "registry.serializers.service.FeatureTypeSerializer",
+        "harvested_through": "registry.serializers.service.CatalogueServiceSerializer",
         "dataset_contact": MetadataContactSerializer,
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,

@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from notify.models import BackgroundProcess
+from notify.serializers import BackgroundProcessSerializer
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
@@ -25,6 +26,7 @@ class HarvestingJobSerializer(
 
     included_serializers = {
         'service': CatalogueServiceSerializer,
+        'background_process': BackgroundProcessSerializer,
     }
 
     class Meta:

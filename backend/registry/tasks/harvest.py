@@ -104,14 +104,18 @@ def call_chord_md_metadata_file_to_db(
             background_process_pk=background_process_pk)
         for id in ids
     ]
-    chord(to_db_tasks)(finish_background_process.s(
-        http_request=http_request,
-        background_process_pk=background_process_pk
-    ))
-
-    self.update_background_process(
-        phase='parse and store ISO Metadatarecords to db...'
-    )
+    if to_db_tasks:
+        chord(to_db_tasks)(finish_background_process.s(
+            http_request=http_request,
+            background_process_pk=background_process_pk
+        ))
+        self.update_background_process(
+            phase='parse and store ISO Metadatarecords to db...'
+        )
+    else:
+        self.update_background_process(
+            completed=True
+        )
 
 
 @shared_task(

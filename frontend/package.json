@@ -23,6 +23,7 @@
     "@types/proj4": "^2.5.5",
     "@types/sortablejs": "^1.15.8",
     "@uidotdev/usehooks": "^2.4.1",
+    "@xyflow/react": "^12.4.2",
     "fast-xml-parser": "^4.5.0",
     "jsonpointer": "^5.0.1",
     "leaflet": "^1.9.4",

@@ -85,7 +85,7 @@ class BackgroundProcessSerializer(
         queryset=BackgroundProcessLog.objects,
         many=True,
         related_link_view_name='notify:backgroundprocess-logs-list',
-        related_link_url_kwarg='parent_lookup_backgroundprocess'
+        related_link_url_kwarg='parent_lookup_background_process'
     )
 
     class Meta:

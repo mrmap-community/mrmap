@@ -83,43 +83,80 @@ export const findIncludedData = (resourceIdentifierObject: ResourceIdentifierObj
   const returnVal = founded ?? resourceIdentifierObject as JsonApiPrimaryData
   return returnVal
 }
-// concrete the return value;
-export const encapsulateJsonApiPrimaryData = (document: JsonApiDocument | undefined, data: JsonApiPrimaryData): RaRecord => {
-  /** helper to transform json:api primary data object to react admin record
-     *
-     */
 
-  const relationships: any = {}
-
-  if ((data?.relationships) != null) {
-    for (const [relationName, resourceLinkage] of Object.entries(data.relationships)) {
-      if (Array.isArray(resourceLinkage.data)) {
-        const relatedObjects: any[] = []
-        resourceLinkage.data.forEach(resourceIdentifierObject => {
-          relatedObjects.push(
-            encapsulateJsonApiPrimaryData(
-              document,
-              findIncludedData(resourceIdentifierObject, document)
-            )
-          )
-        })
-        relationships[`${relationName}`] = relatedObjects
+export const encapsulateJsonApiRelationship = (relationships: Record<string, ResourceLinkage>, allRecords: any, currentRecordId: string, preventCircular: boolean = false) => {
+  for (const [relationName, resourceLinkage] of Object.entries(relationships || {})) {
+    if (resourceLinkage.data === null) continue
+    if (Array.isArray(resourceLinkage.data)) {
+      const relatedObjects: any[] = []
+      resourceLinkage.data.forEach(resourceIdentifierObject => {
+        const linkedObjectId = `${resourceIdentifierObject.type}:${resourceIdentifierObject.id}`
+        if (preventCircular) {
+          relatedObjects.push({
+            id: resourceIdentifierObject.id
+          })
+        } else {
+          allRecords[linkedObjectId] = {
+            id: resourceIdentifierObject.id,
+            ...(linkedObjectId in allRecords && allRecords[linkedObjectId])
+          }
+          relatedObjects.push(allRecords[linkedObjectId])
+        }
+      })
+      allRecords[currentRecordId][`${relationName}`] = relatedObjects
+    } else {
+      if (preventCircular){
+        allRecords[currentRecordId][`${relationName}`] = {id: resourceLinkage.data.id}
       } else {
-        relationships[`${relationName}`] = (resourceLinkage.data != null)
-          ? encapsulateJsonApiPrimaryData(
-            document,
-            findIncludedData(resourceLinkage.data, document)
-          )
-          : undefined
+        const linkedObjectId = `${resourceLinkage.data.type}:${resourceLinkage.data.id}`
+        allRecords[linkedObjectId] = {
+          id: resourceLinkage.data.id,
+          ...(linkedObjectId in allRecords && allRecords[linkedObjectId])
+        }
+        allRecords[currentRecordId][`${relationName}`] = allRecords[linkedObjectId]
       }
     }
   }
 
-  return {
-    id: data.id,
-    ...data.attributes,
-    ...relationships
-  }
+}
+
+export const encapsulateJsonApiPrimaryData = (document: JsonApiDocument, data: JsonApiPrimaryData): RaRecord => {
+  /** helper to transform json:api primary data object to react admin record
+   *
+   */
+
+  const currentObjectId = `${data.type}:${data.id}`
+  // lookup object for all resolved objects; doesn't matter if full described object of inclueded data or not
+  const allRecords: any = {}
+  allRecords[currentObjectId] = {
+      id: data.id,
+      ...data.attributes,
+    }
+
+  // encapsulate included data first
+  document?.included?.forEach(primaryData => {
+    const id = `${primaryData.type}:${primaryData.id}`
+    allRecords[id] = {
+      id: primaryData.id,
+      ...primaryData.attributes,
+       
+    }
+    encapsulateJsonApiRelationship(primaryData.relationships || {}, allRecords, id, true)
+  })
+
+  encapsulateJsonApiRelationship(data.relationships || {}, allRecords, currentObjectId)
+  return allRecords[currentObjectId]
+}
+
+export const jsonApiToRaAdmin = (document: JsonApiDocument): RaRecord => {
+  const includedMap: any = {}
+  document?.included?.forEach(item => {
+    includedMap[`${item.type}:${item.id}`] = item
+  })
+
+  const encapsulatedIncluded = {}
+
+  return encapsulateJsonApiPrimaryData(document, document.data as JsonApiPrimaryData, encapsulatedIncluded) 
 }
 
 export const getIncludeOptions = (operation: Operation): string[] => {

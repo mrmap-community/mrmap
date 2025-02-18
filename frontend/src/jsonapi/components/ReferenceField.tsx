@@ -18,7 +18,6 @@ const JsonApiReferenceField = <
         </Link>
       )
     }
-    console.log('hoho', data)
 
     return (
       <ReferenceField {...props} source={`${source}.id`} />

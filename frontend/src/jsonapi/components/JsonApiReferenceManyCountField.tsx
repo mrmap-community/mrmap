@@ -30,7 +30,6 @@ const JsonApiReferenceManyCount = <RecordType extends RaRecord = RaRecord>(
     </Typography>
       )
     }
-    console.log('hoho', data)
 
     return (
       data

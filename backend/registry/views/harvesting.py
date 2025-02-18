@@ -2,7 +2,7 @@
 from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
-from notify.models import BackgroundProcessLog
+from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.serializers.harvesting import (HarvestingJobSerializer,
                                              TemporaryMdMetadataFileSerializer)
@@ -20,11 +20,11 @@ class HarvestingJobViewSetMixin():
     }
     select_for_includes = {
         "service": ["service"],
-        "background_process": ["background_process"],
 
     }
     prefetch_for_includes = {
         '__all__': [],
+        "backgroundProcess": [Prefetch("background_process", queryset=BackgroundProcess.objects.process_info())],
         "backgroundProcess.logs": [Prefetch('background_process__logs', queryset=BackgroundProcessLog.objects.select_related('background_process'))],
     }
 

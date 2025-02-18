@@ -1,9 +1,9 @@
-import { useMemo, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 
 import Box from '@mui/material/Box'
 import LinearProgress, { type LinearProgressProps } from '@mui/material/LinearProgress'
 import Typography from '@mui/material/Typography'
-import { RaRecord, useRecordContext } from 'react-admin'
+import { RaRecord, useFieldValue } from 'react-admin'
 
 
 export interface ProgressFieldProps extends LinearProgressProps {
@@ -12,19 +12,18 @@ export interface ProgressFieldProps extends LinearProgressProps {
 }
 
 
-const ProgressField = ({
-  source,
-  getColor,
-  ...rest
-}: ProgressFieldProps): ReactNode => {
-  const record = useRecordContext();
+const ProgressField = (
+  props: ProgressFieldProps
+): ReactNode => {
 
-  const props = useMemo(()=> ({
-    ...rest, 
-    ...(record && getColor && {color: getColor(record)})
-  }), [rest, getColor, record])
+  const {
+    source,
+    getColor,
+    ...rest
+  } = props;
 
-  const value = useMemo(()=> (Number(record?.[source]) || 0), [record?.[source]])
+  const value = useFieldValue(props);
+  const progressValue = Number(value || 0)
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -36,7 +35,7 @@ const ProgressField = ({
         />
       </Box>
       <Box sx={{ minWidth: 40 }}>
-        <Typography variant="body2" color="text.secondary">{`${value?.toFixed(2)}%`}</Typography>
+        <Typography variant="body2" color="text.secondary">{`${progressValue?.toFixed(2)}%`}</Typography>
       </Box>
     </Box>
   )

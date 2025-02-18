@@ -264,7 +264,7 @@ class LayerViewSetMixin(
     }
     prefetch_for_includes = {
         "service": ["service__keywords", "service__layers"],
-        "service.operation_urls": [
+        "service.operationUrls": [
             Prefetch(
                 "service__operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.prefetch_related(
@@ -276,8 +276,8 @@ class LayerViewSetMixin(
         ],
         "styles": ["styles"],
         "keywords": ["keywords"],
-        "reference_systems": ["reference_systems"],
-        "dataset_metadata": ["registry_datasetmetadatarecord_metadata_records"]
+        "referenceSystems": ["reference_systems"],
+        "datasetMetadata": ["registry_datasetmetadatarecord_metadata_records"]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
@@ -391,7 +391,7 @@ class WebFeatureServiceViewSet(
             ),
         ],
         "keywords": ["keywords"],
-        "operation_urls": [
+        "operationUrls": [
             Prefetch(
                 "operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.select_related(
@@ -470,7 +470,7 @@ class FeatureTypeViewSetMixin(
     }
     prefetch_for_includes = {
         "service": ["service__keywords", "service__featuretypes"],
-        "service.operation_urls": [
+        "service.operationUrls": [
             Prefetch(
                 "service__operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.prefetch_related(
@@ -480,9 +480,9 @@ class FeatureTypeViewSetMixin(
             "service__keywords",
             "service__featuretypes"
         ],
-        "output_formats": ["output_formats"],
+        "outputFormats": ["output_formats"],
         "keywords": ["keywords"],
-        "reference_systems": ["reference_systems"],
+        "referenceSystems": ["reference_systems"],
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
@@ -580,12 +580,15 @@ class CatalogueServiceViewSetMixin(
     }
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
+        # "__all__": ["created_by"],
         "service_contact": ["service_contact"],
         "metadata_contact": ["metadata_contact"],
+
     }
     prefetch_for_includes = {
+        # "__all__": [""],
         "keywords": ["keywords"],
-        "operation_urls": [
+        "operationUrls": [
             Prefetch(
                 "operation_urls",
                 queryset=CatalogueServiceOperationUrl.objects.select_related(

@@ -25,7 +25,7 @@ class HarvestingJobViewSetMixin():
     }
     prefetch_for_includes = {
         '__all__': [],
-        "background_process.logs": [Prefetch('background_process__logs', queryset=BackgroundProcessLog.objects.select_related('background_process'))],
+        "backgroundProcess.logs": [Prefetch('background_process__logs', queryset=BackgroundProcessLog.objects.select_related('background_process'))],
     }
 
 

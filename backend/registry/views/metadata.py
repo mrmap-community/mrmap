@@ -143,32 +143,88 @@ class DatasetMetadataViewSetMixin:
     select_for_includes = {
         "metadata_contact": ["metadata_contact"],
         "dataset_contact": ["dataset_contact"],
+        "selfPointingLayers.service": ["metadata_contact", "dataset_contact"],
+        "selfPointingFeatureType.service": ["metadata_contact", "dataset_contact"],
     }
     prefetch_for_includes = {
-        "self_pointing_layers": [
+        # "__all__": [],
+        "selfPointingLayers.service": [
             Prefetch(
                 "self_pointing_layers",
-                queryset=Layer.objects.select_related("mptt_parent").prefetch_related(
-                    "keywords", "styles", "reference_systems"
+                queryset=Layer.objects.with_inherited_attributes()
+                .select_related(
+                    "mptt_parent",
+                    "mptt_tree",
+                    "service",
+                    "service__proxy_setting",
+                ).prefetch_related(
+                    "keywords",
+                    "styles",
+                    "reference_systems",
+                    "registry_datasetmetadatarecord_metadata_records",
+                    "service__layers",
+                    "service__operation_urls",
+                    "service__keywords",
+                    "service__allowed_operations",
                 ),
             ),
         ],
-        "self_pointing_feature_types": [
+        "selfPointingLayers": [
+            Prefetch(
+                "self_pointing_layers",
+                queryset=Layer.objects.with_inherited_attributes()
+                .select_related(
+                    "mptt_parent",
+                    "mptt_tree",
+                    "service",
+                ).prefetch_related(
+                    "keywords",
+                    "styles",
+                    "reference_systems",
+                    "registry_datasetmetadatarecord_metadata_records",
+                ),
+            ),
+        ],
+        "selfPointingFeatureTypes.service": [
             Prefetch(
                 "self_pointing_feature_types",
-                queryset=FeatureType.objects.prefetch_related(
-                    "keywords", "reference_systems"
+                queryset=FeatureType.objects.select_related(
+                    "service",
+                    "service__proxy_setting",
+                ).prefetch_related(
+                    "keywords",
+                    "reference_systems",
+                    "registry_datasetmetadatarecord_metadata_records",
+                    "service__feature_types",
+                    "service__operation_urls",
+                    "service__keywords",
+                    "service__allowed_operations",
                 ),
             )
         ],
-        "harvested_through": [
+        "selfPointingFeatureTypes": [
+            Prefetch(
+                "self_pointing_feature_types",
+                queryset=FeatureType.objects.select_related(
+                    "service",
+                ).prefetch_related(
+                    "keywords",
+                    "reference_systems",
+                    "registry_datasetmetadatarecord_metadata_records",
+                ),
+            )
+        ],
+        "harvestedThrough": [
             Prefetch(
                 "harvested_through",
-                queryset=CatalogueService.objects.prefetch_related("keywords"),
+                queryset=CatalogueService.objects.prefetch_related(
+                    "keywords",
+                    "registry_datasetmetadatarecord_metadata_records",
+                ),
             )
         ],
         "keywords": ["keywords"],
-        "reference_systems": ["reference_systems"],
+        "referenceSystems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -389,14 +445,14 @@ class ServiceMetadataViewSetMixin:
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "harvested_through": [
+        "harvestedThrough": [
             Prefetch(
                 "harvested_through",
                 queryset=CatalogueService.objects.prefetch_related("keywords"),
             )
         ],
         "keywords": ["keywords"],
-        "reference_systems": ["reference_systems"],
+        "referenceSystems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]

@@ -78,13 +78,13 @@ class WebMapServiceMonitoringRunViewSetMixin():
         "setting": ["setting"],
     }
     prefetch_for_includes = {
-        "registry_getcapabilitiesproberesults": [
+        "getcapabilitiesproberesults": [
             Prefetch(
                 "registry_getcapabilitiesproberesults",
                 queryset=GetCapabilitiesProbeResult.objects.all().select_related("run")
             )
         ],
-        "registry_getmapproberesults": [
+        "getmapproberesults": [
             Prefetch(
                 "registry_getmapproberesults",
                 queryset=GetMapProbeResult.objects.all().select_related("run")

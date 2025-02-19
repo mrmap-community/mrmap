@@ -22,8 +22,8 @@ def get_background_process(task, *args, **kwargs):
         try:
             task.background_process = BackgroundProcess.objects.get(
                 pk=background_process_pk)
-        except BackgroundProcess.ObjectDoesNotExist:
-            pass
+        except BackgroundProcess.ObjectDoesNotExist as e:
+            logger.exception(e, stack_info=True, exc_info=True)
 
 
 class BackgroundProcessBased(Task):
@@ -50,13 +50,15 @@ class BackgroundProcessBased(Task):
     ):
         # will be provided by get_background_process signal if the pk is provided by kwargs
         if hasattr(self, "background_process"):
+            thread_appended = False
             try:
                 with transaction.atomic():
                     if not self.thread_appended:
                         # add the TaskResult if this function is called the first time
-                        self.background_process.threads.add(
-                            *TaskResult.objects.filter(task_id=self.request.id))
-                        self.thread_appended = True
+                        task, _ = TaskResult.objects.get_or_create(
+                            task_id=self.request.id)
+                        self.background_process.threads.add(task)
+                        thread_appended = True
                     if phase:
                         bg_p = BackgroundProcess.objects.select_for_update().filter(
                             pk=self.background_process.pk)[0]
@@ -93,6 +95,13 @@ class BackgroundProcessBased(Task):
                         )
             except Exception as e:
                 logger.exception(e, stack_info=True, exc_info=True)
+            else:
+                if thread_appended:
+                    self.thread_appended = True
+
+        else:
+            logger.warning(
+                f"No background process provided for BackgroundProcessBased task. {self.name}")
 
 
 @shared_task(

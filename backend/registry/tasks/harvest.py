@@ -128,9 +128,8 @@ def call_md_metadata_file_to_db(
     md_metadata_file_id: int,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
+    self.update_background_process()
     try:
-        self.update_background_process()
-
         from registry.models.harvest import TemporaryMdMetadataFile
 
         temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(

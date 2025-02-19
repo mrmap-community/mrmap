@@ -61,6 +61,7 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   {name: "CrontabSchedule"},
+  {name: "TaskResult"},
   {name: "BackgroundProcess", list: ListBackgroundProcess, show: ShowBackgroundProcess},
   {name: "BackgroundProcessLog", },
 

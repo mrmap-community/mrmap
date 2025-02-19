@@ -1,18 +1,13 @@
-import json
-
-from celery import states
 from django_celery_results.models import TaskResult
 from extras.viewsets import NestedModelViewSet
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from notify.serializers import (BackgroundProcessLogSerializer,
                                 BackgroundProcessSerializer,
                                 TaskResultSerializer)
-from rest_framework import status
-from rest_framework.response import Response
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
 
-class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
+class TaskResultViewSetMixin():
     queryset = TaskResult.objects.all()
     serializer_class = TaskResultSerializer
     filterset_fields = {
@@ -67,6 +62,8 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
         'meta',
     ]
 
+
+"""
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
 
@@ -86,6 +83,15 @@ class TaskResultReadOnlyViewSet(ReadOnlyModelViewSet):
         else:
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
+"""
+
+
+class TaskResultReadOnlyViewSet(TaskResultViewSetMixin, ReadOnlyModelViewSet):
+    pass
+
+
+class NestedTaskResultReadOnlyViewSet(TaskResultViewSetMixin, NestedModelViewSet):
+    pass
 
 
 class BackgroundProcessViewSetMixin(

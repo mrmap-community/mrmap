@@ -1,8 +1,33 @@
 import { Chip, Typography } from '@mui/material';
-import { BooleanField, NumberField, Show, TabbedShowLayout, useRecordContext } from 'react-admin';
+import { BooleanField, DateField, NumberField, Show, TabbedShowLayout, useRecordContext } from 'react-admin';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
 import ProgressField from '../../Field/ProgressField';
+
+
+const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateParseRegex = /(\d{4})-(\d{2})-(\d{2})/;
+
+const convertDateToString = (value: string | Date) => {
+    // value is a `Date` object
+    if (!(value instanceof Date) || isNaN(value.getDate())) return '';
+    const pad = '00';
+    const yyyy = value.getFullYear().toString();
+    const MM = (value.getMonth() + 1).toString();
+    const dd = value.getDate().toString();
+    return `${yyyy}-${(pad + MM).slice(-2)}-${(pad + dd).slice(-2)}`;
+};
+
+const dateFormatter = (value: string | Date) => {
+  // null, undefined and empty string values should not go through dateFormatter
+  // otherwise, it returns undefined and will make the input an uncontrolled one.
+  if (value == null || value === '') return '';
+  if (value instanceof Date) return convertDateToString(value);
+  // Valid dates should not be converted
+  if (dateFormatRegex.test(value)) return value;
+
+  return convertDateToString(new Date(value));
+};
 
 const HarvestingJobTabbedShowLayout = () => {
   const record = useRecordContext();
@@ -15,6 +40,8 @@ const HarvestingJobTabbedShowLayout = () => {
           <BooleanField source="harvestDatasets"/>
           <BooleanField source="harvestServices"/>
           <NumberField source="totalRecords"/>
+          <DateField source="backgroundProcess.dateCreated" showTime emptyText='unknown'/>
+          <DateField source="backgroundProcess.doneAt" showTime emptyText='unknown'/>
           <ProgressField source="backgroundProcess.progress"/>
         </TabbedShowLayout.Tab>
 
@@ -53,6 +80,16 @@ const HarvestingJobTabbedShowLayout = () => {
             relatedResource='BackgroundProcess'
             relatedResourceId={record?.backgroundProcess?.id}
             resource='BackgroundProcessLog'
+          />
+        </TabbedShowLayout.Tab>
+        <TabbedShowLayout.Tab 
+          label={<Typography>Task Results <Chip label={record?.backgroundProcess?.threads?.length || 0} size="small"/></Typography>} 
+          path="tasks"
+        >
+          <ListGuesser
+            relatedResource='BackgroundProcess'
+            relatedResourceId={record?.backgroundProcess?.id}
+            resource='TaskResult'
           />
         </TabbedShowLayout.Tab>
 

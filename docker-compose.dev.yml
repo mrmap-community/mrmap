@@ -57,7 +57,7 @@ services:
 
   behave:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'
@@ -84,7 +84,7 @@ services:
 
   django-tests:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'

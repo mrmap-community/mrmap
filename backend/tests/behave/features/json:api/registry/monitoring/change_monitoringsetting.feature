@@ -14,12 +14,6 @@ Feature: WebMapServiceMonitoringSetting Change Endpoint
                     "id": 1,
                     "attributes": {
                         "name": "some new setting",
-                        "crontab": {
-                            "type": "CrontabSchedule",
-                            "attributes": {
-                                "hour": "1"
-                            }
-                        },
                         "getCapabilitiesProbes": [
                             {
                                 "type": "GetCapabilitiesProbe",
@@ -56,6 +50,12 @@ Feature: WebMapServiceMonitoringSetting Change Endpoint
                         ]
                     },
                     "relationships": {
+                        "crontab": {
+                            "data": {
+                                "id": 1,
+                                "type": "CrontabSchedule"
+                            }
+                        },
                         "service": {
                             "data": {
                                 "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",

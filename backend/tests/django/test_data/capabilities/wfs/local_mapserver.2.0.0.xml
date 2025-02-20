@@ -65,8 +65,8 @@
         <ows:Operation name="GetCapabilities">
             <ows:DCP>
                 <ows:HTTP>
-                    <ows:Get xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
-                    <ows:Post xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Get xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Post xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
                 </ows:HTTP>
             </ows:DCP>
             <ows:Parameter name="AcceptVersions">
@@ -94,8 +94,8 @@
         <ows:Operation name="DescribeFeatureType">
             <ows:DCP>
                 <ows:HTTP>
-                    <ows:Get xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
-                    <ows:Post xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Get xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Post xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
                 </ows:HTTP>
             </ows:DCP>
             <ows:Parameter name="outputFormat">
@@ -110,8 +110,8 @@
         <ows:Operation name="GetFeature">
             <ows:DCP>
                 <ows:HTTP>
-                    <ows:Get xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
-                    <ows:Post xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Get xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Post xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
                 </ows:HTTP>
             </ows:DCP>
             <ows:Parameter name="outputFormat">
@@ -126,8 +126,8 @@
         <ows:Operation name="GetPropertyValue">
             <ows:DCP>
                 <ows:HTTP>
-                    <ows:Get xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
-                    <ows:Post xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Get xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Post xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
                 </ows:HTTP>
             </ows:DCP>
             <ows:Parameter name="outputFormat">
@@ -142,16 +142,16 @@
         <ows:Operation name="ListStoredQueries">
             <ows:DCP>
                 <ows:HTTP>
-                    <ows:Get xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
-                    <ows:Post xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Get xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Post xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
                 </ows:HTTP>
             </ows:DCP>
         </ows:Operation>
         <ows:Operation name="DescribeStoredQueries">
             <ows:DCP>
                 <ows:HTTP>
-                    <ows:Get xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
-                    <ows:Post xlink:type="simple" xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Get xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
+                    <ows:Post xlink:type="simple" xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;"/>
                 </ows:HTTP>
             </ows:DCP>
         </ows:Operation>
@@ -246,7 +246,7 @@
                 <ows:LowerCorner>-180 -90</ows:LowerCorner>
                 <ows:UpperCorner>180 83.64513</ows:UpperCorner>
             </ows:WGS84BoundingBox>
-            <MetadataURL xlink:href="http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;request=GetMetadata&amp;layer=Countries"/>
+            <MetadataURL xlink:href="http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&amp;request=GetMetadata&amp;layer=Countries"/>
         </FeatureType>
     </FeatureTypeList>
     <fes:Filter_Capabilities>

@@ -13,7 +13,6 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from ows_lib.client.mixins import OgcClient
-from ows_lib.client.utils import get_client
 from ows_lib.models.ogc_request import OGCRequest
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import OgcService
@@ -70,7 +69,7 @@ class OgcServiceProxyView(View):
     @property
     def remote_service(self) -> OgcClient:
         if not self._remote_service:
-            self._remote_service = get_client(self.service.xml_backup)
+            self._remote_service = self.service.client
         return self._remote_service
 
     def analyze_request(self):

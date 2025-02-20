@@ -225,7 +225,7 @@ USE_TZ = True
 # configure your proxy like "http://10.0.0.1:8080"
 # or with username and password: "http://username:password@10.0.0.1:8080"
 PROXIES = {
-    "no_proxy": "mapserver",
+    "no_proxy": os.getenv("no_proxy", os.getenv("NO_PROXY", "")),
     "http": os.getenv("http_proxy", os.getenv("HTTP_PROXY", "")),
     "https": os.getenv("https_proxy", os.getenv("HTTPS_PROXY", "")),
 }

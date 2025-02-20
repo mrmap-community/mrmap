@@ -12,7 +12,6 @@ from extras.managers import DefaultHistoryManager
 from extras.models import HistoricalRecordMixin
 from extras.utils import update_url_base, update_url_query_params
 from mptt2.models import Node
-from MrMap.settings import PROXIES
 from ows_lib.client.csw.mixins import \
     CatalogueServiceMixin as CatalogueServiceClient
 from ows_lib.client.utils import get_client
@@ -109,7 +108,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
     def get_session_for_request(self) -> Session:
         session = Session()
-        session.proxies = PROXIES
+        # session.proxies.update(PROXIES)
         if hasattr(self, "auth"):
             session.auth = self.auth.get_auth_for_request()
         return session

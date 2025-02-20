@@ -8,7 +8,7 @@
             "version": "2.0.0",
             "is_active": true,
             "origin": "capabilities",
-            "origin_url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "origin_url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
             "title": "MapServer countires example",
             "service_url": "",
             "service_contact": "1",
@@ -54,7 +54,7 @@
             "is_active": true,
             "version": "2.0.0",
             "origin": "capabilities",
-            "origin_url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+            "origin_url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
             "title": "MapServer countires example",
             "service_url": "",
             "service_contact": "1",
@@ -88,7 +88,7 @@
         "pk": "1",
         "fields": {
             "method": "Get",
-            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
             "operation": "GetFeature",
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }
@@ -98,7 +98,7 @@
         "pk": "2",
         "fields": {
             "method": "Post",
-            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
             "operation": "GetFeature",
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }
@@ -108,7 +108,7 @@
         "pk": "3",
         "fields": {
             "method": "Get",
-            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
             "operation": "DescribeFeature",
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }
@@ -118,7 +118,7 @@
         "pk": "4",
         "fields": {
             "method": "Post",
-            "url": "http://mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
+            "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
             "operation": "DescribeFeature",
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }

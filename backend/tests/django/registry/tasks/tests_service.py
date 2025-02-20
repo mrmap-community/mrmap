@@ -5,6 +5,7 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls.base import reverse
 from django_celery_results.models import GroupResult
+from notify.models import BackgroundProcess
 from registry.enums.service import AuthTypeEnum
 from registry.models.security import WebMapServiceAuthentication
 from registry.models.service import WebMapService
@@ -28,7 +29,7 @@ class MockResponse:
             self.content = bytes(self.text, 'utf-8')
 
 
-def side_effect(request):
+def side_effect(request, *args, **kwargs):
     if request.url == 'https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities':
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml')))
     elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF':
@@ -47,6 +48,18 @@ def side_effect(request):
 
 class BuildOgcServiceTaskTest(TestCase):
 
+    def setUp(self):
+        self.http_request = {
+            "path": "http://example.de",
+            "method": "GET",
+            "content_type": "application/vnd.api+json",
+            "data": {},
+            "user_pk": "somepk",
+        }
+
+        self.background_process = BackgroundProcess.objects.create(
+            phase="", process_type="registering", description="")
+
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
@@ -58,6 +71,8 @@ class BuildOgcServiceTaskTest(TestCase):
         task = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
                                        collect_metadata_records=False,
                                        service_auth_pk=None,
+                                       http_request=self.http_request,
+                                       background_process_pk=self.background_process.pk,
                                        **{'user_pk': 'somepk'})
 
         db_service = WebMapService.objects.all()[:1][0]
@@ -88,6 +103,8 @@ class BuildOgcServiceTaskTest(TestCase):
         result = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
                                          collect_metadata_records=False,
                                          service_auth_pk=auth.pk,
+                                         http_request=self.http_request,
+                                         background_process_pk=self.background_process.pk,
                                          **{'user_pk': 'somepk'})
 
         db_service = WebMapService.objects.all()[:1][0]
@@ -120,6 +137,8 @@ class BuildOgcServiceTaskTest(TestCase):
         result = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
                                          collect_metadata_records=True,
                                          service_auth_pk=None,
+                                         http_request=self.http_request,
+                                         background_process_pk=self.background_process.pk,
                                          **{'user_pk': 'somepk'})
 
         db_service = WebMapService.objects.all()[:1][0]

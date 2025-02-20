@@ -79,7 +79,7 @@
                 "abstract>"
             ],
             "check_response_does_not_contain": [
-                "ExceptionReport>",
+                "ServiceExceptionReport>",
                 "ServiceException>"
             ]
         }
@@ -96,7 +96,7 @@
             "width": 265,
             "check_response_is_image": true,
             "check_response_does_not_contain": [
-                "ExceptionReport>",
+                "ServiceExceptionReport>",
                 "ServiceException>"
             ]
         }

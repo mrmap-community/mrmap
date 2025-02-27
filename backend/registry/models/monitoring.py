@@ -201,11 +201,11 @@ class WebMapServiceProbe(Probe):
 
     check_response_does_not_contain = models.CharField(
         max_length=256,
-        default="ExceptionReport>, ServiceException>",
+        default="ExceptionReport>,ServiceException>",
         blank=True,
         verbose_name=_("Check response does not contain"),
         help_text=_(
-            "comma seperated search strings like: ExceptionReport>, ServiceException>")
+            "comma seperated search strings like: ExceptionReport>,ServiceException>")
     )
 
     class Meta:

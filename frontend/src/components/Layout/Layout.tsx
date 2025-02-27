@@ -4,7 +4,7 @@ import { ReadyState } from 'react-use-websocket';
 
 import CircleIcon from '@mui/icons-material/Circle';
 import GitHubIcon from '@mui/icons-material/GitHub';
-import { Grid, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Grid2, IconButton, Tooltip, Typography } from '@mui/material';
 import Card from '@mui/material/Card';
 import useResizeObserver from '@react-hook/resize-observer';
 import { SnackbarProvider } from 'notistack';
@@ -54,7 +54,6 @@ const MyLayout = (
       <Layout
         appBar={MrMapAppBar}
         menu={Menu}
-
         sx={{
            marginTop: '0', 
            '& .RaLayout-appFrame': { marginTop: '0 !important' },
@@ -62,45 +61,47 @@ const MyLayout = (
         }}
         {...rest}
       >
-        <div style={{ margin: "10px", marginBottom: footerHeight}}>
-          
+        <Box 
+          style={{ 
+            margin: "10px", 
+            marginBottom: footerHeight,
+          }}
+        >
           {children}
-
-          
           {<SnackbarObserver />}
-        </div>
-          <Card style={{
-            position: 'fixed', 
-            right: 0, 
-            bottom: 0, 
-            left: 0, 
-            zIndex: 100,
-            textAlign: 'center',
-          }}>
-            <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} ref={footerRef}>
-            
-              <Grid item>
+        </Box>
+        <Card style={{
+          position: 'fixed', 
+          right: 0, 
+          bottom: 0, 
+          left: 0, 
+          zIndex: 100,
+          textAlign: 'center',
+        }}>
+          <Grid2 container spacing={2} sx={{ justifyContent: 'space-between' }} ref={footerRef}>
+          
+            <Grid2 >
               <Typography padding={1}> v.{api?.document.info.version}</Typography>
-              </Grid>
+            </Grid2>
 
-              <Grid item >
-                <IconButton href="https://github.com/mrmap-community" target="_blank">
-                  <GitHubIcon />
+            <Grid2  >
+              <IconButton href="https://github.com/mrmap-community" target="_blank">
+                <GitHubIcon />
+              </IconButton>
+            </Grid2>
+
+            <Grid2  alignItems="center" >
+              <Tooltip title={readyState === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
+                <IconButton padding={1} >
+                  <CircleIcon
+                    color={readyState === ReadyState.OPEN ? 'success': 'error'}
+                  />
                 </IconButton>
-              </Grid>
-
-              <Grid item alignItems="center" >
-                <Tooltip title={readyState === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
-                  <IconButton padding={1} >
-                    <CircleIcon
-                      color={readyState === ReadyState.OPEN ? 'success': 'error'}
-                    />
-                  </IconButton>
-                </Tooltip>
-              </Grid>
-            
-            </Grid>
-          </Card>
+              </Tooltip>
+            </Grid2>
+          
+          </Grid2>
+        </Card>
        
       </Layout>
     </SnackbarProvider>

@@ -6,6 +6,7 @@ import axios from 'axios'
 import { snakeCase } from 'lodash'
 
 import HistoryList from '../../components/HistoryList'
+import AsideCard from '../../components/Layout/AsideCard'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
@@ -233,19 +234,21 @@ const ListGuesser = ({
       
       aside={
         hasHistoricalEndpoint ?
-        <HistoryList
-          resource={`Historical${name ?? ''}`}
-          related={name ?? ''}
-          record={selectedRecord}
-          cardSx={
-            {
-              margin: '1em',
-              height: 'calc(100vh - 110px - 1em)', // 174px ==> 50 appbar, 52 pagination,  1 em top padding
-              width: `calc(${open ? '40vw' : '20vw'} - 1em - ${open ? '240px' : '50px'})`,
-              overflowY: 'scroll'
-            }
-          }
-        />: undefined
+        <AsideCard
+          sx={{
+            margin: '1em',
+            //height: 'calc(100vh - 110px - 1em)', // 174px ==> 50 appbar, 52 pagination,  1 em top padding
+            width: `calc(${open ? '40vw' : '20vw'} - 1em - ${open ? '240px' : '50px'})`,
+            overflowY: 'scroll'
+          }}
+        >
+          <HistoryList
+            resource={`Historical${name ?? ''}`}
+            related={name ?? ''}
+            record={selectedRecord}
+           
+          />
+        </AsideCard>: undefined
       }
 
       {...props}

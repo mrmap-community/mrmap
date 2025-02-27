@@ -1,8 +1,10 @@
-import { Chip, Typography } from '@mui/material';
+import { CardHeader, Chip, Typography } from '@mui/material';
 import { BooleanField, DateField, NumberField, Show, TabbedShowLayout, useRecordContext } from 'react-admin';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
 import ProgressField from '../../Field/ProgressField';
+import AsideCard from '../../Layout/AsideCard';
+import HarvestResultPieChart from './Charts';
 
 
 const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -35,7 +37,6 @@ const HarvestingJobTabbedShowLayout = () => {
       <TabbedShowLayout>
 
         <TabbedShowLayout.Tab label="summary">
-          
           <JsonApiReferenceField source="service" reference="CatalogueService" label="Service" />
           <BooleanField source="harvestDatasets"/>
           <BooleanField source="harvestServices"/>
@@ -46,7 +47,7 @@ const HarvestingJobTabbedShowLayout = () => {
         </TabbedShowLayout.Tab>
 
         <TabbedShowLayout.Tab 
-          label={<Typography>New Datasets <Chip label={record?.newDatasetRecords?.length || 0} color="success" size="small"/></Typography>} 
+          label={<Typography component='span' variant='body2'>New Datasets <Chip label={record?.newDatasetRecords?.length || 0} color="success" size="small"/></Typography>} 
           path="new-datasets"
         >
           <ListGuesser
@@ -55,7 +56,7 @@ const HarvestingJobTabbedShowLayout = () => {
           />
         </TabbedShowLayout.Tab>
         <TabbedShowLayout.Tab 
-          label={<Typography>Existing Datasets <Chip label={record?.existingDatasetRecords?.length || 0} size="small"/></Typography>} 
+          label={<Typography component='span' variant='body2'>Existing Datasets <Chip label={record?.existingDatasetRecords?.length || 0} size="small"/></Typography>} 
           path="existing-datasets"
         >
           <ListGuesser
@@ -64,7 +65,7 @@ const HarvestingJobTabbedShowLayout = () => {
           />
         </TabbedShowLayout.Tab>
         <TabbedShowLayout.Tab 
-          label={<Typography>Updated Datasets <Chip label={record?.updatedDatasetRecords?.length || 0} size="small"/></Typography>} 
+          label={<Typography component='span' variant='body2'>Updated Datasets <Chip label={record?.updatedDatasetRecords?.length || 0} size="small"/></Typography>} 
           path="updated-datasets"
         >
           <ListGuesser
@@ -73,7 +74,7 @@ const HarvestingJobTabbedShowLayout = () => {
           />
         </TabbedShowLayout.Tab>
         <TabbedShowLayout.Tab 
-          label={<Typography>Logs <Chip label={record?.backgroundProcess?.logs?.length || 0} size="small"/></Typography>} 
+          label={<Typography component='span' variant='body2'>Logs <Chip label={record?.backgroundProcess?.logs?.length || 0} size="small"/></Typography>} 
           path="logs"
         >
           <ListGuesser
@@ -83,7 +84,7 @@ const HarvestingJobTabbedShowLayout = () => {
           />
         </TabbedShowLayout.Tab>
         <TabbedShowLayout.Tab 
-          label={<Typography>Task Results <Chip label={record?.backgroundProcess?.threads?.length || 0} size="small"/></Typography>} 
+          label={<Typography component='span' variant='body2'>Task Results <Chip label={record?.backgroundProcess?.threads?.length || 0} size="small"/></Typography>} 
           path="tasks"
         >
           <ListGuesser
@@ -101,10 +102,22 @@ const HarvestingJobTabbedShowLayout = () => {
 
 const ShowHarvestingJob = () => { 
     return (
-      <Show 
+      <Show
         queryOptions={{meta: {jsonApiParams:{include: 'service,backgroundProcess'}}}}
+        aside={
+          <AsideCard
+            
+          >
+            <CardHeader
+              title="something"
+            />
+            <HarvestResultPieChart/>
+          </AsideCard>
+        }
+        
       >
-        <HarvestingJobTabbedShowLayout />       
+        
+      <HarvestingJobTabbedShowLayout />
       </Show>
     )
 };

@@ -4,8 +4,7 @@ import { type RaRecord, RecordRepresentation, SimpleList, type SimpleListProps, 
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import UpdateIcon from '@mui/icons-material/Update'
-import { Box, Card, CardHeader, Chip, type Theme, Typography } from '@mui/material'
-import { type SxProps } from '@mui/system'
+import { Box, CardHeader, Chip, Typography } from '@mui/material'
 
 const getIcon = (record: RaRecord): ReactNode => {
   if (record.historyType === 'created') {
@@ -60,13 +59,11 @@ const PrimaryText = ({ record, related, selectedRecord }: PrimaryTextProps): Rea
 export interface HistoryListProps extends SimpleListProps {
   related: string
   record: RaRecord | undefined
-  cardSx?: SxProps<Theme>
 }
 
 const HistoryList = ({
   related,
   record: selectedRecord,
-  cardSx = {},
 
   ...props
 }: HistoryListProps): ReactNode => {
@@ -92,9 +89,7 @@ const HistoryList = ({
   const getRecordRepresentation = useGetRecordRepresentation(related)
 
   return (
-    <Card
-      sx={cardSx}
-    >
+
       <CardHeader
         title={(selectedRecord === undefined) ? 'Last 10 events' : getRecordRepresentation(selectedRecord)}
         subheader={
@@ -116,7 +111,6 @@ const HistoryList = ({
 
       </CardHeader>
 
-    </Card >
   )
 }
 

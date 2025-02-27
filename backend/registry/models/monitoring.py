@@ -201,11 +201,11 @@ class WebMapServiceProbe(Probe):
 
     check_response_does_not_contain = models.CharField(
         max_length=256,
-        default="ExceptionReport>, ServiceException>",
+        default="ExceptionReport>,ServiceException>",
         blank=True,
         verbose_name=_("Check response does not contain"),
         help_text=_(
-            "comma seperated search strings like: ExceptionReport>, ServiceException>")
+            "comma seperated search strings like: ExceptionReport>,ServiceException>")
     )
 
     class Meta:
@@ -262,7 +262,7 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
         self.result = result
         self.save()
         try:
-            client = self.settings.service.client
+            client = self.setting.service.client
             request = client.get_capabilitites_request()
             result.monitored_uri = request.url
 
@@ -339,7 +339,7 @@ class GetMapProbe(WebMapServiceProbe):
         self.result = result
         self.save()
         try:
-            client = self.settings.service.client
+            client = self.setting.service.client
             layers: list[Layer] = self.layers.with_inherited_attributes()
             bbox: Polygon = layers[0].bbox_inherited
             if client.capabilities.service_type.version == "1.3.0":

@@ -26,6 +26,7 @@ services:
 
   mapserver:
     image: camptocamp/mapserver:7.6
+    hostname: "mrmap-mapserver"
     volumes:
       - type: bind
         source: ./docker/mapserver/mapfiles

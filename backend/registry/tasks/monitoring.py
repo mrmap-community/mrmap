@@ -46,10 +46,10 @@ def finish_run(self, task_results, run_pk, *args, **kwargs):
 @shared_task(bind=True)
 def run_wms_monitoring(self, setting_pk, run_pk=None, *args, **kwargs):
     setting: WebMapServiceMonitoringSetting = WebMapServiceMonitoringSetting.objects.prefetch_related(
-        "registry_getcapabilitiesprobe", "registry_getmapprobe").get(pk=setting_pk)
-    get_capabilitites_probes: List[GetCapabilitiesProbe] = setting.registry_getcapabilitiesprobe.all(
+        "registry_getcapabilitiesprobes", "registry_getmapprobes").get(pk=setting_pk)
+    get_capabilitites_probes: List[GetCapabilitiesProbe] = setting.registry_getcapabilitiesprobes.all(
     )
-    get_map_probes: List[GetMapProbe] = setting.registry_getcapabilitiesprobe.all(
+    get_map_probes: List[GetMapProbe] = setting.registry_getcapabilitiesprobes.all(
     )
 
     if run_pk:

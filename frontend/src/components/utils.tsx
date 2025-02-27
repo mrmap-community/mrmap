@@ -4,6 +4,7 @@ import { TreeItem, TreeItemProps } from '@mui/x-tree-view/TreeItem';
 
 
 
+import { ReactNode } from 'react';
 import { getChildren } from './MapViewer/utils';
 
 
@@ -12,7 +13,7 @@ export const getSubTree = (nodes: RaRecord[], currentNode?: RaRecord, getTreeIte
     
     const children = node && getChildren(nodes, node)
   
-    const subtree = children?.map(child => (
+    const subtree: ReactNode[] = children?.map((child: RaRecord) => (
         <TreeItem 
             key={child.id} 
             itemId={child.id.toString()} 

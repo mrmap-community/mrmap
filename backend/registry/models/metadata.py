@@ -32,7 +32,7 @@ from requests.exceptions import ConnectionError
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
 
-CRS_Registry = Registry(proxies=PROXIES)
+CRS_Registry = Registry()
 
 
 class MimeType(models.Model):
@@ -289,7 +289,6 @@ class RemoteMetadata(models.Model):
         """ Return the fetched remote content and update the content if save is True """
 
         session = Session()
-        session.proxies = PROXIES
         retries = Retry(
             total=3,
             backoff_factor=0.1

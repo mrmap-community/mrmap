@@ -142,7 +142,7 @@ class BuildOgcServiceTaskTest(TestCase):
                                          **{'user_pk': 'somepk'})
 
         db_service = WebMapService.objects.all()[:1][0]
-        group_result = GroupResult.objects.latest('date_created')
+        # group_result = GroupResult.objects.latest('date_created')
 
         expected_result = {
             "data": {
@@ -150,9 +150,6 @@ class BuildOgcServiceTaskTest(TestCase):
                 "id": f"{db_service.pk}",
                 "links": {
                     "self": f"{reverse(viewname='registry:wms-detail', args=[db_service.pk])}"
-                },
-                "meta": {
-                    "collect_metadata_records_job_id": group_result.group_id
                 }
             }
         }

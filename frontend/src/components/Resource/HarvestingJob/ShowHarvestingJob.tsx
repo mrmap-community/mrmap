@@ -109,7 +109,7 @@ const ShowHarvestingJob = () => {
             
           >
             <CardHeader
-              title="something"
+              title="Chart"
             />
             <HarvestResultPieChart/>
           </AsideCard>

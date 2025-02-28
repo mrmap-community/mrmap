@@ -1,7 +1,6 @@
 import operator
 import os
 import sys
-import traceback
 from datetime import datetime
 from functools import reduce
 from typing import List
@@ -21,7 +20,6 @@ from notify.models import BackgroundProcess, BackgroundProcessLog
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
-from registry.enums.harvesting import ErrorType
 from registry.enums.metadata import MetadataOriginEnum
 from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import (DatasetMetadataRecord,
@@ -85,9 +83,7 @@ class HarvestingJob(models.Model):
         editable=False,)
     background_process = models.ForeignKey(
         to=BackgroundProcess,
-        on_delete=models.SET_NULL,
-        null=True,
-        default=None,
+        on_delete=models.PROTECT,
         editable=False,)
 
     change_log = HistoricalRecords(
@@ -107,87 +103,90 @@ class HarvestingJob(models.Model):
         ordering = ['-done_at']
         get_latest_by = 'done_at'
 
-    def save(self, *args, **kwargs) -> None:
-        from registry.tasks.harvest import (  # to avoid circular import errors
-            call_fetch_records, call_fetch_total_records)
+    def handle_adding(self, *args, **kwargs):
+        from registry.tasks.harvest import \
+            call_fetch_total_records  # to avoid circular import errors
 
-        adding = self._state.adding
-        ret = super().save(*args, **kwargs)
+        self.background_process = BackgroundProcess.objects.create(
+            phase="Get total records of the catalogue",
+            process_type=ProcessNameEnum.HARVESTING.value,
+            description=f'Harvesting job for service {self.service.pk}',
+            service=self.service
+        )
+        # save to get the id of the object
+        ret = super(HarvestingJob, self).save(*args, **kwargs)
 
-        # TODO: implement three phases:
-        # 1. fetch total_records
-        # 2. get statistic information about the average response duration with different step sizes
-        # 3. start harvesting with the best average response duration step settings
+        transaction.on_commit(
+            lambda: HarvestingJob.objects.filter(pk=self.pk).update(
+                background_process=self.background_process)
+        )
 
-        request = self._http_request()
-
-        if adding:
-            background_process = BackgroundProcess.objects.create(
-                phase="Get total records of the catalogue",
-                process_type=ProcessNameEnum.HARVESTING.value,
-                description=f'Harvesting job for service {self.service.pk}',  # noqa
-                service=self.service
+        transaction.on_commit(
+            lambda: call_fetch_total_records.delay(
+                harvesting_job_id=self.pk,
+                http_request=self._http_request(),
+                background_process_pk=self.background_process_id
             )
-
-            transaction.on_commit(
-                lambda: HarvestingJob.objects.filter(pk=self.pk).update(
-                    background_process=background_process)
-            )
-
-            transaction.on_commit(
-                lambda: call_fetch_total_records.delay(
-                    harvesting_job_id=self.pk,
-                    http_request=request,
-                    background_process_pk=background_process.pk
-                )
-            )
-            return ret
-
-        if self.total_records == 0:
-            self.done_at = now()
-            ret = super().save(*args, **kwargs)
-
-        elif self.total_records and not self.done_at:
-
-            round_trips = (self.total_records // self.service.max_step_size)
-            if self.total_records % self.service.max_step_size > 0:
-                round_trips += 1
-
-            tasks = []
-            for number in range(1, round_trips + 1):
-                tasks.append(
-                    call_fetch_records.s(
-                        harvesting_job_id=self.pk,
-                        start_position=number * self.service.max_step_size,
-                        http_request=request,
-                        background_process_pk=self.background_process_id if self.background_process_id else None,
-
-                    )
-                )
-
-            transaction.on_commit(lambda: chord(tasks)(call_chord_md_metadata_file_to_db.s(
-                http_request=request,
-                background_process_pk=self.background_process_id if self.background_process_id else None,
-            )))
-
-            if self.background_process_id:
-                """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
-                    The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
-                    The processing of harvesting can take a long time, in that the catalogue can changes his content. 
-                    So it can be 1000010 records or 99980 or something else. 
-                    The state of the remote CSW is not freezed after the first total_records call is done.
-
-                    An other fact is, that the get records request can response with currupt metadata records, which we can't handle.
-                    In that case, no TemporaryMdMetadataFile object is created and no call_md_metadata_file_to_db task is created.
-                """
-                total_steps = tasks.__len__()  # how many call_fetch_records task will be run
-                # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
-                total_steps += self.total_records
-                with transaction.atomic():
-                    BackgroundProcess.objects.select_for_update().filter(
-                        pk=self.background_process_id).update(total_steps=total_steps)
-
+        )
         return ret
+
+    def handle_total_records_defined(self):
+        """total records is known now. Calculate roundtrips and start parallel harvesting tasks"""
+        from registry.tasks.harvest import \
+            call_fetch_records  # to avoid circular import errors
+
+        round_trips = (self.total_records //
+                       self.service.max_step_size)
+        if self.total_records % self.service.max_step_size > 0:
+            round_trips += 1
+
+        tasks = []
+        for number in range(1, round_trips + 1):
+            tasks.append(
+                call_fetch_records.s(
+                    harvesting_job_id=self.pk,
+                    start_position=number * self.service.max_step_size,
+                    http_request=self._http_request(),
+                    background_process_pk=self.background_process_id,
+                )
+            )
+
+        transaction.on_commit(lambda: chord(tasks)(call_chord_md_metadata_file_to_db.s(
+            http_request=self._http_request(),
+            background_process_pk=self.background_process_id,
+        )))
+
+        """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
+            The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
+            The processing of harvesting can take a long time, in that the catalogue can changes his content. 
+            So it can be 1000010 records or 99980 or something else. 
+            The state of the remote CSW is not freezed after the first total_records call is done.
+
+            An other fact is, that the get records request can response with currupt metadata records, which we can't handle.
+            In that case, no TemporaryMdMetadataFile object is created and no call_md_metadata_file_to_db task is created.
+        """
+        total_steps = tasks.__len__()  # how many call_fetch_records task will be run
+        # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
+        total_steps += self.total_records
+        with transaction.atomic():
+            BackgroundProcess.objects.select_for_update().filter(
+                pk=self.background_process_id).update(total_steps=total_steps)
+
+    # TODO: implement three phases:
+    # 1. fetch total_records
+    # 2. get statistic information about the average response duration with different step sizes
+    # 3. start harvesting with the best average response duration step settings
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            return self.handle_adding()
+        elif self.total_records == 0:
+            # error case. CSW does not provide records for our default request behaviour.
+            self.done_at = now()
+        elif self.total_records and not self.done_at:
+            self.handle_total_records_defined()
+
+        return super(HarvestingJob, self).save(*args, **kwargs)
 
     def _http_request(self):
         first_history = self.change_log.first()
@@ -289,6 +288,14 @@ class HarvestingJob(models.Model):
 
         db_objs = TemporaryMdMetadataFile.objects.bulk_create(
             objs=db_md_metadata_file_list)
+
+        if len(db_objs) < self.service.max_step_size:
+            BackgroundProcessLog.objects.create(
+                background_process=self.background_process,
+                log_type=LogTypeEnum.WARNING.value,
+                description=f"Only {len(db_objs)} received from {self.service.max_step_size} possible records.\n" +
+                f"URL: {request.url}"
+            )
 
         return [db_obj.pk for db_obj in db_objs]
 
@@ -394,7 +401,7 @@ class TemporaryMdMetadataFile(models.Model):
                 description += "The following error is occured:\n"
                 description += traceback.format_exc()
                 BackgroundProcessLog.objects.create(
-                    background_process=self.background_process,
+                    background_process=self.job.background_process,
                     log_type=LogTypeEnum.ERROR.value,
                     description=description
                 )

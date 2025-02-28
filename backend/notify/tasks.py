@@ -1,7 +1,7 @@
 from logging import Logger
 
 from celery import Task, shared_task
-from celery.signals import task_prerun
+from celery.signals import before_task_publish, task_prerun
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -15,15 +15,41 @@ from requests.exceptions import ConnectionError, Timeout
 logger: Logger = settings.ROOT_LOGGER
 
 
+def get_background_process_if_exists(background_process_pk):
+    try:
+        return BackgroundProcess.objects.get(
+            pk=background_process_pk)
+    except BackgroundProcess.ObjectDoesNotExist as e:
+        logger.exception(e, stack_info=True, exc_info=True)
+
+
+def append_task_to_background_process(task_pk, background_process_pk):
+    if task_pk and background_process_pk:
+        task_result, _ = TaskResult.objects.get_or_create(
+            task_id=task_pk,
+        )
+        background_process = get_background_process_if_exists(
+            background_process_pk)
+        if background_process:
+            background_process.threads.add(task_result)
+
+
 @task_prerun.connect
 def get_background_process(task, *args, **kwargs):
+    """To automaticly get the BackgroundProcess object on task runtime."""
     background_process_pk = kwargs["kwargs"].get("background_process_pk", None)
-    if background_process_pk:
-        try:
-            task.background_process = BackgroundProcess.objects.get(
-                pk=background_process_pk)
-        except BackgroundProcess.ObjectDoesNotExist as e:
-            logger.exception(e, stack_info=True, exc_info=True)
+    task.background_process = get_background_process_if_exists(
+        background_process_pk)
+
+
+@before_task_publish.connect
+def create_task_result(headers, body, *args, **kwargs):
+    """create task results on publishing them. Without this signal connection, 
+        the taskresult object is not created until update_state() inside the task is called.
+    """
+    task_id = headers.get("id")
+    background_process_pk = body[1].get("background_process_pk", None)
+    append_task_to_background_process(task_id, background_process_pk)
 
 
 class BackgroundProcessBased(Task):

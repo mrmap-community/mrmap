@@ -87,7 +87,8 @@ router = ExtendedSimpleRouter(trailing_slash=False)
 
     # harvesting
     router.register(r'harvesting/harvesting-jobs',
-                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob'),
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'temporary-md-metadata-files', harvesting_views.NestedTemporaryMdMetadataFileViewSet, basename='harvestingjob-temporarymdmetadatafiles', parents_query_lookups=['job']),
     router.register(r'harvestubg/temporary-md-metadata-file',
                     harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
 

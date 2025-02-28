@@ -26,6 +26,7 @@ class HarvestingJobViewSetMixin():
         '__all__': [],
         "backgroundProcess": [Prefetch("background_process", queryset=BackgroundProcess.objects.process_info())],
         "backgroundProcess.logs": [Prefetch('background_process__logs', queryset=BackgroundProcessLog.objects.select_related('background_process'))],
+        "temporaryMdMetadataFiles": [Prefetch('temporary_md_metadata_files', queryset=TemporaryMdMetadataFile.objects.select_related('job'))]
     }
 
 

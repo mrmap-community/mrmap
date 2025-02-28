@@ -141,11 +141,9 @@ def call_md_metadata_file_to_db(
         )
 
         return db_metadata.pk
-    except Exception as e:
-        tbe = traceback.TracebackException.from_exception(e)
-        TemporaryMdMetadataFile.objects.select_for_update(
-        ).filter(pk=md_metadata_file_id).update(
-            import_error=tbe.stack
+    except Exception:
+        TemporaryMdMetadataFile.objects.select_for_update().filter(pk=md_metadata_file_id).update(
+            import_error=traceback.format_exc()
         )
 
 

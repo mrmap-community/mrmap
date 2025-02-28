@@ -1,8 +1,10 @@
+from celery import states
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
+from MrMap.celery import app
 from notify.enums import LogTypeEnum, ProcessNameEnum
 from notify.managers import BackgroundProcessManager
 
@@ -65,8 +67,14 @@ class BackgroundProcess(models.Model):
     objects = BackgroundProcessManager()
 
     def __str__(self):
-
         return f"{self.process_type} {self.related_id}"
+
+    def save(self, *args, **kwargs):
+        if self.phase == "abort":
+            unready_tasks = self.threads.filter(
+                status__in=states.UNREADY_STATES).values_list("task_id", flat=True)
+            app.control.revoke(unready_tasks, terminate=True)
+        return super(BackgroundProcess, self).save(*args, **kwargs)
 
 
 class BackgroundProcessLog(models.Model):

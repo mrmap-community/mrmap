@@ -1,7 +1,6 @@
 import operator
 import os
 import sys
-from datetime import datetime
 from functools import reduce
 from typing import List
 
@@ -45,18 +44,6 @@ class HarvestingJob(models.Model):
         editable=False,
         verbose_name=_("total records"),
         help_text=_("total count of records which will be harvested by this job"))
-    started_at: datetime = models.DateTimeField(
-        null=True,
-        blank=True,
-        editable=False,
-        verbose_name=_("date started"),
-        help_text=_("timestamp of start"))
-    done_at: datetime = models.DateTimeField(
-        null=True,
-        blank=True,
-        editable=False,
-        verbose_name=_("date done"),
-        help_text=_("timestamp of done"))
     new_dataset_records = models.ManyToManyField(
         to=DatasetMetadataRecord,
         related_name="harvested_by",
@@ -91,17 +78,6 @@ class HarvestingJob(models.Model):
     )
 
     objects = DefaultHistoryManager()
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['service', 'done_at'],
-                                    name='%(app_label)s_%(class)s_service_done_at_uniq'),
-            models.UniqueConstraint(fields=['service'],
-                                    name='%(app_label)s_%(class)s_service_uniq',
-                                    condition=Q(done_at__isnull=True))
-        ]
-        ordering = ['-done_at']
-        get_latest_by = 'done_at'
 
     def handle_adding(self, *args, **kwargs):
         from registry.tasks.harvest import \
@@ -141,11 +117,11 @@ class HarvestingJob(models.Model):
             round_trips += 1
 
         tasks = []
-        for number in range(1, round_trips + 1):
+        for number in range(0, round_trips):
             tasks.append(
                 call_fetch_records.s(
                     harvesting_job_id=self.pk,
-                    start_position=number * self.service.max_step_size,
+                    start_position=number * self.service.max_step_size + 1,
                     http_request=self._http_request(),
                     background_process_pk=self.background_process_id,
                 )
@@ -182,8 +158,8 @@ class HarvestingJob(models.Model):
             return self.handle_adding()
         elif self.total_records == 0:
             # error case. CSW does not provide records for our default request behaviour.
-            self.done_at = now()
-        elif self.total_records and not self.done_at:
+            self.background_process.done_at = now()
+        elif self.total_records and not self.background_process.done_at:
             self.handle_total_records_defined()
 
         return super(HarvestingJob, self).save(*args, **kwargs)
@@ -242,7 +218,6 @@ class HarvestingJob(models.Model):
                     description=description
                 )
 
-        self.started_at = now()
         self.total_records = total_records
         self.save()
         return self.total_records
@@ -310,7 +285,9 @@ class TemporaryMdMetadataFile(models.Model):
         to=HarvestingJob,
         on_delete=models.CASCADE,
         verbose_name=_("harvesting job"),
-        null=True)
+        null=True,
+        related_name="temporary_md_metadata_files",
+        related_query_name="temporary_md_metadata_file")
     md_metadata_file: FieldFile = models.FileField(
         verbose_name=_("response"),
         help_text=_(

@@ -75,7 +75,7 @@ class IsoMetadataManager(models.Manager):
                     field_dict["date_stamp"], timezone.get_current_timezone())
                 if dt_aware > db_dataset_metadata.date_stamp:
                     [setattr(db_dataset_metadata, key, value)
-                     for key, value in field_dict]
+                     for key, value in field_dict.items()]
                     db_dataset_metadata.metadata_contact = db_dataset_contact
                     db_dataset_metadata.dataset_contact = db_dataset_contact
                     db_dataset_metadata.last_modified_by = self.current_user
@@ -115,7 +115,7 @@ class IsoMetadataManager(models.Manager):
                     field_dict["date_stamp"], timezone.get_current_timezone())
                 if dt_aware > db_service_metadata.date_stamp:
                     [setattr(db_service_metadata, key, value)
-                     for key, value in field_dict]
+                     for key, value in field_dict.items()]
                     db_service_metadata.metadata_contact = db_metadata_contact
                     db_service_metadata.last_modified_by = self.current_user
 

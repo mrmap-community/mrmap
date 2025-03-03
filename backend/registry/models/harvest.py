@@ -7,7 +7,7 @@ from typing import List
 from celery import chord, states
 from django.contrib.gis.db import models
 from django.core.files.base import ContentFile
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
 from django.utils.timezone import now
@@ -19,6 +19,7 @@ from notify.models import BackgroundProcess, BackgroundProcessLog
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
+from registry.enums.harvesting import CollectingStatenEnum
 from registry.enums.metadata import MetadataOriginEnum
 from registry.managers.havesting import TemporaryMdMetadataFileManager
 from registry.models.metadata import (DatasetMetadataRecord,
@@ -29,6 +30,75 @@ from requests import Response
 from simple_history.models import HistoricalRecords
 
 
+class HarvestedMetadataRelation(models.Model):
+    harvesting_job = models.ForeignKey(to="registry.HarvestingJob",
+                                       on_delete=models.CASCADE,
+                                       related_name="%(app_label)s_%(class)ss",
+                                       related_query_name="%(app_label)s_%(class)s")
+    collecting_state = models.CharField(max_length=10,
+                                        choices=CollectingStatenEnum.choices)
+
+    class Meta:
+        abstract = True
+
+
+class HarvestedDatasetMetadataRelation(HarvestedMetadataRelation):
+    dataset_metadata_record = models.ForeignKey(to="registry.DatasetMetadataRecord",
+                                                on_delete=models.CASCADE,
+                                                related_name="harvested_dataset_metadata_relations",
+                                                related_query_name="harvested_dataset_metadata_relation")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["harvesting_job", "dataset_metadata_record"]),
+            models.Index(
+                fields=["harvesting_job", "dataset_metadata_record", "collecting_state"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="%(app_label)s_%(class)s_atomic_new_updated_or_exsisting_collecting_state",
+                fields=["harvesting_job",
+                        "dataset_metadata_record",
+                        "collecting_state"],
+                # new, updated, existing can only be set one time per harvesting job.
+                # IF one of this states are set, for an existing record, it is deliverd multiple times by the remote service.
+                # To support analyzing this failure behaviour of remote services,
+                # we support storing collecting_state="duplicated" multiple times per harvesting job
+                condition=~Q(
+                    collecting_state=CollectingStatenEnum.DUPLICATED.value)
+            )
+        ]
+
+
+class HarvestedServiceMetadataRelation(HarvestedMetadataRelation):
+    service_metadata_record = models.ForeignKey(to="registry.ServiceMetadataRecord",
+                                                on_delete=models.CASCADE,
+                                                related_name="harvested_service_metadata_relations",
+                                                related_query_name="harvested_service_metadata_relation")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["harvesting_job", "service_metadata_record"]),
+            models.Index(
+                fields=["harvesting_job", "service_metadata_record", "collecting_state"]),
+
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                name="%(app_label)s_%(class)s_atomic_new_updated_or_exsisting_collecting_state",
+                fields=["harvesting_job",
+                        "service_metadata_record",
+                        "collecting_state"],
+                # new, updated, existing can only be set one time per harvesting job.
+                # IF one of this states are set, for an existing record, it is deliverd multiple times by the remote service.
+                # To support analyzing this failure behaviour of remote services,
+                # we support storing collecting_state="duplicated" multiple times per harvesting job
+                condition=~Q(
+                    collecting_state=CollectingStatenEnum.DUPLICATED.value)
+            )
+        ]
+
+
 class HarvestingJob(models.Model):
     """ helper model to visualize harvesting job workflow """
     service: CatalogueService = models.ForeignKey(
@@ -36,6 +106,10 @@ class HarvestingJob(models.Model):
         on_delete=models.CASCADE,
         verbose_name=_("service"),
         help_text=_("the csw for that this job is running"))
+    background_process = models.ForeignKey(
+        to=BackgroundProcess,
+        on_delete=models.PROTECT,
+        editable=False,)
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
     total_records: int = models.IntegerField(
@@ -44,40 +118,56 @@ class HarvestingJob(models.Model):
         editable=False,
         verbose_name=_("total records"),
         help_text=_("total count of records which will be harvested by this job"))
-    new_dataset_records = models.ManyToManyField(
+
+    harvested_dataset_metadata = models.ManyToManyField(
         to=DatasetMetadataRecord,
-        related_name="harvested_by",
-        editable=False,)
-    existing_dataset_records = models.ManyToManyField(
-        to=DatasetMetadataRecord,
-        related_name="ignored_by",
-        editable=False,)
-    updated_dataset_records = models.ManyToManyField(
-        to=DatasetMetadataRecord,
-        related_name="updated_by",
-        editable=False,)
-    new_service_records = models.ManyToManyField(
+        through=HarvestedDatasetMetadataRelation,
+        related_name="harvesting_jobs",
+        related_query_name="harvesting_job",
+        editable=False,
+        blank=True)
+
+    harvested_service_metadata = models.ManyToManyField(
         to=ServiceMetadataRecord,
-        related_name="harvested_by",
-        editable=False,)
-    existing_service_records = models.ManyToManyField(
-        to=ServiceMetadataRecord,
-        related_name="ignored_by",
-        editable=False,)
-    updated_service_records = models.ManyToManyField(
-        to=ServiceMetadataRecord,
-        related_name="updated_by",
-        editable=False,)
-    background_process = models.ForeignKey(
-        to=BackgroundProcess,
-        on_delete=models.PROTECT,
-        editable=False,)
+        through=HarvestedServiceMetadataRelation,
+        related_name="harvesting_jobs",
+        related_query_name="harvesting_job",
+        editable=False,
+        blank=True)
 
     change_log = HistoricalRecords(
         related_name="change_logs",
     )
 
     objects = DefaultHistoryManager()
+
+    def add_harvested_metadata_relation(self, md_metadata, related_object, collecting_state):
+        model = HarvestedServiceMetadataRelation
+        kwargs = {"service_metadata_record": related_object,
+                  "harvesting_job": self,
+                  "collecting_state": collecting_state}
+        if md_metadata.is_dataset:
+            model = HarvestedDatasetMetadataRelation
+            kwargs.pop("service_metadata_record")
+            kwargs.update({"dataset_metadata_record": related_object})
+        try:
+            with transaction.atomic():
+                return model.objects.create(**kwargs)
+        except IntegrityError as e:
+            if "unique constraint" in str(e.args).lower():
+                kwargs.update(
+                    {"collecting_state": CollectingStatenEnum.DUPLICATED.value})
+                db_obj = model.objects.create(**kwargs)
+                BackgroundProcessLog.objects.create(
+                    background_process=self.background_process,
+                    log_type=LogTypeEnum.WARNING.value,
+                    description="Duplicated Record collected.\n" +
+                    f"pk: {related_object.pk}" +
+                    f"code: {related_object.code}" +
+                    f"code space: {related_object.code_space}" +
+                    f"fileidentifier: {related_object.file_identifier}"
+                )
+                return db_obj
 
     def handle_adding(self, *args, **kwargs):
         from registry.tasks.harvest import \
@@ -391,18 +481,8 @@ class TemporaryMdMetadataFile(models.Model):
 
     def update_relations(self, md_metadata, exists, update, db_metadata):
         db_metadata.harvested_through.add(self.job.service)
-
-        if md_metadata.is_service:
-            if exists and update:
-                self.job.updated_service_records.add(db_metadata)
-            elif exists and not update:
-                self.job.existing_service_records.add(db_metadata)
-            elif not exists:
-                self.job.new_service_records.add(db_metadata)
-        elif md_metadata.is_dataset:
-            if exists and update:
-                self.job.updated_dataset_records.add(db_metadata)
-            elif exists and not update:
-                self.job.existing_dataset_records.add(db_metadata)
-            elif not exists:
-                self.job.new_dataset_records.add(db_metadata)
+        collecting_state = CollectingStatenEnum.UPDATED if exists and update else CollectingStatenEnum.EXISTING if exists and not update else CollectingStatenEnum.NEW
+        self.job.add_harvested_metadata_relation(
+            md_metadata,
+            db_metadata,
+            collecting_state)

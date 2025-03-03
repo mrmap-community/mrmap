@@ -35,7 +35,6 @@ const HarvestingJobTabbedShowLayout = () => {
   const record = useRecordContext();
   return (
       <TabbedShowLayout>
-
         <TabbedShowLayout.Tab label="summary">
           <JsonApiReferenceField source="service" reference="CatalogueService" label="Service" />
           <BooleanField source="harvestDatasets"/>
@@ -103,7 +102,7 @@ const HarvestingJobTabbedShowLayout = () => {
 const ShowHarvestingJob = () => { 
     return (
       <Show
-        queryOptions={{meta: {jsonApiParams:{include: 'service,backgroundProcess'}}}}
+        queryOptions={{meta: {jsonApiParams:{include: 'service,backgroundProcess,harvestedDatasetMetadata,harvestedServiceMetadata'}}}}
         aside={
           <AsideCard
             

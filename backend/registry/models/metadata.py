@@ -864,7 +864,7 @@ class DatasetMetadataRecord(MetadataRecord):
             kwargs.update({"feature_type": related_object,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
 
-        relation, _ = MetadataRelation.objects.get_or_create(
+        relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
             dataset_metadata=self,
             is_internal=is_internal,
             **kwargs
@@ -881,7 +881,7 @@ class DatasetMetadataRecord(MetadataRecord):
             kwargs.update({"feature_type": related_object})
         else:
             return
-        MetadataRelation.objects.filter(
+        MetadataRelation.objects.select_for_update().filter(
             dataset_metadata=self,
             is_internal=internal,
             origin=origin,

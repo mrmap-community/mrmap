@@ -2,12 +2,40 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.models.harvest import (HarvestedDatasetMetadataRelation,
+                                     HarvestedServiceMetadataRelation,
+                                     HarvestingJob, TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  ResourceRelatedField,
                                                  UniqueTogetherValidator)
+
+
+class HarvestedDatasetMetadataRelationSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name="registry:harvesteddatasetmetadatarelation-detail"
+    )
+
+    class Meta:
+        model = HarvestedDatasetMetadataRelation
+        fields = "__all__"
+
+
+class HarvestedServiceMetadataRelationSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name="registry:harvestedservicemetadatarelation-detail"
+    )
+
+    class Meta:
+        model = HarvestedServiceMetadataRelation
+        fields = "__all__"
 
 
 class TemporaryMdMetadataFileSerializer(
@@ -44,11 +72,31 @@ class HarvestingJobSerializer(
         help_text=_("collected records"),
         read_only=True
     )
+    harvested_dataset_metadata = ResourceRelatedField(
+        many=True,
+        related_link_view_name='registry:harvestingjob-harvesteddatasetmetadatarelations-list',
+        related_link_url_kwarg='parent_lookup_harvesting_job',
+        label=_("harvested dataset metadata"),
+        help_text=_(
+            "all harvested dataset metadata records with collecting state"),
+        read_only=True
+    )
+    harvested_service_metadata = ResourceRelatedField(
+        many=True,
+        related_link_view_name='registry:harvestingjob-harvestedservicemetadatarelations-list',
+        related_link_url_kwarg='parent_lookup_harvesting_job',
+        label=_("harvested service metadata"),
+        help_text=_(
+            "all harvested service metadata records with collecting state"),
+        read_only=True
+    )
 
     included_serializers = {
         'service': CatalogueServiceSerializer,
         'background_process': BackgroundProcessSerializer,
         'temporary_md_metadata_files': TemporaryMdMetadataFileSerializer,
+        "harvested_dataset_metadata": HarvestedDatasetMetadataRelationSerializer,
+        "harvested_service_metadata": HarvestedServiceMetadataRelationSerializer,
     }
 
     class Meta:

@@ -105,7 +105,9 @@ class HarvestingJob(models.Model):
         to=CatalogueService,
         on_delete=models.CASCADE,
         verbose_name=_("service"),
-        help_text=_("the csw for that this job is running"))
+        help_text=_("the csw for that this job is running"),
+        related_name="harvesting_jobs",
+        related_query_name="harvesting_job")
     background_process = models.ForeignKey(
         to=BackgroundProcess,
         on_delete=models.PROTECT,

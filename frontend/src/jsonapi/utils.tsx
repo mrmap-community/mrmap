@@ -169,14 +169,37 @@ export const getIncludeOptions = (operation: Operation): string[] => {
   return []
 }
 
+// deprecated
+// different ResourceTypes are possible; This function does not extract sparse fields for different ResourceTypes!
 export const getSparseFieldOptions = (operation: Operation): string[] => {
   if (operation !== undefined) {
     const parameters = operation.parameters as ParameterObject[]
-    const includeParameterSchema = parameters?.find((parameter) => parameter.name.includes('fields['))?.schema as OpenAPIV3.ArraySchemaObject
-    const includeParameterArraySchema = includeParameterSchema.items as OpenAPIV3.SchemaObject
-    return includeParameterArraySchema.enum ?? []
+    const sparseFieldParameterSchema = parameters?.find((parameter) => parameter.name.includes('fields['))?.schema as OpenAPIV3.ArraySchemaObject
+    const sparseFieldParameterArraySchema = sparseFieldParameterSchema.items as OpenAPIV3.SchemaObject
+    return sparseFieldParameterArraySchema.enum ?? []
   }
   return []
+}
+
+export const getSparseFieldOptionsPerResourceType = (operation?: Operation): {[key: string]: string[]} => {
+  const sparseFieldParametersPerType: {[key: string]: string[]} = {}
+
+  if (operation !== undefined) {
+    const parameters = operation.parameters as ParameterObject[]
+
+    parameters?.filter((parameter) => parameter.name.includes('fields[')).forEach((parameterObject)=>{
+      const pattern = /\[(.*?)\]/;
+      const resourceType = pattern.exec(parameterObject.name)?.[1]
+      const schema = parameterObject.schema as OpenAPIV3.ArraySchemaObject
+      const sparseFieldParameterArraySchema = schema.items as OpenAPIV3.SchemaObject
+      const fields = sparseFieldParameterArraySchema.enum ?? []
+      if (resourceType !== undefined && fields.length > 0){
+        sparseFieldParametersPerType[resourceType] = fields
+      }
+    })
+  }
+  
+  return sparseFieldParametersPerType
 }
 
 export const hasIncludedData = (record: RaRecord): boolean => (Object.entries(record).find(([name, schema]) => name !== 'id') != null)

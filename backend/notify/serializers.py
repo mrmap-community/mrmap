@@ -53,22 +53,7 @@ class BackgroundProcessSerializer(
     url = HyperlinkedIdentityField(
         view_name='notify:backgroundprocess-detail',
     )
-    pending_threads_count = IntegerField(
-        read_only=True,
-        label=_("pending threads"),
-        help_text=_("count of currently pending threads"))
-    running_threads_count = IntegerField(
-        read_only=True,
-        label=_("running threads"),
-        help_text=_("count of currently running threads"))
-    successed_threads_count = IntegerField(
-        read_only=True,
-        label=_("successed threads"),
-        help_text=_("count of currently successed threads"))
-    failed_threads_count = IntegerField(
-        read_only=True,
-        label=_("failed threads"),
-        help_text=_("count of currently failed threads"))
+
     date_created = DateTimeField(
         read_only=True,
         label=_("date created"),

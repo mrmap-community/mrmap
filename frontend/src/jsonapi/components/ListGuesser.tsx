@@ -22,6 +22,7 @@ interface FieldWrapperProps {
 
 interface ListActionsProps {
   filters: ReactNode[]
+  preferenceKey?: string
 }
 
 interface ListGuesserProps extends Partial<ListProps> {
@@ -30,10 +31,10 @@ interface ListGuesserProps extends Partial<ListProps> {
   relatedResourceId?: Identifier
   rowActions?: ReactNode
   additionalActions?: ReactNode
-  defaultOmit?: string[]
   onRowClick?: (clickedRecord: RaRecord) => void
   updateFieldDefinitions?: FieldDefinition[];
   refetchInterval?: number | false
+  defaultSelectedColumns? : string[]
 }
 
 
@@ -46,14 +47,25 @@ const isInvalidSort = (error: JsonApiErrorObject): boolean => {
   return false
 }
 
+const isInvalidFilter = (error: JsonApiErrorObject): boolean => {
+  if (error.code === 'invalid' && error.detail.includes('invalid filter')) {
+    return true
+  }
+  return false
+}
+
+
 const ListActions = (
-  { filters }: ListActionsProps
+  { 
+    filters,
+    preferenceKey,
+  }: ListActionsProps
 ): ReactNode => {
   const { hasCreate} = useResourceDefinition()
   return (
     <TopToolbar>
-      <SelectColumnsButton />
-      <FilterButton filters={filters} />
+      <SelectColumnsButton preferenceKey={preferenceKey}/>
+      <FilterButton filters={filters}/>
       {hasCreate && <CreateButton />}
       <ExportButton />
     </TopToolbar>
@@ -67,11 +79,12 @@ const ListGuesser = ({
   rowActions = undefined,
   additionalActions = undefined,
   onRowClick = undefined,
-  defaultOmit = [],
   updateFieldDefinitions,
   refetchInterval=false,
+  defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
   ...props
 }: ListGuesserProps): ReactElement => {
+
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit } = useResourceDefinition(props)
   const { api } = useHttpClientContext()
@@ -81,7 +94,6 @@ const ListGuesser = ({
 
   const { id } = useParams()
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource !== '' ?`list_related_${name}_of_${relatedResource}`: `list_${name}`, [relatedResource, name])
-
   const { operation } = useResourceSchema(operationId)
   const fieldDefinitions = useFieldsForOperation(operationId, false, false)
   const fields = useMemo(
@@ -105,38 +117,43 @@ const ListGuesser = ({
   const sparseFieldOptions = useMemo(() => (operation !== undefined) ? getSparseFieldOptions(operation) : [], [operation])
 
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api])
+  
+  const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
 
-  const [listParams, setListParams] = useStore(`${name}.listParams`, {})
   const [searchParams, setSearchParams] = useSearchParams()
-  const [availableColumns] = useStore<ConfigurableDatagridColumn[]>(`preferences.${name}.datagrid.availableColumns`, [])
-  const [omit, setOmit ] = useStore<string[]>(`preferences.${name}.datagrid.omit`, defaultOmit)
-  const [selectedColumnsIdxs] = useStore<string[]>(`preferences.${name}.datagrid.columns`, [])
 
+  const [listParams, setListParams] = useStore(`preferences.${preferenceKey}.listParams`, {})
+
+  const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !defaultSelectedColumns.includes(source)),[fieldDefinitions])
+  const [initOmit, setInitOmit] = useState(false)
+  const [availableColumns] = useStore<ConfigurableDatagridColumn[]>(`preferences.${preferenceKey}.availableColumns`, [])
+  const [omit, setOmit] = useStore<string[]>(`preferences.${preferenceKey}.omit`)
+  const [selectedColumnsIdxs] = useStore<string[]>(`preferences.${preferenceKey}.columns`, [])
+  
   useEffect(()=>{
-    const defaultShowColumns = ["stringRepresentation", "title", "abstract", "username", ...[rowActions && "actions"]]
-    const wellDefinedColumns = availableColumns.map(col => col.source).filter(source => source !== undefined)    
-    setOmit(wellDefinedColumns.filter(source => !defaultShowColumns.includes(source)))
-  },[availableColumns])
+    if(defaultOmit.length > 0 && !initOmit){
+      setOmit(defaultOmit)
+      setInitOmit(true)
+    }
+  },[defaultOmit])
+
 
   const sparseFieldsQueryValue = useMemo(
     () => availableColumns.filter(column => {
       if (column.source === undefined) return false
       
       return sparseFieldOptions.includes(column.source) &&
-      selectedColumnsIdxs.length > 0 ? selectedColumnsIdxs.includes(column.index): !omit.includes(column.source)
+      selectedColumnsIdxs.length > 0 ? selectedColumnsIdxs.includes(column.index): !(omit || []).includes(column.source)
      }
       ).map(column =>
       // TODO: django jsonapi has an open issue where no snake to cammel case translation are made
       // See https://github.com/django-json-api/django-rest-framework-json-api/issues/1053
       snakeCase(column.source)
-    )
-    , [sparseFieldOptions, availableColumns, selectedColumnsIdxs]
-  )
+    ), [sparseFieldOptions, availableColumns, selectedColumnsIdxs])
 
   const includeQueryValue = useMemo(
-    () => includeOptions.filter(includeOption => sparseFieldsQueryValue.includes(includeOption))
-    , [sparseFieldsQueryValue, includeOptions]
-  )
+    () => includeOptions.filter(includeOption => sparseFieldsQueryValue.includes(includeOption)), 
+    [sparseFieldsQueryValue, includeOptions])
 
   const jsonApiQuery = useMemo(
     () => {
@@ -177,6 +194,12 @@ const ListGuesser = ({
             searchParams.delete('sort')
             setSearchParams(searchParams)
           }
+          if (isInvalidFilter(apiError)){
+            setListParams({...listParams, filter: ''})
+            
+            searchParams.delete('filter')
+            setSearchParams(searchParams)
+          }
         })
       } else if (error.status === 401) {
         // TODO
@@ -193,12 +216,11 @@ const ListGuesser = ({
     return <div />
   }
 
-
-
   return (
     <ListComponent
       filters={filters}
-      actions={<ListActions filters={filters} />}
+      storeKey={`preferences.${preferenceKey}.listParams`}
+      actions={<ListActions filters={filters} preferenceKey={preferenceKey}/>}   
       queryOptions={{
         refetchInterval,
         onError,
@@ -250,9 +272,7 @@ const ListGuesser = ({
           />
         </AsideCard>: undefined
       }
-
       {...props}
-
     >
       <DatagridConfigurable
         bulkActionButtons={false}
@@ -263,6 +283,8 @@ const ListGuesser = ({
           }
           return false
         }}
+        preferenceKey={preferenceKey}
+        omit={defaultOmit}
       >
         {...fields}
         {/**TODO: label should be translated */}

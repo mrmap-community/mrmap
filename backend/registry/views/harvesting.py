@@ -1,16 +1,93 @@
 
-from django.db.models import Prefetch
+from django.db.models import Count, OuterRef, Prefetch, Q
+from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
 from notify.models import BackgroundProcess, BackgroundProcessLog
+from registry.enums.harvesting import CollectingStatenEnum
 from registry.models.harvest import (HarvestedDatasetMetadataRelation,
                                      HarvestedServiceMetadataRelation,
                                      HarvestingJob, TemporaryMdMetadataFile)
+from registry.models.metadata import Keyword
+from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
     HarvestedDatasetMetadataRelationSerializer,
     HarvestedServiceMetadataRelationSerializer, HarvestingJobSerializer,
     TemporaryMdMetadataFileSerializer)
 from rest_framework_json_api.views import ModelViewSet
+
+DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
+    Prefetch(
+        "harvested_dataset_metadata",
+        queryset=HarvestedDatasetMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.NEW.value).only("id"),
+        to_attr="new_dataset_metadata"
+    ),
+    Prefetch(
+        "harvested_dataset_metadata",
+        queryset=HarvestedDatasetMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.UPDATED.value).only("id"),
+        to_attr="updated_dataset_metadata"
+    ),
+    Prefetch(
+        "harvested_dataset_metadata",
+        queryset=HarvestedDatasetMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.EXISTING.value).only("id"),
+        to_attr="existing_dataset_metadata"
+    ),
+    Prefetch(
+        "harvested_dataset_metadata",
+        queryset=HarvestedDatasetMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.DUPLICATED.value).only("id"),
+        to_attr="duplicated_dataset_metadata"
+    )
+]
+
+DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES = [
+    Prefetch(
+        "harvested_service_metadata",
+        queryset=HarvestedServiceMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.NEW.value).only("id"),
+        to_attr="new_service_metadata"
+    ),
+    Prefetch(
+        "harvested_service_metadata",
+        queryset=HarvestedServiceMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.UPDATED.value).only("id"),
+        to_attr="updated_service_metadata"
+    ),
+    Prefetch(
+        "harvested_service_metadata",
+        queryset=HarvestedServiceMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.EXISTING.value).only("id"),
+        to_attr="existing_service_metadata"
+    ),
+    Prefetch(
+        "harvested_service_metadata",
+        queryset=HarvestedServiceMetadataRelation.objects.filter(
+            collecting_state=CollectingStatenEnum.DUPLICATED.value).only("id"),
+        to_attr="duplicated_service_metadata"
+    )
+]
+
+BACKGROUND_PROCESS_PREFETCHES = [
+    Prefetch("background_process",
+             queryset=BackgroundProcess.objects.process_info().prefetch_related(
+                 Prefetch(
+                     "threads",
+                     queryset=TaskResult.objects.only(
+                         "id"
+                     )
+                 ),
+                 Prefetch(
+                     "logs",
+                     queryset=BackgroundProcessLog.objects.only(
+                         "id",
+                     )
+                 ),
+             )
+             ),
+]
 
 
 class HarvestingJobViewSetMixin():
@@ -23,17 +100,85 @@ class HarvestingJobViewSetMixin():
         'service__id': ['exact', 'icontains', 'contains', 'in'],
     }
     select_for_includes = {
-        "service": ["service"],
-
+        # "service": ["service"],
+        # "backgroundProcess": ["background_process"]
     }
     prefetch_for_includes = {
-        "__all__": [],
-        "backgroundProcess": [Prefetch("background_process", queryset=BackgroundProcess.objects.process_info())],
-        "backgroundProcess.logs": [Prefetch('background_process__logs', queryset=BackgroundProcessLog.objects.select_related('background_process'))],
-        "temporaryMdMetadataFiles": [Prefetch('temporary_md_metadata_files', queryset=TemporaryMdMetadataFile.objects.select_related('job'))],
-        "harvestedDatasetMetadata": [Prefetch("harvested_dataset_metadata", queryset=HarvestedDatasetMetadataRelation.objects.all())],
-        "harvestedServiceMetadata": [Prefetch("harvested_service_metadata", queryset=HarvestedServiceMetadataRelation.objects.all())],
+        "service": [
+            Prefetch("service__keywords",
+                     queryset=Keyword.objects.only("id")),
+            Prefetch("service__harvesting_jobs",
+                     queryset=HarvestingJob.objects.all()),
+            Prefetch("service__operation_urls",
+                     queryset=CatalogueServiceOperationUrl.objects.all()),
+        ],
+        "backgroundProcess": BACKGROUND_PROCESS_PREFETCHES,
+        "backgroundProcess.logs": [
+            Prefetch("background_process",
+                     queryset=BackgroundProcess.objects.process_info().prefetch_related(
+                         Prefetch(
+                             "threads",
+                             queryset=TaskResult.objects.only(
+                                 "id"
+                             )
+                         ),
+                         Prefetch(
+                             "logs",
+                             queryset=BackgroundProcessLog.objects.all()
+                         ),
+                     )
+                     ),
+        ],
+        "temporaryMdMetadataFiles": [
+            Prefetch('temporary_md_metadata_files',
+                     queryset=TemporaryMdMetadataFile.objects.select_related('job'))
+        ],
+        "harvestedDatasetMetadata": [
+            Prefetch("harvested_dataset_metadata",
+                     queryset=HarvestedDatasetMetadataRelation.objects.select_related(
+                         'harvesting_job', 'dataset_metadata_record', )
+                     )
+        ] + DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES,
+        "harvestedServiceMetadata": [
+            Prefetch("harvested_service_metadata",
+                     queryset=HarvestedServiceMetadataRelation.objects.select_related(
+                         'harvesting_job', 'service_metadata_record', )
+                     )
+        ] + DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES,
     }
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.GET.get("include", None)
+
+        if not include or "temporaryMdMetadataFiles" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "temporary_md_metadata_files",
+                    queryset=TemporaryMdMetadataFile.objects.only(
+                        "id",
+                        "job_id",
+                    ),
+                )
+            )
+        if not include or "harvestedDatasetMetadata" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "harvested_dataset_metadata",
+                    queryset=HarvestedDatasetMetadataRelation.objects.only(
+                        "id"),
+                ), *DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES
+            )
+        if not include or "harvestedServiceMetadata" not in include:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "harvested_service_metadata",
+                    queryset=HarvestedServiceMetadataRelation.objects.only(
+                        "id")
+                ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
+
+            )
+        return qs
 
 
 class HarvestingJobViewSet(
@@ -84,8 +229,8 @@ class HarvestedDatasetMetadataRelationViewSetMixin():
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'collecting_state': ['exact', 'icontains', 'contains', 'in'],
-        'harvesting_job': ['exact', 'icontains', 'contains', 'in', 'isnull'],
-        "dataset_metadata_record": ['exact', 'icontains', 'contains', 'in', 'isnull'],
+        'harvesting_job__id': ['exact', 'icontains', 'contains', 'in'],
+        "dataset_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
 
 
@@ -111,8 +256,8 @@ class HarvestedServiceMetadataRelationViewSetMixin():
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'collecting_state': ['exact', 'icontains', 'contains', 'in'],
-        'harvesting_job': ['exact', 'icontains', 'contains', 'in', 'isnull'],
-        "service_metadata_record": ['exact', 'icontains', 'contains', 'in', 'isnull'],
+        'harvesting_job__id': ['exact', 'icontains', 'contains', 'in'],
+        "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
 
 

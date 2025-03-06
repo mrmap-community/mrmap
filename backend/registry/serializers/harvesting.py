@@ -2,13 +2,15 @@ from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
+from registry.enums.harvesting import CollectingStatenEnum
 from registry.models.harvest import (HarvestedDatasetMetadataRelation,
                                      HarvestedServiceMetadataRelation,
                                      HarvestingJob, TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 ModelSerializer,
+                                                 IntegerField, ModelSerializer,
                                                  ResourceRelatedField,
+                                                 SerializerMethodField,
                                                  UniqueTogetherValidator)
 
 
@@ -17,8 +19,7 @@ class HarvestedDatasetMetadataRelationSerializer(
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
-        view_name="registry:harvesteddatasetmetadatarelation-detail"
-    )
+        view_name="registry:harvesteddatasetmetadatarelation-detail",)
 
     class Meta:
         model = HarvestedDatasetMetadataRelation
@@ -30,8 +31,7 @@ class HarvestedServiceMetadataRelationSerializer(
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
-        view_name="registry:harvestedservicemetadatarelation-detail"
-    )
+        view_name="registry:harvestedservicemetadatarelation-detail",)
 
     class Meta:
         model = HarvestedServiceMetadataRelation
@@ -43,8 +43,7 @@ class TemporaryMdMetadataFileSerializer(
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
-        view_name='registry:temporarymdmetadatafile-detail',
-    )
+        view_name='registry:temporarymdmetadatafile-detail',)
 
     class Meta:
         model = TemporaryMdMetadataFile
@@ -55,23 +54,19 @@ class HarvestingJobSerializer(
         StringRepresentationSerializer,
         ModelSerializer):
     url = HyperlinkedIdentityField(
-        view_name='registry:harvestingjob-detail',
-    )
-
+        view_name='registry:harvestingjob-detail')
     background_process = ResourceRelatedField(
         model=BackgroundProcess,
         label=_("Background Process"),
         help_text=_("the parent of this node"),
-        read_only=True,
-    )
+        read_only=True,)
     temporary_md_metadata_files = ResourceRelatedField(
         many=True,
         related_link_view_name='registry:harvestingjob-temporarymdmetadatafiles-list',
         related_link_url_kwarg='parent_lookup_job',
         label=_("Temporary Md Metadata File"),
         help_text=_("collected records"),
-        read_only=True
-    )
+        read_only=True,)
     harvested_dataset_metadata = ResourceRelatedField(
         many=True,
         related_link_view_name='registry:harvestingjob-harvesteddatasetmetadatarelations-list',
@@ -79,8 +74,7 @@ class HarvestingJobSerializer(
         label=_("harvested dataset metadata"),
         help_text=_(
             "all harvested dataset metadata records with collecting state"),
-        read_only=True
-    )
+        read_only=True,)
     harvested_service_metadata = ResourceRelatedField(
         many=True,
         related_link_view_name='registry:harvestingjob-harvestedservicemetadatarelations-list',
@@ -88,8 +82,16 @@ class HarvestingJobSerializer(
         label=_("harvested service metadata"),
         help_text=_(
             "all harvested service metadata records with collecting state"),
-        read_only=True
-    )
+        read_only=True,)
+
+    new_dataset_metadata_count = SerializerMethodField(read_only=True)
+    updated_dataset_metadata_count = SerializerMethodField(read_only=True)
+    existing_dataset_metadata_count = SerializerMethodField(read_only=True)
+    duplicated_dataset_metadata_count = SerializerMethodField(read_only=True)
+    new_service_metadata_count = SerializerMethodField(read_only=True)
+    updated_service_metadata_count = SerializerMethodField(read_only=True)
+    existing_service_metadata_count = SerializerMethodField(read_only=True)
+    duplicated_service_metadata_count = SerializerMethodField(read_only=True)
 
     included_serializers = {
         'service': CatalogueServiceSerializer,
@@ -111,3 +113,27 @@ class HarvestingJobSerializer(
                     "There is an existing running harvesting job for this service.")
             )
         ]
+
+    def get_new_dataset_metadata_count(self, obj):
+        return len(obj.new_dataset_metadata)
+
+    def get_updated_dataset_metadata_count(self, obj):
+        return len(obj.updated_dataset_metadata)
+
+    def get_existing_dataset_metadata_count(self, obj):
+        return len(obj.existing_dataset_metadata)
+
+    def get_duplicated_dataset_metadata_count(self, obj):
+        return len(obj.duplicated_dataset_metadata)
+
+    def get_new_service_metadata_count(self, obj):
+        return len(obj.new_service_metadata)
+
+    def get_updated_service_metadata_count(self, obj):
+        return len(obj.updated_service_metadata)
+
+    def get_existing_service_metadata_count(self, obj):
+        return len(obj.existing_service_metadata)
+
+    def get_duplicated_service_metadata_count(self, obj):
+        return len(obj.duplicated_service_metadata)

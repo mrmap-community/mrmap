@@ -7,8 +7,6 @@ import { useCallback, useMemo } from "react";
 import { useCreatePath, useRecordContext, useResourceDefinition } from "react-admin";
 import { useNavigate } from 'react-router-dom';
 
-
-
 const HarvestResultPieChart = () => {
   const createPath = useCreatePath();
   const record = useRecordContext();
@@ -88,12 +86,13 @@ const HarvestResultPieChart = () => {
         {
           type: 'pie',
           data: data,
-          highlightScope: { fade: 'global', highlight: 'item' },
-          faded: { innerRadius: 30, additionalRadius: -30, color: 'gray'},
+          highlightScope: { fade: 'global', highlight: "item" },
+          faded: { innerRadius: 20, additionalRadius: -20, color: 'gray', },
           arcLabel: (item) => `${item.value}`,
           arcLabelMinAngle: 50,
           paddingAngle: 0.5,
           cornerRadius: 5,
+          
         },
       ]}
       colors={mangoFusionPalette}
@@ -102,6 +101,7 @@ const HarvestResultPieChart = () => {
     >
       <PiePlot
         onItemClick={(event, d) => navigatePreFilteredList(data[d.dataIndex])}
+        skipAnimation
       />
       <ChartsTooltip 
         trigger="item"

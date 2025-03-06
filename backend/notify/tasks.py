@@ -40,6 +40,7 @@ def get_background_process(task, *args, **kwargs):
     background_process_pk = kwargs["kwargs"].get("background_process_pk", None)
     task.background_process = get_background_process_if_exists(
         background_process_pk)
+    task.update_state(date_created=now(), date_done=now())
 
 
 @before_task_publish.connect

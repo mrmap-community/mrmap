@@ -1,5 +1,5 @@
 
-from django.db.models import Count, OuterRef, Prefetch, Q
+from django.db.models import F, Prefetch, Q, Sum
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
@@ -81,9 +81,7 @@ BACKGROUND_PROCESS_PREFETCHES = [
                  ),
                  Prefetch(
                      "logs",
-                     queryset=BackgroundProcessLog.objects.only(
-                         "id",
-                     )
+                     queryset=BackgroundProcessLog.objects.all()
                  ),
              )
              ),
@@ -178,6 +176,17 @@ class HarvestingJobViewSetMixin():
                 ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
 
             )
+        # TODO: only do this, if fields are part of sparsefields
+        qs = qs.annotate(
+            fetch_record_duration=Sum(
+                F('background_process__threads__date_done') -
+                F('background_process__threads__date_created'),
+                filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_fetch_records')),
+            md_metadata_file_to_db_duration=Sum(
+                F('background_process__threads__date_done') -
+                F('background_process__threads__date_created'),
+                filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_md_metadata_file_to_db')),
+        )
         return qs
 
 

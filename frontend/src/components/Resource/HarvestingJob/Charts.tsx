@@ -42,7 +42,7 @@ const HarvestResultPieChart = () => {
         value: record?.updatedDatasetMetadataCount, 
       }]: [],
       ...record?.duplicatedDatasetMetadataCount > 0 ? [{ 
-        id:'e_d',
+        id:'d_d',
         label: 'Duplicated Datasets',
         href: `${basePath}/HarvestedDatasetMetadataRelation?filter=${JSON.stringify({collecting_state: 'duplicated'})}`,
         value: record?.duplicatedDatasetMetadataCount, 
@@ -66,12 +66,12 @@ const HarvestResultPieChart = () => {
         value: record?.updatedServiceMetadataCount, 
       }]: [],
       ...record?.duplicatedServiceMetadataCount > 0 ? [{ 
-        id:'e_d',
+        id:'d_s',
         label: 'Duplicated Services',
         href: `${basePath}/HarvestedServiceMetadataRelation?filter=${JSON.stringify({collecting_state: 'duplicated'})}`,
         value: record?.duplicatedServiceMetadataCount, 
       }]: [],
-  ]
+    ]
   }, [record])
 
 

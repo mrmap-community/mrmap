@@ -1,12 +1,14 @@
 import { CardHeader, Chip, Typography } from '@mui/material';
+import { BarChart, BarChartProps } from '@mui/x-charts';
 import { snakeCase } from 'lodash';
 import { useCallback, useMemo } from 'react';
-import { BooleanField, DateField, Identifier, Loading, NumberField, Show, TabbedShowLayout, useCreatePath, useRecordContext, useResourceDefinition, useShowContext } from 'react-admin';
+import { BooleanField, DateField, Identifier, Loading, NumberField, Show, TabbedShowLayout, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import { Count } from '../../../jsonapi/components/Count';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
 import useSparseFieldsForOperation from '../../../jsonapi/hooks/useSparseFieldsForOperation';
+import { parseDuration } from '../../../jsonapi/utils';
 import ProgressField from '../../Field/ProgressField';
 import AsideCard from '../../Layout/AsideCard';
 import HarvestResultPieChart from './Charts';
@@ -99,7 +101,49 @@ const HarvestingJobTabbedShowLayout = () => {
 
 const AsideCardHarvestingJob = () => {
   const record = useRecordContext();
+  const {data, total, isPending, error, refetch, meta} = useGetList(
+    'HarvestingJob',
+    {
+      pagination: {
+        page: 1,
+        perPage: 10,
+      },
+      sort: {
+        field: 'backgroundProcess.dateCreated',
+        order: 'DESC',
+      },
+      meta: {
+        jsonApiParams:{
+          'fields[HarvestingJob]': 'fetch_record_duration,md_metadata_file_to_db_duration',
+        },
+      }
+    }
+  );
 
+  const props = useMemo<BarChartProps>(()=>{
+    const fetchRecordDurationSeries = {
+      data: [] as number[],
+      label: 'fetch records',
+    }
+    const xAxis = {
+      data: [] as string[],
+      scaleType: 'band',
+    }
+    
+    const _props: BarChartProps = {
+      series: [fetchRecordDurationSeries],
+      xAxis: [xAxis]
+    }
+    
+    data?.forEach(record => {
+      fetchRecordDurationSeries.data.push(parseDuration(record.fetchRecordDuration))
+      xAxis.data.push(record.id)
+    }) 
+
+    return _props
+  },[data])
+
+  console.log(props)
   return (
     <AsideCard>
       <CardHeader
@@ -108,6 +152,13 @@ const AsideCardHarvestingJob = () => {
       />
 
       <HarvestResultPieChart/>
+      <BarChart
+        height={290}
+        //xAxis={[{ data: ['Q1', 'Q2', 'Q3', 'Q4'], scaleType: 'band' }]}
+        margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
+        {...props}
+      />
+
     </AsideCard>
   )
 }

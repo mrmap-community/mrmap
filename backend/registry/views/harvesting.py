@@ -92,7 +92,7 @@ class HarvestingJobViewSetMixin():
     queryset = HarvestingJob.objects.all()
     serializer_class = HarvestingJobSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id"]
+    ordering_fields = ["id", 'background_process__date_created']
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'service__id': ['exact', 'icontains', 'contains', 'in'],

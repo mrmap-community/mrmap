@@ -120,7 +120,6 @@ class HarvestingJob(models.Model):
         editable=False,
         verbose_name=_("total records"),
         help_text=_("total count of records which will be harvested by this job"))
-
     harvested_dataset_metadata = models.ManyToManyField(
         to=DatasetMetadataRecord,
         through=HarvestedDatasetMetadataRelation,
@@ -128,7 +127,6 @@ class HarvestingJob(models.Model):
         related_query_name="harvesting_job",
         editable=False,
         blank=True)
-
     harvested_service_metadata = models.ManyToManyField(
         to=ServiceMetadataRecord,
         through=HarvestedServiceMetadataRelation,

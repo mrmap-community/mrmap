@@ -536,3 +536,24 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
     props: {textOverflow: 'ellipsis', ...commonProps}
   }
 }
+
+export const parseDuration = (duration:string): number => {
+  // Zerlege den Input-String mit einem regulären Ausdruck
+  const regex = /(?:(\d{2})\s)?(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{1,6})/;
+  const matches = regex.exec(duration);
+  if (matches) {
+      // Extrahiere Tage, Stunden, Minuten, Sekunden und Mikrosekunden
+      const days = parseInt(matches[1] ?? 0, 10);
+      const hours = parseInt(matches[2] ?? 0, 10);
+      const minutes = parseInt(matches[3] ?? 0, 10);
+      const seconds = parseInt(matches[4] ?? 0, 10);
+      const microseconds = parseInt(matches[5] ?? 0, 10);
+
+      // Berechne die Gesamtzeit in Sekunden
+      const totalSeconds = (days * 24 * 60 * 60) + (hours * 3600) + (minutes * 60) + seconds + (microseconds / 1000000);
+
+      return totalSeconds;
+  } else {
+      return 0
+  }
+}

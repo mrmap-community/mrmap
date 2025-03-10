@@ -2,7 +2,7 @@ import { CardHeader, Chip, Typography } from '@mui/material';
 import { BarChart, BarChartProps } from '@mui/x-charts';
 import { snakeCase } from 'lodash';
 import { useCallback, useMemo } from 'react';
-import { BooleanField, DateField, Identifier, Loading, NumberField, Show, TabbedShowLayout, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext } from 'react-admin';
+import { BooleanField, DateField, Identifier, Loading, NumberField, PrevNextButtons, Show, TabbedShowLayout, TopToolbar, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import { Count } from '../../../jsonapi/components/Count';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
@@ -163,6 +163,31 @@ const AsideCardHarvestingJob = () => {
   )
 }
 
+
+const JsonApiPrevNextButtons = () => {
+  const { name } = useResourceDefinition()
+
+  const jsonApiParams = useMemo(()=>{
+    const params: any = {}
+    params[`fields[${name}]`] = 'id'
+    return params
+  },[name])
+
+  return (
+    <PrevNextButtons
+      queryOptions={{ 
+        meta: {
+          jsonApiParams: jsonApiParams,
+          
+        }
+      }}
+      linkType='show'
+      limit={10}
+    />
+  )
+}
+
+
 const ShowHarvestingJob = () => {
     const { name } = useResourceDefinition()
     const { sparseFields: harvestingJobSparseFields } = useSparseFieldsForOperation(`list_${name}`)
@@ -216,6 +241,11 @@ const ShowHarvestingJob = () => {
           }
         }}
         aside={<AsideCardHarvestingJob />}
+        actions={
+          <TopToolbar>
+            <JsonApiPrevNextButtons/>
+          </TopToolbar>
+        }
       >
         <HarvestingJobTabbedShowLayout />
       </Show>

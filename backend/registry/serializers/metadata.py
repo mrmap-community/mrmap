@@ -185,25 +185,25 @@ class ServiceMetadataRecordSerializer(
     )
     metadata_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
-        related_link_view_name='registry:servicemetadata-metadatacontact-list',
-        related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata_contact'
+        # related_link_view_name='registry:servicemetadata-metadatacontact-list',
+        # related_link_url_kwarg='parent_lookup_servicemetadatarecord_metadata_contact'
     )
     licence = ResourceRelatedField(
         queryset=Licence.objects,
-        related_link_view_name='registry:servicemetadata-licence-list',
-        related_link_url_kwarg='parent_lookup_servicemetadata'
+        # related_link_view_name='registry:servicemetadata-licence-list',
+        # related_link_url_kwarg='parent_lookup_servicemetadata'
     )
     keywords = ResourceRelatedField(
         queryset=Keyword.objects,
         many=True,
-        related_link_view_name='registry:servicemetadata-keywords-list',
-        related_link_url_kwarg='parent_lookup_servicemetadata_metadata'
+        # related_link_view_name='registry:servicemetadata-keywords-list',
+        # related_link_url_kwarg='parent_lookup_servicemetadata_metadata'
     )
     reference_systems = ResourceRelatedField(
         queryset=ReferenceSystem.objects,
         many=True,
-        related_link_view_name='registry:servicemetadata-referencesystems-list',
-        related_link_url_kwarg='parent_lookup_service_metadata'
+        # related_link_view_name='registry:servicemetadata-referencesystems-list',
+        # related_link_url_kwarg='parent_lookup_service_metadata'
     )
 
     included_serializers = {

@@ -1,4 +1,5 @@
 
+from camel_converter import to_camel
 from django.db.models import F, Prefetch, Q, Sum
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
@@ -148,8 +149,26 @@ class HarvestingJobViewSetMixin():
     def get_queryset(self):
         qs = super().get_queryset()
         include = self.request.GET.get("include", None)
+        fields_snake = self.request.GET.get(
+            "fields[HarvestingJob]", "").split(',')
+        fields = [to_camel(field) for field in fields_snake if field.strip()]
 
-        if not include or "temporaryMdMetadataFiles" not in include:
+        harvested_dataset_metadata_field_list = [
+            "harvestedDatasetMetadata",
+            "newDatasetMetadataCount",
+            "updatedDatasetMetadataCount",
+            "existingDatasetMetadataCount",
+            "duplicatedDatasetMetadataCount"
+        ]
+        harvested_service_metadata_field_list = [
+            "harvestedServiceMetadata",
+            "newServiceMetadataCount",
+            "updatedServiceMetadataCount",
+            "existingServiceMetadataCount",
+            "duplicatedServiceMetadataCount"
+        ]
+
+        if (not include or "temporaryMdMetadataFiles" not in include) and (not fields or "temporaryMdMetadataFiles" in fields):
             qs = qs.prefetch_related(
                 Prefetch(
                     "temporary_md_metadata_files",
@@ -159,7 +178,7 @@ class HarvestingJobViewSetMixin():
                     ),
                 )
             )
-        if not include or "harvestedDatasetMetadata" not in include:
+        if (not include or "harvestedDatasetMetadata" not in include) and (not fields or any(field in fields for field in harvested_dataset_metadata_field_list)):
             qs = qs.prefetch_related(
                 Prefetch(
                     "harvested_dataset_metadata",
@@ -167,7 +186,7 @@ class HarvestingJobViewSetMixin():
                         "id"),
                 ), *DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES
             )
-        if not include or "harvestedServiceMetadata" not in include:
+        if (not include or "harvestedServiceMetadata" not in include) and (not fields or any(field in fields for field in harvested_service_metadata_field_list)):
             qs = qs.prefetch_related(
                 Prefetch(
                     "harvested_service_metadata",
@@ -176,17 +195,20 @@ class HarvestingJobViewSetMixin():
                 ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
 
             )
-        # TODO: only do this, if fields are part of sparsefields
-        qs = qs.annotate(
-            fetch_record_duration=Sum(
-                F('background_process__threads__date_done') -
-                F('background_process__threads__date_created'),
-                filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_fetch_records')),
-            md_metadata_file_to_db_duration=Sum(
-                F('background_process__threads__date_done') -
-                F('background_process__threads__date_created'),
-                filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_md_metadata_file_to_db')),
-        )
+        if not fields or "fetchRecordDuration" in fields:
+            qs = qs.annotate(
+                fetch_record_duration=Sum(
+                    F('background_process__threads__date_done') -
+                    F('background_process__threads__date_created'),
+                    filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_fetch_records')),
+            )
+        if not fields or "mdMetadataFileToDbDuration" in fields:
+            qs = qs.annotate(
+                md_metadata_file_to_db_duration=Sum(
+                    F('background_process__threads__date_done') -
+                    F('background_process__threads__date_created'),
+                    filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_md_metadata_file_to_db')),
+            )
         return qs
 
 

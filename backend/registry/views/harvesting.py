@@ -3,7 +3,7 @@ from camel_converter import to_camel
 from django.db.models import F, Prefetch, Q, Sum
 from django_celery_results.models import TaskResult
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import NestedModelViewSet
+from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.enums.harvesting import CollectingStatenEnum
 from registry.models.harvest import (HarvestedDatasetMetadataRelation,
@@ -15,6 +15,7 @@ from registry.serializers.harvesting import (
     HarvestedDatasetMetadataRelationSerializer,
     HarvestedServiceMetadataRelationSerializer, HarvestingJobSerializer,
     TemporaryMdMetadataFileSerializer)
+from rest_framework_json_api.utils import get_included_resources
 from rest_framework_json_api.views import ModelViewSet
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
@@ -145,56 +146,38 @@ class HarvestingJobViewSetMixin():
                      )
         ] + DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES,
     }
+    prefetch_for_not_includes = {
+        "temporaryMdMetadataFiles": [
+            Prefetch(
+                "temporary_md_metadata_files",
+                queryset=TemporaryMdMetadataFile.objects.only(
+                    "id",
+                    "job_id",
+                ),
+            )
+        ],
+        "harvestedDatasetMetadata,newDatasetMetadataCount,updatedDatasetMetadataCount,existingDatasetMetadataCount,duplicatedDatasetMetadataCount": [
+            Prefetch(
+                "harvested_dataset_metadata",
+                queryset=HarvestedDatasetMetadataRelation.objects.only(
+                    "id"),
+            ), *DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES
+        ],
+        "harvestedServiceMetadata,newServiceMetadataCount,updatedServiceMetadataCount,existingServiceMetadataCount,duplicatedServiceMetadataCount": [
+            Prefetch(
+                "harvested_service_metadata",
+                queryset=HarvestedServiceMetadataRelation.objects.only(
+                    "id")
+            ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
+        ],
+    }
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        include = self.request.GET.get("include", None)
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
         fields_snake = self.request.GET.get(
             "fields[HarvestingJob]", "").split(',')
         fields = [to_camel(field) for field in fields_snake if field.strip()]
 
-        harvested_dataset_metadata_field_list = [
-            "harvestedDatasetMetadata",
-            "newDatasetMetadataCount",
-            "updatedDatasetMetadataCount",
-            "existingDatasetMetadataCount",
-            "duplicatedDatasetMetadataCount"
-        ]
-        harvested_service_metadata_field_list = [
-            "harvestedServiceMetadata",
-            "newServiceMetadataCount",
-            "updatedServiceMetadataCount",
-            "existingServiceMetadataCount",
-            "duplicatedServiceMetadataCount"
-        ]
-
-        if (not include or "temporaryMdMetadataFiles" not in include) and (not fields or "temporaryMdMetadataFiles" in fields):
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "temporary_md_metadata_files",
-                    queryset=TemporaryMdMetadataFile.objects.only(
-                        "id",
-                        "job_id",
-                    ),
-                )
-            )
-        if (not include or "harvestedDatasetMetadata" not in include) and (not fields or any(field in fields for field in harvested_dataset_metadata_field_list)):
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "harvested_dataset_metadata",
-                    queryset=HarvestedDatasetMetadataRelation.objects.only(
-                        "id"),
-                ), *DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES
-            )
-        if (not include or "harvestedServiceMetadata" not in include) and (not fields or any(field in fields for field in harvested_service_metadata_field_list)):
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "harvested_service_metadata",
-                    queryset=HarvestedServiceMetadataRelation.objects.only(
-                        "id")
-                ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
-
-            )
         if not fields or "fetchRecordDuration" in fields:
             qs = qs.annotate(
                 fetch_record_duration=Sum(
@@ -214,6 +197,7 @@ class HarvestingJobViewSetMixin():
 
 class HarvestingJobViewSet(
     HarvestingJobViewSetMixin,
+    PreloadNotIncludesMixin,
     ModelViewSet
 ):
     pass
@@ -221,6 +205,7 @@ class HarvestingJobViewSet(
 
 class NestedHarvestingJobViewSet(
     HarvestingJobViewSetMixin,
+    PreloadNotIncludesMixin,
     NestedModelViewSet
 ):
     pass

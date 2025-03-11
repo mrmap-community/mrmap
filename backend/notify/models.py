@@ -2,6 +2,7 @@ from celery import states
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
 from MrMap.celery import app
@@ -71,9 +72,14 @@ class BackgroundProcess(models.Model):
 
     def save(self, *args, **kwargs):
         if self.phase == "abort":
+            self.done_at = now()
             unready_tasks = self.threads.filter(
                 status__in=states.UNREADY_STATES).values_list("task_id", flat=True)
-            app.control.revoke(unready_tasks, terminate=True)
+            if unready_tasks:
+                app.control.revoke(list(unready_tasks), terminate=True)
+
+                return super(BackgroundProcess, self).save(*args, **kwargs)
+
         return super(BackgroundProcess, self).save(*args, **kwargs)
 
 

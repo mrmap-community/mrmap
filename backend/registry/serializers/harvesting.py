@@ -118,25 +118,25 @@ class HarvestingJobSerializer(
         ]
 
     def get_new_dataset_metadata_count(self, obj):
-        return len(obj.new_dataset_metadata)
+        return len(obj.new_dataset_metadata) if hasattr(obj, 'new_dataset_metadata') else None
 
     def get_updated_dataset_metadata_count(self, obj):
-        return len(obj.updated_dataset_metadata)
+        return len(obj.updated_dataset_metadata) if hasattr(obj, 'updated_dataset_metadata') else None
 
     def get_existing_dataset_metadata_count(self, obj):
-        return len(obj.existing_dataset_metadata)
+        return len(obj.existing_dataset_metadata) if hasattr(obj, 'existing_dataset_metadata') else None
 
     def get_duplicated_dataset_metadata_count(self, obj):
-        return len(obj.duplicated_dataset_metadata)
+        return len(obj.duplicated_dataset_metadata) if hasattr(obj, 'duplicated_dataset_metadata') else None
 
     def get_new_service_metadata_count(self, obj):
-        return len(obj.new_service_metadata)
+        return len(obj.new_service_metadata) if hasattr(obj, 'new_service_metadata') else None
 
     def get_updated_service_metadata_count(self, obj):
-        return len(obj.updated_service_metadata)
+        return len(obj.updated_service_metadata) if hasattr(obj, 'updated_service_metadata') else None
 
     def get_existing_service_metadata_count(self, obj):
-        return len(obj.existing_service_metadata)
+        return len(obj.existing_service_metadata) if hasattr(obj, 'existing_service_metadata') else None
 
     def get_duplicated_service_metadata_count(self, obj):
-        return len(obj.duplicated_service_metadata)
+        return len(obj.duplicated_service_metadata) if hasattr(obj, 'duplicated_service_metadata') else None

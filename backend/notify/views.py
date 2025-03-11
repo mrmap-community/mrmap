@@ -4,7 +4,7 @@ from notify.models import BackgroundProcess, BackgroundProcessLog
 from notify.serializers import (BackgroundProcessLogSerializer,
                                 BackgroundProcessSerializer,
                                 TaskResultSerializer)
-from rest_framework_json_api.views import ReadOnlyModelViewSet
+from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
 class TaskResultViewSetMixin():
@@ -112,7 +112,7 @@ class BackgroundProcessViewSetMixin(
 
 class BackgroundProcessViewSet(
     BackgroundProcessViewSetMixin,
-    ReadOnlyModelViewSet
+    ModelViewSet
 ):
     pass
 

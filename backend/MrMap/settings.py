@@ -17,6 +17,7 @@ from warnings import warn
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
+from MrMap.celery import is_this_a_celery_process
 
 from . import VERSION
 
@@ -255,9 +256,19 @@ DATABASES = {
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
         "HOST": os.environ.get("SQL_HOST"),
         "PORT": os.environ.get("SQL_PORT"),
-        "CONN_MAX_AGE": 0,
     }
 }
+# TODO: cause celery_task_results can't handle pools correctly, we use pools only for our webserver
+if not is_this_a_celery_process():
+    ROOT_LOGGER.info("using postgresql pools")
+    print("using postgresql pools")
+    DATABASES["default"]["OPTIONS"] = {
+        "pool": {
+            "min_size": 2,
+            "max_size": 4,
+            "timeout": 60,
+        }
+    }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
@@ -529,7 +540,7 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.MultiPartParser",
     ),
     "DEFAULT_RENDERER_CLASSES": [
-        "extras.utils.BrowsableAPIRendererWithoutForms",
+        # "extras.utils.BrowsableAPIRendererWithoutForms",
         "rest_framework_json_api.renderers.JSONRenderer",
     ],
 

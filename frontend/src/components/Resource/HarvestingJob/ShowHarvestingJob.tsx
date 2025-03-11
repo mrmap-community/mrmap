@@ -1,8 +1,9 @@
+import StopIcon from '@mui/icons-material/Stop';
 import { CardHeader, Chip, Typography } from '@mui/material';
 import { BarChart, BarChartProps } from '@mui/x-charts';
 import { snakeCase } from 'lodash';
 import { useCallback, useMemo } from 'react';
-import { BooleanField, DateField, Identifier, Loading, NumberField, PrevNextButtons, Show, TabbedShowLayout, TopToolbar, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext } from 'react-admin';
+import { BooleanField, Button, DateField, Identifier, Loading, NumberField, PrevNextButtons, Show, TabbedShowLayout, TopToolbar, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext, useUpdate } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import { Count } from '../../../jsonapi/components/Count';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
@@ -12,6 +13,7 @@ import { parseDuration } from '../../../jsonapi/utils';
 import ProgressField from '../../Field/ProgressField';
 import AsideCard from '../../Layout/AsideCard';
 import HarvestResultPieChart from './Charts';
+
 
 const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
 const dateParseRegex = /(\d{4})-(\d{2})-(\d{2})/;
@@ -77,9 +79,20 @@ const HarvestingJobTabbedShowLayout = () => {
      />
    </TabbedShowLayout.Tab>
   },[])
+
+  const tabs = useMemo(()=>{
+    return[
+      getNestedListTab(name, 'HarvestedDatasetMetadataRelation', record?.id, 'Datasets', ['datasetMetadataRecord'], true),
+      getNestedListTab(name,'HarvestedServiceMetadataRelation', record?.id, 'Services', ['serviceMetadataRecord'], true),
+      getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.id, 'Logs', undefined, true),
+      getNestedListTab('BackgroundProcess', 'TaskResult', record?.backgroundProcess?.id, 'Task Results', undefined,true)
+    ]
+  },[record])
+
   if (isPending || record === undefined){
     return <Loading/>
   }
+
   return (
       <TabbedShowLayout>
         <TabbedShowLayout.Tab label="summary">
@@ -91,10 +104,7 @@ const HarvestingJobTabbedShowLayout = () => {
           <DateField source="backgroundProcess.doneAt" showTime emptyText='-'/>
           <ProgressField source="backgroundProcess.progress"/>
         </TabbedShowLayout.Tab>
-        {getNestedListTab(name, 'HarvestedDatasetMetadataRelation', record?.id, 'Datasets', ['datasetMetadataRecord'], true)}
-        {getNestedListTab(name,'HarvestedServiceMetadataRelation', record?.id, 'Services', ['serviceMetadataRecord'], true)}
-        {getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.id, 'Logs', undefined, true)}
-        {getNestedListTab('BackgroundProcess', 'TaskResult', record?.backgroundProcess?.id, 'Task Results', undefined,true)}
+        {...tabs}
       </TabbedShowLayout>
   )
 }
@@ -143,7 +153,6 @@ const AsideCardHarvestingJob = () => {
     return _props
   },[data])
 
-  console.log(props)
   return (
     <AsideCard>
       <CardHeader
@@ -187,6 +196,23 @@ const JsonApiPrevNextButtons = () => {
   )
 }
 
+
+const AbortButton = () => {
+  const record = useRecordContext();
+  const params = useMemo(() => ({
+    id: record?.backgroundProcess?.id,
+    data: {
+      phase: 'abort'
+    },
+    previousData: record?.backgroundProcess  
+  }),[record])
+
+  const [update, { isPending }] = useUpdate();
+
+  return (
+    <Button variant="outlined" color="warning" startIcon={<StopIcon />} label='stop' loading={isPending} onClick={() => update("BackgroundProcess", params)}/>
+  )
+}
 
 const ShowHarvestingJob = () => {
     const { name } = useResourceDefinition()
@@ -243,6 +269,7 @@ const ShowHarvestingJob = () => {
         aside={<AsideCardHarvestingJob />}
         actions={
           <TopToolbar>
+            <AbortButton/>
             <JsonApiPrevNextButtons/>
           </TopToolbar>
         }

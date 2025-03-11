@@ -32,6 +32,7 @@ def append_task_to_background_process(task_pk, background_process_pk):
             background_process_pk)
         if background_process:
             background_process.threads.add(task_result)
+        return task_result
 
 
 @task_prerun.connect
@@ -40,7 +41,11 @@ def get_background_process(task, *args, **kwargs):
     background_process_pk = kwargs["kwargs"].get("background_process_pk", None)
     task.background_process = get_background_process_if_exists(
         background_process_pk)
-    task.update_state(date_created=now(), date_done=now())
+    task_result = append_task_to_background_process(
+        task.request.id, background_process_pk)
+    task_result.date_created = now()
+    task_result.date_done = now()
+    task_result.save()
 
 
 @before_task_publish.connect

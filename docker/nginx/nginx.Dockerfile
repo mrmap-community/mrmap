@@ -1,7 +1,7 @@
 ##############################################################
 # Base build Image for Frontend
 ##############################################################
-FROM node:23-alpine3.20 AS frontend-compile-image
+FROM node:23-alpine3.21.3 AS frontend-compile-image
 
 # cause env variables are always not present
 # in the docker build context, we need to set them explicitly.

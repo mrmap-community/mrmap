@@ -20,7 +20,7 @@ services:
     # Done
 
   redis:
-    image: library/redis:7.2.3-alpine
+    image: library/redis:7.4.2-alpine3.21
     volumes:
       - type: volume
         source: mem-db-data

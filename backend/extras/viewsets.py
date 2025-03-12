@@ -39,9 +39,12 @@ class ObjectPermissionCheckerViewSetMixin:
             perm_checker: ObjectPermissionChecker = ObjectPermissionChecker(
                 user_or_group=self.request.user)
             if not perm_checker._obj_perms_cache:
+
                 objects = self.filter_queryset(
                     queryset.select_related(None).prefetch_related(None).only("pk"))
-                if self.request.method == "GET":
+                # if self.request.method == "GET":
+                if self.action == 'list':
+
                     objects = self.paginate_queryset(objects)
                 if objects:
                     perm_checker.prefetch_perms(objects)

@@ -32,7 +32,6 @@ const STORE_VERSION = '1'
 const MrMapFrontend = (): ReactElement => {
   const lightTheme = defaultTheme
   const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
-
   const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
 
   const { api, authToken, setAuthToken, getWebSocket, readyState} = useHttpClientContext()
@@ -88,7 +87,7 @@ const MrMapFrontend = (): ReactElement => {
     })
   }, [api])
 
-  if (dataProvider === undefined) {
+  if (dataProvider === undefined || resourceDefinitions.length === 0) {
     return (
       <Loading loadingPrimary="Initialize...." loadingSecondary='OpenApi Client is loading....' />
     )
@@ -99,11 +98,12 @@ const MrMapFrontend = (): ReactElement => {
         darkTheme={darkTheme}
         lightTheme={customTheme}
         dataProvider={dataProvider}
-        dashboard={Dashboard}
         authProvider={authProvider(undefined, undefined, undefined, authToken, setAuthToken)}
+        dashboard={Dashboard}
         layout={MyLayout}
         store={localStorageStore(STORE_VERSION)}
-        disableTelemetry={true}
+        disableTelemetry
+        requireAuth
       >
         {resourceDefinitions.map((resource) => (
           <Resource key={resource.name} {...resource} />

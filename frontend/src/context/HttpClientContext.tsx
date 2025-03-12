@@ -61,7 +61,7 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
 
   }, [authToken])
 
-  // we need to memo the localstorage value by our self.... see issu: https://github.com/uidotdev/usehooks/pull/304
+  // we need to memo the localstorage value by our self.... see issue: https://github.com/uidotdev/usehooks/pull/304
   useEffect(()=>{
     if (isEqual(authToken, storedAuthToken) === false){
       setAuthToken(storedAuthToken)

@@ -33,7 +33,7 @@ services:
     #   /bin/sh -c "celery -A MrMap worker --task-events --loglevel DEBUG --queues download,default,db-routines --autoscale=10,1"
 
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 -m celery -A MrMap worker --task-events --loglevel DEBUG --queues download,default,db-routines -P gevent"
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 -m celery -A MrMap worker --task-events --loglevel DEBUG --queues download,default,db-routines"
 
     environment:
       PYDEVD_LOAD_VALUES_ASYNC: "True"

@@ -37,8 +37,6 @@ def call_fetch_total_records(
     harvesting_job_id,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_background_process()
-
     from registry.models.harvest import HarvestingJob
 
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
@@ -63,7 +61,6 @@ def call_fetch_records(
     start_position,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_background_process()
 
     from registry.models.harvest import HarvestingJob
 
@@ -128,7 +125,6 @@ def call_md_metadata_file_to_db(
     md_metadata_file_id: int,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_background_process()
     try:
         from registry.models.harvest import TemporaryMdMetadataFile
 

@@ -84,7 +84,7 @@ services:
     # deploy:
     #   replicas: 10
     command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines -P gevent"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines"
     # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
     # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
     #tty: true # To support colorized log output.

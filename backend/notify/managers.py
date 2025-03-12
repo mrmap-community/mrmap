@@ -3,7 +3,7 @@ from functools import reduce
 
 from celery import states
 from django.db import models
-from django.db.models import Case, Count, Exists, F, OuterRef, Q, Value, When
+from django.db.models import Case,  Exists, F, OuterRef, Q, Value, When
 from django.db.models.fields import CharField, FloatField
 from django.db.models.functions import Round
 from django.db.models.query import Prefetch

@@ -25,37 +25,29 @@ def get_background_process_if_exists(background_process_pk):
 
 def append_task_to_background_process(task_pk, background_process_pk):
     if task_pk and background_process_pk:
-        task_result, _ = TaskResult.objects.get_or_create(
-            task_id=task_pk,
-        )
         background_process = get_background_process_if_exists(
             background_process_pk)
         if background_process:
-            background_process.threads.add(task_result)
-        return task_result
+            background_process.threads.add(
+                *TaskResult.objects.filter(task_id=task_pk))
 
 
 @task_prerun.connect
 def get_background_process(task, *args, **kwargs):
     """To automaticly get the BackgroundProcess object on task runtime."""
-    background_process_pk = kwargs["kwargs"].get("background_process_pk", None)
-    task.background_process = get_background_process_if_exists(
-        background_process_pk)
-    task_result = append_task_to_background_process(
-        task.request.id, background_process_pk)
-    task_result.date_created = now()
-    task_result.date_done = now()
-    task_result.save()
-
-
-@before_task_publish.connect
-def create_task_result(headers, body, *args, **kwargs):
-    """create task results on publishing them. Without this signal connection, 
-        the taskresult object is not created until update_state() inside the task is called.
-    """
-    task_id = headers.get("id")
-    background_process_pk = body[1].get("background_process_pk", None)
-    append_task_to_background_process(task_id, background_process_pk)
+    task.background_process_pk = kwargs["kwargs"].get(
+        "background_process_pk", None)
+    with transaction.atomic():
+        time = now()
+        task_result, _ = TaskResult.objects.select_for_update().update_or_create(
+            task_id=task.request.id,
+            defaults={
+                "date_created": time,
+                "date_done": time
+            }
+        )
+        append_task_to_background_process(
+            task_result.pk, task.background_process_pk)
 
 
 class BackgroundProcessBased(Task):
@@ -81,19 +73,12 @@ class BackgroundProcessBased(Task):
         completed=False,
     ):
         # will be provided by get_background_process signal if the pk is provided by kwargs
-        if hasattr(self, "background_process"):
-            thread_appended = False
+        if hasattr(self, "background_process_pk"):
             try:
                 with transaction.atomic():
-                    if not self.thread_appended:
-                        # add the TaskResult if this function is called the first time
-                        task, _ = TaskResult.objects.get_or_create(
-                            task_id=self.request.id)
-                        self.background_process.threads.add(task)
-                        thread_appended = True
                     if phase:
                         bg_p = BackgroundProcess.objects.select_for_update().filter(
-                            pk=self.background_process.pk)[0]
+                            pk=self.background_process_pk)[0]
                         bg_p.phase = phase
                         bg_p.save()  # Do not directly update with sql!
                         # Otherwise the post_save signal is not triggered and
@@ -101,25 +86,25 @@ class BackgroundProcessBased(Task):
                     if service:
                         service_ct = ContentType.objects.get_for_model(service)
                         BackgroundProcess.objects.select_for_update().filter(
-                            pk=self.background_process.pk).update(
+                            pk=self.background_process_pk).update(
                                 related_resource_type=service_ct,
                                 related_id=service.pk
                         )
                     if total_steps:
                         bg_p = BackgroundProcess.objects.select_for_update().filter(
-                            pk=self.background_process.pk).update(
+                            pk=self.background_process_pk).update(
                                 total_steps=total_steps
                         )
                     if step_done:
                         bg_p = BackgroundProcess.objects.select_for_update().filter(
-                            pk=self.background_process.pk)[0]
+                            pk=self.background_process_pk)[0]
                         bg_p.done_steps += 1
                         bg_p.save()  # Do not directly update with sql!
                         # Otherwise the post_save signal is not triggered and
                         # no notifications will be send via websocket!
                     if completed:
                         bg_p = BackgroundProcess.objects.select_for_update().filter(
-                            pk=self.background_process.pk).update(
+                            pk=self.background_process_pk).update(
                                 total_steps=Coalesce(F("total_steps"), 1),
                                 done_steps=Coalesce(F("total_steps"), 1),
                                 done_at=now(),
@@ -127,10 +112,6 @@ class BackgroundProcessBased(Task):
                         )
             except Exception as e:
                 logger.exception(e, stack_info=True, exc_info=True)
-            else:
-                if thread_appended:
-                    self.thread_appended = True
-
         else:
             logger.warning(
                 f"No background process provided for BackgroundProcessBased task. {self.name}")

@@ -6,6 +6,7 @@ from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.enums.harvesting import CollectingStatenEnum
+from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedDatasetMetadataRelation,
                                      HarvestedServiceMetadataRelation,
                                      HarvestingJob, TemporaryMdMetadataFile)
@@ -15,7 +16,6 @@ from registry.serializers.harvesting import (
     HarvestedDatasetMetadataRelationSerializer,
     HarvestedServiceMetadataRelationSerializer, HarvestingJobSerializer,
     TemporaryMdMetadataFileSerializer)
-from rest_framework_json_api.utils import get_included_resources
 from rest_framework_json_api.views import ModelViewSet
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
@@ -95,10 +95,8 @@ class HarvestingJobViewSetMixin():
     serializer_class = HarvestingJobSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", 'background_process__date_created']
-    filterset_fields = {
-        'id': ['exact', 'icontains', 'contains', 'in'],
-        'service__id': ['exact', 'icontains', 'contains', 'in'],
-    }
+    filterset_class = HarvestingJobFilterSet
+
     select_for_includes = {
         # "service": ["service"],
         # "backgroundProcess": ["background_process"]

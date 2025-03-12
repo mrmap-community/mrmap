@@ -1,257 +1,23 @@
-import DoneAllIcon from '@mui/icons-material/DoneAll';
-import PauseIcon from '@mui/icons-material/Pause';
-import RemoveDoneIcon from '@mui/icons-material/RemoveDone';
-import StopIcon from '@mui/icons-material/Stop';
-import { CardHeader, Chip, CircularProgress, Typography } from '@mui/material';
-import { BarChart, BarChartProps } from '@mui/x-charts';
 import { snakeCase } from 'lodash';
-import { ReactNode, useCallback, useMemo } from 'react';
-import { BooleanField, Button, DateField, FunctionField, Identifier, Loading, NumberField, PrevNextButtons, Show, TabbedShowLayout, TopToolbar, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext, useUpdate } from 'react-admin';
-import { useParams } from 'react-router-dom';
-import { Count } from '../../../jsonapi/components/Count';
-import ListGuesser from '../../../jsonapi/components/ListGuesser';
-import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
+import { useMemo } from 'react';
+import { RaRecord, ShowView, useResourceDefinition } from 'react-admin';
+import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider';
 import useSparseFieldsForOperation from '../../../jsonapi/hooks/useSparseFieldsForOperation';
-import { parseDuration } from '../../../jsonapi/utils';
-import ProgressField from '../../Field/ProgressField';
-import AsideCard from '../../Layout/AsideCard';
-import HarvestResultPieChart from './Charts';
+import HarvestingJobActions from './HarvestingJobActions';
+import HarvestingJobAside from './HarvestingJobAside';
+import HarvestingJobTabbedShowLayout from './HarvestingJobTabbedShowLayout';
 
 
-const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
-const dateParseRegex = /(\d{4})-(\d{2})-(\d{2})/;
+export const isStale = (timestamp: number, record: RaRecord) => {
+  const stateTime = new Date(timestamp).getTime()
+  const nowTime = new Date(Date.now()).getTime()
+  if (['completed', 'aborted'].includes(record?.backgroundProcess?.status) ) return false;
 
-const convertDateToString = (value: string | Date) => {
-    // value is a `Date` object
-    if (!(value instanceof Date) || isNaN(value.getDate())) return '';
-    const pad = '00';
-    const yyyy = value.getFullYear().toString();
-    const MM = (value.getMonth() + 1).toString();
-    const dd = value.getDate().toString();
-    return `${yyyy}-${(pad + MM).slice(-2)}-${(pad + dd).slice(-2)}`;
-};
-
-const dateFormatter = (value: string | Date) => {
-  // null, undefined and empty string values should not go through dateFormatter
-  // otherwise, it returns undefined and will make the input an uncontrolled one.
-  if (value == null || value === '') return '';
-  if (value instanceof Date) return convertDateToString(value);
-  // Valid dates should not be converted
-  if (dateFormatRegex.test(value)) return value;
-
-  return convertDateToString(new Date(value));
-};
-
-const renderStatus = (status: string): ReactNode => {
-  switch(status){
-    case 'aborted':
-      return <Typography component='span'><RemoveDoneIcon/> aborted </Typography>
-       
-    case 'completed':
-      return <Typography component='span'><DoneAllIcon/> completed </Typography>
-    case 'running':
-      return <Typography component='span'><CircularProgress/> running </Typography>
-    case 'pending':
-      return <Typography component='span'><PauseIcon/> pending </Typography>
-    default:
-      return <PauseIcon />
-  }
-}
-
-const HarvestingJobTabbedShowLayout = () => {
-  const { error, isPending, record } = useShowContext();
-  const name = 'HarvestingJob'
-  const createPath = useCreatePath();
-  const { id } = useParams()
-
-  const getTabParams = useCallback((resource:string, relatedResource: string, relatedResourceId: Identifier, title: string, withCount: boolean = true)=>{
-    return {
-      label: <Typography component='span'>{title} {withCount ? <Chip size='small' label={<Count relatedResource={resource} relatedResourceId={relatedResourceId} resource={relatedResource}/>}/>: null}</Typography>,
-      path: relatedResource,
-      to: {
-        pathname: createPath({
-          resource: name,
-          type: "show",
-          id: record?.id || id
-        }) + `/${relatedResource}`
-      },
-    }
-  },[createPath, record, id, name])
-
-  const getNestedListTab = useCallback((
-    resource:string, 
-    relatedResource: string, 
-    relatedResourceId: Identifier, 
-    title: string, 
-    defaultSelectedColumns?: string[] ,
-    withCount: boolean = true,
-  )=>{
-    return <TabbedShowLayout.Tab
-    {...getTabParams(resource, relatedResource, relatedResourceId, title, withCount)}
-   >
-     <ListGuesser
-       relatedResource={resource}
-       relatedResourceId={relatedResourceId}
-       resource={relatedResource}
-       storeKey={false}
-       {...defaultSelectedColumns && {defaultSelectedColumns: defaultSelectedColumns}}
-     />
-   </TabbedShowLayout.Tab>
-  },[])
-
-  const tabs = useMemo(()=>{
-    return[
-      getNestedListTab(name, 'HarvestedDatasetMetadataRelation', record?.id, 'Datasets', ['datasetMetadataRecord'], true),
-      getNestedListTab(name,'HarvestedServiceMetadataRelation', record?.id, 'Services', ['serviceMetadataRecord'], true),
-      getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.id, 'Logs', undefined, true),
-      getNestedListTab('BackgroundProcess', 'TaskResult', record?.backgroundProcess?.id, 'Task Results', undefined,true)
-    ]
-  },[record])
-
-  const progressColor = useMemo(()=>{
-    switch(record?.backgroundProcess.status) {
-      case 'aborted':
-        return 'warning'
-      case 'completed':
-        return 'success'
-      default:
-        return 'info'
-    }
-  },[record?.backgroundProcess])
-
-
-  if (isPending || record === undefined){
-    return <Loading/>
+  if (nowTime - stateTime > 10){
+    return true
   }
 
-  return (
-      <TabbedShowLayout>
-        <TabbedShowLayout.Tab label="summary">
-          <JsonApiReferenceField source="service" reference="CatalogueService" label="Service" />
-          <BooleanField source="harvestDatasets"/>
-          <BooleanField source="harvestServices"/>
-          <NumberField source="totalRecords"/>
-          <DateField source="backgroundProcess.dateCreated" showTime emptyText='-'/>
-          <DateField source="backgroundProcess.doneAt" showTime emptyText='-'/>
-          <FunctionField source="backgroundProcess.status" render={record => renderStatus(record?.backgroundProcess?.status)}/>
-          <ProgressField source="backgroundProcess.progress" color={progressColor}/>
-        </TabbedShowLayout.Tab>
-        {...tabs}
-      </TabbedShowLayout>
-  )
-}
-
-const AsideCardHarvestingJob = () => {
-  const record = useRecordContext();
-  const {data, total, isPending, error, refetch, meta} = useGetList(
-    'HarvestingJob',
-    {
-      pagination: {
-        page: 1,
-        perPage: 10,
-      },
-      sort: {
-        field: 'backgroundProcess.dateCreated',
-        order: 'DESC',
-      },
-      meta: {
-        jsonApiParams:{
-          'fields[HarvestingJob]': 'fetch_record_duration,md_metadata_file_to_db_duration',
-        },
-      }
-    }
-  );
-
-  const props = useMemo<BarChartProps>(()=>{
-    const fetchRecordDurationSeries = {
-      data: [] as number[],
-      label: 'fetch records',
-    }
-    const xAxis = {
-      data: [] as string[],
-      scaleType: 'band',
-    }
-    
-    const _props: BarChartProps = {
-      series: [fetchRecordDurationSeries],
-      xAxis: [xAxis]
-    }
-    
-    data?.forEach(record => {
-      fetchRecordDurationSeries.data.push(parseDuration(record.fetchRecordDuration))
-      xAxis.data.push(record.id)
-    }) 
-
-    return _props
-  },[data])
-
-  return (
-    <AsideCard>
-      <CardHeader
-        title='Record Overview'
-        subheader={`${record?.totalRecords ?? 0} Records`}
-      />
-
-      <HarvestResultPieChart/>
-      <BarChart
-        height={290}
-        //xAxis={[{ data: ['Q1', 'Q2', 'Q3', 'Q4'], scaleType: 'band' }]}
-        margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
-        {...props}
-      />
-
-    </AsideCard>
-  )
-}
-
-
-const JsonApiPrevNextButtons = () => {
-  const { name } = useResourceDefinition()
-
-  const jsonApiParams = useMemo(()=>{
-    const params: any = {}
-    params[`fields[${name}]`] = 'id'
-    return params
-  },[name])
-
-  return (
-    <PrevNextButtons
-      queryOptions={{ 
-        meta: {
-          jsonApiParams: jsonApiParams,
-        }
-      }}
-      linkType='show'
-      limit={10}
-      sort={{field:'id', order:'DESC'}}
-    />
-  )
-}
-
-
-const AbortButton = () => {
-  const record = useRecordContext();
-  const params = useMemo(() => ({
-    id: record?.backgroundProcess?.id,
-    data: {
-      phase: 'abort'
-    },
-    previousData: record?.backgroundProcess  
-  }),[record])
-
-  const [update, { isPending }] = useUpdate();
-
-  return (
-    <Button 
-      disabled={['aborted', 'completed'].includes(record?.backgroundProcess?.status)} 
-      variant="outlined" 
-      color="warning" 
-      startIcon={<StopIcon />} 
-      label='stop' 
-      loading={isPending} 
-      onClick={() => update("BackgroundProcess", params)}
-    />
-  )
+  return false
 }
 
 const ShowHarvestingJob = () => {
@@ -295,7 +61,9 @@ const ShowHarvestingJob = () => {
     },[sparseFields, excludeSparseFields ])
 
     return (
-      <Show
+      <RealtimeShowContextProvider
+        isStaleCheckInterval={5}
+        isStale={isStale}
         queryOptions={{
           meta: {
             jsonApiParams:{
@@ -306,16 +74,15 @@ const ShowHarvestingJob = () => {
             },
           }
         }}
-        aside={<AsideCardHarvestingJob />}
-        actions={
-          <TopToolbar>
-            <AbortButton/>
-            <JsonApiPrevNextButtons/>
-          </TopToolbar>
-        }
       >
-        <HarvestingJobTabbedShowLayout />
-      </Show>
+        <ShowView
+          aside={<HarvestingJobAside />}
+          actions={<HarvestingJobActions/>
+          }
+        >
+          <HarvestingJobTabbedShowLayout />
+        </ShowView>
+      </RealtimeShowContextProvider>
     )
 };
 

@@ -22,7 +22,11 @@ const HarvestResultPieChart = () => {
     const unhandledRecords = total - handledDatasetRecords - handledServiceRecords
 
     return [
-      ...unhandledRecords >0 ? [{ id:'u_r', name: 'Unhandled Records', value: unhandledRecords, color: "unhandled" }]: [],
+      ...unhandledRecords >0 ? [{ 
+        id:'u_r', 
+        label: 'Unhandled Records', 
+        value: unhandledRecords
+      }]: [],
       ...record?.newDatasetMetadataCount > 0 ? [{ 
         id:'n_d', 
         label: 'New Datasets',

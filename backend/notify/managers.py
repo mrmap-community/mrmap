@@ -25,6 +25,9 @@ class BackgroundProcessManager(models.Manager):
         ).annotate(
             status=Case(
                 When(
+                    Q(phase="abort"),
+                    then=Value("aborted")),
+                When(
                     Q(done_at__isnull=False),
                     then=Value("completed")),
                 When(Q(has_unready_threads=True),
@@ -34,7 +37,7 @@ class BackgroundProcessManager(models.Manager):
             ),
             progress=Case(
                 When(
-                    Q(done_at__isnull=False),
+                    ~Q(phase="abort") & Q(done_at__isnull=False),
                     then=Value(100.0)),
                 When(
                     Q(total_steps__isnull=True),

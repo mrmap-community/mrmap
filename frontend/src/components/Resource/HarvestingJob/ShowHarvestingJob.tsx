@@ -1,9 +1,12 @@
+import DoneAllIcon from '@mui/icons-material/DoneAll';
+import PauseIcon from '@mui/icons-material/Pause';
+import RemoveDoneIcon from '@mui/icons-material/RemoveDone';
 import StopIcon from '@mui/icons-material/Stop';
-import { CardHeader, Chip, Typography } from '@mui/material';
+import { CardHeader, Chip, CircularProgress, Typography } from '@mui/material';
 import { BarChart, BarChartProps } from '@mui/x-charts';
 import { snakeCase } from 'lodash';
-import { useCallback, useMemo } from 'react';
-import { BooleanField, Button, DateField, Identifier, Loading, NumberField, PrevNextButtons, Show, TabbedShowLayout, TopToolbar, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext, useUpdate } from 'react-admin';
+import { ReactNode, useCallback, useMemo } from 'react';
+import { BooleanField, Button, DateField, FunctionField, Identifier, Loading, NumberField, PrevNextButtons, Show, TabbedShowLayout, TopToolbar, useCreatePath, useGetList, useRecordContext, useResourceDefinition, useShowContext, useUpdate } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import { Count } from '../../../jsonapi/components/Count';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
@@ -38,6 +41,22 @@ const dateFormatter = (value: string | Date) => {
 
   return convertDateToString(new Date(value));
 };
+
+const renderStatus = (status: string): ReactNode => {
+  switch(status){
+    case 'aborted':
+      return <Typography component='span'><RemoveDoneIcon/> aborted </Typography>
+       
+    case 'completed':
+      return <Typography component='span'><DoneAllIcon/> completed </Typography>
+    case 'running':
+      return <Typography component='span'><CircularProgress/> running </Typography>
+    case 'pending':
+      return <Typography component='span'><PauseIcon/> pending </Typography>
+    default:
+      return <PauseIcon />
+  }
+}
 
 const HarvestingJobTabbedShowLayout = () => {
   const { error, isPending, record } = useShowContext();
@@ -89,6 +108,18 @@ const HarvestingJobTabbedShowLayout = () => {
     ]
   },[record])
 
+  const progressColor = useMemo(()=>{
+    switch(record?.backgroundProcess.status) {
+      case 'aborted':
+        return 'warning'
+      case 'completed':
+        return 'success'
+      default:
+        return 'info'
+    }
+  },[record?.backgroundProcess])
+
+
   if (isPending || record === undefined){
     return <Loading/>
   }
@@ -102,7 +133,8 @@ const HarvestingJobTabbedShowLayout = () => {
           <NumberField source="totalRecords"/>
           <DateField source="backgroundProcess.dateCreated" showTime emptyText='-'/>
           <DateField source="backgroundProcess.doneAt" showTime emptyText='-'/>
-          <ProgressField source="backgroundProcess.progress"/>
+          <FunctionField source="backgroundProcess.status" render={record => renderStatus(record?.backgroundProcess?.status)}/>
+          <ProgressField source="backgroundProcess.progress" color={progressColor}/>
         </TabbedShowLayout.Tab>
         {...tabs}
       </TabbedShowLayout>
@@ -187,11 +219,11 @@ const JsonApiPrevNextButtons = () => {
       queryOptions={{ 
         meta: {
           jsonApiParams: jsonApiParams,
-          
         }
       }}
       linkType='show'
       limit={10}
+      sort={{field:'id', order:'DESC'}}
     />
   )
 }
@@ -210,7 +242,15 @@ const AbortButton = () => {
   const [update, { isPending }] = useUpdate();
 
   return (
-    <Button variant="outlined" color="warning" startIcon={<StopIcon />} label='stop' loading={isPending} onClick={() => update("BackgroundProcess", params)}/>
+    <Button 
+      disabled={['aborted', 'completed'].includes(record?.backgroundProcess?.status)} 
+      variant="outlined" 
+      color="warning" 
+      startIcon={<StopIcon />} 
+      label='stop' 
+      loading={isPending} 
+      onClick={() => update("BackgroundProcess", params)}
+    />
   )
 }
 

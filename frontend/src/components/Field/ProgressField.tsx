@@ -32,6 +32,7 @@ const ProgressField = (
           variant="determinate" 
           value={value || 0}
           {...props} 
+          
         />
       </Box>
       <Box sx={{ minWidth: 40 }}>

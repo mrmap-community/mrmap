@@ -539,20 +539,21 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
 
 export const parseDuration = (duration:string): number => {
   // Zerlege den Input-String mit einem regulären Ausdruck
-  const regex = /(?:(\d{2})\s)?(?:(\d{2}):)?(\d{2}):(\d{2})\.(\d{1,6})/;
+  const regex = /^(\d{1,2})?\s*(\d{1,2})?:?(\d{2})?:?(\d{2})\.(\d{6})$/;
   const matches = regex.exec(duration);
   if (matches) {
       // Extrahiere Tage, Stunden, Minuten, Sekunden und Mikrosekunden
-      const days = parseInt(matches[1] ?? 0, 10);
-      const hours = parseInt(matches[2] ?? 0, 10);
-      const minutes = parseInt(matches[3] ?? 0, 10);
-      const seconds = parseInt(matches[4] ?? 0, 10);
-      const microseconds = parseInt(matches[5] ?? 0, 10);
+      const days = matches[1] ? parseInt(matches[1], 10) : 0; // Standardwert 0, wenn kein Tag vorhanden
+      const hours = matches[2] ? parseInt(matches[2], 10) : 0; // Standardwert 0, wenn keine Stunde angegeben
+      const minutes = matches[3] ? parseInt(matches[3], 10) : 0; // Standardwert 0, wenn keine Minuten angegeben
+      const seconds = parseInt(matches[4], 10); // Sekunden sind immer da, daher keine Option
+      const microseconds = parseInt(matches[5], 10); // Mikrosekunden sind immer da
+  
 
       // Berechne die Gesamtzeit in Sekunden
       const totalSeconds = (days * 24 * 60 * 60) + (hours * 3600) + (minutes * 60) + seconds + (microseconds / 1000000);
 
-      return totalSeconds;
+      return Math.round(totalSeconds);
   } else {
       return 0
   }

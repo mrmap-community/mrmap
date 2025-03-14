@@ -45,24 +45,45 @@ const HarvestingJobTimingCharts = (
     return getRecordRepresentation(record)
   },[getRecordRepresentation])
 
+  const timeFormatter = useCallback((seconds, short?: boolean = false) => {
+      const hours = Math.floor(seconds / 3600); // 1 Stunde = 3600 Sekunden
+      seconds = seconds % 3600; // Restsekunden nach Stunden
+  
+      const minutes = Math.floor(seconds / 60); // 1 Minute = 60 Sekunden
+      seconds = seconds % 60; // Restsekunden nach Minuten
+      const hoursStr = String(hours).padStart(2, '0');
+      const minutesStr = String(minutes).padStart(2, '0');
+      const secondsStr = String(seconds).padStart(2, '0');
+
+      if (short) { 
+        return `${hoursStr}H${minutesStr}M${secondsStr}S`
+      };
+      // Rückgabe im gewünschten Format
+      return `${hours} Hours ${minutes} Minutes ${seconds} Seconds`;
+  }, [])
+
   const props = useMemo<BarChartProps>(()=>{
     const fetchRecordDurationSeries = {
       type:'bar',
       id: 'fetchRecordDurationSeries',
       data: [] as number[],
       label: 'Total time to download all records',
+      valueFormatter: (v) => timeFormatter(v, false),
     }
     const dbDurationAvgSeries = {
       type:'bar',
       id: 'dbDurationAvgSeries',
       data: [] as number[],
       label: 'Average time to handle records',
+      valueFormatter: (v) => timeFormatter(v, false),
     }
     const dbDurationTotalSeries = {
       type:'bar',
       id: 'dbDurationTotalSeries',
       data: [] as number[],
       label: 'Total time to handle records',
+      valueFormatter: (v) => timeFormatter(v, false),
+      
     }
     const xAxis = {
       data: [] as RaRecord[],
@@ -74,10 +95,11 @@ const HarvestingJobTimingCharts = (
     const _props: BarChartProps = {
       series: [fetchRecordDurationSeries,  dbDurationAvgSeries, dbDurationTotalSeries],
       xAxis: [xAxis],
-      //yAxis: [{ id: 'fetchRecordDurationSeries', scaleType: 'log'}, { id: 'dbDurationSeries', scaleType: 'log'}],
+      yAxis: [{valueFormatter: timeFormatter}],
     }
     data?.forEach(record => {
       const fetchRecordDuration = parseDuration(record.fetchRecordDuration)
+
       fetchRecordDuration && fetchRecordDuration > 0 && fetchRecordDurationSeries.data.push(parseDuration(record.fetchRecordDuration))
       
       const mdToDbDuration = parseDuration(record.mdMetadataFileToDbDuration)
@@ -89,14 +111,15 @@ const HarvestingJobTimingCharts = (
 
     return _props
   },[data])
-  console.log(props.series.filter(serie => serie.id === selectedSerie))
+
   return (
     <ResponsiveChartContainer
       series={props.series.filter(serie => serie.id === selectedSerie)}
       colors={mangoFusionPalette}
       height={400}
-      margin={{top: 10, bottom: 30, left: 40, right: 10}}
+      margin={{top: 10, bottom: 30, left: 100, right: 10}}
       xAxis={props.xAxis}
+      yAxis={props.yAxis}
     >
       <BarPlot/>
       <ChartsTooltip 
@@ -110,7 +133,9 @@ const HarvestingJobTimingCharts = (
       }
       
       <ChartsXAxis/>
-      <ChartsYAxis/>
+      <ChartsYAxis
+
+      />
     </ ResponsiveChartContainer >
   )
 

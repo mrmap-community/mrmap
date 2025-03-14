@@ -129,8 +129,12 @@ def call_md_metadata_file_to_db(
     try:
         from registry.models.harvest import TemporaryMdMetadataFile
 
-        temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
-            pk=md_metadata_file_id)
+        temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.select_related(
+            'job',
+            'job__service',
+            'job__service__auth',
+            'job__background_process'
+        ).get(pk=md_metadata_file_id)
         db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
 
         self.update_background_process(

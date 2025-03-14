@@ -14,9 +14,9 @@ services:
       - ./docker/postgis/.db.env
     # migration guide:
     # 1. backup current db => docker exec -it `container_id` pg_dumpall -U mrmap  > .upgrade_backup.sql
-    # 2. call pg_extract script => ./pg_extract.sh ../../.upgrade_backup.sql mrmap >> upgrade_backup_mydb.sql
+    # 2. call pg_extract script => backend/.bash_scripts/pg_extract.sh .upgrade_backup.sql mrmap >> upgrade_backup_mydb.sql
     # 3. change image definition to higher postgis; change volume source to new location; start container => docker compose up postgis --build
-    # 4. cat backend/.bash_scripts/upgrade_backup_mydb.sql | docker exec -i `container_id` psql -U mrmap
+    # 4. cat upgrade_backup_mydb.sql | docker exec -i `container_id` psql -U mrmap
     # Done
 
   redis:

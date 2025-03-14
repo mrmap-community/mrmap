@@ -5,7 +5,6 @@ from os import walk
 from celery import chord, shared_task
 from celery.utils.log import get_task_logger
 from django.core.files.base import ContentFile
-from django.db import transaction
 from django.utils import timezone
 from eulxml import xmlmap
 from lxml.etree import Error
@@ -46,6 +45,8 @@ def call_fetch_total_records(
     self.update_background_process(
         phase=f'The catalogue provides {total_records} records. Harvesting is running...'  # noqa
     )
+
+    harvesting_job.handle_total_records_defined()
 
     return total_records
 
@@ -162,23 +163,23 @@ def check_for_files_to_import(
                 continue
             filename = os.path.join(dirpath, file)
             try:
-                with transaction.atomic():
-                    metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(filename=filename,
-                                                                                       xmlclass=WrappedIsoMetadata)
-                    from registry.models.harvest import TemporaryMdMetadataFile
 
-                    for iso_metadata in metadata_xml.iso_metadata:
-                        db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
-                        # save the file without saving the instance in db...
-                        # this will be done with bulk_create
-                        db_md_metadata_file.md_metadata_file.save(
-                            name=f"file_import_{dt}_{idx}",
-                            content=ContentFile(
-                                content=iso_metadata.serialize()),
-                            save=False)
-                        db_md_metadata_file_list.append(db_md_metadata_file)
-                        os.remove(filename)
-                        idx += 1
+                metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(filename=filename,
+                                                                                   xmlclass=WrappedIsoMetadata)
+                from registry.models.harvest import TemporaryMdMetadataFile
+
+                for iso_metadata in metadata_xml.iso_metadata:
+                    db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
+                    # save the file without saving the instance in db...
+                    # this will be done with bulk_create
+                    db_md_metadata_file.md_metadata_file.save(
+                        name=f"file_import_{dt}_{idx}",
+                        content=ContentFile(
+                            content=iso_metadata.serialize()),
+                        save=False)
+                    db_md_metadata_file_list.append(db_md_metadata_file)
+                    os.remove(filename)
+                    idx += 1
             except Error as e:
                 new_filename = f"ignore_{dt}_{file}"
                 os.rename(filename, os.path.join(dirpath, new_filename))

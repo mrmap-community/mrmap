@@ -70,23 +70,27 @@ class BackgroundProcess(models.Model):
     def __str__(self):
         return f"{self.process_type} {self.related_id}"
 
+    def get_related_task_ids(self):
+        task_ids = []
+
+        i = app.control.inspect()
+        for queues in list(filter(lambda q: q is not None, (i.active(), i.reserved(), i.scheduled()))):
+            for task_list in queues.values():
+                for task in task_list:
+                    if ("background_process_pk", self.pk) in task.get("kwargs", {}).items():
+                        task_id = task.get("request", {}).get(
+                            "id", None) or task.get("id", None)
+                        task_ids.append(task_id)
+
+        unready_tasks = self.threads.filter(
+            status__in=states.UNREADY_STATES).values_list("task_id", flat=True)
+        return list(set(list(unready_tasks) + task_ids))
+
     def save(self, *args, **kwargs):
         if self.phase == "abort":
             self.done_at = now()
-            task_ids = []
-            i = app.control.inspect()
-            for queues in (i.active(), i.reserved(), i.scheduled()):
-                for task_list in queues.values():
-                    for task in task_list:
-                        if ("background_process_pk", self.pk) in task.get("kwargs", {}).items():
-                            task_id = task.get("request", {}).get(
-                                "id", None) or task.get("id", None)
-                            task_ids.append(task_id)
 
-            unready_tasks = self.threads.filter(
-                status__in=states.UNREADY_STATES).values_list("task_id", flat=True)
-            related_tasks = list(set(list(unready_tasks) + task_ids))
-
+            related_tasks = self.get_related_task_ids()
             if related_tasks:
                 app.control.revoke(related_tasks, terminate=True)
 

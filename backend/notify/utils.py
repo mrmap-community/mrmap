@@ -42,7 +42,6 @@ def build_action_payload(request, instance, resource_type, serializer_cls, actio
     # see https://marmelab.com/react-admin/RealtimeDataProvider.html#crud-events for recomendet datastructure
     msg.update(
         {
-
             "topic": f"resource/{resource_type}" if action == "created" else f"resource/{resource_type}/{instance.pk}",
             "event": {
                 "type": action,

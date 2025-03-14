@@ -14,6 +14,9 @@ class DefaultConsumer(NonAnonymousJsonWebsocketConsumer):
 
         try:
             msg = event['json']
+            if msg["event"]["type"] == "created":
+                # we do not debounce created events
+                return super().send_msg(event)
             if msg["topic"] in self.messages:
                 last_msg_timestamp = self.messages[msg["topic"]]
                 time_diff = (

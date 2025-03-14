@@ -25,12 +25,12 @@ def get_background_process_if_exists(background_process_pk):
 
 
 def append_task_to_background_process(task_pk, background_process_pk):
-    if task_pk and background_process_pk:
+    if background_process_pk:
         background_process = get_background_process_if_exists(
             background_process_pk)
         if background_process:
             background_process.threads.add(
-                *TaskResult.objects.filter(task_id=task_pk))
+                *TaskResult.objects.filter(pk=task_pk))
 
 
 @task_prerun.connect
@@ -38,20 +38,24 @@ def get_background_process(task, *args, **kwargs):
     """To automaticly get the BackgroundProcess object on task runtime."""
     task.background_process_pk = kwargs["kwargs"].get(
         "background_process_pk", None)
-    try:
-        time = now()
-        with transaction.atomic():
-            task_result, _ = TaskResult.objects.select_for_update().update_or_create(
-                task_id=task.request.id,
-                defaults={
-                    "date_created": time,
-                    "date_done": time
-                }
+    if not task.background_process_pk:
+        return
+
+    time = now()
+    with transaction.atomic():
+        task_result, _ = TaskResult.objects.select_for_update().update_or_create(
+            task_id=task.request.id,
+            defaults={
+                "date_created": time,
+                "date_done": time
+            }
+        )
+        transaction.on_commit(
+            lambda: append_task_to_background_process(
+                task_result.pk,
+                task.background_process_pk
             )
-            append_task_to_background_process(
-                task_result.pk, task.background_process_pk)
-    except Exception as e:
-        logger.exception(e, stack_info=True, exc_info=True)
+        )
 
 
 class BackgroundProcessBased(Task):

@@ -172,71 +172,71 @@ class HarvestingJob(models.Model):
     def handle_adding(self, *args, **kwargs):
         from registry.tasks.harvest import \
             call_fetch_total_records  # to avoid circular import errors
-
-        self.background_process = BackgroundProcess.objects.create(
-            phase="Get total records of the catalogue",
-            process_type=ProcessNameEnum.HARVESTING.value,
-            description=f'Harvesting job for service {self.service.pk}',
-            service=self.service
-        )
-        # save to get the id of the object
-        ret = super(HarvestingJob, self).save(*args, **kwargs)
-
-        transaction.on_commit(
-            lambda: HarvestingJob.objects.filter(pk=self.pk).update(
-                background_process=self.background_process)
-        )
-
-        transaction.on_commit(
-            lambda: call_fetch_total_records.delay(
-                harvesting_job_id=self.pk,
-                http_request=self._http_request(),
-                background_process_pk=self.background_process_id
+        with transaction.atomic():
+            self.background_process = BackgroundProcess.objects.create(
+                phase="Get total records of the catalogue",
+                process_type=ProcessNameEnum.HARVESTING.value,
+                description=f'Harvesting job for service {self.service.pk}',
+                service=self.service
             )
-        )
+            # save to get the id of the object
+            ret = super(HarvestingJob, self).save(*args, **kwargs)
+
+            transaction.on_commit(
+                func=lambda: call_fetch_total_records.delay(
+                    harvesting_job_id=self.pk,
+                    http_request=self._http_request(),
+                    background_process_pk=self.background_process_id
+                ),
+                robust=False
+            )
         return ret
 
-    def handle_total_records_defined(self):
+    def handle_total_records_defined(self, args, kwargs):
         """total records is known now. Calculate roundtrips and start parallel harvesting tasks"""
-        from registry.tasks.harvest import \
-            call_fetch_records  # to avoid circular import errors
+        with transaction.atomic():
+            ret = super(HarvestingJob, self).save(*args, **kwargs)
 
-        round_trips = (self.total_records //
-                       self.service.max_step_size)
-        if self.total_records % self.service.max_step_size > 0:
-            round_trips += 1
+            round_trips = (self.total_records //
+                           self.service.max_step_size)
+            round_trips += 1 if self.total_records % self.service.max_step_size > 0 else 0
 
-        tasks = []
-        for number in range(0, round_trips):
-            tasks.append(
+            from registry.tasks.harvest import \
+                call_fetch_records  # to avoid circular import errors
+
+            tasks = [
                 call_fetch_records.s(
                     harvesting_job_id=self.pk,
                     start_position=number * self.service.max_step_size + 1,
                     http_request=self._http_request(),
                     background_process_pk=self.background_process_id,
-                )
+                ) for number in range(0, round_trips)
+            ]
+
+            transaction.on_commit(
+                func=lambda: chord(tasks)(call_chord_md_metadata_file_to_db.s(
+                    http_request=self._http_request(),
+                    background_process_pk=self.background_process_id,
+                ))
             )
 
-        transaction.on_commit(lambda: chord(tasks)(call_chord_md_metadata_file_to_db.s(
-            http_request=self._http_request(),
-            background_process_pk=self.background_process_id,
-        )))
+            """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
+                The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
+                The processing of harvesting can take a long time, in that the catalogue can changes his content. 
+                So it can be 1000010 records or 99980 or something else. 
+                The state of the remote CSW is not freezed after the first total_records call is done.
 
-        """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
-            The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
-            The processing of harvesting can take a long time, in that the catalogue can changes his content. 
-            So it can be 1000010 records or 99980 or something else. 
-            The state of the remote CSW is not freezed after the first total_records call is done.
+                An other fact is, that the get records request can response with currupt metadata records, which we can't handle.
+                In that case, no TemporaryMdMetadataFile object is created and no call_md_metadata_file_to_db task is created.
+            """
+            total_steps = tasks.__len__()  # how many call_fetch_records task will be run
+            # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
+            total_steps += self.total_records
 
-            An other fact is, that the get records request can response with currupt metadata records, which we can't handle.
-            In that case, no TemporaryMdMetadataFile object is created and no call_md_metadata_file_to_db task is created.
-        """
-        total_steps = tasks.__len__()  # how many call_fetch_records task will be run
-        # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
-        total_steps += self.total_records
-        with transaction.atomic():
             BackgroundProcess.objects.select_for_update().filter(
                 pk=self.background_process_id).update(total_steps=total_steps)
+
+            return ret
 
     # TODO: implement three phases:
     # 1. fetch total_records
@@ -245,12 +245,12 @@ class HarvestingJob(models.Model):
 
     def save(self, *args, **kwargs):
         if self._state.adding:
-            return self.handle_adding()
+            return self.handle_adding(*args, **kwargs)
+        elif self.total_records and not self.background_process.done_at:
+            return self.handle_total_records_defined(*args, **kwargs)
         elif self.total_records == 0:
             # error case. CSW does not provide records for our default request behaviour.
             self.background_process.done_at = now()
-        elif self.total_records and not self.background_process.done_at:
-            self.handle_total_records_defined()
 
         return super(HarvestingJob, self).save(*args, **kwargs)
 
@@ -403,16 +403,18 @@ class TemporaryMdMetadataFile(models.Model):
         adding = self._state.adding or self.re_schedule
         self.re_schedule = False
 
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            ret = super().save(*args, **kwargs)
 
-        if adding:
-            transaction.on_commit(
-                lambda: call_md_metadata_file_to_db.delay(
-                    md_metadata_file_id=self.pk,
-                    harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
-                    http_request=self.job._http_request(),
-                    background_process_pk=self.job.background_process_id if self.job.background_process_id else None
-                ))
+            if adding:
+                transaction.on_commit(
+                    lambda: call_md_metadata_file_to_db.delay(
+                        md_metadata_file_id=self.pk,
+                        harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
+                        http_request=self.job._http_request(),
+                        background_process_pk=self.job.background_process_id if self.job.background_process_id else None
+                    ))
+            return ret
 
     def delete(self, *args, **kwargs):
         try:
@@ -421,7 +423,7 @@ class TemporaryMdMetadataFile(models.Model):
         except (ValueError, FileNotFoundError):
             # filepath is broken
             pass
-        super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
+        return super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self):
         self.md_metadata_file.open("r")

@@ -91,7 +91,7 @@ BACKGROUND_PROCESS_PREFETCHES = [
 
 
 class HarvestingJobViewSetMixin():
-    queryset = HarvestingJob.objects.all()
+    queryset = HarvestingJob.objects.with_process_info()
     serializer_class = HarvestingJobSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", 'background_process__date_created']
@@ -145,52 +145,52 @@ class HarvestingJobViewSetMixin():
         ] + DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES,
     }
     prefetch_for_not_includes = {
-        "temporaryMdMetadataFiles": [
-            Prefetch(
-                "temporary_md_metadata_files",
-                queryset=TemporaryMdMetadataFile.objects.only(
-                    "id",
-                    "job_id",
-                ),
-            )
-        ],
-        "harvestedDatasetMetadata,newDatasetMetadataCount,updatedDatasetMetadataCount,existingDatasetMetadataCount,duplicatedDatasetMetadataCount": [
-            Prefetch(
-                "harvested_dataset_metadata",
-                queryset=HarvestedDatasetMetadataRelation.objects.only(
-                    "id"),
-            ), *DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES
-        ],
-        "harvestedServiceMetadata,newServiceMetadataCount,updatedServiceMetadataCount,existingServiceMetadataCount,duplicatedServiceMetadataCount": [
-            Prefetch(
-                "harvested_service_metadata",
-                queryset=HarvestedServiceMetadataRelation.objects.only(
-                    "id")
-            ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
-        ],
+        # "temporaryMdMetadataFiles": [
+        #     Prefetch(
+        #         "temporary_md_metadata_files",
+        #         queryset=TemporaryMdMetadataFile.objects.only(
+        #             "id",
+        #             "job_id",
+        #         ),
+        #     )
+        # ],
+        # "harvestedDatasetMetadata,newDatasetMetadataCount,updatedDatasetMetadataCount,existingDatasetMetadataCount,duplicatedDatasetMetadataCount": [
+        #     Prefetch(
+        #         "harvested_dataset_metadata",
+        #         queryset=HarvestedDatasetMetadataRelation.objects.only(
+        #             "id"),
+        #     ), *DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES
+        # ],
+        # "harvestedServiceMetadata,newServiceMetadataCount,updatedServiceMetadataCount,existingServiceMetadataCount,duplicatedServiceMetadataCount": [
+        #     Prefetch(
+        #         "harvested_service_metadata",
+        #         queryset=HarvestedServiceMetadataRelation.objects.only(
+        #             "id")
+        #     ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
+        # ],
     }
 
-    def get_queryset(self, *args, **kwargs):
-        qs = super().get_queryset(*args, **kwargs)
-        fields_snake = self.request.GET.get(
-            "fields[HarvestingJob]", "").split(',')
-        fields = [to_camel(field) for field in fields_snake if field.strip()]
+    # def get_queryset(self, *args, **kwargs):
+    #     qs = super().get_queryset(*args, **kwargs)
+    #     fields_snake = self.request.GET.get(
+    #         "fields[HarvestingJob]", "").split(',')
+    #     fields = [to_camel(field) for field in fields_snake if field.strip()]
 
-        if not fields or "fetchRecordDuration" in fields:
-            qs = qs.annotate(
-                fetch_record_duration=Sum(
-                    F('background_process__threads__date_done') -
-                    F('background_process__threads__date_created'),
-                    filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_fetch_records')),
-            )
-        if not fields or "mdMetadataFileToDbDuration" in fields:
-            qs = qs.annotate(
-                md_metadata_file_to_db_duration=Sum(
-                    F('background_process__threads__date_done') -
-                    F('background_process__threads__date_created'),
-                    filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_md_metadata_file_to_db')),
-            )
-        return qs
+    #     if not fields or "fetchRecordDuration" in fields:
+    #         qs = qs.annotate(
+    #             fetch_record_duration=Sum(
+    #                 F('background_process__threads__date_done') -
+    #                 F('background_process__threads__date_created'),
+    #                 filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_fetch_records')),
+    #         )
+    #     if not fields or "mdMetadataFileToDbDuration" in fields:
+    #         qs = qs.annotate(
+    #             md_metadata_file_to_db_duration=Sum(
+    #                 F('background_process__threads__date_done') -
+    #                 F('background_process__threads__date_created'),
+    #                 filter=Q(background_process__threads__task_name='registry.tasks.harvest.call_md_metadata_file_to_db')),
+    #         )
+    #     return qs
 
 
 class HarvestingJobViewSet(

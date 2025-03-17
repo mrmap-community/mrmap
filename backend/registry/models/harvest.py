@@ -1,10 +1,8 @@
-import operator
 import os
 import sys
-from functools import reduce
 from typing import List
 
-from celery import chord, states
+from celery import chord
 from django.contrib.gis.db import models
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
@@ -13,7 +11,6 @@ from django.db.models.query_utils import Q
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
-from extras.managers import DefaultHistoryManager
 from notify.enums import LogTypeEnum, ProcessNameEnum
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
@@ -21,7 +18,8 @@ from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.enums.harvesting import CollectingStatenEnum
 from registry.enums.metadata import MetadataOriginEnum
-from registry.managers.havesting import TemporaryMdMetadataFileManager
+from registry.managers.havesting import (HarvestingJobManager,
+                                         TemporaryMdMetadataFileManager)
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
@@ -139,7 +137,7 @@ class HarvestingJob(models.Model):
         related_name="change_logs",
     )
 
-    objects = DefaultHistoryManager()
+    objects = HarvestingJobManager()
 
     def add_harvested_metadata_relation(self, md_metadata, related_object, collecting_state):
         model = HarvestedServiceMetadataRelation
@@ -222,7 +220,7 @@ class HarvestingJob(models.Model):
         # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
         total_steps += self.total_records
 
-        BackgroundProcess.objects.select_for_update().filter(
+        BackgroundProcess.objects.filter(
             pk=self.background_process_id).update(total_steps=total_steps)
 
         transaction.on_commit(
@@ -417,35 +415,36 @@ class TemporaryMdMetadataFile(models.Model):
         return super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self):
-        self.md_metadata_file.open("r")
-        with self.md_metadata_file as _file:
+
+        with self.md_metadata_file.open('r') as _file:
 
             md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
                 string=_file.read(),
                 xmlclass=XmlMdMetadata)
             try:
-                with transaction.atomic():
-                    db_metadata = None
-                    if md_metadata.is_service:
-                        db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                            parsed_metadata=md_metadata,
-                            origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                            origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
-                    elif md_metadata.is_dataset:
-                        db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                            parsed_metadata=md_metadata,
-                            origin=MetadataOriginEnum.CATALOGUE.value if self.job else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                            origin_url=self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job else "http://localhost")
-                    else:
-                        raise NotImplementedError(
-                            f"file is neither server nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
-                    if db_metadata:
-                        if self.job:
-                            self.update_relations(
-                                md_metadata, exists, update, db_metadata)
+                db_metadata = None
+                update_or_create_kwargs = {
+                    'parsed_metadata': md_metadata,
+                    'origin': MetadataOriginEnum.CATALOGUE.value if self.job_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                    'origin_url': self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job_id else "http://localhost"
+                }
+                if md_metadata.is_service:
+                    db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                        **update_or_create_kwargs)
+                elif md_metadata.is_dataset:
+                    db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
+                        **update_or_create_kwargs)
+                else:
+                    raise NotImplementedError(
+                        f"file is neither server nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
+                if db_metadata:
+                    if self.job:
+                        self.update_relations(
+                            md_metadata, exists, update, db_metadata)
 
-                        self.delete()
-                        return db_metadata, update, exists
+                    self.delete()
+
+                    return db_metadata, update, exists
             except Exception as e:
                 import traceback
                 description = f"Can't handle this TemporaryMdMetadataFile with id {self.pk}. \n"

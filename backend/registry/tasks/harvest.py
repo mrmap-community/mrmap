@@ -127,6 +127,7 @@ def call_md_metadata_file_to_db(
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
     try:
+
         from registry.models.harvest import TemporaryMdMetadataFile
 
         temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.select_related(
@@ -135,11 +136,14 @@ def call_md_metadata_file_to_db(
             'job__service__auth',
             'job__background_process'
         ).get(pk=md_metadata_file_id)
+
         db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
 
-        self.update_background_process(
-            step_done=True
-        )
+        # TODO: this leaks in locking background_process row and finally leads into waiting issues...
+        # get step done by existing TemporaryMdMetadataFile related to the harvesting job...
+        # self.update_background_process(
+        #     step_done=True
+        # )
 
         return str(db_metadata.pk), update, exists
     except Exception:

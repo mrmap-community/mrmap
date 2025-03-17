@@ -125,6 +125,7 @@ class IsoMetadataManager(models.Manager):
 
     def update_or_create_from_parsed_metadata(self, parsed_metadata, origin_url, related_object=None, origin=MetadataOriginEnum.CATALOGUE.value):
         self._reset_local_variables()
+
         with transaction.atomic():
             update = False
             if parsed_metadata.is_service:
@@ -134,6 +135,7 @@ class IsoMetadataManager(models.Manager):
                     parsed_metadata=parsed_metadata,
                     origin_url=origin_url,
                     origin=origin)
+
             elif parsed_metadata.is_dataset:
                 db_metadata, exists, update = self._create_dataset_metadata_record(parsed_metadata=parsed_metadata,
                                                                                    origin_url=origin_url,
@@ -141,9 +143,11 @@ class IsoMetadataManager(models.Manager):
 
                 db_metadata.add_dataset_metadata_relation(
                     related_object=related_object)
+
                 if not exists:
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(str(parsed_metadata.serialize(), "UTF-8")))
+
                 elif update:
                     # TODO: on update we need to check custom metadata
                     # TODO: delete old file
@@ -181,13 +185,12 @@ class IsoMetadataManager(models.Manager):
                     try:
                         db_reference_system, created = ReferenceSystem.objects.get_or_create(
                             **kwargs)
-                        db_reference_system_list.append(db_reference_system)
+                        db_reference_system_list.append(
+                            db_reference_system)
                     except MultipleObjectsReturned:
                         logger.warning(
                             f"Multiple objects returned for model 'ReferenceSystem' with kwargs '{kwargs}'")
                 db_metadata.reference_systems.set(db_reference_system_list)
-
-            # TODO: categories
 
             return db_metadata, update, exists
 

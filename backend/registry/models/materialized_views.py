@@ -105,11 +105,11 @@ class SearchableDatasetMetadataRecord(SearchableMetadataRecordAbstract):
         managed = False
         indexes = SearchableMetadataRecordAbstract._meta.indexes
 
-
-@receiver(m2m_changed, sender=DatasetMetadataRecord.keywords.through)
-@receiver([post_save, post_delete], sender=DatasetMetadataRecord)
-def update_dataset_view(*args, **kwargs):
-    transaction.on_commit(lambda: SearchableDatasetMetadataRecord.refresh())
+# TODO: bad harvesting performance if views are refreshed on every save
+# @receiver(m2m_changed, sender=DatasetMetadataRecord.keywords.through)
+# @receiver([post_save, post_delete], sender=DatasetMetadataRecord)
+# def update_dataset_view(*args, **kwargs):
+#     transaction.on_commit(lambda: SearchableDatasetMetadataRecord.refresh())
 
 
 class SearchableServiceMetadataRecord(SearchableMetadataRecordAbstract):
@@ -126,8 +126,8 @@ class SearchableServiceMetadataRecord(SearchableMetadataRecordAbstract):
         managed = False
         indexes = SearchableMetadataRecordAbstract._meta.indexes
 
-
-@receiver(m2m_changed, sender=ServiceMetadataRecord.keywords.through)
-@receiver([post_save, post_delete], sender=ServiceMetadataRecord)
-def update_service_view(*args, **kwargs):
-    transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())
+# TODO: bad harvesting performance if views are refreshed on every save
+# @receiver(m2m_changed, sender=ServiceMetadataRecord.keywords.through)
+# @receiver([post_save, post_delete], sender=ServiceMetadataRecord)
+# def update_service_view(*args, **kwargs):
+#     transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())

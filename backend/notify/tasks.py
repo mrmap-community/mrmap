@@ -38,6 +38,7 @@ def get_background_process(task, *args, **kwargs):
     """To automaticly get the BackgroundProcess object on task runtime."""
     task.background_process_pk = kwargs["kwargs"].get(
         "background_process_pk", None)
+    return
     if not task.background_process_pk:
         return
 
@@ -72,6 +73,10 @@ class BackgroundProcessBased(Task):
             completed=True
         )
 
+    def update_state(self, task_id=None, state=None, meta=None, **kwargs):
+        pass
+        # return super().update_state(task_id, state, meta, **kwargs)
+
     def update_background_process(
         self,
         phase: str = "",
@@ -83,7 +88,7 @@ class BackgroundProcessBased(Task):
         # will be provided by get_background_process signal if the pk is provided by kwargs
         if hasattr(self, "background_process_pk"):
             try:
-                query = BackgroundProcess.objects.select_for_update().filter(
+                query = BackgroundProcess.objects.filter(
                     pk=self.background_process_pk)
                 kwargs = {}
                 send_post_save = False

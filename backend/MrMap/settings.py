@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import re
-import socket
 from glob import glob
 from warnings import warn
 
@@ -279,8 +278,8 @@ if is_this_a_celery_process():
     DATABASES["default"]["OPTIONS"] = {
         "pool": {
             "min_size": 10,
-            "max_size": 80,  # FIXME: depends on max celery worker threads are running parralel
-            "timeout": 30,
+            "max_size": 20,  # FIXME: depends on max celery worker threads are running parralel
+            "timeout": 10,
         }
     }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
@@ -315,7 +314,7 @@ CACHES = {
 ################################################################
 # Celery settings
 ################################################################
-CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_BACKEND = "django-cache"
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -515,13 +514,15 @@ LOGGING = {
             "facility": "user",
             "address": ("localhost", 1514),
         },
-        "file": {
-            "class": "logging.handlers.RotatingFileHandler",
-            "maxBytes": LOG_FILE_MAX_SIZE,
-            "backupCount": LOG_FILE_BACKUP_COUNT,
-            "filename": LOG_DIR + f"/{socket.gethostname()}-logs.log",
-            "formatter": "verbose",
-        },
+        # FIXME:!!!!!!
+        # DO NOT active filelogger for celery worker. Bottleneck!!!!!
+        # "file": {
+        #     "class": "logging.handlers.RotatingFileHandler",
+        #     "maxBytes": LOG_FILE_MAX_SIZE,
+        #     "backupCount": LOG_FILE_BACKUP_COUNT,
+        #     "filename": LOG_DIR + f"/{socket.gethostname()}-logs.log",
+        #     "formatter": "verbose",
+        # },
     },
     "loggers": {
         "MrMap.root": {
@@ -554,7 +555,7 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.MultiPartParser",
     ),
     "DEFAULT_RENDERER_CLASSES": [
-        # "extras.utils.BrowsableAPIRendererWithoutForms",
+        "extras.utils.BrowsableAPIRendererWithoutForms",
         "rest_framework_json_api.renderers.JSONRenderer",
     ],
 

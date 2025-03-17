@@ -6,9 +6,11 @@ from registry.models.harvest import (HarvestedDatasetMetadataRelation,
                                      HarvestedServiceMetadataRelation,
                                      HarvestingJob, TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
-from rest_framework_json_api.serializers import (DurationField,
+from rest_framework_json_api.relations import HyperlinkedRelatedField
+from rest_framework_json_api.serializers import (DurationField, FloatField,
                                                  HyperlinkedIdentityField,
-                                                 ModelSerializer,
+                                                 HyperlinkedModelSerializer,
+                                                 IntegerField, ModelSerializer,
                                                  ResourceRelatedField,
                                                  SerializerMethodField,
                                                  UniqueTogetherValidator)
@@ -52,22 +54,22 @@ class TemporaryMdMetadataFileSerializer(
 
 class HarvestingJobSerializer(
         StringRepresentationSerializer,
-        ModelSerializer):
+        HyperlinkedModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:harvestingjob-detail')
-    background_process = ResourceRelatedField(
-        model=BackgroundProcess,
-        label=_("Background Process"),
-        help_text=_("the parent of this node"),
-        read_only=True,)
-    temporary_md_metadata_files = ResourceRelatedField(
+    # background_process = ResourceRelatedField(
+    #     model=BackgroundProcess,
+    #     label=_("Background Process"),
+    #     help_text=_("the parent of this node"),
+    #     read_only=True,)
+    temporary_md_metadata_files = HyperlinkedRelatedField(
         many=True,
         related_link_view_name='registry:harvestingjob-temporarymdmetadatafiles-list',
         related_link_url_kwarg='parent_lookup_job',
         label=_("Temporary Md Metadata File"),
         help_text=_("collected records"),
         read_only=True,)
-    harvested_dataset_metadata = ResourceRelatedField(
+    harvested_dataset_metadata = HyperlinkedRelatedField(
         many=True,
         related_link_view_name='registry:harvestingjob-harvesteddatasetmetadatarelations-list',
         related_link_url_kwarg='parent_lookup_harvesting_job',
@@ -75,7 +77,7 @@ class HarvestingJobSerializer(
         help_text=_(
             "all harvested dataset metadata records with collecting state"),
         read_only=True,)
-    harvested_service_metadata = ResourceRelatedField(
+    harvested_service_metadata = HyperlinkedRelatedField(
         many=True,
         related_link_view_name='registry:harvestingjob-harvestedservicemetadatarelations-list',
         related_link_url_kwarg='parent_lookup_harvesting_job',
@@ -84,17 +86,21 @@ class HarvestingJobSerializer(
             "all harvested service metadata records with collecting state"),
         read_only=True,)
 
-    new_dataset_metadata_count = SerializerMethodField(read_only=True)
-    updated_dataset_metadata_count = SerializerMethodField(read_only=True)
-    existing_dataset_metadata_count = SerializerMethodField(read_only=True)
-    duplicated_dataset_metadata_count = SerializerMethodField(read_only=True)
-    new_service_metadata_count = SerializerMethodField(read_only=True)
-    updated_service_metadata_count = SerializerMethodField(read_only=True)
-    existing_service_metadata_count = SerializerMethodField(read_only=True)
-    duplicated_service_metadata_count = SerializerMethodField(read_only=True)
+    # new_dataset_metadata_count = SerializerMethodField(read_only=True)
+    # updated_dataset_metadata_count = SerializerMethodField(read_only=True)
+    # existing_dataset_metadata_count = SerializerMethodField(read_only=True)
+    # duplicated_dataset_metadata_count = SerializerMethodField(read_only=True)
+    # new_service_metadata_count = SerializerMethodField(read_only=True)
+    # updated_service_metadata_count = SerializerMethodField(read_only=True)
+    # existing_service_metadata_count = SerializerMethodField(read_only=True)
+    # duplicated_service_metadata_count = SerializerMethodField(read_only=True)
 
-    fetch_record_duration = DurationField(read_only=True)
-    md_metadata_file_to_db_duration = DurationField(read_only=True)
+    # fetch_record_duration = DurationField(read_only=True)
+    # md_metadata_file_to_db_duration = DurationField(read_only=True)
+
+    total_steps = IntegerField(read_only=True)
+    done_steps = IntegerField(read_only=True)
+    progress = FloatField(read_only=True)
 
     included_serializers = {
         'service': CatalogueServiceSerializer,
@@ -117,26 +123,26 @@ class HarvestingJobSerializer(
             )
         ]
 
-    def get_new_dataset_metadata_count(self, obj):
-        return len(obj.new_dataset_metadata) if hasattr(obj, 'new_dataset_metadata') else None
+    # def get_new_dataset_metadata_count(self, obj):
+    #     return len(obj.new_dataset_metadata) if hasattr(obj, 'new_dataset_metadata') else None
 
-    def get_updated_dataset_metadata_count(self, obj):
-        return len(obj.updated_dataset_metadata) if hasattr(obj, 'updated_dataset_metadata') else None
+    # def get_updated_dataset_metadata_count(self, obj):
+    #     return len(obj.updated_dataset_metadata) if hasattr(obj, 'updated_dataset_metadata') else None
 
-    def get_existing_dataset_metadata_count(self, obj):
-        return len(obj.existing_dataset_metadata) if hasattr(obj, 'existing_dataset_metadata') else None
+    # def get_existing_dataset_metadata_count(self, obj):
+    #     return len(obj.existing_dataset_metadata) if hasattr(obj, 'existing_dataset_metadata') else None
 
-    def get_duplicated_dataset_metadata_count(self, obj):
-        return len(obj.duplicated_dataset_metadata) if hasattr(obj, 'duplicated_dataset_metadata') else None
+    # def get_duplicated_dataset_metadata_count(self, obj):
+    #     return len(obj.duplicated_dataset_metadata) if hasattr(obj, 'duplicated_dataset_metadata') else None
 
-    def get_new_service_metadata_count(self, obj):
-        return len(obj.new_service_metadata) if hasattr(obj, 'new_service_metadata') else None
+    # def get_new_service_metadata_count(self, obj):
+    #     return len(obj.new_service_metadata) if hasattr(obj, 'new_service_metadata') else None
 
-    def get_updated_service_metadata_count(self, obj):
-        return len(obj.updated_service_metadata) if hasattr(obj, 'updated_service_metadata') else None
+    # def get_updated_service_metadata_count(self, obj):
+    #     return len(obj.updated_service_metadata) if hasattr(obj, 'updated_service_metadata') else None
 
-    def get_existing_service_metadata_count(self, obj):
-        return len(obj.existing_service_metadata) if hasattr(obj, 'existing_service_metadata') else None
+    # def get_existing_service_metadata_count(self, obj):
+    #     return len(obj.existing_service_metadata) if hasattr(obj, 'existing_service_metadata') else None
 
-    def get_duplicated_service_metadata_count(self, obj):
-        return len(obj.duplicated_service_metadata) if hasattr(obj, 'duplicated_service_metadata') else None
+    # def get_duplicated_service_metadata_count(self, obj):
+    #     return len(obj.duplicated_service_metadata) if hasattr(obj, 'duplicated_service_metadata') else None

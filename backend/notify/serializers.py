@@ -58,6 +58,10 @@ class BackgroundProcessSerializer(
         read_only=True,
         label=_("date created"),
         help_text=_("the datetime when the first thread was created"))
+    done_at = DateTimeField(
+        read_only=True,
+        label=_("date at"),
+        help_text=_("the datetime when the last thread was finished"))
     progress = FloatField(
         read_only=True,
         label=_("progress"),
@@ -66,17 +70,17 @@ class BackgroundProcessSerializer(
         read_only=True,
         label=_("status"),
         help_text=_("the current status, aggregated from all threads."))
-    logs = ResourceRelatedField(
-        queryset=BackgroundProcessLog.objects,
-        many=True,
-        related_link_view_name='notify:backgroundprocess-logs-list',
-        related_link_url_kwarg='parent_lookup_background_process'
-    )
+    # logs = ResourceRelatedField(
+    #    queryset=BackgroundProcessLog.objects,
+    #    many=True,
+    #    related_link_view_name='notify:backgroundprocess-logs-list',
+    #    related_link_url_kwarg='parent_lookup_background_process'
+    # )
 
     class Meta:
         model = BackgroundProcess
-        fields = "__all__"
+        exclude = ("threads", "celery_task_ids")
 
-    included_serializers = {
-        'logs': BackgroundProcessLogSerializer,
-    }
+    # included_serializers = {
+    #    'logs': BackgroundProcessLogSerializer,
+    # }

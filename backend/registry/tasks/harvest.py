@@ -71,9 +71,6 @@ def call_fetch_records(
     fetched_records = harvesting_job.fetch_records(
         start_position=start_position)
 
-    self.update_background_process(
-        step_done=True
-    )
     return fetched_records
 
 
@@ -127,7 +124,6 @@ def call_md_metadata_file_to_db(
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
     try:
-
         from registry.models.harvest import TemporaryMdMetadataFile
 
         temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.select_related(
@@ -138,12 +134,6 @@ def call_md_metadata_file_to_db(
         ).get(pk=md_metadata_file_id)
 
         db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
-
-        # TODO: this leaks in locking background_process row and finally leads into waiting issues...
-        # get step done by existing TemporaryMdMetadataFile related to the harvesting job...
-        # self.update_background_process(
-        #     step_done=True
-        # )
 
         return str(db_metadata.pk), update, exists
     except Exception:

@@ -1,6 +1,7 @@
 from celery import states
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
@@ -16,6 +17,7 @@ class BackgroundProcess(models.Model):
         related_name='processes',
         related_query_name='process',
         blank=True)
+    celery_task_ids = ArrayField(models.UUIDField(), default=list, blank=True)
     date_created = models.DateTimeField(
         auto_now_add=True,
         verbose_name=_('Created DateTime'),
@@ -84,7 +86,8 @@ class BackgroundProcess(models.Model):
 
         unready_tasks = self.threads.filter(
             status__in=states.UNREADY_STATES).values_list("task_id", flat=True)
-        return list(set(list(unready_tasks) + task_ids))
+
+        return list(set(list(unready_tasks) + task_ids + self.celery_task_ids))
 
     def save(self, *args, **kwargs):
         if self.phase == "abort":

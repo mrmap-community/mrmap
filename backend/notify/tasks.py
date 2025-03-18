@@ -9,28 +9,10 @@ from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.utils.timezone import now
-from django_celery_results.models import TaskResult
 from notify.models import BackgroundProcess
 from requests.exceptions import ConnectionError, Timeout
 
 logger: Logger = settings.ROOT_LOGGER
-
-
-def get_background_process_if_exists(background_process_pk):
-    try:
-        return BackgroundProcess.objects.get(
-            pk=background_process_pk)
-    except BackgroundProcess.ObjectDoesNotExist as e:
-        logger.exception(e, stack_info=True, exc_info=True)
-
-
-def append_task_to_background_process(task_pk, background_process_pk):
-    if background_process_pk:
-        background_process = get_background_process_if_exists(
-            background_process_pk)
-        if background_process:
-            background_process.threads.add(
-                *TaskResult.objects.filter(pk=task_pk))
 
 
 @task_prerun.connect
@@ -38,25 +20,6 @@ def get_background_process(task, *args, **kwargs):
     """To automaticly get the BackgroundProcess object on task runtime."""
     task.background_process_pk = kwargs["kwargs"].get(
         "background_process_pk", None)
-    return
-    if not task.background_process_pk:
-        return
-
-    time = now()
-    with transaction.atomic():
-        task_result, _ = TaskResult.objects.select_for_update().update_or_create(
-            task_id=task.request.id,
-            defaults={
-                "date_created": time,
-                "date_done": time
-            }
-        )
-        transaction.on_commit(
-            lambda: append_task_to_background_process(
-                task_result.pk,
-                task.background_process_pk
-            )
-        )
 
 
 class BackgroundProcessBased(Task):

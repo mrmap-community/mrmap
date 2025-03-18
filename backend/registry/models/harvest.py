@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import List
+from uuid import uuid4
 
 from celery import chord
 from django.contrib.gis.db import models
@@ -29,12 +30,26 @@ from simple_history.models import HistoricalRecords
 
 
 class HarvestedMetadataRelation(models.Model):
-    harvesting_job = models.ForeignKey(to="registry.HarvestingJob",
-                                       on_delete=models.CASCADE,
-                                       related_name="%(app_label)s_%(class)ss",
-                                       related_query_name="%(app_label)s_%(class)s")
-    collecting_state = models.CharField(max_length=10,
-                                        choices=CollectingStatenEnum.choices)
+    harvesting_job = models.ForeignKey(
+        to="registry.HarvestingJob",
+        on_delete=models.CASCADE,
+        related_name="%(app_label)s_%(class)ss",
+        related_query_name="%(app_label)s_%(class)s")
+    collecting_state = models.CharField(
+        max_length=10,
+        choices=CollectingStatenEnum.choices)
+    download_duration = models.DurationField(
+        null=True,
+        blank=True,
+        verbose_name=_("download duration"),
+        help_text=_("This is the duration it tooked proportionately to download this record. "
+                    "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"
+                    "To get the download duration over all for one harvesting job, aggregate this col."))
+    processing_duration = models.DurationField(
+        null=True,
+        blank=True,
+        verbose_name=_("processing duration"),
+        help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
 
     class Meta:
         abstract = True
@@ -106,6 +121,11 @@ class HarvestingJob(models.Model):
         help_text=_("the csw for that this job is running"),
         related_name="harvesting_jobs",
         related_query_name="harvesting_job")
+    max_step_size = models.IntegerField(
+        verbose_name=_("max step size"),
+        help_text=_(
+            "the maximum step size this csw can handle by a single GetRecords request."),
+        default=50)
     background_process = models.ForeignKey(
         to=BackgroundProcess,
         on_delete=models.PROTECT,
@@ -139,11 +159,13 @@ class HarvestingJob(models.Model):
 
     objects = HarvestingJobManager()
 
-    def add_harvested_metadata_relation(self, md_metadata, related_object, collecting_state):
+    def add_harvested_metadata_relation(self, md_metadata, related_object, collecting_state, download_duration, processing_duration):
         model = HarvestedServiceMetadataRelation
         kwargs = {"service_metadata_record": related_object,
                   "harvesting_job": self,
-                  "collecting_state": collecting_state}
+                  "collecting_state": collecting_state,
+                  "download_duration": download_duration,
+                  "processing_duration": processing_duration}
         if md_metadata.is_dataset:
             model = HarvestedDatasetMetadataRelation
             kwargs.pop("service_metadata_record")
@@ -178,12 +200,20 @@ class HarvestingJob(models.Model):
         # save to get the id of the object
         ret = super(HarvestingJob, self).save(*args, **kwargs)
 
+        task_id = uuid4()
+        task = call_fetch_total_records.s(
+            harvesting_job_id=self.pk,
+            http_request=self._http_request(),
+            background_process_pk=self.background_process_id
+        )
+        task.set(task_id=str(task_id))
+
+        bp = self.background_process
+        bp.celery_task_ids.append(task_id)
+        bp.save()
+
         transaction.on_commit(
-            func=lambda: call_fetch_total_records.delay(
-                harvesting_job_id=self.pk,
-                http_request=self._http_request(),
-                background_process_pk=self.background_process_id
-            ),
+            func=lambda: task.apply_async(),
             robust=False
         )
         return ret
@@ -197,15 +227,28 @@ class HarvestingJob(models.Model):
 
         from registry.tasks.harvest import \
             call_fetch_records  # to avoid circular import errors
-
-        tasks = [
-            call_fetch_records.s(
+        task_ids = []
+        tasks = []
+        for number in range(0, round_trips):
+            task_id = uuid4()
+            task = call_fetch_records.s(
                 harvesting_job_id=self.pk,
                 start_position=number * self.service.max_step_size + 1,
                 http_request=self._http_request(),
                 background_process_pk=self.background_process_id,
-            ) for number in range(0, round_trips)
-        ]
+            )
+            task.set(task_id=str(task_id))
+            task_ids.append(task_id)
+            tasks.append(task)
+
+        callback_id = uuid4()
+        task_ids.append(callback_id)
+
+        callback = call_chord_md_metadata_file_to_db.s(
+            http_request=self._http_request(),
+            background_process_pk=self.background_process_id,
+        )
+        callback.set(task_id=str(callback_id))
 
         """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
             The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
@@ -220,14 +263,13 @@ class HarvestingJob(models.Model):
         # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
         total_steps += self.total_records
 
-        BackgroundProcess.objects.filter(
-            pk=self.background_process_id).update(total_steps=total_steps)
+        bp = self.background_process
+        bp.total_steps = total_steps
+        bp.celery_task_ids.extend(task_ids)
+        bp.save()
 
         transaction.on_commit(
-            func=lambda: chord(tasks)(call_chord_md_metadata_file_to_db.s(
-                http_request=self._http_request(),
-                background_process_pk=self.background_process_id,
-            ))
+            func=lambda: chord(tasks)(callback)
         )
 
     # TODO: implement three phases:
@@ -305,7 +347,7 @@ class HarvestingJob(models.Model):
     def fetch_records(self, start_position) -> List[int]:
         client = self.service.client
         request = client.get_records_request(
-            max_records=self.service.max_step_size,
+            max_records=self.max_step_size,
             start_position=start_position,
             result_type="results",
             xml_constraint=client.get_constraint(
@@ -331,9 +373,12 @@ class HarvestingJob(models.Model):
 
         md_metadata: XmlMdMetadata
         db_md_metadata_file_list = []
+        records_count = len(get_records_response.gmd_records)
         for idx, md_metadata in enumerate(get_records_response.gmd_records):
             db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
-                job=self)
+                job=self,
+                download_duration=response.elapsed / records_count
+            )
             # save the file without saving the instance in db... this will be done with bulk_create
             db_md_metadata_file.md_metadata_file.save(
                 name=f"record_nr_{idx + start_position}",
@@ -361,6 +406,7 @@ def response_file_path(instance, filename):
 
 
 class TemporaryMdMetadataFile(models.Model):
+    """This are the unhalded records."""
     job: HarvestingJob = models.ForeignKey(
         to=HarvestingJob,
         on_delete=models.CASCADE,
@@ -372,18 +418,21 @@ class TemporaryMdMetadataFile(models.Model):
         verbose_name=_("response"),
         help_text=_(
             "the content of the http response, or of the imported file"),
-        upload_to=response_file_path,
-    )
+        upload_to=response_file_path)
     re_schedule = models.BooleanField(
         default=False,
-        help_text=_("to re run to db task")
-    )
+        help_text=_("to re run to db task"))
     import_error = models.TextField(
         verbose_name=_("import error"),
         help_text=_("raised error while importing"),
         default="",
-        blank=True
-    )
+        blank=True)
+    download_duration = models.DurationField(
+        null=True,
+        blank=True,
+        verbose_name=_("download duration"),
+        help_text=_("This is the duration it tooked proportionately to download this record. "
+                    "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"))
 
     objects: TemporaryMdMetadataFileManager = TemporaryMdMetadataFileManager()
 
@@ -428,6 +477,7 @@ class TemporaryMdMetadataFile(models.Model):
                     'origin': MetadataOriginEnum.CATALOGUE.value if self.job_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
                     'origin_url': self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job_id else "http://localhost"
                 }
+                start_db_processing = now()
                 if md_metadata.is_service:
                     db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
                         **update_or_create_kwargs)
@@ -439,9 +489,14 @@ class TemporaryMdMetadataFile(models.Model):
                         f"file is neither server nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
                 if db_metadata:
                     if self.job:
+                        end_db_processing = now()
                         self.update_relations(
-                            md_metadata, exists, update, db_metadata)
-
+                            md_metadata,
+                            exists,
+                            update,
+                            db_metadata,
+                            end_db_processing - start_db_processing
+                        )
                     self.delete()
 
                     return db_metadata, update, exists
@@ -462,10 +517,14 @@ class TemporaryMdMetadataFile(models.Model):
                 self.save()
                 raise e
 
-    def update_relations(self, md_metadata, exists, update, db_metadata):
+    def update_relations(self, md_metadata, exists, update, db_metadata, duration):
+        # TODO: is this relation still needed? Or is it enough to collect the harvested through by the harvested_metadata_relations?
         db_metadata.harvested_through.add(self.job.service)
+
         collecting_state = CollectingStatenEnum.UPDATED if exists and update else CollectingStatenEnum.EXISTING if exists and not update else CollectingStatenEnum.NEW
         self.job.add_harvested_metadata_relation(
             md_metadata,
             db_metadata,
-            collecting_state)
+            collecting_state,
+            self.download_duration,
+            duration)

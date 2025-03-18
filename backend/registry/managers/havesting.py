@@ -1,10 +1,11 @@
 from django.db import models, transaction
 from django.db.models import Case, Count, F, Q, Value, When
 from django.db.models.functions import Ceil, Round
+from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
 
 
-class HarvestingJobManager(DefaultHistoryManager):
+class HarvestingJobManager(DefaultHistoryManager, CTEManager):
 
     def with_process_info(self):
         qs = self.get_queryset()
@@ -12,7 +13,7 @@ class HarvestingJobManager(DefaultHistoryManager):
         qs = qs.annotate(
             unhandled_records_count=Count("temporary_md_metadata_file"),
             download_tasks_count=Ceil(
-                F("total_records") / F("service__max_step_size"))
+                F("total_records") / F("max_step_size"))
         ).annotate(
             # + 1 for call_fetch_total_records
             total_steps=F("download_tasks_count") +
@@ -22,7 +23,8 @@ class HarvestingJobManager(DefaultHistoryManager):
                 When(
                     condition=Q(
                         background_process__phase__icontains="Harvesting is running..."),
-                    then=1 + F("unhandled_records_count")
+                    then=1 + Ceil(F("unhandled_records_count") /
+                                  F("max_step_size"))
                 ),
                 When(
                     condition=Q(

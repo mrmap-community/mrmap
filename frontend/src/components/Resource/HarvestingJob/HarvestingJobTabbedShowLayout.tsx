@@ -3,7 +3,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import RemoveDoneIcon from '@mui/icons-material/RemoveDone';
 import { Chip, CircularProgress, Typography } from '@mui/material';
 import { ReactNode, useCallback, useMemo } from 'react';
-import { BooleanField, DateField, FunctionField, Identifier, Loading, NumberField, TabbedShowLayout, TextField, useCreatePath, useShowContext } from 'react-admin';
+import { BooleanField, DateField, Identifier, Loading, NumberField, TabbedShowLayout, TextField, useCreatePath, useShowContext } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import { Count } from '../../../jsonapi/components/Count';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
@@ -72,7 +72,7 @@ const HarvestingJobTabbedShowLayout = () => {
       getNestedListTab(name, 'HarvestedDatasetMetadataRelation', record?.id, 'Datasets', ['datasetMetadataRecord'], true),
       getNestedListTab(name,'HarvestedServiceMetadataRelation', record?.id, 'Services', ['serviceMetadataRecord'], true),
       getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.id, 'Logs', undefined, true),
-      getNestedListTab('BackgroundProcess', 'TaskResult', record?.backgroundProcess?.id, 'Task Results', undefined,true)
+      //getNestedListTab('BackgroundProcess', 'TaskResult', record?.backgroundProcess?.id, 'Task Results', undefined,true)
     ]
   },[record])
 
@@ -101,11 +101,11 @@ const HarvestingJobTabbedShowLayout = () => {
           <NumberField source="totalRecords"/>
           <DateField source="backgroundProcess.dateCreated" showTime emptyText='-'/>
           <DateField source="backgroundProcess.doneAt" showTime emptyText='-'/>
-          <FunctionField source="backgroundProcess.status" render={record => renderStatus(record?.backgroundProcess?.status)}/>
+          {/**<FunctionField source="backgroundProcess.status" render={record => renderStatus(record?.backgroundProcess?.status)}/>*/}
           <TextField source="backgroundProcess.phase"/>
-          <NumberField source="backgroundProcess.totalSteps"/>
-          <NumberField source="backgroundProcess.doneSteps"/>
-          <ProgressField source="backgroundProcess.progress" color={progressColor}/>
+          <NumberField source="totalSteps"/>
+          <NumberField source="doneSteps"/>
+          <ProgressField source="progress" color={progressColor}/>
         </TabbedShowLayout.Tab>
         {...tabs}
       </TabbedShowLayout>

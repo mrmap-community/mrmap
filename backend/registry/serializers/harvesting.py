@@ -1,18 +1,15 @@
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
-from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
+from registry.enums.harvesting import CollectingStatenEnum
 from registry.models.harvest import (HarvestedDatasetMetadataRelation,
                                      HarvestedServiceMetadataRelation,
                                      HarvestingJob, TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
-from rest_framework_json_api.relations import HyperlinkedRelatedField
 from rest_framework_json_api.serializers import (DurationField, FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,
-                                                 ResourceRelatedField,
-                                                 SerializerMethodField,
                                                  UniqueTogetherValidator)
 
 
@@ -86,14 +83,14 @@ class HarvestingJobSerializer(
     #        "all harvested service metadata records with collecting state"),
     #    read_only=True,)
 
-    # new_dataset_metadata_count = SerializerMethodField(read_only=True)
-    # updated_dataset_metadata_count = SerializerMethodField(read_only=True)
-    # existing_dataset_metadata_count = SerializerMethodField(read_only=True)
-    # duplicated_dataset_metadata_count = SerializerMethodField(read_only=True)
-    # new_service_metadata_count = SerializerMethodField(read_only=True)
-    # updated_service_metadata_count = SerializerMethodField(read_only=True)
-    # existing_service_metadata_count = SerializerMethodField(read_only=True)
-    # duplicated_service_metadata_count = SerializerMethodField(read_only=True)
+    new_dataset_metadata_count = IntegerField(read_only=True)
+    updated_dataset_metadata_count = IntegerField(read_only=True)
+    existing_dataset_metadata_count = IntegerField(read_only=True)
+    duplicated_dataset_metadata_count = IntegerField(read_only=True)
+    new_service_metadata_count = IntegerField(read_only=True)
+    updated_service_metadata_count = IntegerField(read_only=True)
+    existing_service_metadata_count = IntegerField(read_only=True)
+    duplicated_service_metadata_count = IntegerField(read_only=True)
 
     fetch_record_duration = DurationField(read_only=True)
     md_metadata_file_to_db_duration = DurationField(read_only=True)
@@ -125,27 +122,3 @@ class HarvestingJobSerializer(
                     "There is an existing running harvesting job for this service.")
             )
         ]
-
-    # def get_new_dataset_metadata_count(self, obj):
-    #     return len(obj.new_dataset_metadata) if hasattr(obj, 'new_dataset_metadata') else None
-
-    # def get_updated_dataset_metadata_count(self, obj):
-    #     return len(obj.updated_dataset_metadata) if hasattr(obj, 'updated_dataset_metadata') else None
-
-    # def get_existing_dataset_metadata_count(self, obj):
-    #     return len(obj.existing_dataset_metadata) if hasattr(obj, 'existing_dataset_metadata') else None
-
-    # def get_duplicated_dataset_metadata_count(self, obj):
-    #     return len(obj.duplicated_dataset_metadata) if hasattr(obj, 'duplicated_dataset_metadata') else None
-
-    # def get_new_service_metadata_count(self, obj):
-    #     return len(obj.new_service_metadata) if hasattr(obj, 'new_service_metadata') else None
-
-    # def get_updated_service_metadata_count(self, obj):
-    #     return len(obj.updated_service_metadata) if hasattr(obj, 'updated_service_metadata') else None
-
-    # def get_existing_service_metadata_count(self, obj):
-    #     return len(obj.existing_service_metadata) if hasattr(obj, 'existing_service_metadata') else None
-
-    # def get_duplicated_service_metadata_count(self, obj):
-    #     return len(obj.duplicated_service_metadata) if hasattr(obj, 'duplicated_service_metadata') else None

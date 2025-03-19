@@ -207,6 +207,25 @@ class PreloadNotIncludesMixin:
         return qs
 
 
+class SparseFieldMixin:
+    def initial(self, *args, **kwargs):
+        # todo: get all sparsefield parameters
+        fields_snake = self.request.GET.get(
+            f"fields[{self.queryset.model.__name__}]", "").split(',')
+        self.sparse_fields = {
+            self.queryset.model.__name__: [
+                to_camel(field) for field in fields_snake if field.strip()]
+        }
+        super().initial(*args, **kwargs)
+
+    def get_sparse_fields(self, resource):
+        return self.sparse_fields.get(resource, [])
+
+    def check_sparse_fields_contains(self, fieldname):
+        fields = self.get_sparse_fields(self.queryset.model.__name__)
+        return not fields or fieldname in fields
+
+
 class NestedModelViewSet(
     NestedViewSetMixin, AutoPrefetchMixin, PreloadIncludesMixin, RelatedMixin, mixins.ListModelMixin,
         GenericViewSet

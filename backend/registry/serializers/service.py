@@ -598,6 +598,9 @@ class CatalogueServiceSerializer(
     url = HyperlinkedIdentityField(
         view_name="registry:csw-detail",
     )
+    harvested_dataset_count = IntegerField(read_only=True)
+    harvested_service_count = IntegerField(read_only=True)
+    harvested_total_count = IntegerField(read_only=True)
     # TODO: deprecated;
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
     # registry_datasetmetadatarecord

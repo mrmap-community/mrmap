@@ -33,6 +33,11 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
                                F("total_records") -
                                  F("unhandled_records_count")
                 ),
+                When(
+                    condition=Q(
+                        background_process__phase__icontains="completed"),
+                    then=F("total_steps")
+                ),
                 default=0
             )
         ).annotate(

@@ -71,7 +71,9 @@ const HarvestingJobTabbedShowLayout = () => {
     return[
       getNestedListTab(name, 'HarvestedDatasetMetadataRelation', record?.id, 'Datasets', ['datasetMetadataRecord'], true),
       getNestedListTab(name,'HarvestedServiceMetadataRelation', record?.id, 'Services', ['serviceMetadataRecord'], true),
-      getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.id, 'Logs', undefined, true),
+      getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.backgroundProcess?.id, 'Logs', undefined, true),
+      getNestedListTab(name, 'TemporaryMdMetadataFile', record?.id, 'Unhandled Records', undefined, true),
+
       //getNestedListTab('BackgroundProcess', 'TaskResult', record?.backgroundProcess?.id, 'Task Results', undefined,true)
     ]
   },[record])

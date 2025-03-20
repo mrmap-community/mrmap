@@ -15,17 +15,17 @@ const HarvestResultPieChart = () => {
   const navigate = useNavigate();
 
   const data = useMemo(() => {
-    const total = record?.totalRecords
-
-    const handledDatasetRecords = record?.newDatasetMetadataCount + record?.existingDatasetMetadataCount + record?.updatedDatasetMetadataCount + record?.duplicatedDatasetMetadataCount
-    const handledServiceRecords = record?.newServiceMetadataCount + record?.existingServiceMetadataCount + record?.updatedServiceMetadataCount + record?.duplicatedServiceMetadataCount
-    const unhandledRecords = total - handledDatasetRecords - handledServiceRecords
-
+    
     return [
-      ...unhandledRecords >0 ? [{ 
+      ...record?.importErrorCount > 0 ? [{ 
+        id:'i_e', 
+        label: 'Import Errrors', 
+        value: record?.importErrorCount
+      }]: [],
+      ...record?.unhandledRecordsCount > 0 ? [{ 
         id:'u_r', 
         label: 'Unhandled Records', 
-        value: unhandledRecords
+        value: record?.unhandledRecordsCount
       }]: [],
       ...record?.newDatasetMetadataCount > 0 ? [{ 
         id:'n_d', 

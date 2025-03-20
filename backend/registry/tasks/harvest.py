@@ -81,17 +81,18 @@ def call_fetch_records(
 )
 def call_chord_md_metadata_file_to_db(
     self,
-    md_metadata_file_ids: [int],
+    callback_pass_through,
+    harvesting_job_id,
     http_request,
     background_process_pk,
+    *args,
     **kwargs
 ):
-    # build flat list from incomming id's which are passed by parent chord to this as his callback.
-    ids = [
-        x
-        for xs in md_metadata_file_ids
-        for x in xs
-    ]
+    from registry.models.harvest import TemporaryMdMetadataFile
+
+    ids = TemporaryMdMetadataFile.objects.filter(
+        job_id=harvesting_job_id).values_list("pk", flat=True)
+
     to_db_tasks = [
         call_md_metadata_file_to_db.s(
             md_metadata_file_id=id,

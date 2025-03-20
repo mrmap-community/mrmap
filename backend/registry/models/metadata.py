@@ -721,7 +721,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
             # we store only atomic dataset metadata records, identified by the remote url and the iso metadata file
             # identifier
             models.UniqueConstraint(
-                fields=['code', 'code_space'],
+                fields=['file_identifier', 'code', 'code_space'],
                 # empty values signals that, this dataset is broken.
                 # This is a real world problem for that we support storing "duplicated" entries
                 # For all correct dataset records the unique constraint shall be used!

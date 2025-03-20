@@ -9,6 +9,7 @@ from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
+from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
@@ -132,6 +133,7 @@ class HarvestingJob(models.Model):
         editable=False,)
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
+
     total_records: int = models.IntegerField(
         null=True,
         blank=True,
@@ -159,7 +161,13 @@ class HarvestingJob(models.Model):
 
     objects = HarvestingJobManager()
 
-    def add_harvested_metadata_relation(self, md_metadata, related_object, collecting_state, download_duration, processing_duration):
+    def add_harvested_metadata_relation(
+            self,
+            md_metadata,
+            related_object,
+            collecting_state,
+            download_duration,
+            processing_duration):
         model = HarvestedServiceMetadataRelation
         kwargs = {"service_metadata_record": related_object,
                   "harvesting_job": self,
@@ -177,78 +185,73 @@ class HarvestingJob(models.Model):
                 kwargs.update(
                     {"collecting_state": CollectingStatenEnum.DUPLICATED.value})
                 db_obj = model.objects.create(**kwargs)
-                BackgroundProcessLog.objects.create(
-                    background_process=self.background_process,
-                    log_type=LogTypeEnum.WARNING.value,
-                    description="Duplicated Record collected.\n" +
-                    f"pk: {related_object.pk}" +
-                    f"code: {related_object.code}" +
-                    f"code space: {related_object.code_space}" +
-                    f"fileidentifier: {related_object.file_identifier}"
-                )
                 return db_obj
 
     def handle_adding(self, *args, **kwargs):
-        from registry.tasks.harvest import \
-            call_fetch_total_records  # to avoid circular import errors
-        self.background_process = BackgroundProcess.objects.create(
-            phase="Get total records of the catalogue",
-            process_type=ProcessNameEnum.HARVESTING.value,
-            description=f'Harvesting job for service {self.service.pk}',
-            service=self.service
-        )
-        # save to get the id of the object
-        ret = super(HarvestingJob, self).save(*args, **kwargs)
+        # atomic block is needed. Otherwise the on_commit() will fire immediately:
+        # see docs: https://docs.djangoproject.com/en/5.1/topics/db/transactions/#timing-of-execution
+        with transaction.atomic():
+            from registry.tasks.harvest import \
+                call_fetch_total_records  # to avoid circular import errors
+            self.background_process = BackgroundProcess.objects.create(
+                phase="Get total records of the catalogue",
+                process_type=ProcessNameEnum.HARVESTING.value,
+                description=f'Harvesting job for service {self.service.pk}',
+                service=self.service
+            )
+            # save to get the id of the object
+            ret = super(HarvestingJob, self).save(*args, **kwargs)
 
-        task_id = uuid4()
-        task = call_fetch_total_records.s(
-            harvesting_job_id=self.pk,
-            http_request=self._http_request(),
-            background_process_pk=self.background_process_id
-        )
-        task.set(task_id=str(task_id))
+            task_id = uuid4()
+            task = call_fetch_total_records.s(
+                harvesting_job_id=self.pk,
+                http_request=self._http_request(),
+                background_process_pk=self.background_process_id
+            )
+            task.set(task_id=str(task_id))
 
-        bp = self.background_process
-        bp.celery_task_ids.append(task_id)
-        bp.save()
+            self.background_process.celery_task_ids.append(task_id)
+            self.background_process.save()
 
-        transaction.on_commit(
-            func=lambda: task.apply_async(),
-            robust=False
-        )
-        return ret
+            transaction.on_commit(func=lambda: task.apply_async())
+            return ret
 
     def handle_total_records_defined(self):
         """total records is known now. Calculate roundtrips and start parallel harvesting tasks"""
+        with transaction.atomic():
+            round_trips = (self.total_records //
+                           self.max_step_size)
+            round_trips += 1 if self.total_records % self.max_step_size > 0 else 0
 
-        round_trips = (self.total_records //
-                       self.service.max_step_size)
-        round_trips += 1 if self.total_records % self.service.max_step_size > 0 else 0
+            from registry.tasks.harvest import \
+                call_fetch_records  # to avoid circular import errors
+            task_ids = []
+            tasks = []
+            for number in range(0, round_trips):
+                task_id = uuid4()
+                task = call_fetch_records.s(
+                    harvesting_job_id=self.pk,
+                    start_position=number * self.max_step_size + 1,
+                    http_request=self._http_request(),
+                    background_process_pk=self.background_process_id,
+                )
+                task.set(task_id=str(task_id))
+                task_ids.append(task_id)
+                tasks.append(task)
 
-        from registry.tasks.harvest import \
-            call_fetch_records  # to avoid circular import errors
-        task_ids = []
-        tasks = []
-        for number in range(0, round_trips):
-            task_id = uuid4()
-            task = call_fetch_records.s(
+            callback_id = uuid4()
+            task_ids.append(callback_id)
+
+            # TODO: how to set and get task_id for all callbacks?
+            callback = call_chord_md_metadata_file_to_db.s(
                 harvesting_job_id=self.pk,
-                start_position=number * self.service.max_step_size + 1,
                 http_request=self._http_request(),
-                background_process_pk=self.background_process_id,
+                background_process_pk=self.background_process_id
             )
-            task.set(task_id=str(task_id))
-            task_ids.append(task_id)
-            tasks.append(task)
+            callback.set(task_id=str(callback_id))
 
-        callback_id = uuid4()
-        task_ids.append(callback_id)
-
-        callback = call_chord_md_metadata_file_to_db.s(
-            http_request=self._http_request(),
-            background_process_pk=self.background_process_id,
-        )
-        callback.set(task_id=str(callback_id))
+            # publishing tasks on commit was successfully
+            transaction.on_commit(lambda: chord(tasks)(callback))
 
         """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
             The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
@@ -260,7 +263,6 @@ class HarvestingJob(models.Model):
             In that case, no TemporaryMdMetadataFile object is created and no call_md_metadata_file_to_db task is created.
         """
         total_steps = tasks.__len__()  # how many call_fetch_records task will be run
-        # total_steps = call_fetch_records tasks + call_md_metadata_file_to_db tasks
         total_steps += self.total_records
 
         bp = self.background_process
@@ -268,8 +270,10 @@ class HarvestingJob(models.Model):
         bp.celery_task_ids.extend(task_ids)
         bp.save()
 
-        transaction.on_commit(
-            func=lambda: chord(tasks)(callback)
+        BackgroundProcessLog.objects.create(
+            background_process=bp,
+            log_type=LogTypeEnum.INFO,
+            description=f"call_chord_md_metadata_file_to_db called. {round_trips} round trips with step size {self.max_step_size} are needed."
         )
 
     # TODO: implement three phases:
@@ -344,7 +348,7 @@ class HarvestingJob(models.Model):
         self.save()
         return self.total_records
 
-    def fetch_records(self, start_position) -> List[int]:
+    def fetch_records(self, start_position) -> int | None:
         client = self.service.client
         request = client.get_records_request(
             max_records=self.max_step_size,
@@ -353,6 +357,7 @@ class HarvestingJob(models.Model):
             xml_constraint=client.get_constraint(
                 record_types=self.get_record_types())
         )
+        datestamp = timezone.now()
         response: Response = client.send_request(
             request=request,
             timeout=60)
@@ -366,7 +371,7 @@ class HarvestingJob(models.Model):
                 log_type=LogTypeEnum.ERROR.value,
                 description=description
             )
-            return []
+            return
 
         get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
                                                                                      xmlclass=GetRecordsResponse)
@@ -374,9 +379,12 @@ class HarvestingJob(models.Model):
         md_metadata: XmlMdMetadata
         db_md_metadata_file_list = []
         records_count = len(get_records_response.gmd_records)
+
         for idx, md_metadata in enumerate(get_records_response.gmd_records):
             db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
                 job=self,
+                request_id=datestamp,
+                requested_url=response.url,
                 download_duration=response.elapsed / records_count
             )
             # save the file without saving the instance in db... this will be done with bulk_create
@@ -389,20 +397,23 @@ class HarvestingJob(models.Model):
         db_objs = TemporaryMdMetadataFile.objects.bulk_create(
             objs=db_md_metadata_file_list)
 
-        if len(db_objs) < self.service.max_step_size:
+        should_return_count = self.max_step_size if start_position + \
+            self.max_step_size < self.total_records else self.total_records - start_position
+
+        if len(db_objs) < should_return_count:
             BackgroundProcessLog.objects.create(
                 background_process=self.background_process,
                 log_type=LogTypeEnum.WARNING.value,
-                description=f"Only {len(db_objs)} received from {self.service.max_step_size} possible records.\n" +
+                description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
                 f"URL: {request.url}"
             )
 
-        return [db_obj.pk for db_obj in db_objs]
+        return len(db_objs)
 
 
 def response_file_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/xml_documents/<id>/<filename>
-    return 'temporary_md_metadata_file/{0}/{1}'.format(instance.pk, filename)
+    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
+    return f'temporary_md_metadata_file/{instance.job_id}/{filename}'
 
 
 class TemporaryMdMetadataFile(models.Model):
@@ -427,6 +438,10 @@ class TemporaryMdMetadataFile(models.Model):
         help_text=_("raised error while importing"),
         default="",
         blank=True)
+    request_id = models.DateTimeField(null=True)
+    requested_url = models.URLField(
+        max_length=4096,
+        null=True)
     download_duration = models.DurationField(
         null=True,
         blank=True,
@@ -490,27 +505,35 @@ class TemporaryMdMetadataFile(models.Model):
                 if db_metadata:
                     if self.job:
                         end_db_processing = now()
-                        self.update_relations(
+                        relation = self.update_relations(
                             md_metadata,
                             exists,
                             update,
                             db_metadata,
                             end_db_processing - start_db_processing
                         )
+                        if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
+                            # do not delete this entries for analyze purposes
+                            import_error = {
+                                "reason": "duplicated",
+                                "db_metadata.pk": db_metadata.pk,
+                                "db_metadata.file_identifier": db_metadata.file_identifier,
+                                "db_metadata.code_space": db_metadata.code_space,
+                                "db_metadata.code": db_metadata.code,
+                                "md_metadata.file_identifier": md_metadata.file_identifier,
+                                "md_metadata.code": md_metadata.code,
+                                "md_metadata.code_space": md_metadata.code_space
+                            }
+
+                            self.import_error = str(import_error)
+                            self.save()
+                            return db_metadata, update, exists
+
                     self.delete()
 
                     return db_metadata, update, exists
             except Exception as e:
                 import traceback
-                description = f"Can't handle this TemporaryMdMetadataFile with id {self.pk}. \n"
-                description += "The following error is occured:\n"
-                description += traceback.format_exc()
-                BackgroundProcessLog.objects.create(
-                    background_process=self.job.background_process,
-                    log_type=LogTypeEnum.ERROR.value,
-                    description=description
-                )
-
                 exc_info = sys.exc_info()
                 self.import_error = ''.join(
                     traceback.format_exception(*exc_info))
@@ -522,7 +545,7 @@ class TemporaryMdMetadataFile(models.Model):
         db_metadata.harvested_through.add(self.job.service)
 
         collecting_state = CollectingStatenEnum.UPDATED if exists and update else CollectingStatenEnum.EXISTING if exists and not update else CollectingStatenEnum.NEW
-        self.job.add_harvested_metadata_relation(
+        return self.job.add_harvested_metadata_relation(
             md_metadata,
             db_metadata,
             collecting_state,

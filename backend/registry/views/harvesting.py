@@ -379,6 +379,36 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
         qs = super().get_queryset(*args, **kwargs)
         qs = self.with_harvesting_stats(qs)
         qs = self.with_process_info(qs)
+        unhandled_records_cte = With(
+            queryset=TemporaryMdMetadataFile.objects.values('job_id').annotate(
+                import_error_count=Count(
+                    "id", distinct=True, filter=~Q(import_error="")),
+                unhandled_records_count=Count(
+                    "id", distinct=True, filter=Q(import_error=""))
+            ),
+            name="unhandled_records_cte"
+        )
+        qs = (
+            unhandled_records_cte.join(model_or_queryset=qs,
+                                       id=unhandled_records_cte.col.job_id,
+                                       _join_type=LOUTER)
+            .with_cte(unhandled_records_cte)
+        )
+        qs = qs.annotate(
+            import_error_count=Coalesce(
+                unhandled_records_cte.col.import_error_count, 0),
+            unhandled_records_count=Coalesce(
+                unhandled_records_cte.col.unhandled_records_count, 0),
+        )
+
+        """
+                qs = qs.annotate(
+                    import_error_count=Count(
+                        'temporary_md_metadata_file', filter=~Q(temporary_md_metadata_file__import_error='')),
+                    unhandled_records_count=Count(
+                        'temporary_md_metadata_file', filter=Q(temporary_md_metadata_file__import_error=''))
+                )
+        """
         return qs
 
 

@@ -22,7 +22,7 @@ const RealtimeShowContextProvider = ({
       );
   }
   const dataProvider = useDataProvider()
-  const { record, refetch, ...controllerProps } = useShowController({resource, ...rest});
+  const { record, refetch, isFetching,...controllerProps } = useShowController({resource, ...rest});
   
   const [realtimeRecord, setRealtimeRecord] = useState<RaRecord | undefined>(record)
   const [timestamp, setTimestamp] = useState<number>(Date.now())
@@ -37,7 +37,7 @@ const RealtimeShowContextProvider = ({
     dataProvider.subscribe(`resource/${resource}/${record?.id}`, updateFromRealtimeBus)
     
     const interval = isStaleCheckInterval && setInterval(()=>{
-      isStale && isStale(timestamp, record) && refetch()     
+      !isFetching && isStale && isStale(timestamp, record) && refetch()     
     }, isStaleCheckInterval * 1000);
 
     return () => {

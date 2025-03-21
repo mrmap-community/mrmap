@@ -10,6 +10,7 @@ from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save
 from django.utils.timezone import now
 from notify.models import BackgroundProcess
+from registry.exceptions.harvesting import InternalServerError
 from requests.exceptions import ConnectionError, Timeout
 
 logger: Logger = settings.ROOT_LOGGER
@@ -24,7 +25,7 @@ def get_background_process(task, *args, **kwargs):
 
 class BackgroundProcessBased(Task):
     thread_appended = False
-    autoretry_for = (Timeout, ConnectionError)
+    autoretry_for = (Timeout, ConnectionError, InternalServerError)
     retry_backoff = 30
     retry_backoff_max = 5*60
     retry_jitter = False

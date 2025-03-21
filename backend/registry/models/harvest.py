@@ -1,6 +1,5 @@
 import os
 import sys
-from typing import List
 from uuid import uuid4
 
 from celery import chord
@@ -13,6 +12,7 @@ from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from lxml.etree import XML, XMLParser
 from notify.enums import LogTypeEnum, ProcessNameEnum
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
@@ -20,6 +20,7 @@ from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.enums.harvesting import CollectingStatenEnum
 from registry.enums.metadata import MetadataOriginEnum
+from registry.exceptions.harvesting import InternalServerError
 from registry.managers.havesting import (HarvestingJobManager,
                                          TemporaryMdMetadataFileManager)
 from registry.models.metadata import (DatasetMetadataRecord,
@@ -318,22 +319,37 @@ class HarvestingJob(models.Model):
                 xml_constraint=client.get_constraint(record_types=self.get_record_types())),
             timeout=60)
 
+        if self._check_xml_response(first_response):
+            self._log_response_error(response=first_response)
+            self.total_records = 0
+            self.save()
+            return self.total_records
+
         get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=first_response.content,
                                                                                      xmlclass=GetRecordsResponse)
-        total_records = get_records_response.total_records
-        if not total_records:
+        self.total_records = get_records_response.total_records
+        if not self.total_records:
             # try again, cause some csw server implementations are broken and don't support our default TypeName query param
             second_response: Response = client.send_request(
                 request=client.get_records_request(
                     type_names="csw:Record",
                     xml_constraint=client.get_constraint(record_types=self.get_record_types())),
                 timeout=60)
+
+            if self._check_xml_response(first_response):
+                self._log_response_error(response=second_response)
+                self.total_records = 0
+                self.save()
+                return self.total_records
+
             get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=second_response.content,
                                                                                          xmlclass=GetRecordsResponse)
 
-            total_records = get_records_response.total_records
-            if not total_records:
+            self.total_records = get_records_response.total_records
+
+            if not self.total_records:
                 # terminate celery workflow by returning total records = 0
+
                 self.total_records = 0
                 description = f"Can't get total records from remote service by requesting {second_response.request.url} url. \n"
                 description += f"http status code: {second_response.status_code}\n"
@@ -344,9 +360,39 @@ class HarvestingJob(models.Model):
                     description=description
                 )
 
-        self.total_records = total_records
         self.save()
         return self.total_records
+
+    def _log_response_error(self, response):
+        description = f"Something went wrong by requesting {response.request.url} url. \n"
+        description += f"http status code: {response.status_code}\n"
+        description += f"response:\n{response.text}"
+        datestamp = now()
+        log = BackgroundProcessLog(
+            background_process=self.background_process,
+            log_type=LogTypeEnum.ERROR.value,
+            description=description,
+            date=datestamp
+        )
+        log.extented_description.save(
+            name=f"{datestamp}",
+            content=ContentFile(content=response.content),
+            save=True)
+
+    def _check_xml_is_parseable(self, xml: str) -> bool:
+        try:
+            XML(xml, XMLParser())
+        except:
+            return False
+        return True
+
+    def _check_xml_response(self, response):
+        if not response.ok or not self._check_xml_is_parseable(response.content) or "<ExceptionReport" in response.text:
+            self._log_response_error(response=response)
+            if response.status_code >= 500 <= 600:
+                raise InternalServerError
+            return True
+        return False
 
     def fetch_records(self, start_position) -> int | None:
         client = self.service.client
@@ -362,15 +408,8 @@ class HarvestingJob(models.Model):
             request=request,
             timeout=60)
 
-        if "<ExceptionReport" in response.text:
-            description = f"Can't get records from remote service by requesting {response.request.url} url. \n"
-            description += f"http status code: {response.status_code}\n"
-            description += f"response:\n{response.text}"
-            BackgroundProcessLog.objects.create(
-                background_process=self.background_process,
-                log_type=LogTypeEnum.ERROR.value,
-                description=description
-            )
+        if self._check_xml_response(response):
+            self._log_response_error(response=response)
             return
 
         get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,

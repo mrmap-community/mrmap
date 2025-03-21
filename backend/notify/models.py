@@ -102,6 +102,11 @@ class BackgroundProcess(models.Model):
         return super(BackgroundProcess, self).save(*args, **kwargs)
 
 
+def extented_description_file_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
+    return f'BackgroundProcessLog/{instance.background_process_id}/{filename}'
+
+
 class BackgroundProcessLog(models.Model):
     background_process = models.ForeignKey(
         to=BackgroundProcess,
@@ -123,3 +128,8 @@ class BackgroundProcessLog(models.Model):
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the task result was created in UTC')
     )
+    extented_description = models.FileField(
+        null=True,
+        verbose_name=_("Extented Description"),
+        help_text=_("this can be the response content for example"),
+        upload_to=extented_description_file_path)

@@ -1,8 +1,11 @@
+from celery import chord
 from django.db import models, transaction
 from django.db.models import Case, Count, F, Q, Value, When
 from django.db.models.functions import Ceil, Round
+from django.utils.timezone import now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
+from notify.tasks import finish_background_process
 
 
 class HarvestingJobManager(DefaultHistoryManager, CTEManager):
@@ -64,19 +67,44 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
 class TemporaryMdMetadataFileManager(models.Manager):
 
     def bulk_create_with_task_scheduling(self, objs, *args, **kwargs):
+        from notify.models import BackgroundProcess
+        from registry.models.harvest import HarvestingJob
         from registry.tasks.harvest import \
             call_md_metadata_file_to_db  # to avoid circular import errors
 
+        bp = BackgroundProcess.objects.create(
+            total_steps=len(objs) + 1,
+            phase='parse and store ISO Metadatarecords to db...')
+        hj = HarvestingJob.objects.create(
+            total_records=len(objs),
+            background_process=bp)
+        for obj in objs:
+            obj.job = hj
+
         _objs = super().bulk_create(objs=objs, *args, **kwargs)
 
-        for obj in _objs:
-            request = obj.job._http_request()
-            transaction.on_commit(
-                lambda: call_md_metadata_file_to_db.delay(
-                    md_metadata_file_id=obj.pk,
-                    harvesting_job_id=obj.job.pk,  # to provide the job id for TaskResult db objects
-                    http_request=request,
-                    background_process_pk=obj.job.background_process_id if obj.job.background_process_id else None
-                ))
+        db_objs = self.get_queryset().filter(job__id=objs[0].job_id)
+        request = db_objs[0].job._http_request()
 
-        return _objs
+        to_db_tasks = [
+            call_md_metadata_file_to_db.s(
+                md_metadata_file_id=obj.id,
+                http_request=request,
+                background_process_pk=bp.pk)
+            for obj in db_objs
+        ]
+        if to_db_tasks:
+            transaction.on_commit(
+                lambda: chord(to_db_tasks)(finish_background_process.s(
+                    http_request=request,
+                    background_process_pk=bp.pk
+                ))
+            )
+        else:
+            BackgroundProcess.objects.filter(pk=bp.pk).update(
+                phase='completed',
+                done_at=now(),
+                done_steps=F('total_steps')
+            )
+
+        return db_objs

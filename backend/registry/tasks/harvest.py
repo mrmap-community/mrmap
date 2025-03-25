@@ -5,6 +5,7 @@ from os import walk
 from celery import chord, shared_task
 from celery.utils.log import get_task_logger
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.utils import timezone
 from eulxml import xmlmap
 from lxml.etree import Error
@@ -149,7 +150,7 @@ def call_md_metadata_file_to_db(
 def check_for_files_to_import(
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    # TODO: create backgroundprocess object to track this processing
+    from registry.models.harvest import TemporaryMdMetadataFile
 
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")
     dt = timezone.now()
@@ -157,37 +158,44 @@ def check_for_files_to_import(
     db_md_metadata_file_list = []
     idx = 0
     for dirpath, subdir, files in walk(FILE_IMPORT_DIR):
-        for file in files:
-            if "ignore" in file:
-                continue
-            filename = os.path.join(dirpath, file)
-            try:
+        files = filter(lambda file: "ignore" not in file, files)
 
-                metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(filename=filename,
-                                                                                   xmlclass=WrappedIsoMetadata)
-                from registry.models.harvest import TemporaryMdMetadataFile
+        if files:
+            with transaction.atomic():
+                for file in files:
+                    filename = os.path.join(dirpath, file)
+                    try:
+                        metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(
+                            filename=filename,
+                            xmlclass=WrappedIsoMetadata)
 
-                for iso_metadata in metadata_xml.iso_metadata:
-                    db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
-                    # save the file without saving the instance in db...
-                    # this will be done with bulk_create
-                    db_md_metadata_file.md_metadata_file.save(
-                        name=f"file_import_{dt}_{idx}",
-                        content=ContentFile(
-                            content=iso_metadata.serialize()),
-                        save=False)
-                    db_md_metadata_file_list.append(db_md_metadata_file)
-                    os.remove(filename)
-                    idx += 1
-            except Error as e:
-                new_filename = f"ignore_{dt}_{file}"
-                os.rename(filename, os.path.join(dirpath, new_filename))
-                logger.error(
-                    f"can't handle file cause of the following exception: {e}\n the file is renamed as {new_filename} and will be ignored.")
+                        for iso_metadata in metadata_xml.iso_metadata:
+                            db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
+                            # save the file without saving the instance in db...
+                            # this will be done with bulk_create
+                            db_md_metadata_file.md_metadata_file.save(
+                                name=f"file_import_{dt}_{idx}",
+                                content=ContentFile(
+                                    content=iso_metadata.serialize()),
+                                save=False)
+                            db_md_metadata_file_list.append(
+                                db_md_metadata_file)
+                            os.remove(filename)
+                            idx += 1
+                    except Error as e:
+                        new_filename = f"ignore_{dt}_{file}"
+                        os.rename(filename, os.path.join(
+                            dirpath, new_filename))
+                        logger.error(
+                            f"can't handle file cause of the following exception: {e}\n the file is renamed as {new_filename} and will be ignored.")
 
-    db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
-        objs=db_md_metadata_file_list)
+                if db_md_metadata_file_list:
+                    db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
+                        objs=db_md_metadata_file_list)
 
-    logger.info(f"start file import handling for {len(db_objs)} files")
+                    logger.info(
+                        f"start file import handling for {len(db_objs)} files")
 
-    return [db_obj.pk for db_obj in db_objs]
+                    return [db_obj.pk for db_obj in db_objs]
+
+    logger.info(f"No files to import")

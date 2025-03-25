@@ -3,6 +3,7 @@ import sys
 from uuid import uuid4
 
 from celery import chord
+from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
@@ -119,6 +120,7 @@ class HarvestingJob(models.Model):
     service: CatalogueService = models.ForeignKey(
         to=CatalogueService,
         on_delete=models.CASCADE,
+        null=True,  # possible for file import jobs
         verbose_name=_("service"),
         help_text=_("the csw for that this job is running"),
         related_name="harvesting_jobs",
@@ -197,7 +199,7 @@ class HarvestingJob(models.Model):
             self.background_process = BackgroundProcess.objects.create(
                 phase="Get total records of the catalogue",
                 process_type=ProcessNameEnum.HARVESTING.value,
-                description=f'Harvesting job for service {self.service.pk}',
+                description=f'Harvesting job for service {self.service.pk}' if self.service else 'Import local metadata files',
                 service=self.service
             )
             # save to get the id of the object
@@ -283,7 +285,7 @@ class HarvestingJob(models.Model):
     # 3. start harvesting with the best average response duration step settings
 
     def save(self, *args, **kwargs):
-        if self._state.adding:
+        if self._state.adding and self.service:
             return self.handle_adding(*args, **kwargs)
         elif self.total_records == 0:
             # error case. CSW does not provide records for our default request behaviour.
@@ -292,16 +294,25 @@ class HarvestingJob(models.Model):
         return super(HarvestingJob, self).save(*args, **kwargs)
 
     def _http_request(self):
-        first_history = self.change_log.first()
-        created_by = first_history.history_user if first_history else None
+        if self.service:
+            first_history = self.change_log.first()
+            created_by = first_history.history_user if first_history else None
 
-        return {
-            "path": "somepath",
-            "method": "GET",
-            "content_type": "application/json",
-            "data": {},
-            "user_pk": created_by.pk
-        } if created_by else None
+            return {
+                "path": "somepath",
+                "method": "GET",
+                "content_type": "application/json",
+                "data": {},
+                "user_pk": created_by.pk
+            } if created_by else None
+        else:
+            return {
+                "path": "somepath",
+                "method": "GET",
+                "content_type": "application/json",
+                "data": {},
+                "user_pk": get_user_model().objects.get(username="mrmap").pk
+            }
 
     def get_record_types(self):
         record_types = []
@@ -528,8 +539,8 @@ class TemporaryMdMetadataFile(models.Model):
                 db_metadata = None
                 update_or_create_kwargs = {
                     'parsed_metadata': md_metadata,
-                    'origin': MetadataOriginEnum.CATALOGUE.value if self.job_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                    'origin_url': self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job_id else "http://localhost"
+                    'origin': MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                    'origin_url': self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job.service_id else "http://localhost"
                 }
                 start_db_processing = now()
                 if md_metadata.is_service:
@@ -540,7 +551,7 @@ class TemporaryMdMetadataFile(models.Model):
                         **update_or_create_kwargs)
                 else:
                     raise NotImplementedError(
-                        f"file is neither server nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
+                        f"file is neither service nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
                 if db_metadata:
                     if self.job:
                         end_db_processing = now()
@@ -581,7 +592,8 @@ class TemporaryMdMetadataFile(models.Model):
 
     def update_relations(self, md_metadata, exists, update, db_metadata, duration):
         # TODO: is this relation still needed? Or is it enough to collect the harvested through by the harvested_metadata_relations?
-        db_metadata.harvested_through.add(self.job.service)
+        if self.job.service:
+            db_metadata.harvested_through.add(self.job.service)
 
         collecting_state = CollectingStatenEnum.UPDATED if exists and update else CollectingStatenEnum.EXISTING if exists and not update else CollectingStatenEnum.NEW
         return self.job.add_harvested_metadata_relation(

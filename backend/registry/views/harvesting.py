@@ -375,40 +375,52 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
 
         return qs
 
+    def with_unhandled_records(self, qs):
+        import_error_count_needed = self.check_sparse_fields_contains(
+            "importErrorCount")
+        unhandled_records_count_needed = self.check_sparse_fields_contains(
+            "unhandledRecordsCount")
+
+        cte_kwargs = {}
+        if import_error_count_needed:
+            cte_kwargs.update({
+                "import_error_count": Count("id", filter=~Q(import_error=""))
+            })
+        if unhandled_records_count_needed:
+            cte_kwargs.update({
+                "unhandled_records_count": Count("id", filter=Q(import_error=""))
+            })
+
+        if cte_kwargs:
+            unhandled_records_cte = With(
+                queryset=TemporaryMdMetadataFile.objects.values(
+                    'job_id').annotate(**cte_kwargs),
+                name="unhandled_records_cte"
+            )
+            qs = (
+                unhandled_records_cte.join(model_or_queryset=qs,
+                                           id=unhandled_records_cte.col.job_id,
+                                           _join_type=LOUTER)
+                .with_cte(unhandled_records_cte)
+            )
+            qs_kwargs = {}
+            if import_error_count_needed:
+                qs_kwargs.update({
+                    "import_error_count": Coalesce(unhandled_records_cte.col.import_error_count, 0)
+                })
+            if unhandled_records_count_needed:
+                qs_kwargs.update({
+                    "unhandled_records_count": Coalesce(unhandled_records_cte.col.unhandled_records_count, 0),
+                })
+
+            qs = qs.annotate(**qs_kwargs)
+        return qs
+
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
         qs = self.with_harvesting_stats(qs)
         qs = self.with_process_info(qs)
-        unhandled_records_cte = With(
-            queryset=TemporaryMdMetadataFile.objects.values('job_id').annotate(
-                import_error_count=Count(
-                    "id", distinct=True, filter=~Q(import_error="")),
-                unhandled_records_count=Count(
-                    "id", distinct=True, filter=Q(import_error=""))
-            ),
-            name="unhandled_records_cte"
-        )
-        qs = (
-            unhandled_records_cte.join(model_or_queryset=qs,
-                                       id=unhandled_records_cte.col.job_id,
-                                       _join_type=LOUTER)
-            .with_cte(unhandled_records_cte)
-        )
-        qs = qs.annotate(
-            import_error_count=Coalesce(
-                unhandled_records_cte.col.import_error_count, 0),
-            unhandled_records_count=Coalesce(
-                unhandled_records_cte.col.unhandled_records_count, 0),
-        )
-
-        """
-                qs = qs.annotate(
-                    import_error_count=Count(
-                        'temporary_md_metadata_file', filter=~Q(temporary_md_metadata_file__import_error='')),
-                    unhandled_records_count=Count(
-                        'temporary_md_metadata_file', filter=Q(temporary_md_metadata_file__import_error=''))
-                )
-        """
+        qs = self.with_unhandled_records(qs)
         return qs
 
 

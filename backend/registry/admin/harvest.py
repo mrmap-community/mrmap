@@ -73,7 +73,7 @@ class TemporaryMdMetadataFileAdmin(admin.ModelAdmin):
 
     def error(self, obj):
         if obj.import_error:
-            if "file is neither server nor dataset record." in obj.import_error:
+            if "file is neither service nor dataset record." in obj.import_error:
                 return "unknown HierachyLevel"
             if 'null value in column "dataset_contact_id"' in obj.import_error:
                 return "empty dataset contact"

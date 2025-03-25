@@ -62,7 +62,7 @@ const StartAgainButton = () => {
       harvestServices: true,
       stepSize: 50,
       service: {
-        id: record?.service.id
+        id: record?.service?.id
       }
     },
   }),[record])
@@ -72,7 +72,7 @@ const StartAgainButton = () => {
     {
         pagination: { page: 1, perPage:1 },
         filter: {
-          'service.id': record?.service.id,
+          'service.id': record?.service?.id,
           'isUnready': true
         },
         meta: {

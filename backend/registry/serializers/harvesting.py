@@ -91,6 +91,7 @@ class HarvestingJobSerializer(
     updated_service_metadata_count = IntegerField(read_only=True)
     existing_service_metadata_count = IntegerField(read_only=True)
     duplicated_service_metadata_count = IntegerField(read_only=True)
+
     import_error_count = IntegerField(read_only=True)
     unhandled_records_count = IntegerField(read_only=True)
 

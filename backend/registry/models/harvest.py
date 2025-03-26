@@ -483,6 +483,11 @@ class TemporaryMdMetadataFile(models.Model):
     re_schedule = models.BooleanField(
         default=False,
         help_text=_("to re run to db task"))
+    has_import_error = models.BooleanField(
+        default=False,
+        editable=False,
+        help_text=_("signals if this object can't be imported")
+    )
     import_error = models.TextField(
         verbose_name=_("import error"),
         help_text=_("raised error while importing"),

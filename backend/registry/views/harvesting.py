@@ -220,28 +220,28 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                              service_sums.col.md_metadata_file_to_db_duration)
         if self.check_sparse_fields_contains("newDatasetMetadataCount"):
             qs = qs.annotate(
-                new_dataset_metadata_count=dataset_sums.col.new_dataset_metadata_count)
+                new_dataset_metadata_count=Coalesce(dataset_sums.col.new_dataset_metadata_count, 0))
         if self.check_sparse_fields_contains("updatedDatasetMetadataCount"):
             qs = qs.annotate(
-                updated_dataset_metadata_count=dataset_sums.col.updated_dataset_metadata_count)
+                updated_dataset_metadata_count=Coalesce(dataset_sums.col.updated_dataset_metadata_count, 0))
         if self.check_sparse_fields_contains("existingDatasetMetadataCount"):
             qs = qs.annotate(
-                existing_dataset_metadata_count=dataset_sums.col.existing_dataset_metadata_count)
+                existing_dataset_metadata_count=Coalesce(dataset_sums.col.existing_dataset_metadata_count, 0))
         if self.check_sparse_fields_contains("duplicatedDatasetMetadataCount"):
             qs = qs.annotate(
-                duplicated_dataset_metadata_count=dataset_sums.col.duplicated_dataset_metadata_count)
+                duplicated_dataset_metadata_count=Coalesce(dataset_sums.col.duplicated_dataset_metadata_count, 0))
         if self.check_sparse_fields_contains("newServiceMetadataCount"):
             qs = qs.annotate(
-                new_service_metadata_count=service_sums.col.new_service_metadata_count)
+                new_service_metadata_count=Coalesce(service_sums.col.new_service_metadata_count, 0))
         if self.check_sparse_fields_contains("updatedServiceMetadataCount"):
             qs = qs.annotate(
-                updated_service_metadata_count=service_sums.col.updated_service_metadata_count)
+                updated_service_metadata_count=Coalesce(service_sums.col.updated_service_metadata_count, 0))
         if self.check_sparse_fields_contains("existingServiceMetadataCount"):
             qs = qs.annotate(
-                existing_service_metadata_count=service_sums.col.existing_service_metadata_count)
+                existing_service_metadata_count=Coalesce(service_sums.col.existing_service_metadata_count, 0))
         if self.check_sparse_fields_contains("duplicatedServiceMetadataCount"):
             qs = qs.annotate(
-                duplicated_service_metadata_count=service_sums.col.duplicated_service_metadata_count)
+                duplicated_service_metadata_count=Coalesce(service_sums.col.duplicated_service_metadata_count, 0))
 
         return qs
 
@@ -323,8 +323,21 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
             })
 
         if done_steps_needed:
+            related_records_cte = With(
+                queryset=TemporaryMdMetadataFile.objects.values(
+                    'job_id').annotate(records_count=Count("id")),
+                name="related_records_cte"
+            )
+            qs = (
+                related_records_cte.join(model_or_queryset=qs,
+                                         id=related_records_cte.col.job_id,
+                                         _join_type=LOUTER)
+                .with_cte(related_records_cte)
+            )
+            qs = qs.annotate(import_error_count=Coalesce(
+                related_records_cte.col.records_count, 0))
+
             annotate_kwargs.update({
-                "unhandled_records_count": Count("temporary_md_metadata_file"),
                 "done_steps": Case(
                     When(
                         condition=Q(
@@ -334,14 +347,15 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                     When(
                         condition=Q(
                             background_process__phase__icontains="Harvesting is running..."),
-                        then=1 + Ceil(F("unhandled_records_count") /
+                        then=1 + Ceil(related_records_cte.col.records_count /
                                       F("max_step_size"))
                     ),
                     When(
                         condition=Q(
                             background_process__phase__icontains="parse and store ISO Metadatarecords to db..."),
                         then=1 + F("download_tasks_count") +
-                        F("total_records") - F("unhandled_records_count")
+                        F("total_records") -
+                        related_records_cte.col.records_count
                     ),
                     default=0
                 ),
@@ -384,11 +398,11 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
         cte_kwargs = {}
         if import_error_count_needed:
             cte_kwargs.update({
-                "import_error_count": Count("id", filter=~Q(import_error=""))
+                "import_error_count": Count("id", filter=Q(has_import_error=True))
             })
         if unhandled_records_count_needed:
             cte_kwargs.update({
-                "unhandled_records_count": Count("id", filter=Q(import_error=""))
+                "unhandled_records_count": Count("id", filter=Q(has_import_error=False))
             })
 
         if cte_kwargs:

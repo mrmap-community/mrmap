@@ -8,6 +8,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
+from rest_framework_json_api.renderers import JSONRenderer as JSONApiRenderer
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
 
@@ -22,6 +23,7 @@ class LogoutView(KnoxLogoutView):
 
 
 class WhoAmIView(generics.GenericAPIView):
+    renderer_classes = [JSONApiRenderer]
     http_method_names = ['get', 'head', 'options']
     resource_name = "CurrentUser"
     queryset = User.objects.all()

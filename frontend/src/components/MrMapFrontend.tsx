@@ -17,7 +17,7 @@ import CreateGuesser from '../jsonapi/components/CreateGuesser';
 import EditGuesser from '../jsonapi/components/EditGuesser';
 import ListGuesser from '../jsonapi/components/ListGuesser';
 import { getResourceSchema } from '../jsonapi/openapi/parser';
-import authProvider from '../providers/authProvider';
+import authProviderFunc from '../providers/authProvider';
 import jsonApiDataProvider from '../providers/dataProvider';
 import Dashboard from './Dashboard/Dashboard';
 import MyLayout from './Layout/Layout';
@@ -44,6 +44,10 @@ const MrMapFrontend = (): ReactElement => {
     })
   }, [api, readyState])
   
+  const authProvider = useMemo(()=>{
+    return authProviderFunc(undefined, undefined, undefined, authToken, setAuthToken)
+  },[authToken, setAuthToken])
+
   const resourceDefinitions = useMemo(() => {
     return RESOURCES.map((resource)=> {
       const showOperationName = `retreive_${resource.name}`
@@ -98,7 +102,7 @@ const MrMapFrontend = (): ReactElement => {
         darkTheme={darkTheme}
         lightTheme={customTheme}
         dataProvider={dataProvider}
-        authProvider={authProvider(undefined, undefined, undefined, authToken, setAuthToken)}
+        authProvider={authProvider}
         dashboard={Dashboard}
         layout={MyLayout}
         store={localStorageStore(STORE_VERSION)}

@@ -140,6 +140,7 @@ def call_md_metadata_file_to_db(
         return str(db_metadata.pk), update, exists
     except Exception:
         TemporaryMdMetadataFile.objects.select_for_update().filter(pk=md_metadata_file_id).update(
+            has_import_error=True,
             import_error=traceback.format_exc()
         )
 

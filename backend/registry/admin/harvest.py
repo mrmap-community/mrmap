@@ -21,7 +21,7 @@ class ErrorChoices(TextChoices):
 
 
 UNKNOWN_HIERARCHY_LEVEL = Q(
-    import_error__contains="file is neither server nor dataset record.")
+    import_error__contains="file is neither service nor dataset record.")
 EMPTY_DATASET_CONTACT = Q(
     import_error__contains='null value in column "dataset_contact_id"')
 WRONG_DATESTAMP_FORMAT = Q(

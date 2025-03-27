@@ -579,7 +579,7 @@ class TemporaryMdMetadataFile(models.Model):
                                 "md_metadata.code": md_metadata.code,
                                 "md_metadata.code_space": md_metadata.code_space
                             }
-
+                            self.has_import_error = True
                             self.import_error = str(import_error)
                             self.save()
                             return db_metadata, update, exists
@@ -592,6 +592,7 @@ class TemporaryMdMetadataFile(models.Model):
                 exc_info = sys.exc_info()
                 self.import_error = ''.join(
                     traceback.format_exception(*exc_info))
+                self.has_import_error = True
                 self.save()
                 raise e
 

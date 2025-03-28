@@ -10,7 +10,7 @@ from registry.models.monitoring import (GetCapabilitiesProbe, GetMapProbe,
 
 @shared_task(bind=True)
 def run_get_capabilitites_probe_check(self, probe_pk, run_pk, *args, **kwargs):
-    task_result, _ = TaskResult.objects.get_or_create(
+    task_result, _ = TaskResult.objects.select_for_update().get_or_create(
         task_id=self.request.id)
     probe: GetCapabilitiesProbe = GetCapabilitiesProbe.objects.get(
         pk=probe_pk)
@@ -22,7 +22,7 @@ def run_get_capabilitites_probe_check(self, probe_pk, run_pk, *args, **kwargs):
 
 @shared_task(bind=True)
 def run_get_map_probe_check(self, probe_pk, run_pk, *args, **kwargs):
-    task_result, _ = TaskResult.objects.get_or_create(
+    task_result, _ = TaskResult.objects.select_for_update().get_or_create(
         task_id=self.request.id)
     probe: GetMapProbe = GetMapProbe.objects.get(pk=probe_pk)
     return probe.run_checks(

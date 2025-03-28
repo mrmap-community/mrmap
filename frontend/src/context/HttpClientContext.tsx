@@ -21,7 +21,7 @@ export interface HttpClientContextType {
 
 const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
 
-export const AUTH_TOKEN_LOCAL_STORAGE_NAME = "mrmap.auth.token"
+export const AUTH_TOKEN_LOCAL_STORAGE_NAME = "mrmap.auth"
 
 const AXIOS_DEFAULTS = {
   baseURL: `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}`,  
@@ -61,7 +61,7 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
 
   }, [authToken])
 
-  // we need to memo the localstorage value by our self.... see issu: https://github.com/uidotdev/usehooks/pull/304
+  // we need to memo the localstorage value by our self.... see issue: https://github.com/uidotdev/usehooks/pull/304
   useEffect(()=>{
     if (isEqual(authToken, storedAuthToken) === false){
       setAuthToken(storedAuthToken)

@@ -1,11 +1,11 @@
 from django.urls import path
-from registry.views import anno_stats as anno_views
 from registry.views import harvesting as harvesting_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
+from registry.views import stats as stats_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'registry'
@@ -84,13 +84,28 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-metadata-contact', parents_query_lookups=['metadata_contact_catalogueservice_metadata']),
+    router.register(
+        r'csw', service_views.CatalogueServiceViewSet, basename='csw')
+    .register(r'harvesting-jobs', harvesting_views.NestedHarvestingJobViewSet, basename='csw-harvesting-jobs', parents_query_lookups=['service']),
 
     # harvesting
     router.register(r'harvesting/harvesting-jobs',
-                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob'),
-    router.register(r'harvestubg/temporary-md-metadata-file',
-                    harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'temporary-md-metadata-files', harvesting_views.NestedTemporaryMdMetadataFileViewSet, basename='harvestingjob-temporarymdmetadatafiles', parents_query_lookups=['job']),
+    router.register(r'harvesting/harvesting-jobs',
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'harvested-dataset-metadata', harvesting_views.NestedHarvestedDatasetMetadataRelationViewSet, basename='harvestingjob-harvesteddatasetmetadatarelations', parents_query_lookups=['harvesting_job']),
+    router.register(r'harvesting/harvesting-jobs',
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'harvested-service-metadata', harvesting_views.NestedHarvestedServiceMetadataRelationViewSet, basename='harvestingjob-harvestedservicemetadatarelations', parents_query_lookups=['harvesting_job']),
 
+
+    router.register(r'harvesting/temporary-md-metadata-file',
+                    harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
+    router.register(r'harvesting/harvested-dataset-metadata',
+                    harvesting_views.HarvestedDatasetMetadataRelationViewSet, basename='harvesteddatasetmetadatarelation'),
+    router.register(r'harvesting/harvested-service-metadata',
+                    harvesting_views.HarvestedServiceMetadataRelationViewSet, basename='harvestedservicemetadatarelation'),
 
     # map context
     router.register(
@@ -201,7 +216,7 @@ router = ExtendedSimpleRouter(trailing_slash=False)
 urlpatterns = router.urls + [
     path(
         route=r'statistical/dataset-metadata-records',
-        view=anno_views.StatisticalDatasetMetadataRecordListView.as_view(),
+        view=stats_views.StatisticalDatasetMetadataRecordListView.as_view(),
         name='statistical-dataset-metadata-records'
     )
 ]

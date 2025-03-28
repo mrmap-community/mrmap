@@ -41,7 +41,10 @@ const RESOURCES: Array<ResourceProps> = [
 
   {name: "Keyword", icon: LocalOfferIcon},
   {name: "DatasetMetadataRecord", icon: DatasetIcon, show: ShowDatasetMetadataRecord},
+  {name: "HarvestedDatasetMetadataRelation", icon: DatasetIcon,},
   {name: "ServiceMetadataRecord", icon: DatasetIcon},
+  {name: "HarvestedServiceMetadataRelation", icon: DatasetIcon},
+
 
   // monitoring
   {

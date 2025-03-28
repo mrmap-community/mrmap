@@ -16,6 +16,7 @@
     "@emotion/styled": "^11.14.0",
     "@mui/lab": "^5.0.0-alpha.175",
     "@mui/material": "^6.4.5",
+    "@mui/x-charts": "^7.27.1",
     "@mui/x-data-grid": "^7.27.0",
     "@mui/x-tree-view": "^7.26.0",
     "@react-hook/resize-observer": "^2.0.2",

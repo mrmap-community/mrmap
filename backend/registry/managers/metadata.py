@@ -56,14 +56,8 @@ class IsoMetadataManager(models.Manager):
             **field_dict,
         }
 
-        try:
-            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(defaults=defaults, code=parsed_metadata.code,
-                                                                                                code_space=parsed_metadata.code_space)
-        except MultipleObjectsReturned:
-            # if code and code_space is empty, this could happen
-            # fallback: search by file_identifier
-            db_dataset_metadata, created = self.model.objects.select_for_update().get_or_create(
-                defaults=defaults, file_identifier=parsed_metadata.file_identifier)
+        db_obj, created = self.model.objects.select_for_update().get_or_create(
+            defaults=defaults, file_identifier=parsed_metadata.file_identifier)
 
         if not created:
             with transaction.atomic():
@@ -73,15 +67,15 @@ class IsoMetadataManager(models.Manager):
                         field_dict["date_stamp"], datetime.min.time())
                 dt_aware = timezone.make_aware(
                     field_dict["date_stamp"], timezone.get_current_timezone())
-                if dt_aware > db_dataset_metadata.date_stamp:
-                    [setattr(db_dataset_metadata, key, value)
-                     for key, value in field_dict]
-                    db_dataset_metadata.metadata_contact = db_dataset_contact
-                    db_dataset_metadata.dataset_contact = db_dataset_contact
-                    db_dataset_metadata.last_modified_by = self.current_user
-                    db_dataset_metadata.save()
+                if dt_aware > db_obj.date_stamp:
+                    [setattr(db_obj, key, value)
+                     for key, value in field_dict.items()]
+                    db_obj.metadata_contact = db_dataset_contact
+                    db_obj.dataset_contact = db_dataset_contact
+                    db_obj.last_modified_by = self.current_user
+                    db_obj.save()
                     update = True
-        return db_dataset_metadata, not created, update
+        return db_obj, not created, update
 
     def _create_service_metadata(self, parsed_metadata, origin_url, origin=MetadataOriginEnum.CATALOGUE.value):
         db_metadata_contact = self._create_contact(
@@ -96,14 +90,8 @@ class IsoMetadataManager(models.Manager):
             **field_dict,
         }
 
-        try:
-            db_service_metadata, created = self.model.objects.select_for_update(
-            ).get_or_create(defaults=defaults, code=parsed_metadata.code, code_space=parsed_metadata.code_space)
-        except MultipleObjectsReturned:
-            # if code and code_space is empty, this could happen
-            # fallback: search by file_identifier
-            db_service_metadata, created = self.model.objects.select_for_update().get_or_create(
-                defaults=defaults, file_identifier=parsed_metadata.file_identifier)
+        db_obj, created = self.model.objects.select_for_update().get_or_create(
+            defaults=defaults, file_identifier=parsed_metadata.file_identifier)
 
         if not created:
             with transaction.atomic():
@@ -113,18 +101,19 @@ class IsoMetadataManager(models.Manager):
                         field_dict["date_stamp"], datetime.min.time())
                 dt_aware = timezone.make_aware(
                     field_dict["date_stamp"], timezone.get_current_timezone())
-                if dt_aware > db_service_metadata.date_stamp:
-                    [setattr(db_service_metadata, key, value)
-                     for key, value in field_dict]
-                    db_service_metadata.metadata_contact = db_metadata_contact
-                    db_service_metadata.last_modified_by = self.current_user
+                if dt_aware > db_obj.date_stamp:
+                    [setattr(db_obj, key, value)
+                     for key, value in field_dict.items()]
+                    db_obj.metadata_contact = db_metadata_contact
+                    db_obj.last_modified_by = self.current_user
 
-                    db_service_metadata.save()
+                    db_obj.save()
                     update = True
-        return db_service_metadata, not created, update
+        return db_obj, not created, update
 
     def update_or_create_from_parsed_metadata(self, parsed_metadata, origin_url, related_object=None, origin=MetadataOriginEnum.CATALOGUE.value):
         self._reset_local_variables()
+
         with transaction.atomic():
             update = False
             if parsed_metadata.is_service:
@@ -134,6 +123,7 @@ class IsoMetadataManager(models.Manager):
                     parsed_metadata=parsed_metadata,
                     origin_url=origin_url,
                     origin=origin)
+
             elif parsed_metadata.is_dataset:
                 db_metadata, exists, update = self._create_dataset_metadata_record(parsed_metadata=parsed_metadata,
                                                                                    origin_url=origin_url,
@@ -141,9 +131,11 @@ class IsoMetadataManager(models.Manager):
 
                 db_metadata.add_dataset_metadata_relation(
                     related_object=related_object)
+
                 if not exists:
                     db_metadata.xml_backup_file.save(name='md_metadata.xml',
                                                      content=ContentFile(str(parsed_metadata.serialize(), "UTF-8")))
+
                 elif update:
                     # TODO: on update we need to check custom metadata
                     # TODO: delete old file
@@ -181,13 +173,12 @@ class IsoMetadataManager(models.Manager):
                     try:
                         db_reference_system, created = ReferenceSystem.objects.get_or_create(
                             **kwargs)
-                        db_reference_system_list.append(db_reference_system)
+                        db_reference_system_list.append(
+                            db_reference_system)
                     except MultipleObjectsReturned:
                         logger.warning(
                             f"Multiple objects returned for model 'ReferenceSystem' with kwargs '{kwargs}'")
                 db_metadata.reference_systems.set(db_reference_system_list)
-
-            # TODO: categories
 
             return db_metadata, update, exists
 

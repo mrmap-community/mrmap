@@ -16,6 +16,7 @@ from django.db.models.expressions import F, OuterRef, Subquery, Value
 from django.db.models.fields import FloatField
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query import Prefetch, Q
+from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from mptt2.models import Tree
@@ -760,3 +761,7 @@ class LayerManager(DefaultHistoryManager, TreeManager):
                 )
             )
         )
+
+
+class CatalogueServiceManager(DefaultHistoryManager, CTEManager):
+    pass

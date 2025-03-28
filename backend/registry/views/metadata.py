@@ -1,10 +1,12 @@
 from django.db.models.query import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import NestedModelViewSet, SerializerClassesMixin
+from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
+                             SerializerClassesMixin)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, ReferenceSystem,
                                       ServiceMetadataRecord, Style)
-from registry.models.service import CatalogueService, FeatureType, Layer
+from registry.models.service import (CatalogueService, FeatureType, Layer,
+                                     WebFeatureService, WebMapService)
 from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
@@ -124,7 +126,9 @@ class NestedStyleViewSet(
     pass
 
 
-class DatasetMetadataViewSetMixin:
+class DatasetMetadataViewSetMixin(
+    PreloadNotIncludesMixin,
+):
     queryset = DatasetMetadataRecord.objects.all()
     serializer_class = DatasetMetadataRecordSerializer
     filterset_fields = {
@@ -132,11 +136,11 @@ class DatasetMetadataViewSetMixin:
         "title": ["exact", "icontains", "contains"],
         "abstract": ["exact", "icontains", "contains"],
         "keywords__keyword": ["exact", "icontains", "contains"],
-        "harvested_by": ['exact', 'icontains', 'contains', 'in'],
-        "harvested_by__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
-        "ignored_by": ['exact', 'icontains', 'contains', 'in'],
-        "updated_by": ['exact', 'icontains', 'contains', 'in'],
-        "updated_by__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
+        # "harvested_by": ['exact', 'icontains', 'contains', 'in'],
+        # "harvested_by__background_process__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
+        # "ignored_by": ['exact', 'icontains', 'contains', 'in'],
+        # "updated_by": ['exact', 'icontains', 'contains', 'in'],
+        # "updated_by__background_process__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
     }
     search_fields = ("title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
@@ -227,10 +231,43 @@ class DatasetMetadataViewSetMixin:
         "referenceSystems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
+    prefetch_for_not_includes = {
+        "selfPointingLayers": [
+            Prefetch(
+                "self_pointing_layers",
+                queryset=Layer.objects.only(
+                    "id",
+                    "service_id",
+                    "mptt_tree_id",
+                    "mptt_lft",
+                ),
+            )
+        ],
+        "selfPointingFeatureTypes": [
+            Prefetch(
+                "self_pointing_feature_types",
+                queryset=FeatureType.objects.only("id", "service_id"),
+            )
+        ],
+        "harvestedThrough": [
+            Prefetch(
+                "harvested_through",
+                queryset=CatalogueService.objects.only("id"),
+            )
+        ],
+        "keywords": [
+            Prefetch("keywords", queryset=Keyword.objects.only("id"))
+        ],
+        "referenceSystems": [
+            Prefetch(
+                "reference_systems", queryset=ReferenceSystem.objects.only("id")
+            )
+        ],
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
-    def get_queryset(self):
-        qs = super().get_queryset()
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
         include = self.request.GET.get("include", None)
         if not include or "metadataContact" not in include:
             defer = [
@@ -246,42 +283,7 @@ class DatasetMetadataViewSetMixin:
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("dataset_contact").defer(*defer)
-        if not include or "selfPointingLayers" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "self_pointing_layers",
-                    queryset=Layer.objects.only(
-                        "id",
-                        "service_id",
-                        "mptt_tree_id",
-                        "mptt_lft",
-                    ),
-                )
-            )
-        if not include or "selfPointingFeatureTypes" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "self_pointing_feature_types",
-                    queryset=FeatureType.objects.only("id", "service_id"),
-                )
-            )
-        if not include or "harvestedThrough" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "harvested_through",
-                    queryset=CatalogueService.objects.only("id"),
-                )
-            )
-        if not include or "keywords" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("keywords", queryset=Keyword.objects.only("id"))
-            )
-        if not include or "referenceSystems" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
-                )
-            )
+
         return qs
 
 
@@ -430,7 +432,9 @@ class NestedDatasetContactViewSet(
     resource_name = 'DatasetContact'
 
 
-class ServiceMetadataViewSetMixin:
+class ServiceMetadataViewSetMixin(
+    PreloadNotIncludesMixin
+):
     queryset = ServiceMetadataRecord.objects.all()
     serializer_class = ServiceMetadataRecordSerializer
     filterset_fields = {
@@ -442,6 +446,7 @@ class ServiceMetadataViewSetMixin:
     search_fields = ("title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
     select_for_includes = {
+
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
@@ -455,10 +460,61 @@ class ServiceMetadataViewSetMixin:
         "referenceSystems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
+    prefetch_for_not_includes = {
+        "harvestedThrough": [
+            Prefetch(
+                "harvested_through",
+                queryset=CatalogueService.objects.only("id"),
+            )
+        ],
+        "keywords": [
+            Prefetch("keywords", queryset=Keyword.objects.only("id"))
+        ],
+        "referenceSystems": [
+            Prefetch(
+                "reference_systems", queryset=ReferenceSystem.objects.only("id")
+            )
+        ],
+        "selfPointingLayers": [
+            Prefetch(
+                "self_pointing_layers",
+                queryset=Layer.objects.only(
+                    "id",
+                    "service_id",
+                    "mptt_tree_id",
+                    "mptt_lft",
+                ),
+            )
+        ],
+        "selfPointingFeatureTypes": [
+            Prefetch(
+                "self_pointing_feature_types",
+                queryset=FeatureType.objects.only("id", "service_id"),
+            )
+        ],
+        "selfPointingWms": [
+            Prefetch(
+                "self_pointing_wms",
+                queryset=WebMapService.objects.only("id")
+            )
+        ],
+        "selfPointingWfs": [
+            Prefetch(
+                "self_pointing_wfs",
+                queryset=WebFeatureService.objects.only("id")
+            )
+        ],
+        "selfPointingCsw": [
+            Prefetch(
+                "self_pointing_csw",
+                queryset=CatalogueService.objects.only("id")
+            )
+        ]
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
 
-    def get_queryset(self):
-        qs = super().get_queryset()
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
         include = self.request.GET.get("include", None)
         if not include or "metadataContact" not in include:
             defer = [
@@ -467,23 +523,7 @@ class ServiceMetadataViewSetMixin:
                 if field.name not in ["id", "pk"]
             ]
             qs = qs.select_related("metadata_contact").defer(*defer)
-        if not include or "harvestedThrough" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "harvested_through",
-                    queryset=CatalogueService.objects.only("id"),
-                )
-            )
-        if not include or "keywords" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("keywords", queryset=Keyword.objects.only("id"))
-            )
-        if not include or "referenceSystems" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
-                )
-            )
+
         return qs
 
 

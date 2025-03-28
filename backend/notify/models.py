@@ -1,8 +1,12 @@
+from celery import states
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
+from MrMap.celery import app
 from notify.enums import LogTypeEnum, ProcessNameEnum
 from notify.managers import BackgroundProcessManager
 
@@ -13,6 +17,7 @@ class BackgroundProcess(models.Model):
         related_name='processes',
         related_query_name='process',
         blank=True)
+    celery_task_ids = ArrayField(models.UUIDField(), default=list, blank=True)
     date_created = models.DateTimeField(
         auto_now_add=True,
         verbose_name=_('Created DateTime'),
@@ -65,8 +70,41 @@ class BackgroundProcess(models.Model):
     objects = BackgroundProcessManager()
 
     def __str__(self):
-
         return f"{self.process_type} {self.related_id}"
+
+    def get_related_task_ids(self):
+        task_ids = []
+
+        i = app.control.inspect()
+        for queues in list(filter(lambda q: q is not None, (i.active(), i.reserved(), i.scheduled()))):
+            for task_list in queues.values():
+                for task in task_list:
+                    if ("background_process_pk", self.pk) in task.get("kwargs", {}).items():
+                        task_id = task.get("request", {}).get(
+                            "id", None) or task.get("id", None)
+                        task_ids.append(task_id)
+
+        unready_tasks = self.threads.filter(
+            status__in=states.UNREADY_STATES).values_list("task_id", flat=True)
+
+        return list(set(list(unready_tasks) + task_ids + self.celery_task_ids))
+
+    def save(self, *args, **kwargs):
+        if self.phase == "abort":
+            self.done_at = now()
+
+            related_tasks = self.get_related_task_ids()
+            if related_tasks:
+                app.control.revoke(related_tasks, terminate=True)
+
+                return super(BackgroundProcess, self).save(*args, **kwargs)
+
+        return super(BackgroundProcess, self).save(*args, **kwargs)
+
+
+def extented_description_file_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
+    return f'BackgroundProcessLog/{instance.background_process_id}/{filename}'
 
 
 class BackgroundProcessLog(models.Model):
@@ -90,3 +128,8 @@ class BackgroundProcessLog(models.Model):
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the task result was created in UTC')
     )
+    extented_description = models.FileField(
+        null=True,
+        verbose_name=_("Extented Description"),
+        help_text=_("this can be the response content for example"),
+        upload_to=extented_description_file_path)

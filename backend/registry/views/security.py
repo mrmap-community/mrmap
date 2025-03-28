@@ -124,8 +124,8 @@ class AllowedWebMapServiceOperationViewSetMixin():
         "secured_layers__title"
     )
 
-    def get_queryset(self):
-        qs = super().get_queryset()
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
         include = self.request.GET.get("include", None)
 
         if not include or "securedService" not in include:
@@ -249,8 +249,8 @@ class WebMapServiceProxySettingViewSetMixin():
         "secured_service__title",
     )
 
-    def get_queryset(self):
-        qs = super().get_queryset()
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
         include = self.request.GET.get("include", None)
 
         if not include or "securedService" not in include:
@@ -309,8 +309,8 @@ class WebFeatureServiceProxySettingViewSetMixin():
         "secured_service__title",
     )
 
-    def get_queryset(self):
-        qs = super().get_queryset()
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
         include = self.request.GET.get("include", None)
 
         if not include or "securedService" not in include:

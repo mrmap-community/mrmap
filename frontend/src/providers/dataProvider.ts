@@ -212,8 +212,7 @@ const dataProvider = ({
   const updateResource = async (resource: string, params: UpdateParams): Promise<UpdateResult<any>> => {
     const operationId = `partial_update_${resource}`
     const operation = checkOperationExists(httpClient, operationId)
-
-    const partialData: Partial<RaRecord> = {id: params.data.id}
+    const partialData: Partial<RaRecord> = {id: params.id}
     Object.keys(params.data).forEach((key) => {
       if (!params.data.hasOwnProperty(key) && params.previousData.hasOwnProperty(key)) return
       

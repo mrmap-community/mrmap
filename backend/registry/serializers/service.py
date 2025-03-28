@@ -8,6 +8,7 @@ from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer)
 from extras.validators import validate_get_capablities_uri
+from registry.models.harvest import HarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Dimension,
                                       Keyword, MetadataContact,
                                       ReferenceSystem, Style)
@@ -20,8 +21,7 @@ from registry.models.service import (CatalogueService,
                                      Layer, WebFeatureService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapService, WebMapServiceOperationUrl)
-from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
-                                           KeywordSerializer,
+from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            StyleSerializer)
@@ -596,14 +596,19 @@ class CatalogueServiceSerializer(
         HistoryInformationSerializer,
         ModelSerializer):
     url = HyperlinkedIdentityField(
-        view_name="registry:wfs-detail",
+        view_name="registry:csw-detail",
     )
-    harvested_datasets = ResourceRelatedField(
-        queryset=DatasetMetadataRecord.objects,
+    harvested_dataset_count = IntegerField(read_only=True)
+    harvested_service_count = IntegerField(read_only=True)
+    harvested_total_count = IntegerField(read_only=True)
+    # TODO: deprecated;
+    # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
+    # registry_datasetmetadatarecord
+    harvesting_jobs = ResourceRelatedField(
+        queryset=HarvestingJob.objects,
         many=True,
-        source="registry_datasetmetadatarecord_metadata_records",
-        related_link_view_name="registry:csw-datasetmetadata-list",
-        related_link_url_kwarg="parent_lookup_harvested_through",
+        # related_link_view_name="registry:csw-datasetmetadata-list",
+        # related_link_url_kwarg="parent_lookup_harvested_through",
     )
     service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
@@ -630,7 +635,7 @@ class CatalogueServiceSerializer(
     )
 
     included_serializers = {
-        "harvested_datasets": DatasetMetadataRecordSerializer,
+        "harvesting_jobs": 'registry.serializers.harvesting.HarvestingJobSerializer',
         "service_contact": MetadataContactSerializer,
         "metadata_contact": MetadataContactSerializer,
         "keywords": KeywordSerializer,

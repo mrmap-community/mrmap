@@ -7,3 +7,12 @@ class ErrorType(TextChoices):
     """
     REQUEST = 'request'
     PARSING = 'parsing'
+
+
+class CollectingStatenEnum(TextChoices):
+    """ Defines sources for categories
+    """
+    NEW = "new"
+    UPDATED = "updated"
+    EXISTING = "existing"
+    DUPLICATED = "duplicated"

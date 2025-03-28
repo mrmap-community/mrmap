@@ -1,20 +1,38 @@
+from camel_converter import to_camel
 from django.contrib.auth import get_user_model
+from django.db.models import (Case, Count, Exists, F, OuterRef, Prefetch, Q,
+                              Subquery, Sum)
+from django.db.models import Value
+from django.db.models import Value as V
+from django.db.models import When
+from django.db.models.expressions import F, OuterRef
+from django.db.models.functions import Coalesce
 from django.db.models.query import Prefetch
+from django.db.models.sql.constants import LOUTER
+from django_cte import With
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
-                             SerializerClassesMixin)
+                             PreloadNotIncludesMixin, SerializerClassesMixin,
+                             SparseFieldMixin)
 from notify.models import BackgroundProcess, ProcessNameEnum
+from registry.enums.harvesting import CollectingStatenEnum
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
+from registry.models.harvest import (HarvestedDatasetMetadataRelation,
+                                     HarvestedServiceMetadataRelation,
+                                     HarvestingJob)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, Style)
-from registry.models.security import AllowedWebMapServiceOperation
+from registry.models.security import (AllowedWebFeatureServiceOperation,
+                                      AllowedWebMapServiceOperation,
+                                      WebFeatureServiceProxySetting,
+                                      WebMapServiceProxySetting)
 from registry.models.service import (CatalogueService,
                                      CatalogueServiceOperationUrl,
                                      WebFeatureServiceOperationUrl,
@@ -55,7 +73,7 @@ class WebMapServiceHistoricalViewSet(
         'history_relation': ['exact'],
     }
 
-    def get_queryset(self):
+    def get_queryset(self, *args, **kwargs):
         defer_metadata_contact = [
             f"metadata_contact__{field.name}"
             for field in MetadataContact._meta.get_fields()
@@ -67,8 +85,8 @@ class WebMapServiceHistoricalViewSet(
             if field.name not in ["id", "pk"]
         ]
 
-        qs = super().get_queryset().select_related("metadata_contact",
-                                                   "service_contact").defer(*defer_metadata_contact, *defer_service_contact)
+        qs = super().get_queryset(*args, **kwargs).select_related("metadata_contact",
+                                                                  "service_contact").defer(*defer_metadata_contact, *defer_service_contact)
 
         include = self.request.GET.get("include", None)
 
@@ -132,6 +150,7 @@ class WebMapServiceViewSet(
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
+    PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
     ModelViewSet,
 ):
@@ -148,13 +167,14 @@ class WebMapServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebMapServices` from the system
     """
-    queryset = WebMapService.capabilities.with_security_information()
+    queryset = WebMapService.capabilities.all()
     serializer_classes = {
         "default": WebMapServiceSerializer,
         "list": WebMapServiceListSerializer,
         "create": WebMapServiceCreateSerializer,
     }
     select_for_includes = {
+        "proxy_setting": ["proxy_setting"],
         "service_contact": ["service_contact"],
         "metadata_contact": ["metadata_contact"],
     }
@@ -185,6 +205,43 @@ class WebMapServiceViewSet(
             )
         ],
     }
+    prefetch_for_not_includes = {
+        "layers": [
+            Prefetch(
+                "layers",
+                queryset=Layer.objects.only(
+                    "id",
+                    "service_id",
+                    "mptt_tree_id",
+                    "mptt_lft",
+                ),
+            )
+        ],
+        "keywords": [
+            Prefetch("keywords", queryset=Keyword.objects.only("id"))
+        ],
+        "allowedOperations": [
+            Prefetch(
+                "allowed_operations",
+                queryset=AllowedWebMapServiceOperation.objects.only(
+                    "id", "secured_service")
+            )
+        ],
+        "operationUrls": [
+            Prefetch(
+                "operation_urls",
+                queryset=WebMapServiceOperationUrl.objects.only(
+                    "id", "service"),
+            )
+        ],
+        "proxySetting": [
+            Prefetch(
+                "proxy_setting",
+                queryset=WebMapServiceProxySetting.objects.only(
+                    "id", )
+            )
+        ]
+    }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]
@@ -212,49 +269,48 @@ class WebMapServiceViewSet(
             "background_process_pk": background_process.pk
         }
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        include = self.request.GET.get("include", None)
-        if not include or "layers" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "layers",
-                    queryset=Layer.objects.only(
-                        "id",
-                        "service_id",
-                        "mptt_tree_id",
-                        "mptt_lft",
-                    ),
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        fields_snake = self.request.GET.get(
+            "fields[WebMapService]", "").split(',')
+        fields = [to_camel(field) for field in fields_snake if field.strip()]
+
+        if not fields or "camouflage" in fields:
+            qs = qs.annotate(
+                camouflage=Coalesce(
+                    F("proxy_setting__camouflage"), V(False)),
+            )
+        if not fields or "logResponse" in fields:
+            qs = qs.annotate(
+                log_response=Coalesce(
+                    F("proxy_setting__log_response"), V(False)),
+            )
+        if not fields or "isSecured" in fields:
+            qs = qs.annotate(
+                is_secured=Exists(
+                    AllowedWebMapServiceOperation.objects.filter(
+                        secured_service__id__exact=OuterRef("pk"),
+                    )
+                ),
+            )
+        if not fields or "isSpatialSecured" in fields:
+            qs = qs.annotate(
+                is_spatial_secured=Exists(
+                    AllowedWebMapServiceOperation.objects.filter(
+                        secured_service__id__exact=OuterRef("pk"),
+                        allowed_area__isnull=False
+                    )
                 )
             )
 
-        if not include or "keywords" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("keywords", queryset=Keyword.objects.only("id"))
-            )
-        if not include or "allowedOperations" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "allowed_operations",
-                    queryset=AllowedWebMapServiceOperation.objects.only(
-                        "id", "secured_service__id")
-                )
-            )
-        if not include or "operationUrls" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "operation_urls",
-                    queryset=WebMapServiceOperationUrl.objects.only(
-                        "id", "service_id"),
-                )
-            )
         return qs
 
 
 class LayerViewSetMixin(
+    PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
 ):
-    queryset = Layer.objects.with_inherited_attributes()
+    queryset = Layer.objects.with_inherited_attributes().select_related("mptt_tree")
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
@@ -279,46 +335,35 @@ class LayerViewSetMixin(
         "referenceSystems": ["reference_systems"],
         "datasetMetadata": ["registry_datasetmetadatarecord_metadata_records"]
     }
+    prefetch_for_not_includes = {
+        "mpttParent": [
+            # TODO optimize queryset with defer
+            Prefetch(
+                "mptt_parent",
+                queryset=Layer.objects.select_related(
+                    "mptt_tree").only("id", "mptt_tree")
+            )
+        ],
+        "styles": [
+            Prefetch("styles", queryset=Style.objects.only("id", "layer_id"))
+        ],
+        "keywords": [
+            Prefetch("keywords", queryset=Keyword.objects.only("id"))
+        ],
+        "referenceSystem": [
+            Prefetch(
+                "reference_systems", queryset=ReferenceSystem.objects.only("id")
+            )
+        ],
+        "datasetMetadata": [
+            Prefetch(
+                "registry_datasetmetadatarecord_metadata_records", queryset=DatasetMetadataRecord.objects.only("id")
+            )
+        ]
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
                        "hits", "scale_max", "scale_min", "date_stamp", "mptt_lft", "mptt_rgt", "mptt_depth"]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        include = self.request.GET.get("include", None)
-        if not include or "service" not in include:
-            defer = [
-                f"service__{field.name}"
-                for field in WebMapService._meta.get_fields()
-                if field.name not in ["id", "pk"]
-            ]
-            qs = qs.select_related("service").defer(*defer)
-
-        if not include or "mpttParent" not in include:
-            # TODO optimize queryset with defer
-            qs = qs.select_related("mptt_parent")
-        if not include or "styles" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("styles", queryset=Style.objects.only("id", "layer_id"))
-            )
-        if not include or "keywords" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("keywords", queryset=Keyword.objects.only("id"))
-            )
-        if not include or "referenceSystems" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
-                )
-            )
-        if not include or "datasetMetadata" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "registry_datasetmetadatarecord_metadata_records", queryset=DatasetMetadataRecord.objects.only("id")
-                )
-            )
-
-        return qs
 
 
 class LayerViewSet(
@@ -354,6 +399,7 @@ class WebFeatureServiceViewSet(
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
+    PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
     ModelViewSet,
 ):
@@ -370,12 +416,13 @@ class WebFeatureServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebFeatureService` from the system
     """
-    queryset = WebFeatureService.capabilities.with_security_information()
+    queryset = WebFeatureService.capabilities.all()
     serializer_classes = {
         "default": WebFeatureServiceSerializer,
         "create": WebFeatureServiceCreateSerializer,
     }
     select_for_includes = {
+        "proxy_setting": ["proxy_setting"],
         "service_contact": ["service_contact"],
         "metadata_contact": ["metadata_contact"],
     }
@@ -391,6 +438,13 @@ class WebFeatureServiceViewSet(
             ),
         ],
         "keywords": ["keywords"],
+        "allowedOperations": [
+            Prefetch(
+                "allowed_operations",
+                queryset=AllowedWebFeatureServiceOperation.objects.select_related(
+                    "secured_service")
+            )
+        ],
         "operationUrls": [
             Prefetch(
                 "operation_urls",
@@ -399,6 +453,41 @@ class WebFeatureServiceViewSet(
                 ).prefetch_related("mime_types"),
             )
         ],
+    }
+    prefetch_for_not_includes = {
+        "featureTypes": [
+            Prefetch(
+                "featuretypes",
+                queryset=FeatureType.objects.only(
+                    "id",
+                    "service_id",
+                )
+            ),
+        ],
+        "keywords": [
+            Prefetch("keywords", queryset=Keyword.objects.only("id"))
+        ],
+        "allowedOperations": [
+            Prefetch(
+                "allowed_operations",
+                queryset=AllowedWebFeatureServiceOperation.objects.only(
+                    "id", "secured_service")
+            )
+        ],
+        "operationUrls": [
+            Prefetch(
+                "operation_urls",
+                queryset=WebFeatureServiceOperationUrl.objects.only(
+                    "id", "service"),
+            )
+        ],
+        "proxySetting": [
+            Prefetch(
+                "proxy_setting",
+                queryset=WebFeatureServiceProxySetting.objects.only(
+                    "id", )
+            )
+        ]
     }
     filterset_class = WebFeatureServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
@@ -427,35 +516,45 @@ class WebFeatureServiceViewSet(
             "background_process_pk": background_process.pk
         }
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        include = self.request.GET.get("include", None)
-        if not include or "featuretypes" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "featuretypes",
-                    queryset=FeatureType.objects.only(
-                        "id",
-                        "service_id",
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        fields_snake = self.request.GET.get(
+            "fields[WebFeatureService]", "").split(',')
+        fields = [to_camel(field) for field in fields_snake if field.strip()]
+
+        if not fields or "camouflage" in fields:
+            qs = qs.annotate(
+                camouflage=Coalesce(
+                    F("proxy_setting__camouflage"), V(False)),
+            )
+        if not fields or "logResponse" in fields:
+            qs = qs.annotate(
+                log_response=Coalesce(
+                    F("proxy_setting__log_response"), V(False)),
+            )
+        if not fields or "isSecured" in fields:
+            qs = qs.annotate(
+                is_secured=Exists(
+                    AllowedWebFeatureServiceOperation.objects.filter(
+                        secured_service__id__exact=OuterRef("pk"),
                     )
                 ),
             )
-        if not include or "keywords" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("keywords", queryset=Keyword.objects.only("id"))
-            )
-        if not include or "operationUrls" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "operation_urls",
-                    queryset=WebFeatureServiceOperationUrl.objects.only(
-                        "id", "service_id"),
+        if not fields or "isSpatialSecured" in fields:
+            qs = qs.annotate(
+                is_spatial_secured=Exists(
+                    AllowedWebFeatureServiceOperation.objects.filter(
+                        secured_service__id__exact=OuterRef("pk"),
+                        allowed_area__isnull=False
+                    )
                 )
             )
+
         return qs
 
 
 class FeatureTypeViewSetMixin(
+    PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
 ):
     queryset = FeatureType.objects.all()
@@ -484,37 +583,22 @@ class FeatureTypeViewSetMixin(
         "keywords": ["keywords"],
         "referenceSystems": ["reference_systems"],
     }
+    prefetch_for_not_includes = {
+        "keywords": [
+            Prefetch("keywords", queryset=Keyword.objects.only("id"))
+        ],
+        "referenceSystems": [
+            Prefetch(
+                "reference_systems", queryset=ReferenceSystem.objects.only("id")
+            )
+        ],
+        "outputFormats": [
+            Prefetch(
+                "output_formats", queryset=MimeType.objects.only("id")
+            )
+        ]
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        include = self.request.GET.get("include", None)
-        if not include or "service" not in include:
-            defer = [
-                f"service__{field.name}"
-                for field in WebFeatureService._meta.get_fields()
-                if field.name not in ["id", "pk"]
-            ]
-            qs = qs.select_related("service").defer(*defer)
-        if not include or "keywords" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("keywords", queryset=Keyword.objects.only("id"))
-            )
-        if not include or "referenceSystems" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "reference_systems", queryset=ReferenceSystem.objects.only("id")
-                )
-            )
-
-        if not include or "output_formats" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "output_formats", queryset=MimeType.objects.only("id")
-                )
-            )
-
-        return qs
 
 
 class FeatureTypeViewSet(
@@ -552,6 +636,8 @@ class CatalogueServiceViewSetMixin(
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
+    PreloadNotIncludesMixin,
+    SparseFieldMixin,
     HistoryInformationViewSetMixin,
 ):
     """ Endpoints for resource `CatalogueService`
@@ -597,8 +683,99 @@ class CatalogueServiceViewSetMixin(
             )
         ],
     }
+    prefetch_for_not_includes = {
+        "keywords": [
+            Prefetch(
+                "keywords",
+                queryset=Keyword.objects.only("id")
+            )
+        ],
+        "harvestedDatasets": [
+            Prefetch(
+                "registry_datasetmetadatarecord_metadata_records",
+                queryset=DatasetMetadataRecord.objects.only("id"))
+        ],
+        "operationUrls": [
+            Prefetch(
+                "operation_urls",
+                queryset=CatalogueServiceOperationUrl.objects.only(
+                    "id", "service_id"),
+            )
+        ],
+        "harvestingJob": [
+            Prefetch(
+                "harvesting_jobs",
+                queryset=HarvestingJob.objects.only("id", "service")
+            )
+        ]
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
+
+    def with_harvesting_stats(self, qs):
+        harvested_total_count_needed = self.check_sparse_fields_contains(
+            "harvestedTotalCount")
+        harvested_dataset_count_needed = self.check_sparse_fields_contains(
+            "harvestedDatasetCount") or harvested_total_count_needed
+        harvested_service_count_needed = self.check_sparse_fields_contains(
+            "harvestedServiceCount") or harvested_total_count_needed
+
+        dataset_cte = With(
+            queryset=HarvestedDatasetMetadataRelation.objects.annotate(service=F('harvesting_job__service_id')).values('service').annotate(
+                dataset_count=Count(
+                    "dataset_metadata_record_id",
+                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))
+            ),
+            name="dataset_cte"
+        )
+        service_cte = With(
+            queryset=HarvestedServiceMetadataRelation.objects.annotate(service=F('harvesting_job__service_id')).values('service').annotate(
+                service_count=Count(
+                    "service_metadata_record_id",
+                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))),
+            name="service_cte"
+        )
+        if harvested_dataset_count_needed:
+            qs = (
+                dataset_cte.join(model_or_queryset=qs,
+                                 id=dataset_cte.col.service,
+                                 _join_type=LOUTER
+                                 )
+                .with_cte(dataset_cte)
+            )
+
+        if harvested_service_count_needed:
+            qs = (
+                service_cte.join(model_or_queryset=qs,
+                                 id=service_cte.col.service,
+                                 _join_type=LOUTER
+                                 )
+                .with_cte(service_cte)
+            )
+
+        annotate_kwargs = {}
+        if harvested_total_count_needed:
+            annotate_kwargs.update({
+                "harvested_dataset_count": Coalesce(dataset_cte.col.dataset_count, 0),
+                "harvested_service_count": Coalesce(service_cte.col.service_count, 0),
+                "harvested_total_count": Coalesce(F("harvested_dataset_count"), 0) + Coalesce(F("harvested_service_count"), 0)
+            })
+        if harvested_dataset_count_needed:
+            annotate_kwargs.update({
+                "harvested_dataset_count": Coalesce(dataset_cte.col.dataset_count, 0)
+            })
+        if harvested_service_count_needed:
+            annotate_kwargs.update({
+                "harvested_service_count": Coalesce(service_cte.col.service_count, 0),
+            })
+        if annotate_kwargs:
+            qs = qs.annotate(**annotate_kwargs)
+        return qs
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        qs = self.with_harvesting_stats(qs)
+        return qs
 
     def get_task_kwargs(self, request, serializer):
         background_process = BackgroundProcess.objects.create(
@@ -618,41 +795,7 @@ class CatalogueServiceViewSetMixin(
                 "user_pk": request.user.pk,
             },
             "background_process_pk": background_process.pk
-
         }
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        include = self.request.GET.get("include", None)
-        # TODO:
-        # if not include or "datasetMetadata" not in include:
-        #     qs = qs.prefetch_related(
-        #         Prefetch(
-        #             "dataset_metadata",
-        #             queryset=DatasetMetadataRecord.objects.only(
-        #                 "id",
-        #                 "service_id",
-        #             )
-        #         ),
-        #     )
-        if not include or "keywords" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("keywords", queryset=Keyword.objects.only("id"))
-            )
-        if not include or "harvestedDatasets" not in include:
-            qs = qs.prefetch_related(
-                Prefetch("registry_datasetmetadatarecord_metadata_records",
-                         queryset=DatasetMetadataRecord.objects.only("id"))
-            )
-        if not include or "operationUrls" not in include:
-            qs = qs.prefetch_related(
-                Prefetch(
-                    "operation_urls",
-                    queryset=CatalogueServiceOperationUrl.objects.only(
-                        "id", "service_id"),
-                )
-            )
-        return qs
 
 
 class CatalogueServiceViewSet(

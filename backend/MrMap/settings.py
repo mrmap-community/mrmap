@@ -17,6 +17,7 @@ from warnings import warn
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
+from MrMap.celery import is_this_a_celery_process
 
 from . import VERSION
 
@@ -255,9 +256,32 @@ DATABASES = {
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
         "HOST": os.environ.get("SQL_HOST"),
         "PORT": os.environ.get("SQL_PORT"),
-        "CONN_MAX_AGE": 0,
+        "OPTIONS": {
+            "pool": {
+                "min_size": 4,
+                "max_size": 10,
+                "timeout": 60,
+            }
+        },
+        "CONN_HEALTH_CHECKS": True,
+
     }
 }
+
+# For Celery worker we need other settings.
+# Cause there are many concurent tasks running, we need a lot of connections that are opended.
+# Otherwise it is highly possible that with transaction.atomic(): (creates new connection) crashes, cause the db does not allow a new connection.
+# there for we need to define the pool with a high number of maximum opened connections.
+if is_this_a_celery_process():
+    ROOT_LOGGER.info("using postgresql pools")
+    print("using postgresql pools")
+    DATABASES["default"]["OPTIONS"] = {
+        "pool": {
+            "min_size": 10,
+            "max_size": 20,  # FIXME: depends on max celery worker threads are running parralel
+            "timeout": 10,
+        }
+    }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
@@ -290,13 +314,13 @@ CACHES = {
 ################################################################
 # Celery settings
 ################################################################
-CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_BACKEND = "django-cache"
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_RESULT_EXTENDED = True
 CELERY_TIMEZONE = TIME_ZONE
-# CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_DEFAULT_QUEUE = "default"
@@ -490,6 +514,8 @@ LOGGING = {
             "facility": "user",
             "address": ("localhost", 1514),
         },
+        # FIXME:!!!!!!
+        # DO NOT active filelogger for celery worker. Bottleneck!!!!!
         # "file": {
         #     "class": "logging.handlers.RotatingFileHandler",
         #     "maxBytes": LOG_FILE_MAX_SIZE,
@@ -529,7 +555,7 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.MultiPartParser",
     ),
     "DEFAULT_RENDERER_CLASSES": [
-        # "extras.utils.BrowsableAPIRendererWithoutForms",
+        "extras.utils.BrowsableAPIRendererWithoutForms",
         "rest_framework_json_api.renderers.JSONRenderer",
     ],
 
@@ -553,7 +579,7 @@ REST_FRAMEWORK = {
 #     'TOKEN_TTL': timedelta(hours=1),
 #     'AUTO_REFRESH': True,
 # }
-
+MATERIALIZED_VIEWS_DISABLE_SYNC_ON_MIGRATE = True
 MATERIALIZED_VIEWS_CHECK_SQL_CHANGED = True
 
 SPECTACULAR_SETTINGS = {

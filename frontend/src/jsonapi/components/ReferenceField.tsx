@@ -1,4 +1,5 @@
-import { Link, RaRecord, ReferenceField, ReferenceFieldProps, useFieldValue, useGetRecordRepresentation } from "react-admin";
+import { useMemo } from "react";
+import { ExtractRecordPaths, Link, RaRecord, ReferenceField, ReferenceFieldProps, useFieldValue, useGetRecordRepresentation } from "react-admin";
 import { hasIncludedData } from "../utils";
 
 const JsonApiReferenceField = <
@@ -8,8 +9,15 @@ const JsonApiReferenceField = <
     props: ReferenceFieldProps<RecordType, ReferenceRecordType>
 ) => {
     const data = useFieldValue(props);
-    const { source, emptyText, reference } = props;
+    const { source, reference } = props;
+
     const getRecordRepresentation = useGetRecordRepresentation(reference);
+    
+    const sparseFieldsParam = useMemo(()=>{
+      const _sparseFieldsParam: any = {}
+      _sparseFieldsParam[`fields[${reference}]`] = 'id,string_representation'
+      return _sparseFieldsParam
+    },[])
 
     if (typeof data === 'object' && !Array.isArray(data) && data !== null && hasIncludedData(data) ) {
       return (
@@ -20,7 +28,17 @@ const JsonApiReferenceField = <
     }
 
     return (
-      <ReferenceField {...props} source={`${source}.id`} />
+      <ReferenceField 
+        {...props} 
+        source={`${source}.id` as ExtractRecordPaths<RecordType>} 
+        queryOptions={{
+          meta: {
+            jsonApiParams: {
+              ...sparseFieldsParam
+            }
+          }
+        }}
+      />
     )
     
 };

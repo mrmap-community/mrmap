@@ -20,14 +20,14 @@ def create_wfs_operations(sender, **kwargs):
 def create_file_system_import_task(sender, **kwargs):
     # this will create the periodic task as database object which is
     # required by celery beat to watch for new ISO metadata files to import
-    from django_celery_beat.models import IntervalSchedule, PeriodicTask
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
-    schedule, _ = IntervalSchedule.objects.get_or_create(
-        every=1,
-        period=IntervalSchedule.MINUTES,
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="0,5,10,15,20,25,30,35,40,45,50,55",
     )
+
     PeriodicTask.objects.get_or_create(
-        interval=schedule,
+        crontab=schedule,
         name="check for new metadata to import",
         task="registry.tasks.harvest.check_for_files_to_import"
     )
@@ -54,5 +54,5 @@ class RegistryConfig(AppConfig):
         post_migrate.connect(create_wms_operations, sender=self)
         post_migrate.connect(create_wfs_operations, sender=self)
 
-        # post_migrate.connect(create_file_system_import_task, sender=self)
+        post_migrate.connect(create_file_system_import_task, sender=self)
         post_migrate.connect(find_orphan_metadata_objects, sender=self)

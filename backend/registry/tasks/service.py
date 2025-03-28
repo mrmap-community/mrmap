@@ -78,35 +78,34 @@ def build_ogc_service(
             phase='persisting service...'
         )
 
-        with transaction.atomic():
-            # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-            if parsed_service.service_type.name == "wms":
-                db_service = WebMapService.capabilities.create(
-                    parsed_service=parsed_service)
-                resource_name = "WebMapService"
-                self_url = reverse(
-                    viewname='registry:wms-detail', args=[db_service.pk])
-            elif parsed_service.service_type.name == "wfs":
-                db_service = WebFeatureService.capabilities.create(
-                    parsed_service=parsed_service)
-                resource_name = "WebFeatureService"
-                self_url = reverse(
-                    viewname='registry:wfs-detail', args=[db_service.pk])
-            elif parsed_service.service_type.name == "csw":
-                db_service = CatalogueService.capabilities.create(
-                    parsed_service=parsed_service)
-                resource_name = "CatalogueService"
-                self_url = reverse(
-                    viewname='registry:csw-detail', args=[db_service.pk])
-            else:
-                self.update_background_process(
-                    'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.')
-                raise NotImplementedError(
-                    "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
+        # create all needed database objects and rollback if any error occours to avoid from database inconsistence
+        if parsed_service.service_type.name == "wms":
+            db_service = WebMapService.capabilities.create(
+                parsed_service=parsed_service)
+            resource_name = "WebMapService"
+            self_url = reverse(
+                viewname='registry:wms-detail', args=[db_service.pk])
+        elif parsed_service.service_type.name == "wfs":
+            db_service = WebFeatureService.capabilities.create(
+                parsed_service=parsed_service)
+            resource_name = "WebFeatureService"
+            self_url = reverse(
+                viewname='registry:wfs-detail', args=[db_service.pk])
+        elif parsed_service.service_type.name == "csw":
+            db_service = CatalogueService.capabilities.create(
+                parsed_service=parsed_service)
+            resource_name = "CatalogueService"
+            self_url = reverse(
+                viewname='registry:csw-detail', args=[db_service.pk])
+        else:
+            self.update_background_process(
+                'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.')
+            raise NotImplementedError(
+                "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
 
-            if auth:
-                auth.service = db_service
-                auth.save()
+        if auth:
+            auth.service = db_service
+            auth.save()
 
         self.update_state(
             state=states.SUCCESS,

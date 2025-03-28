@@ -1,111 +1,89 @@
-import { Chip, Typography } from '@mui/material';
-import { BooleanField, DateField, NumberField, Show, TabbedShowLayout, useRecordContext } from 'react-admin';
-import ListGuesser from '../../../jsonapi/components/ListGuesser';
-import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
-import ProgressField from '../../Field/ProgressField';
+import { snakeCase } from 'lodash';
+import { useMemo } from 'react';
+import { RaRecord, ShowView, useResourceDefinition } from 'react-admin';
+import RealtimeShowContextProvider from '../../../jsonapi/components/Realtime/RealtimeShowContextProvider';
+import useSparseFieldsForOperation from '../../../jsonapi/hooks/useSparseFieldsForOperation';
+import HarvestingJobActions from './HarvestingJobActions';
+import HarvestingJobAside from './HarvestingJobAside';
+import HarvestingJobTabbedShowLayout from './HarvestingJobTabbedShowLayout';
 
 
-const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
-const dateParseRegex = /(\d{4})-(\d{2})-(\d{2})/;
+export const isStale = (timestamp: number, record: RaRecord) => {
+  return false
+  const stateTime = new Date(timestamp).getTime()
+  const nowTime = new Date(Date.now()).getTime()
+  if (['completed', 'aborted'].includes(record?.backgroundProcess?.phase) ) return false;
 
-const convertDateToString = (value: string | Date) => {
-    // value is a `Date` object
-    if (!(value instanceof Date) || isNaN(value.getDate())) return '';
-    const pad = '00';
-    const yyyy = value.getFullYear().toString();
-    const MM = (value.getMonth() + 1).toString();
-    const dd = value.getDate().toString();
-    return `${yyyy}-${(pad + MM).slice(-2)}-${(pad + dd).slice(-2)}`;
-};
+  if (nowTime - stateTime > 10){
+    return true
+  }
 
-const dateFormatter = (value: string | Date) => {
-  // null, undefined and empty string values should not go through dateFormatter
-  // otherwise, it returns undefined and will make the input an uncontrolled one.
-  if (value == null || value === '') return '';
-  if (value instanceof Date) return convertDateToString(value);
-  // Valid dates should not be converted
-  if (dateFormatRegex.test(value)) return value;
-
-  return convertDateToString(new Date(value));
-};
-
-const HarvestingJobTabbedShowLayout = () => {
-  const record = useRecordContext();
-  return (
-      <TabbedShowLayout>
-
-        <TabbedShowLayout.Tab label="summary">
-          
-          <JsonApiReferenceField source="service" reference="CatalogueService" label="Service" />
-          <BooleanField source="harvestDatasets"/>
-          <BooleanField source="harvestServices"/>
-          <NumberField source="totalRecords"/>
-          <DateField source="backgroundProcess.dateCreated" showTime emptyText='unknown'/>
-          <DateField source="backgroundProcess.doneAt" showTime emptyText='unknown'/>
-          <ProgressField source="backgroundProcess.progress"/>
-        </TabbedShowLayout.Tab>
-
-        <TabbedShowLayout.Tab 
-          label={<Typography>New Datasets <Chip label={record?.newDatasetRecords?.length || 0} color="success" size="small"/></Typography>} 
-          path="new-datasets"
-        >
-          <ListGuesser
-            resource='DatasetMetadataRecord'
-            filter={{'harvested_by': record?.id}}
-          />
-        </TabbedShowLayout.Tab>
-        <TabbedShowLayout.Tab 
-          label={<Typography>Existing Datasets <Chip label={record?.existingDatasetRecords?.length || 0} size="small"/></Typography>} 
-          path="existing-datasets"
-        >
-          <ListGuesser
-            resource='DatasetMetadataRecord'
-            filter={{'ignored_by': record?.id}}
-          />
-        </TabbedShowLayout.Tab>
-        <TabbedShowLayout.Tab 
-          label={<Typography>Updated Datasets <Chip label={record?.updatedDatasetRecords?.length || 0} size="small"/></Typography>} 
-          path="updated-datasets"
-        >
-          <ListGuesser
-            resource='DatasetMetadataRecord'
-            filter={{'updated_by': record?.id}}
-          />
-        </TabbedShowLayout.Tab>
-        <TabbedShowLayout.Tab 
-          label={<Typography>Logs <Chip label={record?.backgroundProcess?.logs?.length || 0} size="small"/></Typography>} 
-          path="logs"
-        >
-          <ListGuesser
-            relatedResource='BackgroundProcess'
-            relatedResourceId={record?.backgroundProcess?.id}
-            resource='BackgroundProcessLog'
-          />
-        </TabbedShowLayout.Tab>
-        <TabbedShowLayout.Tab 
-          label={<Typography>Task Results <Chip label={record?.backgroundProcess?.threads?.length || 0} size="small"/></Typography>} 
-          path="tasks"
-        >
-          <ListGuesser
-            relatedResource='BackgroundProcess'
-            relatedResourceId={record?.backgroundProcess?.id}
-            resource='TaskResult'
-          />
-        </TabbedShowLayout.Tab>
-
-
-      </TabbedShowLayout>
-  )
+  return false
 }
 
+const ShowHarvestingJob = () => {
+    const { name } = useResourceDefinition()
+    const { sparseFields: harvestingJobSparseFields } = useSparseFieldsForOperation(`list_${name}`)
+    const { sparseFields: backgroundProcessSparseFields } = useSparseFieldsForOperation(`list_BackgroundProcess`)
+    
+    const sparseFields = useMemo(()=> {
+      // see issue in drf-spectacular-json-api: https://github.com/jokiefer/drf-spectacular-json-api/issues/30
+      // Therefore we need to implement this workaround to get all possible sparefield values
+      return {
+        ...harvestingJobSparseFields,
+        ...backgroundProcessSparseFields,
+      }
+    }, [harvestingJobSparseFields, backgroundProcessSparseFields])
 
-const ShowHarvestingJob = () => { 
+    const excludeSparseFields: any = useMemo(()=>({
+      "HarvestingJob": [
+        "temporaryMdMetadataFiles",
+        "harvestedDatasetMetadata",
+        "harvestedServiceMetadata",
+      ],
+      "BackgroundProcess": [
+        "threads",
+        "logs"
+      ],
+    }),[])
+   
+    const sparseFieldsParams = useMemo(()=>{
+      const _sparseFieldsParams: any = {}
+      for (const [key, value] of Object.entries(sparseFields)) {
+        if (key in excludeSparseFields){
+          const excludeFields = excludeSparseFields[`${key}`]
+          const filteredSparseFields = value.filter(fieldName => !excludeFields.includes(fieldName))
+          // Hint: there is a bug in django json:api package where sparse fields parameter are not camelCase translated correctly.
+          // For that we need to transform the values to snake case
+          _sparseFieldsParams[`fields[${key}]`] = filteredSparseFields.map(field => snakeCase(field)).join(',')
+        }
+      }
+      return _sparseFieldsParams
+    },[sparseFields, excludeSparseFields ])
+
     return (
-      <Show 
-        queryOptions={{meta: {jsonApiParams:{include: 'service,backgroundProcess'}}}}
+      <RealtimeShowContextProvider
+        isStaleCheckInterval={15}
+        isStale={isStale}
+        queryOptions={{
+          meta: {
+            jsonApiParams:{
+              include: 'service,backgroundProcess',
+              'fields[CatalogueService]': 'id',
+              ...sparseFieldsParams
+
+            },
+          }
+        }}
       >
-        <HarvestingJobTabbedShowLayout />       
-      </Show>
+        <ShowView
+          aside={<HarvestingJobAside />}
+          actions={<HarvestingJobActions/>
+          }
+        >
+          <HarvestingJobTabbedShowLayout />
+        </ShowView>
+      </RealtimeShowContextProvider>
     )
 };
 

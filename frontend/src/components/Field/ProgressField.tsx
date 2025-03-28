@@ -30,8 +30,9 @@ const ProgressField = (
       <Box sx={{ width: '100%', mr: 1 }}>
         <LinearProgress 
           variant="determinate" 
-          value={value}
+          value={value || 0}
           {...props} 
+          
         />
       </Box>
       <Box sx={{ minWidth: 40 }}>

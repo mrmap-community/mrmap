@@ -37,8 +37,6 @@ def call_fetch_total_records(
     harvesting_job_id,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_background_process()
-
     from registry.models.harvest import HarvestingJob
 
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
@@ -48,6 +46,8 @@ def call_fetch_total_records(
     self.update_background_process(
         phase=f'The catalogue provides {total_records} records. Harvesting is running...'  # noqa
     )
+
+    harvesting_job.handle_total_records_defined()
 
     return total_records
 
@@ -63,7 +63,6 @@ def call_fetch_records(
     start_position,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_background_process()
 
     from registry.models.harvest import HarvestingJob
 
@@ -73,9 +72,6 @@ def call_fetch_records(
     fetched_records = harvesting_job.fetch_records(
         start_position=start_position)
 
-    self.update_background_process(
-        step_done=True
-    )
     return fetched_records
 
 
@@ -86,17 +82,18 @@ def call_fetch_records(
 )
 def call_chord_md_metadata_file_to_db(
     self,
-    md_metadata_file_ids: [int],
+    callback_pass_through,
+    harvesting_job_id,
     http_request,
     background_process_pk,
+    *args,
     **kwargs
 ):
-    # build flat list from incomming id's which are passed by parent chord to this as his callback.
-    ids = [
-        x
-        for xs in md_metadata_file_ids
-        for x in xs
-    ]
+    from registry.models.harvest import TemporaryMdMetadataFile
+
+    ids = TemporaryMdMetadataFile.objects.filter(
+        job_id=harvesting_job_id).values_list("pk", flat=True)
+
     to_db_tasks = [
         call_md_metadata_file_to_db.s(
             md_metadata_file_id=id,
@@ -128,24 +125,23 @@ def call_md_metadata_file_to_db(
     md_metadata_file_id: int,
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    self.update_background_process()
     try:
         from registry.models.harvest import TemporaryMdMetadataFile
 
-        temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.get(
-            pk=md_metadata_file_id)
+        temporary_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.select_related(
+            'job',
+            'job__service',
+            'job__service__auth',
+            'job__background_process'
+        ).get(pk=md_metadata_file_id)
+
         db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
 
-        self.update_background_process(
-            step_done=True
-        )
-
-        return db_metadata.pk
-    except Exception as e:
-        tbe = traceback.TracebackException.from_exception(e)
-        TemporaryMdMetadataFile.objects.select_for_update(
-        ).filter(pk=md_metadata_file_id).update(
-            import_error=tbe.stack
+        return str(db_metadata.pk), update, exists
+    except Exception:
+        TemporaryMdMetadataFile.objects.select_for_update().filter(pk=md_metadata_file_id).update(
+            has_import_error=True,
+            import_error=traceback.format_exc()
         )
 
 
@@ -155,7 +151,7 @@ def call_md_metadata_file_to_db(
 def check_for_files_to_import(
     **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
 ):
-    # TODO: create backgroundprocess object to track this processing
+    from registry.models.harvest import TemporaryMdMetadataFile
 
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")
     dt = timezone.now()
@@ -163,37 +159,44 @@ def check_for_files_to_import(
     db_md_metadata_file_list = []
     idx = 0
     for dirpath, subdir, files in walk(FILE_IMPORT_DIR):
-        for file in files:
-            if "ignore" in file:
-                continue
-            filename = os.path.join(dirpath, file)
-            try:
-                with transaction.atomic():
-                    metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(filename=filename,
-                                                                                       xmlclass=WrappedIsoMetadata)
-                    from registry.models.harvest import TemporaryMdMetadataFile
+        files = filter(lambda file: "ignore" not in file, files)
 
-                    for iso_metadata in metadata_xml.iso_metadata:
-                        db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
-                        # save the file without saving the instance in db...
-                        # this will be done with bulk_create
-                        db_md_metadata_file.md_metadata_file.save(
-                            name=f"file_import_{dt}_{idx}",
-                            content=ContentFile(
-                                content=iso_metadata.serialize()),
-                            save=False)
-                        db_md_metadata_file_list.append(db_md_metadata_file)
-                        os.remove(filename)
-                        idx += 1
-            except Error as e:
-                new_filename = f"ignore_{dt}_{file}"
-                os.rename(filename, os.path.join(dirpath, new_filename))
-                logger.error(
-                    f"can't handle file cause of the following exception: {e}\n the file is renamed as {new_filename} and will be ignored.")
+        if files:
+            with transaction.atomic():
+                for file in files:
+                    filename = os.path.join(dirpath, file)
+                    try:
+                        metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(
+                            filename=filename,
+                            xmlclass=WrappedIsoMetadata)
 
-    db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
-        objs=db_md_metadata_file_list)
+                        for iso_metadata in metadata_xml.iso_metadata:
+                            db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
+                            # save the file without saving the instance in db...
+                            # this will be done with bulk_create
+                            db_md_metadata_file.md_metadata_file.save(
+                                name=f"file_import_{dt}_{idx}",
+                                content=ContentFile(
+                                    content=iso_metadata.serialize()),
+                                save=False)
+                            db_md_metadata_file_list.append(
+                                db_md_metadata_file)
+                            os.remove(filename)
+                            idx += 1
+                    except Error as e:
+                        new_filename = f"ignore_{dt}_{file}"
+                        os.rename(filename, os.path.join(
+                            dirpath, new_filename))
+                        logger.error(
+                            f"can't handle file cause of the following exception: {e}\n the file is renamed as {new_filename} and will be ignored.")
 
-    logger.info(f"start file import handling for {len(db_objs)} files")
+                if db_md_metadata_file_list:
+                    db_objs = TemporaryMdMetadataFile.objects.bulk_create_with_task_scheduling(
+                        objs=db_md_metadata_file_list)
 
-    return [db_obj.pk for db_obj in db_objs]
+                    logger.info(
+                        f"start file import handling for {len(db_objs)} files")
+
+                    return [db_obj.pk for db_obj in db_objs]
+
+    logger.info(f"No files to import")

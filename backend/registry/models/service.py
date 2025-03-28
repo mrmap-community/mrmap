@@ -25,7 +25,7 @@ from registry.exceptions.service import (LayerNotQueryable,
 from registry.managers.security import (WebFeatureServiceSecurityManager,
                                         WebMapServiceSecurityManager)
 from registry.managers.service import (CatalogueServiceCapabilitiesManager,
-                                       LayerManager,
+                                       CatalogueServiceManager, LayerManager,
                                        WebFeatureServiceCapabilitiesManager,
                                        WebMapServiceCapabilitiesManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
@@ -173,7 +173,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector"
     )
     capabilities = CatalogueServiceCapabilitiesManager()
-    objects = DefaultHistoryManager()
+    objects = CatalogueServiceManager()
 
     class Meta:
         verbose_name = _("catalogue service")

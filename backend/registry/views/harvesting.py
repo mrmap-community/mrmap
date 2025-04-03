@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from camel_converter import to_snake
 from django.db.models import Case, Count, F, Prefetch, Q, Sum, Value, When
 from django.db.models.fields import DurationField, FloatField
 from django.db.models.functions import Ceil, Coalesce, Round
@@ -13,7 +14,8 @@ from registry.enums.harvesting import CollectingStatenEnum
 from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      TemporaryMdMetadataFile)
-from registry.models.metadata import Keyword
+from registry.models.metadata import (DatasetMetadataRecord, Keyword,
+                                      ServiceMetadataRecord)
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
     HarvestedMetadataRelationSerializer, HarvestingJobSerializer,
@@ -270,7 +272,11 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
 
         return qs
 
-    def with_process_info(self, qs):
+    def with_unhandled_records(self, qs):
+        import_error_count_needed = self.check_sparse_fields_contains(
+            "importErrorCount")
+        unhandled_records_count_needed = self.check_sparse_fields_contains(
+            "unhandledRecordsCount")
         progress_needed = self.check_sparse_fields_contains("progress")
         total_steps_needed = self.check_sparse_fields_contains(
             "totalSteps") or progress_needed
@@ -278,33 +284,31 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
             "doneSteps") or progress_needed
         download_tasks_count_needed = total_steps_needed or done_steps_needed
 
-        annotate_kwargs = {}
+        cte_kwargs = {}
+        qs_annotation_kwargs = {}
+        if import_error_count_needed:
+            cte_kwargs.update({
+                "import_error_count": Count("id", filter=Q(has_import_error=True))
+            })
+        if unhandled_records_count_needed:
+            cte_kwargs.update({
+                "unhandled_records_count": Count("id", filter=Q(has_import_error=False))
+            })
         if download_tasks_count_needed:
-            annotate_kwargs.update({
+            qs_annotation_kwargs.update({
                 "download_tasks_count": Ceil(F("total_records") / F("max_step_size")),
             })
         if total_steps_needed:
-            annotate_kwargs.update({
+            qs_annotation_kwargs.update({
                 # + 1 for call_fetch_total_records
                 "total_steps": F("download_tasks_count") + F("total_records") + 1
             })
-
         if done_steps_needed:
-            related_records_cte = With(
-                queryset=TemporaryMdMetadataFile.objects.values(
-                    'job_id').annotate(records_count=Count("id")),
-                name="related_records_cte"
-            )
-            qs = (
-                related_records_cte.join(model_or_queryset=qs,
-                                         id=related_records_cte.col.job_id,
-                                         _join_type=LOUTER)
-                .with_cte(related_records_cte)
-            )
-            qs = qs.annotate(import_error_count=Coalesce(
-                related_records_cte.col.records_count, 0))
+            cte_kwargs.update({
+                "records_count": Count("id")
+            })
 
-            annotate_kwargs.update({
+            qs_annotation_kwargs.update({
                 "done_steps": Case(
                     When(
                         condition=Q(
@@ -314,7 +318,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                     When(
                         condition=Q(
                             background_process__phase__icontains="Harvesting is running..."),
-                        then=1 + Ceil(related_records_cte.col.records_count /
+                        then=1 + Ceil(F("records_count") /
                                       F("max_step_size"))
                     ),
                     When(
@@ -322,13 +326,13 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                             background_process__phase__icontains="parse and store ISO Metadatarecords to db..."),
                         then=1 + F("download_tasks_count") +
                         F("total_records") -
-                        related_records_cte.col.records_count
+                        F("records_count")
                     ),
                     default=0
                 ),
             })
         if progress_needed:
-            annotate_kwargs.update({
+            qs_annotation_kwargs.update({
                 "progress": Case(
                     When(
                         ~Q(background_process__phase="abort") & Q(
@@ -352,55 +356,43 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                 )
             })
 
-        qs = qs.annotate(**annotate_kwargs)
+        qs = self.construct_cte(
+            qs, cte_kwargs, TemporaryMdMetadataFile, "job_id", qs_annotation_kwargs)
 
         return qs
 
-    def with_unhandled_records(self, qs):
-        import_error_count_needed = self.check_sparse_fields_contains(
-            "importErrorCount")
-        unhandled_records_count_needed = self.check_sparse_fields_contains(
-            "unhandledRecordsCount")
-
-        cte_kwargs = {}
-        if import_error_count_needed:
-            cte_kwargs.update({
-                "import_error_count": Count("id", filter=Q(has_import_error=True))
-            })
-        if unhandled_records_count_needed:
-            cte_kwargs.update({
-                "unhandled_records_count": Count("id", filter=Q(has_import_error=False))
-            })
-
+    def construct_cte(self, qs, cte_kwargs, model, join_key, qs_annotation_kwargs={}, join_type=LOUTER):
         if cte_kwargs:
-            unhandled_records_cte = With(
-                queryset=TemporaryMdMetadataFile.objects.values(
+            cte = With(
+                queryset=model.objects.values(
                     'job_id').annotate(**cte_kwargs),
-                name="unhandled_records_cte"
+                name=f"{to_snake(model.__name__)}_cte"
             )
             qs = (
-                unhandled_records_cte.join(model_or_queryset=qs,
-                                           id=unhandled_records_cte.col.job_id,
-                                           _join_type=LOUTER)
-                .with_cte(unhandled_records_cte)
+                cte.join(model_or_queryset=qs,
+                         id=getattr(cte.col, join_key),
+                         _join_type=join_type)
+                .with_cte(cte)
             )
-            qs_kwargs = {}
-            if import_error_count_needed:
-                qs_kwargs.update({
-                    "import_error_count": Coalesce(unhandled_records_cte.col.import_error_count, 0)
-                })
-            if unhandled_records_count_needed:
-                qs_kwargs.update({
-                    "unhandled_records_count": Coalesce(unhandled_records_cte.col.unhandled_records_count, 0),
-                })
+            qs = self.annotate_qs_by_cte_fields(qs, cte_kwargs, cte)
+        if qs_annotation_kwargs:
+            qs = qs.annotate(**qs_annotation_kwargs)
+        return qs
 
-            qs = qs.annotate(**qs_kwargs)
+    def annotate_qs_by_cte_fields(self, qs, cte_kwargs, cte):
+        qs_kwargs = {}
+        for key, value in cte_kwargs.items():
+            qs_kwargs.update({
+                # Coalesce with int value will not always be right here;
+                # TODO: Check if the value is Count (int) for example, if not (string) then use empty string for example
+                key: Coalesce(getattr(cte.col, key), 0)
+            })
+        qs = qs.annotate(**qs_kwargs)
         return qs
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
         qs = self.with_harvesting_stats(qs)
-        qs = self.with_process_info(qs)
         qs = self.with_unhandled_records(qs)
         return qs
 
@@ -447,7 +439,7 @@ class NestedTemporaryMdMetadataFileViewSet(
     pass
 
 
-class HarvestedMetadataRelationViewSetMixin():
+class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
     queryset = HarvestedMetadataRelation.objects.all()
     serializer_class = HarvestedMetadataRelationSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -456,10 +448,28 @@ class HarvestedMetadataRelationViewSetMixin():
         'id': ['exact', 'icontains', 'contains', 'in'],
         'collecting_state': ['exact', 'icontains', 'contains', 'in'],
         'harvesting_job__id': ['exact', 'icontains', 'contains', 'in'],
-        "dataset_metadata_record__isnull": ["exact"],
-        "service_metadata_record__isnull": ["exact"],
+        "dataset_metadata_record": ["isnull"],
+        "service_metadata_record": ["isnull"],
         "dataset_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
+    }
+    prefetch_for_not_includes = {
+        "datasetMetadataRecord": [
+            Prefetch(
+                "dataset_metadata_record",
+                queryset=DatasetMetadataRecord.objects.only(
+                    "id"
+                ),
+            )
+        ],
+        "serviceMetadataRecord": [
+            Prefetch(
+                "service_metadata_record",
+                queryset=ServiceMetadataRecord.objects.only(
+                    "id"
+                ),
+            )
+        ]
     }
 
 

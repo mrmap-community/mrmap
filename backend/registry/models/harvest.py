@@ -74,6 +74,8 @@ class HarvestedMetadataRelation(models.Model):
                 fields=["harvesting_job", "service_metadata_record"]),
             models.Index(
                 fields=["harvesting_job", "service_metadata_record", "collecting_state"]),
+            models.Index(
+                fields=["harvesting_job", "id"]),
         ]
         constraints = [
             models.CheckConstraint(
@@ -498,6 +500,12 @@ class TemporaryMdMetadataFile(models.Model):
                     "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"))
 
     objects: TemporaryMdMetadataFileManager = TemporaryMdMetadataFileManager()
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["job_id", "-id"]),
+        ]
 
     def save(self, *args, **kwargs) -> None:
         from registry.tasks.harvest import \

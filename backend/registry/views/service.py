@@ -23,9 +23,7 @@ from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebMapServiceFilterSet)
 from registry.models import (FeatureType, Layer, WebFeatureService,
                              WebMapService)
-from registry.models.harvest import (HarvestedDatasetMetadataRelation,
-                                     HarvestedServiceMetadataRelation,
-                                     HarvestingJob)
+from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, Style)
@@ -720,53 +718,48 @@ class CatalogueServiceViewSetMixin(
         harvested_service_count_needed = self.check_sparse_fields_contains(
             "harvestedServiceCount") or harvested_total_count_needed
 
-        dataset_cte = With(
-            queryset=HarvestedDatasetMetadataRelation.objects.annotate(service=F('harvesting_job__service_id')).values('service').annotate(
-                dataset_count=Count(
-                    "dataset_metadata_record_id",
-                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))
-            ),
-            name="dataset_cte"
-        )
-        service_cte = With(
-            queryset=HarvestedServiceMetadataRelation.objects.annotate(service=F('harvesting_job__service_id')).values('service').annotate(
-                service_count=Count(
-                    "service_metadata_record_id",
-                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))),
-            name="service_cte"
-        )
+        cte_kwargs = {}
         if harvested_dataset_count_needed:
-            qs = (
-                dataset_cte.join(model_or_queryset=qs,
-                                 id=dataset_cte.col.service,
-                                 _join_type=LOUTER
-                                 )
-                .with_cte(dataset_cte)
-            )
-
+            cte_kwargs.update({
+                "dataset_count": Count(
+                    "id",
+                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value) & Q(dataset_metadata_record__isnull=False))
+            })
         if harvested_service_count_needed:
+            cte_kwargs.update({
+                "service_count": Count(
+                    "id",
+                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value) & Q(service_metadata_record__isnull=False))
+            })
+
+        cte = With(
+            queryset=HarvestedMetadataRelation.objects.annotate(service=F(
+                'harvesting_job__service_id')).values('service').annotate(**cte_kwargs),
+            name="cte"
+        )
+        if harvested_total_count_needed or harvested_dataset_count_needed or harvested_service_count_needed:
             qs = (
-                service_cte.join(model_or_queryset=qs,
-                                 id=service_cte.col.service,
-                                 _join_type=LOUTER
-                                 )
-                .with_cte(service_cte)
+                cte.join(model_or_queryset=qs,
+                         id=cte.col.service,
+                         _join_type=LOUTER
+                         )
+                .with_cte(cte)
             )
 
         annotate_kwargs = {}
         if harvested_total_count_needed:
             annotate_kwargs.update({
-                "harvested_dataset_count": Coalesce(dataset_cte.col.dataset_count, 0),
-                "harvested_service_count": Coalesce(service_cte.col.service_count, 0),
+                "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0),
+                "harvested_service_count": Coalesce(cte.col.service_count, 0),
                 "harvested_total_count": Coalesce(F("harvested_dataset_count"), 0) + Coalesce(F("harvested_service_count"), 0)
             })
         if harvested_dataset_count_needed:
             annotate_kwargs.update({
-                "harvested_dataset_count": Coalesce(dataset_cte.col.dataset_count, 0)
+                "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0)
             })
         if harvested_service_count_needed:
             annotate_kwargs.update({
-                "harvested_service_count": Coalesce(service_cte.col.service_count, 0),
+                "harvested_service_count": Coalesce(cte.col.service_count, 0),
             })
         if annotate_kwargs:
             qs = qs.annotate(**annotate_kwargs)

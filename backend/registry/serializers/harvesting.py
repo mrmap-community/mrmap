@@ -1,10 +1,8 @@
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
 from notify.serializers import BackgroundProcessSerializer
-from registry.enums.harvesting import CollectingStatenEnum
-from registry.models.harvest import (HarvestedDatasetMetadataRelation,
-                                     HarvestedServiceMetadataRelation,
-                                     HarvestingJob, TemporaryMdMetadataFile)
+from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
+                                     TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.serializers import (DurationField, FloatField,
                                                  HyperlinkedIdentityField,
@@ -13,27 +11,15 @@ from rest_framework_json_api.serializers import (DurationField, FloatField,
                                                  UniqueTogetherValidator)
 
 
-class HarvestedDatasetMetadataRelationSerializer(
+class HarvestedMetadataRelationSerializer(
     StringRepresentationSerializer,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
-        view_name="registry:harvesteddatasetmetadatarelation-detail",)
+        view_name="registry:harvestedmetadatarelation-detail",)
 
     class Meta:
-        model = HarvestedDatasetMetadataRelation
-        fields = "__all__"
-
-
-class HarvestedServiceMetadataRelationSerializer(
-    StringRepresentationSerializer,
-    ModelSerializer
-):
-    url = HyperlinkedIdentityField(
-        view_name="registry:harvestedservicemetadatarelation-detail",)
-
-    class Meta:
-        model = HarvestedServiceMetadataRelation
+        model = HarvestedMetadataRelation
         fields = "__all__"
 
 

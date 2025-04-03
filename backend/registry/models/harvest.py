@@ -36,11 +36,21 @@ class HarvestedMetadataRelation(models.Model):
     harvesting_job = models.ForeignKey(
         to="registry.HarvestingJob",
         on_delete=models.CASCADE,
-        related_name="%(app_label)s_%(class)ss",
-        related_query_name="%(app_label)s_%(class)s")
+        related_name="harvested_metadata_relations",
+        related_query_name="harvested_metadata_relation")
     collecting_state = models.CharField(
         max_length=10,
         choices=CollectingStatenEnum.choices)
+    dataset_metadata_record = models.ForeignKey(to="registry.DatasetMetadataRecord",
+                                                on_delete=models.CASCADE,
+                                                null=True,
+                                                related_name="harvested_dataset_metadata_relations",
+                                                related_query_name="harvested_dataset_metadata_relation")
+    service_metadata_record = models.ForeignKey(to="registry.ServiceMetadataRecord",
+                                                on_delete=models.CASCADE,
+                                                null=True,
+                                                related_name="harvested_service_metadata_relations",
+                                                related_query_name="harvested_service_metadata_relation")
     download_duration = models.DurationField(
         null=True,
         blank=True,
@@ -55,24 +65,26 @@ class HarvestedMetadataRelation(models.Model):
         help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
 
     class Meta:
-        abstract = True
-
-
-class HarvestedDatasetMetadataRelation(HarvestedMetadataRelation):
-    dataset_metadata_record = models.ForeignKey(to="registry.DatasetMetadataRecord",
-                                                on_delete=models.CASCADE,
-                                                related_name="harvested_dataset_metadata_relations",
-                                                related_query_name="harvested_dataset_metadata_relation")
-
-    class Meta:
         indexes = [
-            models.Index(fields=["harvesting_job", "dataset_metadata_record"]),
+            models.Index(
+                fields=["harvesting_job", "dataset_metadata_record"]),
             models.Index(
                 fields=["harvesting_job", "dataset_metadata_record", "collecting_state"]),
+            models.Index(
+                fields=["harvesting_job", "service_metadata_record"]),
+            models.Index(
+                fields=["harvesting_job", "service_metadata_record", "collecting_state"]),
         ]
         constraints = [
+            models.CheckConstraint(
+                name="dm_record_or_sm_record",
+                condition=(
+                    Q(dataset_metadata_record__isnull=True, service_metadata_record__isnull=False) |
+                    Q(dataset_metadata_record__isnull=False, service_metadata_record__isnull=True)),
+                violation_error_message="wrong relation type. dataset_metadata_record or service_metadata_record, not both is required."
+            ),
             models.UniqueConstraint(
-                name="%(app_label)s_%(class)s_atomic_new_updated_or_exsisting_collecting_state",
+                name="atomic_new_updated_or_exsisting_collecting_state_for_dm_record",
                 fields=["harvesting_job",
                         "dataset_metadata_record",
                         "collecting_state"],
@@ -82,26 +94,9 @@ class HarvestedDatasetMetadataRelation(HarvestedMetadataRelation):
                 # we support storing collecting_state="duplicated" multiple times per harvesting job
                 condition=~Q(
                     collecting_state=CollectingStatenEnum.DUPLICATED.value)
-            )
-        ]
-
-
-class HarvestedServiceMetadataRelation(HarvestedMetadataRelation):
-    service_metadata_record = models.ForeignKey(to="registry.ServiceMetadataRecord",
-                                                on_delete=models.CASCADE,
-                                                related_name="harvested_service_metadata_relations",
-                                                related_query_name="harvested_service_metadata_relation")
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["harvesting_job", "service_metadata_record"]),
-            models.Index(
-                fields=["harvesting_job", "service_metadata_record", "collecting_state"]),
-
-        ]
-        constraints = [
+            ),
             models.UniqueConstraint(
-                name="%(app_label)s_%(class)s_atomic_new_updated_or_exsisting_collecting_state",
+                name="atomic_new_updated_or_exsisting_collecting_state_for_sm_record",
                 fields=["harvesting_job",
                         "service_metadata_record",
                         "collecting_state"],
@@ -136,7 +131,6 @@ class HarvestingJob(models.Model):
         editable=False,)
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
-
     total_records: int = models.IntegerField(
         null=True,
         blank=True,
@@ -145,14 +139,14 @@ class HarvestingJob(models.Model):
         help_text=_("total count of records which will be harvested by this job"))
     harvested_dataset_metadata = models.ManyToManyField(
         to=DatasetMetadataRecord,
-        through=HarvestedDatasetMetadataRelation,
+        through=HarvestedMetadataRelation,
         related_name="harvesting_jobs",
         related_query_name="harvesting_job",
         editable=False,
         blank=True)
     harvested_service_metadata = models.ManyToManyField(
         to=ServiceMetadataRecord,
-        through=HarvestedServiceMetadataRelation,
+        through=HarvestedMetadataRelation,
         related_name="harvesting_jobs",
         related_query_name="harvesting_job",
         editable=False,
@@ -171,14 +165,13 @@ class HarvestingJob(models.Model):
             collecting_state,
             download_duration,
             processing_duration):
-        model = HarvestedServiceMetadataRelation
+        model = HarvestedMetadataRelation
         kwargs = {"service_metadata_record": related_object,
                   "harvesting_job": self,
                   "collecting_state": collecting_state,
                   "download_duration": download_duration,
                   "processing_duration": processing_duration}
         if md_metadata.is_dataset:
-            model = HarvestedDatasetMetadataRelation
             kwargs.pop("service_metadata_record")
             kwargs.update({"dataset_metadata_record": related_object})
         try:

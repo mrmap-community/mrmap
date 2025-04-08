@@ -9,7 +9,6 @@ import HarvestingJobTabbedShowLayout from './HarvestingJobTabbedShowLayout';
 
 
 export const isStale = (timestamp: number, record: RaRecord) => {
-  return false
   const stateTime = new Date(timestamp).getTime()
   const nowTime = new Date(Date.now()).getTime()
   if (['completed', 'aborted'].includes(record?.backgroundProcess?.phase) ) return false;
@@ -63,7 +62,7 @@ const ShowHarvestingJob = () => {
 
     return (
       <RealtimeShowContextProvider
-        isStaleCheckInterval={15}
+        isStaleCheckInterval={5}
         isStale={isStale}
         queryOptions={{
           meta: {

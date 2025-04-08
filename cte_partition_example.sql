@@ -5,12 +5,12 @@
 --create table registry_harvesteddatasetmetadata_existing partition of registry_harvesteddatasetmetadata_partition for values in ('existing');
 --insert into registry_harvesteddatasetmetadata_partition select * from registry_harvesteddatasetmetadatarelation;
 
---create table registry_harvesteddatasetmetadata_partition (like registry_harvesteddatasetmetadatarelation) partition by list(collecting_state);
---create table registry_harvesteddatasetmetadata_new partition of registry_harvesteddatasetmetadata_partition for values in ('new');
---create table registry_harvesteddatasetmetadata_updated partition of registry_harvesteddatasetmetadata_partition for values in ('updated');
---create table registry_harvesteddatasetmetadata_duplicated partition of registry_harvesteddatasetmetadata_partition for values in ('duplicated');
---create table registry_harvesteddatasetmetadata_existing partition of registry_harvesteddatasetmetadata_partition for values in ('existing');
---insert into registry_harvesteddatasetmetadata_partition select * from registry_harvesteddatasetmetadatarelation;
+--create table registry_harvestedservicemetadata_partition (like registry_harvestedservicemetadatarelation) partition by list(collecting_state);
+--create table registry_harvestedservicemetadata_new partition of registry_harvestedservicemetadata_partition for values in ('new');
+--create table registry_harvestedservicemetadata_updated partition of registry_harvestedservicemetadata_partition for values in ('updated');
+--create table registry_harvestedservicemetadata_duplicated partition of registry_harvestedservicemetadata_partition for values in ('duplicated');
+--create table registry_harvestedservicemetadata_existing partition of registry_harvestedservicemetadata_partition for values in ('existing');
+--insert into registry_harvestedservicemetadata_partition select * from registry_harvestedservicemetadatarelation;
 
 --create table registry_temporarymdmetadatafile_partition (like registry_temporarymdmetadatafile) partition by list(has_import_error);
 --create table registry_temporarymdmetadatafile_has_errors partition of registry_temporarymdmetadatafile_partition for values in (true);

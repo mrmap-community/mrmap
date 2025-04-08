@@ -29,7 +29,7 @@ class DocumentModelMixin(models.Model):
                                        help_text=_(
                                            "the original xml as backup to restore the xml field."),
                                        upload_to=xml_backup_file_path,
-                                       editable=False)
+                                       )
 
     class Meta:
         abstract = True

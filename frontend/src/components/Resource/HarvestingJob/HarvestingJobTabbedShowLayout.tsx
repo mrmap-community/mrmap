@@ -55,22 +55,21 @@ const HarvestingJobTabbedShowLayout = () => {
     withCount: boolean = true,
   )=>{
     return <TabbedShowLayout.Tab
-    {...getTabParams(resource, relatedResource, relatedResourceId, title, withCount)}
-   >
-     <ListGuesser
-       relatedResource={resource}
-       relatedResourceId={relatedResourceId}
-       resource={relatedResource}
-       storeKey={false}
-       {...defaultSelectedColumns && {defaultSelectedColumns: defaultSelectedColumns}}
-     />
-   </TabbedShowLayout.Tab>
-  },[])
+        {...getTabParams(resource, relatedResource, relatedResourceId, title, withCount)}
+      >
+        <ListGuesser
+          relatedResource={resource}
+          relatedResourceId={relatedResourceId}
+          resource={relatedResource}
+          storeKey={false}
+          {...defaultSelectedColumns && {defaultSelectedColumns: defaultSelectedColumns}}
+        />
+      </TabbedShowLayout.Tab>
+  },[record])
 
   const tabs = useMemo(()=>{
     return[
-      getNestedListTab(name, 'HarvestedDatasetMetadataRelation', record?.id, 'Datasets', ['datasetMetadataRecord'], true),
-      getNestedListTab(name,'HarvestedServiceMetadataRelation', record?.id, 'Services', ['serviceMetadataRecord'], true),
+      getNestedListTab(name, 'HarvestedMetadataRelation', record?.id, 'Records', ['datasetMetadataRecord'], true),
       getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.backgroundProcess?.id, 'Logs', undefined, true),
       getNestedListTab(name, 'TemporaryMdMetadataFile', record?.id, 'Unhandled Records', undefined, true),
 

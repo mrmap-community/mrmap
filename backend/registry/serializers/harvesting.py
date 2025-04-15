@@ -1,6 +1,5 @@
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
-from notify.serializers import BackgroundProcessSerializer
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
@@ -88,6 +87,8 @@ class HarvestingJobSerializer(
     done_steps = IntegerField(read_only=True)
     progress = FloatField(read_only=True)
 
+    phase = IntegerField(required=False)
+
     included_serializers = {
         'service': CatalogueServiceSerializer,
         # 'background_process': BackgroundProcessSerializer,
@@ -111,3 +112,15 @@ class HarvestingJobSerializer(
                     "There is an existing running harvesting job for this service.")
             )
         ]
+
+
+class CreateHarvestingJobSerializer(HarvestingJobSerializer):
+    phase = None
+
+    class Meta:
+        model = HarvestingJob
+        exclude = (
+            "harvested_dataset_metadata",
+            "harvested_service_metadata",
+            "phase",
+        )

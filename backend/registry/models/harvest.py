@@ -5,8 +5,10 @@ from uuid import uuid4
 from celery import chord
 from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
+from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
+from django.db.models import F
 from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
 from django.utils import timezone
@@ -29,8 +31,7 @@ from registry.managers.havesting import (HarvestingJobManager,
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
-from registry.tasks.harvest import (HarvestingJobStampingVisitor,
-                                    call_chord_md_metadata_file_to_db)
+from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
 
@@ -52,8 +53,11 @@ class ProcessingData(models.Model):
         null=True,
         blank=True,
         editable=False)
-
-    stamped_headers = {}
+    celery_task_ids = ArrayField(
+        models.UUIDField(),
+        default=list,
+        blank=True,
+        editable=False)
 
     class Meta:
         abstract = True
@@ -64,18 +68,15 @@ class ProcessingData(models.Model):
             models.Index(fields=["done_at"]),
         ]
 
-    def _get_stamped_headers(self, *args, **kwargs):
-        return self.stamped_headers
-
     def abort(self):
-        self.phase = "aborted"
+        self.phase = HarvestingPhaseEnum.ABORTED.value
         self.done_at = now()
         # From celery notes https://docs.celeryq.dev/en/latest/userguide/workers.html#revoke-by-stamped-headers-revoking-tasks-by-their-stamped-headers
         # Warning:
         # The revoked headers mapping is not persistent across restarts,
         # so if you restart the workers, the revoked headers will be lost and need to be mapped again.
-        app.control.revoke_by_stamped_headers(
-            self._get_stamped_headers(),
+        app.control.revoke(
+            [str(_id) for _id in self.celery_task_ids],
             terminate=True
         )
         # Another option would be to call the `app.control.revoke(related_task_ids, terminate=True)`,
@@ -87,6 +88,12 @@ class ProcessingData(models.Model):
         # Note:
         # The maximum number of revoked tasks to keep in memory can be specified using the
         # CELERY_WORKER_REVOKES_MAX environment variable, which defaults to 50000.
+
+    def append_celery_task_ids(self, ids):
+        """thread safe append function"""
+        self._meta.model.objects.filter(pk=self.pk).select_for_update().update(
+            celery_task_ids=self.celery_task_ids + ids
+        )
 
 
 class HarvestedMetadataRelation(models.Model):
@@ -230,11 +237,6 @@ class HarvestingJob(ProcessingData):
         get_latest_by = ProcessingData.Meta.get_latest_by
         indexes = ProcessingData.Meta.indexes
 
-    def _get_stamped_headers(self, *args, **kwargs):
-        return {
-            "harvesting_job_id": self.pk
-        }
-
     def log(self, description, extented_description=None, level=LogLevelEnum.INFO.value, kind=None):
         if level <= self.log_level:
             log_obj = HarvestingLog(
@@ -286,11 +288,13 @@ class HarvestingJob(ProcessingData):
             # save to get the id of the object
             ret = super(HarvestingJob, self).save(*args, **kwargs)
 
+            task_id = uuid4()
             task = call_fetch_total_records.s(
                 harvesting_job_id=self.pk,
                 http_request=self._http_request()
             )
-            task.stamp(visitor=HarvestingJobStampingVisitor())
+            task.set(task_id=str(task_id))
+            self.append_celery_task_ids([task_id])
 
             transaction.on_commit(func=lambda: task.apply_async())
             return ret
@@ -299,7 +303,6 @@ class HarvestingJob(ProcessingData):
         """total records is known now. Calculate roundtrips and start parallel harvesting tasks"""
         with transaction.atomic():
             self.phase = HarvestingPhaseEnum.DOWNLOAD_RECORDS.value
-            self.save()
 
             round_trips = (self.total_records //
                            self.max_step_size)
@@ -307,25 +310,30 @@ class HarvestingJob(ProcessingData):
 
             from registry.tasks.harvest import \
                 call_fetch_records  # to avoid circular import errors
+            task_ids = []
             tasks = []
             for number in range(0, round_trips):
+                task_id = uuid4()
                 task = call_fetch_records.s(
                     harvesting_job_id=self.pk,
                     start_position=number * self.max_step_size + 1,
                     http_request=self._http_request()
                 )
+                task.set(task_id=str(task_id))
+                task_ids.append(task_id)
                 tasks.append(task)
 
+            callback_id = uuid4()
             callback = call_chord_md_metadata_file_to_db.s(
                 harvesting_job_id=self.pk,
                 http_request=self._http_request(),
             )
+            callback.set(task_id=str(callback_id))
+
+            self.append_celery_task_ids(task_ids + [callback_id])
 
             # publishing tasks on commit was successfully
-            c = chord(tasks, )
-            c.link(callback)
-            c.stamp(visitor=HarvestingJobStampingVisitor())
-            transaction.on_commit(lambda: c())
+            transaction.on_commit(lambda: chord(tasks, callback)())
 
         self.log(
             description=f"call_chord_md_metadata_file_to_db called. {round_trips} round trips with step size {self.max_step_size} are needed."
@@ -586,12 +594,18 @@ class TemporaryMdMetadataFile(models.Model):
         ret = super().save(*args, **kwargs)
 
         if adding:
-            transaction.on_commit(
-                lambda: call_md_metadata_file_to_db.delay(
-                    md_metadata_file_id=self.pk,
-                    harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
-                    http_request=self.job._http_request(),
-                ))
+            task_id = uuid4()
+
+            task = call_md_metadata_file_to_db.delay(
+                md_metadata_file_id=self.pk,
+                harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
+                http_request=self.job._http_request(),
+            )
+            task.set(task_id=str(task_id))
+
+            self.job.append_celery_task_ids([task_id])
+
+            transaction.on_commit(lambda: task.apply_async())
         return ret
 
     def delete(self, *args, **kwargs):
@@ -671,7 +685,7 @@ class TemporaryMdMetadataFile(models.Model):
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 
-        collecting_state = CollectingStatenEnum.UPDATED if exists and update else CollectingStatenEnum.EXISTING if exists and not update else CollectingStatenEnum.NEW
+        collecting_state = CollectingStatenEnum.UPDATED.value if exists and update else CollectingStatenEnum.EXISTING.value if exists and not update else CollectingStatenEnum.NEW.value
         return self.job.add_harvested_metadata_relation(
             md_metadata,
             db_metadata,

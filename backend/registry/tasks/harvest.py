@@ -1,9 +1,9 @@
 import os
 import traceback
 from os import walk
+from uuid import uuid4
 
 from celery import chord, shared_task
-from celery.canvas import StampingVisitor
 from celery.utils.log import get_task_logger
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -15,22 +15,6 @@ from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
 from registry.enums.harvesting import HarvestingPhaseEnum
 
 logger = get_task_logger(__name__)
-
-
-class HarvestingJobStampingVisitor(StampingVisitor):
-    def _stamp_harvesting_job_id(self, **kwargs):
-        harvesting_job_id = kwargs.get("harvesting_job_id", None)
-        if harvesting_job_id:
-            return {'harvesting_job_id': harvesting_job_id}
-
-    def on_signature(self, sig, **headers) -> dict:
-        return self._stamp_harvesting_job_id(**headers)
-
-    def on_callback(self, callback, **header) -> dict:
-        return self._stamp_harvesting_job_id(**header)
-
-    def on_errback(self, errback, **header) -> dict:
-        return self._stamp_harvesting_job_id(**header)
 
 
 @shared_task(
@@ -93,24 +77,29 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
 
     ids = TemporaryMdMetadataFile.objects.filter(
         job_id=harvesting_job_id).values_list("pk", flat=True)
-
-    to_db_tasks = [
-        call_md_metadata_file_to_db.s(
+    task_ids = []
+    to_db_tasks = []
+    for _id in ids:
+        task_id = uuid4()
+        task = call_md_metadata_file_to_db.s(
             md_metadata_file_id=id,
             harvesting_job_id=harvesting_job_id,
             http_request=http_request)
-        for id in ids
-    ]
+        task.set(task_id=str(task_id))
+        task_ids.append(task_ids)
+        to_db_tasks.append(task)
+
     harvesting_job = HarvestingJob.objects.get(pk=harvesting_job_id)
     if to_db_tasks:
-        c = chord(to_db_tasks)
-        c.link(finish_harvesting_job.s(
+        callback_id = uuid4()
+        callback = finish_harvesting_job.s(
             harvesting_job_id=harvesting_job_id,
             http_request=http_request,
-        ))
-        c.stamp(visitor=HarvestingJobStampingVisitor())
-        c()
+        )
+        callback.set(task_id=str(callback_id))
+        chord(to_db_tasks, callback)()
         harvesting_job.phase = HarvestingPhaseEnum.RECORDS_TO_DB.value
+        harvesting_job.append_celery_task_ids(task_ids + [callback_id])
     else:
         harvesting_job.phase = HarvestingPhaseEnum.COMPLETED.value
     harvesting_job.save(skip_history_when_saving=False)

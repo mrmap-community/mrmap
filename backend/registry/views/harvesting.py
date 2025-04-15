@@ -8,7 +8,7 @@ from django.db.models.sql.constants import LOUTER
 from django_cte import With
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
-                             SparseFieldMixin)
+                             SerializerClassesMixin, SparseFieldMixin)
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.filters.harvesting import HarvestingJobFilterSet
@@ -18,8 +18,8 @@ from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
-    HarvestedMetadataRelationSerializer, HarvestingJobSerializer,
-    TemporaryMdMetadataFileSerializer)
+    CreateHarvestingJobSerializer, HarvestedMetadataRelationSerializer,
+    HarvestingJobSerializer, TemporaryMdMetadataFileSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
@@ -95,9 +95,13 @@ BACKGROUND_PROCESS_PREFETCHES = [
 ]
 
 
-class HarvestingJobViewSetMixin(SparseFieldMixin):
+class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
     queryset = HarvestingJob.objects.all()
     serializer_class = HarvestingJobSerializer
+    serializer_classes = {
+        "default": HarvestingJobSerializer,
+        "create": CreateHarvestingJobSerializer,
+    }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", 'date_created']
     filterset_class = HarvestingJobFilterSet

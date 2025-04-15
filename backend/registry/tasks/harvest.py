@@ -3,6 +3,7 @@ import traceback
 from os import walk
 
 from celery import chord, shared_task
+from celery.canvas import StampingVisitor
 from celery.utils.log import get_task_logger
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -10,42 +11,56 @@ from django.utils import timezone
 from eulxml import xmlmap
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
-from notify.tasks import BackgroundProcessBased, finish_background_process
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
+from registry.enums.harvesting import HarvestingPhaseEnum
 
 logger = get_task_logger(__name__)
 
 
+class HarvestingJobStampingVisitor(StampingVisitor):
+    def _stamp_harvesting_job_id(self, **kwargs):
+        harvesting_job_id = kwargs.get("harvesting_job_id", None)
+        if harvesting_job_id:
+            return {'harvesting_job_id': harvesting_job_id}
+
+    def on_signature(self, sig, **headers) -> dict:
+        return self._stamp_harvesting_job_id(**headers)
+
+    def on_callback(self, callback, **header) -> dict:
+        return self._stamp_harvesting_job_id(**header)
+
+    def on_errback(self, errback, **header) -> dict:
+        return self._stamp_harvesting_job_id(**header)
+
+
 @shared_task(
     queue="default",
 )
-def create_harvesting_job(
-    service_id,
-    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
-):
+def create_harvesting_job(*args, **kwargs):
     from registry.models.harvest import HarvestingJob
-    return HarvestingJob.objects.create(service__pk=service_id)
+    return HarvestingJob.objects.create(service__pk=kwargs.get("service_id"))
 
 
 @shared_task(
     bind=True,
-    queue="default",
-    base=BackgroundProcessBased
+    queue="db-routines",
 )
-def call_fetch_total_records(
-    self,
-    harvesting_job_id,
-    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
-):
+def finish_harvesting_job(*args, **kwargs):
     from registry.models.harvest import HarvestingJob
+    harvesting_job = HarvestingJob.objects.get(
+        pk=kwargs.get("harvesting_job_id"))
+    harvesting_job.phase = HarvestingPhaseEnum.COMPLETED.value
+    harvesting_job.save(skip_history_when_saving=False)
 
+
+@shared_task(
+    queue="default",
+)
+def call_fetch_total_records(*args, **kwargs):
+    from registry.models.harvest import HarvestingJob
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
-        pk=harvesting_job_id)
+        pk=kwargs.get("harvesting_job_id"))
     total_records = harvesting_job.fetch_total_records()
-
-    self.update_background_process(
-        phase=f'The catalogue provides {total_records} records. Harvesting is running...'  # noqa
-    )
 
     harvesting_job.handle_total_records_defined()
 
@@ -53,43 +68,28 @@ def call_fetch_total_records(
 
 
 @shared_task(
-    bind=True,
     queue="download",
-    base=BackgroundProcessBased
 )
-def call_fetch_records(
-    self,
-    harvesting_job_id,
-    start_position,
-    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
-):
-
+def call_fetch_records(*args, **kwargs):
     from registry.models.harvest import HarvestingJob
 
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
-        pk=harvesting_job_id)
+        pk=kwargs.get("harvesting_job_id"))
 
     fetched_records = harvesting_job.fetch_records(
-        start_position=start_position)
+        start_position=kwargs.get("start_position"))
 
     return fetched_records
 
 
 @shared_task(
-    bind=True,
     queue="db-routines",
-    base=BackgroundProcessBased
 )
-def call_chord_md_metadata_file_to_db(
-    self,
-    callback_pass_through,
-    harvesting_job_id,
-    http_request,
-    background_process_pk,
-    *args,
-    **kwargs
-):
-    from registry.models.harvest import TemporaryMdMetadataFile
+def call_chord_md_metadata_file_to_db(*args, **kwargs):
+    from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+
+    harvesting_job_id = kwargs.get("harvesting_job_id")
+    http_request = kwargs.get("http_request")
 
     ids = TemporaryMdMetadataFile.objects.filter(
         job_id=harvesting_job_id).values_list("pk", flat=True)
@@ -97,34 +97,30 @@ def call_chord_md_metadata_file_to_db(
     to_db_tasks = [
         call_md_metadata_file_to_db.s(
             md_metadata_file_id=id,
-            http_request=http_request,
-            background_process_pk=background_process_pk)
+            harvesting_job_id=harvesting_job_id,
+            http_request=http_request)
         for id in ids
     ]
+    harvesting_job = HarvestingJob.objects.get(pk=harvesting_job_id)
     if to_db_tasks:
-        chord(to_db_tasks)(finish_background_process.s(
+        c = chord(to_db_tasks)
+        c.link(finish_harvesting_job.s(
+            harvesting_job_id=harvesting_job_id,
             http_request=http_request,
-            background_process_pk=background_process_pk
         ))
-        self.update_background_process(
-            phase='parse and store ISO Metadatarecords to db...'
-        )
+        c.stamp(visitor=HarvestingJobStampingVisitor())
+        c()
+        harvesting_job.phase = HarvestingPhaseEnum.RECORDS_TO_DB.value
     else:
-        self.update_background_process(
-            completed=True
-        )
+        harvesting_job.phase = HarvestingPhaseEnum.COMPLETED.value
+    harvesting_job.save(skip_history_when_saving=False)
 
 
 @shared_task(
-    bind=True,
     queue="db-routines",
-    base=BackgroundProcessBased
 )
-def call_md_metadata_file_to_db(
-    self,
-    md_metadata_file_id: int,
-    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
-):
+def call_md_metadata_file_to_db(*args, **kwargs):
+    md_metadata_file_id = kwargs.get("md_metadata_file_id")
     try:
         from registry.models.harvest import TemporaryMdMetadataFile
 
@@ -132,7 +128,6 @@ def call_md_metadata_file_to_db(
             'job',
             'job__service',
             'job__service__auth',
-            'job__background_process'
         ).get(pk=md_metadata_file_id)
 
         db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
@@ -148,9 +143,7 @@ def call_md_metadata_file_to_db(
 @shared_task(
     queue="db-routines",
 )
-def check_for_files_to_import(
-    **kwargs  # to provide other kwargs which will be stored inside the TaskResult db objects
-):
+def check_for_files_to_import(*args, **kwargs):
     from registry.models.harvest import TemporaryMdMetadataFile
 
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")

@@ -10,7 +10,7 @@ from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SparseFieldMixin)
 from notify.models import BackgroundProcess
-from registry.enums.harvesting import CollectingStatenEnum
+from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      TemporaryMdMetadataFile)
@@ -99,7 +99,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
     queryset = HarvestingJob.objects.all()
     serializer_class = HarvestingJobSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    ordering_fields = ["id", 'background_process__date_created']
+    ordering_fields = ["id", 'date_created']
     filterset_class = HarvestingJobFilterSet
 
     select_for_includes = {
@@ -115,7 +115,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
             Prefetch("service__operation_urls",
                      queryset=CatalogueServiceOperationUrl.objects.all()),
         ],
-        "backgroundProcess": BACKGROUND_PROCESS_PREFETCHES,
+        # "backgroundProcess": BACKGROUND_PROCESS_PREFETCHES,
         # "backgroundProcess.logs": [
         #    Prefetch("background_process",
         #             queryset=BackgroundProcess.objects.prefetch_related(
@@ -254,8 +254,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                 "md_metadata_file_to_db_duration": Coalesce(Sum('processing_duration'), timedelta(seconds=0), output_field=DurationField())
             })
         sums = None
-
-        if dataset_cte_annotation or service_cte_annotation:
+        if dataset_cte_annotation or service_cte_annotation or cte_annotation:
             sums = With(
                 queryset=HarvestedMetadataRelation.objects.values('harvesting_job_id').annotate(
                     **dataset_cte_annotation, **service_cte_annotation, **cte_annotation),
@@ -268,7 +267,7 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                 .with_cte(sums)
             )
 
-        qs = self._prepare_qs_for_harvesting_stats(qs, sums)
+            qs = self._prepare_qs_for_harvesting_stats(qs, sums)
 
         return qs
 
@@ -312,18 +311,18 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
                 "done_steps": Case(
                     When(
                         condition=Q(
-                            background_process__phase__icontains="completed"),
+                            phase__gte=HarvestingPhaseEnum.COMPLETED.value),
                         then=F("total_steps")
                     ),
                     When(
                         condition=Q(
-                            background_process__phase__icontains="Harvesting is running..."),
+                            phase=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value),
                         then=1 + Ceil(F("records_count") /
                                       F("max_step_size"))
                     ),
                     When(
                         condition=Q(
-                            background_process__phase__icontains="parse and store ISO Metadatarecords to db..."),
+                            phase=HarvestingPhaseEnum.RECORDS_TO_DB.value),
                         then=1 + F("download_tasks_count") +
                         F("total_records") -
                         F("records_count")
@@ -335,8 +334,8 @@ class HarvestingJobViewSetMixin(SparseFieldMixin):
             qs_annotation_kwargs.update({
                 "progress": Case(
                     When(
-                        ~Q(background_process__phase="abort") & Q(
-                            background_process__done_at__isnull=False),
+                        ~Q(phase=HarvestingPhaseEnum.ABORTED.value) & Q(
+                            done_at__isnull=False),
                         then=Value(100.0)
                     ),
                     default=Case(
@@ -421,6 +420,7 @@ class TemporaryMdMetadataFileViewSetMixin():
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
         'job__id': ['exact', 'icontains', 'contains', 'in'],
+        'has_import_error': ['exact'],
         'import_error': ['exact', 'icontains', 'contains', 'in', 'isnull'],
     }
 

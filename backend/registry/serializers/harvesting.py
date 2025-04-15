@@ -90,7 +90,7 @@ class HarvestingJobSerializer(
 
     included_serializers = {
         'service': CatalogueServiceSerializer,
-        'background_process': BackgroundProcessSerializer,
+        # 'background_process': BackgroundProcessSerializer,
         # 'temporary_md_metadata_files': TemporaryMdMetadataFileSerializer,
         # "harvested_dataset_metadata": HarvestedDatasetMetadataRelationSerializer,
         # "harvested_service_metadata": HarvestedServiceMetadataRelationSerializer,
@@ -105,7 +105,7 @@ class HarvestingJobSerializer(
         validators = [
             UniqueTogetherValidator(
                 queryset=HarvestingJob.objects.filter(
-                    background_process__done_at__isnull=True),
+                    done_at__isnull=True),
                 fields=["service"],
                 message=_(
                     "There is an existing running harvesting job for this service.")

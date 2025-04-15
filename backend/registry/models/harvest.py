@@ -14,12 +14,14 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from lxml.etree import XML, XMLParser
-from notify.enums import LogTypeEnum, ProcessNameEnum
-from notify.models import BackgroundProcess, BackgroundProcessLog
+from MrMap.celery import app
+from notify.enums import LogTypeEnum
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
-from registry.enums.harvesting import CollectingStatenEnum
+from registry.enums.harvesting import (CollectingStatenEnum,
+                                       HarvestingPhaseEnum, LogKindEnum,
+                                       LogLevelEnum)
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.harvesting import InternalServerError
 from registry.managers.havesting import (HarvestingJobManager,
@@ -27,9 +29,64 @@ from registry.managers.havesting import (HarvestingJobManager,
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
-from registry.tasks.harvest import call_chord_md_metadata_file_to_db
+from registry.tasks.harvest import (HarvestingJobStampingVisitor,
+                                    call_chord_md_metadata_file_to_db)
 from requests import Response
 from simple_history.models import HistoricalRecords
+
+
+class ProcessingData(models.Model):
+    phase = models.CharField(
+        max_length=512,
+        verbose_name=_('phase'),
+        help_text=_('Current phase of the process'))
+    date_created = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Created DateTime'),
+        help_text=_('Datetime field when the process was created in UTC'),
+        null=True,
+        blank=True)
+    done_at = models.DateTimeField(
+        verbose_name=_('Completed DateTime'),
+        help_text=_('Datetime field when the process was completed in UTC'),
+        null=True,
+        blank=True,
+        editable=False)
+
+    stamped_headers = {}
+
+    class Meta:
+        abstract = True
+        ordering = ["-date_created"]
+        get_latest_by = "-date_created"
+        indexes = [
+            models.Index(fields=["date_created"]),
+            models.Index(fields=["done_at"]),
+        ]
+
+    def _get_stamped_headers(self, *args, **kwargs):
+        return self.stamped_headers
+
+    def abort(self):
+        self.phase = "aborted"
+        self.done_at = now()
+        # From celery notes https://docs.celeryq.dev/en/latest/userguide/workers.html#revoke-by-stamped-headers-revoking-tasks-by-their-stamped-headers
+        # Warning:
+        # The revoked headers mapping is not persistent across restarts,
+        # so if you restart the workers, the revoked headers will be lost and need to be mapped again.
+        app.control.revoke_by_stamped_headers(
+            self._get_stamped_headers(),
+            terminate=True
+        )
+        # Another option would be to call the `app.control.revoke(related_task_ids, terminate=True)`,
+        # but there will be a memory limit which is 50000 by default.
+        # But Harvesting jobs can have a way far more tasks that are currently in the queue.
+        # BKG csw for example provides more than 600000 records. So there will be minimum that number of tasks in the queue.
+        #
+        # From celery notes https://docs.celeryq.dev/en/latest/userguide/workers.html#revoke-revoking-tasks
+        # Note:
+        # The maximum number of revoked tasks to keep in memory can be specified using the
+        # CELERY_WORKER_REVOKES_MAX environment variable, which defaults to 50000.
 
 
 class HarvestedMetadataRelation(models.Model):
@@ -38,9 +95,6 @@ class HarvestedMetadataRelation(models.Model):
         on_delete=models.CASCADE,
         related_name="harvested_metadata_relations",
         related_query_name="harvested_metadata_relation")
-    collecting_state = models.CharField(
-        max_length=10,
-        choices=CollectingStatenEnum.choices)
     dataset_metadata_record = models.ForeignKey(to="registry.DatasetMetadataRecord",
                                                 on_delete=models.CASCADE,
                                                 null=True,
@@ -51,6 +105,8 @@ class HarvestedMetadataRelation(models.Model):
                                                 null=True,
                                                 related_name="harvested_service_metadata_relations",
                                                 related_query_name="harvested_service_metadata_relation")
+    collecting_state = models.PositiveSmallIntegerField(
+        choices=CollectingStatenEnum.choices)
     download_duration = models.DurationField(
         null=True,
         blank=True,
@@ -112,7 +168,7 @@ class HarvestedMetadataRelation(models.Model):
         ]
 
 
-class HarvestingJob(models.Model):
+class HarvestingJob(ProcessingData):
     """ helper model to visualize harvesting job workflow """
     service: CatalogueService = models.ForeignKey(
         to=CatalogueService,
@@ -127,10 +183,6 @@ class HarvestingJob(models.Model):
         help_text=_(
             "the maximum step size this csw can handle by a single GetRecords request."),
         default=50)
-    background_process = models.ForeignKey(
-        to=BackgroundProcess,
-        on_delete=models.PROTECT,
-        editable=False,)
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
     total_records: int = models.IntegerField(
@@ -153,12 +205,51 @@ class HarvestingJob(models.Model):
         related_query_name="harvesting_job",
         editable=False,
         blank=True)
-
+    phase = models.PositiveSmallIntegerField(
+        verbose_name=_('phase'),
+        help_text=_('Current phase of the process'),
+        choices=HarvestingPhaseEnum,
+        default=HarvestingPhaseEnum.PENDING.value,
+        blank=True,
+    )
+    log_level = models.PositiveSmallIntegerField(
+        choices=LogLevelEnum,
+        default=LogLevelEnum.INFO.value,
+        blank=True
+    )
     change_log = HistoricalRecords(
         related_name="change_logs",
     )
 
     objects = HarvestingJobManager()
+
+    class Meta(ProcessingData.Meta):
+        verbose_name = _("Harvesting Job")
+        verbose_name_plural = _("Harvesting Jobs")
+        ordering = ProcessingData.Meta.ordering
+        get_latest_by = ProcessingData.Meta.get_latest_by
+        indexes = ProcessingData.Meta.indexes
+
+    def _get_stamped_headers(self, *args, **kwargs):
+        return {
+            "harvesting_job_id": self.pk
+        }
+
+    def log(self, description, extented_description=None, level=LogLevelEnum.INFO.value, kind=None):
+        if level <= self.log_level:
+            log_obj = HarvestingLog(
+                harvesting_job=self,
+                level=level,
+                kind=kind,
+                description=description,
+            )
+            if extented_description:
+                log_obj.extented_description.save(
+                    name=f"{uuid4()}.log",
+                    content=ContentFile(content=extented_description))
+            else:
+                log_obj.save()
+            return log_obj
 
     def add_harvested_metadata_relation(
             self,
@@ -191,25 +282,15 @@ class HarvestingJob(models.Model):
         with transaction.atomic():
             from registry.tasks.harvest import \
                 call_fetch_total_records  # to avoid circular import errors
-            self.background_process = BackgroundProcess.objects.create(
-                phase="Get total records of the catalogue",
-                process_type=ProcessNameEnum.HARVESTING.value,
-                description=f'Harvesting job for service {self.service.pk}' if self.service else 'Import local metadata files',
-                service=self.service
-            )
+
             # save to get the id of the object
             ret = super(HarvestingJob, self).save(*args, **kwargs)
 
-            task_id = uuid4()
             task = call_fetch_total_records.s(
                 harvesting_job_id=self.pk,
-                http_request=self._http_request(),
-                background_process_pk=self.background_process_id
+                http_request=self._http_request()
             )
-            task.set(task_id=str(task_id))
-
-            self.background_process.celery_task_ids.append(task_id)
-            self.background_process.save()
+            task.stamp(visitor=HarvestingJobStampingVisitor())
 
             transaction.on_commit(func=lambda: task.apply_async())
             return ret
@@ -217,60 +298,36 @@ class HarvestingJob(models.Model):
     def handle_total_records_defined(self):
         """total records is known now. Calculate roundtrips and start parallel harvesting tasks"""
         with transaction.atomic():
+            self.phase = HarvestingPhaseEnum.DOWNLOAD_RECORDS.value
+            self.save()
+
             round_trips = (self.total_records //
                            self.max_step_size)
             round_trips += 1 if self.total_records % self.max_step_size > 0 else 0
 
             from registry.tasks.harvest import \
                 call_fetch_records  # to avoid circular import errors
-            task_ids = []
             tasks = []
             for number in range(0, round_trips):
-                task_id = uuid4()
                 task = call_fetch_records.s(
                     harvesting_job_id=self.pk,
                     start_position=number * self.max_step_size + 1,
-                    http_request=self._http_request(),
-                    background_process_pk=self.background_process_id,
+                    http_request=self._http_request()
                 )
-                task.set(task_id=str(task_id))
-                task_ids.append(task_id)
                 tasks.append(task)
 
-            callback_id = uuid4()
-            task_ids.append(callback_id)
-
-            # TODO: how to set and get task_id for all callbacks?
             callback = call_chord_md_metadata_file_to_db.s(
                 harvesting_job_id=self.pk,
                 http_request=self._http_request(),
-                background_process_pk=self.background_process_id
             )
-            callback.set(task_id=str(callback_id))
 
             # publishing tasks on commit was successfully
-            transaction.on_commit(lambda: chord(tasks)(callback))
+            c = chord(tasks, )
+            c.link(callback)
+            c.stamp(visitor=HarvestingJobStampingVisitor())
+            transaction.on_commit(lambda: c())
 
-        """calculate the potential max tasks which can results from the precalculation of roundtrips and total_records.
-            The calculation is not bullet proof. The CSW can response for example with 100000 total records. 
-            The processing of harvesting can take a long time, in that the catalogue can changes his content. 
-            So it can be 1000010 records or 99980 or something else. 
-            The state of the remote CSW is not freezed after the first total_records call is done.
-
-            An other fact is, that the get records request can response with currupt metadata records, which we can't handle.
-            In that case, no TemporaryMdMetadataFile object is created and no call_md_metadata_file_to_db task is created.
-        """
-        total_steps = tasks.__len__()  # how many call_fetch_records task will be run
-        total_steps += self.total_records
-
-        bp = self.background_process
-        bp.total_steps = total_steps
-        bp.celery_task_ids.extend(task_ids)
-        bp.save()
-
-        BackgroundProcessLog.objects.create(
-            background_process=bp,
-            log_type=LogTypeEnum.INFO,
+        self.log(
             description=f"call_chord_md_metadata_file_to_db called. {round_trips} round trips with step size {self.max_step_size} are needed."
         )
 
@@ -279,14 +336,28 @@ class HarvestingJob(models.Model):
     # 2. get statistic information about the average response duration with different step sizes
     # 3. start harvesting with the best average response duration step settings
 
-    def save(self, *args, **kwargs):
+    def save(self, skip_history_when_saving=True, *args, **kwargs):
         if self._state.adding and self.service:
             return self.handle_adding(*args, **kwargs)
         elif self.total_records == 0:
             # error case. CSW does not provide records for our default request behaviour.
-            self.background_process.done_at = now()
+            self.done_at = now()
+            self.phase = HarvestingPhaseEnum.COMPLETED.value
+            return super(HarvestingJob, self).save(*args, **kwargs)
+        elif self.phase == HarvestingPhaseEnum.ABORT.value:
+            self.abort()
+            self.phase = HarvestingPhaseEnum.ABORTED.value
+            self.done_at = now()
+            return super(HarvestingJob, self).save(*args, **kwargs)
 
-        return super(HarvestingJob, self).save(*args, **kwargs)
+        # see docs of django-simple-history
+        # https://django-simple-history.readthedocs.io/en/latest/querying_history.html#save-without-creating-historical-records
+        # we only create a record by default for creating objects.
+        self.skip_history_when_saving = skip_history_when_saving
+
+        ret = super(HarvestingJob, self).save(*args, **kwargs)
+        del self.skip_history_when_saving
+        return ret
 
     def _http_request(self):
         if self.service:
@@ -355,35 +426,34 @@ class HarvestingJob(models.Model):
 
             if not self.total_records:
                 # terminate celery workflow by returning total records = 0
-
                 self.total_records = 0
+
                 description = f"Can't get total records from remote service by requesting {second_response.request.url} url. \n"
                 description += f"http status code: {second_response.status_code}\n"
                 description += f"response:\n{second_response.text}"
-                BackgroundProcessLog.objects.create(
-                    background_process=self.background_process,
-                    log_type=LogTypeEnum.ERROR.value,
-                    description=description
+                kind = LogKindEnum.REMOTE_ERROR.value if second_response.status_code >= 500 else None
+
+                self.log(
+                    description=description,
+                    level=LogLevelEnum.ERROR.value,
+                    kind=kind,
+
                 )
 
         self.save()
         return self.total_records
 
     def _log_response_error(self, response):
-        description = f"Something went wrong by requesting {response.request.url} url. \n"
-        description += f"http status code: {response.status_code}\n"
-        description += f"response:\n{response.text}"
-        datestamp = now()
-        log = BackgroundProcessLog(
-            background_process=self.background_process,
-            log_type=LogTypeEnum.ERROR.value,
-            description=description,
-            date=datestamp
+        description = {
+            "url": response.request.url,
+            "status_code": response.status_code
+        }
+        self.log(
+            level=LogTypeEnum.ERROR.value,
+            kind=LogKindEnum.REMOTE_ERROR.value,
+            description=str(description),
+            extented_description=response.content,
         )
-        log.extented_description.save(
-            name=f"{datestamp}",
-            content=ContentFile(content=response.content),
-            save=True)
 
     def _check_xml_is_parseable(self, xml: str) -> bool:
         try:
@@ -446,9 +516,9 @@ class HarvestingJob(models.Model):
             self.max_step_size < self.total_records else self.total_records - start_position
 
         if len(db_objs) < should_return_count:
-            BackgroundProcessLog.objects.create(
-                background_process=self.background_process,
-                log_type=LogTypeEnum.WARNING.value,
+            self.log(
+                level=LogTypeEnum.WARNING.value,
+                kind=LogKindEnum.COUNT_MISSMATCH.value,
                 description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
                 f"URL: {request.url}"
             )
@@ -521,7 +591,6 @@ class TemporaryMdMetadataFile(models.Model):
                     md_metadata_file_id=self.pk,
                     harvesting_job_id=self.job.pk,  # to provide the job id for TaskResult db objects
                     http_request=self.job._http_request(),
-                    background_process_pk=self.job.background_process_id if self.job.background_process_id else None
                 ))
         return ret
 
@@ -609,3 +678,43 @@ class TemporaryMdMetadataFile(models.Model):
             collecting_state,
             self.download_duration,
             duration)
+
+
+def extented_description_file_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/xml_documents/<job_id>/<filename>
+    return f'HarvestingLog/{instance.harvesting_job}/{filename}'
+
+
+class HarvestingLog(models.Model):
+    harvesting_job = models.ForeignKey(
+        to=HarvestingJob,
+        on_delete=models.CASCADE,
+        related_name='logs',
+        related_query_name='log'
+    )
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Created DateTime'),
+        help_text=_('Datetime field when the task result was created in UTC')
+    )
+    level = models.PositiveSmallIntegerField(
+        choices=LogLevelEnum,
+        default=LogLevelEnum.INFO.value,
+        blank=True,
+    )
+    kind = models.PositiveSmallIntegerField(
+        choices=LogKindEnum.choices,
+        blank=True,
+        null=True,
+    )
+    description = models.CharField(
+        max_length=512,
+        default="",
+        verbose_name=_('Description'),
+        blank=True,
+    )
+    extented_description = models.FileField(
+        null=True,
+        verbose_name=_("Extented Description"),
+        help_text=_("this can be the response content for example"),
+        upload_to=extented_description_file_path)

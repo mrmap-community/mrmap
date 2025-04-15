@@ -69,16 +69,18 @@ const HarvestingJobTabbedShowLayout = () => {
 
   const tabs = useMemo(()=>{
     return[
-      getNestedListTab(name, 'HarvestedMetadataRelation', record?.id, 'Records', ['datasetMetadataRecord'], true),
-      getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.backgroundProcess?.id, 'Logs', undefined, true),
+      getNestedListTab(name, 'DatasetMetadataRecord', record?.id, 'Datasets', ['title'], true),
+      getNestedListTab(name, 'ServiceMetadataRecord', record?.id, 'Services', ['title'], true),
       getNestedListTab(name, 'TemporaryMdMetadataFile', record?.id, 'Unhandled Records', undefined, true),
+      //getNestedListTab('BackgroundProcess', 'BackgroundProcessLog', record?.backgroundProcess?.id, 'Logs', undefined, true),
+
 
       //getNestedListTab('BackgroundProcess', 'TaskResult', record?.backgroundProcess?.id, 'Task Results', undefined,true)
     ]
   },[record])
 
   const progressColor = useMemo(()=>{
-    switch(record?.backgroundProcess.status) {
+    switch(record?.phase) {
       case 'aborted':
         return 'warning'
       case 'completed':
@@ -86,7 +88,7 @@ const HarvestingJobTabbedShowLayout = () => {
       default:
         return 'info'
     }
-  },[record?.backgroundProcess])
+  },[record])
 
 
   if (isPending || record === undefined){
@@ -100,10 +102,9 @@ const HarvestingJobTabbedShowLayout = () => {
           <BooleanField source="harvestDatasets"/>
           <BooleanField source="harvestServices"/>
           <NumberField source="totalRecords"/>
-          <DateField source="backgroundProcess.dateCreated" showTime emptyText='-'/>
-          <DateField source="backgroundProcess.doneAt" showTime emptyText='-'/>
-          {/**<FunctionField source="backgroundProcess.status" render={record => renderStatus(record?.backgroundProcess?.status)}/>*/}
-          <TextField source="backgroundProcess.phase"/>
+          <DateField source="dateCreated" showTime emptyText='-'/>
+          <DateField source="doneAt" showTime emptyText='-'/>
+          <TextField source="phase"/>
           <NumberField source="totalSteps"/>
           <NumberField source="doneSteps"/>
           <ProgressField source="progress" color={progressColor}/>

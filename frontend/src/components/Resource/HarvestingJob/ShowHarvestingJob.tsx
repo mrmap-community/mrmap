@@ -11,7 +11,7 @@ import HarvestingJobTabbedShowLayout from './HarvestingJobTabbedShowLayout';
 export const isStale = (timestamp: number, record: RaRecord) => {
   const stateTime = new Date(timestamp).getTime()
   const nowTime = new Date(Date.now()).getTime()
-  if (['completed', 'aborted'].includes(record?.backgroundProcess?.phase) ) return false;
+  if (['completed', 'aborted'].includes(record?.phase) ) return false;
 
   if (nowTime - stateTime > 10){
     return true
@@ -23,27 +23,21 @@ export const isStale = (timestamp: number, record: RaRecord) => {
 const ShowHarvestingJob = () => {
     const { name } = useResourceDefinition()
     const { sparseFields: harvestingJobSparseFields } = useSparseFieldsForOperation(`list_${name}`)
-    const { sparseFields: backgroundProcessSparseFields } = useSparseFieldsForOperation(`list_BackgroundProcess`)
     
     const sparseFields = useMemo(()=> {
       // see issue in drf-spectacular-json-api: https://github.com/jokiefer/drf-spectacular-json-api/issues/30
       // Therefore we need to implement this workaround to get all possible sparefield values
       return {
         ...harvestingJobSparseFields,
-        ...backgroundProcessSparseFields,
       }
-    }, [harvestingJobSparseFields, backgroundProcessSparseFields])
+    }, [harvestingJobSparseFields])
 
     const excludeSparseFields: any = useMemo(()=>({
       "HarvestingJob": [
         "temporaryMdMetadataFiles",
         "harvestedDatasetMetadata",
         "harvestedServiceMetadata",
-      ],
-      "BackgroundProcess": [
-        "threads",
-        "logs"
-      ],
+      ]
     }),[])
    
     const sparseFieldsParams = useMemo(()=>{
@@ -67,7 +61,7 @@ const ShowHarvestingJob = () => {
         queryOptions={{
           meta: {
             jsonApiParams:{
-              include: 'service,backgroundProcess',
+              include: 'service',
               'fields[CatalogueService]': 'id',
               ...sparseFieldsParams
 

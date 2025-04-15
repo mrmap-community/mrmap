@@ -2,10 +2,10 @@ import operator
 from functools import reduce
 
 from celery import states
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from django_celery_results.models import TaskResult
 from django_filters import rest_framework as filters
+from registry.enums.harvesting import HarvestingPhaseEnum
 from registry.models.harvest import HarvestingJob
 
 unready_condition = reduce(
@@ -19,8 +19,8 @@ class HarvestingJobFilterSet(filters.FilterSet):
     )
 
     def filter_is_unready(self, queryset, name, value):
-        f = Q(background_process__done_at__isnull=True) & ~Q(
-            background_process__phase="abort")
+        f = Q(done_at__isnull=True) & ~Q(
+            phase__lt=HarvestingPhaseEnum.COMPLETED.value)
 
         if not value:
             f = ~Q(f)

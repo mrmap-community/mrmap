@@ -237,7 +237,12 @@ class HarvestingJob(ProcessingData):
         get_latest_by = ProcessingData.Meta.get_latest_by
         indexes = ProcessingData.Meta.indexes
 
-    def log(self, description, extented_description=None, level=LogLevelEnum.INFO.value, kind=None):
+    def log(self,
+            description,
+            extented_description=None,
+            level=LogLevelEnum.INFO.value,
+            kind=None
+            ):
         if level <= self.log_level:
             log_obj = HarvestingLog(
                 harvesting_job=self,
@@ -457,7 +462,7 @@ class HarvestingJob(ProcessingData):
             "status_code": response.status_code
         }
         self.log(
-            level=LogTypeEnum.ERROR.value,
+            level=LogLevelEnum.ERROR.value,
             kind=LogKindEnum.REMOTE_ERROR.value,
             description=str(description),
             extented_description=response.content,
@@ -525,7 +530,7 @@ class HarvestingJob(ProcessingData):
 
         if len(db_objs) < should_return_count:
             self.log(
-                level=LogTypeEnum.WARNING.value,
+                level=LogLevelEnum.WARNING.value,
                 kind=LogKindEnum.COUNT_MISSMATCH.value,
                 description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
                 f"URL: {request.url}"

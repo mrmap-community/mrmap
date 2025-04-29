@@ -1,5 +1,5 @@
 import OpenAPIClientAxios, { type OpenAPIV3, type Operation, type ParameterObject } from 'openapi-client-axios'
-import { ArrayField, ArrayInput, AutocompleteArrayInput, BooleanField, BooleanInput, ChipField, DateField, DateInput, DateTimeInput, EmailField, NumberField, NumberInput, ReferenceArrayField, SingleFieldList, TextField, TextInput, TimeInput, UrlField, type RaRecord } from 'react-admin'
+import { ArrayField, ArrayInput, AutocompleteArrayInput, BooleanField, BooleanInput, ChipField, DateField, DateInput, DateTimeInput, EmailField, NumberField, NumberInput, ReferenceArrayField, SelectField, SelectInput, SingleFieldList, TextField, TextInput, TimeInput, UrlField, type RaRecord } from 'react-admin'
 
 import { ComponentType } from 'react'
 import {
@@ -14,7 +14,7 @@ import TruncatedTextField from '../components/Field/TruncatedTextField'
 import GeoJsonInput from '../components/Input/GeoJsonInput'
 import JsonApiReferenceField from './components/ReferenceField'
 import SchemaAutocompleteInput from './components/SchemaAutocompleteInput'
-import { getEncapsulatedSchema } from './openapi/parser'
+import { buildChoices, getEncapsulatedSchema } from './openapi/parser'
 import { type JsonApiDocument, type JsonApiPrimaryData, type ResourceIdentifierObject, type ResourceLinkage } from './types/jsonapi'
 
 export interface FieldSchema {
@@ -439,7 +439,6 @@ export const getFieldForType = (
     ... schema.pattern ? [regex(schema.pattern)] : []
   ]
 
-
   const definition: FieldDefinition = {
       component: forInput ? TextInput: TextField,
 
@@ -453,6 +452,15 @@ export const getFieldForType = (
         ...(forInput && schema.description && {helpText: schema.description}),
         }
     }
+
+  if (schema.enum !== undefined) {
+    const choices = buildChoices(schema)
+    if (choices.length > 0){
+      definition.component = forInput ? SelectInput: SelectField;
+      definition.props.choices = choices;
+      return definition;
+    }
+  }
 
   switch(schema.type) {
     case 'integer':

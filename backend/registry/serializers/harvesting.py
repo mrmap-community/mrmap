@@ -1,9 +1,11 @@
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
+from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
-from rest_framework_json_api.serializers import (DurationField, FloatField,
+from rest_framework_json_api.serializers import (ChoiceField, DurationField,
+                                                 FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,
@@ -88,6 +90,8 @@ class HarvestingJobSerializer(
     progress = FloatField(read_only=True)
 
     phase = IntegerField(required=False)
+    log_level = ChoiceField(default=LogLevelEnum.INFO,
+                            choices=LogLevelEnum.choices)
 
     included_serializers = {
         'service': CatalogueServiceSerializer,

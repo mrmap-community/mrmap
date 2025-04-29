@@ -17,7 +17,6 @@ from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
-from notify.enums import LogTypeEnum
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
     MdMetadata as XmlMdMetadata
 from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
@@ -185,14 +184,14 @@ class HarvestingJob(ProcessingData):
         help_text=_("the csw for that this job is running"),
         related_name="harvesting_jobs",
         related_query_name="harvesting_job")
-    max_step_size = models.IntegerField(
+    max_step_size = models.PositiveSmallIntegerField(
         verbose_name=_("max step size"),
         help_text=_(
             "the maximum step size this csw can handle by a single GetRecords request."),
         default=50)
     harvest_datasets = models.BooleanField(default=True)
     harvest_services = models.BooleanField(default=True)
-    total_records: int = models.IntegerField(
+    total_records: int = models.PositiveIntegerField(
         null=True,
         blank=True,
         editable=False,
@@ -221,7 +220,7 @@ class HarvestingJob(ProcessingData):
     )
     log_level = models.PositiveSmallIntegerField(
         choices=LogLevelEnum,
-        default=LogLevelEnum.INFO.value,
+        default=LogLevelEnum.INFO,
         blank=True
     )
     change_log = HistoricalRecords(

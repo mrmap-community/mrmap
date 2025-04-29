@@ -25,3 +25,15 @@ export const getEncapsulatedSchema = (operation: AxiosOperation): OpenAPIV3.NonA
     return primaryDataSchema
   }
 }
+
+export const buildChoices = (property: OpenAPIV3.SchemaObject): Object[] => {
+  return property.description?.split("*")?.map(choiceMeaning => {
+    const match = choiceMeaning.match(/`(\d+)`\s*-\s*(.+)/);
+
+    if (match) {
+      const id = parseInt(match[1], 10); // "0" -> 0
+      const name = match[2];         // "Fatal"
+      return {id, name}
+    }
+  }).filter(item => item !== undefined)
+}

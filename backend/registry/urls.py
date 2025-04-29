@@ -92,10 +92,18 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(r'harvesting/harvesting-jobs',
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
     .register(r'temporary-md-metadata-files', harvesting_views.NestedTemporaryMdMetadataFileViewSet, basename='harvestingjob-temporarymdmetadatafiles', parents_query_lookups=['job']),
+
     router.register(r'harvesting/harvesting-jobs',
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
     .register(r'harvested-metadata-records', harvesting_views.NestedHarvestedMetadataRelationViewSet, basename='harvestingjob-harvestedmetadatarelations', parents_query_lookups=['harvesting_job']),
 
+    router.register(r'harvesting/harvesting-jobs',
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'harvested-dataset-metadata-records', metadata_views.NestedDatasetMetadataViewSet, basename='harvestingjob-harvesteddatasetmetadata', parents_query_lookups=['harvested_dataset_metadata_relation__harvesting_job']),
+
+    router.register(r'harvesting/harvesting-jobs',
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'harvested-service-metadata-records', metadata_views.NestedServiceMetadataViewSet, basename='harvestingjob-harvestedservicemetadata', parents_query_lookups=['harvested_service_metadata_relation__harvesting_job']),
 
     router.register(r'harvesting/temporary-md-metadata-file',
                     harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),

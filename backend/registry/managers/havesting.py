@@ -77,7 +77,7 @@ class TemporaryMdMetadataFileManager(models.Manager):
             phase='parse and store ISO Metadatarecords to db...')
         hj = HarvestingJob.objects.create(
             total_records=len(objs),
-            background_process=bp)
+        )
         for obj in objs:
             obj.job = hj
 

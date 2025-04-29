@@ -136,6 +136,8 @@ class DatasetMetadataViewSetMixin(
         "title": ["exact", "icontains", "contains"],
         "abstract": ["exact", "icontains", "contains"],
         "keywords__keyword": ["exact", "icontains", "contains"],
+        "harvested_dataset_metadata_relation__harvesting_job": ["exact"],
+        "harvested_dataset_metadata_relation__collecting_state": ["exact"],
         # "harvested_by": ['exact', 'icontains', 'contains', 'in'],
         # "harvested_by__background_process__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
         # "ignored_by": ['exact', 'icontains', 'contains', 'in'],
@@ -442,6 +444,8 @@ class ServiceMetadataViewSetMixin(
         "title": ["exact", "icontains", "contains"],
         "abstract": ["exact", "icontains", "contains"],
         "keywords__keyword": ["exact", "icontains", "contains"],
+        "harvested_service_metadata_relation__harvesting_job": ["exact"],
+        "harvested_service_metadata_relation__collecting_state": ["exact"],
     }
     search_fields = ("title", "abstract", "keywords__keyword")
     ordering_fields = ["id", "title", "abstract", "hits", "date_stamp"]

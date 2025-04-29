@@ -26,11 +26,11 @@ const HarvestingJobTimingCharts = (
         perPage: 5,
       },
       sort: {
-        field: 'backgroundProcess.dateCreated',
+        field: 'dateCreated',
         order: 'DESC',
       },
       filter: {
-        'service.id': record?.service.id
+        'service.id': record?.service?.id
       },
       meta: {
         jsonApiParams:{
@@ -97,7 +97,7 @@ const HarvestingJobTimingCharts = (
       xAxis: [xAxis],
       yAxis: [{valueFormatter: timeFormatter}],
     }
-    data?.forEach(record => {
+    record?.service && data?.forEach(record => {
       const fetchRecordDuration = parseDuration(record.fetchRecordDuration)
 
       fetchRecordDuration && fetchRecordDuration > 0 && fetchRecordDurationSeries.data.push(parseDuration(record.fetchRecordDuration))

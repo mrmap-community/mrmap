@@ -31,24 +31,24 @@ const JsonApiPrevNextButtons = () => {
 const AbortButton = () => {
   const record = useRecordContext();
   const params = useMemo(() => ({
-    id: record?.backgroundProcess?.id,
+    id: record?.id,
     data: {
-      phase: 'abort'
+      phase: 4711
     },
-    previousData: record?.backgroundProcess  
+    previousData: record  
   }),[record])
 
   const [update, { isPending }] = useUpdate();
 
   return (
     <Button 
-      //disabled={['aborted', 'completed'].includes(record?.backgroundProcess?.status)} 
+      //disabled={['aborted', 'completed'].includes(record?.phase)} 
       variant="outlined" 
       color="warning" 
       startIcon={<StopIcon />} 
       label='stop' 
       loading={isPending} 
-      onClick={() => update("BackgroundProcess", params)}
+      onClick={() => update("HarvestingJob", params)}
     />
   )
 }

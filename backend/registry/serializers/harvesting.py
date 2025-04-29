@@ -1,10 +1,11 @@
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import StringRepresentationSerializer
-from notify.serializers import BackgroundProcessSerializer
+from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.serializers.service import CatalogueServiceSerializer
-from rest_framework_json_api.serializers import (DurationField, FloatField,
+from rest_framework_json_api.serializers import (ChoiceField, DurationField,
+                                                 FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,
@@ -88,9 +89,13 @@ class HarvestingJobSerializer(
     done_steps = IntegerField(read_only=True)
     progress = FloatField(read_only=True)
 
+    phase = IntegerField(required=False)
+    log_level = ChoiceField(default=LogLevelEnum.INFO,
+                            choices=LogLevelEnum.choices)
+
     included_serializers = {
         'service': CatalogueServiceSerializer,
-        'background_process': BackgroundProcessSerializer,
+        # 'background_process': BackgroundProcessSerializer,
         # 'temporary_md_metadata_files': TemporaryMdMetadataFileSerializer,
         # "harvested_dataset_metadata": HarvestedDatasetMetadataRelationSerializer,
         # "harvested_service_metadata": HarvestedServiceMetadataRelationSerializer,
@@ -105,9 +110,21 @@ class HarvestingJobSerializer(
         validators = [
             UniqueTogetherValidator(
                 queryset=HarvestingJob.objects.filter(
-                    background_process__done_at__isnull=True),
+                    done_at__isnull=True),
                 fields=["service"],
                 message=_(
                     "There is an existing running harvesting job for this service.")
             )
         ]
+
+
+class CreateHarvestingJobSerializer(HarvestingJobSerializer):
+    phase = None
+
+    class Meta:
+        model = HarvestingJob
+        exclude = (
+            "harvested_dataset_metadata",
+            "harvested_service_metadata",
+            "phase",
+        )

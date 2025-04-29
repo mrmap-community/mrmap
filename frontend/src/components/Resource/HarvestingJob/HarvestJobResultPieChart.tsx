@@ -20,6 +20,8 @@ const HarvestResultPieChart = () => {
       ...record?.importErrorCount > 0 ? [{ 
         id:'i_e', 
         label: 'Import Errrors', 
+        href: `${basePath}/TemporaryMdMetadataFile?filter=${JSON.stringify({has_import_error: true})}`,
+
         value: record?.importErrorCount
       }]: [],
       ...record?.unhandledRecordsCount > 0 ? [{ 
@@ -30,49 +32,49 @@ const HarvestResultPieChart = () => {
       ...record?.newDatasetMetadataCount > 0 ? [{ 
         id:'n_d', 
         label: 'New Datasets',
-        href: `${basePath}/HarvestedDatasetMetadataRelation?filter=${JSON.stringify({collecting_state: 'new'})}`,
+        href: `${basePath}/DatasetMetadataRecord?filter=${JSON.stringify({harvested_dataset_metadata_relation__collecting_state: 'new'})}`,
         value: record?.newDatasetMetadataCount, 
       }]: [],
       ...record?.existingDatasetMetadataCount > 0 ? [{ 
         id:'e_d',
         label: 'Existing Datasets',
-        href: `${basePath}/HarvestedDatasetMetadataRelation?filter=${JSON.stringify({collecting_state: 'existing'})}`,
+        href: `${basePath}/DatasetMetadataRecord?filter=${JSON.stringify({harvested_dataset_metadata_relation__collecting_state: 'existing'})}`,
         value: record?.existingDatasetMetadataCount, 
       }]: [],
       ...record?.updatedDatasetMetadataCount > 0 ? [{ 
         id:'u_d', 
         label: 'Updated Datasets',
-        href: `${basePath}/HarvestedDatasetMetadataRelation?filter=${JSON.stringify({collecting_state: 'updated'})}`,
+        href: `${basePath}/DatasetMetadataRecord?filter=${JSON.stringify({harvested_dataset_metadata_relation__collecting_state: 'updated'})}`,
         value: record?.updatedDatasetMetadataCount, 
       }]: [],
       ...record?.duplicatedDatasetMetadataCount > 0 ? [{ 
         id:'d_d',
         label: 'Duplicated Datasets',
-        href: `${basePath}/HarvestedDatasetMetadataRelation?filter=${JSON.stringify({collecting_state: 'duplicated'})}`,
+        href: `${basePath}/DatasetMetadataRecord?filter=${JSON.stringify({harvested_dataset_metadata_relation__collecting_state: 'duplicated'})}`,
         value: record?.duplicatedDatasetMetadataCount, 
       }]: [],
       ...record?.newServiceMetadataCount > 0 ? [{ 
         id:'n_s',
         label: 'New Services',
-        href: `${basePath}/HarvestedServiceMetadataRelation?filter=${JSON.stringify({collecting_state: 'new'})}`,
+        href: `${basePath}/ServiceMetadataRecord?filter=${JSON.stringify({harvested_service_metadata_relation__collecting_state: 'new'})}`,
         value: record?.newServiceMetadataCount, 
       }]: [],
       ...record?.existingServiceMetadataCount > 0 ? [{ 
         id:'e_s',
         label: 'Existing Services',
-        href: `${basePath}/HarvestedServiceMetadataRelation?filter=${JSON.stringify({collecting_state: 'existing'})}`,
+        href: `${basePath}/ServiceMetadataRecord?filter=${JSON.stringify({harvested_service_metadata_relation__collecting_state: 'existing'})}`,
         value: record?.existingServiceMetadataCount, 
       }]: [],
       ...record?.updatedServiceMetadataCount > 0 ? [{ 
         id:'u_s',
         label: 'Updated Services',
-        href: `${basePath}/HarvestedServiceMetadataRelation?filter=${JSON.stringify({collecting_state: 'updated'})}`,
+        href: `${basePath}/ServiceMetadataRecord?filter=${JSON.stringify({harvested_service_metadata_relation__collecting_state: 'updated'})}`,
         value: record?.updatedServiceMetadataCount, 
       }]: [],
       ...record?.duplicatedServiceMetadataCount > 0 ? [{ 
         id:'d_s',
         label: 'Duplicated Services',
-        href: `${basePath}/HarvestedServiceMetadataRelation?filter=${JSON.stringify({collecting_state: 'duplicated'})}`,
+        href: `${basePath}/ServiceMetadataRecord?filter=${JSON.stringify({harvested_service_metadata_relation__collecting_state: 'duplicated'})}`,
         value: record?.duplicatedServiceMetadataCount, 
       }]: [],
     ]

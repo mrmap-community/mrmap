@@ -84,7 +84,7 @@ services:
     # deploy:
     #   replicas: 10
     command: >
-      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines"
+      /bin/sh -c "celery -A MrMap worker -E -l INFO -Q download,default,db-routines --statedb=/var/run/celery/%n-%i_worker.state"
     # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
     # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
     #tty: true # To support colorized log output.
@@ -102,6 +102,9 @@ services:
       - type: volume
         source: backend-import
         target: /var/mrmap/import
+      - type: volume
+        source: celery-state
+        target: /var/run/celery
     networks:
       - mrmap-internal
     env_file:
@@ -193,6 +196,7 @@ volumes:
   backend-media: null
   backend-log: null
   backend-import: null
+  celery-state: null
   db-data: null
   db-data-17: null
   mem-db-data:

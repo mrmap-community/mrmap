@@ -605,8 +605,9 @@ class CatalogueServiceSerializer(
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
     # registry_datasetmetadatarecord
     harvesting_jobs = ResourceRelatedField(
-        queryset=HarvestingJob.objects,
+        model=HarvestingJob,
         many=True,
+        read_only=True,
         # related_link_view_name="registry:csw-datasetmetadata-list",
         # related_link_url_kwarg="parent_lookup_harvested_through",
     )

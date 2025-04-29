@@ -327,7 +327,8 @@ CELERY_DEFAULT_QUEUE = "default"
 CELERY_DEFAULT_EXCHANGE = "default"
 
 CELERYD_MAX_TASKS_PER_CHILD = 1000
-
+# default is only 50000; is not enough for harvesting jobs for example
+CELERY_WORKER_REVOKES_MAX = 2000000
 CELERY_QUEUES = (
     Queue(
         name="default",

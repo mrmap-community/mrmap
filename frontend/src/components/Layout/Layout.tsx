@@ -4,7 +4,7 @@ import { ReadyState } from 'react-use-websocket';
 
 import CircleIcon from '@mui/icons-material/Circle';
 import GitHubIcon from '@mui/icons-material/GitHub';
-import { Box, Grid2, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Grid, IconButton, Tooltip, Typography } from '@mui/material';
 import Card from '@mui/material/Card';
 import useResizeObserver from '@react-hook/resize-observer';
 import { SnackbarProvider } from 'notistack';
@@ -78,19 +78,19 @@ const MyLayout = (
           zIndex: 100,
           textAlign: 'center',
         }}>
-          <Grid2 container spacing={2} sx={{ justifyContent: 'space-between' }} ref={footerRef}>
+          <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} ref={footerRef}>
           
-            <Grid2 >
+            <Grid >
               <Typography padding={1}> v.{api?.document.info.version}</Typography>
-            </Grid2>
+            </Grid>
 
-            <Grid2  >
+            <Grid  >
               <IconButton href="https://github.com/mrmap-community" target="_blank">
                 <GitHubIcon />
               </IconButton>
-            </Grid2>
+            </Grid>
 
-            <Grid2  alignItems="center" >
+            <Grid  alignItems="center" >
               <Tooltip title={readyState === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
                 <IconButton padding={1} >
                   <CircleIcon
@@ -98,9 +98,9 @@ const MyLayout = (
                   />
                 </IconButton>
               </Tooltip>
-            </Grid2>
+            </Grid>
           
-          </Grid2>
+          </Grid>
         </Card>
        
       </Layout>

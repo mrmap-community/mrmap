@@ -1,4 +1,4 @@
-import { ChartsLegend, ChartsTooltip, ResponsiveChartContainer } from "@mui/x-charts";
+import { ChartContainer, ChartsLegend, ChartsTooltip } from "@mui/x-charts";
 import {
   mangoFusionPalette
 } from '@mui/x-charts/colorPalettes';
@@ -87,7 +87,7 @@ const HarvestResultPieChart = () => {
   },[])
 
   return (
-    <ResponsiveChartContainer
+    <ChartContainer
       series={[
         {
           type: 'pie',
@@ -117,7 +117,7 @@ const HarvestResultPieChart = () => {
         position={{horizontal: 'middle', vertical: 'bottom'}} 
         onItemClick={(event, d) => navigatePreFilteredList(data.find(r => r.id === d.itemId))}
       />
-    </ResponsiveChartContainer>
+    </ChartContainer>
   )
 
 }

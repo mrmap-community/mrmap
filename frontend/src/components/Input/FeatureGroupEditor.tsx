@@ -1,11 +1,15 @@
-import type { GeoJSON as GeoJSONType, MultiPolygon } from 'geojson'
+import type { GeoJSON as GeoJSONType, MultiPolygon } from 'geojson';
 
-import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
-import { FeatureGroup, GeoJSON } from 'react-leaflet'
-import { EditControl } from 'react-leaflet-draw'
+import "@geoman-io/leaflet-geoman-free";
+import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+import { type ReactNode, useCallback, useEffect } from 'react';
 
-import { useLeafletContext } from '@react-leaflet/core'
-import L from 'leaflet'
+
+
+import { useLeafletContext } from '@react-leaflet/core';
+import L from 'leaflet';
+import { GeomanControl } from '../GeomanControl';
+import Events from '../GeomanControl/Events';
 
 export interface GeoEditorProps {
   geoJson?: GeoJSONType
@@ -53,40 +57,29 @@ const FeatureGroupEditor = ({
     }
   }, [])
 
-  const geoJsonObject = useMemo(() => {
-    if (geoJson !== null && geoJson !== undefined) {
-      try {
-        const component = <GeoJSON data={geoJson} />
-        return component
-      } catch (error){
-        
-      }
-    }
-    
-    return null
-
-  }, [geoJson])
-
   return (
-    <FeatureGroup
-    >
-      {geoJsonObject}
-      {editable ? 
-        <EditControl
-          position='topright'
-          onEdited={updateGeoJson}
-          onCreated={updateGeoJson}
-          onDeleted={updateGeoJson}
-          // onDrawStop={onEdit}
-          draw={{
-            marker: false,
-            circlemarker: false,
-            circle: false
-          }}
-        />: 
-        null
-    }
-    </FeatureGroup>
+    <>
+    {editable ? 
+      <GeomanControl 
+        position="topright" 
+        drawCircle={false}
+        drawCircleMarker={false}
+        drawMarker={false}
+        drawText={false}
+        drawPolyline={false}
+        oneBlock={false}
+        rotateMode={false}
+      />
+        
+      : null}
+      {editable ?
+        <Events 
+        onCreate={updateGeoJson}
+        onUpdate={updateGeoJson}
+        onRemove={updateGeoJson}
+      />: null}
+    </>
+    
   )
 }
 

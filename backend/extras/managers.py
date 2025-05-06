@@ -77,7 +77,7 @@ class DefaultHistoryManager(models.Manager):
             final_updated=Case(When(condition=final_updated_filter,
                                     then=Value(True)), default=Value(False)),
             day=TruncDay("history_date", tzinfo=get_current_timezone())
-        ).values("day", "created", "final_deleted").annotate(
+        ).values("day").annotate(
             id=F("day"),
             new=Count("pk", filter=Q(created=True)),
             deleted=Count("pk", filter=Q(final_deleted=True)),

@@ -1,17 +1,8 @@
+import { BarPlot, ChartContainer, ChartsLegend, ChartsTooltip, ChartsXAxis } from '@mui/x-charts';
+import { mangoFusionPalette } from '@mui/x-charts/colorPalettes';
 import { subDays } from 'date-fns';
 import { useMemo, type ReactNode } from 'react';
 import { useGetList, useListContext } from 'react-admin';
-import {
-  Area,
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from 'recharts';
 import ResourceListCard from './Cards/ResourceListCard';
 const styles = {
   flex: { display: 'flex' },
@@ -40,7 +31,7 @@ const DatasetMetadataChart = () => {
   const { total } = useListContext();
   const { data } = useGetList('StatisticalDatasetMetadataRecord', {sort: {field: "id", order: "DESC"}})
 
-  const chartData = useMemo(()=>{
+  const organizedData = useMemo(()=>{
       return data?.map((record, index) => {
         if (index === 0) {
           record["total"] = total
@@ -51,75 +42,50 @@ const DatasetMetadataChart = () => {
       }).reverse()
   },[total, data])
 
-  return (
-    <div style={{ width: '100%', height: 300 }}>
-        <ResponsiveContainer>
-            <ComposedChart data={chartData}>
-                <defs>
-                    <linearGradient
-                        id="colorUv"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                    >
-                        <stop
-                            offset="5%"
-                            stopColor="#8884d8"
-                            stopOpacity={0.8}
-                        />
-                        <stop
-                            offset="95%"
-                            stopColor="#8884d8"
-                            stopOpacity={0}
-                        />
-                    </linearGradient>
-                </defs>
-                <XAxis
-                    dataKey="day"
-                    //name="Day"
-                    //type="da"
-                    //scale="time"
-                    //domain={[
-                    //    addDays(aMonthAgo, 1).getTime(),
-                    //    new Date().getTime(),
-                    //]}
-                    tickFormatter={dateFormatter}
-                />
-                <YAxis 
-                  dataKey="total" 
-                  //name="Records" 
-                  // unit="pieces" 
-                />
-                <CartesianGrid strokeDasharray="3 3" />
-                <Tooltip
-                    cursor={{ strokeDasharray: '3 3' }}
-                    //formatter={(value: any) =>
-                    //    new Intl.NumberFormat(undefined, {
-                    //        style: 'currency',
-                    //        currency: 'USD',
-                    //    }).format(value)
-                    //}
-                    labelFormatter={(label: any) =>
-                        dateFormatter(label)
-                    }
-                />
-                <Legend />
-                <Area
-                    type="monotone"
-                    dataKey="total"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    fill="url(#colorUv)"
-                />
-                <Bar dataKey="new" barSize={20} fill="#009900" />
-                <Bar dataKey="deleted" barSize={20} fill="#cc0000" />
-                <Bar dataKey="updated" barSize={20} fill="#0066cc" />
-            </ComposedChart>
-        </ResponsiveContainer>
-    </div>
+  const series = useMemo(() => {
+    const newDataSeries = []
+    const deletedDataSeries = []
+    const updatedDataSeries = []
+    const series = [
+      { type: 'bar', data: newDataSeries, label:'new' ,},
+      { type: 'bar', data: deletedDataSeries, label:'deleted'},
+      { type: 'bar', data: updatedDataSeries, label:'updated'},
+    ]
+  
+    organizedData?.forEach(data => {
+      newDataSeries.push(data.new ?? 0)
+      deletedDataSeries.push(data.deleted ?? 0)
+      updatedDataSeries.push(data.updated ?? 0)
+    })
 
-);
+    return series
+  }, [organizedData])
+
+  const xAxis = useMemo(()=>(
+    [{
+      scaleType: 'band',
+      data: organizedData?.map(data => (data.id)) || [],
+      id: 'x-axis-id'
+    }]
+  ),[organizedData])
+
+  return (
+    <ChartContainer
+        series={series}
+        xAxis={xAxis}
+        yAxis={[{ label: 'rainfall (mm)', width: 60 }]}
+        colors={mangoFusionPalette}
+        height={300}
+      >
+          <BarPlot/>
+
+          <ChartsLegend direction="horizontal" />
+          <ChartsXAxis  axisId="x-axis-id" />
+          <ChartsTooltip />
+        </ChartContainer >
+  )
+
+
 }
 
 const Dashboard = (): ReactNode => {

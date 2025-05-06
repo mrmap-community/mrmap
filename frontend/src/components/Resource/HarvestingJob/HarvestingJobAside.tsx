@@ -1,6 +1,6 @@
 import { TabList } from '@mui/lab';
-import TabContext from '@mui/lab/TabContext/TabContext';
-import TabPanel from '@mui/lab/TabPanel/TabPanel';
+import TabContext from '@mui/lab/TabContext';
+import TabPanel from '@mui/lab/TabPanel';
 import { CardHeader, Tab } from '@mui/material';
 import { useState } from 'react';
 import { useRecordContext } from 'react-admin';

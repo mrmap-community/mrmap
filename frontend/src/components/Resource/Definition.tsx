@@ -22,6 +22,7 @@ import { WmsShow } from './WebMapService/WmsShow';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
+import ShowCatalogueService from './CatalogueService/ShowCatalogueService';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
@@ -34,7 +35,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "Layer", icon: LayersIcon},
   {name: "WebFeatureService", icon: TravelExploreIcon},
   {name: "FeatureType", icon: NotListedLocationIcon},
-  {name: "CatalogueService", icon: PlagiarismIcon, list: CatalogueServiceList},
+  {name: "CatalogueService", icon: PlagiarismIcon, show: ShowCatalogueService, list: CatalogueServiceList},
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob},
   {name: "TemporaryMdMetadataFile"},
 

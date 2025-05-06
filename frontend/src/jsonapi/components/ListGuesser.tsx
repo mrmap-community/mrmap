@@ -11,7 +11,7 @@ import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
 import useResourceSchema from '../hooks/useResourceSchema'
-import { type JsonApiDocument, type JsonApiErrorObject } from '../types/jsonapi'
+import { type JsonApiDocument, type JsonApiErrorObject, SparseFieldsets } from '../types/jsonapi'
 import { FieldDefinition, getIncludeOptions, getSparseFieldOptions } from '../utils'
 import RealtimeList from './Realtime/RealtimeList'
 
@@ -35,6 +35,7 @@ interface ListGuesserProps extends Partial<ListProps> {
   updateFieldDefinitions?: FieldDefinition[];
   refetchInterval?: number | false
   defaultSelectedColumns? : string[]
+  sparseFieldsets?: SparseFieldsets[]
 }
 
 
@@ -82,6 +83,7 @@ const ListGuesser = ({
   updateFieldDefinitions,
   refetchInterval=false,
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
+  sparseFieldsets= undefined,
   ...props
 }: ListGuesserProps): ReactElement => {
 
@@ -159,16 +161,35 @@ const ListGuesser = ({
     () => {
       const query: any = {}
 
-      if (sparseFieldsQueryValue !== undefined) {
+      if (sparseFieldsets !== undefined) {
+        sparseFieldsets.forEach(sf => {
+          if (name === sf.type){
+
+            const fields = [...new Set([
+              ...sf.fields.map(value =>
+                // TODO: django jsonapi has an open issue where no snake to cammel case translation are made
+                // See https://github.com/django-json-api/django-rest-framework-json-api/issues/1053
+                snakeCase(value)), 
+              ...sparseFieldsQueryValue || []
+            ])]
+            query[`fields[${sf.type}]`] = fields.join(',')
+          } else {
+            query[`fields[${sf.type}]`] = sf.fields.join(',')
+          }
+        })
+      }
+
+      if (sparseFieldsets === undefined && sparseFieldsQueryValue !== undefined) {
         query[`fields[${name}]`] = sparseFieldsQueryValue.join(',')
       }
+
       if (includeQueryValue !== undefined) {
         query.include = includeQueryValue.join(',')
       }
 
       return query
     }
-    , [sparseFieldsQueryValue, includeQueryValue]
+    , [sparseFieldsets, sparseFieldsQueryValue, includeQueryValue]
   )
 
   const onError = useCallback((error: Error): void => {
@@ -253,7 +274,7 @@ const ListGuesser = ({
           }
         }
       }
-      
+
       aside={
         hasHistoricalEndpoint ?
         <AsideCard

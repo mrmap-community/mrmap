@@ -611,6 +611,10 @@ class CatalogueServiceSerializer(
         # related_link_view_name="registry:csw-datasetmetadata-list",
         # related_link_url_kwarg="parent_lookup_harvested_through",
     )
+    running_harvesting_job = SerializerMethodResourceRelatedField(
+        model=HarvestingJob,
+        read_only=True
+    )
     service_contact = ResourceRelatedField(
         queryset=MetadataContact.objects,
         related_link_view_name="registry:csw-service-contact-list",
@@ -648,3 +652,7 @@ class CatalogueServiceSerializer(
     class Meta:
         model = CatalogueService
         fields = "__all__"
+
+    def get_running_harvesting_job(self, instance):
+        if hasattr(instance, "running_harvesting_job") and instance.running_harvesting_job.__len__() == 1:
+            return instance.running_harvesting_job[0]

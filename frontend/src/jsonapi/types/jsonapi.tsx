@@ -54,3 +54,9 @@ export interface JsonApiQueryParams {
   include?: string
   fields?: string
 }
+
+
+export interface SparseFieldsets {
+  type: string
+  fields: string[]
+}

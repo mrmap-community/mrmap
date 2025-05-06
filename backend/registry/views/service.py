@@ -1,10 +1,7 @@
 from camel_converter import to_camel
 from django.contrib.auth import get_user_model
-from django.db.models import (Case, Count, Exists, F, OuterRef, Prefetch, Q,
-                              Subquery, Sum)
-from django.db.models import Value
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Subquery
 from django.db.models import Value as V
-from django.db.models import When
 from django.db.models.expressions import F, OuterRef
 from django.db.models.functions import Coalesce
 from django.db.models.query import Prefetch
@@ -17,7 +14,7 @@ from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
                              PreloadNotIncludesMixin, SerializerClassesMixin,
                              SparseFieldMixin)
 from notify.models import BackgroundProcess, ProcessNameEnum
-from registry.enums.harvesting import CollectingStatenEnum
+from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.filters.service import (FeatureTypeFilterSet, LayerFilterSet,
                                       WebFeatureServiceFilterSet,
                                       WebMapServiceFilterSet)
@@ -710,6 +707,22 @@ class CatalogueServiceViewSetMixin(
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     task_function = build_ogc_service
 
+    def with_running_harvesting_job(self, qs):
+        running_harvesting_job_needed = self.check_sparse_fields_contains(
+            "runningHarvestingJob")
+        if running_harvesting_job_needed:
+            qs = qs.prefetch_related(
+                Prefetch(
+                    "harvesting_jobs",
+                    queryset=HarvestingJob.objects.filter(
+                        done_at=None,
+                        phase__lt=HarvestingPhaseEnum.COMPLETED.value
+                    ).only("id", "service"),
+                    to_attr="running_harvesting_job"
+                ))
+
+        return qs
+
     def with_harvesting_stats(self, qs):
         harvested_total_count_needed = self.check_sparse_fields_contains(
             "harvestedTotalCount")
@@ -768,6 +781,7 @@ class CatalogueServiceViewSetMixin(
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
         qs = self.with_harvesting_stats(qs)
+        qs = self.with_running_harvesting_job(qs)
         return qs
 
     def get_task_kwargs(self, request, serializer):

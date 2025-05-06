@@ -65,7 +65,7 @@ const tokenAuthProvider = (
         const token = await response.json()
         const userIdentity = await whoAmI(identityUrl, token?.token)
         setAuthToken({...token, ...userIdentity})
-        return
+        return Promise.resolve(true)
       }
       if (response.headers.get('content-type') !== 'application/json') {
         throw new Error(response.statusText)
@@ -78,7 +78,6 @@ const tokenAuthProvider = (
     logout: async () => {
       // TODO: call logoutUrl with token
       setAuthToken(undefined)
-      //window.localStorage.removeItem(TOKENNAME)
       await Promise.resolve()
     },
     checkAuth: async () => {

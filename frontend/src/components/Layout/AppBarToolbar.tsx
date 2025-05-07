@@ -2,6 +2,7 @@ import { LoadingIndicator, LocalesMenuButton, ToggleThemeButton, useLocales, use
 
 const AppBarToolbar = () => {
     const locales = useLocales();
+
     const { darkTheme } = useThemesContext();
     return (
         <>

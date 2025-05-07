@@ -19,6 +19,7 @@ import ListGuesser from '../jsonapi/components/ListGuesser';
 import { getResourceSchema } from '../jsonapi/openapi/parser';
 import authProviderFunc from '../providers/authProvider';
 import jsonApiDataProvider from '../providers/dataProvider';
+import i18nProvider from '../providers/i18nProvider';
 import Dashboard from './Dashboard/Dashboard';
 import MyLayout from './Layout/Layout';
 import MapViewer from './MapViewer/MapViewer';
@@ -28,13 +29,18 @@ import RESOURCES from './Resource/Definition';
 
 const STORE_VERSION = '1'
 
-
 const MrMapFrontend = (): ReactElement => {
+  const { api, authToken, setAuthToken, getWebSocket, updateLocale, readyState} = useHttpClientContext()
+  
   const lightTheme = defaultTheme
+  
+  // workaround to get the current locale value: 
+  const store = localStorageStore(STORE_VERSION)
+  // the storage with subscriptions is only available downside the Admin app. Therefore we need to add subscription here manual.
+  store.subscribe('locale', updateLocale)
+
   const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
   const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
-
-  const { api, authToken, setAuthToken, getWebSocket, readyState} = useHttpClientContext()
 
   const dataProvider = useMemo(() => {
     const websocket = getWebSocket()
@@ -103,9 +109,10 @@ const MrMapFrontend = (): ReactElement => {
         lightTheme={customTheme}
         dataProvider={dataProvider}
         authProvider={authProvider}
+        i18nProvider={i18nProvider}
         dashboard={Dashboard}
         layout={MyLayout}
-        store={localStorageStore(STORE_VERSION)}
+        store={store}
         disableTelemetry
         requireAuth
       >

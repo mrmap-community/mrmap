@@ -11,9 +11,11 @@ import { JsonApiMimeType } from '../jsonapi/types/jsonapi';
 import { AuthToken } from '../providers/authProvider';
 
 export interface HttpClientContextType {
+  locale?: string
   api?: OpenAPIClientAxios
   authToken: AuthToken | undefined
   setAuthToken: (authToken: AuthToken | undefined) => void
+  updateLocale: (locale: string) => void
   readyState: ReadyState
   getWebSocket: () => WebSocketLike | null
 }
@@ -22,6 +24,7 @@ export interface HttpClientContextType {
 const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
 
 export const AUTH_TOKEN_LOCAL_STORAGE_NAME = "mrmap.auth"
+export const LOCALE_STORAGE_NAME = "RaStore.locale"
 
 const AXIOS_DEFAULTS = {
   baseURL: `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}`,  
@@ -37,7 +40,10 @@ export const HttpClientContext = createContext<HttpClientContextType|undefined>(
 
 
 export const HttpClientBase = ({ children }: any): ReactNode => {
-  const [storedAuthToken, setStoredAuthToken] = useLocalStorage<AuthToken| undefined>(AUTH_TOKEN_LOCAL_STORAGE_NAME, undefined);
+  const [storedAuthToken, setStoredAuthToken] = useLocalStorage<AuthToken| undefined>(AUTH_TOKEN_LOCAL_STORAGE_NAME);
+  const [storedLocale] = useLocalStorage<string>(LOCALE_STORAGE_NAME, 'en');
+  const [locale, setLocale] = useState<string>(storedLocale);
+
   const [authToken, setAuthToken] = useState<AuthToken| undefined>(undefined);
 
   const [api, setApi] = useState<OpenAPIClientAxios>()
@@ -53,13 +59,13 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
     },
     !!authToken
   );
-
   const defaultConf = useMemo<AxiosRequestConfig>(()=>{
     const conf = {...AXIOS_DEFAULTS}
     authToken?.token && conf?.headers?.setAuthorization(`Token ${authToken?.token}`)
+    conf?.headers?.set("Accept-Language", locale || "en")
     return conf
 
-  }, [authToken])
+  }, [locale, authToken])
 
   // we need to memo the localstorage value by our self.... see issue: https://github.com/uidotdev/usehooks/pull/304
   useEffect(()=>{
@@ -68,9 +74,20 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
     }
   },[storedAuthToken])
 
+  useEffect(()=>{
+    setDocument(undefined)
+  },[locale])
+
   useEffect(() => {
     if (document === undefined) {     
-      const httpClient = new OpenAPIClientAxios({ definition: `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/schema`})
+      const cfg = JSON.parse(JSON.stringify({
+        headers: new AxiosHeaders(
+        {
+          'Accept-Language': locale || "en",
+        }
+      )
+      }))
+      const httpClient = new OpenAPIClientAxios({ definition: `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/schema`, axiosConfigDefaults: cfg})
       httpClient.init().then((client) => {
         setDocument(client.api.document)
       }).catch((error) => { console.error("errror during initialize axios openapi client", error)})
@@ -92,6 +109,7 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
       api: api, 
       authToken: authToken, 
       setAuthToken: setStoredAuthToken,
+      updateLocale: setLocale,
       readyState: readyState,
       getWebSocket: getWebSocket
   }), [api, authToken, setStoredAuthToken, getWebSocket, readyState])

@@ -10,6 +10,30 @@ import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/
 import { capsulateJsonApiPrimaryData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
 
 
+type search = (
+  query: string,
+  options?: SearchOptions
+) => Promise<{ data: SearchResult[]; total: number }>;
+
+export interface SearchOptions {
+  targets?: string[];
+  [key: string]: any;
+}
+
+export interface SearchResult {
+  id: Identifier;
+  type: string;
+  url: string;
+  content: any;
+  matches?: any;
+}
+
+export interface SearchResults { 
+  data: SearchResult[]; 
+  total: number;
+}
+
+
 export interface RelatedResource {
   resource: string
   id: Identifier
@@ -121,7 +145,7 @@ const buildQueryParams = (params: GetListParams | GetManyParams | GetManyReferen
 }
 
 const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfig, total: string): Promise<{
-  data: unknown[];
+  data: RaRecord[];
   total: number;
 }> => {
   return await client
@@ -395,6 +419,40 @@ const dataProvider = ({
         }
       )
       return await Promise.resolve({ data: null })
+    },
+    search: async (query: string, options?: SearchOptions): Promise<SearchResults>=> {
+      const targets = options?.targets || []
+      const searchResults: SearchResults = {
+        data: [],
+        total: 0
+      }
+      
+      for (const target of targets) {
+        const operationId = `list_${target}` 
+
+        checkOperationExists(httpClient, operationId)
+        
+        const parameters = buildQueryParams({filter: {search: query}})
+        const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, httpClient.axiosConfigDefaults])
+        
+        await handleListRequest(httpClient.client, conf, total).then((data) => {
+          searchResults.data.push(...data.data.map(record => ({
+            id: `${target}-${record.id}`,
+            type: target,
+            url: `/${target}/${record.id}`,
+            content: {
+              id: record.id,
+              label: record.stringRepresentation,
+              description: ''
+            }
+          }
+          )))
+        })
+      }
+
+      searchResults.total = searchResults.data.length
+
+      return await Promise.resolve(searchResults)
     }
   }
 }

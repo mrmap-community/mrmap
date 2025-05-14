@@ -28,6 +28,7 @@ const germanMessages: TranslationMessages = {
       select_all: "Alles auswählen",
       select_row: "Reihe auswählen",
       show: "Anzeigen",
+      show_all: 'Zeige alle %{name}',
       sort: "Sortieren",
       undo: "Rückgängig machen",
       unselect: "Abwählen",

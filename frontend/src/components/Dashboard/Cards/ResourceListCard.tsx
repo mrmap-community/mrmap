@@ -54,7 +54,7 @@ const ResourceListCard = (
                 withList ? 
                     <div>
                     <SimpleList
-                        primaryText="%{stringRepresentation}"
+                        primaryText={record => (`${record.stringRepresentation}`)}
                         leftAvatar={record => (
                             <Avatar
                                 src={`${record.avatar}?size=32x32`}
@@ -71,7 +71,7 @@ const ResourceListCard = (
                         color="primary"
                     >
                         <Box p={1} sx={{ color: 'primary.main' }}>
-                            {translate('pos.dashboard.all_webmapservices')}
+                            {translate('ra.action.show_all', {name: name})}
                         </Box>
                     </Button>
                     </div>

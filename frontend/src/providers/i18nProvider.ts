@@ -17,6 +17,7 @@ const i18nProvider: I18nProvider = {
     const translation = lodashGet(messages, key, key) as string
     const compiled = lodashTemplate(translation)
     const result = compiled(options)
+    console.log(key, options, messages, translation, compiled, result)
     return result
   },
   changeLocale: (newLocale: string) => {

@@ -1,4 +1,4 @@
-import { useMemo, type ReactElement } from 'react';
+import { useEffect, useMemo, type ReactElement } from 'react';
 import {
   Admin,
   CustomRoutes,
@@ -28,19 +28,19 @@ import defaultRecordRepresentation from './Resource/defaultRecordRepresentation'
 import RESOURCES from './Resource/Definition';
 
 const STORE_VERSION = '1'
+const store = localStorageStore(STORE_VERSION)
+const lightTheme = defaultTheme
+const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
+const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
 
 const MrMapFrontend = (): ReactElement => {
   const { api, authToken, setAuthToken, getWebSocket, updateLocale, readyState} = useHttpClientContext()
-  
-  const lightTheme = defaultTheme
-  
-  // workaround to get the current locale value: 
-  const store = localStorageStore(STORE_VERSION)
-  // the storage with subscriptions is only available downside the Admin app. Therefore we need to add subscription here manual.
-  store.subscribe('locale', updateLocale)
 
-  const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
-  const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
+  useEffect(()=>{
+    // workaround to get the current locale value: 
+    // the storage with subscriptions is only available downside the Admin app. Therefore we need to add subscription here manual.
+    store.subscribe('locale', updateLocale)
+  },[updateLocale])
 
   const dataProvider = useMemo(() => {
     const websocket = getWebSocket()

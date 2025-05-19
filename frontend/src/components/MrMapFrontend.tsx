@@ -97,7 +97,13 @@ const MrMapFrontend = (): ReactElement => {
     })
   }, [api])
 
-  if (dataProvider === undefined || resourceDefinitions.length === 0) {
+  const resources = useMemo(()=> (
+    resourceDefinitions.map((resource) => (
+          <Resource key={resource.name} {...resource} />
+        ))
+  ),[resourceDefinitions])
+
+  if (dataProvider === undefined || resources.length === 0) {
     return (
       <Loading loadingPrimary="Initialize...." loadingSecondary='OpenApi Client is loading....' />
     )
@@ -116,10 +122,7 @@ const MrMapFrontend = (): ReactElement => {
         disableTelemetry
         requireAuth
       >
-        {resourceDefinitions.map((resource) => (
-          <Resource key={resource.name} {...resource} />
-        ))}
-
+        {resources}
         {/* ows context based mapviewer */}
         <CustomRoutes>
           <Route path="/viewer" element={<MapViewer />} />

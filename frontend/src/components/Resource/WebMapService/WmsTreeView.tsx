@@ -1,15 +1,18 @@
 import { useCallback, useMemo, useState } from 'react';
-import { RaRecord, useRecordContext } from 'react-admin';
+import { RaRecord, RecordRepresentation, useRecordContext, useShowContext } from 'react-admin';
 
 import { Tooltip } from '@mui/material';
 import { SimpleTreeView, SimpleTreeViewProps } from '@mui/x-tree-view/SimpleTreeView';
 
-import CircleIcon from '@mui/icons-material/Circle';
+import ToggleOffIcon from '@mui/icons-material/ToggleOff';
+import ToggleOnIcon from '@mui/icons-material/ToggleOn';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import SimpleUpdateButton from '../../../jsonapi/components/SimpleUpdateButton';
 import { getAnchestors } from '../../MapViewer/utils';
 import { getSubTree } from '../../utils';
-
+import useSelectedLayer from './useSelectedLayer';
 
 
 interface LayerLabelProps {
@@ -19,13 +22,45 @@ interface LayerLabelProps {
 const LayerLabel = ({
   record
 }: LayerLabelProps) => {
-  return (
-      <div  >
-          {record.isActive ? <Tooltip title="Layer is activated"><CircleIcon color='success'/></Tooltip>: <Tooltip title="Layer is deactivated"><CircleIcon color='warning'/></Tooltip>}
-          {record.isSpatialSecured ? <Tooltip title="Layer spatial secured"><VpnLockIcon color='info'/></Tooltip>: null}
+  
+  const { refetch } = useShowContext();
 
-          {record.title} 
-          
+  const toggleIsActive = useMemo(()=>(
+    <SimpleUpdateButton
+      resource='Layer'
+      size='small'
+      record={record}
+      data={{isActive: !record.isActive}}
+
+      color={record.isActive ? 'success': 'warning'}
+      label={'ra.action.toggle'}
+      options={{onSuccess: () => refetch()}}
+    >
+      {record.isActive ? <ToggleOnIcon/>: <ToggleOffIcon/>}
+    </SimpleUpdateButton>
+  ),[record])
+
+  const toggleIsSearchable = useMemo(()=>(
+    <SimpleUpdateButton
+      resource='Layer'
+      size='small'
+      record={record}
+      data={{isSearchable: !record.isSearchable}}
+
+      color={record.isSearchable ? 'success': 'warning'}
+      label={'ra.action.toggle'}
+      options={{onSuccess: () => refetch()}}
+    >
+      {record.isActive ? <VisibilityIcon/>: <VisibilityOffIcon/>}
+    </SimpleUpdateButton>
+  ),[record])
+
+  return (
+      <div>
+          {toggleIsActive}
+          {toggleIsSearchable}
+          {record.isSpatialSecured ? <Tooltip title="Layer spatial secured"><VpnLockIcon color='info'/></Tooltip>: null}
+          <RecordRepresentation record={record}/>
       </div>
   )
 };
@@ -34,21 +69,19 @@ const LayerLabel = ({
 const WmsTreeView = ({
   ...props
 }: SimpleTreeViewProps) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const { layerId } = useParams();
   // this is the wms service record with all includes layers which are fetched in the parent component.
   const record = useRecordContext();
   const tree = useMemo(()=> record?.layers && getSubTree(record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft), undefined, (r) => ({label: <LayerLabel record={r}/>})) || [],[record?.layers])
-
+  
+  const [selectedLayer, setSelectedLayer] = useSelectedLayer(record?.layers[0].id);
+  
   const defaultExpandedItems = useMemo<string[]>(()=>{
-    if (layerId !== ':layerId' && layerId) {
-        const anchestors = getAnchestors(record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft), record?.layers.find((layer: RaRecord) => layer.id === layerId))
+    if (selectedLayer !== undefined && selectedLayer !== null) {
+        const anchestors = getAnchestors(record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft), record?.layers.find((layer: RaRecord) => layer.id === selectedLayer))
         return anchestors.map(layer => layer.id.toString())
     }
     return []
-},[layerId])
+  },[selectedLayer])
 
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems);
 
@@ -68,27 +101,14 @@ const WmsTreeView = ({
     if (event.target.closest('.MuiTreeItem-iconContainer')) {
         return;
     }
-
-    if (itemids !== null){
-        if (layerId === ':layerId'){
-            navigate(location.pathname.replace(
-                `/:layerId`, 
-                `/${itemids}`
-            ))
-        } else {
-            navigate(location.pathname.replace(
-                `/${layerId}`, 
-                `/${itemids}`
-            ))
-        }
-    }
-}, [layerId, navigate, location])
+    itemids !== null && setSelectedLayer(itemids);
+  }, [setSelectedLayer])
 
 
   return (
       <SimpleTreeView
                       
-        selectedItems={layerId !== ':layerId' ? layerId: null}
+        selectedItems={selectedLayer ?? null}
 
         onSelectedItemsChange={onSelectedItemsChange}
         onExpandedItemsChange={onItemExpansionToggle}

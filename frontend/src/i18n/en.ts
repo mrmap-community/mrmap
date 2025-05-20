@@ -7,7 +7,9 @@ const en = lodashMerge(
   {
     ra: {
       action: {
-        show_all: 'Show all %{name}'
+        active: 'Click to activate %{name}',
+        deactive: 'Click to deactivate %{name}',
+        show_all: 'Show all %{name}',       
       }
     }
   }

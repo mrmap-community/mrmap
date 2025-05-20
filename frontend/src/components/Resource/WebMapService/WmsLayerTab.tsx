@@ -3,17 +3,17 @@ import { RaRecord, useNotify, useShowContext } from 'react-admin';
 
 import { Grid } from '@mui/material';
 
-import { useParams } from 'react-router-dom';
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
 import WmsTreeView from './WmsTreeView';
+import useSelectedLayer from './useSelectedLayer';
 
 
 export const WmsLayers = () => {
-    
-  const { layerId } = useParams();
-      
+
   const { refetch } = useShowContext();
   const notify = useNotify(); 
+
+  const [selectedLayer] = useSelectedLayer();
 
 
   const onSuccess = useCallback((record: RaRecord)=>{
@@ -29,13 +29,10 @@ export const WmsLayers = () => {
       refetch()
   },[notify, refetch])
 
-  
-
-
   const rightContent = useMemo(()=> {
-      if (layerId !== ':layerId') {
+      if (selectedLayer !== null) {
           return <EditGuesser
-              id={layerId}
+              id={selectedLayer}
               resource='Layer'
               redirect={false}
               mutationOptions={{ meta: { type: "Layer" }, onSuccess}}
@@ -43,14 +40,14 @@ export const WmsLayers = () => {
       }
       return null
           
-  }, [layerId])
+  }, [selectedLayer])
     
   return (
       <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} >
-          <Grid item xs={4}>
+          <Grid size={"auto"}>
               <WmsTreeView />          
           </Grid>
-          <Grid item xs={8}>
+          <Grid size={"grow"}>
               {rightContent}
           </Grid>
       </Grid>

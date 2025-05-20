@@ -4,6 +4,7 @@ import { TranslationMessages } from "ra-core";
 const germanMessages: TranslationMessages = {
   ra: {
     action: {
+      active: '%{name} aktivieren',
       add_filter: "Filter hinzufügen",
       add: "Neu",
       back: "Zurück",
@@ -16,6 +17,7 @@ const germanMessages: TranslationMessages = {
       create: "Erstellen",
       create_item: "%{item} erstellen",
       delete: "Löschen",
+      deactive: '%{name} deaktivieren',
       edit: "Bearbeiten",
       export: "Exportieren",
       list: "Liste",

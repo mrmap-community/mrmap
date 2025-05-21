@@ -306,7 +306,7 @@ export const getArrayInput = (
       disabled: isReadOnly?? false,
       ...(schema.default && {defaultValue: schema.default}),
       ...(forInput && {required: isRequired}),
-      ...(forInput && schema.description && {helpText: schema.description}),
+      ...(forInput && schema.description && {helperText: schema.description}),
     }
   }
 
@@ -380,7 +380,7 @@ export const getFieldForFormat = (
         ...(schema.default && {defaultValue: schema.default}),
         ...(validate.length > 0 && {validate: validate}),
         ...(forInput && {required: isRequired}),
-        ...(forInput && schema.description && {helpText: schema.description}),
+        ...(forInput && schema.description && {helperText: schema.description}),
         }
     }
 
@@ -449,7 +449,7 @@ export const getFieldForType = (
         ...(schema.default && {defaultValue: schema.default}),
         ...(validate.length > 0 && {validate: validate}),
         ...(forInput && {required: isRequired}),
-        ...(forInput && schema.description && {helpText: schema.description}),
+        ...(forInput && schema.description && {helperText: schema.description}),
         }
     }
 

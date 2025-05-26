@@ -1,12 +1,23 @@
 from extras.serializers import StringRepresentationSerializer
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
-                                      MetadataContact, ReferenceSystem,
-                                      ServiceMetadataRecord, Style)
+                                      MetadataContact, MimeType,
+                                      ReferenceSystem, ServiceMetadataRecord,
+                                      Style)
 from registry.models.service import CatalogueService, FeatureType, Layer
 from rest_framework.fields import SerializerMethodField
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer
+
+
+class MimeTypeSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+
+    class Meta:
+        model = MimeType
+        fields = "__all__"
 
 
 class KeywordSerializer(

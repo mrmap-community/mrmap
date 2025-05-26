@@ -25,10 +25,20 @@ router = ExtendedSimpleRouter(trailing_slash=False)
           .register(r'proxy-settings', security_views.NestedWebMapServiceProxySettingViewSet, basename='wms-proxy-settings', parents_query_lookups=['secured_service']),
     router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
           .register(r'allowed-wms-operations', security_views.NestedAllowedWebMapServiceOperationViewSet, basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service']),
+    router.register(r'wms', service_views.WebMapServiceViewSet, basename='wms')
+          .register(r'operation-urls', service_views.NestedWebMapServiceOperationUrlViewSet, basename='wms-operationurls', parents_query_lookups=['service']),
 
     # historical
     router.register(r'wms-historical',
                     service_views.WebMapServiceHistoricalViewSet, basename='wms-historical'),
+
+    # operation url
+    router.register(r'wms-operation-urls',
+                    service_views.WebMapServiceOperationUrlViewSet, basename='wms-operationurl'),
+    router.register(r'wms-operation-urls',
+                    service_views.WebMapServiceOperationUrlViewSet, basename='wms-operationurl')
+          .register('mime-types',
+                    metadata_views.NestedMimeTypeViewSet, basename='operationurl-mimetype', parents_query_lookups=['operation_url']),
 
     # layer
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
@@ -121,6 +131,8 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     # metadata
     router.register(r'keywords', metadata_views.KeywordViewSet,
                     basename='keyword'),
+    router.register(r'mime-types', metadata_views.MimeTypeViewSet,
+                    basename='mime-type'),
     router.register(r'licences', metadata_views.LicenceViewSet,
                     basename='licence'),
     router.register(r'referencesystems',

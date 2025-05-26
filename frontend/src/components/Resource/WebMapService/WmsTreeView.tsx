@@ -78,7 +78,7 @@ const WmsTreeView = ({
   const defaultExpandedItems = useMemo<string[]>(()=>{
     if (selectedLayer !== undefined && selectedLayer !== null) {
         const anchestors = getAnchestors(record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft), record?.layers.find((layer: RaRecord) => layer.id === selectedLayer))
-        return anchestors.map(layer => layer.id.toString())
+        return anchestors?.map(layer => layer.id.toString())
     }
     return []
   },[selectedLayer])

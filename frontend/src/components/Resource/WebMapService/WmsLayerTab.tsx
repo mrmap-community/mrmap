@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { RaRecord, useNotify, useShowContext } from 'react-admin';
 
-import { Grid } from '@mui/material';
+import { Container, Grid } from '@mui/material';
 
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
 import WmsTreeView from './WmsTreeView';
@@ -36,21 +36,22 @@ export const WmsLayers = () => {
               resource='Layer'
               redirect={false}
               mutationOptions={{ meta: { type: "Layer" }, onSuccess}}
+              
           />
       }
-      return null
+      return <Container>Select a layer to edit it</Container>
           
   }, [selectedLayer])
     
   return (
-      <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} >
-          <Grid size={"auto"}>
-              <WmsTreeView />          
-          </Grid>
-          <Grid size={"grow"}>
-              {rightContent}
-          </Grid>
-      </Grid>
+    <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} >
+        <Grid size={2}>
+            <WmsTreeView />          
+        </Grid>
+        <Grid size={10}>
+            {rightContent}
+        </Grid>
+    </Grid>
   )
 }
 

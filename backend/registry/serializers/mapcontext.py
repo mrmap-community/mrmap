@@ -7,8 +7,7 @@ from mptt2.models import Tree
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
 from rest_framework.fields import CharField, IntegerField
-from rest_framework_json_api.relations import (
-    ResourceRelatedField, SerializerMethodResourceRelatedField)
+from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer,
                                                  SerializerMethodField)

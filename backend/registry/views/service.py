@@ -1,6 +1,6 @@
 from camel_converter import to_camel
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Subquery
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q
 from django.db.models import Value as V
 from django.db.models.expressions import F, OuterRef
 from django.db.models.functions import Coalesce
@@ -41,6 +41,7 @@ from registry.serializers.service import (CatalogueServiceCreateSerializer,
                                           WebMapServiceCreateSerializer,
                                           WebMapServiceHistorySerializer,
                                           WebMapServiceListSerializer,
+                                          WebMapServiceOperationUrlSerializer,
                                           WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_json_api.views import ModelViewSet
@@ -386,6 +387,46 @@ class NestedLayerViewSet(
 
         list:
             Retrieves all registered `Layer` objects
+
+    """
+
+
+class WebMapServiceOperationUrlViewSetMixin(
+):
+    queryset = WebMapServiceOperationUrl.objects.all()
+    serializer_class = WebMapServiceOperationUrlSerializer
+    search_fields = ("id", "service")
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    ordering_fields = ["id"]
+
+
+class WebMapServiceOperationUrlViewSet(
+    WebMapServiceOperationUrlViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `WebMapServiceOperationUrl`
+
+        list:
+            Retrieves all registered `WebMapServiceOperationUrl` objects
+        retrieve:
+            Retrieve one specific `WebMapServiceOperationUrl` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `WebMapServiceOperationUrl`
+
+    """
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
+
+
+class NestedWebMapServiceOperationUrlViewSet(
+    WebMapServiceOperationUrlViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested list endpoint for resource `WebMapServiceOperationUrl`
+
+        list:
+            Retrieves all registered `WebMapServiceOperationUrl` objects
 
     """
 

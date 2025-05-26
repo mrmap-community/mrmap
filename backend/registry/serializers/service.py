@@ -37,14 +37,21 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
 
 class WebMapServiceOperationUrlSerializer(ModelSerializer):
 
-    # url = SerializerMethodField()
+    # url = HyperlinkedIdentityField(
+    #    view_name="registry:wms-operationurls-detail",
+    #    read_only=True,
+    # )
+    service = ResourceRelatedField(
+        label=_("web map service"),
+        help_text=_(
+            "the web map service, where this operation url is part of."),
+        read_only=True,
+        model=WebMapService,
+    )
 
     class Meta:
         model = WebMapServiceOperationUrl
         fields = "__all__"
-
-    # def get_url(self, instance):
-    #     return instance.get_url(request=self.context["request"])
 
 
 class LayerSerializer(

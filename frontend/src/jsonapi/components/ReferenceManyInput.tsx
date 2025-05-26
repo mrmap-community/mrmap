@@ -70,7 +70,7 @@ export const ReferenceManyInput = (
   const source = useMemo(()=> `${reference}s`, [reference])
   const resource = useResourceContext();
 
-  const { getValues: getValuesParent, formState: formStateParent, } = useFormContext();
+  const { getValues: getValuesParent, formState: formStateParent } = useFormContext();
 
   const [targetValue, setTargetValue] = useState({id: getValuesParent('id')});
   const [simpleFormInteratorKey, setSimpleFormInteratorKey] = useState((Math.random() + 1).toString(36).substring(7));

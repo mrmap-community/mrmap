@@ -19,6 +19,7 @@ import EditAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/E
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import { WmsShow } from './WebMapService/WmsShow';
 
+import HttpIcon from '@mui/icons-material/Http';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
@@ -30,6 +31,10 @@ import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServi
 
 const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapService", icon: MapIcon, list: WmsList, show: WmsShow},
+  {name: "WebMapServiceProxySetting", icon: MultipleStopIcon},
+  {name: "WebMapServiceOperationUrl", icon: HttpIcon},
+
+
   {name: "HistoricalWebMapService"},
   
   {name: "Layer", icon: LayersIcon},
@@ -69,7 +74,6 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "BackgroundProcessLog", },
 
   {name: "AllowedWebMapServiceOperation", icon: VpnLockIcon, create: CreateAllowedWebMapServiceOperation, edit: EditAllowedWebMapServiceOperation},
-  {name: "WebMapServiceProxySetting", icon: MultipleStopIcon},
   
   {name: "User", icon: CustomerIcon},
   {name: "Organization", icon: CorporateFareIcon },

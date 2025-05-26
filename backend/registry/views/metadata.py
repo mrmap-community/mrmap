@@ -3,19 +3,45 @@ from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
-                                      MetadataContact, ReferenceSystem,
-                                      ServiceMetadataRecord, Style)
+                                      MetadataContact, MimeType,
+                                      ReferenceSystem, ServiceMetadataRecord,
+                                      Style)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
                                            KeywordSerializer,
                                            LicenceSerializer,
                                            MetadataContactSerializer,
+                                           MimeTypeSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            ReferenceSystemRetrieveSerializer,
                                            ServiceMetadataRecordSerializer,
                                            StyleSerializer)
 from rest_framework_json_api.views import ModelViewSet
+
+
+class MimeTypeSetMixin():
+    queryset = MimeType.objects.all()
+    serializer_class = MimeTypeSerializer
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        "mime_type": ["exact", "icontains", "contains"],
+    }
+    search_fields = ("mime_type",)
+
+
+class MimeTypeViewSet(
+    MimeTypeSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedMimeTypeViewSet(
+    MimeTypeSetMixin,
+    NestedModelViewSet
+):
+    pass
 
 
 class KeywordViewSetMixin():

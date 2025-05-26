@@ -1,8 +1,9 @@
 import { ReactNode } from 'react';
-import { AppBar, TitlePortal } from 'react-admin';
+import { AppBar } from 'react-admin';
 
 import { Theme, useMediaQuery } from '@mui/material';
 
+import SearchInput from '../Search/SearchForm';
 import AppBarToolbar from './AppBarToolbar';
 import Logo from './Logo';
 
@@ -16,7 +17,7 @@ const CustomAppBar = (): ReactNode => {
       toolbar={<AppBarToolbar />} 
     >
       {isLargeEnough && <Logo />}
-      <TitlePortal/>
+      <SearchInput/>
       
 
     </AppBar>

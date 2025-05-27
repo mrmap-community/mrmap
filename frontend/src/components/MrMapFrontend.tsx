@@ -24,6 +24,7 @@ import Dashboard from './Dashboard/Dashboard';
 import MyLayout from './Layout/Layout';
 import MapViewer from './MapViewer/MapViewer';
 import PortalSearch from './PortalSearch/PortalSearch';
+import CatalogueServiceClient from './Resource/CatalogueService/CatalogueServiceClient';
 import defaultRecordRepresentation from './Resource/defaultRecordRepresentation';
 import RESOURCES from './Resource/Definition';
 
@@ -125,6 +126,7 @@ const MrMapFrontend = (): ReactElement => {
         {resources}
         {/* ows context based mapviewer */}
         <CustomRoutes>
+          <Route path="/csw-client" element={<CatalogueServiceClient />} />
           <Route path="/viewer" element={<MapViewer />} />
           <Route path="/search" element={<PortalSearch />} />
         </CustomRoutes>

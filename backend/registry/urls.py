@@ -1,5 +1,6 @@
 from django.urls import path
 from registry.views import harvesting as harvesting_views
+from registry.views import historical as historical_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import monitoring as monitoring_views
@@ -29,9 +30,16 @@ router = ExtendedSimpleRouter(trailing_slash=False)
           .register(r'operation-urls', service_views.NestedWebMapServiceOperationUrlViewSet, basename='wms-operationurls', parents_query_lookups=['service']),
 
     # historical
-    router.register(r'wms-historical',
-                    service_views.WebMapServiceHistoricalViewSet, basename='wms-historical'),
-
+    router.register(r'historical-wms',
+                    historical_views.WebMapServiceHistoricalViewSet, basename='wms-historical'),
+    router.register(r'historical-layers',
+                    historical_views.LayerHistoricalViewSet, basename='layer-historical'),
+    router.register(r'historical-wfs',
+                    historical_views.WebFeatureServiceHistoricalViewSet, basename='wfs-historical'),
+    router.register(r'historical-featuretypes',
+                    historical_views.FeatureTypeHistoricalViewSet, basename='featuretype-historical'),
+    router.register(r'historical-csw',
+                    historical_views.CatalogueServiceHistoricalViewSet, basename='csw-historical'),
     # operation url
     router.register(r'wms-operation-urls',
                     service_views.WebMapServiceOperationUrlViewSet, basename='wms-operationurl'),

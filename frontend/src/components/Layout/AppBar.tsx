@@ -3,7 +3,6 @@ import { AppBar } from 'react-admin';
 
 import { Theme, useMediaQuery } from '@mui/material';
 
-import SearchInput from '../Search/SearchForm';
 import AppBarToolbar from './AppBarToolbar';
 import Logo from './Logo';
 
@@ -17,7 +16,8 @@ const CustomAppBar = (): ReactNode => {
       toolbar={<AppBarToolbar />} 
     >
       {isLargeEnough && <Logo />}
-      <SearchInput/>
+      {/** dummy div to push toolbar to the right. Searchfield will be placed here as soon as possible */}
+      <div style={{width: '100%'}}/>
       
 
     </AppBar>

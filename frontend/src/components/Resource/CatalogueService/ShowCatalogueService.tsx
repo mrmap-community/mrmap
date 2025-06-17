@@ -14,7 +14,7 @@ const LastHarvestingJobs = ({}) => {
   return (
     <AsideCard>
        <CardHeader 
-        title="Last harvesting jobs"        
+        title="Last Harvesting Jobs"        
       /> 
       <CardContent>
       <List

@@ -27,12 +27,11 @@ const dateFormatter = (date: number): string =>
 
 
 
-const HistoryChart = () => {
-  const { total } = useListContext();
+const Chart = () => {
   const { name } = useResourceDefinition()
-  
-  const { api } = useHttpClientContext()
-  const hasStatisticalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Statistical${name}`)),[api])
+
+  const { total } = useListContext();
+
   const { data } = useGetList(`Statistical${name}`, {sort: {field: "id", order: "DESC"}})
 
   const organizedData = useMemo(()=>{
@@ -73,9 +72,7 @@ const HistoryChart = () => {
     }]
   ),[organizedData])
 
-  if (!hasStatisticalEndpoint){
-    return <></>
-  }
+  
 
   return (
     <ChartContainer
@@ -93,6 +90,21 @@ const HistoryChart = () => {
     </ChartContainer >
   )
 
+}
+
+
+const HistoryChart = () => {
+  const { name } = useResourceDefinition()
+  
+  const { api } = useHttpClientContext()
+  const hasStatisticalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Statistical${name}`)),[api])
+
+  if (!hasStatisticalEndpoint){
+    return <></>
+  }
+
+  return <Chart/>
+  
 
 }
 

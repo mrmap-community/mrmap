@@ -208,6 +208,14 @@ const germanMessages: TranslationMessages = {
         primaryText: "Primärtext",
         secondaryText: "Sekundärtext",
         tertiaryText: "Tertiärtext"
+      },
+    },
+    resources: {
+      ChangeLog: {
+        historyDate: "Zeitstempel",
+        historyUser: "Nutzer",
+        historyType: "Aktion",
+        historyRelation: "Objekt",
       }
     }
   }

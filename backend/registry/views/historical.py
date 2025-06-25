@@ -31,6 +31,7 @@ class HistoricalViewSetMixin():
     filterset_fields = {
         'history_relation': ['exact'],
     }
+    ordering_fields = ["id", 'history_date', 'history_user']
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)

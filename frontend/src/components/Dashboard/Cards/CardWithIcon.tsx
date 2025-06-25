@@ -1,7 +1,7 @@
 import { FC, ReactNode, createElement } from 'react';
 import { Link, To } from 'react-router-dom';
 
-import { Box, Card, Divider, Typography } from '@mui/material';
+import { Box, Card, Typography } from '@mui/material';
 
 interface Props {
     icon: FC<any>;
@@ -65,7 +65,6 @@ const CardWithIcon = ({ icon, title, subtitle, to, children }: Props) => (
                 </Box>
             </Box>
         </Link>
-        {children && <Divider />}
         {children}
     </Card>
 );

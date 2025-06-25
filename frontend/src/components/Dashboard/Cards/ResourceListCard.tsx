@@ -1,18 +1,17 @@
 import {
     CreateButton,
     ListBase,
-    SimpleList,
     SortPayload,
     useResourceDefinition,
     useTranslate,
-    WithListContext,
+    WithListContext
 } from 'react-admin';
-import { Link } from 'react-router-dom';
 
-import { Avatar, Box, Button } from '@mui/material';
 
+import { Divider } from '@mui/material';
 import { PropsWithChildren } from 'react';
 import CardWithIcon from './CardWithIcon';
+import ChangeLogList from './ChangeLogList';
 
 export interface ResourceListCardProps extends PropsWithChildren {
     resource: string
@@ -45,12 +44,15 @@ const ResourceListCard = (
                   <WithListContext render={({ total }) => <>{total}</>} />
               }
           > 
+            
             {children}
             {
                 hasCreate ?
-                <CreateButton/>: null
+                <><Divider /><CreateButton/></>: null
             }
-            {
+            
+            <ChangeLogList/>
+            {/* {
                 withList ? 
                     <div>
                     <SimpleList
@@ -75,7 +77,7 @@ const ResourceListCard = (
                         </Box>
                     </Button>
                     </div>
-                : null}
+                : null} */}
           </CardWithIcon>
       </ListBase>
   );

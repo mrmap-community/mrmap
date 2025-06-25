@@ -29,6 +29,7 @@ class HistoricalViewSetMixin():
         # "historyRelation": ["history_relation"]
     }
     filterset_fields = {
+        'id': ['exact', 'in'],
         'history_relation': ['exact'],
     }
     ordering_fields = ["id", 'history_date', 'history_user']

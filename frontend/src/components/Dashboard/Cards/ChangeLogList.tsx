@@ -84,7 +84,7 @@ const ChangeLogList = (
               bulkActionButtons={false}
             >
                 <DataTable.Col source="historyDate" label="resources.ChangeLog.historyDate">
-                  <DateField source="historyDate" showTime/>  
+                  <DateField source="historyDate" showTime/>
                 </DataTable.Col>
                 <DataTable.Col source="historyUser" label="resources.ChangeLog.historyUser">
                   <JsonApiReferenceField source='historyUser' reference='User'/>

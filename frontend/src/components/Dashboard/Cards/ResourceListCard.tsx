@@ -3,7 +3,6 @@ import {
     ListBase,
     SortPayload,
     useResourceDefinition,
-    useTranslate,
     WithListContext
 } from 'react-admin';
 
@@ -12,6 +11,7 @@ import { Divider } from '@mui/material';
 import { PropsWithChildren } from 'react';
 import CardWithIcon from './CardWithIcon';
 import ChangeLogList from './ChangeLogList';
+import HistoryChart from './HistoryChart';
 
 export interface ResourceListCardProps extends PropsWithChildren {
     resource: string
@@ -27,7 +27,6 @@ const ResourceListCard = (
         children
     }: ResourceListCardProps
 ) => {
-  const translate = useTranslate();
   const { name, icon, hasCreate } = useResourceDefinition({ resource: resource })
   return (
       <ListBase
@@ -50,7 +49,7 @@ const ResourceListCard = (
                 hasCreate ?
                 <><Divider /><CreateButton/></>: null
             }
-            
+            <HistoryChart/>
             <ChangeLogList/>
             {/* {
                 withList ? 

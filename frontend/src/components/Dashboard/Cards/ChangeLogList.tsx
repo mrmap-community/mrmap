@@ -5,8 +5,7 @@ import {
   DateField,
   List,
   useFieldValue,
-  useResourceDefinition,
-  useSidebarState
+  useResourceDefinition
 } from 'react-admin';
 
 import { Divider } from '@mui/material';
@@ -45,7 +44,6 @@ const ChangeLogList = (
    
 ) => {
   const { name } = useResourceDefinition()
-  const [open] = useSidebarState()
   
   const { api } = useHttpClientContext()
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api])

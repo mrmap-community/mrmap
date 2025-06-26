@@ -11,7 +11,6 @@ import { Divider } from '@mui/material';
 import { PropsWithChildren } from 'react';
 import CardWithIcon from './CardWithIcon';
 import ChangeLogList from './ChangeLogList';
-import HistoryChart from './HistoryChart';
 
 export interface ResourceListCardProps extends PropsWithChildren {
     resource: string
@@ -49,7 +48,7 @@ const ResourceListCard = (
                 hasCreate ?
                 <><Divider /><CreateButton/></>: null
             }
-            <HistoryChart/>
+            
             <ChangeLogList/>
             {/* {
                 withList ? 

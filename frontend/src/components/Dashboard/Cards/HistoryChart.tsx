@@ -1,5 +1,6 @@
-import { BarPlot, ChartContainer, ChartsLegend, ChartsTooltip, ChartsXAxis } from '@mui/x-charts';
+import { AllSeriesType, AreaPlot, ChartContainer, ChartContainerProps, ChartsLegend, ChartsTooltip, LineHighlightPlot, LinePlot, MarkPlot } from '@mui/x-charts';
 import { mangoFusionPalette } from '@mui/x-charts/colorPalettes';
+import { ChartSeriesType } from '@mui/x-charts/internals';
 import { subDays } from 'date-fns';
 import { useMemo } from 'react';
 import { useGetList, useListContext, useResourceDefinition } from 'react-admin';
@@ -27,7 +28,11 @@ const dateFormatter = (date: number): string =>
 
 
 
-const Chart = () => {
+const Chart = (
+  {
+    ...props
+  }: ChartContainerProps
+) => {
   const { name } = useResourceDefinition()
 
   const { total } = useListContext();
@@ -35,27 +40,51 @@ const Chart = () => {
   const { data } = useGetList(`Statistical${name}`, {sort: {field: "id", order: "DESC"}})
 
   const organizedData = useMemo(()=>{
-      return data?.map((record, index) => {
+      const _organizedData = data?.map((record, index) => {
         if (index === 0) {
           record["total"] = total
           return record
         }
         record["total"] = data[index-1]["total"] - data[index-1]["new"] + data[index-1]["deleted"]
         return record
-      }).reverse()
+      }).reverse() || []
+
+
+      if (_organizedData !== undefined && _organizedData?.length > 0){
+        // insert date - 1 day calculated result to provide initial data points
+        const prevDate = new Date(_organizedData[0].day)
+        prevDate.setDate(prevDate.getDate() - 1);
+        const prevDateString = prevDate.toISOString()
+        const record = {
+          id: prevDateString,
+          day: prevDateString,
+          total: _organizedData[0].total - _organizedData[0].new,
+          new: 0,
+          deleted: 0,
+          updated: 0,
+        }
+        _organizedData.unshift(record)
+        
+      }
+      return _organizedData
+
   },[total, data])
 
-  const series = useMemo(() => {
-    const newDataSeries = []
-    const deletedDataSeries = []
-    const updatedDataSeries = []
+  const series = useMemo<Readonly<AllSeriesType<ChartSeriesType>>[]>(() => {
+    const newDataSeries: any[] = []
+    const deletedDataSeries: any[] = []
+    const updatedDataSeries: any[] = []
+    const dailyTotal: any[] = []
+    
     const series = [
-      { type: 'bar', data: newDataSeries, label:'new' ,},
-      { type: 'bar', data: deletedDataSeries, label:'deleted'},
-      { type: 'bar', data: updatedDataSeries, label:'updated'},
+      { type: 'line', data: dailyTotal, label: 'total', area: true, showMark: true},
+      //{ type: 'line', data: newDataSeries, label:'new' ,},
+      //{ type: 'line', data: deletedDataSeries, label:'deleted'},
+      //{ type: 'line', data: updatedDataSeries, label:'updated'},
     ]
   
     organizedData?.forEach(data => {
+      dailyTotal.push(data.total ?? 0)
       newDataSeries.push(data.new ?? 0)
       deletedDataSeries.push(data.deleted ?? 0)
       updatedDataSeries.push(data.updated ?? 0)
@@ -64,11 +93,14 @@ const Chart = () => {
     return series
   }, [organizedData])
 
+
   const xAxis = useMemo(()=>(
     [{
       scaleType: 'band',
       data: organizedData?.map(data => (data.id)) || [],
-      id: 'x-axis-id'
+      id: 'x-axis-id',
+      height: 45,
+      position: 'none'
     }]
   ),[organizedData])
 
@@ -78,14 +110,26 @@ const Chart = () => {
     <ChartContainer
         series={series}
         xAxis={xAxis}
-        yAxis={[{ label: 'rainfall (mm)', width: 60 }]}
+        yAxis={[{
+          width: 30,
+          position: 'none'
+        }]}
+        //yAxis={[{ label: 'rainfall (mm)', width: 60 }]}
         colors={mangoFusionPalette}
-        height={300}
+        //height={300}
+        margin={{
+          left: 0,
+          right: 0,
+          
+        }}
+        {...props}
       >
-        <BarPlot/>
-
+        
+        <AreaPlot />
+        <LinePlot />
+        <MarkPlot />
+        <LineHighlightPlot />
         <ChartsLegend direction="horizontal" />
-        <ChartsXAxis  axisId="x-axis-id" />
         <ChartsTooltip />
     </ChartContainer >
   )
@@ -93,7 +137,11 @@ const Chart = () => {
 }
 
 
-const HistoryChart = () => {
+const HistoryChart = (
+  {
+    ...props
+  }: ChartContainerProps
+) => {
   const { name } = useResourceDefinition()
   
   const { api } = useHttpClientContext()
@@ -103,7 +151,7 @@ const HistoryChart = () => {
     return <></>
   }
 
-  return <Chart/>
+  return <Chart {...props}/>
   
 
 }

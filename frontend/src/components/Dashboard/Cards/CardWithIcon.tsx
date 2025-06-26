@@ -2,6 +2,7 @@ import { FC, ReactNode, createElement } from 'react';
 import { Link, To } from 'react-router-dom';
 
 import { Box, Card, Typography } from '@mui/material';
+import HistoryChart from './HistoryChart';
 
 interface Props {
     icon: FC<any>;
@@ -24,12 +25,12 @@ const CardWithIcon = ({ icon, title, subtitle, to, children }: Props) => (
             },
         }}
     >
-        <Link to={to}>
+        
             <Box
                 sx={{
                     position: 'relative',
                     overflow: 'hidden',
-                    padding: '16px',
+                    //padding: '16px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -51,20 +52,25 @@ const CardWithIcon = ({ icon, title, subtitle, to, children }: Props) => (
                     },
                 }}
             >
-                <Box width="3em" className="icon">
-                    
-                    {
-                        icon === undefined ? null: createElement(icon, { fontSize: 'large' })
-                    }
+                <Box width="3em" className="icon" padding={'16px'}>
+                    {icon === undefined ? null: createElement(icon, { fontSize: 'large' })}
                 </Box>
-                <Box textAlign="right">
-                    <Typography color="textSecondary">{title}</Typography>
-                    <Typography variant="h5" component="h2">
-                        {subtitle || ' '}
-                    </Typography>
+                <Box >
+                    <HistoryChart
+                        //height={100}
+                    />
                 </Box>
+                <Link to={to}>
+                    <Box textAlign="right" paddingRight={'16px'}>
+                        <Typography color="textSecondary">{title}</Typography>
+                        <Typography variant="h5" component="h2">
+                            {subtitle || ' '}
+                        </Typography>
+                    </Box>
+                </Link>
             </Box>
-        </Link>
+        
+        
         {children}
     </Card>
 );

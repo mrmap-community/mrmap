@@ -24,7 +24,7 @@ const Dashboard = (): ReactNode => {
         <div style={styles.flex}>
           <ResourceListCard resource={'WebFeatureService'} withList={false}/>
           <Spacer />
-          <ResourceListCard resource={'FeatureType'} withList={false}/> {/* <OrderChart orders={recentOrders} /> */}
+          <ResourceListCard resource={'FeatureType'} withList={false}/>
         </div>
       </div>
       <div style={styles.singleCol}>

@@ -46,36 +46,11 @@ const ResourceListCard = (
             {children}
             {
                 hasCreate ?
-                <><Divider /><CreateButton/></>: null
+                <><Divider /><CreateButton/></>: <></>
             }
             
             <ChangeLogList/>
-            {/* {
-                withList ? 
-                    <div>
-                    <SimpleList
-                        primaryText={record => (`${record.stringRepresentation}`)}
-                        leftAvatar={record => (
-                            <Avatar
-                                src={`${record.avatar}?size=32x32`}
-                                alt={`${record.stringRepresentation}`}
-                            />
-                        )}
-                    />
-                    <Box flexGrow={1}>&nbsp;</Box>
-                    <Button
-                        sx={{ borderRadius: 0 }}
-                        component={Link}
-                        to={`/${name}`}
-                        size="small"
-                        color="primary"
-                    >
-                        <Box p={1} sx={{ color: 'primary.main' }}>
-                            {translate('ra.action.show_all', {name: name})}
-                        </Box>
-                    </Button>
-                    </div>
-                : null} */}
+            
           </CardWithIcon>
       </ListBase>
   );

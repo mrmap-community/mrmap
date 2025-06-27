@@ -216,6 +216,7 @@ const germanMessages: TranslationMessages = {
         historyUser: "Nutzer",
         historyType: "Aktion",
         historyRelation: "Objekt",
+        lastChanges: "Letzte Änderungen",
       }
     }
   }

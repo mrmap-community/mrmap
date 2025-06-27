@@ -18,6 +18,7 @@ const en = lodashMerge(
         historyUser: "User",
         historyType: "Action",
         historyRelation: "Object",
+        lastChanges: "Last Changes",
       }
     }
   }

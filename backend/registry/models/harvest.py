@@ -14,6 +14,7 @@ from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
+from django_celery_beat.models import PeriodicTask
 from eulxml import xmlmap
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
@@ -736,3 +737,30 @@ class HarvestingLog(models.Model):
         verbose_name=_("Extented Description"),
         help_text=_("this can be the response content for example"),
         upload_to=extented_description_file_path)
+
+
+class PeriodicHarvestingJob(PeriodicTask):
+    service: CatalogueService = models.ForeignKey(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        related_name="catalogue_service_periodic_harvesting_jobs",
+        related_query_name="catalogue_service_periodic_harvesting_job",
+        verbose_name=_("catalogue service"),
+        help_text=_("this is the service which shall be harvested"))
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.pk and not self.task:
+            self.task = "registry.tasks.harvest.create_harvesting_job"
+        if not self.pk and not self.kwargs:
+            self.kwargs = {
+                "service_id": self.service.pk
+            }
+        if not self.pk and not self.queue:
+            self.queue = "harvesting"
+
+    class Meta:
+        """Table information."""
+
+        verbose_name = _('Periodic Harvesting Job')
+        verbose_name_plural = _('Periodic Harvesting Jobs')

@@ -127,7 +127,8 @@ router = ExtendedSimpleRouter(trailing_slash=False)
                     harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
     router.register(r'harvesting/harvested-metadata-records',
                     harvesting_views.HarvestedMetadataRelationViewSet, basename='harvestedmetadatarelation'),
-
+    router.register(r'harvesting/periodic-harvesting-jobs',
+                    harvesting_views.PeriodicHarvestingJobViewSet, basename='periodicharvestingjob'),
 
     # map context
     router.register(

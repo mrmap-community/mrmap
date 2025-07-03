@@ -1,9 +1,13 @@
 from django.utils.translation import gettext_lazy as _
+from django_celery_beat.models import CrontabSchedule
 from extras.serializers import StringRepresentationSerializer
 from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
+                                     PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
+from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
+from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (ChoiceField, DurationField,
                                                  FloatField,
                                                  HyperlinkedIdentityField,
@@ -128,3 +132,26 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
             "harvested_service_metadata",
             "phase",
         )
+
+
+class PeriodicHarvestingJobSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:periodicharvestingjob-detail',
+    )
+    service = ResourceRelatedField(
+        label=_("web map service"),
+        help_text=_("the web map service for that this settings are."),
+        queryset=CatalogueService.objects,
+    )
+    crontab = ResourceRelatedField(
+        label=_("crontab"),
+        help_text=_("the crontab configuration for this setting."),
+        queryset=CrontabSchedule.objects,
+    )
+
+    class Meta:
+        model = PeriodicHarvestingJob
+        fields = ('url', 'name', 'service', 'crontab')

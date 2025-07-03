@@ -13,13 +13,15 @@ from notify.models import BackgroundProcess
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
+                                     PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
     CreateHarvestingJobSerializer, HarvestedMetadataRelationSerializer,
-    HarvestingJobSerializer, TemporaryMdMetadataFileSerializer)
+    HarvestingJobSerializer, PeriodicHarvestingJobSerializer,
+    TemporaryMdMetadataFileSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
@@ -411,6 +413,49 @@ class HarvestingJobViewSet(
 class NestedHarvestingJobViewSet(
     HarvestingJobViewSetMixin,
     PreloadNotIncludesMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class PeriodicHarvestingJobViewSetMixin:
+    """ Endpoints for resource `PeriodicHarvestingJob`
+
+        create:
+            Endpoint to register new `PeriodicHarvestingJob` object
+        list:
+            Retrieves all registered `PeriodicHarvestingJob` objects
+        retrieve:
+            Retrieve one specific `PeriodicHarvestingJob` by the given id
+        partial_update:
+            Endpoint to update some fields of a `PeriodicHarvestingJob`
+        destroy:
+            Endpoint to remove a registered `PeriodicHarvestingJob` from the system
+    """
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    queryset = PeriodicHarvestingJob.objects.all()
+    serializer_class = PeriodicHarvestingJobSerializer
+    select_for_includes = {
+        "service": ["service"],
+    }
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+        'service__id': ['exact', 'icontains', 'contains', 'in'],
+        'service__title': ['exact', 'icontains', 'contains'],
+    }
+    search_fields = ("id", "service", "service__title")
+    ordering_fields = ["id", "name", "service"]
+
+
+class PeriodicHarvestingJobViewSet(
+    PeriodicHarvestingJobViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedPeriodicHarvestingJobViewSet(
+    PeriodicHarvestingJobViewSetMixin,
     NestedModelViewSet
 ):
     pass

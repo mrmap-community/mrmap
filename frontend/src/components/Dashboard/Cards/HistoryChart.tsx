@@ -59,8 +59,6 @@ const Chart = (
    
   },[data, total])
 
-  console.log(name, monthlyStats)
-
   const series = useMemo<Readonly<AllSeriesType<ChartSeriesType>>[]>(() => {
     const newDataSeries: any[] = []
     const deletedDataSeries: any[] = []

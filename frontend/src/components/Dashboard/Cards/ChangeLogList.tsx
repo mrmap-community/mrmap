@@ -9,11 +9,14 @@ import {
   useTranslate
 } from 'react-admin';
 
+import ChangeCircleIcon from '@mui/icons-material/ChangeCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Accordion, AccordionDetails, AccordionSummary, Divider } from '@mui/material';
 import { useMemo } from 'react';
 import { useHttpClientContext } from '../../../context/HttpClientContext';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
+
+
 const HistoryTypField = ({...props}: ChipFieldProps) => {
 
   const value = useFieldValue(props);
@@ -64,7 +67,7 @@ const ChangeLogList = (
             aria-controls="panel1-content"
             id="panel1-header"
           >
-            {translate('resources.ChangeLog.lastChanges')}
+            <ChangeCircleIcon fontSize='small'/> {translate('resources.ChangeLog.lastChanges') } 
           </AccordionSummary>
           <AccordionDetails>
             <List

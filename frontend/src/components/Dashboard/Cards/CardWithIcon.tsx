@@ -1,7 +1,8 @@
 import { FC, ReactNode, createElement } from 'react';
 import { Link, To } from 'react-router-dom';
 
-import { Box, Card, Divider, Typography } from '@mui/material';
+import { Box, Card, Typography } from '@mui/material';
+import HistoryChart from './HistoryChart';
 
 interface Props {
     icon: FC<any>;
@@ -24,48 +25,48 @@ const CardWithIcon = ({ icon, title, subtitle, to, children }: Props) => (
             },
         }}
     >
-        <Link to={to}>
-            <Box
-                sx={{
-                    position: 'relative',
-                    overflow: 'hidden',
-                    padding: '16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    '& .icon': {
-                        color: 'secondary.main',
-                    },
-                    '&:before': {
-                        position: 'absolute',
-                        top: '50%',
-                        left: 0,
-                        display: 'block',
-                        content: `''`,
-                        height: '200%',
-                        aspectRatio: '1',
-                        transform: 'translate(-30%, -60%)',
-                        borderRadius: '50%',
-                        backgroundColor: 'secondary.main',
-                        opacity: 0.15,
-                    },
-                }}
-            >
-                <Box width="3em" className="icon">
-                    
-                    {
-                        icon === undefined ? null: createElement(icon, { fontSize: 'large' })
-                    }
-                </Box>
-                <Box textAlign="right">
-                    <Typography color="textSecondary">{title}</Typography>
-                    <Typography variant="h5" component="h2">
-                        {subtitle || ' '}
-                    </Typography>
-                </Box>
+        <Box
+            sx={{
+                position: 'relative',
+                overflow: 'hidden',
+                //padding: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                '& .icon': {
+                    color: 'secondary.main',
+                },
+                '&:before': {
+                    position: 'absolute',
+                    top: '50%',
+                    left: 0,
+                    display: 'block',
+                    content: `''`,
+                    height: '200%',
+                    aspectRatio: '1',
+                    transform: 'translate(-30%, -60%)',
+                    borderRadius: '50%',
+                    backgroundColor: 'secondary.main',
+                    opacity: 0.15,
+                },
+            }}
+        >
+            <Box width="3em" className="icon" padding={'16px'}>
+                {icon === undefined ? null: createElement(icon, { fontSize: 'large' })}
             </Box>
-        </Link>
-        {children && <Divider />}
+                <Link to={to}>
+                    <Box textAlign="right" paddingRight={'16px'}>
+                        <Typography color="textSecondary">{title}</Typography>
+                        <Typography variant="h5" component="h2">
+                            {subtitle || ' '}
+                        </Typography>
+                        
+                    </Box>
+                </Link>
+            
+                
+        </Box>
+        <HistoryChart height={100} />
         {children}
     </Card>
 );

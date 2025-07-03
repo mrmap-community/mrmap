@@ -1,4 +1,3 @@
-from operator import itemgetter
 from typing import List
 
 from accounts.models.groups import Organization
@@ -26,8 +25,7 @@ from registry.serializers.metadata import (KeywordSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import (BooleanField, IntegerField,
-                                   SerializerMethodField, URLField, UUIDField)
+from rest_framework.fields import BooleanField, IntegerField, URLField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
@@ -220,46 +218,6 @@ class LayerSerializer(
         if not hasattr(instance, "styles_inherited"):
             self._collect_inherited_objects(instance=instance)
         return instance.styles_inherited
-
-
-class WebMapServiceHistorySerializer(ModelSerializer):
-
-    id = UUIDField(source='history_id')
-    history_type = SerializerMethodField()
-    delta = SerializerMethodField()
-
-    included_serializers = {
-        "history_user": UserSerializer,
-        "history_relation": "registry.serializers.service.WebMapServiceSerializer"
-    }
-
-    class Meta:
-        model = WebMapService.change_log.model
-        exclude = ('history_id', )
-
-    def get_history_type(self, obj):
-        if obj.history_type == '+':
-            return "created"
-        elif obj.history_type == '~':
-            return "updated"
-        elif obj.history_type == '-':
-            return "deleted"
-
-    def get_delta(self, obj):
-        if hasattr(obj, "prev_prefetched_record"):
-            prev_record = obj.prev_prefetched_record
-        else:
-            prev_record = obj.prev_record
-        if prev_record:
-            model_delta = obj.diff_against(prev_record)
-            changes = []
-            for change in model_delta.changes:
-                changes.append(
-                    {"field": change.field, "old": change.old, "new": change.new})
-
-            # otherwise the order is not fix and reproducible for test cases
-            sorted_changes = sorted(changes, key=itemgetter('field'))
-            return sorted_changes
 
 
 class WebMapServiceListSerializer(

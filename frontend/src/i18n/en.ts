@@ -11,6 +11,15 @@ const en = lodashMerge(
         deactive: 'Click to deactivate %{name}',
         show_all: 'Show all %{name}',       
       }
+    },
+    resources: {
+      ChangeLog: {
+        historyDate: "Datestamp",
+        historyUser: "User",
+        historyType: "Action",
+        historyRelation: "Object",
+        lastChanges: "Last Changes",
+      }
     }
   }
 );

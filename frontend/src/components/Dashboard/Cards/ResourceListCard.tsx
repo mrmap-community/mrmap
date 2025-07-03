@@ -1,18 +1,16 @@
 import {
     CreateButton,
     ListBase,
-    SimpleList,
     SortPayload,
     useResourceDefinition,
-    useTranslate,
-    WithListContext,
+    WithListContext
 } from 'react-admin';
-import { Link } from 'react-router-dom';
 
-import { Avatar, Box, Button } from '@mui/material';
 
+import { Divider } from '@mui/material';
 import { PropsWithChildren } from 'react';
 import CardWithIcon from './CardWithIcon';
+import ChangeLogList from './ChangeLogList';
 
 export interface ResourceListCardProps extends PropsWithChildren {
     resource: string
@@ -28,7 +26,6 @@ const ResourceListCard = (
         children
     }: ResourceListCardProps
 ) => {
-  const translate = useTranslate();
   const { name, icon, hasCreate } = useResourceDefinition({ resource: resource })
   return (
       <ListBase
@@ -45,37 +42,15 @@ const ResourceListCard = (
                   <WithListContext render={({ total }) => <>{total}</>} />
               }
           > 
+            
             {children}
             {
                 hasCreate ?
-                <CreateButton/>: null
+                <><Divider /><CreateButton/></>: <></>
             }
-            {
-                withList ? 
-                    <div>
-                    <SimpleList
-                        primaryText={record => (`${record.stringRepresentation}`)}
-                        leftAvatar={record => (
-                            <Avatar
-                                src={`${record.avatar}?size=32x32`}
-                                alt={`${record.stringRepresentation}`}
-                            />
-                        )}
-                    />
-                    <Box flexGrow={1}>&nbsp;</Box>
-                    <Button
-                        sx={{ borderRadius: 0 }}
-                        component={Link}
-                        to={`/${name}`}
-                        size="small"
-                        color="primary"
-                    >
-                        <Box p={1} sx={{ color: 'primary.main' }}>
-                            {translate('ra.action.show_all', {name: name})}
-                        </Box>
-                    </Button>
-                    </div>
-                : null}
+            
+            <ChangeLogList/>
+            
           </CardWithIcon>
       </ListBase>
   );

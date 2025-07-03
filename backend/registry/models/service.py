@@ -125,6 +125,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
     )
     capabilities = WebMapServiceCapabilitiesManager()
     security = WebMapServiceSecurityManager()
+    history = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("web map service")
@@ -148,6 +149,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
     )
     capabilities = WebFeatureServiceCapabilitiesManager()
     security = WebFeatureServiceSecurityManager()
+    history = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("web feature service")
@@ -174,6 +176,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     )
     capabilities = CatalogueServiceCapabilitiesManager()
     objects = CatalogueServiceManager()
+    history = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("catalogue service")
@@ -432,6 +435,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     )
 
     objects = LayerManager()
+    history = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("layer")
@@ -606,6 +610,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         excluded_fields="search_vector"
     )
     objects = DefaultHistoryManager()
+    history = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("feature type")

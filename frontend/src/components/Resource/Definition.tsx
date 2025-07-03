@@ -78,6 +78,11 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "User", icon: CustomerIcon},
   {name: "Organization", icon: CorporateFareIcon },
   {name: "Group", icon: CorporateFareIcon },
+
+
+  // Changelogs
+  {name: "HistoryWebMapService"},
+
 ];
 
 export default RESOURCES;

@@ -1,11 +1,12 @@
 from django.urls import path
 from registry.views import harvesting as harvesting_views
+from registry.views import historical as historical_views
 from registry.views import mapcontext as mapcontext_views
 from registry.views import metadata as metadata_views
 from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
-from registry.views import stats as stats_views
+from registry.views import statistical as stats_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'registry'
@@ -29,9 +30,16 @@ router = ExtendedSimpleRouter(trailing_slash=False)
           .register(r'operation-urls', service_views.NestedWebMapServiceOperationUrlViewSet, basename='wms-operationurls', parents_query_lookups=['service']),
 
     # historical
-    router.register(r'wms-historical',
-                    service_views.WebMapServiceHistoricalViewSet, basename='wms-historical'),
-
+    router.register(r'historical-wms',
+                    historical_views.WebMapServiceHistoricalViewSet, basename='wms-historical'),
+    router.register(r'historical-layers',
+                    historical_views.LayerHistoricalViewSet, basename='layer-historical'),
+    router.register(r'historical-wfs',
+                    historical_views.WebFeatureServiceHistoricalViewSet, basename='wfs-historical'),
+    router.register(r'historical-featuretypes',
+                    historical_views.FeatureTypeHistoricalViewSet, basename='featuretype-historical'),
+    router.register(r'historical-csw',
+                    historical_views.CatalogueServiceHistoricalViewSet, basename='csw-historical'),
     # operation url
     router.register(r'wms-operation-urls',
                     service_views.WebMapServiceOperationUrlViewSet, basename='wms-operationurl'),
@@ -230,11 +238,37 @@ router = ExtendedSimpleRouter(trailing_slash=False)
 )
 
 urlpatterns = router.urls + [
+
+    path(
+        route=r'statistical/webmapservices',
+        view=stats_views.StatisticalWebMapServiceListView.as_view(),
+        name='statistical-webmapservice'
+    ),
+    path(
+        route=r'statistical/layers',
+        view=stats_views.StatisticalLayerListView.as_view(),
+        name='statistical-layer'
+    ),
+    path(
+        route=r'statistical/webfeatureservices',
+        view=stats_views.StatisticalWebFeatureServiceListView.as_view(),
+        name='statistical-webfeatureservice'
+    ),
+    path(
+        route=r'statistical/featuretypes',
+        view=stats_views.StatisticalFeatureTypeListView.as_view(),
+        name='statistical-webmapservice'
+    ),
+    path(
+        route=r'statistical/catalogueservices',
+        view=stats_views.StatisticalCatalogueServiceListView.as_view(),
+        name='statistical-catalogueservice'
+    ),
     path(
         route=r'statistical/dataset-metadata-records',
         view=stats_views.StatisticalDatasetMetadataRecordListView.as_view(),
         name='statistical-dataset-metadata-records'
-    )
+    ),
 ]
 # + [
 #    path(

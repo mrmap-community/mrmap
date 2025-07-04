@@ -16,6 +16,29 @@ from rest_framework_json_api.serializers import (ChoiceField, DurationField,
                                                  UniqueTogetherValidator)
 
 
+class PeriodicHarvestingJobSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:periodicharvestingjob-detail',
+    )
+    service = ResourceRelatedField(
+        label=_("Catalogue Service"),
+        help_text=_("the catalogue service for that this configuration is."),
+        queryset=CatalogueService.objects,
+    )
+    crontab = ResourceRelatedField(
+        label=_("crontab"),
+        help_text=_("the crontab configuration for this setting."),
+        queryset=CrontabSchedule.objects,
+    )
+
+    class Meta:
+        model = PeriodicHarvestingJob
+        fields = ('url', 'name', 'service', 'crontab')
+
+
 class HarvestedMetadataRelationSerializer(
     StringRepresentationSerializer,
     ModelSerializer
@@ -132,26 +155,3 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
             "harvested_service_metadata",
             "phase",
         )
-
-
-class PeriodicHarvestingJobSerializer(
-    StringRepresentationSerializer,
-    ModelSerializer
-):
-    url = HyperlinkedIdentityField(
-        view_name='registry:periodicharvestingjob-detail',
-    )
-    service = ResourceRelatedField(
-        label=_("web map service"),
-        help_text=_("the web map service for that this settings are."),
-        queryset=CatalogueService.objects,
-    )
-    crontab = ResourceRelatedField(
-        label=_("crontab"),
-        help_text=_("the crontab configuration for this setting."),
-        queryset=CrontabSchedule.objects,
-    )
-
-    class Meta:
-        model = PeriodicHarvestingJob
-        fields = ('url', 'name', 'service', 'crontab')

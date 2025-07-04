@@ -7,7 +7,7 @@ from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer)
 from extras.validators import validate_get_capablities_uri
-from registry.models.harvest import HarvestingJob
+from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Dimension,
                                       Keyword, MetadataContact,
                                       ReferenceSystem, Style)
@@ -547,12 +547,22 @@ class CatalogueServiceCreateSerializer(
     )
     owner = ResourceRelatedField(queryset=Organization.objects)
 
+    periodic_harvesting_jobs = ResourceRelatedField(
+        label=_("Periodic Harvesting Jobs"),
+        help_text=_("Configuration about periodic running harvesting jobs"),
+        queryset=PeriodicHarvestingJob.objects.all(),
+        many=True,
+        related_link_view_name='registry:csw-periodicharvestingjobs-list',
+        related_link_url_kwarg='parent_lookup_service',
+    )
+
     class Meta:
         model = CatalogueService
         fields = (
             "get_capabilities_url",
             "owner",
             "service_auth",
+            "periodic_harvesting_jobs",
         )
 
 

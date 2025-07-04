@@ -743,8 +743,8 @@ class PeriodicHarvestingJob(PeriodicTask):
     service: CatalogueService = models.ForeignKey(
         to=CatalogueService,
         on_delete=models.CASCADE,
-        related_name="catalogue_service_periodic_harvesting_jobs",
-        related_query_name="catalogue_service_periodic_harvesting_job",
+        related_name="periodic_harvesting_jobs",
+        related_query_name="periodic_harvesting_job",
         verbose_name=_("catalogue service"),
         help_text=_("this is the service which shall be harvested"))
 
@@ -760,7 +760,5 @@ class PeriodicHarvestingJob(PeriodicTask):
             self.queue = "harvesting"
 
     class Meta:
-        """Table information."""
-
         verbose_name = _('Periodic Harvesting Job')
         verbose_name_plural = _('Periodic Harvesting Jobs')

@@ -106,6 +106,11 @@ router = ExtendedSimpleRouter(trailing_slash=False)
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'harvesting-jobs', harvesting_views.NestedHarvestingJobViewSet, basename='csw-harvesting-jobs', parents_query_lookups=['service']),
 
+    router.register(
+        r'csw', service_views.CatalogueServiceViewSet, basename='csw')
+    .register(r'periodic-harvesting-jobs',
+              harvesting_views.NestedPeriodicHarvestingJobViewSet, basename='csw-periodicharvestingjobs', parents_query_lookups=['service']),
+
     # harvesting
     router.register(r'harvesting/harvesting-jobs',
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob')

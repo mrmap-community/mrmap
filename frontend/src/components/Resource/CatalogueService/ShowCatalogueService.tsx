@@ -1,6 +1,8 @@
 import { CardContent, CardHeader } from '@mui/material';
-import { List, SelectField, Show, ShowViewProps, SimpleList, SimpleShowLayout, TextField } from 'react-admin';
+import { List, SelectField, Show, ShowViewProps, SimpleList, TabbedShowLayout, TextField, useResourceDefinition } from 'react-admin';
 import { useParams } from 'react-router-dom';
+import ConfigureRelatedResource from '../../../jsonapi/components/ConfigureRelatedResource';
+import { createElementIfDefined } from '../../../utils';
 import AsideCard from '../../Layout/AsideCard';
 
 
@@ -51,17 +53,32 @@ const ShowCatalogueService = ({
   ...rest
 }: ShowCatalogueServiceProps) => {
   
-    return (
-      <Show
-        aside={<LastHarvestingJobs/>}
-      >
-        <SimpleShowLayout>
+  const { name: cswName, icon: cswIcon } = useResourceDefinition({resource: 'CatalogueService'})
+  const { name: periodicHarvestingJobName, icon: periodicHarvestingJobIcon } = useResourceDefinition({resource: 'PeriodicHarvestingJob'})
+
+  return (
+    <Show
+      aside={<LastHarvestingJobs/>}
+    >
+      <TabbedShowLayout>
+        <TabbedShowLayout.Tab label={cswName} icon={createElementIfDefined(cswIcon)}>
+          
             <TextField source="id" />
             <TextField source="title" />
             <TextField source="abstract" />
-        </SimpleShowLayout>
+
+        </TabbedShowLayout.Tab>
+        
+        <TabbedShowLayout.Tab label={periodicHarvestingJobName} icon={createElementIfDefined(periodicHarvestingJobIcon)}>
+            <ConfigureRelatedResource relatedResource='PeriodicHarvestingJob' relatedName='periodicHarvestingJobs'/>
+        </TabbedShowLayout.Tab>
+
+
+        
+      </TabbedShowLayout>
+        
     </Show>
-    )
+  )
 };
 
 

@@ -43,6 +43,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "CatalogueService", icon: PlagiarismIcon, show: ShowCatalogueService, list: CatalogueServiceList},
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob},
   {name: "TemporaryMdMetadataFile"},
+  {name: "PeriodicHarvestingJob"},
 
 
   {name: "Keyword", icon: LocalOfferIcon},

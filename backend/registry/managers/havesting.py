@@ -6,6 +6,7 @@ from django.utils.timezone import now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
 from notify.tasks import finish_background_process
+from registry.enums.harvesting import HarvestingPhaseEnum
 
 
 class HarvestingJobManager(DefaultHistoryManager, CTEManager):
@@ -25,20 +26,20 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
             done_steps=Case(
                 When(
                     condition=Q(
-                        background_process__phase__icontains="Harvesting is running..."),
+                        background_process__phase__lte=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value),
                     then=1 + Ceil(F("unhandled_records_count") /
                                   F("max_step_size"))
                 ),
                 When(
                     condition=Q(
-                        background_process__phase__icontains="parse and store ISO Metadatarecords to db..."),
+                        background_process__phase__lte=HarvestingPhaseEnum.RECORDS_TO_DB.value),
                     then=1 + F("download_tasks_count") +
                                F("total_records") -
                                  F("unhandled_records_count")
                 ),
                 When(
                     condition=Q(
-                        background_process__phase__icontains="completed"),
+                        background_process__phase__gte=HarvestingPhaseEnum.COMPLETED.value),
                     then=F("total_steps")
                 ),
                 default=0
@@ -46,7 +47,7 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
         ).annotate(
             progress=Case(
                 When(
-                    ~Q(background_process__phase="abort") & Q(
+                    ~Q(background_process__phase=HarvestingPhaseEnum.ABORT.value) & Q(
                         background_process__done_at__isnull=False),
                     then=Value(100.0)
                 ),
@@ -74,7 +75,7 @@ class TemporaryMdMetadataFileManager(models.Manager):
 
         bp = BackgroundProcess.objects.create(
             total_steps=len(objs) + 1,
-            phase='parse and store ISO Metadatarecords to db...')
+            phase=HarvestingPhaseEnum.RECORDS_TO_DB.value)
         hj = HarvestingJob.objects.create(
             total_records=len(objs),
         )
@@ -102,7 +103,7 @@ class TemporaryMdMetadataFileManager(models.Manager):
             )
         else:
             BackgroundProcess.objects.filter(pk=bp.pk).update(
-                phase='completed',
+                phase=HarvestingPhaseEnum.COMPLETED.value,
                 done_at=now(),
                 done_steps=F('total_steps')
             )

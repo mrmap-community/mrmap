@@ -3,7 +3,7 @@ from django_celery_beat.models import CrontabSchedule
 from extras.serializers import StringRepresentationSerializer
 from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
-                                     PeriodicHarvestingJob,
+                                     HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
@@ -155,3 +155,15 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
             "harvested_service_metadata",
             "phase",
         )
+
+
+class HarvestingLogSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name="registry:harvestinglog-detail",)
+
+    class Meta:
+        model = HarvestingLog
+        fields = "__all__"

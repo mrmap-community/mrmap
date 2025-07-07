@@ -128,12 +128,20 @@ router = ExtendedSimpleRouter(trailing_slash=False)
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
     .register(r'harvested-service-metadata-records', metadata_views.NestedServiceMetadataViewSet, basename='harvestingjob-harvestedservicemetadata', parents_query_lookups=['harvested_service_metadata_relation__harvesting_job']),
 
+    router.register(r'harvesting/harvesting-jobs',
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'harvesting-logs', harvesting_views.NestedHarvestingLogViewSet, basename='harvestingjob-harvestinglog', parents_query_lookups=['harvesting_job']),
+
+
     router.register(r'harvesting/temporary-md-metadata-file',
                     harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
     router.register(r'harvesting/harvested-metadata-records',
                     harvesting_views.HarvestedMetadataRelationViewSet, basename='harvestedmetadatarelation'),
     router.register(r'harvesting/periodic-harvesting-jobs',
                     harvesting_views.PeriodicHarvestingJobViewSet, basename='periodicharvestingjob'),
+    router.register(r'harvesting/harvesting-logs',
+                    harvesting_views.HarvestingLogViewSet, basename='harvestinglog'),
+
 
     # map context
     router.register(

@@ -13,15 +13,15 @@ from notify.models import BackgroundProcess
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.filters.harvesting import HarvestingJobFilterSet
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
-                                     PeriodicHarvestingJob,
+                                     HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueServiceOperationUrl
 from registry.serializers.harvesting import (
     CreateHarvestingJobSerializer, HarvestedMetadataRelationSerializer,
-    HarvestingJobSerializer, PeriodicHarvestingJobSerializer,
-    TemporaryMdMetadataFileSerializer)
+    HarvestingJobSerializer, HarvestingLogSerializer,
+    PeriodicHarvestingJobSerializer, TemporaryMdMetadataFileSerializer)
 from rest_framework_json_api.views import ModelViewSet
 
 DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES = [
@@ -531,6 +531,30 @@ class HarvestedMetadataRelationViewSet(
 
 class NestedHarvestedMetadataRelationViewSet(
     HarvestedMetadataRelationViewSetMixin,
+    NestedModelViewSet
+):
+    pass
+
+
+class HarvestingLogViewSetMixin(PreloadNotIncludesMixin):
+    queryset = HarvestingLog.objects.all()
+    serializer_class = HarvestingLogSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    ordering_fields = ["id"]
+    filterset_fields = {
+        'id': ['exact', 'icontains', 'contains', 'in'],
+    }
+
+
+class HarvestingLogViewSet(
+    HarvestingLogViewSetMixin,
+    ModelViewSet
+):
+    pass
+
+
+class NestedHarvestingLogViewSet(
+    HarvestingLogViewSetMixin,
     NestedModelViewSet
 ):
     pass

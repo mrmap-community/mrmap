@@ -330,7 +330,7 @@ class HarvestingJob(ProcessingData):
 
             callback_id = uuid4()
             callback = call_chord_md_metadata_file_to_db.s(
-                harvesting_job_id=self.pk,
+                harvesting_job_id=str(self.pk),
                 http_request=self._http_request(),
             )
             callback.set(task_id=str(callback_id))
@@ -341,7 +341,7 @@ class HarvestingJob(ProcessingData):
             transaction.on_commit(lambda: chord(tasks, callback)())
 
         self.log(
-            description=f"call_chord_md_metadata_file_to_db called. {round_trips} round trips with step size {self.max_step_size} are needed."
+            description=f"phase {HarvestingPhaseEnum.DOWNLOAD_RECORDS.value} started. {round_trips} round trips with step size {self.max_step_size} are needed."
         )
 
     # TODO: implement three phases:

@@ -32,6 +32,7 @@ const SchemaAutocompleteInput = (
 
   const optionText = useSchemaRecordRepresentation({resource: reference})
 
+  // TODO: check if the resource has create endpoint; if so, we add an create component here
 
   if (multiple){
     return (

@@ -518,8 +518,18 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
       props: {
         ...commonProps, 
         ...(forInput ? 
-          {target: fieldSchema.name, link: 'edit', ...(hasCreate && {create: <CreateSuggestionDialog isOpen resource={fieldSchema.reference}/>})}: 
-          {reference: fieldSchema.reference, target: fieldSchema.resource,})
+          {
+            target: fieldSchema.name, 
+            link: 'edit', 
+            ...(hasCreate && {
+              create: <CreateSuggestionDialog isOpen resource={fieldSchema.reference}/>,
+              createLabel: 'type something to create a new object' // TODO: use translate
+            })
+          }: 
+          {
+            reference: fieldSchema.reference, 
+            target: fieldSchema.resource,
+          })
       }
     }
     

@@ -70,7 +70,7 @@ const ShowCatalogueService = ({
         </TabbedShowLayout.Tab>
         
         <TabbedShowLayout.Tab label={periodicHarvestingJobName} icon={createElementIfDefined(periodicHarvestingJobIcon)}>
-            <ConfigureRelatedResource relatedResource='PeriodicHarvestingJob' relatedName='periodicHarvestingJobs'/>
+            <ConfigureRelatedResource relatedResource='PeriodicHarvestingJob' relatedName='periodicHarvestingJobs' relatedResourceReverseName='service'/>
         </TabbedShowLayout.Tab>
 
 

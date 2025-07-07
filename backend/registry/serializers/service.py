@@ -547,22 +547,12 @@ class CatalogueServiceCreateSerializer(
     )
     owner = ResourceRelatedField(queryset=Organization.objects)
 
-    periodic_harvesting_jobs = ResourceRelatedField(
-        label=_("Periodic Harvesting Jobs"),
-        help_text=_("Configuration about periodic running harvesting jobs"),
-        queryset=PeriodicHarvestingJob.objects.all(),
-        many=True,
-        related_link_view_name='registry:csw-periodicharvestingjobs-list',
-        related_link_url_kwarg='parent_lookup_service',
-    )
-
     class Meta:
         model = CatalogueService
         fields = (
             "get_capabilities_url",
             "owner",
             "service_auth",
-            "periodic_harvesting_jobs",
         )
 
 
@@ -610,6 +600,13 @@ class CatalogueServiceSerializer(
         label=_("operation urls"),
         help_text=_("this are the urls to use for the ogc operations."),
         model=CatalogueServiceOperationUrl,
+        many=True,
+        read_only=True,
+    )
+    periodic_harvesting_jobs = ResourceRelatedField(
+        label=_("periodic harvesting jobs"),
+        help_text=_("this are the related harvesting job objects."),
+        model=PeriodicHarvestingJob,
         many=True,
         read_only=True,
     )

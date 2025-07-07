@@ -8,6 +8,7 @@ from celery.utils.log import get_task_logger
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
+from django.utils.timezone import now
 from eulxml import xmlmap
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
@@ -34,6 +35,7 @@ def finish_harvesting_job(*args, **kwargs):
     harvesting_job = HarvestingJob.objects.get(
         pk=kwargs.get("harvesting_job_id"))
     harvesting_job.phase = HarvestingPhaseEnum.COMPLETED.value
+    harvesting_job.done_at = now()
     harvesting_job.save(skip_history_when_saving=False)
 
 
@@ -47,7 +49,7 @@ def call_fetch_total_records(*args, **kwargs):
     total_records = harvesting_job.fetch_total_records()
 
     harvesting_job.handle_total_records_defined()
-
+    harvesting_job.save(skip_history_when_saving=False)
     return total_records
 
 
@@ -82,7 +84,7 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
     for _id in ids:
         task_id = uuid4()
         task = call_md_metadata_file_to_db.s(
-            md_metadata_file_id=id,
+            md_metadata_file_id=_id,
             harvesting_job_id=harvesting_job_id,
             http_request=http_request)
         task.set(task_id=str(task_id))

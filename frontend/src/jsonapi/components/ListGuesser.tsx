@@ -118,8 +118,8 @@ const ListGuesser = ({
   const includeOptions = useMemo(() => (operation !== undefined) ? getIncludeOptions(operation) : [], [operation])
   const sparseFieldOptions = useMemo(() => (operation !== undefined) ? getSparseFieldOptions(operation) : [], [operation])
 
-  const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api])
-  
+  const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
+
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
 
   const [searchParams, setSearchParams] = useSearchParams()

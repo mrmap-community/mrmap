@@ -105,6 +105,7 @@ const ShowCatalogueService = ({
 }: ShowCatalogueServiceProps) => {
   
   const { name: cswName, icon: cswIcon } = useResourceDefinition({resource: 'CatalogueService'})
+  const { name: HarvestingJobName, icon: HarvestingJobIcon } = useResourceDefinition({resource: 'HarvestingJob'})
   const { name: periodicHarvestingJobName, icon: periodicHarvestingJobIcon } = useResourceDefinition({resource: 'PeriodicHarvestingJob'})
 
   return (
@@ -130,7 +131,7 @@ const ShowCatalogueService = ({
           />
         </SimpleCard>
         <SimpleCard
-          title={<span>{createElementIfDefined(periodicHarvestingJobIcon)} {periodicHarvestingJobName}</span>}
+          title={<span>{createElementIfDefined(HarvestingJobIcon)} {HarvestingJobName}</span>}
         >
           <ListHarvestingJob/>
         </SimpleCard>

@@ -1,6 +1,6 @@
 import { type AlertColor } from '@mui/material/Alert';
 import { useMemo, type ReactNode } from 'react';
-import { RaRecord, useRecordContext } from 'react-admin';
+import { RaRecord, SelectField, useRecordContext } from 'react-admin';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import ProgressField from '../../Field/ProgressField';
 
@@ -28,6 +28,7 @@ const ListHarvestingJob = (): ReactNode => {
       }
     }
   },[record])
+
   return (
     <ListGuesser
       realtime={true}
@@ -37,6 +38,10 @@ const ListHarvestingJob = (): ReactNode => {
         {
           component: ProgressField, 
           props: {source: "progress", getColor: getColor}
+        },
+        {
+          component: SelectField, 
+          props: {source: "phase", choices: [{id:0, name: 'pending'}, {id:1, name: 'Get total records'}, {id:2, name: 'Download records'}, {id:3, name: 'Persisting records'}, {id:4, name: 'Completed'}, {id:5, name: 'Arborted'}, {id:4711, name: 'Abort'}]}
         }
       ]}
       refetchInterval={20000}

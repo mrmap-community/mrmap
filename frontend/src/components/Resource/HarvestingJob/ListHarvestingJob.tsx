@@ -33,7 +33,8 @@ const ListHarvestingJob = (): ReactNode => {
     <ListGuesser
       realtime={true}
       resource='HarvestingJob'
-      
+      defaultSelectedColumns={['id', 'phase', 'progress', 'createdAt', 'doneAt']}
+      sort={{field: 'id', order: 'DESC'}}
       updateFieldDefinitions={[
         {
           component: ProgressField, 

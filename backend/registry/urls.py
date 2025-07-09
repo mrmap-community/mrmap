@@ -283,6 +283,12 @@ urlpatterns = router.urls + [
         view=stats_views.StatisticalDatasetMetadataRecordListView.as_view(),
         name='statistical-dataset-metadata-records'
     ),
+    path(
+        route=r'statistical/service-metadata-records',
+        view=stats_views.StatisticalServiceMetadataRecordListView.as_view(),
+        name='statistical-service-metadata-records'
+    ),
+
 ]
 # + [
 #    path(

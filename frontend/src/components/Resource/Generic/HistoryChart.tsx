@@ -5,12 +5,18 @@ import { useMemo } from 'react';
 import { useGetList, useListContext, useResourceDefinition } from 'react-admin';
 import { useHttpClientContext } from '../../../context/HttpClientContext';
 
+export interface HistoryChartProps extends ChartContainerProps{
+  resource?: string
+}
+
+
 const Chart = (
   {
+    resource,
     ...props
-  }: ChartContainerProps
+  }: HistoryChartProps
 ) => {
-  const { name } = useResourceDefinition()
+  const { name } = useResourceDefinition({resource: resource})
 
   const { total } = useListContext();
 
@@ -130,10 +136,11 @@ const Chart = (
 
 const HistoryChart = (
   {
+    resource,
     ...props
-  }: ChartContainerProps
+  }: HistoryChartProps
 ) => {
-  const { name } = useResourceDefinition()
+  const { name } = useResourceDefinition({resource: resource})
   
   const { api } = useHttpClientContext()
   const hasStatisticalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Statistical${name}`)),[api])

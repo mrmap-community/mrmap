@@ -2,7 +2,7 @@ import { FC, ReactNode, createElement } from 'react';
 import { Link, To } from 'react-router-dom';
 
 import { Box, Card, Typography } from '@mui/material';
-import HistoryChart from './HistoryChart';
+import HistoryChart from '../../Resource/Generic/HistoryChart';
 
 interface Props {
     icon: FC<any>;

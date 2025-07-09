@@ -19,6 +19,12 @@ class StatisticalDatasetMetadataRecordSerializer(StatisticalSerializer):
         resource_name = 'StatisticalDatasetMetadataRecord'
 
 
+class StatisticalServiceMetadataRecordSerializer(StatisticalSerializer):
+
+    class Meta:
+        resource_name = 'StatisticalServiceMetadataRecord'
+
+
 class StatisticalWebMapServiceSerializer(StatisticalSerializer):
 
     class Meta:

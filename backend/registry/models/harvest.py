@@ -34,6 +34,7 @@ from registry.models.service import CatalogueService
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
+from simple_history.utils import update_change_reason
 
 
 class ProcessingData(models.Model):
@@ -672,6 +673,12 @@ class TemporaryMdMetadataFile(models.Model):
                             self.import_error = str(import_error)
                             self.save()
                             return db_metadata, update, exists
+                        elif update or not exists:
+                            # something has changed... so tell us from what service this changes come from
+                            update_change_reason(
+                                db_metadata,
+                                'fileimport'if self.job.service is None else f'csw:{self.job.service}'
+                            )
 
                     self.delete()
 

@@ -1,10 +1,12 @@
-from registry.models.metadata import DatasetMetadataRecord
+from registry.models.metadata import (DatasetMetadataRecord,
+                                      ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.serializers.statistical import (
     StatisticalCatalogueServiceSerializer,
     StatisticalDatasetMetadataRecordSerializer,
     StatisticalFeatureTypeSerializer, StatisticalLayerSerializer,
+    StatisticalServiceMetadataRecordSerializer,
     StatisticalWebFeatureServiceSerializer, StatisticalWebMapServiceSerializer)
 from rest_framework_json_api.views import generics
 
@@ -14,8 +16,14 @@ class StatisticalListView(generics.ListAPIView):
 
 
 class StatisticalDatasetMetadataRecordListView(StatisticalListView):
+    filterset_fields = ('history_change_reason',)
     queryset = DatasetMetadataRecord.history.stats_per_day()
     serializer_class = StatisticalDatasetMetadataRecordSerializer
+
+
+class StatisticalServiceMetadataRecordListView(StatisticalListView):
+    queryset = ServiceMetadataRecord.history.stats_per_day()
+    serializer_class = StatisticalServiceMetadataRecordSerializer
 
 
 class StatisticalWebMapServiceListView(StatisticalListView):

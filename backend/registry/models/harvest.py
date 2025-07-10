@@ -26,7 +26,9 @@ from registry.enums.harvesting import (CollectingStatenEnum,
                                        LogLevelEnum)
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.harvesting import InternalServerError
-from registry.managers.havesting import (HarvestingJobManager,
+from registry.managers.havesting import (HarvestedMetadataRelationManager,
+                                         HarvestedMetadataRelationQuerySet,
+                                         HarvestingJobManager,
                                          TemporaryMdMetadataFileManager)
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
@@ -127,6 +129,8 @@ class HarvestedMetadataRelation(models.Model):
         blank=True,
         verbose_name=_("processing duration"),
         help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
+
+    objects = HarvestedMetadataRelationQuerySet.as_manager()
 
     class Meta:
         indexes = [

@@ -288,6 +288,11 @@ urlpatterns = router.urls + [
         view=stats_views.StatisticalServiceMetadataRecordListView.as_view(),
         name='statistical-service-metadata-records'
     ),
+    path(
+        route=r'statistical/harvested-metadata-relations',
+        view=stats_views.StatisticalHarvestedMetadataRelationListView.as_view(),
+        name='statistical-harvested-metadata-relations'
+    ),
 
 ]
 # + [

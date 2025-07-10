@@ -1,6 +1,6 @@
 import MailIcon from '@mui/icons-material/Mail';
 import NoteAddIcon from '@mui/icons-material/NoteAdd';
-import { CardContent, CardHeader } from '@mui/material';
+import { Box, CardContent, CardHeader } from '@mui/material';
 import Badge from '@mui/material/Badge';
 import Stack from '@mui/material/Stack';
 import { useCallback, useMemo } from 'react';
@@ -12,6 +12,7 @@ import AsideCard from '../../Layout/AsideCard';
 import CircularProgressWithLabel from '../../MUI/CircularProgressWithLabel';
 import SimpleCard from '../../MUI/SimpleCard';
 import ListHarvestingJob from '../HarvestingJob/ListHarvestingJob';
+import HarvestingDailyStatsChart from './HarvestingDailyStatsChart';
 
 
 export interface ShowCatalogueServiceProps extends Partial<ShowViewProps> {
@@ -114,13 +115,21 @@ const ShowCatalogueService = ({
         title={<RecordRepresentation />} subheader={<WithRecord label="author" render={record => <span>Created {record.createdAt} · Updated {record.lastModifiedAt}</span>} />}
       >
         <SimpleCard
-          title={<span>{createElementIfDefined(cswIcon)} {cswName}</span>}
+          title={
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Box><span>{createElementIfDefined(cswIcon)} {cswName}</span></Box>
+              <Box><HarvestingDailyStatsChart resource='HarvestedMetadataRelation'/></Box>
+
+
+            </Box>
+          }
         >
           <SimpleShowLayout>
             <TextField source="id" />
             <TextField source="title" />
             <TextField source="abstract" />
           </SimpleShowLayout>
+
         </SimpleCard>
         <SimpleCard
           title={<span>{createElementIfDefined(periodicHarvestingJobIcon)} {periodicHarvestingJobName}</span>}

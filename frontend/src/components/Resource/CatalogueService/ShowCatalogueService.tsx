@@ -1,6 +1,6 @@
 import MailIcon from '@mui/icons-material/Mail';
 import NoteAddIcon from '@mui/icons-material/NoteAdd';
-import { Box, CardContent, CardHeader } from '@mui/material';
+import { CardContent, CardHeader } from '@mui/material';
 import Badge from '@mui/material/Badge';
 import Stack from '@mui/material/Stack';
 import { useCallback, useMemo } from 'react';
@@ -115,20 +115,14 @@ const ShowCatalogueService = ({
         title={<RecordRepresentation />} subheader={<WithRecord label="author" render={record => <span>Created {record.createdAt} · Updated {record.lastModifiedAt}</span>} />}
       >
         <SimpleCard
-          title={
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Box><span>{createElementIfDefined(cswIcon)} {cswName}</span></Box>
-              <Box><HarvestingDailyStatsChart resource='HarvestedMetadataRelation'/></Box>
-
-
-            </Box>
-          }
+          title={<span>{createElementIfDefined(cswIcon)} {cswName}</span>}
         >
           <SimpleShowLayout>
             <TextField source="id" />
             <TextField source="title" />
             <TextField source="abstract" />
           </SimpleShowLayout>
+          
 
         </SimpleCard>
         <SimpleCard
@@ -142,6 +136,7 @@ const ShowCatalogueService = ({
         <SimpleCard
           title={<span>{createElementIfDefined(HarvestingJobIcon)} {HarvestingJobName}</span>}
         >
+          <HarvestingDailyStatsChart resource='HarvestedMetadataRelation' />
           <ListHarvestingJob/>
         </SimpleCard>
       </SimpleCard>

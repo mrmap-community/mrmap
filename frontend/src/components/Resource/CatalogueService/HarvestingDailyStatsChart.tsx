@@ -78,10 +78,10 @@ const HarvestingDailyStatsCore = (
     
     const series = [
       { type: 'line', data: dailyTotal, label: 'Records', area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
-      { type: 'line', data: newDataSeries, label:'new' ,},
+      //{ type: 'line', data: newDataSeries, label:'new' ,},
       //{ type: 'line', data: deletedDataSeries, label:'deleted'},
-      { type: 'line', data: updatedDataSeries, label:'updated'},
-      { type: 'line', data: existedDataSeries, label:'existed'},
+      //{ type: 'line', data: updatedDataSeries, label:'updated'},
+      //{ type: 'line', data: existedDataSeries, label:'existed'},
     ]
   
     monthlyStats?.forEach(data => {
@@ -102,15 +102,22 @@ const HarvestingDailyStatsCore = (
       data: monthlyStats?.map(data => (data.id)) || [],
       id: 'x-axis-id',
       height: 45,
-      position: 'none'
+      yAxisId: 'y-axis-id',
+      label: 'Day',
     }]
   ),[monthlyStats])
-
+  console.log(xAxis)
   
   return (
     <GradientChartContainer
       series={series}
       xAxis={xAxis}
+      yAxis={[{
+          id: 'y-axis-id',
+          scaleType: 'linear',
+          position: 'left',
+          label: 'Records'
+        }]}
       {...props}
     />
   )

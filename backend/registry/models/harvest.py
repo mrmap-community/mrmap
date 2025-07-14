@@ -761,6 +761,9 @@ class PeriodicHarvestingJob(PeriodicTask):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        if not self.pk and not self.name:
+            # we do not need this field now... just generate random data
+            self.name = uuid4()
         if not self.pk and not self.task:
             self.task = "registry.tasks.harvest.create_harvesting_job"
         if not self.pk and not self.kwargs:

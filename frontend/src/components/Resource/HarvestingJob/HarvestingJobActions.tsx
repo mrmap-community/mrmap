@@ -1,10 +1,14 @@
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import { useEffect, useMemo } from 'react';
-import { Button, PrevNextButtons, TopToolbar, useCreate, useGetList, useRecordContext, useRedirect, useResourceDefinition, useUpdate } from 'react-admin';
+import { Button, PrevNextButtonProps, PrevNextButtons, TopToolbar, useCreate, useGetList, useRecordContext, useRedirect, useResourceDefinition, useUpdate } from 'react-admin';
+
+export interface JsonApiPrevNextButtonsProps extends PrevNextButtonProps {
+
+}
 
 
-const JsonApiPrevNextButtons = () => {
+const JsonApiPrevNextButtons = ({...rest}: JsonApiPrevNextButtonsProps) => {
   const { name } = useResourceDefinition()
 
   const jsonApiParams = useMemo(()=>{
@@ -18,11 +22,13 @@ const JsonApiPrevNextButtons = () => {
       queryOptions={{ 
         meta: {
           jsonApiParams: jsonApiParams,
+
         }
       }}
       linkType='show'
       limit={10}
       sort={{field:'id', order:'DESC'}}
+      {...rest}
     />
   )
 }
@@ -108,11 +114,15 @@ const StartAgainButton = () => {
 
 
 const HarvestingJobActions = () => {
+  const record = useRecordContext();
+
   return (
     <TopToolbar>
       <StartAgainButton/>
       <AbortButton/>
-      <JsonApiPrevNextButtons/>
+      <JsonApiPrevNextButtons
+        filter={record?.service ? {'service__id': record?.service.id}: undefined}
+      />
     </TopToolbar>
   )
 }

@@ -77,7 +77,7 @@ const HarvestingDailyStatsCore = (
     const dailyTotal: any[] = []
     
     const series = [
-      { type: 'line', data: dailyTotal, label: 'Records', area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
+      { type: 'line', data: dailyTotal, label: 'Records', connectNulls: true, area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
       //{ type: 'line', data: newDataSeries, label:'new' ,},
       //{ type: 'line', data: deletedDataSeries, label:'deleted'},
       //{ type: 'line', data: updatedDataSeries, label:'updated'},
@@ -106,7 +106,6 @@ const HarvestingDailyStatsCore = (
       label: 'Day',
     }]
   ),[monthlyStats])
-  console.log(xAxis)
   
   return (
     <GradientChartContainer

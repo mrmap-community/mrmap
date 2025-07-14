@@ -9,6 +9,7 @@ import { useParams } from 'react-router-dom';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import { createElementIfDefined } from '../../../utils';
 import AsideCard from '../../Layout/AsideCard';
+import EmptyList from '../../Lists/Empty';
 import CircularProgressWithLabel from '../../MUI/CircularProgressWithLabel';
 import SimpleCard from '../../MUI/SimpleCard';
 import ListHarvestingJob from '../HarvestingJob/ListHarvestingJob';
@@ -104,10 +105,11 @@ const ShowCatalogueService = ({
   
   ...rest
 }: ShowCatalogueServiceProps) => {
-  
+  const { id } = useParams()
   const { name: cswName, icon: cswIcon } = useResourceDefinition({resource: 'CatalogueService'})
   const { name: HarvestingJobName, icon: HarvestingJobIcon } = useResourceDefinition({resource: 'HarvestingJob'})
   const { name: periodicHarvestingJobName, icon: periodicHarvestingJobIcon } = useResourceDefinition({resource: 'PeriodicHarvestingJob'})
+  const translate = useTranslate();
 
   return (
     <Show>
@@ -125,19 +127,21 @@ const ShowCatalogueService = ({
           
 
         </SimpleCard>
+        
+        <SimpleCard
+          title={<span>{createElementIfDefined(HarvestingJobIcon)} {HarvestingJobName}</span>}
+        >
+          <HarvestingDailyStatsChart resource='HarvestedMetadataRelation' filter={{'harvesting_job__service': id}} />
+          <ListHarvestingJob/>
+        </SimpleCard>
         <SimpleCard
           title={<span>{createElementIfDefined(periodicHarvestingJobIcon)} {periodicHarvestingJobName}</span>}
         >
           <ListGuesser
             resource='PeriodicHarvestingJob'
             relatedResource='CatalogueService'
+            empty={<EmptyList defaultValue={{service: {id: id}}} />}
           />
-        </SimpleCard>
-        <SimpleCard
-          title={<span>{createElementIfDefined(HarvestingJobIcon)} {HarvestingJobName}</span>}
-        >
-          <HarvestingDailyStatsChart resource='HarvestedMetadataRelation' />
-          <ListHarvestingJob/>
         </SimpleCard>
       </SimpleCard>
      

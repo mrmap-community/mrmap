@@ -1,12 +1,14 @@
 import { createElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, Identifier, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, ExportButton, FilterButton, Identifier, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import axios from 'axios'
 import { snakeCase } from 'lodash'
 
+import CreateDialogButton from '../../components/Dialog/CreateDialogButton'
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
+import EmptyList from '../../components/Lists/Empty'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
@@ -67,7 +69,7 @@ const ListActions = (
     <TopToolbar>
       <SelectColumnsButton preferenceKey={preferenceKey}/>
       <FilterButton filters={filters}/>
-      {hasCreate && <CreateButton />}
+      {hasCreate && <CreateDialogButton />}
       <ExportButton />
     </TopToolbar>
   )
@@ -241,7 +243,8 @@ const ListGuesser = ({
     <ListComponent
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
-      actions={<ListActions filters={filters} preferenceKey={preferenceKey}/>}   
+      actions={<ListActions filters={filters} preferenceKey={preferenceKey}/>}
+      empty={props.empty || <EmptyList />}
       queryOptions={{
         refetchInterval,
         onError,

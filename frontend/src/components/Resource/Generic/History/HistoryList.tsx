@@ -46,9 +46,9 @@ export interface HistoryListProps extends Partial<ListProps> {
 }
 
 
-const HistoryList = (
-   {...rest}: HistoryListProps
-) => {
+const HistoryList = ({
+  ...rest
+  }: HistoryListProps) => {
   const { id } = useParams()
   
   const { name } = useResourceDefinition()
@@ -63,7 +63,7 @@ const HistoryList = (
   return (
     <List
       resource={`Historical${name}`}
-      actions={<></>}
+      actions={<div></div>}
       perPage={5}
       key={`Historical${name}`}
       storeKey={`Historical${name}`}

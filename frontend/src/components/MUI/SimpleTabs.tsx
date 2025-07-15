@@ -51,10 +51,10 @@ const SimpleTabs = ({
     <Box sx={{ width: '100%' }}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={value} onChange={handleChange}>
-          {tabs.map((tab, index)=> <Tab {...tab} {...a11yProps(index)}/>)}
+          {tabs.map((tab, index)=> <Tab {...tab} {...a11yProps(index)} key={`simple-tab-${index}`}/>)}
         </Tabs>
       </Box>
-      {tabs.map((tab, index) => <CustomTabPanel value={value} index={index} key={`simple-tab-${index}`}>{tab.children}</CustomTabPanel>)}
+      {tabs.map((tab, index) => <CustomTabPanel value={value} index={index} key={`simple-tab-content-${index}`}>{tab.children}</CustomTabPanel>)}
     </Box>
   );
 }

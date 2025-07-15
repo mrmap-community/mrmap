@@ -88,7 +88,6 @@ const ListGuesser = ({
   sparseFieldsets= undefined,
   ...props
 }: ListGuesserProps): ReactElement => {
-
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit } = useResourceDefinition(props)
   const { api } = useHttpClientContext()
@@ -239,7 +238,7 @@ const ListGuesser = ({
     // untill a new full render cyclus becomes started for the datagrid. (for example page change)
     return <div />
   }
-
+  
   return (
     <ListComponent
       filters={filters}

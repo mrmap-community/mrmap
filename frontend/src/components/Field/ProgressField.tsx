@@ -14,14 +14,12 @@ export interface ProgressFieldProps extends LinearProgressProps {
 
 
 const ProgressField = (
-  props: ProgressFieldProps
+  {
+    getColor,
+    ...props
+  }: ProgressFieldProps
 ): ReactNode => {
 
-  const {
-    source,
-    getColor,
-    ...rest
-  } = props;
 
   const value = useFieldValue(props);
   const progressValue = Number(value || 0)

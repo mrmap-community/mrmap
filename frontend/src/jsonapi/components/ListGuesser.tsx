@@ -27,7 +27,7 @@ interface ListActionsProps {
   preferenceKey?: string
 }
 
-interface ListGuesserProps extends Partial<ListProps> {
+export interface ListGuesserProps extends Partial<ListProps> {
   realtime?: boolean
   relatedResource?: string
   relatedResourceId?: Identifier
@@ -99,6 +99,7 @@ const ListGuesser = ({
   const { id } = useParams()
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource !== '' ?`list_related_${name}_of_${relatedResource}`: `list_${name}`, [relatedResource, name])
   const { operation } = useResourceSchema(operationId)
+
   const fieldDefinitions = useFieldsForOperation(operationId, false, false)
   const fields = useMemo(
     () => fieldDefinitions.map(fieldDefinition => {

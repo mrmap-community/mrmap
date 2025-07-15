@@ -48,6 +48,15 @@ router = ExtendedSimpleRouter(trailing_slash=False)
           .register('mime-types',
                     metadata_views.NestedMimeTypeViewSet, basename='operationurl-mimetype', parents_query_lookups=['operation_url']),
 
+    router.register(r'csw-operation-urls',
+                    service_views.CatalogueServiceOperationUrlViewSet, basename='csw-operationurl'),
+    router.register(r'csw-operation-urls',
+                    service_views.CatalogueServiceOperationUrlViewSet, basename='csw-operationurl')
+          .register('mime-types',
+                    metadata_views.NestedMimeTypeViewSet, basename='operationurl-mimetype', parents_query_lookups=['operation_url']),
+
+
+
     # layer
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
           .register(r'styles', metadata_views.NestedStyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
@@ -95,6 +104,10 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='csw-datasetmetadata', parents_query_lookups=['harvested_through']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
+    .register(r'service-metadata', metadata_views.NestedServiceMetadataViewSet, basename='csw-servicemetadata', parents_query_lookups=['harvested_through']),
+
+    router.register(
+        r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='csw-keywords', parents_query_lookups=['catalogueservice_metadata']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
@@ -102,6 +115,11 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-metadata-contact', parents_query_lookups=['metadata_contact_catalogueservice_metadata']),
+    router.register(
+        r'csw', service_views.CatalogueServiceViewSet, basename='csw')
+    .register(r'operation-urls', service_views.NestedCatalogueServiceOperationUrlViewSet, basename='wms-operationurls', parents_query_lookups=['service']),
+
+
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'harvesting-jobs', harvesting_views.NestedHarvestingJobViewSet, basename='csw-harvesting-jobs', parents_query_lookups=['service']),

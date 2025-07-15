@@ -28,16 +28,12 @@ from registry.models.service import (CatalogueService,
                                      CatalogueServiceOperationUrl,
                                      WebFeatureServiceOperationUrl,
                                      WebMapServiceOperationUrl)
-from registry.serializers.service import (CatalogueServiceCreateSerializer,
-                                          CatalogueServiceSerializer,
-                                          FeatureTypeSerializer,
-                                          LayerSerializer,
-                                          WebFeatureServiceCreateSerializer,
-                                          WebFeatureServiceSerializer,
-                                          WebMapServiceCreateSerializer,
-                                          WebMapServiceListSerializer,
-                                          WebMapServiceOperationUrlSerializer,
-                                          WebMapServiceSerializer)
+from registry.serializers.service import (
+    CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
+    CatalogueServiceSerializer, FeatureTypeSerializer, LayerSerializer,
+    WebFeatureServiceCreateSerializer, WebFeatureServiceSerializer,
+    WebMapServiceCreateSerializer, WebMapServiceListSerializer,
+    WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
 from registry.tasks.service import build_ogc_service
 from rest_framework_json_api.views import ModelViewSet
 
@@ -758,3 +754,43 @@ class NestedCatalogueServiceViewSet(
     NestedModelViewSet
 ):
     pass
+
+
+class CatalogueServiceOperationUrlViewSetMixin(
+):
+    queryset = CatalogueServiceOperationUrl.objects.all()
+    serializer_class = CatalogueServiceOperationUrlSerializer
+    search_fields = ("id", "service")
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    ordering_fields = ["id"]
+
+
+class CatalogueServiceOperationUrlViewSet(
+    CatalogueServiceOperationUrlViewSetMixin,
+    ModelViewSet
+):
+    """ Endpoints for resource `CatalogueServiceOperationUrl`
+
+        list:
+            Retrieves all registered `CatalogueServiceOperationUrl` objects
+        retrieve:
+            Retrieve one specific `CatalogueServiceOperationUrl` by the given id
+        partial_update:
+            Endpoint to update some fields of a registered `CatalogueServiceOperationUrl`
+
+    """
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    http_method_names = ["get", "patch", "head", "options"]
+
+
+class NestedCatalogueServiceOperationUrlViewSet(
+    CatalogueServiceOperationUrlViewSetMixin,
+    NestedModelViewSet
+):
+    """ Nested list endpoint for resource `CatalogueServiceOperationUrl`
+
+        list:
+            Retrieves all registered `CatalogueServiceOperationUrl` objects
+
+    """

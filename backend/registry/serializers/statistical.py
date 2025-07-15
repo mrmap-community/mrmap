@@ -5,45 +5,63 @@ from rest_framework_json_api.serializers import Serializer
 class StatisticalSerializer(Serializer):
     id = DateTimeField(source="day")
     day = DateTimeField()
-    new = IntegerField()
-    deleted = IntegerField()
-    updated = IntegerField()
 
     class Meta:
         resource_name = 'StatisticalSerializer'
 
 
-class StatisticalDatasetMetadataRecordSerializer(StatisticalSerializer):
+class HistoricalRecordDependingMixin:
+    new = IntegerField()
+    deleted = IntegerField()
+    updated = IntegerField()
+
+
+class StatisticalDatasetMetadataRecordSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:
         resource_name = 'StatisticalDatasetMetadataRecord'
 
 
-class StatisticalWebMapServiceSerializer(StatisticalSerializer):
+class StatisticalServiceMetadataRecordSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
+
+    class Meta:
+        resource_name = 'StatisticalServiceMetadataRecord'
+
+
+class StatisticalWebMapServiceSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:
         resource_name = 'StatisticalWebMapService'
 
 
-class StatisticalLayerSerializer(StatisticalSerializer):
+class StatisticalLayerSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:
         resource_name = 'StatisticalLayer'
 
 
-class StatisticalWebFeatureServiceSerializer(StatisticalSerializer):
+class StatisticalWebFeatureServiceSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:
         resource_name = 'StatisticalWebFeatureService'
 
 
-class StatisticalFeatureTypeSerializer(StatisticalSerializer):
+class StatisticalFeatureTypeSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:
         resource_name = 'StatisticalFeatureType'
 
 
-class StatisticalCatalogueServiceSerializer(StatisticalSerializer):
+class StatisticalCatalogueServiceSerializer(HistoricalRecordDependingMixin, StatisticalSerializer):
 
     class Meta:
         resource_name = 'StatisticalCatalogueService'
+
+
+class StatisticalHarvestedMetadataRelationSerializer(StatisticalSerializer):
+    new = IntegerField()
+    updated = IntegerField()
+    existed = IntegerField()
+
+    class Meta:
+        resource_name = 'StatisticalHarvestedMetadataRelation'

@@ -7,7 +7,7 @@ from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer)
 from extras.validators import validate_get_capablities_uri
-from registry.models.harvest import HarvestingJob
+from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Dimension,
                                       Keyword, MetadataContact,
                                       ReferenceSystem, Style)
@@ -603,6 +603,13 @@ class CatalogueServiceSerializer(
         many=True,
         read_only=True,
     )
+    periodic_harvesting_jobs = ResourceRelatedField(
+        label=_("periodic harvesting jobs"),
+        help_text=_("this are the related harvesting job objects."),
+        model=PeriodicHarvestingJob,
+        many=True,
+        read_only=True,
+    )
 
     included_serializers = {
         "harvesting_jobs": 'registry.serializers.harvesting.HarvestingJobSerializer',
@@ -621,3 +628,22 @@ class CatalogueServiceSerializer(
     def get_running_harvesting_job(self, instance):
         if hasattr(instance, "running_harvesting_job") and instance.running_harvesting_job.__len__() == 1:
             return instance.running_harvesting_job[0]
+
+
+class CatalogueServiceOperationUrlSerializer(ModelSerializer):
+
+    # url = HyperlinkedIdentityField(
+    #    view_name="registry:wms-operationurls-detail",
+    #    read_only=True,
+    # )
+    service = ResourceRelatedField(
+        label=_("catalogue service"),
+        help_text=_(
+            "the catalogue service, where this operation url is part of."),
+        read_only=True,
+        model=CatalogueService,
+    )
+
+    class Meta:
+        model = CatalogueServiceOperationUrl
+        fields = "__all__"

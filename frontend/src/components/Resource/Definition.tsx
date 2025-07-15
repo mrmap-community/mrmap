@@ -21,9 +21,10 @@ import { WmsShow } from './WebMapService/WmsShow';
 
 import HttpIcon from '@mui/icons-material/Http';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
+import UpdateIcon from '@mui/icons-material/Update';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
-import ShowCatalogueService from './CatalogueService/ShowCatalogueService';
+import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
@@ -34,15 +35,22 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon},
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
 
-
   {name: "HistoricalWebMapService"},
   
   {name: "Layer", icon: LayersIcon},
   {name: "WebFeatureService", icon: TravelExploreIcon},
   {name: "FeatureType", icon: NotListedLocationIcon},
+  
+  
   {name: "CatalogueService", icon: PlagiarismIcon, show: ShowCatalogueService, list: CatalogueServiceList},
+  {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
+
+  
+  
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob},
   {name: "TemporaryMdMetadataFile"},
+  {name: "HarvestingLog"},
+  {name: "PeriodicHarvestingJob", icon: UpdateIcon },
 
 
   {name: "Keyword", icon: LocalOfferIcon},
@@ -68,7 +76,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "ReferenceSystem"},
 
 
-  {name: "CrontabSchedule"},
+  {name: "CrontabSchedule",},
   {name: "TaskResult"},
   {name: "BackgroundProcess", list: ListBackgroundProcess, show: ShowBackgroundProcess},
   {name: "BackgroundProcessLog", },

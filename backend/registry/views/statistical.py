@@ -1,10 +1,14 @@
-from registry.models.metadata import DatasetMetadataRecord
+from registry.models.harvest import HarvestedMetadataRelation
+from registry.models.metadata import (DatasetMetadataRecord,
+                                      ServiceMetadataRecord)
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.serializers.statistical import (
     StatisticalCatalogueServiceSerializer,
     StatisticalDatasetMetadataRecordSerializer,
-    StatisticalFeatureTypeSerializer, StatisticalLayerSerializer,
+    StatisticalFeatureTypeSerializer,
+    StatisticalHarvestedMetadataRelationSerializer, StatisticalLayerSerializer,
+    StatisticalServiceMetadataRecordSerializer,
     StatisticalWebFeatureServiceSerializer, StatisticalWebMapServiceSerializer)
 from rest_framework_json_api.views import generics
 
@@ -14,8 +18,14 @@ class StatisticalListView(generics.ListAPIView):
 
 
 class StatisticalDatasetMetadataRecordListView(StatisticalListView):
+    filterset_fields = ('history_change_reason',)
     queryset = DatasetMetadataRecord.history.stats_per_day()
     serializer_class = StatisticalDatasetMetadataRecordSerializer
+
+
+class StatisticalServiceMetadataRecordListView(StatisticalListView):
+    queryset = ServiceMetadataRecord.history.stats_per_day()
+    serializer_class = StatisticalServiceMetadataRecordSerializer
 
 
 class StatisticalWebMapServiceListView(StatisticalListView):
@@ -41,3 +51,14 @@ class StatisticalFeatureTypeListView(StatisticalListView):
 class StatisticalCatalogueServiceListView(StatisticalListView):
     queryset = CatalogueService.history.stats_per_day()
     serializer_class = StatisticalCatalogueServiceSerializer
+
+
+class StatisticalHarvestedMetadataRelationListView(StatisticalListView):
+    filterset_fields = ('harvesting_job__service',)
+    queryset = HarvestedMetadataRelation.objects.all()
+    serializer_class = StatisticalHarvestedMetadataRelationSerializer
+
+    def filter_queryset(self, queryset):
+        qs = super().filter_queryset(queryset).stats_per_day()
+
+        return qs

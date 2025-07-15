@@ -48,6 +48,15 @@ router = ExtendedSimpleRouter(trailing_slash=False)
           .register('mime-types',
                     metadata_views.NestedMimeTypeViewSet, basename='operationurl-mimetype', parents_query_lookups=['operation_url']),
 
+    router.register(r'csw-operation-urls',
+                    service_views.CatalogueServiceOperationUrlViewSet, basename='csw-operationurl'),
+    router.register(r'csw-operation-urls',
+                    service_views.CatalogueServiceOperationUrlViewSet, basename='csw-operationurl')
+          .register('mime-types',
+                    metadata_views.NestedMimeTypeViewSet, basename='operationurl-mimetype', parents_query_lookups=['operation_url']),
+
+
+
     # layer
     router.register(r'layers', service_views.LayerViewSet, basename='layer')
           .register(r'styles', metadata_views.NestedStyleViewSet, basename='layer-styles', parents_query_lookups=['layer']),
@@ -95,6 +104,10 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     .register(r'dataset-metadata', metadata_views.NestedDatasetMetadataViewSet, basename='csw-datasetmetadata', parents_query_lookups=['harvested_through']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
+    .register(r'service-metadata', metadata_views.NestedServiceMetadataViewSet, basename='csw-servicemetadata', parents_query_lookups=['harvested_through']),
+
+    router.register(
+        r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'keywords', metadata_views.NestedKeywordViewSet, basename='csw-keywords', parents_query_lookups=['catalogueservice_metadata']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
@@ -104,7 +117,17 @@ router = ExtendedSimpleRouter(trailing_slash=False)
     .register(r'metadata-contact', metadata_views.NestedMetadataContactViewSet, basename='csw-metadata-contact', parents_query_lookups=['metadata_contact_catalogueservice_metadata']),
     router.register(
         r'csw', service_views.CatalogueServiceViewSet, basename='csw')
+    .register(r'operation-urls', service_views.NestedCatalogueServiceOperationUrlViewSet, basename='wms-operationurls', parents_query_lookups=['service']),
+
+
+    router.register(
+        r'csw', service_views.CatalogueServiceViewSet, basename='csw')
     .register(r'harvesting-jobs', harvesting_views.NestedHarvestingJobViewSet, basename='csw-harvesting-jobs', parents_query_lookups=['service']),
+
+    router.register(
+        r'csw', service_views.CatalogueServiceViewSet, basename='csw')
+    .register(r'periodic-harvesting-jobs',
+              harvesting_views.NestedPeriodicHarvestingJobViewSet, basename='csw-periodicharvestingjobs', parents_query_lookups=['service']),
 
     # harvesting
     router.register(r'harvesting/harvesting-jobs',
@@ -123,10 +146,19 @@ router = ExtendedSimpleRouter(trailing_slash=False)
                     harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
     .register(r'harvested-service-metadata-records', metadata_views.NestedServiceMetadataViewSet, basename='harvestingjob-harvestedservicemetadata', parents_query_lookups=['harvested_service_metadata_relation__harvesting_job']),
 
+    router.register(r'harvesting/harvesting-jobs',
+                    harvesting_views.HarvestingJobViewSet, basename='harvestingjob')
+    .register(r'harvesting-logs', harvesting_views.NestedHarvestingLogViewSet, basename='harvestingjob-harvestinglog', parents_query_lookups=['harvesting_job']),
+
+
     router.register(r'harvesting/temporary-md-metadata-file',
                     harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
     router.register(r'harvesting/harvested-metadata-records',
                     harvesting_views.HarvestedMetadataRelationViewSet, basename='harvestedmetadatarelation'),
+    router.register(r'harvesting/periodic-harvesting-jobs',
+                    harvesting_views.PeriodicHarvestingJobViewSet, basename='periodicharvestingjob'),
+    router.register(r'harvesting/harvesting-logs',
+                    harvesting_views.HarvestingLogViewSet, basename='harvestinglog'),
 
 
     # map context
@@ -269,6 +301,17 @@ urlpatterns = router.urls + [
         view=stats_views.StatisticalDatasetMetadataRecordListView.as_view(),
         name='statistical-dataset-metadata-records'
     ),
+    path(
+        route=r'statistical/service-metadata-records',
+        view=stats_views.StatisticalServiceMetadataRecordListView.as_view(),
+        name='statistical-service-metadata-records'
+    ),
+    path(
+        route=r'statistical/harvested-metadata-relations',
+        view=stats_views.StatisticalHarvestedMetadataRelationListView.as_view(),
+        name='statistical-harvested-metadata-relations'
+    ),
+
 ]
 # + [
 #    path(

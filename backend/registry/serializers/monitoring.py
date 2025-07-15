@@ -9,7 +9,6 @@ from registry.models.monitoring import (GetCapabilitiesProbe,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import Layer, WebMapService
 from rest_framework.fields import IntegerField
-from rest_framework.utils import model_meta
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField,
                                                  HyperlinkedIdentityField,

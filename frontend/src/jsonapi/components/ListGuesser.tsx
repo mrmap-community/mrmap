@@ -1,12 +1,14 @@
 import { createElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, CreateButton, DatagridConfigurable, EditButton, ExportButton, FilterButton, Identifier, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, ExportButton, FilterButton, Identifier, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import axios from 'axios'
 import { snakeCase } from 'lodash'
 
+import CreateDialogButton from '../../components/Dialog/CreateDialogButton'
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
+import EmptyList from '../../components/Lists/Empty'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
@@ -25,7 +27,7 @@ interface ListActionsProps {
   preferenceKey?: string
 }
 
-interface ListGuesserProps extends Partial<ListProps> {
+export interface ListGuesserProps extends Partial<ListProps> {
   realtime?: boolean
   relatedResource?: string
   relatedResourceId?: Identifier
@@ -67,7 +69,7 @@ const ListActions = (
     <TopToolbar>
       <SelectColumnsButton preferenceKey={preferenceKey}/>
       <FilterButton filters={filters}/>
-      {hasCreate && <CreateButton />}
+      {hasCreate && <CreateDialogButton />}
       <ExportButton />
     </TopToolbar>
   )
@@ -86,7 +88,6 @@ const ListGuesser = ({
   sparseFieldsets= undefined,
   ...props
 }: ListGuesserProps): ReactElement => {
-
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit } = useResourceDefinition(props)
   const { api } = useHttpClientContext()
@@ -97,6 +98,7 @@ const ListGuesser = ({
   const { id } = useParams()
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource !== '' ?`list_related_${name}_of_${relatedResource}`: `list_${name}`, [relatedResource, name])
   const { operation } = useResourceSchema(operationId)
+
   const fieldDefinitions = useFieldsForOperation(operationId, false, false)
   const fields = useMemo(
     () => fieldDefinitions.map(fieldDefinition => {
@@ -118,8 +120,8 @@ const ListGuesser = ({
   const includeOptions = useMemo(() => (operation !== undefined) ? getIncludeOptions(operation) : [], [operation])
   const sparseFieldOptions = useMemo(() => (operation !== undefined) ? getSparseFieldOptions(operation) : [], [operation])
 
-  const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api])
-  
+  const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
+
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -236,12 +238,13 @@ const ListGuesser = ({
     // untill a new full render cyclus becomes started for the datagrid. (for example page change)
     return <div />
   }
-
+  
   return (
     <ListComponent
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
-      actions={<ListActions filters={filters} preferenceKey={preferenceKey}/>}   
+      actions={<ListActions filters={filters} preferenceKey={preferenceKey}/>}
+      empty={props.empty || <EmptyList />}
       queryOptions={{
         refetchInterval,
         onError,

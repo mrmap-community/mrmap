@@ -14,6 +14,7 @@ from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
+from django_celery_beat.models import PeriodicTask
 from eulxml import xmlmap
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
@@ -25,7 +26,9 @@ from registry.enums.harvesting import (CollectingStatenEnum,
                                        LogLevelEnum)
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.harvesting import InternalServerError
-from registry.managers.havesting import (HarvestingJobManager,
+from registry.managers.havesting import (HarvestedMetadataRelationManager,
+                                         HarvestedMetadataRelationQuerySet,
+                                         HarvestingJobManager,
                                          TemporaryMdMetadataFileManager)
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
@@ -33,6 +36,7 @@ from registry.models.service import CatalogueService
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
+from simple_history.utils import update_change_reason
 
 
 class ProcessingData(models.Model):
@@ -125,6 +129,8 @@ class HarvestedMetadataRelation(models.Model):
         blank=True,
         verbose_name=_("processing duration"),
         help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
+
+    objects = HarvestedMetadataRelationQuerySet.as_manager()
 
     class Meta:
         indexes = [
@@ -329,7 +335,7 @@ class HarvestingJob(ProcessingData):
 
             callback_id = uuid4()
             callback = call_chord_md_metadata_file_to_db.s(
-                harvesting_job_id=self.pk,
+                harvesting_job_id=str(self.pk),
                 http_request=self._http_request(),
             )
             callback.set(task_id=str(callback_id))
@@ -340,7 +346,7 @@ class HarvestingJob(ProcessingData):
             transaction.on_commit(lambda: chord(tasks, callback)())
 
         self.log(
-            description=f"call_chord_md_metadata_file_to_db called. {round_trips} round trips with step size {self.max_step_size} are needed."
+            description=f"phase {HarvestingPhaseEnum.DOWNLOAD_RECORDS.value} started. {round_trips} round trips with step size {self.max_step_size} are needed."
         )
 
     # TODO: implement three phases:
@@ -671,6 +677,12 @@ class TemporaryMdMetadataFile(models.Model):
                             self.import_error = str(import_error)
                             self.save()
                             return db_metadata, update, exists
+                        elif update or not exists:
+                            # something has changed... so tell us from what service this changes come from
+                            update_change_reason(
+                                db_metadata,
+                                'fileimport'if self.job.service is None else f'csw:{self.job.service}'
+                            )
 
                     self.delete()
 
@@ -736,3 +748,31 @@ class HarvestingLog(models.Model):
         verbose_name=_("Extented Description"),
         help_text=_("this can be the response content for example"),
         upload_to=extented_description_file_path)
+
+
+class PeriodicHarvestingJob(PeriodicTask):
+    service: CatalogueService = models.ForeignKey(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        related_name="periodic_harvesting_jobs",
+        related_query_name="periodic_harvesting_job",
+        verbose_name=_("catalogue service"),
+        help_text=_("this is the service which shall be harvested"))
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.pk and not self.name:
+            # we do not need this field now... just generate random data
+            self.name = uuid4()
+        if not self.pk and not self.task:
+            self.task = "registry.tasks.harvest.create_harvesting_job"
+        if not self.pk and not self.kwargs:
+            self.kwargs = {
+                "service_id": self.service.pk
+            }
+        if not self.pk and not self.queue:
+            self.queue = "harvesting"
+
+    class Meta:
+        verbose_name = _('Periodic Harvesting Job')
+        verbose_name_plural = _('Periodic Harvesting Jobs')

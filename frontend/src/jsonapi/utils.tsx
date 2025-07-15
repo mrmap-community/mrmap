@@ -367,7 +367,7 @@ export const getFieldForFormat = (
   const validate = [
     ... schema.maxLength ? [maxLength(schema.maxLength)] : [],
     ... schema.minLength ? [minLength(schema.minLength)] : [],
-    ... schema.pattern ? [regex(schema.pattern)] : []
+    ... schema.pattern ? [regex(new RegExp(schema.pattern))] : []
   ]
 
   const definition: FieldDefinition = {
@@ -436,7 +436,7 @@ export const getFieldForType = (
   const validate = [
     ... schema.maxLength ? [maxLength(schema.maxLength)] : [],
     ... schema.minLength ? [minLength(schema.minLength)] : [],
-    ... schema.pattern ? [regex(schema.pattern)] : []
+    ... schema.pattern ? [regex(new RegExp(schema.pattern))] : []
   ]
 
   const definition: FieldDefinition = {
@@ -518,8 +518,19 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
       props: {
         ...commonProps, 
         ...(forInput ? 
-          {target: fieldSchema.name, link: 'edit', ...(hasCreate && {create: <CreateSuggestionDialog isOpen resource={fieldSchema.reference}/>})}: 
-          {reference: fieldSchema.reference, target: fieldSchema.resource,})
+          {
+            target: fieldSchema.name, 
+            link: 'edit', 
+            ...(hasCreate && {
+              create: <CreateSuggestionDialog isOpen resource={fieldSchema.reference}/>,
+              createLabel: 'type something to create a new object', // TODO: use translate
+              sort:{ field: 'name', order: 'ASC' }
+            })
+          }: 
+          {
+            reference: fieldSchema.reference, 
+            target: fieldSchema.resource,
+          })
       }
     }
     

@@ -1,11 +1,41 @@
 from celery import chord
 from django.db import models, transaction
 from django.db.models import Case, Count, F, Q, Value, When
-from django.db.models.functions import Ceil, Round
-from django.utils.timezone import now
+from django.db.models.functions import Ceil, Round, TruncDay
+from django.utils.timezone import get_current_timezone, now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
 from notify.tasks import finish_background_process
+from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
+
+
+class HarvestedMetadataRelationQuerySet(models.QuerySet):
+    def stats_per_day(self):
+        new_records_filter = Q(collecting_state=CollectingStatenEnum.NEW.value)
+        updated_records_filter = Q(
+            collecting_state=CollectingStatenEnum.UPDATED.value)
+        existed_records_filter = Q(
+            collecting_state=CollectingStatenEnum.EXISTING.value)
+
+        return self.annotate(
+            new=Case(When(condition=new_records_filter,
+                          then=Value(True)), default=Value(False)),
+            updated=Case(When(condition=updated_records_filter,
+                              then=Value(True)), default=Value(False)),
+            existed=Case(When(condition=existed_records_filter,
+                              then=Value(True)), default=Value(False)),
+            day=TruncDay("harvesting_job__date_created",
+                         tzinfo=get_current_timezone())
+        ).values("day").annotate(
+            id=F("day"),
+            new=Count("pk", filter=Q(new=True)),
+            updated=Count("pk", filter=Q(updated=True)),
+            existed=Count("pk", filter=Q(existed=True)),
+        )
+
+
+class HarvestedMetadataRelationManager(models.Manager.from_queryset(HarvestedMetadataRelationQuerySet)):
+    pass
 
 
 class HarvestingJobManager(DefaultHistoryManager, CTEManager):
@@ -25,20 +55,20 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
             done_steps=Case(
                 When(
                     condition=Q(
-                        background_process__phase__icontains="Harvesting is running..."),
+                        background_process__phase__lte=HarvestingPhaseEnum.DOWNLOAD_RECORDS.value),
                     then=1 + Ceil(F("unhandled_records_count") /
                                   F("max_step_size"))
                 ),
                 When(
                     condition=Q(
-                        background_process__phase__icontains="parse and store ISO Metadatarecords to db..."),
+                        background_process__phase__lte=HarvestingPhaseEnum.RECORDS_TO_DB.value),
                     then=1 + F("download_tasks_count") +
                                F("total_records") -
                                  F("unhandled_records_count")
                 ),
                 When(
                     condition=Q(
-                        background_process__phase__icontains="completed"),
+                        background_process__phase__gte=HarvestingPhaseEnum.COMPLETED.value),
                     then=F("total_steps")
                 ),
                 default=0
@@ -46,7 +76,7 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
         ).annotate(
             progress=Case(
                 When(
-                    ~Q(background_process__phase="abort") & Q(
+                    ~Q(background_process__phase=HarvestingPhaseEnum.ABORT.value) & Q(
                         background_process__done_at__isnull=False),
                     then=Value(100.0)
                 ),
@@ -74,7 +104,7 @@ class TemporaryMdMetadataFileManager(models.Manager):
 
         bp = BackgroundProcess.objects.create(
             total_steps=len(objs) + 1,
-            phase='parse and store ISO Metadatarecords to db...')
+            phase=HarvestingPhaseEnum.RECORDS_TO_DB.value)
         hj = HarvestingJob.objects.create(
             total_records=len(objs),
         )
@@ -102,7 +132,7 @@ class TemporaryMdMetadataFileManager(models.Manager):
             )
         else:
             BackgroundProcess.objects.filter(pk=bp.pk).update(
-                phase='completed',
+                phase=HarvestingPhaseEnum.COMPLETED.value,
                 done_at=now(),
                 done_steps=F('total_steps')
             )

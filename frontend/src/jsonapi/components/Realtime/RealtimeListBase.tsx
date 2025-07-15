@@ -10,7 +10,7 @@ const RealtimeListBase = <RecordType extends RaRecord = any>({
   resource,
   ...props
 }: ListBaseProps<RecordType>) => {
-  const {data, ...controllerProps} = useListController<RecordType>(props);
+  const {data, ...controllerProps} = useListController<RecordType>({resource, ...props});
 
   const [realtimeData, setRealtimeData] = useState<RaRecord[]>(data || []);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);

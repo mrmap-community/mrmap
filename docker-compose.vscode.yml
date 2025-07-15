@@ -49,8 +49,8 @@ services:
       PYDEVD_LOAD_VALUES_ASYNC: "True"
       PYTHONUNBUFFERED: "1"
       IPYTHONENABLE: "True"
-    #ports:
-    #  - "0.0.0.0:3002:5678"
+  #ports:
+  #  - "0.0.0.0:3002:5678"
 
   behave:
     command: >

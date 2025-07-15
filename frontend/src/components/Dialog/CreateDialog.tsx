@@ -5,7 +5,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import { createElement, useCallback, useMemo } from 'react';
-import { Create, CreateProps, Form, RaRecord, SaveButton, useNotify, useTranslate } from 'react-admin';
+import { Create, CreateProps, Form, RaRecord, SaveButton, useNotify, useResourceContext, useTranslate } from 'react-admin';
 import { useFieldsForOperation } from '../../jsonapi/hooks/useFieldsForOperation';
 import { FieldDefinition } from '../../jsonapi/utils';
 
@@ -21,21 +21,21 @@ export interface CreateDialogProps extends Partial<CreateProps>{
 
 const CreateDialog = (
  {
-  resource,
   isOpen=false,
   setIsOpen,
   onClose,
   onCreate,
   onCancel,
   updateFieldDefinitions,
+  defaultValue,
   ...rest
  }: CreateDialogProps
 ) => {
-
   const translate = useTranslate();
   const notify = useNotify();
+  const resource = useResourceContext({resource: rest?.resource})
 
-  const fieldDefinitions = useFieldsForOperation(`partial_update_${resource}`)
+  const fieldDefinitions = useFieldsForOperation(`create_${resource}`)
   const fields = useMemo(
     ()=> 
       fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
@@ -84,9 +84,13 @@ const CreateDialog = (
           display: 'flex',
           flexDirection: 'column',
         }}
+        
         {...rest}
       >
-        <Form>
+        <Form
+          defaultValues={defaultValue as any}
+            
+        >
           <Dialog 
             open={isOpen}
             onClose={() => {onClose && onClose();  setIsOpen && setIsOpen(false); onCancel && onCancel()}}

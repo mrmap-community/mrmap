@@ -35,7 +35,7 @@ const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
 const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
 
 const MrMapFrontend = (): ReactElement => {
-  const { api, authToken, setAuthToken, getWebSocket, updateLocale, readyState} = useHttpClientContext()
+  const { api, getWebSocket, updateLocale, readyState} = useHttpClientContext()
 
   useEffect(()=>{
     // workaround to get the current locale value: 
@@ -52,8 +52,8 @@ const MrMapFrontend = (): ReactElement => {
   }, [api, readyState])
   
   const authProvider = useMemo(()=>{
-    return authProviderFunc(undefined, undefined, undefined, authToken, setAuthToken)
-  },[authToken, setAuthToken])
+    return authProviderFunc(undefined, undefined, undefined)
+  },[])
 
   const resourceDefinitions = useMemo(() => {
     return RESOURCES.map((resource)=> {
@@ -104,11 +104,14 @@ const MrMapFrontend = (): ReactElement => {
         ))
   ),[resourceDefinitions])
 
+
+  
   if (dataProvider === undefined || resources.length === 0) {
     return (
       <Loading loadingPrimary="Initialize...." loadingSecondary='OpenApi Client is loading....' />
     )
   } else {
+    console.log('rerender admin')
     return (
       <Admin
         theme={lightTheme}
@@ -122,6 +125,7 @@ const MrMapFrontend = (): ReactElement => {
         store={store}
         disableTelemetry
         requireAuth
+
       >
         {resources}
         {/* ows context based mapviewer */}

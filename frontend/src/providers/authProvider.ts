@@ -8,14 +8,13 @@ export interface LoginParams {
   password: string
 }
 
-export interface AuthToken {
+
+export interface AuthToken extends UserIdentity {
   token: string
   expiry: string
 }
 
 export const TOKENNAME = 'mrmap.token'
-
-
 
 
 const whoAmI = async (url: string, authToken: string): Promise<UserIdentity> => {
@@ -44,17 +43,32 @@ const whoAmI = async (url: string, authToken: string): Promise<UserIdentity> => 
   return {id: 0}
 }
 
+export const getAuthToken = (): AuthToken | undefined => {
+  const storedToken = localStorage.getItem(AUTH_TOKEN_LOCAL_STORAGE_NAME)
+  console.log(storedToken)
+  if (storedToken === undefined || storedToken === null){
+    return undefined
+  } else {
+    return JSON.parse(storedToken ?? "{}") 
+  }
+}
+
+export const setAuthToken = (props: AuthToken | undefined) => {
+  if (props === undefined) {
+    localStorage.removeItem(AUTH_TOKEN_LOCAL_STORAGE_NAME)
+  } else {
+      localStorage.setItem(AUTH_TOKEN_LOCAL_STORAGE_NAME, JSON.stringify(props))
+  }
+}
+
 
 const tokenAuthProvider = (
     loginUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/auth/login`,
     logoutUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/auth/logout`,
     identityUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/accounts/who-am-i/`,
-    authToken: AuthToken | undefined,
-    setAuthToken: (authToken: AuthToken | undefined) => void,
 ): AuthProvider => {
   
   return {
-    
     login: async ({ username, password }: LoginParams) => {
       const request = new Request(loginUrl, {
         method: 'POST',
@@ -77,30 +91,42 @@ const tokenAuthProvider = (
     },
     logout: async () => {
       // TODO: call logoutUrl with token
+      console.log('logout called')
       setAuthToken(undefined)
-      await Promise.resolve()
+      return Promise.resolve();
     },
-    checkAuth: async () => {
-      const expired = authToken !== undefined ? new Date(authToken.expiry) < new Date(): true
-      expired
-        ? await Promise.reject(new Error('Your Session has expired. Please authenticate again.'))
-        : await Promise.resolve()
+    checkAuth: async (params) => {
+      
+      const storedToken = getAuthToken()
+      console.log('checkAuth called', storedToken)
+
+
+      if (!storedToken) {
+        const isLoginPage = window.location.pathname === '/login';
+        if (isLoginPage) return Promise.resolve();
+        return Promise.reject(new Error('No auth token'));
+      }
+      const expired = new Date(storedToken.expiry) < new Date()
+      if (expired ){
+        return Promise.reject(new Error('Token expired'));
+      }
+      return Promise.resolve();
     },
     checkError: async error => {
       const status = error.status
       if (status === 401) {
         setAuthToken(undefined)
-        await Promise.reject(new Error('unauthorized')); return
-      }
-      await Promise.resolve()
+        return Promise.reject(new Error('unauthorized'));      }
+      return Promise.resolve()
     },
     getPermissions: async () => {
       await Promise.resolve()
     },
     getIdentity: async () => {
-      const authCredentials = JSON.parse(localStorage.getItem(AUTH_TOKEN_LOCAL_STORAGE_NAME) ?? "{}");
-      const { id, fullName, avatar } = authCredentials;
-      return { id, fullName, avatar };
+      const storedToken = getAuthToken()
+      if (!storedToken) return Promise.reject();
+      const { id, fullName, avatar } = storedToken;
+      return Promise.resolve({ id, fullName, avatar });
     },
     
   }

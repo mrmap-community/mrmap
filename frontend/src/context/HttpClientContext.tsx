@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import useWebSocket from 'react-use-websocket';
 
 import { useLocalStorage } from "@uidotdev/usehooks";
-import { AxiosHeaders, AxiosRequestConfig } from 'axios';
+import { AxiosError, AxiosHeaders, AxiosRequestConfig } from 'axios';
 import { isEqual } from 'lodash';
 import OpenAPIClientAxios, { OpenAPIV3, OpenAPIV3_1 } from 'openapi-client-axios';
 import { WebSocketLike } from 'react-use-websocket/dist/lib/types';
@@ -48,7 +48,8 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
 
   const [api, setApi] = useState<OpenAPIClientAxios>()
   const [document, setDocument] = useState<OpenAPIV3.Document | OpenAPIV3_1.Document>()
-  
+  const [error, setError] = useState<AxiosError>();
+
   const { readyState, getWebSocket } = useWebSocket(
     `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}/ws/default/?token=${authToken?.token}`,
     {
@@ -79,7 +80,7 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
   },[locale])
 
   useEffect(() => {
-    if (document === undefined) {     
+    if (document === undefined && error === undefined) {     
       const cfg = JSON.parse(JSON.stringify({
         headers: new AxiosHeaders(
         {
@@ -90,9 +91,20 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
       const httpClient = new OpenAPIClientAxios({ definition: `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/schema`, axiosConfigDefaults: cfg})
       httpClient.init().then((client) => {
         setDocument(client.api.document)
-      }).catch((error) => { console.error("errror during initialize axios openapi client", error)})
+      }).catch((error) => { setError(error); console.error("errror during initialize axios openapi client", error)})
     }
-  }, [document])
+  }, [document, error])
+
+  useEffect(()=>{
+    if(error?.code === 'ERR_NETWORK'){
+      const interval = setInterval(() => {
+        setError(() => undefined);
+      }, 2000);
+
+    return () => clearInterval(interval);
+    }
+  },[error])
+
 
   useEffect(()=>{
     if (document !== undefined){

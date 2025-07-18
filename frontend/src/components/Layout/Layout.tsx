@@ -10,6 +10,8 @@ import useResizeObserver from '@react-hook/resize-observer';
 import { SnackbarProvider } from 'notistack';
 
 import { useHttpClientContext } from '../../context/HttpClientContext';
+import I18Observer from '../../jsonapi/components/I18Observer';
+import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
 import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
@@ -33,13 +35,13 @@ const MyLayout = (
     ...rest
   }: LayoutProps
 ): ReactNode => {
-  const { api, readyState} = useHttpClientContext();
+  const { api } = useHttpClientContext();
+  const readyState = '1'
   const footerRef = useRef(null);
   const [footerHeight, setFooterHeight] = useState<number>();
   
   useResizeObserver(footerRef ?? null, (entry) => setFooterHeight(entry.contentRect.height))
 
-  
   return (
     <SnackbarProvider
       maxSnack={10}
@@ -50,7 +52,8 @@ const MyLayout = (
         }
       }
     >
-
+      <RealtimeBus/> 
+      <I18Observer/>
       <Layout
         appBar={MrMapAppBar}
         menu={Menu}

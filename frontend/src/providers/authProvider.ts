@@ -1,5 +1,4 @@
 import { UserIdentity, type AuthProvider } from 'ra-core';
-import { AUTH_TOKEN_LOCAL_STORAGE_NAME } from '../context/HttpClientContext';
 
 const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
 
@@ -8,14 +7,11 @@ export interface LoginParams {
   password: string
 }
 
-export interface AuthToken {
+
+export interface AuthToken extends UserIdentity {
   token: string
   expiry: string
 }
-
-export const TOKENNAME = 'mrmap.token'
-
-
 
 
 const whoAmI = async (url: string, authToken: string): Promise<UserIdentity> => {
@@ -43,18 +39,32 @@ const whoAmI = async (url: string, authToken: string): Promise<UserIdentity> => 
   }
   return {id: 0}
 }
+export const AUTH_TOKEN_LOCAL_STORAGE_NAME = "mrmap.auth"
+
+export const getAuthToken = (): AuthToken | undefined => {
+  const storedToken = localStorage.getItem(AUTH_TOKEN_LOCAL_STORAGE_NAME)
+  if (storedToken === undefined || storedToken === null){
+    return undefined
+  } else {
+    return JSON.parse(storedToken) 
+  }
+}
+
+export const setAuthToken = (props: AuthToken | undefined) => {
+  if (props === undefined) {
+    localStorage.removeItem(AUTH_TOKEN_LOCAL_STORAGE_NAME)
+  } else {
+    localStorage.setItem(AUTH_TOKEN_LOCAL_STORAGE_NAME, JSON.stringify(props))
+  }
+}
 
 
 const tokenAuthProvider = (
     loginUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/auth/login`,
     logoutUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/auth/logout`,
     identityUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/accounts/who-am-i/`,
-    authToken: AuthToken | undefined,
-    setAuthToken: (authToken: AuthToken | undefined) => void,
 ): AuthProvider => {
-  
   return {
-    
     login: async ({ username, password }: LoginParams) => {
       const request = new Request(loginUrl, {
         method: 'POST',
@@ -78,29 +88,37 @@ const tokenAuthProvider = (
     logout: async () => {
       // TODO: call logoutUrl with token
       setAuthToken(undefined)
-      await Promise.resolve()
+      return Promise.resolve();
     },
-    checkAuth: async () => {
-      const expired = authToken !== undefined ? new Date(authToken.expiry) < new Date(): true
-      expired
-        ? await Promise.reject(new Error('Your Session has expired. Please authenticate again.'))
-        : await Promise.resolve()
+    checkAuth: async (params) => {
+      const storedToken = getAuthToken()
+      if (!storedToken) {
+        return Promise.reject('not authenticated')
+      }
+      const expired = new Date(storedToken.expiry) < new Date()
+      if (expired ){
+        return Promise.reject('your session has expired')
+      }
+      return Promise.resolve()
     },
     checkError: async error => {
       const status = error.status
       if (status === 401) {
         setAuthToken(undefined)
-        await Promise.reject(new Error('unauthorized')); return
+        return Promise.reject('unauthorized')
       }
-      await Promise.resolve()
     },
-    getPermissions: async () => {
-      await Promise.resolve()
-    },
+    /* TODO: do not activate this for now... if this function exists and returns imediatlly,
+      this will result in an infinity loop by rerendering LogoutOnMoun:
+      https://github.com/marmelab/react-admin/pull/10769/files
+    */ 
+    //getPermissions: async () => {
+    //  await Promise.resolve()
+    //},
     getIdentity: async () => {
-      const authCredentials = JSON.parse(localStorage.getItem(AUTH_TOKEN_LOCAL_STORAGE_NAME) ?? "{}");
-      const { id, fullName, avatar } = authCredentials;
-      return { id, fullName, avatar };
+      const storedToken = getAuthToken()
+      const { id, fullName, avatar } = storedToken ?? {id: 0, fullName: 'anonymous'};
+      return Promise.resolve({ id, fullName, avatar });
     },
     
   }

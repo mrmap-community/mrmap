@@ -8,6 +8,8 @@ import axios, { AxiosError } from 'axios'
 import { isEqual } from 'lodash'
 import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/jsonapi'
 import { capsulateJsonApiPrimaryData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
+import { getAuthToken } from './authProvider'
+import i18nProvider from './i18nProvider'
 
 
 type search = (
@@ -90,7 +92,6 @@ class OperationNotFoundError extends Error {
   }
 }
 
-//let socket: WebSocket| undefined = undefined
 let subscriptions: Subscription[] = []
 
 const handleOperationNotFoundError = (): void => {
@@ -223,16 +224,33 @@ const handleBadRequest = (error: AxiosError) => {
   }
 }
 
+
+const attachAuthenticationIfExists = (config: AxiosRequestConfig): AxiosRequestConfig => {
+  const storedAuthToken = getAuthToken();
+  if (storedAuthToken?.token && config.headers){
+    config.headers.setAuthorization(`Token ${storedAuthToken?.token}`)
+  }
+  return config
+}
+
+const attachLocalHeader = (config: AxiosRequestConfig): AxiosRequestConfig => {
+  if (config.headers){
+    config.headers.set("Accept-Language", i18nProvider.getLocale())
+  }
+  return config
+}
+
+const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig => {
+  const cfg = attachAuthenticationIfExists(config)
+  return attachLocalHeader(cfg)
+}
+
 const dataProvider = ({
   total = '/meta/pagination/count',
   httpClient,
-  realtimeBus,
 }: JsonApiDataProviderOptions): DataProvider => {  
-  
-  if (realtimeBus !== undefined) {
-    realtimeBus.onmessage = realtimeOnMessage
-  }
 
+  
   const updateResource = async (resource: string, params: UpdateParams): Promise<UpdateResult<any>> => {
     const operationId = `partial_update_${resource}`
     const operation = checkOperationExists(httpClient, operationId)
@@ -245,7 +263,7 @@ const dataProvider = ({
       }
     })
 
-    const conf = httpClient.client.api.getAxiosConfigForOperation(operationId, [{ id: params.id }, { data: capsulateJsonApiPrimaryData(partialData, resource, operation) }, httpClient.axiosConfigDefaults])
+    const conf = httpClient.client.api.getAxiosConfigForOperation(operationId, [{ id: params.id }, { data: capsulateJsonApiPrimaryData(partialData, resource, operation) }, attachHeaders(httpClient.axiosConfigDefaults)])
     return await httpClient.client
       .request(conf)
       .then((response: AxiosResponse) => {
@@ -266,7 +284,7 @@ const dataProvider = ({
     const operationId = `destroy_${resource}`
     checkOperationExists(httpClient, operationId)
     
-    const conf = httpClient.client.api.getAxiosConfigForOperation(operationId, [{ id: params.id }, undefined, httpClient.axiosConfigDefaults])
+    const conf = httpClient.client.api.getAxiosConfigForOperation(operationId, [{ id: params.id }, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       return await httpClient.client.request(conf).then((response: AxiosResponse) => {
       return { data: { id: params.id } }
     })
@@ -284,7 +302,7 @@ const dataProvider = ({
       checkOperationExists(httpClient, operationId)
       
       const parameters = buildQueryParams(params)
-      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, httpClient.axiosConfigDefaults])
+      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       
       return await handleListRequest(httpClient.client, conf, total)
     },
@@ -304,7 +322,7 @@ const dataProvider = ({
 
       let conf = undefined;
       try {
-        conf = httpClient.getAxiosConfigForOperation(`retrieve_${resource}`, [parameters, undefined, httpClient.axiosConfigDefaults])
+        conf = httpClient.getAxiosConfigForOperation(`retrieve_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       } catch (error) {
         handleOperationNotFoundError();
         return  { data: [], total: 0 }
@@ -322,7 +340,7 @@ const dataProvider = ({
       checkOperationExists(httpClient, operationId)
 
       const parameters = buildQueryParams(params)
-      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, httpClient.axiosConfigDefaults])
+      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       
       return await handleListRequest(httpClient.client, conf, total)
     },
@@ -332,7 +350,7 @@ const dataProvider = ({
       checkOperationExists(httpClient, operationId)
 
       const parameters = buildQueryParams(params)
-      const conf = httpClient.getAxiosConfigForOperation(`list_${resource}`, [parameters, undefined, httpClient.axiosConfigDefaults])
+      const conf = httpClient.getAxiosConfigForOperation(`list_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
 
       return await handleListRequest(httpClient.client, conf, total)
     },
@@ -341,7 +359,7 @@ const dataProvider = ({
       const operationId = `create_${resource}`
       const operation = checkOperationExists(httpClient, operationId)
 
-      const conf = httpClient.getAxiosConfigForOperation(operationId, [undefined, { data: capsulateJsonApiPrimaryData(params.data, resource, operation) }, httpClient.axiosConfigDefaults])
+      const conf = httpClient.getAxiosConfigForOperation(operationId, [undefined, { data: capsulateJsonApiPrimaryData(params.data, resource, operation) }, attachHeaders(httpClient.axiosConfigDefaults)])
 
       return await httpClient.client.request(conf).then((response) => {
         const jsonApiDocument = response.data as JsonApiDocument
@@ -420,6 +438,9 @@ const dataProvider = ({
       )
       return await Promise.resolve({ data: null })
     },
+    attachRealtimeOnMessage: async (realtimeBus: WebSocket | undefined) => {
+      realtimeBus && (realtimeBus.onmessage = realtimeOnMessage)
+    },
     search: async (query: string, options?: SearchOptions): Promise<SearchResults>=> {
       const targets = options?.targets || []
       const searchResults: SearchResults = {
@@ -433,7 +454,7 @@ const dataProvider = ({
         checkOperationExists(httpClient, operationId)
         
         const parameters = buildQueryParams({filter: {search: query}})
-        const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, httpClient.axiosConfigDefaults])
+        const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
         
         await handleListRequest(httpClient.client, conf, total).then((data) => {
           searchResults.data.push(...data.data.map(record => ({

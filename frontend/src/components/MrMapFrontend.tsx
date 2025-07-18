@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactElement } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import {
   Admin,
   CustomRoutes,
@@ -8,7 +8,7 @@ import {
   Resource,
   type RaThemeOptions
 } from 'react-admin';
-import { Route } from 'react-router-dom';
+import { BrowserRouter, Route } from 'react-router-dom';
 
 import { type Operation as AxiosOperation, type OpenAPIV3 } from 'openapi-client-axios';
 
@@ -35,24 +35,16 @@ const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
 const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
 
 const MrMapFrontend = (): ReactElement => {
-  const { api, getWebSocket, updateLocale, readyState} = useHttpClientContext()
-
-  useEffect(()=>{
-    // workaround to get the current locale value: 
-    // the storage with subscriptions is only available downside the Admin app. Therefore we need to add subscription here manual.
-    store.subscribe('locale', updateLocale)
-  },[updateLocale])
-
+  const { api, isPending } = useHttpClientContext()
+  
   const dataProvider = useMemo(() => {
-    const websocket = getWebSocket()
     return api && jsonApiDataProvider({
       httpClient: api, 
-      ...(websocket !== null && { realtimeBus: websocket }),
     })
-  }, [api, readyState])
+  }, [api])
   
   const authProvider = useMemo(()=>{
-    return authProviderFunc(undefined, undefined, undefined)
+    return authProviderFunc()
   },[])
 
   const resourceDefinitions = useMemo(() => {
@@ -104,37 +96,39 @@ const MrMapFrontend = (): ReactElement => {
         ))
   ),[resourceDefinitions])
 
-
   
-  if (dataProvider === undefined || resources.length === 0) {
+  if (isPending || dataProvider === undefined || resources.length === 0) {
     return (
       <Loading loadingPrimary="Initialize...." loadingSecondary='OpenApi Client is loading....' />
     )
   } else {
-    console.log('rerender admin')
     return (
-      <Admin
-        theme={lightTheme}
-        darkTheme={darkTheme}
-        lightTheme={customTheme}
-        dataProvider={dataProvider}
-        authProvider={authProvider}
-        i18nProvider={i18nProvider}
-        dashboard={Dashboard}
-        layout={MyLayout}
-        store={store}
-        disableTelemetry
-        requireAuth
+      <BrowserRouter>
+        <Admin
+          theme={lightTheme}
+          darkTheme={darkTheme}
+          lightTheme={customTheme}
+          dataProvider={dataProvider}
+          authProvider={authProvider}
+          i18nProvider={i18nProvider}
+          dashboard={Dashboard}
+          layout={MyLayout}
+          store={store}
 
-      >
-        {resources}
-        {/* ows context based mapviewer */}
-        <CustomRoutes>
-          <Route path="/csw-client" element={<CatalogueServiceClient />} />
-          <Route path="/viewer" element={<MapViewer />} />
-          <Route path="/search" element={<PortalSearch />} />
-        </CustomRoutes>
-      </Admin>
+          disableTelemetry
+          requireAuth
+        >
+          {resources}
+
+          {/* ows context based mapviewer */}
+          <CustomRoutes >
+            <Route path="/csw-client" element={<CatalogueServiceClient />} />
+            <Route path="/viewer" element={<MapViewer />} />
+            <Route path="/search" element={<PortalSearch />} />
+          </CustomRoutes>
+            
+        </Admin>
+      </BrowserRouter>
     )
   }
 }

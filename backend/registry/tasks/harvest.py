@@ -23,7 +23,9 @@ logger = get_task_logger(__name__)
 )
 def create_harvesting_job(*args, **kwargs):
     from registry.models.harvest import HarvestingJob
-    return HarvestingJob.objects.create(service__pk=kwargs.get("service_id"))
+    from registry.models.service import CatalogueService
+
+    return HarvestingJob.objects.create(service=CatalogueService.object.get(pk=kwargs.get("service_id")))
 
 
 @shared_task(

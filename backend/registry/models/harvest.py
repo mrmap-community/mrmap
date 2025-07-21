@@ -766,12 +766,12 @@ class PeriodicHarvestingJob(PeriodicTask):
             self.name = uuid4()
         if not self.pk and not self.task:
             self.task = "registry.tasks.harvest.create_harvesting_job"
-        if not self.pk and not self.kwargs:
+        if not self.pk and self.kwargs and "service_id" not in self.kwargs:
             self.kwargs = {
-                "service_id": self.service.pk
+                "service_id": str(self.service.pk)
             }
         if not self.pk and not self.queue:
-            self.queue = "harvesting"
+            self.queue = "default"
 
     class Meta:
         verbose_name = _('Periodic Harvesting Job')

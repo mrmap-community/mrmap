@@ -25,7 +25,7 @@ def create_harvesting_job(*args, **kwargs):
     from registry.models.harvest import HarvestingJob
     from registry.models.service import CatalogueService
 
-    return HarvestingJob.objects.create(service=CatalogueService.object.get(pk=kwargs.get("service_id")))
+    return HarvestingJob.objects.create(service=CatalogueService.objects.get(pk=kwargs.get("service_id")))
 
 
 @shared_task(

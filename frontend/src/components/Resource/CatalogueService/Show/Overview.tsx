@@ -1,6 +1,8 @@
-import { SimpleShowLayout, TextField, useResourceDefinition } from 'react-admin';
+import { createElement, useMemo } from 'react';
+import { SimpleShowLayout, useResourceDefinition } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import ListGuesser from '../../../../jsonapi/components/ListGuesser';
+import { useFieldsForOperation } from '../../../../jsonapi/hooks/useFieldsForOperation';
 import { createElementIfDefined } from '../../../../utils';
 import EmptyList from '../../../Lists/Empty';
 import SimpleCard from '../../../MUI/SimpleCard';
@@ -8,7 +10,13 @@ import ListHarvestingJob from '../../HarvestingJob/ListHarvestingJob';
 import HarvestingDailyStatsChart from '../HarvestingDailyStatsChart';
 
 
-const Overview = () => {
+export interface OverviewProps {
+  sources?: string[]
+}
+
+const Overview = ({
+  sources = ['id', 'title', 'abstract']
+}: OverviewProps) => {
 
 
   const { id } = useParams()
@@ -16,16 +24,34 @@ const Overview = () => {
   const { name: HarvestingJobName, icon: HarvestingJobIcon } = useResourceDefinition({resource: 'HarvestingJob'})
   const { name: periodicHarvestingJobName, icon: periodicHarvestingJobIcon } = useResourceDefinition({resource: 'PeriodicHarvestingJob'})
 
+  const fieldDefinitions = useFieldsForOperation('retrieve_CatalogueService', false, false);
+  const fields = useMemo(
+    () => 
+      sources.map(
+        source => {
+          const fieldDefinition = fieldDefinitions.find(fieldDefinition => fieldDefinition.props.source === source)
+          if (fieldDefinition === undefined){
+            return <></>
+          }
+          return createElement(
+            fieldDefinition.component, 
+            {
+              ...fieldDefinition.props, 
+              key: `${fieldDefinition.props.source}-${id}`,
+            }
+          )
+        }
+      )
+    ,[fieldDefinitions]
+  )
 
-return (
+  return (
   <>
     <SimpleCard
       title={<span>{createElementIfDefined(cswIcon)} {cswName}</span>}
     >
       <SimpleShowLayout>
-        <TextField source="id" />
-        <TextField source="title" />
-        <TextField source="abstract" />
+        {...fields}
       </SimpleShowLayout>
     </SimpleCard>
     <SimpleCard

@@ -509,11 +509,16 @@ LOGGING = {
         },
     },
     "handlers": {
-        "syslog": {
-            "class": "logging.handlers.SysLogHandler",
+        # "syslog": {
+        #    "class": "logging.handlers.SysLogHandler",
+        #    "formatter": "verbose",
+        #    "facility": "user",
+        #    "address": ("localhost", 1514),
+        # },
+        "console": {
+            "class": "logging.StreamHandler",
             "formatter": "verbose",
-            "facility": "user",
-            "address": ("localhost", 1514),
+            "level": "INFO"
         },
         # FIXME:!!!!!!
         # DO NOT active filelogger for celery worker. Bottleneck!!!!!
@@ -527,9 +532,13 @@ LOGGING = {
     },
     "loggers": {
         "MrMap.root": {
-            "handlers": ["syslog"],
+            "handlers": ["console"],
             "level": "DEBUG" if DEBUG else "INFO",
             "disabled": False,
+            "propagate": True,
+        },
+        "django": {
+            "handlers": ["console"],
             "propagate": True,
         },
     },

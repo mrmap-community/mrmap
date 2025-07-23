@@ -3,17 +3,20 @@ from itertools import chain
 from typing import Any
 
 from csw.exceptions import InvalidQuery, NotSupported
-from django.contrib.postgres.aggregates import ArrayAgg
+from django.conf import settings
 from django.core.exceptions import FieldError
 from django.db import transaction
+from django.db.models import BigIntegerField, F, OuterRef, Subquery, Value
 from django.db.models.aggregates import Count
-from django.db.models.functions import datetime
+from django.db.models.functions import Coalesce, datetime
 from django.db.models.query_utils import Q
 from django.http import HttpResponse
 from django.http.request import HttpRequest as HttpRequest
+from django.template.response import TemplateResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
+from django_cte import With
 from eulxml.xmlmap import load_xmlobject_from_file
 from lxml.etree import XMLSyntaxError
 from ows_lib.models.ogc_request import OGCRequest
@@ -113,16 +116,32 @@ class CswServiceView(View):
         :rtype: :class:`django.http.response.HttpResponse`
         """
 
-        dataset_record_ids = DatasetMetadataRecord.objects.all().aggregate(
-            pks=ArrayAgg("pk", distinct=True))["pks"]
-        service_record_ids = DatasetMetadataRecord.objects.all().aggregate(
-            pks=ArrayAgg("pk", distinct=True))["pks"]
-        keywords = Keyword.objects.filter(
-            Q(datasetmetadatarecord_metadata__in=dataset_record_ids) |
-            Q(servicemetadatarecord_metadata__in=service_record_ids)
-        ).annotate(
-            frequency=Count("pk"),
-        ).order_by("-frequency").values_list("keyword", flat=True)[:10]
+        dataset_count_subquery = DatasetMetadataRecord.keywords.through.objects.filter(
+            keyword=OuterRef('pk')
+        ).values('keyword').annotate(
+            count=Count('keyword')
+        ).values('count')
+
+        service_count_subquery = ServiceMetadataRecord.keywords.through.objects.filter(
+            keyword=OuterRef('pk')
+        ).values('keyword').annotate(
+            count=Count('keyword')
+        ).values('count')
+
+        keywords = Keyword.objects.annotate(
+            dataset_count=Coalesce(Subquery(
+                dataset_count_subquery, output_field=BigIntegerField()),  Value(0)),
+            service_count=Coalesce(Subquery(
+                service_count_subquery, output_field=BigIntegerField()), Value(0)),
+            usage_count=F('dataset_count') + F('service_count')
+        ).filter(
+            Q(dataset_count__gt=0) | Q(service_count__gt=0)
+        ).order_by(
+            '-usage_count'
+        ).values_list(
+            "keyword",
+            flat=True
+        )[:10]
 
         cap_file = os.path.dirname(
             os.path.abspath(__file__)) + "/capabilitites.xml"
@@ -149,7 +168,8 @@ class CswServiceView(View):
                              url=request.build_absolute_uri('csw'), mime_types=["application/xml"])
             ]
         )
-
+        if (settings.DEBUG):
+            return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc.serializeDocument(pretty=True)})
         return HttpResponse(
             status=200,
             content=capabilitites_doc.serializeDocument(pretty=True),
@@ -295,7 +315,7 @@ class CswServiceView(View):
         for record in records:
             xml.gmd_records.append(record.xml_backup)
         return HttpResponse(
-            status=200, content=xml.serialize(pretty=True), 
+            status=200, content=xml.serialize(pretty=True),
             content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):

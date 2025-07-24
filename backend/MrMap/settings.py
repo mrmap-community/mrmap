@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     "registry",
     "notify",
     "csw",
+    "system",
     "drf_spectacular",
     "drf_spectacular_jsonapi",
     "django_pgviews",

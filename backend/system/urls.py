@@ -1,7 +1,7 @@
-from extras.viewsets import CrontabScheduleViewSet
 from rest_framework_extensions.routers import ExtendedSimpleRouter
+from system.views import CrontabScheduleViewSet
 
-app_name = 'beat'
+app_name = 'system'
 
 router = ExtendedSimpleRouter(trailing_slash=False)
 (

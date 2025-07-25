@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 from system import views
 
@@ -12,4 +13,13 @@ router = ExtendedSimpleRouter(trailing_slash=False)
 
 )
 
-urlpatterns = router.urls
+urlpatterns = router.urls + [
+
+    path(
+        route=r'info',
+        view=views.SystemView.as_view(),
+        name='system-info'
+    ),
+
+
+]

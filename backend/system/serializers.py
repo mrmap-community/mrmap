@@ -1,7 +1,8 @@
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from extras.serializers import StringRepresentationSerializer
+from rest_framework.fields import CharField, DateTimeField, IntegerField
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
-                                                 ModelSerializer)
+                                                 ModelSerializer, Serializer)
 from system.fields import CrontabStringField
 from timezone_field.rest_framework import TimeZoneSerializerField
 
@@ -51,3 +52,21 @@ class PeriodicTaskSerializer(
             'queue',
             'enabled',
         )
+
+
+class SystemSerializer(
+    Serializer
+):
+    id = CharField()
+    mrmap_release = CharField()
+    django_version = CharField()
+    python_version = CharField()
+    postgresql_version = CharField()
+    database_name = CharField()
+    database_size = CharField()
+    celery_worker_count = IntegerField()
+
+    system_time = DateTimeField()
+
+    class Meta:
+        resource_name = 'SystemInfo'

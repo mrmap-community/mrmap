@@ -1,8 +1,17 @@
 
+import platform
+
+from celery.beat import Service
+from django import __version__ as DJANGO_VERSION
+from django.conf import settings
+from django.db import ProgrammingError, connection
+from django.db.models.functions import datetime
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
-from rest_framework_json_api.views import ModelViewSet
+from MrMap import VERSION
+from MrMap.celery import app
+from rest_framework_json_api.views import ModelViewSet, generics
 from system.serializers import (CrontabScheduleSerializer,
-                                PeriodicTaskSerializer)
+                                PeriodicTaskSerializer, SystemSerializer)
 
 
 class CrontabScheduleViewSet(
@@ -85,3 +94,44 @@ class PeriodicTaskViewSet(
         "queue",
         "enabled",
     ]
+
+
+class SystemView(generics.RetrieveAPIView):
+
+    serializer_class = SystemSerializer
+
+    def get_object(self):
+
+        # System stats
+        psql_version = db_name = db_size = None
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT version()")
+                psql_version = cursor.fetchone()[0]
+                psql_version = psql_version.split('(')[0].strip()
+                cursor.execute("SELECT current_database()")
+                db_name = cursor.fetchone()[0]
+                cursor.execute(
+                    f"SELECT pg_size_pretty(pg_database_size('{db_name}'))")
+                db_size = cursor.fetchone()[0]
+        except (ProgrammingError, IndexError):
+            pass
+
+        celery_worker_count = 0
+        try:
+            stats = app.control.inspect().stats() or {}
+            celery_worker_count = len(stats)
+        except:
+            pass
+
+        return {
+            'id': VERSION,
+            'mrmap_release': VERSION,
+            'django_version': DJANGO_VERSION,
+            'python_version': platform.python_version(),
+            'postgresql_version': psql_version,
+            'database_name': db_name,
+            'database_size': db_size,
+            'celery_worker_count': celery_worker_count,
+            'system_time': datetime.datetime.now()
+        }

@@ -91,6 +91,10 @@ const RESOURCES: Array<ResourceProps> = [
   // Changelogs
   {name: "HistoryWebMapService"},
 
+
+  // System
+  {name: "CrontabSchedule"},
+  {name: "PeriodicTask"},
 ];
 
 export default RESOURCES;

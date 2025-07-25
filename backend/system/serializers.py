@@ -1,6 +1,8 @@
-from django_celery_beat.models import CrontabSchedule
+from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from extras.serializers import StringRepresentationSerializer
-from rest_framework_json_api.serializers import ModelSerializer
+from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
+                                                 ModelSerializer)
+from system.fields import CrontabStringField
 from timezone_field.rest_framework import TimeZoneSerializerField
 
 
@@ -25,3 +27,27 @@ class CrontabScheduleSerializer(
 
     def get_string_representation(self, obj) -> str:
         return obj.human_readable
+
+
+class PeriodicTaskSerializer(
+    StringRepresentationSerializer,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='system:periodictask-detail',
+    )
+    scheduling = CrontabStringField(source='crontab')
+
+    class Meta:
+        model = PeriodicTask
+        fields = (
+            'url',
+            'id',
+            'name',
+            'task',
+            'scheduling',
+            'args',
+            'kwargs',
+            'queue',
+            'enabled',
+        )

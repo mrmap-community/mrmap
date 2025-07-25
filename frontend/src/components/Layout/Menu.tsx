@@ -12,11 +12,11 @@ import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import PublicIcon from '@mui/icons-material/Public';
 import { Box } from '@mui/material';
 
+import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import { createElementIfDefined } from '../../utils';
 import SubMenu from './SubMenu';
 
-
-type MenuName = 'menuWms' | 'menuWfs' | 'menuCsw'| 'menuMetadata'| 'menuAccounts';
+type MenuName = 'menuWms' | 'menuWfs' | 'menuCsw'| 'menuMetadata'| 'menuAccounts' | 'menuAdmin';
 
 
 const Menu = ({ dense = false }: MenuProps) => {
@@ -26,6 +26,7 @@ const Menu = ({ dense = false }: MenuProps) => {
         menuCsw: true,
         menuMetadata: true,
         menuAccounts: true,
+        menuAdmin: true,
     });
     const [open] = useSidebarState();
 
@@ -51,6 +52,9 @@ const Menu = ({ dense = false }: MenuProps) => {
 
     const { name: userName, icon: userIcon } = useResourceDefinition({ resource: "User" })
     const { name: organizationName, icon: organizationIcon } = useResourceDefinition({ resource: "Organization" })    
+
+    const { name: periodicTaskName, icon: periodicTaskIcon } = useResourceDefinition({ resource: "PeriodicTask" })
+
 
     return (
         <Box
@@ -199,6 +203,23 @@ const Menu = ({ dense = false }: MenuProps) => {
                     leftIcon={createElementIfDefined(organizationIcon)}
                     dense={dense}
                 />
+                
+            </SubMenu>
+            <SubMenu
+                handleToggle={() => handleToggle('menuAdmin')}
+                isOpen={state.menuAdmin}
+                name={"Admin"}
+                icon={<DisplaySettingsIcon/>}
+                dense={dense}
+            >
+                <MenuItemLink
+                    to={`/${periodicTaskName}`}
+                    state={{ _scrollToTop: true }}
+                    primaryText={periodicTaskName}
+                    leftIcon={createElementIfDefined(periodicTaskIcon)}
+                    dense={dense}
+                />
+              
                 
             </SubMenu>  
             <MenuItemLink

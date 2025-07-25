@@ -46,7 +46,7 @@ class CrontabStringField(serializers.CharField):
     def to_representation(self, obj: CrontabSchedule):
         base = f"{obj.minute} {obj.hour} {obj.day_of_month} {obj.month_of_year} {obj.day_of_week}"
         if obj.timezone:
-            base += f" {obj.timezone.zone}"
+            base += f" {obj.timezone.key}"
         return base
 
     def to_internal_value(self, data):

@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import CrontabSchedule
-from extras.serializers import StringRepresentationSerializer
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from registry.models.metadata import ReferenceSystem
 from registry.models.monitoring import (GetCapabilitiesProbe,
                                         GetCapabilitiesProbeResult,
@@ -17,6 +18,7 @@ from rest_framework_json_api.serializers import (BooleanField,
 
 class GetCapabilitiesProbeSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -40,6 +42,7 @@ class GetCapabilitiesProbeSerializer(
 
 class GetMapProbeSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -79,6 +82,7 @@ class GetMapProbeSerializer(
 
 class WebMapServiceMonitoringSettingSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -115,6 +119,7 @@ class WebMapServiceMonitoringSettingSerializer(
 
 class WebMapServiceMonitoringRunSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -158,6 +163,7 @@ class WebMapServiceMonitoringRunSerializer(
 
 class GetCapabilitiesProbeResultSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -186,6 +192,7 @@ class GetCapabilitiesProbeResultSerializer(
 
 class GetMapProbeResultSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(

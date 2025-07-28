@@ -1,4 +1,5 @@
-from extras.serializers import StringRepresentationSerializer
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, Licence,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, ServiceMetadataRecord,
@@ -12,6 +13,7 @@ from rest_framework_json_api.serializers import ModelSerializer
 
 class MimeTypeSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
 
@@ -22,6 +24,7 @@ class MimeTypeSerializer(
 
 class KeywordSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -35,6 +38,7 @@ class KeywordSerializer(
 
 class LicenceSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -48,6 +52,7 @@ class LicenceSerializer(
 
 class ReferenceSystemDefaultSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -61,6 +66,7 @@ class ReferenceSystemDefaultSerializer(
 
 class ReferenceSystemRetrieveSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     wkt = SerializerMethodField()
@@ -92,6 +98,7 @@ class ReferenceSystemRetrieveSerializer(
 
 class StyleSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -105,6 +112,7 @@ class StyleSerializer(
 
 class MetadataContactSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:metadatacontact-detail")
@@ -116,6 +124,7 @@ class MetadataContactSerializer(
 
 class DatasetMetadataRecordSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:datasetmetadata-detail")
@@ -184,6 +193,7 @@ class DatasetMetadataRecordSerializer(
 
 class ServiceMetadataRecordSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(view_name="registry:servicemetadata-detail")
@@ -226,4 +236,5 @@ class ServiceMetadataRecordSerializer(
 
     class Meta:
         model = ServiceMetadataRecord
+        fields = "__all__"
         fields = "__all__"

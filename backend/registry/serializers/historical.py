@@ -1,13 +1,16 @@
 from operator import itemgetter
 
 from accounts.serializers.users import UserSerializer
+from extras.serializers import SystemInfoSerializerMixin
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from rest_framework.fields import SerializerMethodField, UUIDField
 from rest_framework_json_api.serializers import ModelSerializer
 
 
-class HistorySerializerMixin(ModelSerializer):
+class HistorySerializerMixin(
+        SystemInfoSerializerMixin,
+        ModelSerializer):
     id = UUIDField(source='history_id')
     history_type = SerializerMethodField()
     delta = SerializerMethodField()
@@ -78,7 +81,7 @@ class WebFeatureServiceHistorySerializer(HistorySerializerMixin):
         exclude = HistorySerializerMixin.Meta.exclude
 
 
-class FeatureTypeHistorySerializer(HistorySerializerMixin, ModelSerializer):
+class FeatureTypeHistorySerializer(HistorySerializerMixin):
     included_serializers = {
         "history_user": UserSerializer,
         "history_relation": "registry.serializers.service.FeatureTypeSerializer"
@@ -98,4 +101,5 @@ class CatalogueServiceHistorySerializer(HistorySerializerMixin):
 
     class Meta:
         model = CatalogueService.change_log.model
+        exclude = HistorySerializerMixin.Meta.exclude
         exclude = HistorySerializerMixin.Meta.exclude

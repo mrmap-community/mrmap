@@ -2,16 +2,16 @@ import json
 
 from django.utils.translation import gettext_lazy as _
 from django_celery_results.models import TaskResult
-from extras.serializers import StringRepresentationSerializer
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from rest_framework.fields import (CharField, DateTimeField, FloatField,
-                                   IntegerField, SerializerMethodField)
-from rest_framework_json_api.relations import ResourceRelatedField
+                                   SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
 
 
-class TaskResultSerializer(ModelSerializer):
+class TaskResultSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
     task_meta = SerializerMethodField()
     result = SerializerMethodField()
@@ -35,6 +35,7 @@ class TaskResultSerializer(ModelSerializer):
 
 class BackgroundProcessLogSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -48,6 +49,7 @@ class BackgroundProcessLogSerializer(
 
 class BackgroundProcessSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -83,4 +85,5 @@ class BackgroundProcessSerializer(
 
     # included_serializers = {
     #    'logs': BackgroundProcessLogSerializer,
+    # }
     # }

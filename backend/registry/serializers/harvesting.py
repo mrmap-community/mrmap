@@ -1,54 +1,29 @@
-import re
 
-from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
-from django_celery_beat.models import CrontabSchedule
-from extras.serializers import StringRepresentationSerializer
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin,
+                                TimeUntilNextRunMixin)
 from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
-from rest_framework import serializers
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (ChoiceField, DurationField,
                                                  FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,
+                                                 SerializerMethodField,
                                                  UniqueTogetherValidator)
-
-CRONTAB_TIME_REGEX = r"^([\d\*/,\-]+)\s+([\d\*/,\-]+)\s+([\d\*/,\-]+)\s+([\d\*/,\-]+)\s+([\d\*/,\-]+)\Z"
-
-
-class CrontabStringField(serializers.CharField):
-    def __init__(self, **kwargs):
-        super().__init__(
-            help_text="Crontab Zeitstring mit 5 Feldern (z. B. '0 12 * * 1-5')",
-            **kwargs
-        )
-
-    def to_representation(self, obj: CrontabSchedule):
-        return f"{obj.minute} {obj.hour} {obj.day_of_month} {obj.month_of_year} {obj.day_of_week}"
-
-    def to_internal_value(self, data):
-        data = data.strip()
-        if not re.fullmatch(CRONTAB_TIME_REGEX, data):
-            raise serializers.ValidationError("Invalid crontab string.")
-        minute, hour, day_of_month, month_of_year, day_of_week = data.strip().split()
-        obj, _ = CrontabSchedule.objects.get_or_create(
-            minute=minute,
-            hour=hour,
-            day_of_month=day_of_month,
-            month_of_year=month_of_year,
-            day_of_week=day_of_week
-        )
-        return obj
+from system.fields import CrontabStringField
 
 
 class PeriodicHarvestingJobSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    TimeUntilNextRunMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -60,14 +35,17 @@ class PeriodicHarvestingJobSerializer(
         queryset=CatalogueService.objects,
     )
     scheduling = CrontabStringField(source='crontab')
+    time_until_next_run = SerializerMethodField(label=_("time until next run"))
 
     class Meta:
         model = PeriodicHarvestingJob
-        fields = ('url', 'service', 'scheduling')
+        fields = ('url', 'service', 'scheduling',
+                  'time_until_next_run', 'enabled')
 
 
 class HarvestedMetadataRelationSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -80,6 +58,7 @@ class HarvestedMetadataRelationSerializer(
 
 class TemporaryMdMetadataFileSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -92,6 +71,7 @@ class TemporaryMdMetadataFileSerializer(
 
 class HarvestingJobSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         HyperlinkedModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:harvestingjob-detail')
@@ -186,6 +166,7 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
 
 class HarvestingLogSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -193,4 +174,5 @@ class HarvestingLogSerializer(
 
     class Meta:
         model = HarvestingLog
+        fields = "__all__"
         fields = "__all__"

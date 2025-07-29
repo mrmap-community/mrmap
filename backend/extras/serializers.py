@@ -1,8 +1,9 @@
-from datetime import datetime
-
+import pytz
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django_celery_beat.models import CrontabSchedule
+from django.db.models.functions import datetime
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from guardian.core import ObjectPermissionChecker
 from rest_framework_json_api.relations import \
     SerializerMethodResourceRelatedField
@@ -73,21 +74,42 @@ class HistoryInformationSerializer(ModelSerializer):
         return instance.last_history[0].history_user if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None
 
 
-class CrontabScheduleSerializer(
-    StringRepresentationSerializer,
-    ModelSerializer
-):
-    class Meta:
-        model = CrontabSchedule
-        fields = (
-            'minute',
-            'hour',
-            'day_of_month',
-            'month_of_year',
-            'day_of_week',
-            'string_representation'
-            # 'timezone' ==> not JSON serializable
-        )
+class SystemInfoSerializerMixin:
+    def get_root_meta(self, resource, many):
 
-    def get_string_representation(self, obj) -> str:
-        return obj.human_readable
+        return {
+            "system_time": timezone.localtime(timezone.now())
+        }
+
+
+class TimeUntilNextRunMixin:
+    time_until_next_run = SerializerMethodField(label=_("time until next run"))
+
+    def get_time_until_next_run(self, obj):
+        # aktuelle lokale Zeit
+        now_local = timezone.localtime(timezone.now())
+
+        # Zeitzone aus Crontab (oder fallback UTC)
+        tz = obj.crontab.timezone or pytz.UTC
+
+        # Jetzt in Crontab-Zeitzone konvertieren
+        now_tz = now_local.astimezone(tz)
+
+        schedule = obj.crontab.schedule
+
+        remaining = schedule.remaining_estimate(now_tz)
+        if remaining is None:
+            return "unbekannt"
+
+        total_seconds = int(remaining.total_seconds())
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        parts = []
+        if hours > 0:
+            parts.append(f"{hours}h")
+        if minutes > 0:
+            parts.append(f"{minutes}min")
+        parts.append(f"{seconds}s")
+
+        return " ".join(parts)

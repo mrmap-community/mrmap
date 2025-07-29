@@ -1,4 +1,4 @@
-import { HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin'
+import { CreateResult, GetListResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin'
 
 import jsonpointer from 'jsonpointer'
 import OpenAPIClientAxios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, Operation, type ParamsArray } from 'openapi-client-axios'
@@ -10,6 +10,7 @@ import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/
 import { capsulateJsonApiPrimaryData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
 import { getAuthToken } from './authProvider'
 import i18nProvider from './i18nProvider'
+import { updateSystemTime } from './systemTimeProvider'
 
 
 type search = (
@@ -51,6 +52,7 @@ export interface GetListJsonApiParams extends GetListParams {
 export interface JsonApiDataProviderOptions extends Options {
   httpClient: OpenAPIClientAxios
   total?: string
+  systemTime?: string
   realtimeBus?: WebSocketLike
 }
 
@@ -93,6 +95,7 @@ class OperationNotFoundError extends Error {
 }
 
 let subscriptions: Subscription[] = []
+
 
 const handleOperationNotFoundError = (): void => {
 
@@ -145,10 +148,7 @@ const buildQueryParams = (params: GetListParams | GetManyParams | GetManyReferen
   return parameters
 }
 
-const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfig, total: string): Promise<{
-  data: RaRecord[];
-  total: number;
-}> => {
+const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfig, totalPath: string, systemTimePath: string): Promise<GetListResult> => {
   return await client
   .request(conf)
   .then((response: AxiosResponse) => {
@@ -158,7 +158,14 @@ const  handleListRequest = async (client: AxiosInstance, conf: AxiosRequestConfi
       data: resources.map((data: JsonApiPrimaryData) => Object.assign(
         encapsulateJsonApiPrimaryData(jsonApiDocument, data)
       )),
-      total: getTotal(jsonApiDocument, total)
+      total: getTotal(jsonApiDocument, totalPath),
+      pageInfo: {
+        hasNextPage: jsonApiDocument.links && jsonApiDocument.links.next !== null,
+        hasPreviousPage: jsonApiDocument.links && jsonApiDocument.links.prev !== null
+      },
+      meta: {
+        systemTime: getSystemTime(jsonApiDocument, systemTimePath)
+      }
     }
   })
 }
@@ -170,6 +177,18 @@ const getTotal = (response: JsonApiDocument, total: string): number => {
   }
   return _total
 }
+
+
+const getSystemTime = (response: JsonApiDocument, systemTime: string): string | undefined => {
+  const _systemTime = jsonpointer.get(response, systemTime)
+  const fixed = _systemTime?.replace(/(\.\d{3})\d*/, '$1');
+  if (fixed === undefined){
+    return
+  } 
+  updateSystemTime(fixed)
+  return fixed;
+}
+
 
 const realtimeOnMessage = (event: MessageEvent): void => {
   const data = JSON.parse(event?.data) as MrMapMessage
@@ -247,11 +266,12 @@ const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig => {
 
 const dataProvider = ({
   total = '/meta/pagination/count',
+  systemTime = '/meta/systemTime',
   httpClient,
 }: JsonApiDataProviderOptions): DataProvider => {  
 
   
-  const updateResource = async (resource: string, params: UpdateParams): Promise<UpdateResult<any>> => {
+  const updateResource = async (resource: string, params: UpdateParams, systemTimePath: string): Promise<UpdateResult<any>> => {
     const operationId = `partial_update_${resource}`
     const operation = checkOperationExists(httpClient, operationId)
     const partialData: Partial<RaRecord> = {id: params.id}
@@ -271,7 +291,12 @@ const dataProvider = ({
         const jsonApiResource = jsonApiDocument.data as JsonApiPrimaryData
         
 
-        return { data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource) }
+        return { 
+          data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource),
+          meta: {
+            systemTime: getSystemTime(jsonApiDocument, systemTimePath)
+          }
+        }
       }).catch((error) => {
         if (axios.isAxiosError(error) && error.status === 400) {
           handleBadRequest(error)
@@ -304,10 +329,10 @@ const dataProvider = ({
       const parameters = buildQueryParams(params)
       const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       
-      return await handleListRequest(httpClient.client, conf, total)
+      return await handleListRequest(httpClient.client, conf, total, systemTime)
     },
 
-    getOne: async (resource: string, params: GetOneParams) => {
+    getOne: async (resource: string, params: GetOneParams): Promise<GetOneResult> => {
       if (params.id === undefined) {
         return { data: { id: '' } }
       }
@@ -325,13 +350,18 @@ const dataProvider = ({
         conf = httpClient.getAxiosConfigForOperation(`retrieve_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       } catch (error) {
         handleOperationNotFoundError();
-        return  { data: [], total: 0 }
+        return  { data: [], }
       }
 
       return await httpClient.client.request(conf).then((response: AxiosResponse) => {
         const jsonApiDocument = response.data as JsonApiDocument
         const jsonApiResource = jsonApiDocument.data as JsonApiPrimaryData
-        return { data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource) }
+        return { 
+          data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource),
+          meta: {
+            systemTime: getSystemTime(jsonApiDocument, systemTime)
+          }
+        }
       })
     },
 
@@ -342,7 +372,7 @@ const dataProvider = ({
       const parameters = buildQueryParams(params)
       const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       
-      return await handleListRequest(httpClient.client, conf, total)
+      return await handleListRequest(httpClient.client, conf, total, systemTime)
     },
 
     getManyReference: async (resource: string, params: GetManyReferenceParams) => {
@@ -352,10 +382,10 @@ const dataProvider = ({
       const parameters = buildQueryParams(params)
       const conf = httpClient.getAxiosConfigForOperation(`list_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
 
-      return await handleListRequest(httpClient.client, conf, total)
+      return await handleListRequest(httpClient.client, conf, total, systemTime)
     },
 
-    create: async (resource: string, params: CreateParams) => {
+    create: async (resource: string, params: CreateParams): Promise<CreateResult> => {
       const operationId = `create_${resource}`
       const operation = checkOperationExists(httpClient, operationId)
 
@@ -373,7 +403,7 @@ const dataProvider = ({
       })
     },
     update: async (resource: string, params: UpdateParams) =>
-      await updateResource(resource, params),
+      await updateResource(resource, params, systemTime),
 
     updateMany: async (resource: string, params: UpdateManyParams) => {
       // Hacky many update via for loop. JSON:API does not support many update in a single transaction.
@@ -386,7 +416,8 @@ const dataProvider = ({
             id,
             data: params.data,
             previousData: {}
-          }
+          },
+          systemTime
         ).then((data) => {
           results.push(data.data.id)
         })

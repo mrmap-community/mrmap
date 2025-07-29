@@ -1,8 +1,9 @@
+from extras.serializers import SystemInfoSerializerMixin
 from rest_framework.fields import DateTimeField, IntegerField
 from rest_framework_json_api.serializers import Serializer
 
 
-class StatisticalSerializer(Serializer):
+class StatisticalSerializer(SystemInfoSerializerMixin, Serializer):
     id = DateTimeField(source="day")
     day = DateTimeField()
 

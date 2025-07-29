@@ -1,6 +1,7 @@
 from django.contrib.auth.models import Group
 from django.db.models.query import Prefetch
-from extras.serializers import StringRepresentationSerializer
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
@@ -17,7 +18,7 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ValidationError)
 
 
-class WebMapServiceAuthenticationSerializer(ModelSerializer):
+class WebMapServiceAuthenticationSerializer(SystemInfoSerializerMixin, ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:wmsauth-detail',
     )
@@ -29,6 +30,7 @@ class WebMapServiceAuthenticationSerializer(ModelSerializer):
 
 class WebMapServiceOperationSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -40,7 +42,7 @@ class WebMapServiceOperationSerializer(
         fields = '__all__'
 
 
-class WebFeatureServiceAuthenticationSerializer(ModelSerializer):
+class WebFeatureServiceAuthenticationSerializer(SystemInfoSerializerMixin, ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:wfsauth-detail',
     )
@@ -52,6 +54,7 @@ class WebFeatureServiceAuthenticationSerializer(ModelSerializer):
 
 class WebFeatureServiceOperationSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -65,6 +68,7 @@ class WebFeatureServiceOperationSerializer(
 
 class AllowedWebMapServiceOperationSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:allowedwmsoperation-detail',
@@ -122,6 +126,7 @@ class AllowedWebMapServiceOperationSerializer(
 
 class AllowedWebFeatureServiceOperationSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:allowedwfsoperation-detail',
@@ -139,6 +144,7 @@ class AllowedWebFeatureServiceOperationSerializer(
 
 class WebMapServiceProxySettingSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:webmapserviceproxysetting-detail',
@@ -151,6 +157,7 @@ class WebMapServiceProxySettingSerializer(
 
 class WebFeatureServiceProxySettingSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:webmapserviceproxysetting-detail',
@@ -158,4 +165,5 @@ class WebFeatureServiceProxySettingSerializer(
 
     class Meta:
         model = WebFeatureServiceProxySetting
+        fields = '__all__'
         fields = '__all__'

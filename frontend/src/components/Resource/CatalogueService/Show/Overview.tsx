@@ -1,12 +1,10 @@
 import { createElement, useMemo } from 'react';
-import { SimpleShowLayout, useResourceDefinition } from 'react-admin';
-import { useParams } from 'react-router-dom';
-import ListGuesser from '../../../../jsonapi/components/ListGuesser';
+import { Loading, SimpleShowLayout, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../../../../jsonapi/hooks/useFieldsForOperation';
 import { createElementIfDefined } from '../../../../utils';
-import EmptyList from '../../../Lists/Empty';
 import SimpleCard from '../../../MUI/SimpleCard';
 import ListHarvestingJob from '../../HarvestingJob/ListHarvestingJob';
+import ListPeriodicHarvestingJob from '../../PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import HarvestingDailyStatsChart from '../HarvestingDailyStatsChart';
 
 
@@ -18,8 +16,8 @@ const Overview = ({
   sources = ['id', 'title', 'abstract']
 }: OverviewProps) => {
 
+  const record = useRecordContext();
 
-  const { id } = useParams()
   const { name: cswName, icon: cswIcon } = useResourceDefinition({resource: 'CatalogueService'})
   const { name: HarvestingJobName, icon: HarvestingJobIcon } = useResourceDefinition({resource: 'HarvestingJob'})
   const { name: periodicHarvestingJobName, icon: periodicHarvestingJobIcon } = useResourceDefinition({resource: 'PeriodicHarvestingJob'})
@@ -37,13 +35,17 @@ const Overview = ({
             fieldDefinition.component, 
             {
               ...fieldDefinition.props, 
-              key: `${fieldDefinition.props.source}-${id}`,
+              key: `${fieldDefinition.props.source}-${record?.id}`,
             }
           )
         }
       )
     ,[fieldDefinitions]
   )
+
+  if (record === undefined){
+    return <Loading/>
+  }
 
   return (
   <>
@@ -57,16 +59,13 @@ const Overview = ({
     <SimpleCard
       title={<span>{createElementIfDefined(HarvestingJobIcon)} {HarvestingJobName}</span>}
     >
-      <HarvestingDailyStatsChart resource='HarvestedMetadataRelation' filter={{ 'harvesting_job__service': id }} />
+      <HarvestingDailyStatsChart resource='HarvestedMetadataRelation' filter={{ 'harvesting_job__service': record.id }} />
       <ListHarvestingJob />
     </SimpleCard>
     <SimpleCard
       title={<span>{createElementIfDefined(periodicHarvestingJobIcon)} {periodicHarvestingJobName}</span>}
     >
-      <ListGuesser
-        resource='PeriodicHarvestingJob'
-        relatedResource='CatalogueService'
-        empty={<EmptyList defaultValue={{ service: { id: id } }} />} />
+      <ListPeriodicHarvestingJob/>
     </SimpleCard>
   </>
   )

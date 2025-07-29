@@ -5,7 +5,8 @@ from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
-                                StringRepresentationSerializer)
+                                StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from extras.validators import validate_get_capablities_uri
 from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Dimension,
@@ -33,7 +34,7 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
 
 
-class WebMapServiceOperationUrlSerializer(ModelSerializer):
+class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
     # url = HyperlinkedIdentityField(
     #    view_name="registry:wms-operationurls-detail",
@@ -55,6 +56,7 @@ class WebMapServiceOperationUrlSerializer(ModelSerializer):
 class LayerSerializer(
         StringRepresentationSerializer,
         HistoryInformationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layer-detail",
@@ -224,6 +226,7 @@ class WebMapServiceListSerializer(
     StringRepresentationSerializer,
     ObjectPermissionCheckerSerializer,
     HistoryInformationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
 
@@ -332,6 +335,7 @@ class WebMapServiceSerializer(
 
 
 class WebMapServiceCreateSerializer(
+    SystemInfoSerializerMixin,
         ModelSerializer):
 
     get_capabilities_url = URLField(
@@ -363,7 +367,7 @@ class WebMapServiceCreateSerializer(
         )
 
 
-class WebFeatureServiceOperationUrlSerializer(ModelSerializer):
+class WebFeatureServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
     # url = SerializerMethodField()
 
@@ -378,6 +382,7 @@ class WebFeatureServiceOperationUrlSerializer(ModelSerializer):
 class FeatureTypeSerializer(
         StringRepresentationSerializer,
         HistoryInformationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -454,6 +459,7 @@ class FeatureTypeSerializer(
 class WebFeatureServiceSerializer(
         StringRepresentationSerializer,
         HistoryInformationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -508,6 +514,7 @@ class WebFeatureServiceSerializer(
 
 
 class WebFeatureServiceCreateSerializer(
+    SystemInfoSerializerMixin,
         ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
@@ -527,7 +534,7 @@ class WebFeatureServiceCreateSerializer(
         )
 
 
-class CatalogueServiceOperationUrlSerializer(ModelSerializer):
+class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
     # url = SerializerMethodField()
 
@@ -540,6 +547,7 @@ class CatalogueServiceOperationUrlSerializer(ModelSerializer):
 
 
 class CatalogueServiceCreateSerializer(
+        SystemInfoSerializerMixin,
         ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
@@ -559,6 +567,7 @@ class CatalogueServiceCreateSerializer(
 class CatalogueServiceSerializer(
         StringRepresentationSerializer,
         HistoryInformationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:csw-detail",
@@ -630,7 +639,7 @@ class CatalogueServiceSerializer(
             return instance.running_harvesting_job[0]
 
 
-class CatalogueServiceOperationUrlSerializer(ModelSerializer):
+class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
     # url = HyperlinkedIdentityField(
     #    view_name="registry:wms-operationurls-detail",
@@ -646,4 +655,5 @@ class CatalogueServiceOperationUrlSerializer(ModelSerializer):
 
     class Meta:
         model = CatalogueServiceOperationUrl
+        fields = "__all__"
         fields = "__all__"

@@ -2,7 +2,8 @@ from accounts.models.users import User
 from accounts.serializers.groups import GroupSerializer
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
-from extras.serializers import StringRepresentationSerializer
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from rest_framework.relations import HyperlinkedIdentityField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import ModelSerializer
@@ -10,6 +11,7 @@ from rest_framework_json_api.serializers import ModelSerializer
 
 class UserSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -30,7 +32,7 @@ class UserSerializer(
         exclude = ("password", )
 
 
-class UserCreateSerializer(ModelSerializer):
+class UserCreateSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
     url = HyperlinkedIdentityField(
         view_name='accounts:user-detail',
@@ -57,4 +59,5 @@ class UserCreateSerializer(ModelSerializer):
         user = super().save(**kwargs)
         # set the correct password
         user.set_password(self.validated_data['password'])
+        return user
         return user

@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Layout, type Identifier, type LayoutProps } from 'react-admin';
 import { ReadyState } from 'react-use-websocket';
 
@@ -13,6 +13,7 @@ import { useHttpClientContext } from '../../context/HttpClientContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
+import { useSystemTime } from '../../jsonapi/hooks/useSystemTime';
 import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
 import Menu from './Menu';
@@ -28,6 +29,9 @@ declare module 'notistack' {
   }
 }
 
+
+
+
 // Dirty hack to append SnackbarObserver
 const MyLayout = (
   {
@@ -35,12 +39,28 @@ const MyLayout = (
     ...rest
   }: LayoutProps
 ): ReactNode => {
-  const { api } = useHttpClientContext();
-  const readyState = '1'
+  const { api, realtimeIsReady } = useHttpClientContext();
   const footerRef = useRef(null);
   const [footerHeight, setFooterHeight] = useState<number>();
+  const systemTime = useSystemTime();
   
   useResizeObserver(footerRef ?? null, (entry) => setFooterHeight(entry.contentRect.height))
+
+  const readyStateColor = useMemo(()=>{
+    switch(realtimeIsReady){
+      case ReadyState.CONNECTING:
+        return 'warning'
+      case ReadyState.OPEN:
+        return 'success'
+      case ReadyState.CLOSING:
+      case ReadyState.CLOSED:
+        return 'error'
+      case ReadyState.UNINSTANTIATED:
+      default:
+        return 'info'
+
+    }
+  },[realtimeIsReady])
 
   return (
     <SnackbarProvider
@@ -93,14 +113,19 @@ const MyLayout = (
               </IconButton>
             </Grid>
 
-            <Grid  alignItems="center" >
-              <Tooltip title={readyState === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
-                <IconButton padding={1} >
-                  <CircleIcon
-                    color={readyState === ReadyState.OPEN ? 'success': 'error'}
-                  />
-                </IconButton>
-              </Tooltip>
+            <Grid container alignItems="center"  justifyContent='space-between'>
+              <Grid>
+                <Typography>{systemTime ?? ''}</Typography>
+              </Grid>
+              <Grid>
+                <Tooltip title={realtimeIsReady === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
+                  <IconButton padding={1} >
+                    <CircleIcon
+                      color={readyStateColor}
+                    />
+                  </IconButton>
+                </Tooltip>
+              </Grid>
             </Grid>
           
           </Grid>

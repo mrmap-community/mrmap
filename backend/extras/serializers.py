@@ -1,8 +1,7 @@
-from datetime import datetime
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django_celery_beat.models import CrontabSchedule
+from django.db.models.functions import datetime
+from django.utils import timezone
 from guardian.core import ObjectPermissionChecker
 from rest_framework_json_api.relations import \
     SerializerMethodResourceRelatedField
@@ -71,3 +70,11 @@ class HistoryInformationSerializer(ModelSerializer):
 
     def get_last_modified_by(self, instance):
         return instance.last_history[0].history_user if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None
+
+
+class SystemInfoSerializerMixin:
+    def get_root_meta(self, resource, many):
+
+        return {
+            "system_time": timezone.localtime(timezone.now())
+        }

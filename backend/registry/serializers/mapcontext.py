@@ -2,8 +2,8 @@ from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from extras.serializers import StringRepresentationSerializer
-from mptt2.models import Tree
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from registry.models import MapContext, MapContextLayer
 from registry.serializers.service import LayerSerializer
 from rest_framework.fields import CharField, IntegerField
@@ -15,6 +15,7 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
 
 class MapContextLayerSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     title = CharField(
@@ -142,6 +143,7 @@ class MapContextLayerSerializer(
 
 class MapContextDefaultSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -174,6 +176,7 @@ class MapContextDefaultSerializer(
 
 class MapContextIncludeSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
@@ -193,4 +196,5 @@ class MapContextIncludeSerializer(
 
     class Meta:
         model = MapContext
+        fields = "__all__"
         fields = "__all__"

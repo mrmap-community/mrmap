@@ -1,12 +1,11 @@
 
 import platform
 
-from celery.beat import Service
 from django import __version__ as DJANGO_VERSION
-from django.conf import settings
 from django.db import ProgrammingError, connection
 from django.db.models.functions import datetime
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
+from django_redis import get_redis_connection
 from MrMap import VERSION
 from MrMap.celery import app
 from rest_framework_json_api.views import ModelViewSet, generics
@@ -100,6 +99,9 @@ class SystemView(generics.RetrieveAPIView):
 
     serializer_class = SystemSerializer
 
+    def check_docker_container(self):
+        pass
+
     def get_object(self):
 
         # System stats
@@ -121,7 +123,13 @@ class SystemView(generics.RetrieveAPIView):
         try:
             stats = app.control.inspect().stats() or {}
             celery_worker_count = len(stats)
-        except:
+        except Exception:
+            pass
+        redis_up = False
+        try:
+            c = get_redis_connection()
+            redis_up = c.ping()
+        except Exception:
             pass
 
         return {
@@ -133,5 +141,6 @@ class SystemView(generics.RetrieveAPIView):
             'database_name': db_name,
             'database_size': db_size,
             'celery_worker_count': celery_worker_count,
-            'system_time': datetime.datetime.now()
+            'redis_up': redis_up,
+            'system_time': datetime.datetime.now(),
         }

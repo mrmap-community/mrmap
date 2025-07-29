@@ -1,6 +1,7 @@
 
 from django.utils.translation import gettext_lazy as _
-from extras.serializers import StringRepresentationSerializer
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
@@ -19,6 +20,7 @@ from system.fields import CrontabStringField
 
 class PeriodicHarvestingJobSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -38,6 +40,7 @@ class PeriodicHarvestingJobSerializer(
 
 class HarvestedMetadataRelationSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -50,6 +53,7 @@ class HarvestedMetadataRelationSerializer(
 
 class TemporaryMdMetadataFileSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -62,6 +66,7 @@ class TemporaryMdMetadataFileSerializer(
 
 class HarvestingJobSerializer(
         StringRepresentationSerializer,
+        SystemInfoSerializerMixin,
         HyperlinkedModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:harvestingjob-detail')
@@ -156,6 +161,7 @@ class CreateHarvestingJobSerializer(HarvestingJobSerializer):
 
 class HarvestingLogSerializer(
     StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -163,4 +169,5 @@ class HarvestingLogSerializer(
 
     class Meta:
         model = HarvestingLog
+        fields = "__all__"
         fields = "__all__"

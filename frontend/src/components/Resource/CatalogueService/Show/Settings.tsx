@@ -14,6 +14,7 @@ const Settings = ({
     <SimpleList 
       resource='CatalogueServiceOperationUrl'
       relatedResource='CatalogueService'
+      defaultSelectedColumns={['id', 'httpMethod', 'operation', 'url']}
     />
   )
 };

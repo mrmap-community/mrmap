@@ -1,8 +1,11 @@
+
+from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from extras.serializers import (StringRepresentationSerializer,
-                                SystemInfoSerializerMixin)
+                                SystemInfoSerializerMixin,
+                                TimeUntilNextRunMixin)
 from rest_framework.fields import (BooleanField, CharField, DateTimeField,
-                                   IntegerField)
+                                   IntegerField, SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer, Serializer)
 from system.fields import CrontabStringField
@@ -36,12 +39,14 @@ class CrontabScheduleSerializer(
 class PeriodicTaskSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
+    TimeUntilNextRunMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
         view_name='system:periodictask-detail',
     )
     scheduling = CrontabStringField(source='crontab')
+    time_until_next_run = SerializerMethodField(label=_("time until next run"))
 
     class Meta:
         model = PeriodicTask
@@ -55,6 +60,7 @@ class PeriodicTaskSerializer(
             'kwargs',
             'queue',
             'enabled',
+            'time_until_next_run',
         )
 
 

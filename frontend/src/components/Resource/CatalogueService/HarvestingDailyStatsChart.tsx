@@ -2,7 +2,7 @@ import { useTheme } from '@mui/material/styles';
 import { AllSeriesType, ChartContainerProps } from '@mui/x-charts';
 import { ChartSeriesType } from '@mui/x-charts/internals';
 import { useMemo } from 'react';
-import { useListContext, useResourceDefinition } from 'react-admin';
+import { useListContext } from 'react-admin';
 import GradientChartContainer from '../../MUI/GradientChartContainer';
 import HistoryListBase from '../Generic/History/HistoryListBase';
 
@@ -20,7 +20,6 @@ const HarvestingDailyStatsCore = (
     ...props
   }: HistoryChartProps
 ) => {
-  const { name } = useResourceDefinition()
   const { data } = useListContext();
 
   const theme = useTheme();

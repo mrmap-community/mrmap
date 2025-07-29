@@ -29,6 +29,7 @@ import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetada
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
 import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServiceMonitoringSetting';
+import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 
 const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapService", icon: MapIcon, list: WmsList, show: WmsShow},
@@ -50,7 +51,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob},
   {name: "TemporaryMdMetadataFile"},
   {name: "HarvestingLog"},
-  {name: "PeriodicHarvestingJob", icon: UpdateIcon },
+  {name: "PeriodicHarvestingJob", icon: UpdateIcon, list: ListPeriodicHarvestingJob },
 
 
   {name: "Keyword", icon: LocalOfferIcon},

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useAuthState, useDataProvider } from "react-admin";
 import useWebSocket, { ReadyState } from "react-use-websocket";
+import { useHttpClientContext } from "../../../context/HttpClientContext";
 import { getAuthToken } from "../../../providers/authProvider";
 
 
@@ -10,7 +11,8 @@ const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
 const RealtimeBus = () => {
   const { authenticated } = useAuthState();
   const dataProvider = useDataProvider();
-  
+  const  {setRealtimeIsReady} = useHttpClientContext();
+
   const websocketUrl = useMemo(()=>{
       if (authenticated){
         const storedAuthToken = getAuthToken();
@@ -36,6 +38,7 @@ const RealtimeBus = () => {
       const websocket = getWebSocket()
       dataProvider.attachRealtimeOnMessage(websocket)
     }
+    setRealtimeIsReady(readyState)
   },[readyState])
 
   return (

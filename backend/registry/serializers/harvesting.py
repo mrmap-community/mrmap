@@ -1,7 +1,8 @@
 
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (StringRepresentationSerializer,
-                                SystemInfoSerializerMixin)
+                                SystemInfoSerializerMixin,
+                                TimeUntilNextRunMixin)
 from registry.enums.harvesting import LogLevelEnum
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
@@ -14,6 +15,7 @@ from rest_framework_json_api.serializers import (ChoiceField, DurationField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,
+                                                 SerializerMethodField,
                                                  UniqueTogetherValidator)
 from system.fields import CrontabStringField
 
@@ -21,6 +23,7 @@ from system.fields import CrontabStringField
 class PeriodicHarvestingJobSerializer(
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
+    TimeUntilNextRunMixin,
     ModelSerializer
 ):
     url = HyperlinkedIdentityField(
@@ -32,10 +35,12 @@ class PeriodicHarvestingJobSerializer(
         queryset=CatalogueService.objects,
     )
     scheduling = CrontabStringField(source='crontab')
+    time_until_next_run = SerializerMethodField(label=_("time until next run"))
 
     class Meta:
         model = PeriodicHarvestingJob
-        fields = ('url', 'service', 'scheduling')
+        fields = ('url', 'service', 'scheduling',
+                  'time_until_next_run', 'enabled')
 
 
 class HarvestedMetadataRelationSerializer(

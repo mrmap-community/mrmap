@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Layout, type Identifier, type LayoutProps } from 'react-admin';
 import { ReadyState } from 'react-use-websocket';
 
@@ -39,13 +39,28 @@ const MyLayout = (
     ...rest
   }: LayoutProps
 ): ReactNode => {
-  const { api } = useHttpClientContext();
-  const readyState = '1'
+  const { api, realtimeIsReady } = useHttpClientContext();
   const footerRef = useRef(null);
   const [footerHeight, setFooterHeight] = useState<number>();
   const systemTime = useSystemTime();
   
   useResizeObserver(footerRef ?? null, (entry) => setFooterHeight(entry.contentRect.height))
+
+  const readyStateColor = useMemo(()=>{
+    switch(realtimeIsReady){
+      case ReadyState.CONNECTING:
+        return 'warning'
+      case ReadyState.OPEN:
+        return 'success'
+      case ReadyState.CLOSING:
+      case ReadyState.CLOSED:
+        return 'error'
+      case ReadyState.UNINSTANTIATED:
+      default:
+        return 'info'
+
+    }
+  },[realtimeIsReady])
 
   return (
     <SnackbarProvider
@@ -103,10 +118,10 @@ const MyLayout = (
                 <Typography>{systemTime ?? ''}</Typography>
               </Grid>
               <Grid>
-                <Tooltip title={readyState === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
+                <Tooltip title={realtimeIsReady === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
                   <IconButton padding={1} >
                     <CircleIcon
-                      color={readyState === ReadyState.OPEN ? 'success': 'error'}
+                      color={readyStateColor}
                     />
                   </IconButton>
                 </Tooltip>

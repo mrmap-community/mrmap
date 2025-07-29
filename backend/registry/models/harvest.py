@@ -8,7 +8,7 @@ from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, UniqueConstraint
 from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
 from django.utils import timezone
@@ -70,6 +70,7 @@ class ProcessingData(models.Model):
             models.Index(fields=["date_created"]),
             models.Index(fields=["done_at"]),
         ]
+        constraints = []
 
     def abort(self):
         self.phase = HarvestingPhaseEnum.ABORTED.value
@@ -241,6 +242,15 @@ class HarvestingJob(ProcessingData):
         ordering = ProcessingData.Meta.ordering
         get_latest_by = ProcessingData.Meta.get_latest_by
         indexes = ProcessingData.Meta.indexes
+        constraints = ProcessingData.Meta.constraints + [
+            UniqueConstraint(
+                fields=["service"],
+                condition=Q(done_at__isnull=True),
+                name="only_one_unfinished_job_per_service",
+                violation_error_message=_(
+                    "There is an existing noncompleted job for this service.")
+            )
+        ]
 
     def log(self,
             description,

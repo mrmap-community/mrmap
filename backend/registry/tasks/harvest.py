@@ -13,7 +13,7 @@ from eulxml import xmlmap
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
-from registry.enums.harvesting import HarvestingPhaseEnum
+from registry.enums.harvesting import HarvestingPhaseEnum, LogLevelEnum
 
 logger = get_task_logger(__name__)
 
@@ -45,14 +45,25 @@ def finish_harvesting_job(*args, **kwargs):
     queue="default",
 )
 def call_fetch_total_records(*args, **kwargs):
-    from registry.models.harvest import HarvestingJob
+    from registry.models.harvest import HarvestingJob, HarvestingLog
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
         pk=kwargs.get("harvesting_job_id"))
-    total_records = harvesting_job.fetch_total_records()
+    try:
+        total_records = harvesting_job.fetch_total_records()
 
-    harvesting_job.handle_total_records_defined()
-    harvesting_job.save(skip_history_when_saving=False)
-    return total_records
+        harvesting_job.handle_total_records_defined()
+        harvesting_job.save(skip_history_when_saving=False)
+        return total_records
+    except Exception as e:
+        HarvestingLog.objects.create(
+            harvesting_job=harvesting_job,
+            level=LogLevelEnum.ERROR.value,
+            description='something went wrong during call_fetch_total_records()',
+            extended_description=e.with_traceback()
+        )
+        harvesting_job.total_records = 0
+        harvesting_job.save(skip_history_when_saving=False)
+    return 0
 
 
 @shared_task(

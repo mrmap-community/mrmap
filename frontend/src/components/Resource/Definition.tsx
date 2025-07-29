@@ -93,6 +93,7 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   // System
+  {name: "SystemInfo"},
   {name: "CrontabSchedule"},
   {name: "PeriodicTask"},
 ];

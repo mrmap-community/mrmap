@@ -53,6 +53,7 @@ const Menu = ({ dense = false }: MenuProps) => {
     const { name: userName, icon: userIcon } = useResourceDefinition({ resource: "User" })
     const { name: organizationName, icon: organizationIcon } = useResourceDefinition({ resource: "Organization" })    
 
+    const { name: systemInfoName, icon: systemInfoIcon } = useResourceDefinition({ resource: "SystemInfo" })
     const { name: periodicTaskName, icon: periodicTaskIcon } = useResourceDefinition({ resource: "PeriodicTask" })
 
 
@@ -212,6 +213,13 @@ const Menu = ({ dense = false }: MenuProps) => {
                 icon={<DisplaySettingsIcon/>}
                 dense={dense}
             >
+                <MenuItemLink
+                    to={`/${systemInfoName}`}
+                    state={{ _scrollToTop: true }}
+                    primaryText={systemInfoName}
+                    leftIcon={createElementIfDefined(systemInfoIcon)}
+                    dense={dense}
+                />
                 <MenuItemLink
                     to={`/${periodicTaskName}`}
                     state={{ _scrollToTop: true }}

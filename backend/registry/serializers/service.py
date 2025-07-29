@@ -56,6 +56,7 @@ class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerial
 class LayerSerializer(
         StringRepresentationSerializer,
         HistoryInformationSerializer,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layer-detail",

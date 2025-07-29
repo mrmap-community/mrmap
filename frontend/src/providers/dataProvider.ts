@@ -10,6 +10,7 @@ import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/
 import { capsulateJsonApiPrimaryData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils'
 import { getAuthToken } from './authProvider'
 import i18nProvider from './i18nProvider'
+import { updateSystemTime } from './systemTimeProvider'
 
 
 type search = (
@@ -51,6 +52,7 @@ export interface GetListJsonApiParams extends GetListParams {
 export interface JsonApiDataProviderOptions extends Options {
   httpClient: OpenAPIClientAxios
   total?: string
+  systemTime?: string
   realtimeBus?: WebSocketLike
 }
 
@@ -93,6 +95,7 @@ class OperationNotFoundError extends Error {
 }
 
 let subscriptions: Subscription[] = []
+
 
 const handleOperationNotFoundError = (): void => {
 
@@ -175,11 +178,17 @@ const getTotal = (response: JsonApiDocument, total: string): number => {
   return _total
 }
 
-const getSystemTime = (response: JsonApiDocument, systemTime: string): Date => {
+
+const getSystemTime = (response: JsonApiDocument, systemTime: string): string | undefined => {
   const _systemTime = jsonpointer.get(response, systemTime)
-  const fixed = _systemTime.replace(/(\.\d{3})\d*/, '$1');
-  return new Date(fixed);
+  const fixed = _systemTime?.replace(/(\.\d{3})\d*/, '$1');
+  if (fixed === undefined){
+    return
+  } 
+  updateSystemTime(fixed)
+  return fixed;
 }
+
 
 const realtimeOnMessage = (event: MessageEvent): void => {
   const data = JSON.parse(event?.data) as MrMapMessage

@@ -7,11 +7,16 @@ from rest_framework_extensions.routers import ExtendedSimpleRouter
 app_name = 'accounts'
 
 router = ExtendedSimpleRouter(trailing_slash=False)
+
+users_routes = router.register(
+    r'users', user_views.UserViewSet, basename='user')
+users_routes.register(r'groups', group_views.NestedGroupViewSet,
+                      basename='user-groups', parents_query_lookups=['user'])
+users_routes.register(r'organizations', group_views.NestedOrganizationViewSet,
+                      basename='user-organizations', parents_query_lookups=['user'])
 (
-    router.register(r'users', user_views.UserViewSet, basename='user')
-          .register(r'groups', group_views.NestedGroupViewSet, basename='user-groups', parents_query_lookups=['user']),
-    router.register(r'users', user_views.UserViewSet, basename='user')
-          .register(r'organizations', group_views.NestedOrganizationViewSet, basename='user-organizations', parents_query_lookups=['user']),
+    users_routes,
+
     router.register(r'groups', group_views.GroupViewSet,
                     basename='group'),
     router.register(r'organizations',

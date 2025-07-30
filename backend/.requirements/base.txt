@@ -1,36 +1,36 @@
-Django==5.1.7
+Django==5.2.4
 # adds runserver_plus
-django-extensions==3.2.3
+django-extensions==4.1
 # adds history models
-django-simple-history==3.8.0
+django-simple-history==3.10.1
 # adds filtersets for use in views
-django-filter==24.3
+django-filter==25.1
 # adds object permissions
-django-guardian==2.4.0
+django-guardian==3.0.3
 # adds mptt tree model
 django-mptt2==0.2.1
 # adds redis cache backend for django
-django-redis==5.4.0
+django-redis==6.0.0
 # adds captcha 
-django-simple-captcha==0.6.0
+django-simple-captcha==0.6.2
 # adds password hashing algorithm argon2
-argon2-cffi==23.1.0
+argon2-cffi==25.1.0
 # adds cors header middleware for django to configure wildcard cors
 django-cors-headers==4.7.0
 # postgres sql adapter
-psycopg==3.2.6
-psycopg[binary]==3.2.6
-psycopg[pool]==3.2.6
+psycopg==3.2.9
+psycopg[binary]==3.2.9
+psycopg[pool]==3.2.9
 # adds class based xml mappers
 eulxml==1.1.3
 # library to process xml
-lxml==5.3.1
+lxml==6.0.0
 # ISO 8601 date/time parser
 isodate==0.7.2
 # Python Imaging Library to create security images for example
-Pillow==11.1.0
+Pillow==11.3.0
 # http client lib
-requests==2.32.3
+requests==2.32.4
 # adds possiblity to export csv, excle, ods...
 tablib==3.8.0
 # YAML 1.1 parser
@@ -38,35 +38,35 @@ PyYAML==6.0.2
 # wsgi application server
 gunicorn==23.0.0
 # asgi application server
-uvicorn==0.34.0
+uvicorn==0.35.0
 # adds rest based views
-djangorestframework==3.14.0
+djangorestframework==3.16.0
 # adds geojson filters
-djangorestframework-gis==1.1
+djangorestframework-gis==1.2.0
 # adds jsonapi implementation on top of django rest framework
-djangorestframework-jsonapi==7.1.0
-#djangorestframework-jsonapi[django-filter]==7.0.2
+djangorestframework-jsonapi==8.0.0
+#djangorestframework-jsonapi[django-filter]==8.0.0
 # adds nested rest views registration
-drf-extensions==0.7.1
+drf-extensions==0.8.0
 # needed for openapi schema generation
-uritemplate==4.1.1
+uritemplate==4.2.0
 # adds redis cache backed
-redis==5.2.1
+redis==6.2.0
 # adds background task processing 
-celery==5.5.1
-gevent==24.11.1
-django-celery-beat==2.7.0
+celery==5.5.3
+gevent==25.5.1
+django-celery-beat==2.8.1
 # adds database results for celery tasks
-django-celery-results==2.5.1
+django-celery-results==2.6.0
 # adds websockets
-websockets==15.0
-channels==4.2.0
-channels[daphne]==4.2.0
+websockets==15.0.1
+channels==4.3.0
+channels[daphne]==4.3.0
 # adds redis cache backend implementation for channels package
-channels-redis==4.2.1
+channels-redis==4.3.0
 # Object mapper lib
 odin==2.10
-django-cte==1.3.3
+django-cte==2.0.0
 drf-spectacular-jsonapi==0.5.2
 django-ows-lib==0.16.0
 camel-converter==4.0.1

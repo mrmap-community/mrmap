@@ -1,17 +1,15 @@
 import re
-from datetime import timedelta
 
 import pytz
 from django.conf import settings
-from django.utils import timezone
 from django_celery_beat.models import CrontabSchedule
-from rest_framework import fields, serializers
+from rest_framework import serializers
 
 CRONTAB_TIME_REGEX = (
     r"^(?P<minute>[\d\*/,\-]+)\s+"
     r"(?P<hour>[\d\*/,\-]+)\s+"
     r"(?P<day_of_month>[\d\*/,\-]+)\s+"
-    r"(?P<month>[\d\*/,\-]+)\s+"
+    r"(?P<month_of_year>[\d\*/,\-]+)\s+"
     r"(?P<day_of_week>[\d\*/,\-]+)"
     r"(?:\s+(?P<timezone>UTC(?:[+-]\d{1,2}(?::\d{2})?)?))?"
     r"\Z"

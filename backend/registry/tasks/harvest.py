@@ -55,11 +55,12 @@ def call_fetch_total_records(*args, **kwargs):
         harvesting_job.save(skip_history_when_saving=False)
         return total_records
     except Exception as e:
+        tb = traceback.format_exc()
         HarvestingLog.objects.create(
             harvesting_job=harvesting_job,
             level=LogLevelEnum.ERROR.value,
             description='something went wrong during call_fetch_total_records()',
-            extended_description=e.with_traceback()
+            extended_description=tb
         )
         harvesting_job.total_records = 0
         harvesting_job.save(skip_history_when_saving=False)

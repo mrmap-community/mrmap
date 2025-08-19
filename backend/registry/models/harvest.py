@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from uuid import uuid4
@@ -790,10 +791,11 @@ class PeriodicHarvestingJob(PeriodicTask):
             "data": {},
             "user_pk": system_user.pk
         }
-
-        self.kwargs.update({
-            "http_request": http_request,
-        })
+        if isinstance(self.kwargs, str):
+            self.kwargs = json.loads(self.kwargs)
+            self.kwargs.update({
+                "http_request": http_request,
+            })
 
     class Meta:
         verbose_name = _('Periodic Harvesting Job')

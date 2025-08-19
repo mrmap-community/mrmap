@@ -8,7 +8,7 @@ from django.contrib.gis.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
-from django.db.models import F, UniqueConstraint
+from django.db.models import UniqueConstraint
 from django.db.models.fields.files import FieldFile
 from django.db.models.query_utils import Q
 from django.utils import timezone
@@ -26,8 +26,7 @@ from registry.enums.harvesting import (CollectingStatenEnum,
                                        LogLevelEnum)
 from registry.enums.metadata import MetadataOriginEnum
 from registry.exceptions.harvesting import InternalServerError
-from registry.managers.havesting import (HarvestedMetadataRelationManager,
-                                         HarvestedMetadataRelationQuerySet,
+from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
                                          HarvestingJobManager,
                                          TemporaryMdMetadataFileManager)
 from registry.models.metadata import (DatasetMetadataRecord,
@@ -391,7 +390,6 @@ class HarvestingJob(ProcessingData):
         if self.service:
             first_history = self.change_log.first()
             created_by = first_history.history_user if first_history else None
-
             return {
                 "path": "somepath",
                 "method": "GET",
@@ -595,7 +593,8 @@ class TemporaryMdMetadataFile(models.Model):
         blank=True,
         verbose_name=_("download duration"),
         help_text=_("This is the duration it tooked proportionately to download this record. "
-                    "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"))
+                    "This means if the GetRecords response contains 50 records for example, "
+                    "the request duration was 50 * self.download_duration"))
 
     objects: TemporaryMdMetadataFileManager = TemporaryMdMetadataFileManager()
 
@@ -782,6 +781,19 @@ class PeriodicHarvestingJob(PeriodicTask):
             }
         if not self.pk and not self.queue:
             self.queue = "default"
+
+        system_user = get_user_model().objects.get_or_create(username="system")
+        http_request = {
+            "path": "/periodic-harvesting-job",
+            "method": "GET",
+            "content_type": "application/json",
+            "data": {},
+            "user_pk": system_user.pk
+        }
+
+        self.kwargs.update({
+            "http_request": http_request,
+        })
 
     class Meta:
         verbose_name = _('Periodic Harvesting Job')

@@ -32,6 +32,8 @@ class IsoMetadataManager(models.Manager):
         # collect them once.
         if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
             self.current_user = HistoricalRecords.context.request.user
+        else:
+            self.current_user = None
 
     def _create_contact(self, contact):
         if contact:

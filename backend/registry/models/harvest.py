@@ -782,7 +782,7 @@ class PeriodicHarvestingJob(PeriodicTask):
         if not self.pk and not self.queue:
             self.queue = "default"
 
-        system_user = get_user_model().objects.get_or_create(username="system")
+        system_user, _ = get_user_model().objects.get_or_create(username="system")
         http_request = {
             "path": "/periodic-harvesting-job",
             "method": "GET",

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import re
+import socket
 from glob import glob
 from warnings import warn
 
@@ -501,7 +502,7 @@ LOGGING = {
     "formatters": {
         "verbose": {
             # see https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
-            "format": "{levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}",
+            "format": "%s | {levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}" % socket.gethostname(),
             "style": "{",
         },
         "simple": {
@@ -510,12 +511,12 @@ LOGGING = {
         },
     },
     "handlers": {
-        # "syslog": {
-        #    "class": "logging.handlers.SysLogHandler",
-        #    "formatter": "verbose",
-        #    "facility": "user",
-        #    "address": ("localhost", 1514),
-        # },
+        "syslog": {
+            "class": "logging.handlers.SysLogHandler",
+            "formatter": "verbose",
+            "facility": "user",
+            "address": ("graylog", 514),
+        },
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
@@ -533,13 +534,13 @@ LOGGING = {
     },
     "loggers": {
         "MrMap.root": {
-            "handlers": ["console"],
+            "handlers": ["console", "syslog"],
             "level": "DEBUG" if DEBUG else "INFO",
             "disabled": False,
             "propagate": True,
         },
         "django": {
-            "handlers": ["console"],
+            "handlers": ["console", "syslog"],
             "propagate": True,
         },
     },

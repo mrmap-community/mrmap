@@ -17,8 +17,8 @@ a2dissite 000-default
 a2ensite proxy.conf 
 service apache2 reload
 
-rm -rf /var/spool/squid3/*
-service squid3 start
+rm -rf /var/spool/squid/*
+service squid start
 basicArtifactoryUrl=$REPO_URL
 appServerDeplPath=/var/lib/jetty/webapps
 appServerUserGroup=jetty:jetty
@@ -132,7 +132,7 @@ if [[ $max_mem_kb -lt 1048576 ]]; then
   exit 1;
 fi
 
-JAVA_OPTIONS="-server -XX:+UseConcMarkSweepGC -XX:+UseParNewGC $xms_xmx $javaHttpProxyOpts $javaHttpsProxyOpts"
+JAVA_OPTIONS="-server $xms_xmx $javaHttpProxyOpts $javaHttpsProxyOpts"
 export JAVA_OPTIONS
 echo "Using JAVA_OPTIONS: ${JAVA_OPTIONS}"
 

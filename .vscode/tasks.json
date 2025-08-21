@@ -255,6 +255,19 @@
                 "--build",
                 "behave"
             ]
+        },
+        {
+            "label": "Docker Compose: graylog",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "--build",
+                "graylog"
+            ]
         }
     ]
 }

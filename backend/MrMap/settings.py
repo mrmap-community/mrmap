@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import re
+import socket
 from glob import glob
 from warnings import warn
 
@@ -501,7 +502,7 @@ LOGGING = {
     "formatters": {
         "verbose": {
             # see https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
-            "format": "{levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}",
+            "format": "%s | {levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}" % socket.gethostname(),
             "style": "{",
         },
         "simple": {
@@ -510,26 +511,11 @@ LOGGING = {
         },
     },
     "handlers": {
-        # "syslog": {
-        #    "class": "logging.handlers.SysLogHandler",
-        #    "formatter": "verbose",
-        #    "facility": "user",
-        #    "address": ("localhost", 1514),
-        # },
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
             "level": "INFO"
         },
-        # FIXME:!!!!!!
-        # DO NOT active filelogger for celery worker. Bottleneck!!!!!
-        # "file": {
-        #     "class": "logging.handlers.RotatingFileHandler",
-        #     "maxBytes": LOG_FILE_MAX_SIZE,
-        #     "backupCount": LOG_FILE_BACKUP_COUNT,
-        #     "filename": LOG_DIR + f"/{socket.gethostname()}-logs.log",
-        #     "formatter": "verbose",
-        # },
     },
     "loggers": {
         "MrMap.root": {
@@ -544,6 +530,23 @@ LOGGING = {
         },
     },
 }
+try:
+    """if syslog server is not reachable the application will not startup otherwise"""
+    socket.getaddrinfo("graylog", 514, proto=socket.IPPROTO_UDP)
+    LOGGING["handlers"].update({
+        "syslog": {
+            "class": "logging.handlers.SysLogHandler",
+            "formatter": "verbose",
+            "facility": "user",
+            "address": ("graylog", 514),
+        },
+    })
+    LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")
+    LOGGING["loggers"]["django"]["handlers"].append("syslog")
+    print("sylog logging handler configured.")
+except socket.gaierror:
+    print("syslog server is not reachable. skipping syslog handler setup.")
+
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 

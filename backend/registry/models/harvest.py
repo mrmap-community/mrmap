@@ -770,6 +770,7 @@ class PeriodicHarvestingJob(PeriodicTask):
         help_text=_("this is the service which shall be harvested"))
 
     def __init__(self, *args, **kwargs) -> None:
+        # TODO: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
         super().__init__(*args, **kwargs)
         if not self.pk and not self.name:
             # we do not need this field now... just generate random data

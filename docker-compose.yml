@@ -12,12 +12,12 @@ services:
       - mrmap-internal
     env_file:
       - ./docker/postgis/.db.env
-    # migration guide:
-    # 1. backup current db => docker exec -it `container_id` pg_dumpall -U mrmap  > .upgrade_backup.sql
-    # 2. call pg_extract script => backend/.bash_scripts/pg_extract.sh .upgrade_backup.sql mrmap >> upgrade_backup_mydb.sql
-    # 3. change image definition to higher postgis; change volume source to new location; start container => docker compose up postgis --build
-    # 4. cat upgrade_backup_mydb.sql | docker exec -i `container_id` psql -U mrmap
-    # Done
+  # migration guide:
+  # 1. backup current db => docker exec -it `container_id` pg_dumpall -U mrmap  > .upgrade_backup.sql
+  # 2. call pg_extract script => backend/.bash_scripts/pg_extract.sh .upgrade_backup.sql mrmap >> upgrade_backup_mydb.sql
+  # 3. change image definition to higher postgis; change volume source to new location; start container => docker compose up postgis --build
+  # 4. cat upgrade_backup_mydb.sql | docker exec -i `container_id` psql -U mrmap
+  # Done
 
   redis:
     image: library/redis:7.4.2-alpine3.21
@@ -190,6 +190,89 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+  graylog-db:
+    image: "mongo:6.0"  
+    restart: "on-failure"
+    hostname: "graylogdb"
+    networks:
+      - graylog
+    volumes:
+      - "graylog-db-data:/data/db"
+      - "graylog-db-config:/data/configdb"  
+
+  # For DataNode setup, graylog starts with a preflight UI, this is a change from just using OpenSearch/Elasticsearch.
+  # Please take a look at the README at the top of this repo or the regular docs for more info.
+  # Graylog Data Node: https://hub.docker.com/r/graylog/graylog-datanode
+
+  # ⚠️ Make sure this is set on the host before starting:
+  # echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+  # sudo sysctl -p
+  datanode:
+    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:6.3}"
+    hostname: "datanode"
+    environment:
+      GRAYLOG_DATANODE_NODE_ID_FILE: "/var/lib/graylog-datanode/node-id"
+      # GRAYLOG_DATANODE_PASSWORD_SECRET and GRAYLOG_PASSWORD_SECRET MUST be the same value
+      GRAYLOG_DATANODE_PASSWORD_SECRET: "Etlkb4K7NzJ63iVFJUbEE0oSRHUyFKWzffxkl6KPsVqPOa9VoHRqiNN2wRbmt4yaDQOPKrNWbDLfQVBmnfAnBXjSv87gupmK"
+      GRAYLOG_DATANODE_MONGODB_URI: "mongodb://graylogdb:27017/graylog"
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    #ports:
+    #- "8999:8999/tcp"   # DataNode API
+    #- "9200:9200/tcp"
+    #- "9300:9300/tcp"
+    networks:
+      - graylog  
+    volumes:
+      - "graylog-datanode:/var/lib/graylog-datanode"
+    restart: "on-failure"
+
+
+  # Graylog: https://hub.docker.com/r/graylog/graylog-enterprise
+  graylog:
+    hostname: "gaylog"
+    image: "${GRAYLOG_IMAGE:-graylog/graylog:6.3}"
+    depends_on:
+      graylog-db:
+        condition: "service_started"
+      datanode:
+        condition: "service_started"
+    entrypoint: "/usr/bin/tini --  /docker-entrypoint.sh"
+    environment:
+      GRAYLOG_NODE_ID_FILE: "/usr/share/graylog/data/data/node-id"
+      # GRAYLOG_DATANODE_PASSWORD_SECRET and GRAYLOG_PASSWORD_SECRET MUST be the same value
+      GRAYLOG_PASSWORD_SECRET: "Etlkb4K7NzJ63iVFJUbEE0oSRHUyFKWzffxkl6KPsVqPOa9VoHRqiNN2wRbmt4yaDQOPKrNWbDLfQVBmnfAnBXjSv87gupmK"
+      GRAYLOG_ROOT_PASSWORD_SHA2: "e3c652f0ba0b4801205814f8b6bc49672c4c74e25b497770bb89b22cdeb4e951"
+      GRAYLOG_HTTP_BIND_ADDRESS: "0.0.0.0:9000"
+      GRAYLOG_HTTP_EXTERNAL_URI: "http://localhost:9000/"
+      GRAYLOG_MONGODB_URI: "mongodb://graylogdb:27017/graylog"
+    # ports:
+    #- "5044:5044/tcp"   # Beats
+    #- "5140:5140/udp"   # Syslog
+    #- "5140:5140/tcp"   # Syslog
+    #- "514:514/tcp"   # Syslog
+    #- "5555:5555/tcp"   # RAW TCP
+    #- "5555:5555/udp"   # RAW UDP
+    # - "9000:9000/tcp"   # Server API
+    #- "12201:12201/tcp" # GELF TCP
+    #- "12201:12201/udp" # GELF UDP
+    #- "10000:10000/tcp" # Custom TCP port
+    #- "10000:10000/udp" # Custom UDP port
+    #- "13301:13301/tcp" # Forwarder data
+    #- "13302:13302/tcp" # Forwarder config
+    networks:
+      - graylog
+      - mrmap-internal
+    volumes:
+      - "graylog-data:/usr/share/graylog/data/data"
+    restart: "on-failure"
+
+
 volumes:
   frontend-static: null
   backend-static: null
@@ -199,8 +282,12 @@ volumes:
   celery-state: null
   db-data: null
   db-data-17: null
-  mem-db-data:
+  mem-db-data: null
+  graylog-db-data: null
+  graylog-db-config: null
+  graylog-data: null
+  graylog-datanode: null
 
-    null
 networks:
   mrmap-internal: null
+  graylog: null

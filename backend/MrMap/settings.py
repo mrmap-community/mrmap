@@ -511,40 +511,42 @@ LOGGING = {
         },
     },
     "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "level": "INFO"
+        },
+    },
+    "loggers": {
+        "MrMap.root": {
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "disabled": False,
+            "propagate": True,
+        },
+        "django": {
+            "handlers": ["console"],
+            "propagate": True,
+        },
+    },
+}
+try:
+    """if syslog server is not reachable the application will not startup otherwise"""
+    socket.getaddrinfo("graylog", 514, proto=socket.IPPROTO_UDP)
+    LOGGING["handlers"].update({
         "syslog": {
             "class": "logging.handlers.SysLogHandler",
             "formatter": "verbose",
             "facility": "user",
             "address": ("graylog", 514),
         },
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-            "level": "INFO"
-        },
-        # FIXME:!!!!!!
-        # DO NOT active filelogger for celery worker. Bottleneck!!!!!
-        # "file": {
-        #     "class": "logging.handlers.RotatingFileHandler",
-        #     "maxBytes": LOG_FILE_MAX_SIZE,
-        #     "backupCount": LOG_FILE_BACKUP_COUNT,
-        #     "filename": LOG_DIR + f"/{socket.gethostname()}-logs.log",
-        #     "formatter": "verbose",
-        # },
-    },
-    "loggers": {
-        "MrMap.root": {
-            "handlers": ["console", "syslog"],
-            "level": "DEBUG" if DEBUG else "INFO",
-            "disabled": False,
-            "propagate": True,
-        },
-        "django": {
-            "handlers": ["console", "syslog"],
-            "propagate": True,
-        },
-    },
-}
+    })
+    LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")
+    LOGGING["loggers"]["django"]["handlers"].append("syslog")
+    print("sylog logging handler configured.")
+except socket.gaierror:
+    print("syslog server is not reachable. skipping syslog handler setup.")
+
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
 

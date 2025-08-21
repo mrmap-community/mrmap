@@ -5,7 +5,7 @@ services:
   frontend:
     build:
       context: ./
-      dockerfile: ./docker/nginx.Dockerfile
+      dockerfile: ./docker/nginx/nginx.Dockerfile
       args:
         - VITE_API_BASE_URL=localhost:8001
         - VITE_API_SCHEMA=http

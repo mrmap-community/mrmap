@@ -35,7 +35,7 @@ services:
 
   pre-commit-check:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'

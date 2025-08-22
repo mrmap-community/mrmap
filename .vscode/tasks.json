@@ -257,7 +257,7 @@
             ]
         },
         {
-            "label": "Docker Compose: graylog",
+            "label": "Docker Compose: openobserve",
             "type": "shell",
             "command": "docker",
             "args": [
@@ -266,7 +266,7 @@
                 "${workspaceFolder}/docker-compose.yml",
                 "up",
                 "--build",
-                "graylog"
+                "openobserve"
             ]
         }
     ]

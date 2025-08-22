@@ -8,10 +8,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
+import json
 import logging
 import os
 import re
 import socket
+from datetime import datetime
 from glob import glob
 from warnings import warn
 
@@ -496,14 +498,30 @@ if not os.path.exists(FILE_IMPORT_DIR):
     os.makedirs(FILE_IMPORT_DIR)
 
 
+class RFC5424Formatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created).astimezone()
+        # Hier ohne Mikrosekunden, mit ISO 8601 Zeitzone (mit Doppelpunkt)
+        return dt.replace(microsecond=0).isoformat()
+
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {
-            # see https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
-            "format": "%s | {levelname} {asctime} {pathname} {lineno} {module} {process:d} {thread:d}: {message}" % socket.gethostname(),
+        "rfc5424": {
+            # see rfc5424 for syslog format: https://datatracker.ietf.org/doc/html/rfc5424
+            # available fields: https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
+            "()": RFC5424Formatter,
+            "format": "1 {asctime} {hostname} mrmap {process:d} - "
+            '[fileSDID@python module="{module}" pathname="{pathname}" lineno="{lineno}"]'
+            '[exceptionSDID@python exc_info="{exc_info}"]'
+            " \ufeff{message}",
             "style": "{",
+            "datefmt": "%Y-%m-%dT%H:%M:%S%z",
+            "defaults": {
+                "hostname": socket.gethostname()
+            }
         },
         "simple": {
             "format": "{levelname} {message}",
@@ -513,7 +531,7 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "simple",
             "level": "INFO"
         },
     },
@@ -532,13 +550,13 @@ LOGGING = {
 }
 try:
     """if syslog server is not reachable the application will not startup otherwise"""
-    socket.getaddrinfo("graylog", 514, proto=socket.IPPROTO_UDP)
+    socket.getaddrinfo("openobserve", 5514, proto=socket.IPPROTO_UDP)
     LOGGING["handlers"].update({
         "syslog": {
             "class": "logging.handlers.SysLogHandler",
-            "formatter": "verbose",
+            "formatter": "rfc5424",
             "facility": "user",
-            "address": ("graylog", 514),
+            "address": ("openobserve", 5514),
         },
     })
     LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")

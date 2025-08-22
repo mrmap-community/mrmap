@@ -1,0 +1,11 @@
+{
+  "list": [
+    {
+      "function": ".event = parse_syslog!(.event) \n .",
+      "name": "parse_syslog",
+      "params": "row",
+      "numArgs": 1,
+      "transType": 0
+    }
+  ]
+}

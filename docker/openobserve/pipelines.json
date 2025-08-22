@@ -1,0 +1,75 @@
+{
+  "list": [
+    {
+      "pipeline_id": "7364584270175666176",
+      "version": 0,
+      "enabled": true,
+      "org": "default",
+      "name": "parse_syslog_event",
+      "description": "",
+      "source": {
+        "source_type": "realtime",
+        "org_id": "default",
+        "stream_name": "default",
+        "stream_type": "logs"
+      },
+      "nodes": [
+        {
+          "id": "e8d8bb38-9880-4178-a483-241aa1304e31",
+          "data": {
+            "node_type": "stream",
+            "org_id": "default",
+            "stream_name": "default",
+            "stream_type": "logs"
+          },
+          "position": {
+            "x": 26.5,
+            "y": 54.333332
+          },
+          "io_type": "input"
+        },
+        {
+          "id": "dcb3a992-56ac-4573-9fc6-b09c9d98d19d",
+          "data": {
+            "node_type": "stream",
+            "org_id": "default",
+            "stream_name": "default",
+            "stream_type": "logs"
+          },
+          "position": {
+            "x": 122.0,
+            "y": 275.33334
+          },
+          "io_type": "output"
+        },
+        {
+          "id": "64919708-b90d-49d0-897d-b466b32d9db1",
+          "data": {
+            "node_type": "function",
+            "name": "parse_syslog",
+            "after_flatten": true,
+            "num_args": 0
+          },
+          "position": {
+            "x": 39.0,
+            "y": 161.0
+          },
+          "io_type": "default"
+        }
+      ],
+      "edges": [
+        {
+          "id": "ee8d8bb38-9880-4178-a483-241aa1304e31-64919708-b90d-49d0-897d-b466b32d9db1",
+          "source": "e8d8bb38-9880-4178-a483-241aa1304e31",
+          "target": "64919708-b90d-49d0-897d-b466b32d9db1"
+        },
+        {
+          "id": "e64919708-b90d-49d0-897d-b466b32d9db1-dcb3a992-56ac-4573-9fc6-b09c9d98d19d",
+          "source": "64919708-b90d-49d0-897d-b466b32d9db1",
+          "target": "dcb3a992-56ac-4573-9fc6-b09c9d98d19d"
+        }
+      ],
+      "paused_at": null
+    }
+  ]
+}

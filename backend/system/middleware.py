@@ -1,3 +1,4 @@
+import json
 from logging import Logger
 
 from django.conf import settings
@@ -80,21 +81,39 @@ class SystemLogMiddleware:
             for idx, q in enumerate(queries, start=1):
                 sql_text = q["sql"]
                 duration = q["duration_ms"]
-                # SQL in Chunks splitten
-                parts = [
-                    sql_text[i:i + self.max_chunk_size]
-                    for i in range(0, len(sql_text), self.max_chunk_size)
-                ]
+
                 query_id = f"{request_id}_query{idx}"
 
-                for part_idx, part in enumerate(parts, start=1):
+                # Berechne Basisgröße für das Event (ohne SQL)
+                chunk_extra_base = {
+                    "request_id": request_id,
+                    "query_id": query_id,
+                    "duration_ms": duration,
+                }
+                base_size = len(json.dumps(chunk_extra_base).encode("utf-8"))
+
+                # Maximalgröße für SQL-Chunk
+                max_chunk_bytes = self.max_event_bytes - base_size - 50  # Sicherheits-Puffer
+
+                # Splitte SQL nach Bytes
+                chunks = []
+                current_chunk = ""
+                for char in sql_text:
+                    if len((current_chunk + char).encode("utf-8")) > max_chunk_bytes:
+                        chunks.append(current_chunk)
+                        current_chunk = char
+                    else:
+                        current_chunk += char
+                if current_chunk:
+                    chunks.append(current_chunk)
+
+                # Logge jeden Chunk als eigenes Event
+                for part_idx, part in enumerate(chunks, start=1):
                     chunk_extra = {
-                        "request_id": request_id,
-                        "query_id": query_id,
+                        **chunk_extra_base,
                         "sql_part": part,
                         "sql_part_index": part_idx,
-                        "sql_part_total": len(parts),
-                        "duration_ms": duration,
+                        "sql_part_total": len(chunks),
                     }
                     logger.warning(msg="Slow Request SQL Chunk",
                                    extra=chunk_extra)

@@ -1,6 +1,5 @@
 import os
 from itertools import chain
-from typing import Any
 
 from csw.exceptions import InvalidQuery, NotSupported
 from django.conf import settings
@@ -11,12 +10,10 @@ from django.db.models.aggregates import Count
 from django.db.models.functions import Coalesce, datetime
 from django.db.models.query_utils import Q
 from django.http import HttpResponse
-from django.http.request import HttpRequest as HttpRequest
 from django.template.response import TemplateResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from django_cte import With
 from eulxml.xmlmap import load_xmlobject_from_file
 from lxml.etree import XMLSyntaxError
 from ows_lib.models.ogc_request import OGCRequest

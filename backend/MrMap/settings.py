@@ -8,12 +8,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
-import json
 import logging
 import os
 import re
 import socket
-from datetime import datetime
 from glob import glob
 from warnings import warn
 
@@ -21,6 +19,7 @@ from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 from MrMap.celery import is_this_a_celery_process
+from system.formatter import RFC5424Formatter
 
 from . import VERSION
 
@@ -120,6 +119,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",  # for django admin pages
     "simple_history.middleware.HistoryRequestMiddleware",
+    "system.middleware.SystemLogMiddleware",
 ]
 
 TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
@@ -498,13 +498,6 @@ if not os.path.exists(FILE_IMPORT_DIR):
     os.makedirs(FILE_IMPORT_DIR)
 
 
-class RFC5424Formatter(logging.Formatter):
-    def formatTime(self, record, datefmt=None):
-        dt = datetime.fromtimestamp(record.created).astimezone()
-        # Hier ohne Mikrosekunden, mit ISO 8601 Zeitzone (mit Doppelpunkt)
-        return dt.replace(microsecond=0).isoformat()
-
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -513,15 +506,7 @@ LOGGING = {
             # see rfc5424 for syslog format: https://datatracker.ietf.org/doc/html/rfc5424
             # available fields: https://docs.python.org/3/library/logging.html#logrecord-attributes for a list of possible attributes
             "()": RFC5424Formatter,
-            "format": "1 {asctime} {hostname} mrmap {process:d} - "
-            '[fileSDID@python module="{module}" pathname="{pathname}" lineno="{lineno}"]'
-            '[exceptionSDID@python exc_info="{exc_info}"]'
-            " \ufeff{message}",
-            "style": "{",
             "datefmt": "%Y-%m-%dT%H:%M:%S%z",
-            "defaults": {
-                "hostname": socket.gethostname()
-            }
         },
         "simple": {
             "format": "{levelname} {message}",

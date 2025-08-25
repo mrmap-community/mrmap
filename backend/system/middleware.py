@@ -7,23 +7,21 @@ from django.urls import resolve
 from django.utils import timezone
 
 logger: Logger = settings.ROOT_LOGGER
+MAX_EVENT_BYTES = 1472  # Maximalgröße pro Event
 
 
 class SystemLogMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        # Threshold bestimmen
         self.threshold_ms = int(
-            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 400)
+            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 100)
         )
-
-        self.max_event_bytes = 1472
 
     def __call__(self, request):
         self.start = timezone.now()
         collected_queries = []
 
-        # execute_wrapper für Query Logging
+        # Query-Logging Wrapper
         def query_logger_execute_wrapper(execute, sql, params, many, context):
             start_time = timezone.now()
             try:
@@ -33,8 +31,7 @@ class SystemLogMiddleware:
                     (timezone.now() - start_time).total_seconds() * 1000
                 )
                 collected_queries.append(
-                    {"sql": sql, "duration_ms": duration_ms}
-                )
+                    {"sql": sql, "duration_ms": duration_ms})
 
         with connection.execute_wrapper(query_logger_execute_wrapper):
             response = self.get_response(request)
@@ -44,76 +41,75 @@ class SystemLogMiddleware:
 
     def _response(self, request, response=None, queries=None, exception=None):
         end = timezone.now()
-        start = self.start
-        time_delta = end - start
+        time_delta = end - self.start
         request_duration_ms = int(time_delta.total_seconds() * 1000)
 
         if request_duration_ms <= self.threshold_ms:
-            return  # nur langsame Requests loggen
+            return
 
-        path = f'http://{request.get_host()}{request.get_full_path()}'
+        path = "http://" + request.get_host() + request.get_full_path()
         view, _, _ = resolve(request.path)
-
         query_count = len(queries) if queries else 0
         query_duration_ms = sum(q["duration_ms"]
                                 for q in queries) if queries else 0
 
-        # einfache ID pro Request
-        request_id = f"{timezone.now().timestamp()}_{request.META.get('REMOTE_ADDR', '')}"
+        request_id = f"{timezone.now().timestamp()}_{id(request)}"
 
-        # Basisdaten Event
-        log_extra = {
+        # Basisdaten ohne SQL
+        base_extra = {
             "request_id": request_id,
             "path": path,
             "request_duration_ms": request_duration_ms,
             "status_code": response.status_code if response else "500",
             "request_method": request.META.get("REQUEST_METHOD", "GET"),
-            "django_view": f"{view.__module__}.{view.__name__}",
+            "django_view": "%s.%s" % (view.__module__, view.__name__),
             "queries": query_count,
             "query_duration_ms": query_duration_ms,
-            "response_started": timezone.now(),
+            "response_started": timezone.now().isoformat(),
         }
 
-        logger.warning(msg=f"Slow Request detected: {path}", extra=log_extra)
-
-        # SQL-Chunks loggen
+        # SQL-Chunks vorbereiten
         if queries:
             for idx, q in enumerate(queries, start=1):
                 sql_text = q["sql"]
-                duration = q["duration_ms"]
+                # duration = q["duration_ms"]
+                key = f"query_{idx}"
 
-                query_id = f"{request_id}_query{idx}"
-
-                # Berechne Basisgröße für das Event (ohne SQL)
-                chunk_extra_base = {
-                    "request_id": request_id,
-                    "query_id": query_id,
-                    "duration_ms": duration,
-                }
-                base_size = len(json.dumps(chunk_extra_base).encode("utf-8"))
-
-                # Maximalgröße für SQL-Chunk
-                max_chunk_bytes = self.max_event_bytes - base_size - 50  # Sicherheits-Puffer
-
-                # Splitte SQL nach Bytes
+                # Chunking nach Event-Größe
+                chunk = ""
+                part_idx = 1
                 chunks = []
-                current_chunk = ""
                 for char in sql_text:
-                    if len((current_chunk + char).encode("utf-8")) > max_chunk_bytes:
-                        chunks.append(current_chunk)
-                        current_chunk = char
+                    chunk_candidate = chunk + char
+                    test_event = dict(base_extra)
+                    test_event[key] = chunk_candidate
+                    test_event["msg"] = f"Slow Request detected: {path}"
+                    event_size = len(
+                        json.dumps(test_event, ensure_ascii=False).encode(
+                            "utf-8")
+                    )
+                    if event_size > MAX_EVENT_BYTES:
+                        # Chunk voll, speichern
+                        chunks.append(chunk)
+                        part_idx += 1
+                        chunk = char
                     else:
-                        current_chunk += char
-                if current_chunk:
-                    chunks.append(current_chunk)
+                        chunk = chunk_candidate
+                if chunk:
+                    chunks.append(chunk)
 
-                # Logge jeden Chunk als eigenes Event
-                for part_idx, part in enumerate(chunks, start=1):
-                    chunk_extra = {
-                        **chunk_extra_base,
-                        "sql_part": part,
-                        "sql_part_index": part_idx,
-                        "sql_part_total": len(chunks),
-                    }
-                    logger.warning(msg="Slow Request SQL Chunk",
+                # Logge alle Chunks
+                for i, part in enumerate(chunks, start=1):
+                    chunk_extra = dict(base_extra)
+                    chunk_extra[f"{key}_part"] = part
+                    chunk_extra[f"{key}_part_index"] = i
+                    chunk_extra[f"{key}_part_total"] = len(chunks)
+                    logger.warning(msg=f"Slow Request SQL Chunk",
                                    extra=chunk_extra)
+
+        else:
+            # Kein SQL, normales Event loggen
+            logger.warning(
+                msg=f"Slow Request detected: {path}",
+                extra=base_extra,
+            )

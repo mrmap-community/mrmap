@@ -9,6 +9,7 @@ class RFC5424Formatter(logging.Formatter):
         return dt.replace(microsecond=0).isoformat()
 
     def format(self, record):
+        # Die eigentliche Nachricht separat
         record.message = record.getMessage()
         record.asctime = self.formatTime(record)
 
@@ -23,7 +24,7 @@ class RFC5424Formatter(logging.Formatter):
             exc_info = self.formatException(record.exc_info)
             exc_sd = f'[exceptionSDID@python exc_info="{exc_info}"]'
 
-        # Reserved-Attribute nicht ins extra SD übernehmen
+        # Reserved-Attribute, die nicht ins extra SD kommen
         reserved = set(logging.LogRecord(
             None, None, "", 0, "", (), None).__dict__.keys())
 
@@ -35,23 +36,23 @@ class RFC5424Formatter(logging.Formatter):
                 continue
 
             # Verschachtelte Dicts flachlegen
+            flat_fields = {}
             if isinstance(value, dict):
-                flat_fields = {}
                 for subk, subv in value.items():
                     flat_fields[f"{key}_{subk}"] = subv
             else:
-                flat_fields = {key: value}
+                flat_fields[key] = value
 
             # Jedes Key/Value als eigenes SD-Element
             for sd_key, sd_value in flat_fields.items():
                 val = str(sd_value).replace("\\", "\\\\").replace(
                     '"', '\\"').replace("]", "\\]")
-                # SD-ID aus Key generieren, z.B. query_1 → query1SDID
                 sd_id = f"{sd_key}SDID@python"
                 extra_sd_elements.append(f'[{sd_id} {sd_key}="{val}"]')
 
         structured_data = f"{file_sd}{exc_sd}{''.join(extra_sd_elements)}"
 
+        # Syslog-Nachricht: message **separat** am Ende
         log = (
             f'1 {record.asctime} {socket.gethostname()} mrmap {record.process} - '
             f'{structured_data} {record.message}'

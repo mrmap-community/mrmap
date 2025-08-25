@@ -15,18 +15,30 @@ class SystemLogMiddleware:
 
         # Threshold bestimmen
         self.threshold_ms = int(
-            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 500))
+            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 100))
 
     def __call__(self, request):
         self.start = timezone.now()
+        collected_queries = []
 
-        response = self.get_response(request)
+        # execute_wrapper für Production Query Logging
+        def query_logger_execute_wrapper(execute, sql, params, many, context):
+            start_time = timezone.now()
+            try:
+                return execute(sql, params, many, context)
+            finally:
+                duration_ms = int(
+                    (timezone.now() - start_time).total_seconds() * 1000)
+                collected_queries.append(
+                    {"sql": sql, "duration_ms": duration_ms})
 
-        self._response(request, response)
+        with connection.execute_wrapper(query_logger_execute_wrapper):
+            response = self.get_response(request)
 
+        self._response(request, response, collected_queries)
         return response
 
-    def _response(self, request, response=None, exception=None):
+    def _response(self, request, response=None, queries=None, exception=None):
         end = timezone.now()
         start = self.start
         time_delta = end - start
@@ -38,28 +50,15 @@ class SystemLogMiddleware:
             path = 'http://' + request.get_host() + request.get_full_path()
             view, args, kwargs = resolve(request.path)
 
-            # Query Count
-            if hasattr(connection, 'query_count'):
-                query_count = connection.query_count
-            else:
-                query_count = len(connection.queries) or None
+            # Query Count und Detail
+            query_count = len(queries) if queries else 0
+            query_duration_ms = sum(q["duration_ms"]
+                                    for q in queries) if queries else 0
 
-            # Query Dauer summieren + Detail-Felder bauen
-            query_duration_ms = None
             queries_extra = {}
-            if connection.queries:
-                try:
-                    query_duration_ms = int(
-                        sum(float(q.get("time", 0))
-                            for q in connection.queries) * 1000
-                    )
-                    for idx, q in enumerate(connection.queries, start=1):
-                        queries_extra[f"query_{idx}"] = {
-                            "sql": q.get("sql"),
-                            "duration_ms": int(float(q.get("time", 0)) * 1000),
-                        }
-                except Exception:
-                    query_duration_ms = None
+            if queries:
+                for idx, q in enumerate(queries, start=1):
+                    queries_extra[f"query_{idx}"] = q
 
             # Basisdaten
             log_extra = {

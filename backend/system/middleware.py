@@ -16,8 +16,8 @@ class SystemLogMiddleware:
         self.threshold_ms = int(
             getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 400)
         )
-        # Maximalgröße pro SQL Chunk (unter OpenObserve Limit)
-        self.max_chunk_size = 1000
+
+        self.max_event_bytes = 1472
 
     def __call__(self, request):
         self.start = timezone.now()

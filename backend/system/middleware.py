@@ -1,6 +1,3 @@
-import base64
-import gzip
-import uuid
 from logging import Logger
 
 from django.conf import settings
@@ -10,86 +7,94 @@ from django.utils import timezone
 
 logger: Logger = settings.ROOT_LOGGER
 
-MAX_LOG_SIZE = 1400  # etwas Puffer unter 1472 Bytes
-
-
-def chunk_string(s: str, max_length: int):
-    """Split string s into chunks of max_length."""
-    return [s[i:i + max_length] for i in range(0, len(s), max_length)]
-
 
 class SystemLogMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        # Threshold bestimmen
         self.threshold_ms = int(
-            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 400))
+            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 400)
+        )
+        # Maximalgröße pro SQL Chunk (unter OpenObserve Limit)
+        self.max_chunk_size = 1000
 
     def __call__(self, request):
         self.start = timezone.now()
         collected_queries = []
-        request_id = str(uuid.uuid4())
 
+        # execute_wrapper für Query Logging
         def query_logger_execute_wrapper(execute, sql, params, many, context):
             start_time = timezone.now()
             try:
                 return execute(sql, params, many, context)
             finally:
                 duration_ms = int(
-                    (timezone.now() - start_time).total_seconds() * 1000)
-
-                query_id = str(uuid.uuid4())
-
-                # Falls SQL zu groß: splitten
-                sql_chunks = chunk_string(sql, MAX_LOG_SIZE)
-
-                for idx, chunk in enumerate(sql_chunks, start=1):
-                    collected_queries.append({
-                        "query_id": query_id,
-                        "sql_part": chunk,
-                        "sql_part_index": idx,
-                        "sql_part_total": len(sql_chunks),
-                        "duration_ms": duration_ms if idx == 1 else 0,  # Dauer nur im ersten Teil
-                    })
+                    (timezone.now() - start_time).total_seconds() * 1000
+                )
+                collected_queries.append(
+                    {"sql": sql, "duration_ms": duration_ms}
+                )
 
         with connection.execute_wrapper(query_logger_execute_wrapper):
             response = self.get_response(request)
 
-        self._response(request, response, collected_queries, request_id)
+        self._response(request, response, collected_queries)
         return response
 
-    def _response(self, request, response=None, queries=None, request_id=None):
+    def _response(self, request, response=None, queries=None, exception=None):
         end = timezone.now()
         start = self.start
         time_delta = end - start
-
-        # Requestdauer in Millisekunden
         request_duration_ms = int(time_delta.total_seconds() * 1000)
 
-        if request_duration_ms > self.threshold_ms:
-            path = "http://" + request.get_host() + request.get_full_path()
-            view, args, kwargs = resolve(request.path)
+        if request_duration_ms <= self.threshold_ms:
+            return  # nur langsame Requests loggen
 
-            log_extra = {
-                "request_id": request_id,
-                "path": path,
-                "request_duration_ms": request_duration_ms,
-                "status_code": response.status_code if response else "500",
-                "request_method": request.META.get("REQUEST_METHOD", "GET"),
-                "django_view": "%s.%s" % (view.__module__, view.__name__),
-                "queries": len(queries),
-                "query_duration_ms": sum(q["duration_ms"] for q in queries),
-                "response_started": timezone.now(),
-            }
+        path = f'http://{request.get_host()}{request.get_full_path()}'
+        view, _, _ = resolve(request.path)
 
-            # Queries anhängen
+        query_count = len(queries) if queries else 0
+        query_duration_ms = sum(q["duration_ms"]
+                                for q in queries) if queries else 0
+
+        # einfache ID pro Request
+        request_id = f"{timezone.now().timestamp()}_{request.META.get('REMOTE_ADDR', '')}"
+
+        # Basisdaten Event
+        log_extra = {
+            "request_id": request_id,
+            "path": path,
+            "request_duration_ms": request_duration_ms,
+            "status_code": response.status_code if response else "500",
+            "request_method": request.META.get("REQUEST_METHOD", "GET"),
+            "django_view": f"{view.__module__}.{view.__name__}",
+            "queries": query_count,
+            "query_duration_ms": query_duration_ms,
+            "response_started": timezone.now(),
+        }
+
+        logger.warning(msg=f"Slow Request detected: {path}", extra=log_extra)
+
+        # SQL-Chunks loggen
+        if queries:
             for idx, q in enumerate(queries, start=1):
-                log_extra[f"query_{idx}_id"] = q["query_id"]
-                log_extra[f"query_{idx}_part"] = q["sql_part"]
-                log_extra[f"query_{idx}_part_index"] = q["sql_part_index"]
-                log_extra[f"query_{idx}_part_total"] = q["sql_part_total"]
-                if q["duration_ms"] > 0:
-                    log_extra[f"query_{idx}_duration_ms"] = q["duration_ms"]
-            logger.warning(
-                msg=f"Slow Request detected: {path}",
-                extra=log_extra,
-            )
+                sql_text = q["sql"]
+                duration = q["duration_ms"]
+                # SQL in Chunks splitten
+                parts = [
+                    sql_text[i:i + self.max_chunk_size]
+                    for i in range(0, len(sql_text), self.max_chunk_size)
+                ]
+                query_id = f"{request_id}_query{idx}"
+
+                for part_idx, part in enumerate(parts, start=1):
+                    chunk_extra = {
+                        "request_id": request_id,
+                        "query_id": query_id,
+                        "sql_part": part,
+                        "sql_part_index": part_idx,
+                        "sql_part_total": len(parts),
+                        "duration_ms": duration,
+                    }
+                    logger.warning(msg="Slow Request SQL Chunk",
+                                   extra=chunk_extra)

@@ -10,29 +10,25 @@ from django.utils import timezone
 
 logger: Logger = settings.ROOT_LOGGER
 
+MAX_LOG_SIZE = 1400  # etwas Puffer unter 1472 Bytes
 
-def compress_if_needed(sql: str, threshold: int = 500) -> dict:
-    """Komprimiere SQL-String, wenn er zu lang ist."""
-    if len(sql) <= threshold:
-        return {"sql": sql, "compressed": False}
 
-    compressed = gzip.compress(sql.encode("utf-8"))
-    b64 = base64.b64encode(compressed).decode("ascii")
-    return {"sql": b64, "compressed": True, "original_len": len(sql)}
+def chunk_string(s: str, max_length: int):
+    """Split string s into chunks of max_length."""
+    return [s[i:i + max_length] for i in range(0, len(s), max_length)]
 
 
 class SystemLogMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.threshold_ms = int(
-            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 100))
+            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 400))
 
     def __call__(self, request):
         self.start = timezone.now()
         collected_queries = []
         request_id = str(uuid.uuid4())
 
-        # execute_wrapper für Production Query Logging
         def query_logger_execute_wrapper(execute, sql, params, many, context):
             start_time = timezone.now()
             try:
@@ -40,22 +36,20 @@ class SystemLogMiddleware:
             finally:
                 duration_ms = int(
                     (timezone.now() - start_time).total_seconds() * 1000)
-                qinfo = compress_if_needed(sql)
-                qinfo["duration_ms"] = duration_ms
-                qinfo["request_id"] = request_id
-                collected_queries.append(qinfo)
 
-                # Jede Query sofort loggen
-                logger.warning(
-                    "SQL Query",
-                    extra={
-                        "request_id": request_id,
-                        "query_sql": qinfo["sql"],
-                        "query_compressed": qinfo.get("compressed", False),
-                        "query_duration_ms": duration_ms,
-                        "query_original_len": qinfo.get("original_len", len(sql)),
-                    },
-                )
+                query_id = str(uuid.uuid4())
+
+                # Falls SQL zu groß: splitten
+                sql_chunks = chunk_string(sql, MAX_LOG_SIZE)
+
+                for idx, chunk in enumerate(sql_chunks, start=1):
+                    collected_queries.append({
+                        "query_id": query_id,
+                        "sql_part": chunk,
+                        "sql_part_index": idx,
+                        "sql_part_total": len(sql_chunks),
+                        "duration_ms": duration_ms if idx == 1 else 0,  # Dauer nur im ersten Teil
+                    })
 
         with connection.execute_wrapper(query_logger_execute_wrapper):
             response = self.get_response(request)
@@ -75,21 +69,27 @@ class SystemLogMiddleware:
             path = "http://" + request.get_host() + request.get_full_path()
             view, args, kwargs = resolve(request.path)
 
-            query_count = len(queries) if queries else 0
-            query_duration_ms = sum(q["duration_ms"] for q in queries)
+            log_extra = {
+                "request_id": request_id,
+                "path": path,
+                "request_duration_ms": request_duration_ms,
+                "status_code": response.status_code if response else "500",
+                "request_method": request.META.get("REQUEST_METHOD", "GET"),
+                "django_view": "%s.%s" % (view.__module__, view.__name__),
+                "queries": len(queries),
+                "query_duration_ms": sum(q["duration_ms"] for q in queries),
+                "response_started": timezone.now(),
+            }
 
-            # Main-Logevent
+            # Queries anhängen
+            for idx, q in enumerate(queries, start=1):
+                log_extra[f"query_{idx}_id"] = q["query_id"]
+                log_extra[f"query_{idx}_part"] = q["sql_part"]
+                log_extra[f"query_{idx}_part_index"] = q["sql_part_index"]
+                log_extra[f"query_{idx}_part_total"] = q["sql_part_total"]
+                if q["duration_ms"] > 0:
+                    log_extra[f"query_{idx}_duration_ms"] = q["duration_ms"]
             logger.warning(
-                "Slow Request detected",
-                extra={
-                    "request_id": request_id,
-                    "path": path,
-                    "request_duration_ms": request_duration_ms,
-                    "status_code": response.status_code if response else "500",
-                    "request_method": request.META.get("REQUEST_METHOD", "GET"),
-                    "django_view": f"{view.__module__}.{view.__name__}",
-                    "queries": query_count,
-                    "query_duration_ms": query_duration_ms,
-                    "response_started": timezone.now(),
-                },
+                msg=f"Slow Request detected: {path}",
+                extra=log_extra,
             )

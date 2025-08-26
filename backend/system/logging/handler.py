@@ -13,7 +13,7 @@ class OpenObserveSysLogHandler(SysLogHandler):
     """
 
     append_nul = False
-    max_message_length = 1450  # Sicherheitsabstand zur OpenObserve-Grenze
+    max_message_length = 1300  # Sicherheitsabstand zur OpenObserve-Grenze
 
     def _clone_for_chunk(self, src_record: logging.LogRecord) -> logging.LogRecord:
         """
@@ -57,7 +57,7 @@ class OpenObserveSysLogHandler(SysLogHandler):
             "metaSDID@split": {
                 "related_id": str(uuid.uuid4()),
                 "part": str(1),
-                "chunk": ""
+                "chunk": " "
             }
         }
         chunk_structured_data_formatted = format_structured_data(

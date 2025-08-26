@@ -13,7 +13,7 @@ class SystemLogMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.threshold_ms = int(
-            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 100))
+            getattr(settings, "LOG_LONG_RUNNING_REQUEST_THRESHOLD_MS", 400))
 
     def get_duration_ms(self, start):
         return int((timezone.now() - start).total_seconds() * 1000)

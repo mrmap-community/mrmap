@@ -19,7 +19,7 @@ from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 from MrMap.celery import is_this_a_celery_process
-from system.formatter import RFC5424Formatter
+from system.logging.formatter import RFC5424Formatter
 
 from . import VERSION
 
@@ -119,7 +119,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",  # for django admin pages
     "simple_history.middleware.HistoryRequestMiddleware",
-    "system.middleware.SystemLogMiddleware",
+    "system.logging.middleware.SystemLogMiddleware",
 ]
 
 TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
@@ -516,7 +516,7 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "simple",
+            "formatter": "rfc5424",
             "level": "INFO"
         },
     },
@@ -538,7 +538,7 @@ try:
     socket.getaddrinfo("openobserve", 5514, proto=socket.IPPROTO_UDP)
     LOGGING["handlers"].update({
         "syslog": {
-            "class": "logging.handlers.SysLogHandler",
+            "class": "system.logging.handlers.OpenObserveSysLogHandler",
             "formatter": "rfc5424",
             "facility": "user",
             "address": ("openobserve", 5514),

@@ -540,7 +540,7 @@ try:
     socket.getaddrinfo("openobserve", 5514, proto=socket.IPPROTO_UDP)
     LOGGING["handlers"].update({
         "syslog": {
-            "class": "logging.handler.SysLogHandler",
+            "class": "logging.handlers.SysLogHandler",
             "formatter": "rfc5424",
             "facility": "user",
             "address": ("openobserve", 5514),

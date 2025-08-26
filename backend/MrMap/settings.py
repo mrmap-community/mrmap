@@ -55,6 +55,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ################################################################
 ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
 
+
+MEDIA_URL = "/media/"
 MEDIA_ROOT = os.environ.get("MRMAP_MEDIA_DIR", "/var/mrmap/backend/media")
 MEDIA_ROOT = MEDIA_ROOT if check_path_access(
     MEDIA_ROOT) else f"{BASE_DIR}/media"
@@ -119,7 +121,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",  # for django admin pages
     "simple_history.middleware.HistoryRequestMiddleware",
-    "system.logging.middleware.SystemLogMiddleware",
+    "system.logging.middleware.LogSlowRequestsMiddleware",
 ]
 
 TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
@@ -538,7 +540,7 @@ try:
     socket.getaddrinfo("openobserve", 5514, proto=socket.IPPROTO_UDP)
     LOGGING["handlers"].update({
         "syslog": {
-            "class": "system.logging.handler.OpenObserveSysLogHandler",
+            "class": "logging.handler.SysLogHandler",
             "formatter": "rfc5424",
             "facility": "user",
             "address": ("openobserve", 5514),

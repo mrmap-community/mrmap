@@ -17,9 +17,12 @@ Including another URLconf
 from accounts.views.auth import LoginView, LogoutView
 from csw.views import CswServiceView
 from django.conf import settings
+from django.conf.urls import include
 from django.contrib import admin
-from django.urls import include, path
+from django.contrib.auth.decorators import login_required
+from django.urls import path
 from django.views.decorators.cache import cache_page
+from django.views.static import serve
 from drf_spectacular.views import (SpectacularJSONAPIView,
                                    SpectacularSwaggerView)
 from mapbender_compatibility.views import MapBenderSearchApi
@@ -69,6 +72,12 @@ urlpatterns = [
 
 ]
 
+
+@login_required
+def protected_serve(request, path, document_root=None, show_indexes=False):
+    return serve(request, path, document_root, show_indexes)
+
+
 if settings.DEBUG:
     import debug_toolbar
     from django.conf import settings
@@ -78,3 +87,10 @@ if settings.DEBUG:
     # to enable possibility to open media files during development (images, documents, etc)
     urlpatterns += static(settings.MEDIA_URL,
                           document_root=settings.MEDIA_ROOT)
+
+else:
+    urlpatterns.append(
+        path(r'^%s(?P<path>.*)$' % settings.MEDIA_URL[1:], protected_serve, {
+            'document_root': settings.MEDIA_ROOT}),
+
+    )

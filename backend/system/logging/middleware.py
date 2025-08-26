@@ -1,15 +1,17 @@
+import json
+import os
+import uuid
 from logging import Logger
 
 from django.conf import settings
+from django.core.files import File
 from django.db import connection
-from django.urls import resolve
 from django.utils import timezone
 
 logger: Logger = settings.ROOT_LOGGER
-MAX_EVENT_BYTES = 1472
 
 
-class SystemLogMiddleware:
+class LogSlowRequestsMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.threshold_ms = int(
@@ -46,22 +48,27 @@ class SystemLogMiddleware:
             return
         # slow request detected
 
-        path = 'http://' + request.get_host() + request.get_full_path()
-        view, _, _ = resolve(request.path)
+        path = request.scheme + "://" + request.get_host() + request.get_full_path()
+        request_id = uuid.uuid4()
 
         # Basisdaten
         structured_data = {
             "metaSDID@request": {
+                "request_id": request_id,
+                "details_json": f"{request.scheme}://{request.get_host()}{settings.MEDIA_URL}logs/{request_id}.json",
                 "path": path,
                 "duration_ms": request_duration_ms,
                 "status_code": response.status_code if response else 500,
                 "method": request.META.get("REQUEST_METHOD", "GET"),
-                "django_view": f"{view.__module__}.{view.__name__}",
             },
         }
 
         if queries:
-            query_meta = structured_data.setdefault("metaSDID@query", {})
+            log_details = {
+                "metaSDID@message": {"msg": "Slow Request Detected"},
+                **structured_data
+            }
+            query_meta = log_details.setdefault("metaSDID@queries", {})
             for idx, q in enumerate(queries, start=1):
                 query_meta.update(
                     {
@@ -70,8 +77,12 @@ class SystemLogMiddleware:
                     }
                 )
 
+        with open(os.path.join(settings.MEDIA_ROOT, f"logs/{request_id}.json"), "w") as fp:
+            # cause some syslog server implementations are limiting message size, we store verbose details as simple media files
+            json.dump(log_details, fp)
+
         logger.warning(
-            msg="Slow Request detected",
+            msg="Slow Request Detected",
             extra={
                 "disable_python_meta": True,
                 "structured_data": structured_data,

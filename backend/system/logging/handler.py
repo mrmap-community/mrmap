@@ -68,7 +68,8 @@ class OpenObserveSysLogHandler(SysLogHandler):
             base_length + chunk_structured_data_length
         dummy = self._clone_for_chunk(record)
 
-        for idx, chunk in [sd_formatted[i:i+chunk_size] for i in range(0, len(sd_formatted), chunk_size)]:
+        for idx, chunk in enumerate([sd_formatted[i:i+chunk_size]
+                                     for i in range(0, len(sd_formatted), chunk_size)], start=1):
             dummy.structured_data = {**chunk_structured_data}
             dummy.structured_data["metaSDID@split"]["chunk"] = chunk
             dummy.structured_data["metaSDID@split"]["part"] = str(idx)

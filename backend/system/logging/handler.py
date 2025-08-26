@@ -1,50 +1,21 @@
 import logging
 import uuid
-from copy import deepcopy
 from logging.handlers import SysLogHandler
+
+from system.logging.util import (format_structured_data, get_string_length,
+                                 parse_rfc5424_message)
 
 
 class OpenObserveSysLogHandler(SysLogHandler):
     """
-    Splittet zu lange Syslog-Events so, dass OpenObserve nicht abschneidet.
-    Fügt beim Split ein SD-Element [metaSDID@split ...] hinzu.
+    Syslog Handler, der zu lange Events in Chunks aufteilt, sodass OpenObserve sie nicht abschneidet.
+    Fügt ein SD-Element [metaSDID@split ...] hinzu, um die Chunks zu korrelieren.
     """
 
     append_nul = False
-    max_message_length = 1450  # Sicherheitsabstand
-    SPLIT_SDID = "metaSDID@split"
+    max_message_length = 1450  # Sicherheitsabstand zur OpenObserve-Grenze
 
-    def emit(self, record):
-        # Schnellpfad: passt in ein Event
-        formatted = self.format(record)
-        if len(formatted.encode("utf-8")) <= self.max_message_length:
-            return super().emit(record)
-
-        # Zu lang → splitten
-        original_message = record.getMessage()  # nur der Textteil
-        base_sd = deepcopy(getattr(record, "structured_data", {}) or {})
-        related_id = str(uuid.uuid4())
-
-        # In Chunks schneiden, basierend auf tatsächlichem Formatierungs-Overhead
-        chunks = self._split_by_formatter_budget(
-            original_message, record, base_sd, related_id
-        )
-
-        total = len(chunks)
-        for idx, chunk in enumerate(chunks, start=1):
-            dummy = self._clone_for_chunk(record, chunk)
-            sd = deepcopy(base_sd)
-            sd[self.SPLIT_SDID] = {
-                "related_id": related_id,
-                "part": str(idx),
-                "total": str(total),
-            }
-            dummy.structured_data = sd
-            super().emit(dummy)
-
-    # -------- internals --------
-
-    def _clone_for_chunk(self, src_record: logging.LogRecord, chunk_msg: str) -> logging.LogRecord:
+    def _clone_for_chunk(self, src_record: logging.LogRecord) -> logging.LogRecord:
         """
         Erzeugt einen neuen LogRecord für einen Chunk und überträgt relevante Felder.
         """
@@ -53,7 +24,7 @@ class OpenObserveSysLogHandler(SysLogHandler):
             level=src_record.levelno,
             pathname=src_record.pathname,
             lineno=src_record.lineno,
-            msg=chunk_msg,
+            msg=src_record.msg,
             args=(),
             exc_info=src_record.exc_info,
         )
@@ -69,53 +40,36 @@ class OpenObserveSysLogHandler(SysLogHandler):
             dummy.disable_python_meta = src_record.disable_python_meta
         return dummy
 
-    def _split_by_formatter_budget(self, message: str, record: logging.LogRecord, base_sd: dict, related_id: str):
-        """
-        Schneidet message in UTF-8-sichere Chunks, deren *formatierte* Länge
-        (Header + SD + Message) jeweils <= max_message_length ist.
-        """
-        remaining = message.encode("utf-8")
-        chunks = []
-        part_idx = 1
+    def emit(self, record):
+        msg = self.format(record)
+        encoded_msg = msg.encode("utf-8")
 
-        # Pessimistische Platzhalter-Zahl für 'total' (max. 6 Stellen),
-        # damit unsere Budget-Berechnung später nicht zu optimistisch ist.
-        total_placeholder = "999999"
+        if len(encoded_msg) < self.max_message_length:
+            return super().emit(record)
 
-        while remaining:
-            # Budget für diesen Teil berechnen: formatiere mit leerer Message
-            sd = dict(base_sd)
-            sd[self.SPLIT_SDID] = {
-                "related_id": related_id,
-                "part": str(part_idx),
-                "total": total_placeholder,
+        parsed = parse_rfc5424_message(msg)
+        base_length = get_string_length(
+            f"<11>{parsed["version"]} {parsed["timestamp"]} {parsed["host"]} {parsed["app"]} {parsed["procid"]} {parsed["msgid"]} - {parsed["message"]}")
+        sd_formatted = format_structured_data(
+            getattr(record, "structured_data", {}) or {})
+        chunk_structured_data = {
+            "metaSDID@split": {
+                "related_id": str(uuid.uuid4()),
+                "part": str(1),
+                "chunk": ""
             }
-            dummy_empty = self._clone_for_chunk(record, "")
-            dummy_empty.structured_data = sd
-            base_len = len(self.format(dummy_empty).encode("utf-8"))
-            budget = self.max_message_length - base_len
-            if budget <= 0:
-                # Fallback: mindestens 1 Byte payload erzwingen, damit Fortschritt möglich ist
-                budget = 1
+        }
+        chunk_structured_data_formatted = format_structured_data(
+            chunk_structured_data)
+        chunk_structured_data_length = get_string_length(
+            chunk_structured_data_formatted)
 
-            # bis zu 'budget' Bytes nehmen, UTF-8-sicher schneiden
-            take = budget if budget < len(remaining) else len(remaining)
-            end = take
-            while True:
-                try:
-                    chunk_text = remaining[:end].decode("utf-8")
-                    break
-                except UnicodeDecodeError:
-                    end -= 1
-                    if end <= 0:
-                        # sollte praktisch nie passieren; notfalls 1 Byte ignorierend
-                        end = 1
-                        chunk_text = remaining[:end].decode(
-                            "utf-8", errors="ignore")
-                        break
+        chunk_size = self.max_message_length - \
+            base_length + chunk_structured_data_length
+        dummy = self._clone_for_chunk(record)
 
-            chunks.append(chunk_text)
-            remaining = remaining[end:]
-            part_idx += 1
-
-        return chunks
+        for idx, chunk in [sd_formatted[i:i+chunk_size] for i in range(0, len(sd_formatted), chunk_size)]:
+            dummy.structured_data = {**chunk_structured_data}
+            dummy.structured_data["metaSDID@split"]["chunk"] = chunk
+            dummy.structured_data["metaSDID@split"]["part"] = str(idx)
+            return super().emit(dummy)

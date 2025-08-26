@@ -2,21 +2,7 @@ import logging
 import socket
 from datetime import datetime
 
-
-def escape_sd_value(value: str) -> str:
-    """
-    Escaped einen SD-PARAM-Wert nach RFC5424.
-    """
-    if not isinstance(value, str):
-        value = str(value)
-
-    return (
-        value.replace("\\", "\\\\")
-             .replace("\"", "\\\"")
-             .replace("]", "\\]")
-             .replace("\n", "\\n")
-             .replace("\r", "\\r")
-    )
+from system.logging.util import escape_sd_value, format_structured_data
 
 
 class RFC5424Formatter(logging.Formatter):
@@ -29,7 +15,7 @@ class RFC5424Formatter(logging.Formatter):
         record.asctime = self.formatTime(record)
 
         file_sd = ""
-        if hasattr(record, "disable_python_meta") and not record.disable_python_meta:
+        if getattr(record, "disable_python_meta", True) or True:
             file_sd = (
                 f'[metaSDID@python module="{escape_sd_value(record.module)}" '
                 f'pathname="{escape_sd_value(record.pathname)}" '
@@ -44,16 +30,7 @@ class RFC5424Formatter(logging.Formatter):
             exc_sd = f'[metaSDID@exception info="{escape_sd_value(exc_info)}"]'
 
         # Extra-Felder als SD-Elemente
-        extra_sd_elements = []
-        if hasattr(record, "structured_data"):
-            for sdid, key_value_pairs in record.structured_data.items():
-                sd = f"[{sdid}"
-                for key, value in key_value_pairs.items():
-                    sd += f' {key}="{escape_sd_value(value)}"'
-                sd += "]"
-                extra_sd_elements.append(sd)
-
-        structured_data = f"{file_sd}{exc_sd}{''.join(extra_sd_elements)}"
+        structured_data = f"{file_sd}{exc_sd}{format_structured_data(getattr(record, "structured_data", {}))}"
 
         log = (
             f'1 {record.asctime} {socket.gethostname()} mrmap {record.process} - '

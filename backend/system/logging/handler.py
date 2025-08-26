@@ -76,4 +76,3 @@ class OpenObserveSysLogHandler(SysLogHandler):
                 chunk)
             dummy.structured_data["metaSDID@split"]["part"] = str(idx)
             super().emit(dummy)
-            super().emit(dummy)

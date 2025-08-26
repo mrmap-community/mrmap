@@ -15,7 +15,7 @@ class RFC5424Formatter(logging.Formatter):
         record.asctime = self.formatTime(record)
 
         file_sd = ""
-        if getattr(record, "disable_python_meta", True) or True:
+        if not getattr(record, "disable_python_meta", True):
             file_sd = (
                 f'[metaSDID@python module="{escape_sd_value(record.module)}" '
                 f'pathname="{escape_sd_value(record.pathname)}" '

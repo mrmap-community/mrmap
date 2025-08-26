@@ -2,6 +2,7 @@ import logging
 import uuid
 from logging.handlers import SysLogHandler
 
+from django.utils.safestring import SafeString
 from system.logging.util import (format_structured_data, get_string_length,
                                  parse_rfc5424_message)
 
@@ -72,6 +73,7 @@ class OpenObserveSysLogHandler(SysLogHandler):
         for idx, chunk in enumerate([sd_formatted[i:i+chunk_size]
                                      for i in range(0, len(sd_formatted), chunk_size)], start=1):
             dummy.structured_data = {**chunk_structured_data}
-            dummy.structured_data["metaSDID@split"]["chunk"] = chunk
+            dummy.structured_data["metaSDID@split"]["chunk"] = SafeString(
+                chunk)
             dummy.structured_data["metaSDID@split"]["part"] = str(idx)
             super().emit(dummy)

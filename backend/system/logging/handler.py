@@ -45,7 +45,8 @@ class OpenObserveSysLogHandler(SysLogHandler):
         encoded_msg = msg.encode("utf-8")
 
         if len(encoded_msg) < self.max_message_length:
-            return super().emit(record)
+            super().emit(record)
+            return
 
         parsed = parse_rfc5424_message(msg)
         base_length = get_string_length(
@@ -73,4 +74,4 @@ class OpenObserveSysLogHandler(SysLogHandler):
             dummy.structured_data = {**chunk_structured_data}
             dummy.structured_data["metaSDID@split"]["chunk"] = chunk
             dummy.structured_data["metaSDID@split"]["part"] = str(idx)
-            return super().emit(dummy)
+            super().emit(dummy)

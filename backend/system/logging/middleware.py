@@ -77,7 +77,7 @@ class LogSlowRequestsMiddleware:
                     }
                 )
 
-        with open(os.path.join(settings.MEDIA_ROOT, f"logs/{request_id}.json"), "w") as fp:
+        with open(os.path.join(settings.MEDIA_ROOT, f"logs/{request_id}.json"), "w+") as fp:
             # cause some syslog server implementations are limiting message size, we store verbose details as simple media files
             json.dump(log_details, fp)
 

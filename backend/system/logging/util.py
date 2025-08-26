@@ -99,5 +99,22 @@ def escape_sd_value(value: str) -> str:
     )
 
 
+def unescape_sd_value(value: str) -> str:
+    """
+    Entschärft einen SD-PARAM-Wert nach RFC5424.
+    """
+    if not isinstance(value, str):
+        value = str(value)
+
+    # Reihenfolge wichtig: erst \\ ersetzen, dann die anderen Escapes
+    return (
+        value.replace("\\n", "\n")
+             .replace("\\r", "\r")
+             .replace("\\]", "]")
+             .replace("\\\"", "\"")
+             .replace("\\\\", "\\")
+    )
+
+
 def get_string_length(value):
     return len(value.encode("utf-8"))

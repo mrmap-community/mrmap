@@ -3,16 +3,7 @@ import uuid
 from logging.handlers import SysLogHandler
 
 from system.logging.util import (format_structured_data, get_string_length,
-                                 parse_rfc5424_message)
-
-
-class SafeString:
-
-    def __init__(self, string):
-        self.string = string
-
-    def __str__(self):
-        return self.string
+                                 parse_rfc5424_message, unescape_sd_value)
 
 
 class OpenObserveSysLogHandler(SysLogHandler):
@@ -22,7 +13,7 @@ class OpenObserveSysLogHandler(SysLogHandler):
     """
 
     append_nul = False
-    max_message_length = 1300  # Sicherheitsabstand zur OpenObserve-Grenze
+    max_message_length = 1200  # Sicherheitsabstand zur OpenObserve-Grenze
 
     def _clone_for_chunk(self, src_record: logging.LogRecord) -> logging.LogRecord:
         """
@@ -81,7 +72,8 @@ class OpenObserveSysLogHandler(SysLogHandler):
         for idx, chunk in enumerate([sd_formatted[i:i+chunk_size]
                                      for i in range(0, len(sd_formatted), chunk_size)], start=1):
             dummy.structured_data = {**chunk_structured_data}
-            dummy.structured_data["metaSDID@split"]["chunk"] = SafeString(
+            dummy.structured_data["metaSDID@split"]["chunk"] = unescape_sd_value(
                 chunk)
             dummy.structured_data["metaSDID@split"]["part"] = str(idx)
+            super().emit(dummy)
             super().emit(dummy)

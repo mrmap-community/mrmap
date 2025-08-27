@@ -20,7 +20,7 @@ from django.conf import settings
 from django.conf.urls import include
 from django.contrib import admin
 from django.contrib.auth.decorators import login_required
-from django.urls import path
+from django.urls import path, re_path
 from django.views.decorators.cache import cache_page
 from django.views.static import serve
 from drf_spectacular.views import (SpectacularJSONAPIView,
@@ -90,7 +90,9 @@ if settings.DEBUG:
 
 else:
     urlpatterns.append(
-        path(r'^%s(?P<path>.*)$' % settings.MEDIA_URL[1:], protected_serve, {
-            'document_root': settings.MEDIA_ROOT}),
-
+        re_path(
+            r'^media/(?P<path>.*)$',
+            protected_serve,
+            {'document_root': settings.MEDIA_ROOT}
+        ),
     )

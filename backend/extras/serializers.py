@@ -2,6 +2,7 @@ import pytz
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models.functions import datetime
+from django.urls import resolve
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from guardian.core import ObjectPermissionChecker
@@ -34,8 +35,25 @@ class ObjectPermissionCheckerSerializer(ModelSerializer):
             # fallback with slow solution if no perm_checker is in the context
             perm_checker = ObjectPermissionChecker(
                 user_or_group=self.context['request'].user)
+
+            extra = {}
+            request = self.context.get("request")
+            if request:
+                view, _, _ = resolve(request.path)
+                extra.update(
+                    {
+                        "structured_data": {
+                            "metaSDID@django": {
+                                "view_name": view
+                            }
+                        }
+                    }
+                )
+
             settings.ROOT_LOGGER.warning(
-                "slow handling of object permissions detected. Optimize your view by adding a permchecker in your view.")
+                msg="slow handling of object permissions detected. Optimize your view by adding a permchecker.",
+                extra=extra
+            )
         return perm_checker
 
     def get_is_accessible(self, obj) -> bool:
@@ -112,4 +130,5 @@ class TimeUntilNextRunMixin:
             parts.append(f"{minutes}min")
         parts.append(f"{seconds}s")
 
+        return " ".join(parts)
         return " ".join(parts)

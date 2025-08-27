@@ -45,6 +45,10 @@ def check_path_access(path: str):
     return has_access
 
 
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
 # Set the base directory two levels up
 # this is the path where the python code is
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -48,15 +48,13 @@ class LogSlowRequestsMiddleware:
             return
         # slow request detected
 
-        path = request.scheme + "://" + request.get_host() + request.get_full_path()
         request_id = uuid.uuid4()
-
         # Basisdaten
         structured_data = {
             "metaSDID@request": {
                 "request_id": str(request_id),
-                "details_json": f"{request.scheme}://{request.get_host()}{settings.MEDIA_URL}logs/{request_id}.json",
-                "path": path,
+                "details_json": request.build_absolute_uri(f"{settings.MEDIA_URL}logs/{request_id}.json"),
+                "path": request.build_absolute_uri(),
                 "duration_ms": request_duration_ms,
                 "status_code": response.status_code if response else 500,
                 "method": request.META.get("REQUEST_METHOD", "GET"),

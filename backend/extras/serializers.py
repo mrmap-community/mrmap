@@ -44,7 +44,7 @@ class ObjectPermissionCheckerSerializer(ModelSerializer):
                     {
                         "structured_data": {
                             "metaSDID@django": {
-                                "view_name": view
+                                "view_name": view.__name__
                             }
                         }
                     }

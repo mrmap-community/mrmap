@@ -72,8 +72,10 @@ urlpatterns = [
 
 ]
 
+# TODO: restrict access via authentication
+# @login_required
 
-@login_required
+
 def protected_serve(request, path, document_root=None, show_indexes=False):
     return serve(request, path, document_root, show_indexes)
 

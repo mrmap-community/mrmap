@@ -33,7 +33,7 @@ class RFC5424Formatter(logging.Formatter):
         structured_data = f"{file_sd}{exc_sd}{format_structured_data(getattr(record, "structured_data", {}))}"
 
         log = (
-            f'1 {record.asctime} {socket.gethostname()} mrmap {record.process} - '
-            f'{structured_data} {record.message}'
+            f'1 {record.asctime or "-"} {socket.gethostname() or "-"} mrmap {record.process or "-"} - '
+            f'{structured_data or "-"} {record.message or "-"}'
         )
         return log

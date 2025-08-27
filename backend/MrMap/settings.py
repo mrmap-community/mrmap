@@ -45,8 +45,8 @@ def check_path_access(path: str):
     return has_access
 
 
-USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT = True
+# USE_X_FORWARDED_HOST = True
+# USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 

@@ -7,7 +7,6 @@ services:
       context: ./
       dockerfile: ./docker/nginx.Dockerfile
       args:
-        #
         - VITE_API_BASE_URL=localhost:8001
         - VITE_API_SCHEMA=http
 
@@ -75,9 +74,9 @@ services:
       - mrmap-internal
     env_file:
       - ./docker/backend/.mrmap.env
-      - ./docker/backend/.mrmap.dev.env
     environment:
       - DJANGO_DEBUG=0
+      - MRMAP_PRODUCTION=False
     depends_on:
       - postgis
       - redis
@@ -102,9 +101,9 @@ services:
       - mrmap-internal
     env_file:
       - ./docker/backend/.mrmap.env
-      - ./docker/backend/.mrmap.dev.env
     environment:
       - DJANGO_DEBUG=0
+      - MRMAP_PRODUCTION=False
     depends_on:
       - postgis
       - redis
@@ -115,9 +114,11 @@ services:
       args:
         MRMAP_PRODUCTION: "False"
     container_name: backend-dev
+    environment:
+      - DJANGO_DEBUG=1
+      - MRMAP_PRODUCTION=False
     env_file:
       - docker/backend/.mrmap.env
-      - docker/backend/.mrmap.dev.env
     ports:
       - "0.0.0.0:8001:8001"
     command: /bin/sh -c "python manage.py runserver 0.0.0.0:8001"
@@ -126,9 +127,11 @@ services:
     build:
       args:
         MRMAP_PRODUCTION: "False"
+    environment:
+      - DJANGO_DEBUG=1
+      - MRMAP_PRODUCTION=False
     env_file:
       - ./docker/backend/.mrmap.env
-      - ./docker/backend/.mrmap.dev.env
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q download,default,db-routines --statedb=/var/run/celery/%n-%i_worker.state"
 
@@ -136,9 +139,11 @@ services:
     build:
       args:
         MRMAP_PRODUCTION: "False"
+    environment:
+      - DJANGO_DEBUG=1
+      - MRMAP_PRODUCTION=False
     env_file:
       - ./docker/backend/.mrmap.env
-      - ./docker/backend/.mrmap.dev.env
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
 

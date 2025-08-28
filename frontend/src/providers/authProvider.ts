@@ -1,6 +1,8 @@
 import { UserIdentity, type AuthProvider } from 'ra-core';
+import { API_BASE_URL } from '../context/HttpClientContext';
 
-const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
+
+
 
 export interface LoginParams {
   username: string
@@ -60,9 +62,9 @@ export const setAuthToken = (props: AuthToken | undefined) => {
 
 
 const tokenAuthProvider = (
-    loginUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/auth/login`,
-    logoutUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/auth/logout`,
-    identityUrl = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/accounts/who-am-i/`,
+    loginUrl = `${API_BASE_URL}/api/auth/login`,
+    logoutUrl = `${API_BASE_URL}/api/auth/logout`,
+    identityUrl = `${API_BASE_URL}/api/accounts/who-am-i/`,
 ): AuthProvider => {
   return {
     login: async ({ username, password }: LoginParams) => {

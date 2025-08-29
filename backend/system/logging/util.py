@@ -14,7 +14,8 @@ def interpolate_sql(sql, params):
             interpolated = sql % {k: repr(v) for k, v in params.items()}
         else:
             interpolated = sql
-        return sqlparse.format(interpolated, reindent=True)
+        # Format SQL for readability
+        return sqlparse.format(interpolated, reindent=True, keyword_case='upper')
     except Exception as e:
         return f"{sql} -- [Interpolation failed: {e}]"
 

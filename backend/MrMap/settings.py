@@ -194,10 +194,14 @@ METADATA_URL = [
 BASE_URL_FOR_ETF = os.environ.get(
     "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
 )
-
-ALLOWED_HOSTS = os.environ.get(
-    "DJANGO_ALLOWED_HOSTS", "localhost;127.0.0.1;[::1];mrmap-appserver"
+ALLOWED_HOST_DEFAULTS = os.environ.get(
+    "DJANGO_ALLOWED_HOST_DEFAULTS", "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1"
 ).split(";")
+ALLOWED_HOSTS = os.environ.get(
+    "EXTERNAL_BASE_URL", "localhost"
+).split(";")
+ALLOWED_HOSTS.extend(ALLOWED_HOST_DEFAULTS)
+ALLOWED_HOSTS = list(set(ALLOWED_HOSTS))
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(

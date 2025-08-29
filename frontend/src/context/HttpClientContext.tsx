@@ -16,11 +16,13 @@ export interface HttpClientContextType {
 }
 
 
-const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
+const { VITE_API_SCHEMA, VITE_API_BASE_URL, VITE_API_PORT } = import.meta.env;
+
+export const API_BASE_URL = `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}:${VITE_API_PORT}`
 
 
 const AXIOS_DEFAULTS = {
-  baseURL: `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}`,  
+  baseURL: API_BASE_URL,  
   headers: new AxiosHeaders(
     {
       Accept: JsonApiMimeType,
@@ -52,11 +54,14 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
         'Accept-Language': locale,
       }
     )
-    }))
-    const httpClient = new OpenAPIClientAxios({ definition: `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/api/schema`, axiosConfigDefaults: cfg})
+    }))   
+    const httpClient = new OpenAPIClientAxios({ definition: `${API_BASE_URL}/api/schema`, axiosConfigDefaults: cfg})
     httpClient.init().then((client) => {
       setDocument(client.api.document)
-    }).catch((error) => { setError(error); console.error("errror during initialize axios openapi client", error)})
+    }).catch((error) => { 
+      setError(error); 
+      console.error("errror during initialize axios openapi client", error)
+    })
     .finally(() => setIsPending(false))
   },[setError, setDocument])
 

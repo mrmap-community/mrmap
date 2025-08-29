@@ -5,7 +5,7 @@ import { useHttpClientContext } from "../../../context/HttpClientContext";
 import { getAuthToken } from "../../../providers/authProvider";
 
 
-const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
+const { VITE_API_SCHEMA, VITE_API_BASE_URL, VITE_API_PORT } = import.meta.env;
 
 
 const RealtimeBus = () => {
@@ -16,9 +16,9 @@ const RealtimeBus = () => {
   const websocketUrl = useMemo(()=>{
       if (authenticated){
         const storedAuthToken = getAuthToken();
-        return `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}/ws/default/?token=${storedAuthToken?.token}`
+        return `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}:${VITE_API_PORT}/ws/default/?token=${storedAuthToken?.token}`
       } else {
-        return `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}/ws/default/`
+        return `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}:${VITE_API_PORT}/ws/default/`
       }
     },[authenticated])
 

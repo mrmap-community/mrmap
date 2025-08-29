@@ -197,8 +197,7 @@ services:
         source: frontend-static
         target: /var/www/mrmap/frontend
     ports:
-      - "80:80"
-      - "443:443"
+      - "8008:80"
     depends_on:
       - backend
     networks:

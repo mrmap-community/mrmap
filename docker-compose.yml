@@ -10,8 +10,10 @@ services:
         target: /var/lib/postgresql/data
     networks:
       - mrmap-internal
-    env_file:
-      - ./docker/postgis/.db.env
+    environment:
+      POSTGRES_USER: "${DB_USER:?Please configure DB_USER in the .env file}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
+      POSTGRES_DB: mrmap
   # migration guide:
   # 1. backup current db => docker exec -it `container_id` pg_dumpall -U mrmap  > .upgrade_backup.sql
   # 2. call pg_extract script => backend/.bash_scripts/pg_extract.sh .upgrade_backup.sql mrmap >> upgrade_backup_mydb.sql
@@ -71,7 +73,9 @@ services:
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
+      SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
     env_file:
       - docker/backend/.mrmap.env
@@ -115,7 +119,9 @@ services:
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
+      SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
     env_file:
       - ./docker/backend/.mrmap.env
@@ -160,7 +166,9 @@ services:
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
+      SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
     env_file:
       - ./docker/backend/.mrmap.env

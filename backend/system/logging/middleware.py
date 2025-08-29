@@ -30,9 +30,15 @@ class LogSlowRequestsMiddleware:
             try:
                 return execute(sql, params, many, context)
             finally:
+                interpolated_sql = interpolate_sql(sql, params)
+                # Ersetze alle Zeilenumbrüche und Tabs durch Leerzeichen
+                clean_sql = interpolated_sql.replace(
+                    '\n', ' ').replace('\t', ' ')
+                # Optional: Mehrere Leerzeichen auf eins reduzieren
+                clean_sql = ' '.join(clean_sql.split())
                 collected_queries.append(
                     {
-                        "sql": interpolate_sql(sql, params),
+                        "sql": clean_sql,
                         "duration_ms": self.get_duration_ms(start_time)
                     }
                 )

@@ -1,6 +1,23 @@
 import re
 from typing import Any, Dict
 
+import sqlparse
+
+
+def interpolate_sql(sql, params):
+    try:
+        if params is None:
+            return sql
+        if isinstance(params, (list, tuple)):
+            interpolated = sql % tuple(repr(p) for p in params)
+        elif isinstance(params, dict):
+            interpolated = sql % {k: repr(v) for k, v in params.items()}
+        else:
+            interpolated = sql
+        return sqlparse.format(interpolated, reindent=True)
+    except Exception as e:
+        return f"{sql} -- [Interpolation failed: {e}]"
+
 
 def parse_rfc5424_message(msg: str) -> Dict[str, Any]:
     """

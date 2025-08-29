@@ -7,6 +7,7 @@ from pathlib import Path
 from django.conf import settings
 from django.db import connection
 from django.utils import timezone
+from system.logging.util import interpolate_sql
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -31,7 +32,7 @@ class LogSlowRequestsMiddleware:
             finally:
                 collected_queries.append(
                     {
-                        "sql": sql,
+                        "sql": interpolate_sql(sql, params),
                         "duration_ms": self.get_duration_ms(start_time)
                     }
                 )

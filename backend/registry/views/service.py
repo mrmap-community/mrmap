@@ -673,8 +673,7 @@ class CatalogueServiceViewSetMixin(
         if harvested_dataset_count_needed:
             job_level_kwargs["dataset_count"] = Count(
                 "id",
-                filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value)
-                & Q(dataset_metadata_record__isnull=False),
+                filter=Q(dataset_metadata_record__isnull=False),
             )
         if harvested_service_count_needed:
             job_level_kwargs["service_count"] = Count(
@@ -683,7 +682,7 @@ class CatalogueServiceViewSetMixin(
             )
         relation_agg = With(
             HarvestedMetadataRelation.objects
-            .filter(collecting_state__ne=CollectingStatenEnum.DUPLICATED.value)
+            .filter(~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))
             .values("harvesting_job_id__service_id")
             .annotate(**job_level_kwargs),
             name="relation_agg",

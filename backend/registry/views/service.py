@@ -683,7 +683,7 @@ class CatalogueServiceViewSetMixin(
         relation_agg = With(
             HarvestedMetadataRelation.objects
             .filter(~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))
-            .values("harvesting_job_id__service_id")
+            .values("harvesting_job_id")
             .annotate(**job_level_kwargs),
             name="relation_agg",
         )

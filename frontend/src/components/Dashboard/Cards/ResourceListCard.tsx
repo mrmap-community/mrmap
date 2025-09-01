@@ -8,7 +8,7 @@ import {
 
 
 import { Divider } from '@mui/material';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useMemo } from 'react';
 import CardWithIcon from './CardWithIcon';
 import ChangeLogList from './ChangeLogList';
 
@@ -27,11 +27,21 @@ const ResourceListCard = (
     }: ResourceListCardProps
 ) => {
   const { name, icon, hasCreate } = useResourceDefinition({ resource: resource })
+  const meta = useMemo(()=>{
+        if (withList) return {}
+        const meta: any = {}
+        const sparefields: any = {}
+        sparefields[`fields[${resource}]`] = 'id'
+        meta["jsonApiParams"] = sparefields
+        return meta
+      },[withList])
+      
   return (
       <ListBase
           resource={resource}
           sort={sort}
           perPage={withList ? 100 : 1}
+          queryOptions={meta}
           disableSyncWithLocation
       >
           <CardWithIcon

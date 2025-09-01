@@ -1,7 +1,5 @@
 from camel_converter import to_camel
-from django.db.models import (Count, Exists, F, IntegerField, OuterRef,
-                              Prefetch, Q, Subquery, Sum)
-from django.db.models import Value
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Sum
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
@@ -671,113 +669,75 @@ class CatalogueServiceViewSetMixin(
             "harvestedServiceCount") or harvested_total_count_needed
 
         # --- step 1: aggregate per harvesting_job_id ---
-        annotate_kwargs = {}
+        job_level_kwargs = {}
         if harvested_dataset_count_needed:
-            dataset_sq = Subquery(
-                HarvestedMetadataRelation.objects
-                .filter(
-                    ~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value),
-                    dataset_metadata_record__isnull=False,
-                    # korreliert mit CatalogueService.id
-                    harvesting_job__service_id=OuterRef('pk'),
-                )
-                .values('harvesting_job__service_id')
-                .annotate(cnt=Count('id'))
-                .values('cnt')[:1],
-                output_field=IntegerField(),
+            job_level_kwargs["dataset_count"] = Count(
+                "id",
+                filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value)
+                & Q(dataset_metadata_record__isnull=False),
             )
-            annotate_kwargs["harvested_dataset_count"] = Coalesce(
-                dataset_sq, Value(0))
-            # job_level_kwargs["dataset_count"] = Count(
-            #     "id",
-            #     filter=Q(dataset_metadata_record__isnull=False),
-            # )
         if harvested_service_count_needed:
-            service_sq = Subquery(
-                HarvestedMetadataRelation.objects
-                .filter(
-                    ~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value),
-                    service_metadata_record__isnull=False,
-                    harvesting_job__service_id=OuterRef('pk'),
-                )
-                .values('harvesting_job__service_id')
-                .annotate(cnt=Count('id'))
-                .values('cnt')[:1],
-                output_field=IntegerField(),
+            job_level_kwargs["service_count"] = Count(
+                "id",
+                filter=Q(service_metadata_record__isnull=False),
             )
-            annotate_kwargs["harvested_service_count"] = Coalesce(
-                service_sq, Value(0))
-            # job_level_kwargs["service_count"] = Count(
-            #     "id",
-            #     filter=Q(service_metadata_record__isnull=False),
-            # )
-        if harvested_total_count_needed:
-            annotate_kwargs["harvested_total_count"] = (
-                Coalesce(F("harvested_dataset_count"), Value(0))
-                + Coalesce(F("harvested_service_count"), Value(0))
+        relation_agg = With(
+            HarvestedMetadataRelation.objects
+            .filter(collecting_state__ne=CollectingStatenEnum.DUPLICATED.value)
+            .values("harvesting_job_id__service_id")
+            .annotate(**job_level_kwargs),
+            name="relation_agg",
+        )
+
+        # --- step 2: join by harvestingjob + aggregation per service id
+        cte_kwargs = {}
+        if harvested_dataset_count_needed:
+            cte_kwargs.update({
+                "dataset_count": Sum(relation_agg.col.dataset_count)
+            })
+        if harvested_service_count_needed:
+            cte_kwargs.update({
+                "service_count": Sum(relation_agg.col.service_count)
+            })
+        cte = With(
+            relation_agg.join(
+                HarvestingJob,
+                id=relation_agg.col.harvesting_job_id,
+            )
+            .values("service_id")
+            .annotate(**cte_kwargs),
+            name="cte",
+        )
+
+        if harvested_total_count_needed or harvested_dataset_count_needed or harvested_service_count_needed:
+            qs = (
+                cte.join(model_or_queryset=qs,
+                         id=cte.col.service_id,
+                         _join_type=LOUTER
+                         )
+                .with_cte(relation_agg)
+                .with_cte(cte)
             )
 
+        # --- step 3: annotation of the final values
+        annotate_kwargs = {}
+        if harvested_total_count_needed:
+            annotate_kwargs.update({
+                "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0),
+                "harvested_service_count": Coalesce(cte.col.service_count, 0),
+                "harvested_total_count": Coalesce(F("harvested_dataset_count"), 0) + Coalesce(F("harvested_service_count"), 0)
+            })
+        if harvested_dataset_count_needed:
+            annotate_kwargs.update({
+                "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0)
+            })
+        if harvested_service_count_needed:
+            annotate_kwargs.update({
+                "harvested_service_count": Coalesce(cte.col.service_count, 0),
+            })
         if annotate_kwargs:
             qs = qs.annotate(**annotate_kwargs)
         return qs
-
-        # relation_agg = With(
-        #     HarvestedMetadataRelation.objects
-        #     .filter(~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))
-        #     .values("harvesting_job_id")
-        #     .annotate(**job_level_kwargs),
-        #     name="relation_agg",
-        # )
-
-        # # --- step 2: join by harvestingjob + aggregation per service id
-        # cte_kwargs = {}
-        # if harvested_dataset_count_needed:
-        #     cte_kwargs.update({
-        #         "dataset_count": Sum(relation_agg.col.dataset_count)
-        #     })
-        # if harvested_service_count_needed:
-        #     cte_kwargs.update({
-        #         "service_count": Sum(relation_agg.col.service_count)
-        #     })
-        # cte = With(
-        #     relation_agg.join(
-        #         HarvestingJob,
-        #         id=relation_agg.col.harvesting_job_id,
-        #     )
-        #     .values("service_id")
-        #     .annotate(**cte_kwargs),
-        #     name="cte",
-        # )
-
-        # if harvested_total_count_needed or harvested_dataset_count_needed or harvested_service_count_needed:
-        #     qs = (
-        #         cte.join(model_or_queryset=qs,
-        #                  id=cte.col.service_id,
-        #                  _join_type=LOUTER
-        #                  )
-        #         .with_cte(relation_agg)
-        #         .with_cte(cte)
-        #     )
-
-        # --- step 3: annotation of the final values
-        # annotate_kwargs = {}
-        # if harvested_total_count_needed:
-        #     annotate_kwargs.update({
-        #         "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0),
-        #         "harvested_service_count": Coalesce(cte.col.service_count, 0),
-        #         "harvested_total_count": Coalesce(F("harvested_dataset_count"), 0) + Coalesce(F("harvested_service_count"), 0)
-        #     })
-        # if harvested_dataset_count_needed:
-        #     annotate_kwargs.update({
-        #         "harvested_dataset_count": Coalesce(cte.col.dataset_count, 0)
-        #     })
-        # if harvested_service_count_needed:
-        #     annotate_kwargs.update({
-        #         "harvested_service_count": Coalesce(cte.col.service_count, 0),
-        #     })
-        # if annotate_kwargs:
-        #     qs = qs.annotate(**annotate_kwargs)
-        # return qs
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)

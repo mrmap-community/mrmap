@@ -692,11 +692,11 @@ class CatalogueServiceViewSetMixin(
         cte_kwargs = {}
         if harvested_dataset_count_needed:
             cte_kwargs.update({
-                "dataset_count": Sum("relation_agg__dataset_count")
+                "dataset_count": Sum(relation_agg.col.dataset_count)
             })
         if harvested_service_count_needed:
             cte_kwargs.update({
-                "dataset_count": Sum("relation_agg__service_count")
+                "service_count": Sum(relation_agg.col.service_count)
             })
         cte = With(
             relation_agg.join(

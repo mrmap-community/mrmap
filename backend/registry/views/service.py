@@ -711,7 +711,7 @@ class CatalogueServiceViewSetMixin(
         if harvested_total_count_needed or harvested_dataset_count_needed or harvested_service_count_needed:
             qs = (
                 cte.join(model_or_queryset=qs,
-                         id=cte.col.service,
+                         id=cte.col.service_id,
                          _join_type=LOUTER
                          )
                 .with_cte(relation_agg)

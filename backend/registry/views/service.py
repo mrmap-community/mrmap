@@ -1,5 +1,5 @@
 from camel_converter import to_camel
-from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q
+from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Sum
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
@@ -668,34 +668,57 @@ class CatalogueServiceViewSetMixin(
         harvested_service_count_needed = self.check_sparse_fields_contains(
             "harvestedServiceCount") or harvested_total_count_needed
 
+        # --- step 1: aggregate per harvesting_job_id ---
+        job_level_kwargs = {}
+        if harvested_dataset_count_needed:
+            job_level_kwargs["dataset_count"] = Count(
+                "id",
+                filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value)
+                & Q(dataset_metadata_record__isnull=False),
+            )
+        if harvested_service_count_needed:
+            job_level_kwargs["service_count"] = Count(
+                "id",
+                filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value)
+                & Q(service_metadata_record__isnull=False),
+            )
+        relation_agg = With(
+            HarvestedMetadataRelation.objects.values("harvesting_job_id")
+            .annotate(**job_level_kwargs),
+            name="relation_agg",
+        )
+
+        # --- step 2: join by harvestingjob + aggregation per service id
         cte_kwargs = {}
         if harvested_dataset_count_needed:
             cte_kwargs.update({
-                "dataset_count": Count(
-                    "id",
-                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value) & Q(dataset_metadata_record__isnull=False))
+                "dataset_count": Sum("relation_agg__dataset_count")
             })
         if harvested_service_count_needed:
             cte_kwargs.update({
-                "service_count": Count(
-                    "id",
-                    filter=~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value) & Q(service_metadata_record__isnull=False))
+                "dataset_count": Sum("relation_agg__service_count")
             })
-
         cte = With(
-            queryset=HarvestedMetadataRelation.objects.annotate(service=F(
-                'harvesting_job__service_id')).values('service').annotate(**cte_kwargs),
-            name="cte"
+            relation_agg.join(
+                HarvestingJob,
+                id=relation_agg.col.harvesting_job_id,
+            )
+            .values("service_id")
+            .annotate(**cte_kwargs),
+            name="cte",
         )
+
         if harvested_total_count_needed or harvested_dataset_count_needed or harvested_service_count_needed:
             qs = (
                 cte.join(model_or_queryset=qs,
                          id=cte.col.service,
                          _join_type=LOUTER
                          )
+                .with_cte(relation_agg)
                 .with_cte(cte)
             )
 
+        # --- step 3: annotation of the final values
         annotate_kwargs = {}
         if harvested_total_count_needed:
             annotate_kwargs.update({

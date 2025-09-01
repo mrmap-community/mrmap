@@ -35,13 +35,13 @@ const ResourceListCard = (
         meta["jsonApiParams"] = sparefields
         return meta
       },[withList])
-      
+console.log(meta)
   return (
       <ListBase
           resource={resource}
           sort={sort}
           perPage={withList ? 100 : 1}
-          queryOptions={meta}
+          queryOptions={{meta: meta}}
           disableSyncWithLocation
       >
           <CardWithIcon

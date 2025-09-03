@@ -302,15 +302,19 @@ if is_celery_process():
 
     POSTGRESQL_MAX_CONNECTIONS_DEFAULT = 100
     cores = multiprocessing.cpu_count()
-    available_connections = POSTGRESQL_MAX_CONNECTIONS_DEFAULT - MAX_BACKEND_RESERVED_CONNECTIONS - \
-        RESERVED_CONNECTION_SPACE - 1  # -1 for beat reserved
+    available_connections = (
+        POSTGRESQL_MAX_CONNECTIONS_DEFAULT
+        - MAX_BACKEND_RESERVED_CONNECTIONS
+        - RESERVED_CONNECTION_SPACE
+        - 1  # -1 for beat reserved
+    )
 
-    max_size = available_connections / cores
+    max_size = max(1, available_connections // cores)
 
     DATABASES["default"]["OPTIONS"] = {
         "pool": {
             "min_size": max(1, max_size // 2),
-            "max_size": max_size,
+            "max_size": int(max_size),
             "timeout": 20,
         }
     }

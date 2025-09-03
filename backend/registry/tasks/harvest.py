@@ -53,17 +53,24 @@ def call_fetch_total_records(*args, **kwargs):
 
         harvesting_job.handle_total_records_defined()
         harvesting_job.save(skip_history_when_saving=False)
+        logger.info(
+            f"{harvesting_job.service} provides {total_records} records. Next step: Harvesting processing")
         return total_records
     except Exception as e:
-        tb = traceback.format_exc()
-        HarvestingLog.objects.create(
+        log = HarvestingLog.objects.create(
             harvesting_job=harvesting_job,
             level=LogLevelEnum.ERROR.value,
             description='something went wrong during call_fetch_total_records()',
-            extended_description=tb
         )
+        log.extented_description.save(
+            name=f"harvesting_log_{log.pk}.txt",
+            content=ContentFile(content=traceback.format_exc()),
+        )
+
         harvesting_job.total_records = 0
         harvesting_job.save(skip_history_when_saving=False)
+
+        logger.exception(e, stack_info=True, exc_info=True)
     return 0
 
 

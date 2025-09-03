@@ -16,7 +16,14 @@ app.config_from_object("django.conf:settings")
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
 
-def is_this_a_celery_process():
-    for arg in sys.argv:
-        return 'celery' in arg
-    return False
+def is_celery_process(*keywords: str) -> bool:
+    args = " ".join(sys.argv)
+    return "celery" in args and all(word in args for word in keywords)
+
+
+def is_this_a_celery_worker_process():
+    return is_celery_process("worker")
+
+
+def is_this_a_celery_beat_process():
+    return is_celery_process("beat")

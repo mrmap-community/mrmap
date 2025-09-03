@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
 import logging
+import multiprocessing
 import os
 import re
 import socket
@@ -18,7 +19,8 @@ from warnings import warn
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
-from MrMap.celery import is_this_a_celery_process
+from MrMap.celery import (is_celery_process, is_this_a_celery_beat_process,
+                          is_this_a_celery_worker_process)
 from system.logging.formatter import RFC5424Formatter
 
 from . import VERSION
@@ -261,6 +263,8 @@ GUARDIAN_RAISE_403 = True
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 ################################################################
+RESERVED_CONNECTION_SPACE = 10
+MAX_BACKEND_RESERVED_CONNECTIONS = 10
 DATABASES = {
     "default": {
         "ENGINE": os.environ.get("SQL_ENGINE"),
@@ -272,8 +276,8 @@ DATABASES = {
         "OPTIONS": {
             "pool": {
                 "min_size": 4,
-                "max_size": 10,
-                "timeout": 60,
+                "max_size": MAX_BACKEND_RESERVED_CONNECTIONS,
+                "timeout": 30,
             }
         },
         "CONN_HEALTH_CHECKS": True,
@@ -285,14 +289,29 @@ DATABASES = {
 # Cause there are many concurent tasks running, we need a lot of connections that are opended.
 # Otherwise it is highly possible that with transaction.atomic(): (creates new connection) crashes, cause the db does not allow a new connection.
 # there for we need to define the pool with a high number of maximum opened connections.
-if is_this_a_celery_process():
-    ROOT_LOGGER.info("using postgresql pools")
-    print("using postgresql pools")
+if is_celery_process():
+    if is_this_a_celery_beat_process:
+        # celery beat only need's one connections at a time
+        DATABASES["default"]["OPTIONS"] = {
+            "pool": {
+                "min_size": 1,
+                "max_size": 1,
+                "timeout": 10,
+            }
+        }
+
+    POSTGRESQL_MAX_CONNECTIONS_DEFAULT = 100
+    cores = multiprocessing.cpu_count()
+    available_connections = POSTGRESQL_MAX_CONNECTIONS_DEFAULT - MAX_BACKEND_RESERVED_CONNECTIONS - \
+        RESERVED_CONNECTION_SPACE - 1  # -1 for beat reserved
+
+    max_size = available_connections / cores
+
     DATABASES["default"]["OPTIONS"] = {
         "pool": {
-            "min_size": 10,
-            "max_size": 20,  # FIXME: depends on max celery worker threads are running parralel
-            "timeout": 10,
+            "min_size": max(1, max_size // 2),
+            "max_size": max_size,
+            "timeout": 20,
         }
     }
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:

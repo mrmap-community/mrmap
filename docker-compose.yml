@@ -1,5 +1,4 @@
 # docker compose file for productive useage
-version: '3.8'
 services:
 
   postgis:
@@ -8,12 +7,16 @@ services:
       - type: volume
         source: db-data-17
         target: /var/lib/postgresql/data
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: 134217728 # 128*2^20 bytes = 128Mb
     networks:
       - mrmap-internal
     environment:
       POSTGRES_USER: "${DB_USER:?Please configure DB_USER in the .env file}"
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
-      POSTGRES_DB: mrmap
+      POSTGRES_DB: "${POSTGRES_DB:-mrmap}"
   # migration guide:
   # 1. backup current db => docker exec -it `container_id` pg_dumpall -U mrmap  > .upgrade_backup.sql
   # 2. call pg_extract script => backend/.bash_scripts/pg_extract.sh .upgrade_backup.sql mrmap >> upgrade_backup_mydb.sql

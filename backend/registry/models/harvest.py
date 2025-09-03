@@ -267,7 +267,7 @@ class HarvestingJob(ProcessingData):
             )
             if extented_description:
                 log_obj.extented_description.save(
-                    name=f"{uuid4()}.log",
+                    name=f"{uuid4()}.txt",
                     content=ContentFile(content=extented_description))
             else:
                 log_obj.save()
@@ -455,31 +455,32 @@ class HarvestingJob(ProcessingData):
                 # terminate celery workflow by returning total records = 0
                 self.total_records = 0
 
-                description = f"Can't get total records from remote service by requesting {second_response.request.url} url. \n"
-                description += f"http status code: {second_response.status_code}\n"
-                description += f"response:\n{second_response.text}"
+                extended_description = f"Can't get total records from remote service by requesting {second_response.request.url} url. \n"
+                extended_description += f"http status code: {second_response.status_code}\n"
+                extended_description += f"response:\n{second_response.text}"
                 kind = LogKindEnum.REMOTE_ERROR.value if second_response.status_code >= 500 else None
 
                 self.log(
-                    description=description,
+                    description="GetTotalRecords failed",
+                    extented_description=extended_description,
                     level=LogLevelEnum.ERROR.value,
                     kind=kind,
-
                 )
 
         self.save()
         return self.total_records
 
     def _log_response_error(self, response):
-        description = {
+        extented_description = {
             "url": response.request.url,
-            "status_code": response.status_code
+            "status_code": response.status_code,
+            "content": response.content
         }
         self.log(
             level=LogLevelEnum.ERROR.value,
             kind=LogKindEnum.REMOTE_ERROR.value,
-            description=str(description),
-            extented_description=response.content,
+            description="Response Error",
+            extented_description=str(extented_description),
         )
 
     def _check_xml_is_parseable(self, xml: str) -> bool:

@@ -195,7 +195,7 @@ BASE_URL_FOR_ETF = os.environ.get(
     "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
 )
 ALLOWED_HOST_DEFAULTS = os.environ.get(
-    "DJANGO_ALLOWED_HOST_DEFAULTS", "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1"
+    "DJANGO_ALLOWED_HOST_DEFAULTS", "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver"
 ).split(";")
 ALLOWED_HOSTS = os.environ.get(
     "EXTERNAL_BASE_URL", "localhost"

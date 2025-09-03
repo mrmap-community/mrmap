@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import ResourceListCard from './Cards/ResourceListCard';
+
 const styles = {
   flex: { display: 'flex' },
   flexColumn: { display: 'flex', flexDirection: 'column' },

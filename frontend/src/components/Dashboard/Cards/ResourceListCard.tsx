@@ -35,7 +35,7 @@ const ResourceListCard = (
         meta["jsonApiParams"] = sparefields
         return meta
       },[withList])
-console.log(meta)
+
   return (
       <ListBase
           resource={resource}

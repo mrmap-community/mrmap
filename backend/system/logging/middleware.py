@@ -50,14 +50,10 @@ class LogSlowRequestsMiddleware:
         request_duration_ms = self.get_duration_ms(self.start)
         if request_duration_ms <= self.threshold_ms:
             return
-        # slow request detected
 
-        request_id = uuid.uuid4()
         # Basisdaten
         structured_data = {
             "metaSDID@request": {
-                "request_id": str(request_id),
-                "details_json": request.build_absolute_uri(f"{settings.MEDIA_URL}logs/{request_id}.json"),
                 "path": request.build_absolute_uri(),
                 "duration_ms": request_duration_ms,
                 "status_code": response.status_code if response else 500,

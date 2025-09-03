@@ -36,10 +36,11 @@ class RFC5424Formatter(logging.Formatter):
             }
 
         if record.exc_info:
+
             exc_info = self.formatException(
                 record.exc_info).replace("\n", "\\n")
             structured_data["metaSDID@exception"] = {
-                "info": exc_info
+                "traceback": exc_info
             }
 
         try:

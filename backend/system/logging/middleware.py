@@ -1,8 +1,5 @@
-import json
-import os
 import uuid
 from logging import Logger
-from pathlib import Path
 
 from django.conf import settings
 from django.db import connection
@@ -69,11 +66,11 @@ class LogSlowRequestsMiddleware:
         }
 
         if queries:
-            log_details = {
+            structured_data = {
                 "metaSDID@message": {"msg": "Slow Request Detected"},
                 **structured_data
             }
-            query_meta = log_details.setdefault("metaSDID@queries", {})
+            query_meta = structured_data.setdefault("metaSDID@queries", {})
             for idx, q in enumerate(queries, start=1):
                 query_meta.update(
                     {
@@ -81,15 +78,6 @@ class LogSlowRequestsMiddleware:
                         f"{idx}_duration_ms": q["duration_ms"]
                     }
                 )
-        try:
-            path = Path(os.path.join(settings.MEDIA_ROOT, "logs"))
-            path.mkdir(parents=True, exist_ok=True)
-
-            with open(path / f"{request_id}.json", "w+") as fp:
-                # cause some syslog server implementations are limiting message size, we store verbose details as simple media files
-                json.dump(log_details, fp)
-        except Exception:
-            pass
 
         logger.warning(
             msg="Slow Request Detected",

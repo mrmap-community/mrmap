@@ -31,7 +31,7 @@ const HistoryChartCore = (
     const dataMap = new Map<string, any>();
     data?.forEach(record => {
       
-      const day = new Date(record?.day).toISOString().split("T")[0]; // Nur yyyy-mm-dd
+      const day = new Date(record?.historyDay).toISOString().split("T")[0]; // Nur yyyy-mm-dd
       dataMap.set(day, record);
     });
 

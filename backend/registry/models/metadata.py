@@ -14,7 +14,7 @@ from epsg_cache.registry import Registry
 from eulxml import xmlmap
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
-from MrMap.settings import PROXIES
+from extras.models import AdditionalTimeFieldsHistoricalModel
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
 from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
@@ -839,6 +839,7 @@ class DatasetMetadataRecord(MetadataRecord):
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
 
     objects = DatasetMetadataRecordManager()
@@ -928,7 +929,8 @@ class ServiceMetadataRecord(MetadataRecord):
     objects = ServiceMetadataRecordManager()
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector"
+        excluded_fields="search_vector",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
     history = DefaultHistoryManager()
 

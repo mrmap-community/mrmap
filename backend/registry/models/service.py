@@ -9,7 +9,8 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
 from extras.managers import DefaultHistoryManager
-from extras.models import HistoricalRecordMixin
+from extras.models import (AdditionalTimeFieldsHistoricalModel,
+                           HistoricalRecordMixin)
 from extras.utils import update_url_base, update_url_query_params
 from mptt2.models import Node
 from ows_lib.client.csw.mixins import \
@@ -121,7 +122,8 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector"
+        excluded_fields="search_vector",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
     capabilities = WebMapServiceCapabilitiesManager()
     security = WebMapServiceSecurityManager()
@@ -145,7 +147,8 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 class WebFeatureService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector"
+        excluded_fields="search_vector",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
     capabilities = WebFeatureServiceCapabilitiesManager()
     security = WebFeatureServiceSecurityManager()
@@ -172,7 +175,8 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
     )
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector"
+        excluded_fields="search_vector",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
     capabilities = CatalogueServiceCapabilitiesManager()
     objects = CatalogueServiceManager()
@@ -431,7 +435,8 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     )
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector"
+        excluded_fields="search_vector",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
 
     objects = LayerManager()
@@ -607,7 +612,8 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     change_log = HistoricalRecords(
         related_name="change_logs",
-        excluded_fields="search_vector"
+        excluded_fields="search_vector",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
     objects = DefaultHistoryManager()
     history = DefaultHistoryManager()
@@ -702,4 +708,5 @@ class FeatureTypeProperty(models.Model):
         ordering = ["-name"]
 
     def __str__(self):
+        return self.name
         return self.name

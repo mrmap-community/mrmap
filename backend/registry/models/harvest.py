@@ -17,6 +17,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from eulxml import xmlmap
+from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
@@ -232,6 +233,7 @@ class HarvestingJob(ProcessingData):
     )
     change_log = HistoricalRecords(
         related_name="change_logs",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
 
     objects = HarvestingJobManager()

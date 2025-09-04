@@ -101,7 +101,7 @@ class ProcessingData(models.Model):
         )
 
 
-class HarvestedMetadataRelation(models.Model):
+class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
     harvesting_job = models.ForeignKey(
         to="registry.HarvestingJob",
         on_delete=models.CASCADE,
@@ -131,6 +131,11 @@ class HarvestedMetadataRelation(models.Model):
         blank=True,
         verbose_name=_("processing duration"),
         help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
+    history_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Created DateTime'),
+        help_text=_('Datetime field when the relation was created'),
+    )
 
     objects = HarvestedMetadataRelationQuerySet.as_manager()
 

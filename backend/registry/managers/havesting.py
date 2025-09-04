@@ -23,8 +23,7 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
             updated=Case(When(condition=updated_records_filter,
                               then=Value(True)), default=Value(False)),
             existed=Case(When(condition=existed_records_filter,
-                              then=Value(True)), default=Value(False)),
-
+                              then=Value(True)), default=Value(False))
         ).values("history_day").annotate(
             id=F("history_day"),
             new=Count("pk", filter=Q(new=True)),

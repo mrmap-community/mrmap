@@ -6,12 +6,10 @@ from django.db import migrations, models
 def set_my_defaults(apps, schema_editor):
     HarvestedMetadataRelation = apps.get_model(
         'registry', 'HarvestedMetadataRelation')
-    objs = []
 
     for harvestedMetadataRelation in HarvestedMetadataRelation.objects.select_related('harvesting_job').all().iterator():
         harvestedMetadataRelation.history_date = harvestedMetadataRelation.harvesting_job.date_created
-        objs.append(harvestedMetadataRelation)
-    HarvestedMetadataRelation.objects.bulk_update(objs, ["history_date"])
+        harvestedMetadataRelation.save()
 
 
 def reverse_func(apps, schema_editor):

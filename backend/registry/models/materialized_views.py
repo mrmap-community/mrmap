@@ -4,14 +4,34 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import \
     GinIndex  # add the Postgres recommended GIN index
 from django.contrib.postgres.search import SearchVector, SearchVectorField
-from django.db import connection, models, transaction
+from django.db import connection, models
 from django.db.models import Q
 from django.db.models.expressions import F, Func, Value
-from django.db.models.signals import m2m_changed, post_delete, post_save
-from django.dispatch import receiver
+from django.db.models.fields import DateField, IntegerField, UUIDField
+from django.db.models.indexes import Index
 from django_pgviews import view as pg
 from registry.models.metadata import (AbstractMetadata, DatasetMetadataRecord,
                                       ServiceMetadataRecord)
+
+
+class MaterializedHarvestingStatsPerDay(pg.MaterializedView):
+    history_day = DateField()
+    service = UUIDField()
+    harvesting_job = IntegerField()
+    new = IntegerField()
+    updated = IntegerField()
+    existed = IntegerField()
+
+    class Meta:
+        managed = False
+        indexes = [
+            Index(fields=["hirstory_day"]),
+            Index(fields=["service"]),
+            Index(fields=["harvesting_job"]),
+            Index(fields=["new"]),
+            Index(fields=["updated"]),
+            Index(fields=["existed"]),
+        ]
 
 
 class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):

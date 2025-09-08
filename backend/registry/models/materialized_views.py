@@ -19,6 +19,10 @@ from registry.models.metadata import (AbstractMetadata, DatasetMetadataRecord,
 class DynamicMaterializedView(pg.MaterializedView):
     base_model = None
 
+    class Meta:
+        managed = False
+        abstract = True
+
     @classmethod
     def get_queryset(cls) -> QuerySet:
         return cls.base_model.objects.get_queryset()
@@ -37,7 +41,7 @@ class DynamicMaterializedView(pg.MaterializedView):
 
 
 class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
-    id = DateField()
+    id = DateField(primary_key=True)
     history_day = DateField()
     service = UUIDField()
     harvesting_job = IntegerField()
@@ -50,7 +54,8 @@ class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
     class Meta:
         managed = False
         indexes = [
-            Index(fields=["hirstory_day"]),
+            Index(fields=["id"]),
+            Index(fields=["history_day"]),
             Index(fields=["service"]),
             Index(fields=["harvesting_job"]),
             Index(fields=["new"]),

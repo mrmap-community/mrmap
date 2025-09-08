@@ -1,5 +1,5 @@
 from extras.serializers import SystemInfoSerializerMixin
-from rest_framework.fields import DateField, IntegerField
+from rest_framework.fields import DateField, IntegerField, UUIDField
 from rest_framework_json_api.serializers import Serializer
 
 
@@ -60,6 +60,8 @@ class StatisticalCatalogueServiceSerializer(HistoricalRecordDependingMixin, Stat
 
 
 class StatisticalHarvestedMetadataRelationSerializer(StatisticalSerializer):
+    service = UUIDField()
+    harvesting_job = IntegerField()
     new = IntegerField()
     updated = IntegerField()
     existed = IntegerField()

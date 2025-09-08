@@ -9,6 +9,8 @@ logger = get_task_logger(__name__)
 )
 def refresh_materialized_views(*args, **kwargs):
     from registry.models.materialized_views import (
-        SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
+        MaterializedHarvestingStatsPerDay, SearchableDatasetMetadataRecord,
+        SearchableServiceMetadataRecord)
     SearchableDatasetMetadataRecord.refresh()
     SearchableServiceMetadataRecord.refresh()
+    MaterializedHarvestingStatsPerDay.refresh()

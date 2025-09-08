@@ -26,6 +26,8 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
                               then=Value(True)), default=Value(False))
         ).values("history_day").annotate(
             id=F("history_day"),
+            service=F("harvesting_job__service__id"),
+            harvesting_job=F("harvesting_job__id"),
             new=Count("pk", filter=Q(new=True)),
             updated=Count("pk", filter=Q(updated=True)),
             existed=Count("pk", filter=Q(existed=True)),

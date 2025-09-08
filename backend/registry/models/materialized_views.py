@@ -14,6 +14,8 @@ from django_pgviews import view as pg
 from registry.models.harvest import HarvestedMetadataRelation
 from registry.models.metadata import (AbstractMetadata, DatasetMetadataRecord,
                                       ServiceMetadataRecord)
+from registry.models.service import (CatalogueService, FeatureType, Layer,
+                                     WebFeatureService, WebMapService)
 
 
 class DynamicMaterializedView(pg.MaterializedView):
@@ -38,6 +40,106 @@ class DynamicMaterializedView(pg.MaterializedView):
         last_query = connection.queries[-1].get('sql')
         connection.force_debug_cursor = False
         return pg.ViewSQL(last_query, None)
+
+
+class ResourceHistroyStatsPerDay(DynamicMaterializedView):
+    id = DateField(primary_key=True)
+    history_day = DateField()
+    new = IntegerField()
+    updated = IntegerField()
+    deleted = IntegerField()
+
+    class Meta:
+        managed = False
+        abstract = True
+        indexes = [
+            Index(fields=["id"]),
+            Index(fields=["history_day"]),
+            Index(fields=["new"]),
+            Index(fields=["updated"]),
+            Index(fields=["deleted"]),
+        ]
+
+    @classmethod
+    def get_queryset(cls):
+        return cls.base_model.history.stats_per_day()
+
+
+class MaterializedDatasetMetadataRecordStatsPerDay(ResourceHistroyStatsPerDay):
+    base_model = DatasetMetadataRecord
+
+    class Meta:
+        indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedServiceMetadataRecordStatsPerDay(ResourceHistroyStatsPerDay):
+    base_model = ServiceMetadataRecord
+
+    class Meta:
+        indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedWebMapServiceStatsPerDay(ResourceHistroyStatsPerDay):
+    base_model = WebMapService
+
+    class Meta:
+        indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedLayerStatsPerDay(ResourceHistroyStatsPerDay):
+    base_model = Layer
+
+    class Meta:
+        indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedWebFeatureServiceStatsPerDay(ResourceHistroyStatsPerDay):
+    base_model = WebFeatureService
+
+    class Meta:
+        indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedFeatureTypeStatsPerDay(ResourceHistroyStatsPerDay):
+    base_model = FeatureType
+
+    class Meta:
+        indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedCatalogueServiceStatsPerDay(ResourceHistroyStatsPerDay):
+    base_model = CatalogueService
+
+    class Meta:
+        indexes = ResourceHistroyStatsPerDay.Meta.indexes
+
+
+class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
+    id = DateField(primary_key=True)
+    history_day = DateField()
+    service = UUIDField()
+    harvesting_job = IntegerField()
+    new = IntegerField()
+    updated = IntegerField()
+    existed = IntegerField()
+
+    base_model = HarvestedMetadataRelation
+
+    class Meta:
+        managed = False
+        indexes = [
+            Index(fields=["id"]),
+            Index(fields=["history_day"]),
+            Index(fields=["service"]),
+            Index(fields=["harvesting_job"]),
+            Index(fields=["new"]),
+            Index(fields=["updated"]),
+            Index(fields=["existed"]),
+        ]
+
+    @classmethod
+    def get_queryset(cls):
+        return cls.base_model.objects.stats_per_day()
 
 
 class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
@@ -172,4 +274,6 @@ class SearchableServiceMetadataRecord(SearchableMetadataRecordAbstract):
 # @receiver(m2m_changed, sender=ServiceMetadataRecord.keywords.through)
 # @receiver([post_save, post_delete], sender=ServiceMetadataRecord)
 # def update_service_view(*args, **kwargs):
+#     transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())
+#     transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())
 #     transaction.on_commit(lambda: SearchableServiceMetadataRecord.refresh())

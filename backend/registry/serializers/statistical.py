@@ -11,7 +11,7 @@ class StatisticalSerializer(SystemInfoSerializerMixin, Serializer):
         resource_name = 'StatisticalSerializer'
 
 
-class HistoricalRecordDependingMixin:
+class HistoricalRecordDependingMixin(Serializer):
     new = IntegerField()
     deleted = IntegerField()
     updated = IntegerField()

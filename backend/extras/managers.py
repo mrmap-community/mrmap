@@ -67,16 +67,9 @@ class DefaultHistoryManager(models.Manager):
         created_or_final_delete = self.model.change_log.filter(
             created_filter | final_deleted_filter | final_updated_filter
         )
-        return created_or_final_delete.annotate(
-            created=Case(When(condition=created_filter,
-                         then=Value(True)), default=Value(False)),
-            final_deleted=Case(When(condition=final_deleted_filter,
-                                    then=Value(True)), default=Value(False)),
-            final_updated=Case(When(condition=final_updated_filter,
-                                    then=Value(True)), default=Value(False)),
-        ).values("history_day").annotate(
+        return created_or_final_delete.values("history_day").annotate(
             id=F("history_day"),
-            new=Count("pk", filter=Q(created=True)),
-            deleted=Count("pk", filter=Q(final_deleted=True)),
-            updated=Count("pk", filter=Q(final_updated=True))
+            new=Count("pk", filter=created_filter),
+            deleted=Count("pk", filter=final_deleted_filter),
+            updated=Count("pk", filter=final_updated_filter)
         )

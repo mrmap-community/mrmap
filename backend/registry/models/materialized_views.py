@@ -9,18 +9,43 @@ from django.db.models import Q
 from django.db.models.expressions import F, Func, Value
 from django.db.models.fields import DateField, IntegerField, UUIDField
 from django.db.models.indexes import Index
+from django.db.models.query import QuerySet
 from django_pgviews import view as pg
+from registry.models.harvest import HarvestedMetadataRelation
 from registry.models.metadata import (AbstractMetadata, DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 
 
-class MaterializedHarvestingStatsPerDay(pg.MaterializedView):
+class DynamicMaterializedView(pg.MaterializedView):
+    base_model = None
+
+    @classmethod
+    def get_queryset(cls) -> QuerySet:
+        return cls.base_model.objects.get_queryset()
+
+    @classmethod
+    def get_sql(cls):
+        # sql debug cursor is only available on debug True. So we need to force it temporaly
+        # https://docs.djangoproject.com/en/5.0/faq/models/#how-can-i-see-the-raw-sql-queries-django-is-running
+        connection.force_debug_cursor = True
+        # repr() --> this will trigger the execition
+        list(cls.get_queryset().all())
+        # get the last query; this should be the execution from the line below
+        last_query = connection.queries[-1].get('sql')
+        connection.force_debug_cursor = False
+        return pg.ViewSQL(last_query, None)
+
+
+class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
+    id = DateField()
     history_day = DateField()
     service = UUIDField()
     harvesting_job = IntegerField()
     new = IntegerField()
     updated = IntegerField()
     existed = IntegerField()
+
+    base_model = HarvestedMetadataRelation
 
     class Meta:
         managed = False
@@ -33,8 +58,12 @@ class MaterializedHarvestingStatsPerDay(pg.MaterializedView):
             Index(fields=["existed"]),
         ]
 
+    @classmethod
+    def get_queryset(cls):
+        return cls.base_model.objects.stats_per_day()
 
-class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
+
+class SearchableMetadataRecordAbstract(AbstractMetadata, DynamicMaterializedView):
 
     title: str = models.CharField(max_length=1000,
                                   default="")
@@ -61,7 +90,7 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
 
     @classmethod
     def get_queryset(cls):
-        return cls.base_model.objects.annotate(
+        return super(SearchableMetadataRecordAbstract, cls).get_queryset().annotate(
             keyword_list=ArrayAgg(
                 "keywords__keyword",
                 distinct=True,
@@ -86,18 +115,6 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, pg.MaterializedView):
             )
         )
 
-    @classmethod
-    def get_sql(cls):
-        # sql debug cursor is only available on debug True. So we need to force it temporaly
-        # https://docs.djangoproject.com/en/5.0/faq/models/#how-can-i-see-the-raw-sql-queries-django-is-running
-        connection.force_debug_cursor = True
-        # repr() --> this will trigger the execition
-        list(cls.get_queryset().all())
-        # get the last query; this should be the execution from the line below
-        last_query = connection.queries[-1].get('sql')
-        connection.force_debug_cursor = False
-        return pg.ViewSQL(last_query, None)
-
     class Meta:
         abstract = True
         managed = False
@@ -116,7 +133,7 @@ class SearchableDatasetMetadataRecord(SearchableMetadataRecordAbstract):
 
     @classmethod
     def get_queryset(cls):
-        return super().get_queryset().annotate(
+        return super(SearchableDatasetMetadataRecord, cls).get_queryset().annotate(
             hierarchy_level=Value("dataset")
         )
         # TODO: operates on filter
@@ -138,7 +155,7 @@ class SearchableServiceMetadataRecord(SearchableMetadataRecordAbstract):
 
     @classmethod
     def get_queryset(cls):
-        return super().get_queryset().annotate(
+        return super(SearchableServiceMetadataRecord, cls).get_queryset().annotate(
             hierarchy_level=Value("service")
         )
 

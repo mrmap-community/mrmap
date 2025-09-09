@@ -3,9 +3,7 @@ from typing import Any, MutableMapping, Optional, Tuple, TypeVar
 from django.db import models
 from django.db.models import Case, Count, F, Q, Value, When
 from django.db.models.constraints import UniqueConstraint
-from django.db.models.functions import TruncDay
 from django.db.models.query import Prefetch
-from django.utils.timezone import get_current_timezone
 
 T = TypeVar('T')
 
@@ -49,14 +47,14 @@ class DefaultHistoryManager(models.Manager):
         return self.model.change_log.filter(history_date=self.model.change_log.values_list('history_date', flat=True)[:1], history_type='-').select_related('history_user').only('history_relation', 'history_user__id', 'history_date').order_by('history_date')
 
     def new_per_day(self):
-        return self.filter_first_history().annotate(day=TruncDay("history_date", tzinfo=get_current_timezone())).values("day").annotate(
-            id=F("day"),
+        return self.filter_first_history().values("history_day").annotate(
+            id=F("history_day"),
             new=Count("pk")
         ).order_by("id")
 
     def deleted_per_day(self):
-        return self.filter_delete_history().annotate(day=TruncDay("history_date", tzinfo=get_current_timezone())).values("day").annotate(
-            id=F("day"),
+        return self.filter_delete_history().values("history_day").annotate(
+            id=F("history_day"),
             deleted=Count("pk")
         ).order_by("id")
 
@@ -69,17 +67,9 @@ class DefaultHistoryManager(models.Manager):
         created_or_final_delete = self.model.change_log.filter(
             created_filter | final_deleted_filter | final_updated_filter
         )
-        return created_or_final_delete.annotate(
-            created=Case(When(condition=created_filter,
-                         then=Value(True)), default=Value(False)),
-            final_deleted=Case(When(condition=final_deleted_filter,
-                                    then=Value(True)), default=Value(False)),
-            final_updated=Case(When(condition=final_updated_filter,
-                                    then=Value(True)), default=Value(False)),
-            day=TruncDay("history_date", tzinfo=get_current_timezone())
-        ).values("day").annotate(
-            id=F("day"),
-            new=Count("pk", filter=Q(created=True)),
-            deleted=Count("pk", filter=Q(final_deleted=True)),
-            updated=Count("pk", filter=Q(final_updated=True))
+        return created_or_final_delete.values("history_day").annotate(
+            id=F("history_day"),
+            new=Count("pk", filter=created_filter),
+            deleted=Count("pk", filter=final_deleted_filter),
+            updated=Count("pk", filter=final_updated_filter)
         )

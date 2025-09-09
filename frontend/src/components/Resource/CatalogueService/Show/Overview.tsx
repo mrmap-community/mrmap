@@ -59,7 +59,7 @@ const Overview = ({
     <SimpleCard
       title={<span>{createElementIfDefined(HarvestingJobIcon)} {HarvestingJobName}</span>}
     >
-      <HarvestingDailyStatsChart resource='HarvestedMetadataRelation' filter={{ 'harvesting_job__service': record.id }} />
+      <HarvestingDailyStatsChart resource='HarvestedMetadataRelation' filter={{ 'service': record.id }} />
       <ListHarvestingJob />
     </SimpleCard>
     <SimpleCard

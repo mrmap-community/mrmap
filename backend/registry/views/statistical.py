@@ -1,8 +1,10 @@
-from registry.models.harvest import HarvestedMetadataRelation
-from registry.models.metadata import (DatasetMetadataRecord,
-                                      ServiceMetadataRecord)
-from registry.models.service import (CatalogueService, FeatureType, Layer,
-                                     WebFeatureService, WebMapService)
+from registry.models.materialized_views import (
+    MaterializedCatalogueServiceStatsPerDay,
+    MaterializedDatasetMetadataRecordStatsPerDay,
+    MaterializedFeatureTypeStatsPerDay, MaterializedHarvestingStatsPerDay,
+    MaterializedLayerStatsPerDay, MaterializedServiceMetadataRecordStatsPerDay,
+    MaterializedWebFeatureServiceStatsPerDay,
+    MaterializedWebMapServiceStatsPerDay)
 from registry.serializers.statistical import (
     StatisticalCatalogueServiceSerializer,
     StatisticalDatasetMetadataRecordSerializer,
@@ -18,47 +20,41 @@ class StatisticalListView(generics.ListAPIView):
 
 
 class StatisticalDatasetMetadataRecordListView(StatisticalListView):
-    filterset_fields = ('history_change_reason',)
-    queryset = DatasetMetadataRecord.history.stats_per_day()
+    queryset = MaterializedDatasetMetadataRecordStatsPerDay.objects.all()
     serializer_class = StatisticalDatasetMetadataRecordSerializer
 
 
 class StatisticalServiceMetadataRecordListView(StatisticalListView):
-    queryset = ServiceMetadataRecord.history.stats_per_day()
+    queryset = MaterializedServiceMetadataRecordStatsPerDay.objects.all()
     serializer_class = StatisticalServiceMetadataRecordSerializer
 
 
 class StatisticalWebMapServiceListView(StatisticalListView):
-    queryset = WebMapService.history.stats_per_day()
+    queryset = MaterializedWebMapServiceStatsPerDay.objects.all()
     serializer_class = StatisticalWebMapServiceSerializer
 
 
 class StatisticalLayerListView(StatisticalListView):
-    queryset = Layer.history.stats_per_day()
+    queryset = MaterializedLayerStatsPerDay.objects.all()
     serializer_class = StatisticalLayerSerializer
 
 
 class StatisticalWebFeatureServiceListView(StatisticalListView):
-    queryset = WebFeatureService.history.stats_per_day()
+    queryset = MaterializedWebFeatureServiceStatsPerDay.objects.all()
     serializer_class = StatisticalWebFeatureServiceSerializer
 
 
 class StatisticalFeatureTypeListView(StatisticalListView):
-    queryset = FeatureType.history.stats_per_day()
+    queryset = MaterializedFeatureTypeStatsPerDay.objects.all()
     serializer_class = StatisticalFeatureTypeSerializer
 
 
 class StatisticalCatalogueServiceListView(StatisticalListView):
-    queryset = CatalogueService.history.stats_per_day()
+    queryset = MaterializedCatalogueServiceStatsPerDay.objects.all()
     serializer_class = StatisticalCatalogueServiceSerializer
 
 
 class StatisticalHarvestedMetadataRelationListView(StatisticalListView):
-    filterset_fields = ('harvesting_job__service',)
-    queryset = HarvestedMetadataRelation.objects.all()
+    filterset_fields = ('service', 'harvesting_job')
+    queryset = MaterializedHarvestingStatsPerDay.objects.all()
     serializer_class = StatisticalHarvestedMetadataRelationSerializer
-
-    def filter_queryset(self, queryset):
-        qs = super().filter_queryset(queryset).stats_per_day()
-
-        return qs

@@ -1,8 +1,8 @@
 from celery import chord
 from django.db import models, transaction
 from django.db.models import Case, Count, F, Q, Value, When
-from django.db.models.functions import Ceil, Round, TruncDay
-from django.utils.timezone import get_current_timezone, now
+from django.db.models.functions import Ceil, Round
+from django.utils.timezone import now
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
 from notify.tasks import finish_background_process
@@ -23,11 +23,11 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
             updated=Case(When(condition=updated_records_filter,
                               then=Value(True)), default=Value(False)),
             existed=Case(When(condition=existed_records_filter,
-                              then=Value(True)), default=Value(False)),
-            day=TruncDay("harvesting_job__date_created",
-                         tzinfo=get_current_timezone())
-        ).values("day").annotate(
-            id=F("day"),
+                              then=Value(True)), default=Value(False))
+        ).values("history_day").annotate(
+            id=F("history_day"),
+            service=F("harvesting_job__service__id"),
+            harvesting_job=F("harvesting_job__id"),
             new=Count("pk", filter=Q(new=True)),
             updated=Count("pk", filter=Q(updated=True)),
             existed=Count("pk", filter=Q(existed=True)),

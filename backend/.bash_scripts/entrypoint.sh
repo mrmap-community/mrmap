@@ -17,9 +17,6 @@ if [[ $(hostname -s) = *backend* ]]; then
   fi
 fi
 
-
-/opt/mrmap/.bash_scripts/sync_pg_views.sh
-
 echo '
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMNmhyyyyhhhddmMMMMMMMMMMMMM

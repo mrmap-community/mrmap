@@ -1,17 +1,17 @@
 from extras.serializers import SystemInfoSerializerMixin
-from rest_framework.fields import DateTimeField, IntegerField
+from rest_framework.fields import DateField, IntegerField, UUIDField
 from rest_framework_json_api.serializers import Serializer
 
 
 class StatisticalSerializer(SystemInfoSerializerMixin, Serializer):
-    id = DateTimeField(source="day")
-    day = DateTimeField()
+    id = DateField(source="history_day")
+    day = DateField(source="history_day")
 
     class Meta:
         resource_name = 'StatisticalSerializer'
 
 
-class HistoricalRecordDependingMixin:
+class HistoricalRecordDependingMixin(Serializer):
     new = IntegerField()
     deleted = IntegerField()
     updated = IntegerField()
@@ -60,6 +60,8 @@ class StatisticalCatalogueServiceSerializer(HistoricalRecordDependingMixin, Stat
 
 
 class StatisticalHarvestedMetadataRelationSerializer(StatisticalSerializer):
+    service = UUIDField()
+    harvesting_job = IntegerField()
     new = IntegerField()
     updated = IntegerField()
     existed = IntegerField()

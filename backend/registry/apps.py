@@ -1,3 +1,4 @@
+
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
@@ -34,12 +35,13 @@ def create_file_system_import_task(sender, **kwargs):
 
 
 def find_orphan_metadata_objects(sender, **kwargs):
+    import logging
+    logger = logging.getLogger(__name__)
     from registry.models.metadata import DatasetMetadataRecord
     orphans = DatasetMetadataRecord.objects.filter(
         resource_relation__isnull=True)
     # TODO: move this to a manager as check function
-    # print info object instead
-    print("metadata orphans:", orphans.count())
+    logger.info("metadata orphans:", orphans.count())
 
 
 class RegistryConfig(AppConfig):

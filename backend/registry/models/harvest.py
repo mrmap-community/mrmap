@@ -17,6 +17,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from eulxml import xmlmap
+from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
@@ -100,7 +101,7 @@ class ProcessingData(models.Model):
         )
 
 
-class HarvestedMetadataRelation(models.Model):
+class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
     harvesting_job = models.ForeignKey(
         to="registry.HarvestingJob",
         on_delete=models.CASCADE,
@@ -130,6 +131,11 @@ class HarvestedMetadataRelation(models.Model):
         blank=True,
         verbose_name=_("processing duration"),
         help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
+    history_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Created DateTime'),
+        help_text=_('Datetime field when the relation was created'),
+    )
 
     objects = HarvestedMetadataRelationQuerySet.as_manager()
 
@@ -232,6 +238,7 @@ class HarvestingJob(ProcessingData):
     )
     change_log = HistoricalRecords(
         related_name="change_logs",
+        bases=[AdditionalTimeFieldsHistoricalModel,],
     )
 
     objects = HarvestingJobManager()

@@ -42,6 +42,9 @@ const Menu = ({ dense = false }: MenuProps) => {
 
     const { name: wfsName, icon: wfsIcon } = useResourceDefinition({ resource: "WebFeatureService" })
     const { name: featureTypeName, icon: featureTypeIcon } = useResourceDefinition({ resource: "FeatureType" })
+    const { name: allowedWfsOpName, icon: allowedWfsOpIcon } = useResourceDefinition({ resource: "AllowedWebFeatureServiceOperation" })
+    const { name: wfsProxySettingName, icon: wfsProxySettingIcon } = useResourceDefinition({ resource: "WebFeatureServiceProxySetting" })
+
     const { name: cswName, icon: cswIcon } = useResourceDefinition({ resource: "CatalogueService" })
     const { name: harvestingJobName, icon: harvestingJobIcon } = useResourceDefinition({ resource: "HarvestingJob" })
 
@@ -128,6 +131,20 @@ const Menu = ({ dense = false }: MenuProps) => {
                     leftIcon={createElementIfDefined(featureTypeIcon)}
                     dense={dense}
                 />
+                <MenuItemLink
+                    to={`/${allowedWfsOpName}`}
+                    state={{ _scrollToTop: true }}
+                    primaryText={`Security Rules`}
+                    leftIcon={createElementIfDefined(allowedWfsOpIcon)}
+                    dense={dense}
+                />
+                <MenuItemLink
+                    to={`/${wfsProxySettingName}`}
+                    state={{ _scrollToTop: true }}
+                    primaryText={`Proxy settings`}
+                    leftIcon={createElementIfDefined(wfsProxySettingIcon)}
+                    dense={dense}
+                />
             </SubMenu>
             <SubMenu
                 handleToggle={() => handleToggle('menuCsw')}
@@ -168,17 +185,17 @@ const Menu = ({ dense = false }: MenuProps) => {
                     dense={dense}
                 />
                 <MenuItemLink
-                    to={`/${keywordName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={keywordName}
-                    leftIcon={createElementIfDefined(keywordIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
                     to={`/${serviceMetadataName}`}
                     state={{ _scrollToTop: true }}
                     primaryText={serviceMetadataName}
                     leftIcon={createElementIfDefined(serviceMetadataIcon) ?? <div></div>}
+                    dense={dense}
+                />
+                <MenuItemLink
+                    to={`/${keywordName}`}
+                    state={{ _scrollToTop: true }}
+                    primaryText={keywordName}
+                    leftIcon={createElementIfDefined(keywordIcon)}
                     dense={dense}
                 />
                 

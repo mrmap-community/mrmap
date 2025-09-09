@@ -35,6 +35,7 @@ const ListHarvestingJob = (): ReactNode => {
       resource='HarvestingJob'
       defaultSelectedColumns={['id', 'phase', 'progress', 'createdAt', 'doneAt']}
       sort={{field: 'id', order: 'DESC'}}
+      perPage={5}
       updateFieldDefinitions={[
         {
           component: ProgressField, 

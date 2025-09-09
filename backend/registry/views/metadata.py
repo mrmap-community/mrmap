@@ -180,7 +180,7 @@ class DatasetMetadataViewSetMixin(
     }
     prefetch_for_includes = {
         # "__all__": [],
-        "selfPointingLayers.service": [
+        "self_pointing_layers.service": [
             Prefetch(
                 "self_pointing_layers",
                 queryset=Layer.objects.with_inherited_attributes()
@@ -201,7 +201,7 @@ class DatasetMetadataViewSetMixin(
                 ),
             ),
         ],
-        "selfPointingLayers": [
+        "self_pointing_layers": [
             Prefetch(
                 "self_pointing_layers",
                 queryset=Layer.objects.with_inherited_attributes()
@@ -217,7 +217,7 @@ class DatasetMetadataViewSetMixin(
                 ),
             ),
         ],
-        "selfPointingFeatureTypes.service": [
+        "self_pointing_feature_types.service": [
             Prefetch(
                 "self_pointing_feature_types",
                 queryset=FeatureType.objects.select_related(
@@ -234,7 +234,7 @@ class DatasetMetadataViewSetMixin(
                 ),
             )
         ],
-        "selfPointingFeatureTypes": [
+        "self_pointing_feature_types": [
             Prefetch(
                 "self_pointing_feature_types",
                 queryset=FeatureType.objects.select_related(
@@ -246,7 +246,7 @@ class DatasetMetadataViewSetMixin(
                 ),
             )
         ],
-        "harvestedThrough": [
+        "harvested_through": [
             Prefetch(
                 "harvested_through",
                 queryset=CatalogueService.objects.prefetch_related(
@@ -256,11 +256,11 @@ class DatasetMetadataViewSetMixin(
             )
         ],
         "keywords": ["keywords"],
-        "referenceSystems": ["reference_systems"],
+        "reference_systems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     prefetch_for_not_includes = {
-        "selfPointingLayers": [
+        "self_pointing_layers": [
             Prefetch(
                 "self_pointing_layers",
                 queryset=Layer.objects.only(
@@ -271,13 +271,13 @@ class DatasetMetadataViewSetMixin(
                 ),
             )
         ],
-        "selfPointingFeatureTypes": [
+        "self_pointing_feature_types": [
             Prefetch(
                 "self_pointing_feature_types",
                 queryset=FeatureType.objects.only("id", "service_id"),
             )
         ],
-        "harvestedThrough": [
+        "harvested_through": [
             Prefetch(
                 "harvested_through",
                 queryset=CatalogueService.objects.only("id"),
@@ -286,7 +286,7 @@ class DatasetMetadataViewSetMixin(
         "keywords": [
             Prefetch("keywords", queryset=Keyword.objects.only("id"))
         ],
-        "referenceSystems": [
+        "reference_systems": [
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
@@ -480,18 +480,18 @@ class ServiceMetadataViewSetMixin(
         "metadata_contact": ["metadata_contact"],
     }
     prefetch_for_includes = {
-        "harvestedThrough": [
+        "harvested_through": [
             Prefetch(
                 "harvested_through",
                 queryset=CatalogueService.objects.prefetch_related("keywords"),
             )
         ],
         "keywords": ["keywords"],
-        "referenceSystems": ["reference_systems"],
+        "reference_systems": ["reference_systems"],
         # "operation_urls": [Prefetch("operation_urls", queryset=WebMapServiceOperationUrl.objects.select_related("service").prefetch_related("mime_types"))]
     }
     prefetch_for_not_includes = {
-        "harvestedThrough": [
+        "harvested_through": [
             Prefetch(
                 "harvested_through",
                 queryset=CatalogueService.objects.only("id"),
@@ -500,12 +500,12 @@ class ServiceMetadataViewSetMixin(
         "keywords": [
             Prefetch("keywords", queryset=Keyword.objects.only("id"))
         ],
-        "referenceSystems": [
+        "reference_systems": [
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
         ],
-        "selfPointingLayers": [
+        "self_pointing_layers": [
             Prefetch(
                 "self_pointing_layers",
                 queryset=Layer.objects.only(
@@ -516,25 +516,25 @@ class ServiceMetadataViewSetMixin(
                 ),
             )
         ],
-        "selfPointingFeatureTypes": [
+        "self_pointing_feature_types": [
             Prefetch(
                 "self_pointing_feature_types",
                 queryset=FeatureType.objects.only("id", "service_id"),
             )
         ],
-        "selfPointingWms": [
+        "self_pointing_wms": [
             Prefetch(
                 "self_pointing_wms",
                 queryset=WebMapService.objects.only("id")
             )
         ],
-        "selfPointingWfs": [
+        "self_pointing_wfs": [
             Prefetch(
                 "self_pointing_wfs",
                 queryset=WebFeatureService.objects.only("id")
             )
         ],
-        "selfPointingCsw": [
+        "self_pointing_csw": [
             Prefetch(
                 "self_pointing_csw",
                 queryset=CatalogueService.objects.only("id")

@@ -15,7 +15,8 @@ from rest_framework.settings import api_settings
 from rest_framework.test import APIRequestFactory
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_extensions.mixins import NestedViewSetMixin
-from rest_framework_json_api.utils import get_resource_name
+from rest_framework_json_api.utils import (get_included_resources,
+                                           get_resource_name)
 from rest_framework_json_api.views import (AutoPrefetchMixin,
                                            PreloadIncludesMixin, RelatedMixin)
 
@@ -188,9 +189,13 @@ class PreloadNotIncludesMixin:
         if not resource_name:
             return qs
 
-        include = self.request.GET.get("include", None)
+        included_resources = get_included_resources(
+            self.request, self.get_serializer_class()
+        )
+
         fields_snake = self.request.GET.get(
             f"fields[{resource_name}]", "").split(',')
+        # FIXME: depends on JSON_API_FORMAT_FIELD_NAMES setting
         fields = [to_camel(field) for field in fields_snake if field.strip()]
 
         for key in list(self.get_prefetch_for_not_includes().keys()) + ['__all__']:
@@ -199,7 +204,7 @@ class PreloadNotIncludesMixin:
             field_list = [x for x in key.split(',') if x.strip()]
 
             if (prefetch_related is not None) and \
-                (not include or key not in include) and \
+                (not included_resources or key not in included_resources) and \
                     (not fields or any(field in fields for field in field_list)):
                 qs = qs.prefetch_related(*prefetch_related)
         return qs

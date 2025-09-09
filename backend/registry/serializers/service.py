@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
@@ -188,38 +188,19 @@ class LayerSerializer(
         model = Layer
         fields = "__all__"
 
-    def _collect_inherited_objects(self, instance):
-        """Converts the given list of dicts that representing the ReferenceSystem, Dimension and Style objects collected by the manager with ArraySubquery"""
-        reference_systems: List[ReferenceSystem] = []
-        dimensions: List[Dimension] = []
-        styles: List[Style] = []
-        for layer in instance.ancestors_include_self:
-            for crs in layer.get("reference_systems_inherited", []):
-                reference_systems.append(ReferenceSystem(**crs))
-            for dimension in layer.get("dimensions_inherited", []):
-                dimensions.append(
-                    Dimension(**dimension))
-            for style in layer.get("styles_inherited", []):
-                styles.append(Style(layer=Layer(pk=layer.get("pk")), **style))
-
-        instance.reference_systems_inherited = reference_systems
-        instance.dimensions_inherited = dimensions
-        instance.styles_inherited = styles
+    def _convert_dict_to_object(self, objs, Model, defaults={}):
+        if objs and isinstance(objs, List) and isinstance(objs[0], Dict):
+            return [Model(**defaults, **obj) for obj in objs]
+        return objs
 
     def get_reference_systems(self, instance):
-        if not hasattr(instance, "reference_systems_inherited"):
-            self._collect_inherited_objects(instance=instance)
-        return instance.reference_systems_inherited
+        return self._convert_dict_to_object(getattr(instance, "reference_systems_inherited", []), ReferenceSystem)
 
     def get_dimensions(self, instance):
-        if not hasattr(instance, "dimensions_inherited"):
-            self._collect_inherited_objects(instance=instance)
-        return instance.dimensions_inherited
+        return self._convert_dict_to_object(getattr(instance, "dimensions_inherited", []), Dimension)
 
     def get_styles(self, instance):
-        if not hasattr(instance, "styles_inherited"):
-            self._collect_inherited_objects(instance=instance)
-        return instance.styles_inherited
+        return self._convert_dict_to_object(getattr(instance, "styles_inherited", []), Style, defaults={"layer": Layer(pk=instance.pk)})
 
 
 class WebMapServiceListSerializer(

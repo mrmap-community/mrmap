@@ -4,6 +4,8 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
+from django.contrib.postgres.indexes import GistIndex
+from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -349,6 +351,13 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
 
     class Meta:
         abstract = True
+        indexes = [
+            GistIndex(
+                fields=["bbox_lat_lon"],
+                condition=Q(bbox_lat_lon__isnull=False),
+                name="%(class)s_bbox_not_null",
+            ),
+        ]
 
     def __str__(self):
         try:
@@ -447,7 +456,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         verbose_name_plural = _("layers")
 
         indexes = [
-        ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes
+        ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
 
         # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 
@@ -623,7 +632,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         verbose_name_plural = _("feature types")
 
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
+        ] + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the feature type and his related service.

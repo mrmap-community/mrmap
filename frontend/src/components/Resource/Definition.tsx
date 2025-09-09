@@ -39,7 +39,10 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "HistoricalWebMapService"},
   
   {name: "Layer", icon: LayersIcon},
+  
+  
   {name: "WebFeatureService", icon: TravelExploreIcon},
+  {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
   {name: "FeatureType", icon: NotListedLocationIcon},
   
   
@@ -83,7 +86,8 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "BackgroundProcessLog", },
 
   {name: "AllowedWebMapServiceOperation", icon: VpnLockIcon, create: CreateAllowedWebMapServiceOperation, edit: EditAllowedWebMapServiceOperation},
-  
+  {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon},
+
   {name: "User", icon: CustomerIcon},
   {name: "Organization", icon: CorporateFareIcon },
   {name: "Group", icon: CorporateFareIcon },

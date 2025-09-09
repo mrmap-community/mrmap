@@ -19,10 +19,7 @@ const Dashboard = (): ReactNode => {
           <ResourceListCard resource={'WebMapService'} withList={false}/>
           <Spacer />
           <ResourceListCard resource={'Layer'} withList={false}/>
-        </div>
-      </div>
-      <div style={styles.singleCol}>
-        <div style={styles.flex}>
+          <Spacer/>
           <ResourceListCard resource={'WebFeatureService'} withList={false}/>
           <Spacer />
           <ResourceListCard resource={'FeatureType'} withList={false}/>
@@ -33,6 +30,8 @@ const Dashboard = (): ReactNode => {
           <ResourceListCard resource={'CatalogueService'} withList={false} />
           <Spacer />
           <ResourceListCard resource={'DatasetMetadataRecord'} withList={false} />
+          <Spacer />
+          <ResourceListCard resource={'ServiceMetadataRecord'} withList={false} />
         </div>
       </div>
       <div style={styles.singleCol}>

@@ -503,7 +503,7 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
         "service_metadata_record__id": ['exact', 'icontains', 'contains', 'in'],
     }
     prefetch_for_not_includes = {
-        "datasetMetadataRecord": [
+        "dataset_metadata_record": [
             Prefetch(
                 "dataset_metadata_record",
                 queryset=DatasetMetadataRecord.objects.only(
@@ -511,7 +511,7 @@ class HarvestedMetadataRelationViewSetMixin(PreloadNotIncludesMixin):
                 ),
             )
         ],
-        "serviceMetadataRecord": [
+        "service_metadata_record": [
             Prefetch(
                 "service_metadata_record",
                 queryset=ServiceMetadataRecord.objects.only(

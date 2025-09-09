@@ -88,7 +88,7 @@ class WebMapServiceViewSet(
             )
         ],
         "keywords": ["keywords"],
-        "operationUrls": [
+        "operation_urls": [
             Prefetch(
                 "operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.select_related(
@@ -112,21 +112,21 @@ class WebMapServiceViewSet(
         "keywords": [
             Prefetch("keywords", queryset=Keyword.objects.only("id"))
         ],
-        "allowedOperations": [
+        "allowed_operations": [
             Prefetch(
                 "allowed_operations",
                 queryset=AllowedWebMapServiceOperation.objects.only(
                     "id", "secured_service")
             )
         ],
-        "operationUrls": [
+        "operation_urls": [
             Prefetch(
                 "operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.only(
                     "id", "service"),
             )
         ],
-        "proxySetting": [
+        "proxy_setting": [
             Prefetch(
                 "proxy_setting",
                 queryset=WebMapServiceProxySetting.objects.only(
@@ -212,7 +212,7 @@ class LayerViewSetMixin(
     }
     prefetch_for_includes = {
         "service": ["service__keywords", "service__layers"],
-        "service.operationUrls": [
+        "service.operation_urls": [
             Prefetch(
                 "service__operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.prefetch_related(
@@ -224,11 +224,11 @@ class LayerViewSetMixin(
         ],
         "styles": ["styles"],
         "keywords": ["keywords"],
-        "referenceSystems": ["reference_systems"],
-        "datasetMetadata": ["registry_datasetmetadatarecord_metadata_records"]
+        "reference_systems": ["reference_systems"],
+        "dataset_metadata": ["registry_datasetmetadatarecord_metadata_records"]
     }
     prefetch_for_not_includes = {
-        "mpttParent": [
+        "mptt_parent": [
             # TODO optimize queryset with defer
             Prefetch(
                 "mptt_parent",
@@ -242,12 +242,12 @@ class LayerViewSetMixin(
         "keywords": [
             Prefetch("keywords", queryset=Keyword.objects.only("id"))
         ],
-        "referenceSystem": [
+        "reference_system": [
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
         ],
-        "datasetMetadata": [
+        "dataset_metadata": [
             Prefetch(
                 "registry_datasetmetadatarecord_metadata_records", queryset=DatasetMetadataRecord.objects.only("id")
             )
@@ -370,14 +370,14 @@ class WebFeatureServiceViewSet(
             ),
         ],
         "keywords": ["keywords"],
-        "allowedOperations": [
+        "allowed_operations": [
             Prefetch(
                 "allowed_operations",
                 queryset=AllowedWebFeatureServiceOperation.objects.select_related(
                     "secured_service")
             )
         ],
-        "operationUrls": [
+        "operation_urls": [
             Prefetch(
                 "operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.select_related(
@@ -387,7 +387,7 @@ class WebFeatureServiceViewSet(
         ],
     }
     prefetch_for_not_includes = {
-        "featureTypes": [
+        "feature_types": [
             Prefetch(
                 "featuretypes",
                 queryset=FeatureType.objects.only(
@@ -399,21 +399,21 @@ class WebFeatureServiceViewSet(
         "keywords": [
             Prefetch("keywords", queryset=Keyword.objects.only("id"))
         ],
-        "allowedOperations": [
+        "allowed_operations": [
             Prefetch(
                 "allowed_operations",
                 queryset=AllowedWebFeatureServiceOperation.objects.only(
                     "id", "secured_service")
             )
         ],
-        "operationUrls": [
+        "operation_urls": [
             Prefetch(
                 "operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.only(
                     "id", "service"),
             )
         ],
-        "proxySetting": [
+        "proxy_setting": [
             Prefetch(
                 "proxy_setting",
                 queryset=WebFeatureServiceProxySetting.objects.only(
@@ -501,7 +501,7 @@ class FeatureTypeViewSetMixin(
     }
     prefetch_for_includes = {
         "service": ["service__keywords", "service__featuretypes"],
-        "service.operationUrls": [
+        "service.operation_urls": [
             Prefetch(
                 "service__operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.prefetch_related(
@@ -511,20 +511,20 @@ class FeatureTypeViewSetMixin(
             "service__keywords",
             "service__featuretypes"
         ],
-        "outputFormats": ["output_formats"],
+        "output_formats": ["output_formats"],
         "keywords": ["keywords"],
-        "referenceSystems": ["reference_systems"],
+        "reference_systems": ["reference_systems"],
     }
     prefetch_for_not_includes = {
         "keywords": [
             Prefetch("keywords", queryset=Keyword.objects.only("id"))
         ],
-        "referenceSystems": [
+        "reference_systems": [
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
         ],
-        "outputFormats": [
+        "output_formats": [
             Prefetch(
                 "output_formats", queryset=MimeType.objects.only("id")
             )
@@ -606,7 +606,7 @@ class CatalogueServiceViewSetMixin(
     prefetch_for_includes = {
         # "__all__": [""],
         "keywords": ["keywords"],
-        "operationUrls": [
+        "operation_urls": [
             Prefetch(
                 "operation_urls",
                 queryset=CatalogueServiceOperationUrl.objects.select_related(
@@ -622,19 +622,19 @@ class CatalogueServiceViewSetMixin(
                 queryset=Keyword.objects.only("id")
             )
         ],
-        "harvestedDatasets": [
+        "harvested_datasets": [
             Prefetch(
                 "registry_datasetmetadatarecord_metadata_records",
                 queryset=DatasetMetadataRecord.objects.only("id"))
         ],
-        "operationUrls": [
+        "operation_urls": [
             Prefetch(
                 "operation_urls",
                 queryset=CatalogueServiceOperationUrl.objects.only(
                     "id", "service_id"),
             )
         ],
-        "harvestingJob": [
+        "harvesting_job": [
             Prefetch(
                 "harvesting_jobs",
                 queryset=HarvestingJob.objects.only("id", "service")

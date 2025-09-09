@@ -15,7 +15,7 @@ class MapContextViewSet(ModelViewSet):
     }
     prefetch_for_includes = {
         '__all__': [],
-        'mapContextLayers': ['map_context_layers']
+        'map_context_layers': ['map_context_layers']
     }
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     search_fields = ("id", "title", "abstract")

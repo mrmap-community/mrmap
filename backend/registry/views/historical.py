@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.db.models import OuterRef, Subquery
 from django.db.models.query import Prefetch
 from extras.viewsets import PreloadNotIncludesMixin, SerializerClassesMixin
 from mptt2.models import Tree
@@ -58,7 +57,7 @@ class OGCServiceHistoricalViewSetMixin(
     HistoricalViewSetMixin
 ):
     prefetch_for_not_includes = {
-        "historyRelation.MetadataContact": [
+        "history_relation.metadata_contact": [
             Prefetch(
                 "history_relation__metadata_contact",
                 queryset=MetadataContact.objects.only(
@@ -66,7 +65,7 @@ class OGCServiceHistoricalViewSetMixin(
                 ),
             ),
         ],
-        "historyRelation.Keywords": [
+        "history_relation.keywords": [
             Prefetch("history_relation__keywords",
                      queryset=Keyword.objects.only("id"))
         ]
@@ -98,7 +97,7 @@ class WebMapServiceHistoricalViewSet(
         "default": WebMapServiceHistorySerializer,
     }
     prefetch_for_not_includes = {
-        "historyRelation.Layers": [
+        "history_relation.layers": [
             Prefetch(
                 "history_relation__layers",
                 queryset=Layer.objects.only(
@@ -109,14 +108,14 @@ class WebMapServiceHistoricalViewSet(
                 ),
             )
         ],
-        "historyRelation.AllowedOperations": [
+        "history_relation.allowed_operations": [
             Prefetch(
                 "history_relation__allowed_operations",
                 queryset=AllowedWebMapServiceOperation.objects.only(
                     "id", "secured_service__id")
             )
         ],
-        "historyRelation.OperationUrls": [
+        "history_relation.operation_urls": [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.only(
@@ -138,10 +137,10 @@ class LayerHistoricalViewSet(
         "default": LayerHistorySerializer,
     }
     prefetch_for_includes = {
-        "historyRelation": [
+        "history_relation": [
             Prefetch(
                 "history_relation",
-                queryset=Layer.objects.with_inherited_attributes()
+                queryset=Layer.objects.with_inherited_attributes_cte()
                 .select_related(
                     "mptt_parent",
                     "mptt_parent",
@@ -165,15 +164,15 @@ class LayerHistoricalViewSet(
             Prefetch("service",
                      queryset=WebMapService.objects.only("id"))
         ],
-        "mpttParent": [
+        "mptt_parent": [
             Prefetch("mptt_parent",
                      queryset=Layer.objects.only("id"))
         ],
-        "mpttTree": [
+        "mptt_tree": [
             Prefetch("mptt_tree",
                      queryset=Tree.objects.only("id"))
         ],
-        "historyRelation": [
+        "history_relation": [
             Prefetch("history_relation",
                      queryset=Layer.objects.only("id"))
         ],
@@ -194,7 +193,7 @@ class WebFeatureServiceHistoricalViewSet(
         "default": WebFeatureServiceHistorySerializer,
     }
     prefetch_for_not_includes = {
-        "historyRelation.Featuretypes": [
+        "history_relation.featuretypes": [
             Prefetch(
                 "history_relation__featuretypes",
                 queryset=FeatureType.objects.only(
@@ -203,14 +202,14 @@ class WebFeatureServiceHistoricalViewSet(
                 ),
             )
         ],
-        "historyRelation.AllowedOperations": [
+        "history_relation.allowed_operations": [
             Prefetch(
                 "history_relation__allowed_operations",
                 queryset=AllowedWebFeatureServiceOperation.objects.only(
                     "id", "secured_service__id")
             )
         ],
-        "historyRelation.OperationUrls": [
+        "history_relation.operation_urls": [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.only(
@@ -235,11 +234,11 @@ class FeatureTypeHistoricalViewSet(
             Prefetch("service",
                      queryset=WebFeatureService.objects.only("id"))
         ],
-        "historyRelation": [
+        "history_relation": [
             Prefetch("history_relation",
                      queryset=FeatureType.objects.only("id"))
         ],
-        "historyRelation.Keywords": [
+        "history_relation.keywords": [
             Prefetch("history_relation__keywords",
                      queryset=Keyword.objects.only("id"))
         ]
@@ -257,7 +256,7 @@ class CatalogueServiceHistoricalViewSet(
     }
     prefetch_for_not_includes = {
 
-        "historyRelation.OperationUrls": [
+        "history_relation.operation_urls": [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=CatalogueServiceOperationUrl.objects.only(

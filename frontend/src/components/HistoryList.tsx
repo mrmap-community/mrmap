@@ -68,9 +68,10 @@ const HistoryList = ({
   ...props
 }: HistoryListProps): ReactNode => {
   const jsonApiParams = useMemo(() => {
-    const params: any = { include: 'historyUser,historyRelation' }
+    const params: any = { include: 'historyUser' }
     // params[`fields[${related ?? ''}]`] = 'title'
-    params['fields[User]'] = 'username,stringRepresentation'
+    params['fields[User]'] = 'username,string_representation'
+    params['fields[HistoricalLayer]'] = 'history_type,history_date,history_user'
     if (selectedRecord !== undefined) {
       params['filter[historyRelation]'] = selectedRecord.id
     }

@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from random import randrange
 from typing import Any, Dict, List
 
 from camel_converter import to_snake
@@ -13,14 +12,17 @@ from django.db import models, transaction
 from django.db.models import Exists
 from django.db.models import Value as V
 from django.db.models.expressions import F, OuterRef, Subquery, Value
-from django.db.models.fields import FloatField
+from django.db.models.fields import BooleanField, FloatField
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query import Prefetch, Q
-from django_cte import CTEManager
+from django_cte import CTEManager, with_cte
 from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from mptt2.models import Tree
 from registry.enums.metadata import MetadataOriginEnum
+from registry.expressions.layer_ctes import (AncestorsHeritageAggregatedCTE,
+                                             AncestorsHeritageCTE,
+                                             LayerSecurityInformationCTE)
 from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       MetadataContact, MimeType,
                                       ReferenceSystem, Style, TimeExtent,
@@ -542,10 +544,31 @@ class FeatureTypeElementXmlManager(models.Manager):
         return self.model.objects.bulk_create(objs=db_element_list)
 
 
-class LayerManager(DefaultHistoryManager, TreeManager):
+class LayerQuerySet(models.QuerySet):
 
-    def get_ancestors_per_layer(self, layer_attribute: str = "", include_self: bool = False):
-        return self.get_queryset().filter(
+    def _inherited_field(
+        self,
+        field_name: str,
+        default=None,
+        include_self: bool = True,
+        exclude_values=None,
+        output_field=None,
+    ):
+        """Generischer Helper für geerbte Felder."""
+        qs = self.ancestors_per_layer(include_self=include_self)
+        if exclude_values is not None:
+            qs = qs.exclude(**{field_name + "__in": exclude_values})
+
+        return Coalesce(
+            F(field_name),
+            Subquery(qs.values_list(field_name, flat=True)
+                     [:1], output_field=output_field),
+            Value(default),
+            output_field=output_field
+        )
+
+    def ancestors_per_layer(self, layer_attribute: str = "", include_self: bool = False):
+        return self.filter(
             mptt_tree=OuterRef(f"{layer_attribute}mptt_tree"),
             mptt_lft__lte=OuterRef(f"{layer_attribute}mptt_lft") if include_self else OuterRef(
                 f"{layer_attribute}mptt_lft") - 1,
@@ -553,31 +576,16 @@ class LayerManager(DefaultHistoryManager, TreeManager):
                 f"{layer_attribute}mptt_rgt") if include_self else OuterRef(f"{layer_attribute}mptt_rgt") + 1
         )
 
-    def get_inherited_is_queryable(self) -> bool:
-        return Coalesce(
-            F("is_queryable"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
-                is_queryable=False).values_list("is_queryable", flat=True)[:1]),
-            Value(False)
-        )
+    def inherited_is_queryable(self) -> bool:
+        return self._inherited_field("is_queryable", default=False, exclude_values=[False], output_field=BooleanField())
 
-    def get_inherited_is_cascaded(self) -> bool:
-        return Coalesce(
-            F("is_cascaded"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
-                is_cascaded=False).values_list("is_cascaded", flat=True)[:1]),
-            Value(False)
-        )
+    def inherited_is_cascaded(self) -> bool:
+        return self._inherited_field("is_cascaded", default=False, exclude_values=[False], output_field=BooleanField())
 
-    def get_inherited_is_opaque(self) -> bool:
-        return Coalesce(
-            F("is_opaque"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
-                is_opaque=False).values_list("is_opaque", flat=True)[:1]),
-            Value(False)
-        )
+    def inherited_is_opaque(self) -> bool:
+        return self._inherited_field("is_opaque", default=False, exclude_values=[False], output_field=BooleanField())
 
-    def get_inherited_scale_min(self) -> int:
+    def inherited_scale_min(self) -> int:
         """Return the scale min value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -589,15 +597,9 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: self.scale_min if not None else scale_min from the first ancestors where scale_min is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
-        return Coalesce(
-            F("scale_min"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
-                scale_min=None).values_list("scale_min", flat=True)[:1]),
-            Value(None),
-            output_field=FloatField()
-        )
+        return self._inherited_field("scale_min", default=None, output_field=FloatField())
 
-    def get_inherited_scale_max(self) -> int:
+    def inherited_scale_max(self) -> int:
         """Return the scale max value of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -609,15 +611,9 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: self.scale_max if not None else scale_max from the first ancestors where scale_max is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
-        return Coalesce(
-            F("scale_max"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
-                scale_max=None).values_list("scale_max", flat=True)[:1]),
-            Value(None),
-            output_field=FloatField()
-        )
+        return self._inherited_field("scale_max", default=None, output_field=FloatField())
 
-    def get_inherited_bbox_lat_lon(self) -> Polygon:
+    def inherited_bbox_lat_lon(self) -> Polygon:
         """Return the bbox of this layer based on the inheritance from other layers as requested in the ogc specs.
 
         .. note:: excerpt from ogc specs
@@ -631,16 +627,9 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: self.bbox_lat_lon if not None else bbox_lat_lon from the first ancestors where bbox_lat_lon is not None
         :rtype: :class:`django.contrib.gis.geos.polygon`
         """
-        return Coalesce(
-            F("bbox_lat_lon"),
-            Subquery(self.get_ancestors_per_layer(include_self=True).exclude(
-                bbox_lat_lon=None).values_list("bbox_lat_lon", flat=True)[:1],
-                # Cause Polygon can't be casted directly, we need to wrapp it in a Value with the definied output_field
-                output_field=PolygonField()),
-            Value(None)
-        )
+        return self._inherited_field("bbox_lat_lon", default=None, output_field=PolygonField())
 
-    def get_inherited_reference_systems(self) -> models.QuerySet:
+    def inherited_reference_systems(self) -> models.QuerySet:
         """Return all supported reference systems for this layer, based on the inheritance from other layers as
         requested in the ogc specs.
 
@@ -655,10 +644,10 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: all supported reference systems :class:`registry.models.metadata.ReferenceSystem` for this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return ReferenceSystem.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct(
+        return ReferenceSystem.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct(
             "code", "prefix")
 
-    def get_inherited_dimensions(self) -> models.QuerySet:
+    def inherited_dimensions(self) -> models.QuerySet:
         """Return all dimensions of this layer, based on the inheritance from other layers as requested in the ogc
         specs.
 
@@ -679,10 +668,103 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return Dimension.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+        return Dimension.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
 
-    def get_inherited_styles(self) -> models.QuerySet:
-        return Style.objects.filter(layer__in=self.get_ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+    def inherited_styles(self) -> models.QuerySet:
+        return Style.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+
+    def with_inherited_values(self):
+        return self.annotate(
+            is_queryable_inherited=self.inherited_is_queryable(),
+            is_cascaded_inherited=self.inherited_is_cascaded(),
+            is_opaque_inherited=self.inherited_is_opaque(),
+            scale_min_inherited=self.inherited_scale_min(),
+            scale_max_inherited=self.inherited_scale_max(),
+            bbox_lat_lon_inherited=self.inherited_bbox_lat_lon(),
+        )
+
+    def with_aggregated_inherited_values(self):
+        return self.annotate(
+            reference_systems_inherited=JSONBAgg(
+                JSONObject(
+                    pk="reference_systems__pk",
+                    code="reference_systems__code",
+                    prefix="reference_systems__prefix",
+                ),
+                filter=Q(reference_systems__pk__isnull=False),
+                distinct=True,
+                default=Value('[]'),
+            ),
+            dimensions_inherited=JSONBAgg(
+                JSONObject(
+                    pk="layer_dimension__pk",
+                    name="layer_dimension__name",
+                    units="layer_dimension__units",
+                    parsed_extent="layer_dimension__parsed_extent",
+                ),
+                filter=Q(layer_dimension__pk__isnull=False),
+                distinct=True,
+                default=Value('[]'),
+            ),
+            styles_inherited=JSONBAgg(
+                JSONObject(
+                    pk="style__pk",
+                    name="style__name",
+                    title="style__title"),
+                filter=Q(style__pk__isnull=False),
+                distinct=True,
+                default=Value('[]'),
+            )
+        )
+
+
+class LayerManager(models.Manager.from_queryset(LayerQuerySet), DefaultHistoryManager, TreeManager):
+
+    def with_inherited_attributes_cte(self):
+        ancestors_inherited_values = AncestorsHeritageCTE()
+        ancestors_aggregated_values = AncestorsHeritageAggregatedCTE()
+        layer_security_information = LayerSecurityInformationCTE()
+
+        qs = with_cte(
+            # WITH ...
+            ancestors_inherited_values,
+            # SELECT ... FROM ...
+            select=ancestors_inherited_values.join(
+                self.model,
+                id=ancestors_inherited_values.col.id,
+                _join_type="LEFT JOIN"
+            )
+        )
+        qs = with_cte(
+            ancestors_aggregated_values,
+            select=ancestors_aggregated_values.join(
+                qs,
+                id=ancestors_aggregated_values.col.id,
+                _join_type="LEFT JOIN"
+            )
+        )
+        qs = with_cte(
+            layer_security_information,
+            select=layer_security_information.join(
+                qs,
+                id=layer_security_information.col.layer_id,
+                _join_type="LEFT JOIN"
+            )
+        )
+
+        qs = qs.annotate(
+            is_queryable_inherited=ancestors_inherited_values.col.is_queryable_inherited,
+            is_cascaded_inherited=ancestors_inherited_values.col.is_cascaded_inherited,
+            is_opaque_inherited=ancestors_inherited_values.col.is_opaque_inherited,
+            scale_min_inherited=ancestors_inherited_values.col.scale_min_inherited,
+            scale_max_inherited=ancestors_inherited_values.col.scale_max_inherited,
+            bbox_inherited=ancestors_inherited_values.col.bbox_lat_lon_inherited,
+            reference_systems_inherited=ancestors_aggregated_values.col.reference_systems_inherited,
+            dimensions_inherited=ancestors_aggregated_values.col.dimensions_inherited,
+            styles_inherited=ancestors_aggregated_values.col.styles_inherited,
+        )
+
+        return qs
 
     def with_inherited_attributes(self):
         from registry.models.security import AllowedWebMapServiceOperation
@@ -690,7 +772,7 @@ class LayerManager(DefaultHistoryManager, TreeManager):
         return self.get_queryset().annotate(
             ancestors_include_self=ArraySubquery(
                 (
-                    self.get_ancestors_per_layer(include_self=True)
+                    self.ancestors_per_layer(include_self=True)
                     .prefetch_related(
                         Prefetch(
                             "reference_systems",
@@ -743,12 +825,12 @@ class LayerManager(DefaultHistoryManager, TreeManager):
                     )
                 )
             ),
-            is_queryable_inherited=self.get_inherited_is_queryable(),
-            is_cascaded_inherited=self.get_inherited_is_cascaded(),
-            is_opaque_inherited=self.get_inherited_is_opaque(),
-            scale_min_inherited=self.get_inherited_scale_min(),
-            scale_max_inherited=self.get_inherited_scale_max(),
-            bbox_inherited=self.get_inherited_bbox_lat_lon(),
+            is_queryable_inherited=self.inherited_is_queryable(),
+            is_cascaded_inherited=self.inherited_is_cascaded(),
+            is_opaque_inherited=self.inherited_is_opaque(),
+            scale_min_inherited=self.inherited_scale_min(),
+            scale_max_inherited=self.inherited_scale_max(),
+            bbox_inherited=self.inherited_bbox_lat_lon(),
             is_secured=Exists(
                 AllowedWebMapServiceOperation.objects.filter(
                     secured_layers__id__exact=OuterRef("pk"),
@@ -764,4 +846,6 @@ class LayerManager(DefaultHistoryManager, TreeManager):
 
 
 class CatalogueServiceManager(DefaultHistoryManager, CTEManager):
+    pass
+    pass
     pass

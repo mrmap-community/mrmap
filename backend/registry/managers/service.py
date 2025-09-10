@@ -6,7 +6,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models.fields import PolygonField
 from django.contrib.gis.geos.polygon import Polygon
 from django.contrib.postgres.aggregates import JSONBAgg
-from django.contrib.postgres.expressions import ArraySubquery
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Exists
@@ -14,9 +13,10 @@ from django.db.models import Value as V
 from django.db.models.expressions import F, OuterRef, Subquery, Value
 from django.db.models.fields import BooleanField, FloatField
 from django.db.models.functions import Coalesce, JSONObject
-from django.db.models.query import Prefetch, Q
+from django.db.models.query import Q
 from django_cte import CTEManager, with_cte
 from extras.managers import DefaultHistoryManager
+from extras.utils import parse_sparse_fieldsets
 from mptt2.managers import TreeManager
 from mptt2.models import Tree
 from registry.enums.metadata import MetadataOriginEnum
@@ -29,7 +29,6 @@ from registry.models.metadata import (Dimension, Keyword, LegendUrl,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.settings import METADATA_URL_BLACKLIST
-from simple_history.models import HistoricalRecords
 from simple_history.utils import bulk_create_with_history
 
 
@@ -530,6 +529,8 @@ class FeatureTypeElementXmlManager(models.Manager):
     def _reset_local_variables(self, **kwargs):
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
+        from simple_history.models import HistoricalRecords
+
         if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
             self.current_user = HistoricalRecords.context.request.user
 
@@ -545,6 +546,7 @@ class FeatureTypeElementXmlManager(models.Manager):
 
 
 class LayerQuerySet(models.QuerySet):
+    sparse_fields = {}
 
     def _inherited_field(
         self,
@@ -717,135 +719,135 @@ class LayerQuerySet(models.QuerySet):
             )
         )
 
+    def _analyze_sparse_fields(self, request=None):
+        from simple_history.models import HistoricalRecords
 
-class LayerManager(models.Manager.from_queryset(LayerQuerySet), DefaultHistoryManager, TreeManager):
+        if not request and hasattr(HistoricalRecords.context, "request"):
+            request = HistoricalRecords.context.request
 
-    def with_inherited_attributes_cte(self):
-        ancestors_inherited_values = AncestorsHeritageCTE()
-        ancestors_aggregated_values = AncestorsHeritageAggregatedCTE()
-        layer_security_information = LayerSecurityInformationCTE()
+        self.sparse_fields = parse_sparse_fieldsets(request)
 
-        qs = with_cte(
-            # WITH ...
-            ancestors_inherited_values,
-            # SELECT ... FROM ...
-            select=ancestors_inherited_values.join(
-                self.model,
-                id=ancestors_inherited_values.col.id,
-                _join_type="LEFT JOIN"
-            )
+    def build_cte_and_kwargs(self, cte_cls, cte_fields, sparse_key):
+        """
+        Baut ein (cte_instance, kwargs)-Tuple dynamisch auf Basis der sparse_fields.
+
+        Args:
+            cte_cls: Die CTE-Klasse, z. B. AncestorsHeritageCTE
+            cte_fields (list[str]): alle möglichen Felder
+            sparse_key (str): Key in sparse_fields, der Filter-Präfixe liefert
+
+        Returns:
+            tuple: (cte_instance oder None, annotation_kwargs dict)
+        """
+        layer_fields = self.sparse_fields.get(sparse_key, [])
+
+        # Bestimme die Felder
+        if not layer_fields:
+            fields = cte_fields
+        else:
+            fields = [
+                field for field in cte_fields
+                if any(field.startswith(prefix) for prefix in layer_fields)
+            ]
+
+        # Erzeuge die CTE-Instanz nur wenn Felder da sind
+        cte_instance = cte_cls(fields) if fields else None
+
+        # kwargs dict dynamisch bauen
+        annotation_kwargs = (
+            {field: getattr(cte_instance.col, field) for field in fields}
+            if cte_instance else {}
         )
-        qs = with_cte(
-            ancestors_aggregated_values,
-            select=ancestors_aggregated_values.join(
-                qs,
-                id=ancestors_aggregated_values.col.id,
-                _join_type="LEFT JOIN"
-            )
+
+        return cte_instance, annotation_kwargs
+
+    def get_ancestors_heritage_cte(self):
+        cte_fields = [
+            "is_queryable_inherited",
+            "is_cascaded_inherited",
+            "is_opaque_inherited",
+            "scale_min_inherited",
+            "scale_max_inherited",
+            "bbox_lat_lon_inherited",
+        ]
+        return self.build_cte_and_kwargs(
+            AncestorsHeritageCTE,
+            cte_fields,
+            "Layer"
         )
-        qs = with_cte(
-            layer_security_information,
-            select=layer_security_information.join(
-                qs,
-                id=layer_security_information.col.layer_id,
-                _join_type="LEFT JOIN"
-            )
+
+    def get_ancestors_aggregated_cte(self):
+        cte_fields = [
+            "reference_systems_inherited",
+            "dimensions_inherited",
+            "styles_inherited",
+        ]
+        return self.build_cte_and_kwargs(
+            AncestorsHeritageAggregatedCTE,
+            cte_fields,
+            "Layer"
         )
+
+    def get_security_information_cte(self):
+        cte_fields = [
+            "is_secured",
+            "is_spatial_secured",
+        ]
+        return self.build_cte_and_kwargs(
+            LayerSecurityInformationCTE,
+            cte_fields,
+            "Layer"
+        )
+
+    def with_inherited_attributes_cte(self, request=None):
+        self._analyze_sparse_fields(request)
+        qs = self
+
+        heritage_cte, heritage_annotation_kwargs = self.get_ancestors_heritage_cte()
+        if heritage_cte:
+            qs = with_cte(
+                heritage_cte,
+                select=heritage_cte.join(
+                    qs,
+                    id=heritage_cte.col.id,
+                    _join_type="LEFT JOIN"
+                )
+            )
+
+        aggregated_cte, aggregated_annotation_kwargs = self.get_ancestors_aggregated_cte()
+        if aggregated_cte:
+            qs = with_cte(
+                aggregated_cte,
+                select=aggregated_cte.join(
+                    qs,
+                    id=aggregated_cte.col.id,
+                    _join_type="LEFT JOIN"
+                )
+            )
+
+        security_cte, security_annotation_kwargs = self.get_security_information_cte()
+        if security_cte:
+            qs = with_cte(
+                security_cte,
+                select=security_cte.join(
+                    qs,
+                    id=security_cte.col.layer_id,
+                    _join_type="LEFT JOIN"
+                )
+            )
 
         qs = qs.annotate(
-            is_queryable_inherited=ancestors_inherited_values.col.is_queryable_inherited,
-            is_cascaded_inherited=ancestors_inherited_values.col.is_cascaded_inherited,
-            is_opaque_inherited=ancestors_inherited_values.col.is_opaque_inherited,
-            scale_min_inherited=ancestors_inherited_values.col.scale_min_inherited,
-            scale_max_inherited=ancestors_inherited_values.col.scale_max_inherited,
-            bbox_inherited=ancestors_inherited_values.col.bbox_lat_lon_inherited,
-            reference_systems_inherited=ancestors_aggregated_values.col.reference_systems_inherited,
-            dimensions_inherited=ancestors_aggregated_values.col.dimensions_inherited,
-            styles_inherited=ancestors_aggregated_values.col.styles_inherited,
+            **heritage_annotation_kwargs,
+            **aggregated_annotation_kwargs,
+            **security_annotation_kwargs
         )
 
         return qs
 
-    def with_inherited_attributes(self):
-        from registry.models.security import AllowedWebMapServiceOperation
 
-        return self.get_queryset().annotate(
-            ancestors_include_self=ArraySubquery(
-                (
-                    self.ancestors_per_layer(include_self=True)
-                    .prefetch_related(
-                        Prefetch(
-                            "reference_systems",
-                            queryset=ReferenceSystem.objects.distinct("code", "prefix")),
-                        Prefetch(
-                            "layer_dimension",
-                            queryset=Dimension.objects.distinct("name")),
-                        Prefetch(
-                            "style",
-                            queryset=Style.objects.distinct("name")),
-
-                    )
-                    .values(
-                        json=JSONObject(
-                            pk="pk",
-                            mptt_lft="mptt_lft",
-                            mptt_rgt="mptt_rgt",
-                            mptt_depth="mptt_depth",
-                            reference_systems_inherited=JSONBAgg(
-                                JSONObject(
-                                    pk="reference_systems__pk",
-                                    code="reference_systems__code",
-                                    prefix="reference_systems__prefix",
-                                ),
-                                filter=Q(reference_systems__pk__isnull=False),
-                                distinct=True,
-                                default=Value('[]'),
-                            ),
-                            dimensions_inherited=JSONBAgg(
-                                JSONObject(
-                                    pk="layer_dimension__pk",
-                                    name="layer_dimension__name",
-                                    units="layer_dimension__units",
-                                    parsed_extent="layer_dimension__parsed_extent",
-                                ),
-                                filter=Q(layer_dimension__pk__isnull=False),
-                                distinct=True,
-                                default=Value('[]'),
-                            ),
-                            styles_inherited=JSONBAgg(
-                                JSONObject(
-                                    pk="style__pk",
-                                    name="style__name",
-                                    title="style__title"),
-                                filter=Q(style__pk__isnull=False),
-                                distinct=True,
-                                default=Value('[]'),
-                            )
-                        )
-                    )
-                )
-            ),
-            is_queryable_inherited=self.inherited_is_queryable(),
-            is_cascaded_inherited=self.inherited_is_cascaded(),
-            is_opaque_inherited=self.inherited_is_opaque(),
-            scale_min_inherited=self.inherited_scale_min(),
-            scale_max_inherited=self.inherited_scale_max(),
-            bbox_inherited=self.inherited_bbox_lat_lon(),
-            is_secured=Exists(
-                AllowedWebMapServiceOperation.objects.filter(
-                    secured_layers__id__exact=OuterRef("pk"),
-                )
-            ),
-            is_spatial_secured=Exists(
-                AllowedWebMapServiceOperation.objects.filter(
-                    secured_layers__id__exact=OuterRef("pk"),
-                    allowed_area__isnull=False
-                )
-            )
-        )
+class LayerManager(models.Manager.from_queryset(LayerQuerySet), DefaultHistoryManager, TreeManager):
+    pass
 
 
 class CatalogueServiceManager(DefaultHistoryManager, CTEManager):
-    pass
-    pass
     pass

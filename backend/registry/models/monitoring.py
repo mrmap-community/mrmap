@@ -340,7 +340,7 @@ class GetMapProbe(WebMapServiceProbe):
         self.save()
         try:
             client = self.setting.service.client
-            layers: list[Layer] = self.layers.with_inherited_attributes()
+            layers: list[Layer] = self.layers.with_inherited_attributes_cte()
             bbox: Polygon = layers[0].bbox_inherited
             if client.capabilities.service_type.version == "1.3.0":
                 bbox = adjust_axis_order(bbox)

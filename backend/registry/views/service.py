@@ -5,7 +5,8 @@ from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
 from django_cte import With
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import (AsyncCreateMixin, HistoryInformationViewSetMixin,
+from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
+                             HistoryInformationViewSetMixin,
                              NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
                              PreloadNotIncludesMixin, SerializerClassesMixin,
@@ -42,6 +43,7 @@ class WebMapServiceViewSet(
     SerializerClassesMixin,
     AsyncCreateMixin,
     ObjectPermissionCheckerViewSetMixin,
+    ExtendedPreloadIncludesMixin,
     PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
     ModelViewSet,
@@ -72,9 +74,9 @@ class WebMapServiceViewSet(
     }
     prefetch_for_includes = {
         "layers": [
-            Prefetch(
+            lambda: Prefetch(
                 "layers",
-                queryset=Layer.objects.with_inherited_attributes().select_related("mptt_parent", "mptt_tree").prefetch_related(
+                queryset=Layer.objects.with_inherited_attributes_cte().select_related("mptt_parent", "mptt_tree").prefetch_related(
                     Prefetch(
                         "keywords",
                         queryset=Keyword.objects.only("id")
@@ -202,7 +204,7 @@ class LayerViewSetMixin(
     PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
 ):
-    queryset = Layer.objects.with_inherited_attributes().select_related("mptt_tree")
+    queryset = Layer.objects.all().select_related("mptt_tree")
     serializer_class = LayerSerializer
     filterset_class = LayerFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")
@@ -256,6 +258,13 @@ class LayerViewSetMixin(
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     ordering_fields = ["id", "title", "abstract",
                        "hits", "scale_max", "scale_min", "date_stamp", "mptt_lft", "mptt_rgt", "mptt_depth"]
+
+    def get_queryset(self, *args, **kwargs):
+        # we need to call the speficic queryset method here on runtime.
+        # If the queryset is defined on class level, the query is pregenerated on appserver startup, and no request ist present.
+        qs = super().get_queryset(*args, **kwargs)
+        qs = qs.with_inherited_attributes_cte()
+        return qs
 
 
 class LayerViewSet(

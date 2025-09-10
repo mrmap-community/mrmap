@@ -175,6 +175,28 @@ class JSONDetailView(JSONResponseMixin, BaseDetailView):
         return self.render_to_json_response(context, **response_kwargs)
 
 
+class ExtendedPreloadIncludesMixin:
+    def _resolve_prefetches(self, prefetches):
+        """
+        Resolve prefetch definitions:
+        - callables (e.g. lambda: Prefetch(...)) werden aufgerufen
+        - Strings und Prefetch-Objekte bleiben unverändert
+        """
+        resolved = []
+        for p in prefetches:
+            if callable(p):
+                resolved.append(p())
+            else:
+                resolved.append(p)
+        return resolved
+
+    def get_prefetch_related(self, include):
+        raw = super().get_prefetch_related(include)
+        if raw is not None:
+            return self._resolve_prefetches(raw)
+        return None
+
+
 class PreloadNotIncludesMixin:
     def get_prefetch_for_not_includes(self):
         return getattr(self, "prefetch_for_not_includes", {})

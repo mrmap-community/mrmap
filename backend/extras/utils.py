@@ -1,6 +1,9 @@
+import re
 import urllib.parse as urlparse
+from collections import defaultdict
 
 from rest_framework.renderers import BrowsableAPIRenderer
+from rest_framework_json_api.utils import undo_format_field_name
 
 
 def update_url_query_params(url: str, params: dict):
@@ -33,6 +36,20 @@ def execute_threads(thread_list):
         thread.join()
 
 
+def parse_sparse_fieldsets(request):
+    fieldsets = defaultdict(list)
+    pattern = re.compile(r"^fields\[(?P<resource>[^\]]+)\]$")
+    if request and hasattr(request, "GET"):
+        for key, value in request.GET.items():
+            match = pattern.match(key)
+            if match and value:
+                resource = match.group("resource")
+                fieldsets[resource] = [undo_format_field_name(v.strip())
+                                       for v in value.split(",") if v.strip()]
+
+    return dict(fieldsets)
+
+
 class BrowsableAPIRendererWithoutForms(BrowsableAPIRenderer):
     """Renders the browsable api, but excludes the forms."""
 
@@ -49,4 +66,5 @@ class BrowsableAPIRendererWithoutForms(BrowsableAPIRenderer):
         """Why render _any_ forms at all. This method should return
         rendered HTML, so let's simply return an empty string.
         """
+        return ""
         return ""

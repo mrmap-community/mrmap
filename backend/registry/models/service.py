@@ -512,7 +512,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             if hasattr(self, "bbox_inherited"):
                 _bbox: Polygon = self.bbox_inherited
             else:
-                _bbox: Polygon = Layer.objects.with_inherited_attributes(
+                _bbox: Polygon = Layer.objects.with_inherited_attributes_cte(
                 ).values_list("bbox_inherited", flat=True).get(pk=self.pk)
 
         # if self.get_scale_max:

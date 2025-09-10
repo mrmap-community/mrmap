@@ -29,9 +29,21 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
         fieldDefinitions.filter(fieldDef => ['title', 'abstract'].includes(fieldDef.props.source)).map(fieldDef => createElement(fieldDef.component, fieldDef.props))
     ),[fieldDefinitions])
 
+
+    const meta = useMemo(()=>{
+        const jsonApiParams: any = {
+                include: 'layers,operationUrls',
+            }
+        const _meta = {
+            jsonApiParams: jsonApiParams
+        }
+        jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation'
+        return _meta
+    },[])
+
     return (
         <Show 
-            queryOptions={{meta: {jsonApiParams:{include: 'layers,operationUrls'}}}}
+            queryOptions={{meta: meta}}
             actions={<WmsShowActions/>}
         >
         <TabbedShowLayout

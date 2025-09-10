@@ -183,7 +183,7 @@ class DatasetMetadataViewSetMixin(
         "self_pointing_layers.service": [
             Prefetch(
                 "self_pointing_layers",
-                queryset=Layer.objects.with_inherited_attributes()
+                queryset=Layer.objects.with_inherited_attributes_cte()
                 .select_related(
                     "mptt_parent",
                     "mptt_tree",
@@ -204,7 +204,7 @@ class DatasetMetadataViewSetMixin(
         "self_pointing_layers": [
             Prefetch(
                 "self_pointing_layers",
-                queryset=Layer.objects.with_inherited_attributes()
+                queryset=Layer.objects.with_inherited_attributes_cte()
                 .select_related(
                     "mptt_parent",
                     "mptt_tree",

@@ -185,7 +185,7 @@ class ExtendedPreloadIncludesMixin:
         resolved = []
         for p in prefetches:
             if callable(p):
-                resolved.append(p())
+                resolved.append(p(self.request))
             else:
                 resolved.append(p)
         return resolved

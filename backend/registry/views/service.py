@@ -74,7 +74,7 @@ class WebMapServiceViewSet(
     }
     prefetch_for_includes = {
         "layers": [
-            lambda: Prefetch(
+            lambda request: Prefetch(
                 "layers",
                 queryset=Layer.objects.with_inherited_attributes_cte().select_related("mptt_parent", "mptt_tree").prefetch_related(
                     Prefetch(

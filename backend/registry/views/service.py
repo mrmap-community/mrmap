@@ -29,6 +29,7 @@ from registry.models.service import (CatalogueService,
                                      CatalogueServiceOperationUrl,
                                      WebFeatureServiceOperationUrl,
                                      WebMapServiceOperationUrl)
+from registry.querys.service import LayerPrefetch
 from registry.serializers.service import (
     CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
     CatalogueServiceSerializer, FeatureTypeSerializer, LayerSerializer,
@@ -74,20 +75,7 @@ class WebMapServiceViewSet(
     }
     prefetch_for_includes = {
         "layers": [
-            lambda request: Prefetch(
-                "layers",
-                queryset=Layer.objects.with_inherited_attributes_cte().select_related("mptt_parent", "mptt_tree").prefetch_related(
-                    Prefetch(
-                        "keywords",
-                        queryset=Keyword.objects.only("id")
-                    ),
-                    Prefetch(
-                        "registry_datasetmetadatarecord_metadata_records",
-                        queryset=DatasetMetadataRecord.objects.only("id")
-                    ),
-
-                )
-            )
+            lambda request: LayerPrefetch(request)
         ],
         "keywords": ["keywords"],
         "operation_urls": [

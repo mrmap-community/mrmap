@@ -3,6 +3,8 @@ import urllib.parse as urlparse
 from collections import defaultdict
 
 from rest_framework.renderers import BrowsableAPIRenderer
+from rest_framework_json_api.utils import \
+    get_included_resources as get_included_resources_json_api
 from rest_framework_json_api.utils import undo_format_field_name
 
 
@@ -50,6 +52,26 @@ def parse_sparse_fieldsets(request):
     return dict(fieldsets)
 
 
+def get_request(request):
+    from simple_history.models import HistoricalRecords
+
+    if not request and hasattr(HistoricalRecords.context, "request"):
+        request = HistoricalRecords.context.request
+    if request and not hasattr(request, "query_params"):
+        request.query_params = request.GET
+    return request
+
+
+def get_sparse_fields(request=None):
+    request = get_request(request)
+    return parse_sparse_fieldsets(request)
+
+
+def get_included_resources(request=None):
+    request = get_request(request)
+    return get_included_resources_json_api(request)
+
+
 class BrowsableAPIRendererWithoutForms(BrowsableAPIRenderer):
     """Renders the browsable api, but excludes the forms."""
 
@@ -66,5 +88,7 @@ class BrowsableAPIRendererWithoutForms(BrowsableAPIRenderer):
         """Why render _any_ forms at all. This method should return
         rendered HTML, so let's simply return an empty string.
         """
+        return ""
+        return ""
         return ""
         return ""

@@ -151,7 +151,8 @@ def build_ogc_service(
                     **task_kwargs
                 )
                 for remote_metadata in remote_metadata_list]
-            chord(tasks)(finish_background_process.s(**task_kwargs))
+            chord(tasks)(finish_background_process.s(
+                **task_kwargs), max_retries=300, interval=1)
 
             self.update_background_process(
                 phase='collecting metadata records...',

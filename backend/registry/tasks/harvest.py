@@ -120,7 +120,7 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
             http_request=http_request,
         )
         callback.set(task_id=str(callback_id))
-        chord(to_db_tasks, callback)()
+        chord(to_db_tasks, callback).apply_async(max_retries=300, interval=1)
         harvesting_job.phase = HarvestingPhaseEnum.RECORDS_TO_DB.value
         harvesting_job.append_celery_task_ids(task_ids + [callback_id])
     else:

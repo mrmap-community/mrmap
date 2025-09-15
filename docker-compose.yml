@@ -25,7 +25,7 @@ services:
   # Done
 
   redis:
-    image: library/redis:7.4.2-alpine3.21
+    image: library/redis:8.2.1-alpine3.22
     volumes:
       - type: volume
         source: mem-db-data
@@ -239,7 +239,13 @@ services:
         target: /pgadmin4/servers.json
     networks:
       - mrmap-internal    
-
+  flower:
+    image: mher/flower:2.0
+    command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555"]
+    ports:
+      - 5655:5555
+    networks:
+      - mrmap-internal
 
 volumes:
   frontend-static: null

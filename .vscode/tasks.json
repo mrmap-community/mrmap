@@ -270,6 +270,19 @@
             ]
         },
         {
+            "label": "Docker Compose: flower",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "--build",
+                "flower"
+            ]
+        },
+        {
             "label": "Docker Compose: pgadmin",
             "type": "shell",
             "command": "docker",

@@ -360,7 +360,14 @@ class HarvestingJob(ProcessingData):
             self.append_celery_task_ids(task_ids + [callback_id])
 
             # publishing tasks on commit was successfully
-            transaction.on_commit(lambda: chord(tasks, callback)())
+            transaction.on_commit(
+                lambda: chord(
+                    tasks,
+                    callback
+                ).apply_async(
+                    max_retries=300,
+                    interval=1)
+            )
 
         self.log(
             description=f"phase {HarvestingPhaseEnum.DOWNLOAD_RECORDS.value} started. {round_trips} round trips with step size {self.max_step_size} are needed."
@@ -545,7 +552,7 @@ class HarvestingJob(ProcessingData):
             db_md_metadata_file_list.append(db_md_metadata_file)
 
         db_objs = TemporaryMdMetadataFile.objects.bulk_create(
-            objs=db_md_metadata_file_list)
+            objs=db_md_metadata_file_list, ignore_conflicts=True)
 
         should_return_count = self.max_step_size if start_position + \
             self.max_step_size < self.total_records else self.total_records - start_position

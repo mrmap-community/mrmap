@@ -11,26 +11,19 @@ from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 
 class HarvestedMetadataRelationQuerySet(models.QuerySet):
     def stats_per_day(self):
-        new_records_filter = Q(collecting_state=CollectingStatenEnum.NEW.value)
-        updated_records_filter = Q(
-            collecting_state=CollectingStatenEnum.UPDATED.value)
-        existed_records_filter = Q(
-            collecting_state=CollectingStatenEnum.EXISTING.value)
-
-        return self.annotate(
-            new=Case(When(condition=new_records_filter,
-                          then=Value(True)), default=Value(False)),
-            updated=Case(When(condition=updated_records_filter,
-                              then=Value(True)), default=Value(False)),
-            existed=Case(When(condition=existed_records_filter,
-                              then=Value(True)), default=Value(False))
-        ).values("history_day").annotate(
+        return self.values(
+            "history_day",
+            "collecting_state",
+            "harvesting_job",
+            "harvesting_job__service"
+        ).annotate(
             id=F("history_day"),
-            service=F("harvesting_job__service__id"),
-            harvesting_job=F("harvesting_job__id"),
-            new=Count("pk", filter=Q(new=True)),
-            updated=Count("pk", filter=Q(updated=True)),
-            existed=Count("pk", filter=Q(existed=True)),
+            new=Count("pk", filter=(
+                Q(collecting_state=CollectingStatenEnum.NEW.value))),
+            updated=Count("pk", filter=Q(
+                collecting_state=CollectingStatenEnum.UPDATED.value)),
+            existed=Count("pk", filter=Q(
+                collecting_state=CollectingStatenEnum.EXISTING.value)),
         )
 
 
@@ -125,10 +118,14 @@ class TemporaryMdMetadataFileManager(models.Manager):
         ]
         if to_db_tasks:
             transaction.on_commit(
-                lambda: chord(to_db_tasks)(finish_background_process.s(
-                    http_request=request,
-                    background_process_pk=bp.pk
-                ))
+                lambda: chord(to_db_tasks).apply_async(
+                    finish_background_process.s(
+                        http_request=request,
+                        background_process_pk=bp.pk,
+                    ),
+                    max_retries=300,
+                    interval=1
+                )
             )
         else:
             BackgroundProcess.objects.filter(pk=bp.pk).update(

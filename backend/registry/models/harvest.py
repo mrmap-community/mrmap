@@ -550,20 +550,25 @@ class HarvestingJob(ProcessingData):
                 content=ContentFile(content=md_metadata.serialize()),
                 save=False)
             db_md_metadata_file_list.append(db_md_metadata_file)
+        db_objs = 0
 
-        db_objs = TemporaryMdMetadataFile.objects.bulk_create(
-            objs=db_md_metadata_file_list, ignore_conflicts=True)
-
-        should_return_count = self.max_step_size if start_position + \
-            self.max_step_size < self.total_records else self.total_records - start_position
-
-        if len(db_objs) < should_return_count:
-            self.log(
-                level=LogLevelEnum.WARNING.value,
-                kind=LogKindEnum.COUNT_MISSMATCH.value,
-                description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
-                f"URL: {request.url}"
+        with transaction.atomic():
+            db_objs = TemporaryMdMetadataFile.objects.bulk_create(
+                objs=db_md_metadata_file_list,
+                ignore_conflicts=True,
+                batch_size=50
             )
+
+            should_return_count = self.max_step_size if start_position + \
+                self.max_step_size < self.total_records else self.total_records - start_position
+
+            if len(db_objs) < should_return_count:
+                self.log(
+                    level=LogLevelEnum.WARNING.value,
+                    kind=LogKindEnum.COUNT_MISSMATCH.value,
+                    description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
+                    f"URL: {request.url}"
+                )
 
         return len(db_objs)
 

@@ -264,6 +264,10 @@
                 "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
                 "up",
                 "--build",
                 "openobserve"

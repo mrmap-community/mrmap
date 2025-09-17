@@ -1,7 +1,7 @@
 ################################
 # Base build Image
 ################################  
-FROM python:3.12.9-alpine3.21 AS compile-image
+FROM python:3.12.11-alpine3.22 AS compile-image
 ARG MRMAP_PRODUCTION
 
 RUN apk update && \
@@ -20,12 +20,14 @@ RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements
 ################################
 # MrMap Image
 ################################    
-FROM python:3.12.9-alpine3.21 AS runtime-image
+FROM python:3.12.11-alpine3.22 AS runtime-image
 ARG MRMAP_PRODUCTION
 COPY --from=compile-image /opt/venv /opt/venv
 
 # TODO: gettext are only needed for dev environment
-RUN apk update \
+RUN addgroup -g 1000 mrmapgroup \
+    && adduser -D -u 1000 -G mrmapgroup mrmapuser \
+    && apk update \
     && apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl py3-psycopg postgresql-client\
     && rm -rf /var/cache/apk/* \
     && mkdir -p /var/mrmap/backend/media \
@@ -34,7 +36,16 @@ RUN apk update \
     && mkdir -p /var/log/mrmap/celery-worker-db-routines \
     && mkdir -p /var/log/mrmap/celery-worker-download \
     && mkdir -p /var/mrmap/import \
-    && mkdir -p /var/www/mrmap/backend
+    && mkdir -p /var/www/mrmap/backend \ 
+    && mkdir -p /var/run/celery \
+    && chown -R mrmapuser:mrmapgroup \
+    /opt/venv \
+    /var/mrmap \
+    /var/log/mrmap \
+    /var/www/mrmap \
+    /var/run/celery
+
+USER mrmapuser
 
 # set work directory
 WORKDIR /opt/mrmap

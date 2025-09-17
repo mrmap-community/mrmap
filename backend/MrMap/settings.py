@@ -19,8 +19,7 @@ from warnings import warn
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
-from MrMap.celery import (is_celery_process, is_this_a_celery_beat_process,
-                          is_this_a_celery_worker_process)
+from MrMap.celery import is_celery_process, is_this_a_celery_beat_process
 from system.logging.formatter import RFC5424Formatter
 
 from . import VERSION
@@ -93,7 +92,6 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "django.forms",  # for debug_toolbar and rest api html page
     "django_extensions",
-    "captcha",
     "corsheaders",
     "rest_framework",
     "rest_framework_gis",
@@ -273,51 +271,38 @@ DATABASES = {
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
         "HOST": os.environ.get("SQL_HOST"),
         "PORT": os.environ.get("SQL_PORT"),
-        "OPTIONS": {
-            "pool": {
-                "min_size": 4,
-                "max_size": MAX_BACKEND_RESERVED_CONNECTIONS,
-                "timeout": 30,
-            }
-        },
+
         "CONN_HEALTH_CHECKS": True,
 
     }
 }
-
-# For Celery worker we need other settings.
-# Cause there are many concurent tasks running, we need a lot of connections that are opended.
-# Otherwise it is highly possible that with transaction.atomic(): (creates new connection) crashes, cause the db does not allow a new connection.
-# there for we need to define the pool with a high number of maximum opened connections.
-if is_celery_process():
-    if is_this_a_celery_beat_process:
-        # celery beat only need's one connections at a time
-        DATABASES["default"]["OPTIONS"] = {
-            "pool": {
-                "min_size": 1,
-                "max_size": 1,
-                "timeout": 10,
-            }
-        }
-
-    POSTGRESQL_MAX_CONNECTIONS_DEFAULT = 100
-    cores = multiprocessing.cpu_count()
-    available_connections = (
-        POSTGRESQL_MAX_CONNECTIONS_DEFAULT
-        - MAX_BACKEND_RESERVED_CONNECTIONS
-        - RESERVED_CONNECTION_SPACE
-        - 1  # -1 for beat reserved
-    )
-
-    max_size = max(1, available_connections // cores)
-
+# -------------------------
+# Pooling for normale Requests
+# -------------------------
+if not is_celery_process():
     DATABASES["default"]["OPTIONS"] = {
         "pool": {
-            "min_size": max(1, max_size // 2),
-            "max_size": int(max_size),
-            "timeout": 20,
+            "min_size": 4,
+            "max_size": int(os.environ.get("MAX_BACKEND_RESERVED_CONNECTIONS", 20)),
+            "timeout": 30,
         }
     }
+
+# -------------------------
+# Celery-Worker ohne Pool
+# -------------------------
+# Note!!: do not activate pooling for any celery purpose.
+# It caused more problems then benefits.
+# It happend many times, that there are old unfinished transactions in a pooled connection, which caused different sql errors..
+# So we only use pool for normal backend
+if is_celery_process():
+    if is_this_a_celery_beat_process():
+        # Beat braucht nur eine Connection
+        DATABASES["default"]["OPTIONS"] = {}
+    else:
+        # Worker: kein Pool, jede Task nutzt eigene Connection
+        DATABASES["default"]["OPTIONS"] = {}
+
 # To avoid unwanted migrations in the future, either explicitly set DEFAULT_AUTO_FIELD to AutoField:
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
@@ -350,6 +335,7 @@ CACHES = {
 ################################################################
 # Celery settings
 ################################################################
+CELERY_BROKER_URL = BROKER_URL
 CELERY_RESULT_BACKEND = "django-cache"
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
@@ -362,7 +348,7 @@ CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_DEFAULT_QUEUE = "default"
 CELERY_DEFAULT_EXCHANGE = "default"
 
-CELERYD_MAX_TASKS_PER_CHILD = 1000
+CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
 CELERY_QUEUES = (
@@ -563,6 +549,10 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": True,
         },
+        "celery": {
+            "handlers": ["console"],
+            "propagate": True,
+        }
     },
 }
 try:
@@ -578,6 +568,7 @@ try:
     })
     LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")
     LOGGING["loggers"]["django"]["handlers"].append("syslog")
+    LOGGING["loggers"]["celery"]["handlers"].append("syslog")
     print("sylog logging handler configured.")
 except socket.gaierror:
     print("syslog server is not reachable. skipping syslog handler setup.")

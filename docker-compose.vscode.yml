@@ -69,3 +69,9 @@ services:
     #   /opt/mrmap/unit-tests-coverage-report.xml"
     ports:
       - "0.0.0.0:3011:5678"
+
+  openobserve:
+    environment:
+      ZO_BASE_URI: ""
+    ports:
+      - "0.0.0.0:5080:5080"

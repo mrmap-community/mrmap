@@ -46,7 +46,7 @@ def finish_harvesting_job(*args, **kwargs):
 )
 def call_fetch_total_records(*args, **kwargs):
     from registry.models.harvest import HarvestingJob, HarvestingLog
-    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
+    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service", "service__auth").get(
         pk=kwargs.get("harvesting_job_id"))
     try:
         total_records = harvesting_job.fetch_total_records()
@@ -80,7 +80,7 @@ def call_fetch_total_records(*args, **kwargs):
 def call_fetch_records(*args, **kwargs):
     from registry.models.harvest import HarvestingJob
 
-    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
+    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service", "service__auth").get(
         pk=kwargs.get("harvesting_job_id"))
 
     fetched_records = harvesting_job.fetch_records(

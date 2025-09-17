@@ -1,3 +1,4 @@
+from logging import Logger, getLogger
 from uuid import uuid4
 
 from django.conf import settings
@@ -5,6 +6,7 @@ from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
 from django.contrib.postgres.indexes import GistIndex
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
@@ -39,6 +41,8 @@ from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from simple_history.models import HistoricalRecords
+
+logger: Logger = settings.ROOT_LOGGER
 
 
 class CommonServiceInfo(models.Model):
@@ -112,13 +116,60 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     def get_session_for_request(self) -> Session:
         session = Session()
         # session.proxies.update(PROXIES)
-        if hasattr(self, "auth"):
+        try:
             session.auth = self.auth.get_auth_for_request()
+        except ObjectDoesNotExist:
+            # No service authentication existing...
+            pass
+
         return session
+
+    def get_service_type(self):
+        match(self.__class__.__name__):
+            case "WebMapService":
+                return "WMS"
+            case "WebFeatureService":
+                return "WFS"
+            case "CatalogueService":
+                return "CSW"
+            case _:
+                return None
 
     @property
     def client(self):
-        return get_client(capabilities=self.xml_backup, session=self.get_session_for_request())
+        try:
+            cap = self.xml_backup
+        except FileNotFoundError:
+            # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
+
+            cap = self.operation_urls.filter(
+                method=HttpMethodEnum.GET.value,
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+            ).values_list("url", flat=True).first()
+
+            cap = update_url_query_params(
+                cap,
+                {
+                    "SERVICE": self.get_service_type(),
+                    "VERSION": self.version,
+                    "REQUEST": "GetCapabilities",
+                }
+            )
+
+            logger.error(
+                msg=f"{self.__str__()} has no capabilities file stored. Trying fallback by url.",
+                extra={
+                    "structured_data": {
+                        "metaSDIS@django": {
+                            "capabilities_url": cap
+                        }
+                    }
+                })
+
+        return get_client(
+            capabilities=cap,
+            session=self.get_session_for_request()
+        )
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
@@ -717,5 +768,6 @@ class FeatureTypeProperty(models.Model):
         ordering = ["-name"]
 
     def __str__(self):
+        return self.name
         return self.name
         return self.name

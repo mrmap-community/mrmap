@@ -32,7 +32,7 @@ RUN npm install && \
 # Base build Image for Backend
 ##############################################################
 
-FROM python:3.12.7-alpine3.20 AS backend-compile-image
+FROM python:3.12.11-alpine3.22 AS backend-compile-image
 ARG MRMAP_PRODUCTION
 
 RUN apk update && \
@@ -51,7 +51,7 @@ RUN /usr/local/bin/python -m pip install --upgrade pip && \
 ##############################################################
 # Final Image
 ##############################################################  
-FROM nginx:1.27.2-alpine-slim AS production-image
+FROM nginx:1.29.1-alpine-slim AS production-image
 
 COPY --from=frontend-compile-image /app/dist /var/www/mrmap/frontend/
 COPY --from=backend-compile-image ./static /var/www/mrmap/backend/

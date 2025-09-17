@@ -10,6 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.timezone import now
 from eulxml import xmlmap
+from extras.tasks import SingletonTask
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
@@ -154,8 +155,10 @@ def call_md_metadata_file_to_db(*args, **kwargs):
 
 @shared_task(
     queue="db-routines",
+    bind=True,
+    base=SingletonTask,
 )
-def check_for_files_to_import(*args, **kwargs):
+def check_for_files_to_import(self, *args, **kwargs):
     from registry.models.harvest import TemporaryMdMetadataFile
 
     logger.info(f"watching for new files to import in '{FILE_IMPORT_DIR}'")

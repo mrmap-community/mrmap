@@ -1,9 +1,11 @@
 from logging import Logger
 from typing import OrderedDict
 
+from celery import Task
 from celery.signals import task_postrun, task_prerun
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.test import APIRequestFactory
 from simple_history.models import HistoricalRecords
@@ -45,3 +47,29 @@ def set_current_user(*args, **kwargs):
 def reset_current_user(*args, **kwargs):
     if hasattr(HistoricalRecords.context, "request"):
         del HistoricalRecords.context.request
+
+
+class SingletonTask(Task):
+    """
+    Celery Task Basis, der sicherstellt, dass nur eine Instanz gleichzeitig läuft.
+    """
+
+    lock_timeout = 300  # Sekunden
+
+    def __call__(self, *args, **kwargs):
+        lock_id = f"singleton:{self.name}"
+
+        if not cache.add(lock_id, self.request.id, timeout=self.lock_timeout):
+            msg = f"Task {self.name} skipped: another instance is running"
+            logger.info(msg)
+            self.update_state(state="SKIPPED", meta={"info": msg})
+            return msg
+
+        try:
+            self.update_state(state="STARTED", meta={"info": "Task started"})
+            # Hier wird die normale run-Methode aufgerufen
+            return super().__call__(*args, **kwargs)
+        finally:
+            current_lock = cache.get(lock_id)
+            if current_lock == self.request.id:
+                cache.delete(lock_id)

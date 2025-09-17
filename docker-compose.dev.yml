@@ -147,6 +147,10 @@ services:
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
 
+  flower:
+    ports:
+      - 5655:5555
+
 networks:
   sonar:
 

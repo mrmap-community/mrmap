@@ -242,8 +242,6 @@ services:
   flower:
     image: mher/flower:2.0
     command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555"]
-    ports:
-      - 5655:5555
     networks:
       - mrmap-internal
 

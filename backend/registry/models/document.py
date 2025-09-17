@@ -2,7 +2,6 @@ from abc import abstractmethod
 from warnings import warn
 
 from django.core.exceptions import ImproperlyConfigured
-from django.core.files import File
 from django.db import models
 from django.http import HttpRequest
 from django.urls import reverse
@@ -40,7 +39,7 @@ class DocumentModelMixin(models.Model):
 
         :raises ImproperlyConfigured: if the concrete model does not configure the xml_mapper_cls attribute.
         """
-        warn("get_xml_mapper_cls is deprecated. use utility functions of ows_lib package instead.")
+        warn("get_xml_mapper_cls is deprecated. use utility functions of ows_lib package in stead.")
         if self.xml_mapper_cls:
             return self.xml_mapper_cls
         raise ImproperlyConfigured("xml_mapper_cls attribute is needed.")
@@ -53,11 +52,10 @@ class DocumentModelMixin(models.Model):
         :rtype: str
         """
         try:
-            self.xml_backup_file.open("r")
-            with self.xml_backup_file as file:
+            with open(self.xml_backup_file.path, "r") as file:
                 string = file.read()
             return string if isinstance(string, str) else string.decode("UTF-8")
-        except (FileNotFoundError, ValueError):
+        except ValueError:
             return ""
 
     @property

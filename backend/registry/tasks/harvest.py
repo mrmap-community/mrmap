@@ -46,7 +46,7 @@ def finish_harvesting_job(*args, **kwargs):
 )
 def call_fetch_total_records(*args, **kwargs):
     from registry.models.harvest import HarvestingJob, HarvestingLog
-    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
+    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service", "service__auth").get(
         pk=kwargs.get("harvesting_job_id"))
     try:
         total_records = harvesting_job.fetch_total_records()
@@ -80,7 +80,7 @@ def call_fetch_total_records(*args, **kwargs):
 def call_fetch_records(*args, **kwargs):
     from registry.models.harvest import HarvestingJob
 
-    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service").get(
+    harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service", "service__auth").get(
         pk=kwargs.get("harvesting_job_id"))
 
     fetched_records = harvesting_job.fetch_records(
@@ -120,7 +120,7 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
             http_request=http_request,
         )
         callback.set(task_id=str(callback_id))
-        chord(to_db_tasks, callback)()
+        chord(to_db_tasks, callback).apply_async(max_retries=300, interval=1)
         harvesting_job.phase = HarvestingPhaseEnum.RECORDS_TO_DB.value
         harvesting_job.append_celery_task_ids(task_ids + [callback_id])
     else:

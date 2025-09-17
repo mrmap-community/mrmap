@@ -89,10 +89,9 @@ class ServiceAuthentication(models.Model):
     @property
     def key(self):
         try:
-            self.key_file.open("r")
-            with self.key_file as key_file:
+            with open(self.key_file.path, "r") as key_file:
                 key_string = key_file.read()
-            return key_string
+                return key_string
         except FileNotFoundError:
             return None
 

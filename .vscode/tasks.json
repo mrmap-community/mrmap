@@ -264,9 +264,26 @@
                 "compose",
                 "-f",
                 "${workspaceFolder}/docker-compose.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.dev.yml",
+                "-f",
+                "${workspaceFolder}/docker-compose.vscode.yml",
                 "up",
                 "--build",
                 "openobserve"
+            ]
+        },
+        {
+            "label": "Docker Compose: flower",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "--build",
+                "flower"
             ]
         },
         {

@@ -32,8 +32,6 @@ from registry.views_ows.mapcontext import OwsContextView
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
-    # captcha support
-    path("captcha/", include("captcha.urls")),
     # translation support
     path("i18n/", include("django.conf.urls.i18n")),
     # REST API

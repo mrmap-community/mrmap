@@ -360,7 +360,14 @@ class HarvestingJob(ProcessingData):
             self.append_celery_task_ids(task_ids + [callback_id])
 
             # publishing tasks on commit was successfully
-            transaction.on_commit(lambda: chord(tasks, callback)())
+            transaction.on_commit(
+                lambda: chord(
+                    tasks,
+                    callback
+                ).apply_async(
+                    max_retries=300,
+                    interval=1)
+            )
 
         self.log(
             description=f"phase {HarvestingPhaseEnum.DOWNLOAD_RECORDS.value} started. {round_trips} round trips with step size {self.max_step_size} are needed."
@@ -543,20 +550,25 @@ class HarvestingJob(ProcessingData):
                 content=ContentFile(content=md_metadata.serialize()),
                 save=False)
             db_md_metadata_file_list.append(db_md_metadata_file)
+        db_objs = 0
 
-        db_objs = TemporaryMdMetadataFile.objects.bulk_create(
-            objs=db_md_metadata_file_list)
-
-        should_return_count = self.max_step_size if start_position + \
-            self.max_step_size < self.total_records else self.total_records - start_position
-
-        if len(db_objs) < should_return_count:
-            self.log(
-                level=LogLevelEnum.WARNING.value,
-                kind=LogKindEnum.COUNT_MISSMATCH.value,
-                description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
-                f"URL: {request.url}"
+        with transaction.atomic():
+            db_objs = TemporaryMdMetadataFile.objects.bulk_create(
+                objs=db_md_metadata_file_list,
+                ignore_conflicts=True,
+                batch_size=50
             )
+
+            should_return_count = self.max_step_size if start_position + \
+                self.max_step_size < self.total_records else self.total_records - start_position
+
+            if len(db_objs) < should_return_count:
+                self.log(
+                    level=LogLevelEnum.WARNING.value,
+                    kind=LogKindEnum.COUNT_MISSMATCH.value,
+                    description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
+                    f"URL: {request.url}"
+                )
 
         return len(db_objs)
 

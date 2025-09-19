@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from typing import Any, Dict, List
+from xml import etree
 
 from camel_converter import to_snake
 from django.contrib.contenttypes.models import ContentType
@@ -22,6 +23,8 @@ from registry.models.metadata import (Dimension, Keyword, LegendUrl,
 from registry.querys.service import LayerQuerySet
 from registry.settings import METADATA_URL_BLACKLIST
 from simple_history.utils import bulk_create_with_history
+
+from backend.registry.fields.maps import XPATH_MAP
 
 
 class TransientObjectsManagerMixin(object):
@@ -295,6 +298,34 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             self._create_layer_and_related_objects(parsed_service=parsed_service,
                                                    db_service=db_service)
         return db_service
+
+    def create_from_capabilities(self, xml_string, service_type, version):
+        tree = etree.fromstring(xml_string.encode("utf-8"))
+        # mapping holen z. B.
+        mapping = XPATH_MAP.get((service_type, version))
+        namespaces = mapping.get("_namespaces", {})
+
+        root_xpath = mapping.get("_root", ".")
+        root_elem = tree.xpath(root_xpath, namespaces=namespaces)[0]
+
+        parsed = parse_element(
+            root_elem, mapping, parent_instance=None, namespaces=namespaces)
+        # parsed["layers"] enthält Liste von Layer‑Instanzen
+        # parsed["service"] oder andere Felder enthalten einfache Werte
+        # dann Modellinstanzen erzeugen / updaten
+        service_data = {k: v for k, v in parsed.items() if k != "layers"}
+        service = Service.objects.create(**service_data)
+        for layer in parsed.get("layers", []):
+            # layer ist schon ein Instanz, oder du musst mapping anpassen, je nachdem
+            # wenn layer ist dict, konvertiere in Layer-Instanz mit service FK
+            if isinstance(layer, dict):
+                Layer.objects.create(service=service, **layer)
+            else:
+                # wenn schon Layer Instanz
+                layer.service = service
+                layer.save()
+
+        return service
 
     def with_security_information(self):
         from registry.models.security import AllowedWebMapServiceOperation

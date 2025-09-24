@@ -24,8 +24,6 @@ from registry.querys.service import LayerQuerySet
 from registry.settings import METADATA_URL_BLACKLIST
 from simple_history.utils import bulk_create_with_history
 
-from backend.registry.fields.maps import XPATH_MAP
-
 
 class TransientObjectsManagerMixin(object):
 

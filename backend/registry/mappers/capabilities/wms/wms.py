@@ -2,7 +2,7 @@ from importlib import import_module
 
 from odin.mapping import MappingMeta, assign, forward_mapping_factory
 from ows_lib.xml_mapper.utils import get_import_path_for_xml_mapper
-from registry.mapping.capabilities.base import (
+from registry.mappers.capabilities.base import (
     OgcServiceElementToXmlMappingBase, OgcServiceToXmlMappingBase)
 from registry.models.metadata import Style
 from registry.models.service import Layer

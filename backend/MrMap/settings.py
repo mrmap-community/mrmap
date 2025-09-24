@@ -231,7 +231,7 @@ LANGUAGES = (
 )
 LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
 DEFAULT_DATE_TIME_FORMAT = "YYYY-MM-DD hh:mm:ss"
-TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE")
+TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "Europe/Berlin")
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
@@ -265,15 +265,13 @@ RESERVED_CONNECTION_SPACE = 10
 MAX_BACKEND_RESERVED_CONNECTIONS = 10
 DATABASES = {
     "default": {
-        "ENGINE": os.environ.get("SQL_ENGINE"),
-        "NAME": os.environ.get("SQL_DATABASE"),
+        "ENGINE": os.environ.get("SQL_ENGINE", "django.contrib.gis.db.backends.postgis"),
+        "NAME": os.environ.get("SQL_DATABASE", "mrmap"),
         "USER": os.environ.get("SQL_USER"),
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
-        "HOST": os.environ.get("SQL_HOST"),
-        "PORT": os.environ.get("SQL_PORT"),
-
+        "HOST": os.environ.get("SQL_HOST", "localhost"),
+        "PORT": os.environ.get("SQL_PORT", "5432"),
         "CONN_HEALTH_CHECKS": True,
-
     }
 }
 # -------------------------
@@ -308,8 +306,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
 # Redis settings
 ################################################################
-REDIS_HOST = os.environ.get("REDIS_HOST")
-REDIS_PORT = os.environ.get("REDIS_PORT")
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 
 # Cache

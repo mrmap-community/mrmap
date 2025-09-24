@@ -102,5 +102,23 @@
             ],
             "justMyCode": false
         },
+        {
+            "name": "Debug: manage.py test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/manage.py",
+            "args": [
+                "test",
+                "backend/tests/django/registry/mappers/"
+            ],
+            "django": true,
+            "justMyCode": false,
+            "env": {
+                "SQL_PORT": "5555",
+                "SQL_USER": "mrmap",
+                "SQL_PASSWORD": "mrmap"
+            },
+            "envFile": "${workspaceFolder}/.env",
+        },
     ]
 }

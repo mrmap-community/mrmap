@@ -10,7 +10,7 @@ from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
 from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.mapping.capabilities.utils import get_mapper_for_service
+from registry.mappers.capabilities.utils import get_mapper_for_service
 
 
 def xml_backup_file_path(instance, filename):

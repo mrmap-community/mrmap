@@ -16,7 +16,7 @@ def get_mapper_for_service(service):
                                          WebMapService)
 
     if isinstance(service, WebMapService):
-        from registry.mapping.capabilities.wms.wms import \
+        from registry.mappers.capabilities.wms.wms import \
             WebMapServiceToXmlMappingBase
         if service.version == "1.1.1":
             from ows_lib.xml_mapper.capabilities.wms.wms111 import \
@@ -29,7 +29,7 @@ def get_mapper_for_service(service):
                 f"wms of version: {service.version} is not supported.")
         return forward_mapping_factory(from_obj=WebMapService, to_obj=XmlWebMapService, base_mapping=WebMapServiceToXmlMappingBase, mappings=[assign(to_field="keywords", action=WebMapServiceToXmlMappingBase.keywords, to_list=True)])
     elif isinstance(service, WebFeatureService):
-        from registry.mapping.capabilities.wfs.wfs import \
+        from registry.mappers.capabilities.wfs.wfs import \
             WebFeatureServiceToXmlMappingBase
 
         if service.version == "2.0.0":
@@ -40,7 +40,7 @@ def get_mapper_for_service(service):
                 f"wfs of version: {service.version} is not supported.")
         return forward_mapping_factory(from_obj=WebFeatureService, to_obj=XmlWebFeatureService, base_mapping=WebFeatureServiceToXmlMappingBase, mappings=[assign(to_field="keywords", action=WebFeatureServiceToXmlMappingBase.keywords, to_list=True)])
     elif isinstance(service, CatalogueService):
-        from registry.mapping.capabilities.csw.csw import \
+        from registry.mappers.capabilities.csw.csw import \
             CatalogueServiceToXmlMappingBase
 
         if service.version == "2.0.2":

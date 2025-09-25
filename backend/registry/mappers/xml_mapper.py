@@ -3,6 +3,7 @@ from typing import IO, Union
 
 from django.apps import apps
 from django.db.models import ManyToManyField
+from django.db.models.fields.reverse_related import ManyToManyRel, ManyToOneRel
 from lxml import etree
 
 # -------------------------------------------------------------------
@@ -22,13 +23,38 @@ def load_function(path: str):
     return getattr(mod, func_name)
 
 
-def _get_value(res):
-    if not res:
+def get_fk_field_name_from_reverse_relation(parent_model_cls, reverse_field_name):
+    """
+    Gegeben: Parent-Modellklasse und Reverse-Relation-Feldname (z.B. 'layers').
+    Liefert: FK-Feldname im Child-Modell, das auf Parent verweist (z.B. 'service').
+    """
+    try:
+        reverse_field = parent_model_cls._meta.get_field(reverse_field_name)
+    except Exception:
         return None
-    node = res[0]
-    if hasattr(node, "text"):
-        return node.text
-    return str(node)
+
+    # Reverse-Relation hat related_model (Child)
+    child_model_cls = getattr(reverse_field, "related_model", None)
+    if child_model_cls is None:
+        return None
+
+    # Suche FK-Feld im Child, das auf Parent verweist
+    for f in child_model_cls._meta.get_fields():
+        if f.is_relation and f.related_model == parent_model_cls:
+            return f.name
+
+    return None
+
+
+def set_parent_fk_on_instances(instances, fk_field_name, parent_instance):
+    if not fk_field_name or not parent_instance or not instances:
+        return
+
+    if isinstance(instances, list):
+        for inst in instances:
+            setattr(inst, fk_field_name, parent_instance)
+    else:
+        setattr(instances, fk_field_name, parent_instance)
 
 
 class XmlMapper:
@@ -79,7 +105,48 @@ class XmlMapper:
         else:
             raise TypeError(f"Unsupported XML input type: {type(xml)}")
 
-    def traverse_spec(self, spec, namespaces=None, many=False):
+    def parse_field(
+        self,
+        element,
+        xpath_or_spec,
+        namespaces
+    ):
+        """
+        Parst ein einzelnes Feld, kann rekursiv aufrufen bei Sub-Specs.
+        Liefert (parsed_value, is_many_to_many_flag) zurück.
+        """
+        # Prüfen, ob das xpath_or_spec ein Sub-Spec (dict) ist
+        if isinstance(xpath_or_spec, dict):
+            sub_many = xpath_or_spec.get("_many", False)
+            parser = self.__class__(xml=element, mapping=xpath_or_spec)
+            parsed = parser.traverse_spec(
+                xpath_or_spec,
+                namespaces,
+                many=sub_many
+            )
+            return parsed
+
+        else:
+            # Einfache XPath-Auswertung
+            values = element.xpath(xpath_or_spec, namespaces=namespaces)
+            if not values:
+                return None
+            elif len(values) == 1:
+                v = values[0]
+                val = v.text if hasattr(v, "text") else str(v)
+                return val
+            else:
+                vals = [v.text if hasattr(v, "text") else str(v)
+                        for v in values]
+                return vals
+
+    def traverse_spec(
+        self,
+        spec,
+        namespaces=None,
+        many=False
+    ):
+
         base_xpath = spec.get("_base_xpath", "")
         fields = spec.get("fields", {})
         many = spec.get("_many", many)
@@ -94,36 +161,41 @@ class XmlMapper:
 
         instances = [] if many else None
 
+        # Feld-Kategorien holen
+        concrete_field_names = {
+            f.name for f in model_cls._meta.concrete_fields}
+        reverse_relation_names = {
+            rel.get_accessor_name(): rel for rel in model_cls._meta.related_objects}
+
         for el in elements:
+            instance = model_cls()
             data = {}
             m2m_temp = {}
 
             for field_name, xpath_or_spec in fields.items():
-                field_obj = model_cls._meta.get_field(field_name)
+                parsed_value = self.parse_field(
+                    el,
+                    xpath_or_spec,
+                    namespaces
+                )
 
-                if isinstance(xpath_or_spec, dict):
-                    sub_many = xpath_or_spec.get("_many", False)
-                    parser = self.__class__(xml=el, mapping=xpath_or_spec)
-                    parsed = parser.traverse_spec(
-                        xpath_or_spec, namespaces, many=sub_many)
+                if field_name in concrete_field_names:
+                    data[field_name] = parsed_value
+                elif field_name in reverse_relation_names:
+                    if isinstance(reverse_relation_names[field_name], ManyToOneRel):
+                        # this is a FK on the child model. So we need to set the current instance (parent) on the child
+                        setattr(
+                            parsed_value[0], reverse_relation_names[field_name].remote_field.name, instance)
 
-                    if isinstance(field_obj, ManyToManyField):
-                        m2m_temp[field_name] = parsed
-                    else:
-                        data[field_name] = parsed
+                    m2m_temp[field_name] = parsed_value
                 else:
-                    values = el.xpath(xpath_or_spec, namespaces=namespaces)
-                    if not values:
-                        data[field_name] = None
-                    elif len(values) == 1:
-                        data[field_name] = _get_value(values[0])
-                    else:
-                        data[field_name] = [_get_value(v) for v in values]
+                    print(
+                        f"Warnung: Feld '{field_name}' nicht gefunden im Model {model_cls.__name__}")
 
-            # Hauptinstanz bauen (ManyToMany noch nicht setzen!)
-            instance = model_cls(**data)
+            for k, v in data.items():
+                setattr(instance, k, v)
 
-            # temporär ManyToMany speichern
+            # Temporär die Reverse Relations anhängen (für späteres Speichern)
             for k, v in m2m_temp.items():
                 setattr(instance, f"_{k}_parsed", v)
 
@@ -145,5 +217,4 @@ class XmlMapper:
             if instance:
                 data.append(instance)
 
-        return data
         return data

@@ -11,27 +11,27 @@ XPATH_MAP = {
             "_model": "registry.WebMapService",
             "_base_xpath": "/WMT_MS_Capabilities",
             "fields": {
-                "version": "/@version",
-                "title": "/Service/Title",
-                "abstract": "/Service/Abstract",
-                "fees": "/Service/Fees",
-                "access_constraints": "/Service/AccessConstraints",
-                "service_url": "/Service/OnlineResource/@xlink:href",
+                "version": "./@version",
+                "title": "./Service/Title",
+                "abstract": "./Service/Abstract",
+                "fees": "./Service/Fees",
+                "access_constraints": "./Service/AccessConstraints",
+                "service_url": "./Service/OnlineResource/@xlink:href",
                 "service_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/WMT_MS_Capabilities/ContactInformation",
+                    "_base_xpath": "/WMT_MS_Capabilities/Service/ContactInformation",
                     "_create_mode": "get_or_create",
                     "fields": {
-                        "name": "/ContactPersonPrimary/ContactOrganization",
-                        "person_name": "/ContactPersonPrimary/ContactPerson",
-                        "phone": "/ContactVoiceTelephone",
-                        "facsimile": "/ContactFacsimileTelephone",
-                        "email": "/ContactElectronicMailAddress",
-                        "country": "/ContactAddress/Country",
-                        "postal_code": "/ContactAddress/PostCode",
-                        "city": "/ContactAddress/City",
-                        "state_or_province": "/ContactAddress/StateOrProvince",
-                        "address": "/ContactAddress/Address"
+                        "name": "./ContactPersonPrimary/ContactOrganization",
+                        "person_name": "./ContactPersonPrimary/ContactPerson",
+                        "phone": "./ContactVoiceTelephone",
+                        "facsimile": "./ContactFacsimileTelephone",
+                        "email": "./ContactElectronicMailAddress",
+                        "country": "./ContactAddress/Country",
+                        "postal_code": "./ContactAddress/PostCode",
+                        "city": "./ContactAddress/City",
+                        "state_or_province": "./ContactAddress/StateOrProvince",
+                        "address": "./ContactAddress/Address"
                     }
                 },
                 "keywords": {
@@ -40,9 +40,23 @@ XPATH_MAP = {
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "fields": {
-                        "keyword": "/."
+                        "keyword": "./."
                     }
                 },
+                "layers": {
+                    "_model": "registry.Layer",
+                    "_base_xpath": "/WMT_MS_Capabilities/Capability/Layer",
+                    "_create_mode": "bulk",
+                    "_many": True,
+                    "fields": {
+                        "title": "./Title",
+                        "abstract": "./Abstract",
+                        "identifier": "./Name",
+                        "scale_min": "./ScaleHint/@min",
+                        "scale_max": "./ScaleHint/@max",
+
+                    }
+                }
             },
 
             "reverse_relations": {

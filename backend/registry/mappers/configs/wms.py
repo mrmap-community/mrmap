@@ -45,16 +45,26 @@ XPATH_MAP = {
                 },
                 "layers": {
                     "_model": "registry.Layer",
-                    "_base_xpath": "/WMT_MS_Capabilities/Capability/Layer",
+                    "_base_xpath": "/WMT_MS_Capabilities/Capability//Layer",
                     "_create_mode": "bulk",
                     "_many": True,
                     "fields": {
+                        "mptt_parent": "../../Layer",
                         "title": "./Title",
                         "abstract": "./Abstract",
                         "identifier": "./Name",
                         "scale_min": "./ScaleHint/@min",
                         "scale_max": "./ScaleHint/@max",
 
+                        "keywords": {
+                            "_model": "registry.Keyword",
+                            "_base_xpath": "./KeywordList/Keyword",
+                            "_create_mode": "get_or_create",
+                            "_many": True,
+                            "fields": {
+                                 "keyword": "./."
+                            }
+                        }
                     }
                 }
             },

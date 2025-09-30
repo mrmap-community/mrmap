@@ -55,16 +55,81 @@ XPATH_MAP = {
                         "identifier": "./Name",
                         "scale_min": "./ScaleHint/@min",
                         "scale_max": "./ScaleHint/@max",
-
+                        "is_queryable": {
+                            "_inputs": ("./@queryable",),
+                            "_default": "0",
+                            "_parser": "registry.mappers.parsers.str_to_bool",
+                            "_reverse_parser": "registry.mappers.parsers.boolean_to_int"
+                        },
+                        "is_opaque": {
+                            "_inputs": ("./@opaque",),
+                            "_default": "0",
+                            "_parser": "registry.mappers.parsers.str_to_bool",
+                            "_reverse_parser": "registry.mappers.parsers.boolean_to_int"
+                        },
+                        "is_cascaded": {
+                            "_inputs": ("./@cascaded",),
+                            "_default": "0",
+                            "_parser": "registry.mappers.parsers.str_to_bool",
+                            "_reverse_parser": "registry.mappers.parsers.boolean_to_int"
+                        },
+                        "bbox_lat_lon": {
+                            "_inputs": ("./LatLonBoundingBox/@minx", "./LatLonBoundingBox/@maxx", "./LatLonBoundingBox/@miny", "./LatLonBoundingBox/@maxy"),
+                            "_parser": "registry.mappers.parsers.bbox_to_polygon",
+                            "_reverse_parser": "registry.mappers.parsers.polygon_to_bbox"
+                        },
                         "keywords": {
                             "_model": "registry.Keyword",
                             "_base_xpath": "./KeywordList/Keyword",
                             "_create_mode": "get_or_create",
                             "_many": True,
                             "fields": {
-                                 "keyword": "./."
+                                "keyword": "./."
                             }
-                        }
+                        },
+                        "reference_systems": {
+                            "_model": "registry.ReferenceSystem",
+                            "_base_xpath": "./SRS",
+                            "_create_mode": "get_or_create",
+                            "_many": True,
+                            "fields": {
+                                "code": {
+                                    "_inputs": ("./.",),
+                                    "_parser": "registry.mappers.parsers.srs_to_code",
+                                },
+                                "prefix": {
+                                    "_inputs": ("./.",),
+                                    "_parser": "registry.mappers.parsers.srs_to_prefix",
+                                }
+                            }
+                        },
+                        "styles": {
+                            "_model": "registry.Style",
+                            "_base_xpath": "./Style",
+                            "_many": True,
+                            "fields": {
+                                "name": "./Name",
+                                "title": "./Title",
+                                "legend_url": {
+                                    "_model": "registry.LegendUrl",
+                                    "_base_xpath": "./LegendURL",
+                                    "fields": {
+                                        "height": "./@height",
+                                        "width": "./@width",
+                                        "legend_url": "./OnlineResource/@xlink:href",
+                                        "mime_type": {
+                                            "_model": "registry.MimeType",
+                                            "_base_xpath": "./Format",
+                                            "_create_mode": "get_or_create",
+                                            "fields": {
+                                                "mime_type": "./."
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                        },
                     }
                 }
             },
@@ -109,63 +174,8 @@ XPATH_MAP = {
                 #               }
                 #     }
                 # },
-                # "layers": {
-                #     "_model": "registry.Layer",
-                #     "_xpath": "./Capability/Layer/",
-                #     "fields": {
-                #         "name": "./wms:Name",
-                #         "title": "./wms:Title",
-                #         "identifier": "./Name",
-                #         "is_queryable": {
-                #             "_inputs": ("./@queryable",),
-                #             "_parser": "parsers.int_to_boolean",
-                #             "_reverse_parser": "parsers.boolean_to_int"
-                #         },
-                #         "is_opaque": {
-                #             "_inputs": ("./@opaque",),
-                #             "_parser": "parsers.int_to_boolean",
-                #             "_reverse_parser": "parsers.boolean_to_int"
-                #         },
-                #         "is_cascaded": {
-                #             "_inputs": ("./@cascaded",),
-                #             "_parser": "parsers.int_to_boolean",
-                #             "_reverse_parser": "parsers.boolean_to_int"
-                #         },
-                #         "scale_min": "./ScaleHint/@min",
-                #         "scale_max": "./ScaleHint/@max",
-                #         "bbox_lat_lon": {
-                #             "_inputs": ("/LatLonBoundingBox/@minx", "./LatLonBoundingBox/@maxx", "./LatLonBoundingBox/@miny", "./LatLonBoundingBox/@maxy"),
-                #             "_parser": "parsers.bbox_to_polygon",
-                #             "_reverse_parser": "parsers.polygon_to_bbox"
-                #         },
 
-                #     },
-                #     "relations": {
-                #         "parent": {
-                #             "_model": "registry.Layer",
-                #             "_xpath": "../..Layer",
-                #         },
-                #         "service": {
-                #             "_model": "registry.WebMapService",  # relate the service of this config
-                #         },
-                #         "reference_system": {
-                #             "_model": "registry.ReferenceSystem",
-                #             "_xpath": "./SRS",
-                #         },
-                #         "keywords": {
-                #             "_model": "registry.Keyword",
-                #             "_xpath": "./KeywordList/Keyword",
-                #         }
-                #     },
-                #     "reverse_relation": {
-                #         "styles": {
-                #             "_model": "registry.Style",
-                #             "_xpath": "./wms:Style",
-                #             "name": "./wms:Name",
-                #             "title": "./wms:Title"
-                #         },
-                #     }
-                # },
+
             }
         },
 

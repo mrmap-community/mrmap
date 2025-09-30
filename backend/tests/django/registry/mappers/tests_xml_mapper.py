@@ -16,4 +16,5 @@ class XmlMapperTest(TestCase):
         mapper = XmlMapper(xml=xml, mapping=XPATH_MAP[("WMS", "1.1.1")])
 
         data = mapper.xml_to_django()
+        instances_flat = mapper.read_all_from_cache()
         i = 0

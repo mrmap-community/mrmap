@@ -84,13 +84,13 @@ class XmlMapper:
 
     def store_to_cache(self, key, value):
         if self.cache:
-            unique_key = f"{self.uuid}.{key}"
+            unique_key = f"{self.uuid}:{key}"
             self.cache.set(unique_key, value)
             self.cache.set(self.uuid, self.cache.get(
                 self.uuid, []) + [unique_key])
 
     def read_from_cache(self, key):
-        return self.cache.get(f"{self.uuid}.{key}") if self.cache else None
+        return self.cache.get(f"{self.uuid}:{key}") if self.cache else None
 
     def read_all_from_cache(self):
         return self.cache.get_many(self.cache.get(f"{self.uuid}", []))
@@ -131,7 +131,7 @@ class XmlMapper:
     ):
         """Parst ein einzelnes Feld oder Sub-Spec."""
         # Prüfen, ob das xpath_or_spec ein Sub-Spec (dict) ist
-        if isinstance(xpath_or_spec, dict):
+        if isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
             sub_many = xpath_or_spec.get("_many", False)
             parser = self.__class__(
                 xml=element, mapping=xpath_or_spec, uuid=self.uuid)
@@ -141,7 +141,30 @@ class XmlMapper:
                 many=sub_many
             )
             return parsed
-
+        elif isinstance(xpath_or_spec, dict) and "_inputs" in xpath_or_spec and "_parser" in xpath_or_spec:
+            values = []
+            for xpath_expr in xpath_or_spec["_inputs"]:
+                res = element.xpath(xpath_expr, namespaces=namespaces)
+                if not res:
+                    values.append(xpath_or_spec.get("_default", None))
+                else:
+                    # Ob Attribut oder Elementtext
+                    node = res[0]
+                    if isinstance(node, etree._ElementUnicodeResult):
+                        # Wenn Attribut oder direkte Text
+                        values.append(str(node))
+                    elif hasattr(node, "text"):
+                        values.append(node.text)
+                    else:
+                        values.append(str(node))
+            parser_func = load_function(xpath_or_spec["_parser"])
+            try:
+                parsed = parser_func(*values)
+            except Exception as e:
+                # Logging oder Fallback
+                parsed = None
+            finally:
+                return parsed
         else:
             # Einfache XPath-Auswertung
             values = element.xpath(xpath_or_spec, namespaces=namespaces)
@@ -281,6 +304,8 @@ class XmlMapper:
         instances = [] if many else None
 
         for el in elements:
+            if spec.get("_model") == "registry.ReferenceSystem":
+                i = 0
             path = el.getroottree().getpath(el)
             instance = model_cls()
 

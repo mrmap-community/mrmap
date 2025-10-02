@@ -15,9 +15,9 @@ from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from mptt2.models import Tree
 from registry.enums.metadata import MetadataOriginEnum
-from registry.models.metadata import (Dimension, Keyword, LegendUrl,
+from registry.models.metadata import (Keyword, LayerTimeExtent, LegendUrl,
                                       MetadataContact, MimeType,
-                                      ReferenceSystem, Style, TimeExtent,
+                                      ReferenceSystem, Style,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.querys.service import LayerQuerySet
@@ -175,23 +175,23 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
             "legend_url_list": legend_url_list
         })
 
-    def _construct_dimension_instances(self, parsed_layer, db_layer):
-        dimension_list = []
-        time_extent_list = []
-        for dimension in parsed_layer.dimensions:
-            db_dimension = Dimension(layer=db_layer,
-                                     **dimension.transform_to_model())
-            dimension_list.append(db_dimension)
+    # def _construct_dimension_instances(self, parsed_layer, db_layer):
+    #     dimension_list = []
+    #     time_extent_list = []
+    #     for dimension in parsed_layer.dimensions:
+    #         db_dimension = Dimension(layer=db_layer,
+    #                                  **dimension.transform_to_model())
+    #         dimension_list.append(db_dimension)
 
-            for dimension_extent in dimension.time_extents:
-                time_extent_list.append(TimeExtent(dimension=db_dimension,
-                                                   **dimension_extent.transform_to_model()))
+    #         for dimension_extent in dimension.time_extents:
+    #             time_extent_list.append(TimeExtent(dimension=db_dimension,
+    #                                                **dimension_extent.transform_to_model()))
 
-        self._update_transient_objects({
-            "dimension_list": dimension_list,
-            "pre_db_job__dimension_list": "update__dimension_id__with__dimension.pk",
-            "time_extent_list": time_extent_list
-        })
+    #     self._update_transient_objects({
+    #         "dimension_list": dimension_list,
+    #         "pre_db_job__dimension_list": "update__dimension_id__with__dimension.pk",
+    #         "time_extent_list": time_extent_list
+    #     })
 
     def _treeify(self, parsed_layer, db_service, tree, db_parent=None, cursor=1, level=0):
         """
@@ -228,8 +228,8 @@ class WebMapServiceCapabilitiesManager(TransientObjectsManagerMixin, models.Mana
                                                   db_sub_element=node)
         self._construct_style_instances(parsed_layer=parsed_layer,
                                         db_layer=node)
-        self._construct_dimension_instances(parsed_layer=parsed_layer,
-                                            db_layer=node)
+        # self._construct_dimension_instances(parsed_layer=parsed_layer,
+        #                                     db_layer=node)
 
         for child in parsed_layer.children:
             cursor = self._treeify(

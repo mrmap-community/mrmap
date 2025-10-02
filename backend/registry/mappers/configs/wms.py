@@ -103,6 +103,7 @@ XPATH_MAP = {
                                 }
                             }
                         },
+
                         "styles": {
                             "_model": "registry.Style",
                             "_base_xpath": "./Style",
@@ -128,8 +129,22 @@ XPATH_MAP = {
                                     }
                                 }
                             }
-
                         },
+                        # TODO: model has no fk to the layer/service objects
+                        "remote_metadata": {
+                            "_model": "registry.RemoteMetadata",
+                            "_base_xpath": "./MetadataURL/OnlineResource",
+                            "fields": {
+                                "link": "./@xlink:href"
+                            }
+                        },
+                        "time_extents": {
+                            "_model": "registry.LayerTimeExtent",
+                            "_base_xpath": "./Extent[@name='time']",
+                            "_many": True,
+                            # TODO: komplettes model mit speziallfunktion parsen
+                            "_parser": "registry.mappers.parsers.parse_timeextent",
+                        }
                     }
                 }
             },

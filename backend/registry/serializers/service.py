@@ -9,8 +9,8 @@ from extras.serializers import (HistoryInformationSerializer,
                                 SystemInfoSerializerMixin)
 from extras.validators import validate_get_capablities_uri
 from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
-from registry.models.metadata import (DatasetMetadataRecord, Dimension,
-                                      Keyword, MetadataContact,
+from registry.models.metadata import (DatasetMetadataRecord, Keyword,
+                                      LayerTimeExtent, MetadataContact,
                                       ReferenceSystem, Style)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
@@ -152,10 +152,10 @@ class LayerSerializer(
         many=True,
         read_only=True,
     )
-    dimensions = SerializerMethodResourceRelatedField(
-        label=_("dimensions"),
-        help_text=_("available dimensions of this layer."),
-        model=Dimension,
+    time_extents = SerializerMethodResourceRelatedField(
+        label=_("time extents"),
+        help_text=_("available time extents of this layer."),
+        model=LayerTimeExtent,
         many=True,
         read_only=True,
     )
@@ -196,8 +196,8 @@ class LayerSerializer(
     def get_reference_systems(self, instance):
         return self._convert_dict_to_object(getattr(instance, "reference_systems_inherited", []), ReferenceSystem)
 
-    def get_dimensions(self, instance):
-        return self._convert_dict_to_object(getattr(instance, "dimensions_inherited", []), Dimension)
+    def get_time_extents(self, instance):
+        return self._convert_dict_to_object(getattr(instance, "time_extents_inherited", []), LayerTimeExtent)
 
     def get_styles(self, instance):
         return self._convert_dict_to_object(getattr(instance, "styles_inherited", []), Style, defaults={"layer": Layer(pk=instance.pk)})

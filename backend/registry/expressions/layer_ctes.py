@@ -59,7 +59,7 @@ class AncestorsHeritageAggregatedCTE(CTE):
     def __init__(self,
                  values=[
                      "reference_systems_inherited",
-                     "dimensions_inherited",
+                     "time_extents_inherited",
                      "styles_inherited",
                  ],
                  *args,

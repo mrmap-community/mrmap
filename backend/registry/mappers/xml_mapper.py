@@ -95,6 +95,12 @@ class XmlMapper:
     def read_all_from_cache(self):
         return self.cache.get_many(self.cache.get(f"{self.uuid}", []))
 
+    def get_element_path(self, element):
+        return element.getroottree().getpath(element)
+
+    def get_instance_by_element(self, element):
+        return self.read_from_cache(self.get_element_path(element))
+
     def _load_xml(self, xml: Union[str, Path, bytes, IO]) -> bytes:
         """Normalize different input types to raw XML bytes for lxml."""
         if isinstance(xml, etree._ElementTree):
@@ -297,30 +303,42 @@ class XmlMapper:
     ):
         """Traversiert ein Mapping-Spec, inkl. Baumstruktur und Reverse-Relations."""
         many = spec.get("_many", many)
-        model_cls = self._get_model_class(spec)
-
+        instances = [] if many else None
         elements = self._get_elements(spec, namespaces)
 
-        instances = [] if many else None
+        if "_parser" in spec:
+            parser = load_function(spec.get("_parser"))
 
-        for el in elements:
-            if spec.get("_model") == "registry.ReferenceSystem":
-                i = 0
-            path = el.getroottree().getpath(el)
-            instance = model_cls()
+            for el in elements:
+                path = el.getroottree().getpath(el)
+                instance = parser(self, el)
+                if many:
+                    instances.append(instance)
+                else:
+                    instances = instance
+                self.store_to_cache(path, instance)
+            return instances
 
-            self.handle_flat_fields(instance, el, spec, namespaces)
-            self.handle_foreign_fields(instance, el, spec, namespaces)
-            self.handle_reverse_relations(instance, el, spec, namespaces)
-            self.handle_m2m_relations(instance, el, spec, namespaces)
+        else:
+            model_cls = self._get_model_class(spec)
 
-            if many:
-                instances.append(instance)
-            else:
-                instances = instance
+            for el in elements:
 
-            self.store_to_cache(path, instance)
-        return instances
+                path = el.getroottree().getpath(el)
+                instance = model_cls()
+
+                self.handle_flat_fields(instance, el, spec, namespaces)
+                self.handle_foreign_fields(instance, el, spec, namespaces)
+                self.handle_reverse_relations(instance, el, spec, namespaces)
+                self.handle_m2m_relations(instance, el, spec, namespaces)
+
+                if many:
+                    instances.append(instance)
+                else:
+                    instances = instance
+
+                self.store_to_cache(path, instance)
+            return instances
 
     def xml_to_django(self):
         namespaces = self.mapping.get("_namespaces", None)

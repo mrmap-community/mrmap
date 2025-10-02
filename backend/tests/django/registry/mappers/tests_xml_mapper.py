@@ -13,7 +13,11 @@ class XmlMapperTest(TestCase):
         xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/1.1.1.xml')).resolve().__str__()
 
-        mapper = XmlMapper(xml=xml, mapping=XPATH_MAP[("WMS", "1.1.1")])
+        mapper = XmlMapper(
+            xml=xml,
+            mapping=XPATH_MAP[("WMS", "1.1.1")],
+            # extensions=["registry.mappers.extensions.split"]
+        )
 
         data = mapper.xml_to_django()
         instances_flat = mapper.read_all_from_cache()

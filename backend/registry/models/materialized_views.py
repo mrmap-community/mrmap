@@ -142,34 +142,6 @@ class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
         return cls.base_model.objects.stats_per_day()
 
 
-class MaterializedHarvestingStatsPerDay(DynamicMaterializedView):
-    id = DateField(primary_key=True)
-    history_day = DateField()
-    service = UUIDField()
-    harvesting_job = IntegerField()
-    new = IntegerField()
-    updated = IntegerField()
-    existed = IntegerField()
-
-    base_model = HarvestedMetadataRelation
-
-    class Meta:
-        managed = False
-        indexes = [
-            Index(fields=["id"]),
-            Index(fields=["history_day"]),
-            Index(fields=["service"]),
-            Index(fields=["harvesting_job"]),
-            Index(fields=["new"]),
-            Index(fields=["updated"]),
-            Index(fields=["existed"]),
-        ]
-
-    @classmethod
-    def get_queryset(cls):
-        return cls.base_model.objects.stats_per_day()
-
-
 class SearchableMetadataRecordAbstract(AbstractMetadata, DynamicMaterializedView):
 
     title: str = models.CharField(max_length=1000,

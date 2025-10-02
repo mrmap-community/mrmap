@@ -4,6 +4,8 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
+from django.contrib.postgres.fields import DateTimeRangeField
+from django.contrib.postgres.indexes import GistIndex
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
@@ -942,66 +944,46 @@ class ServiceMetadataRecord(MetadataRecord):
         ] + MetadataRecord.Meta.constraints
 
 
-class Dimension(models.Model):
-    # TODO: refactor this class to conrete models for layer and dataset
-    name = models.CharField(max_length=50,
-                            verbose_name=_("name"),
-                            help_text=_("the type of the content stored in extent field."))
-    units = models.CharField(max_length=50,
-                             verbose_name=_("units"),
-                             help_text=_("measurement units specifier"))
-    parsed_extent = models.TextField(verbose_name=_("extent"),
-                                     help_text=_("The extent string declares what value(s) along the Dimension axis are"
-                                                 " appropriate for this specific geospatial data object."))
-    layer = models.ForeignKey(to="registry.Layer",
-                              on_delete=models.CASCADE,
-                              null=True,
-                              blank=True,
-                              related_name="layer_dimensions",
-                              related_query_name="layer_dimension",
-                              verbose_name=_("layer"),
-                              help_text=_("the related layer of this dimension entity"))
-    # FIXME: Featuretypes does not have any dimensions
-    feature_type = models.ForeignKey(to="registry.FeatureType",
-                                     on_delete=models.CASCADE,
-                                     null=True,
-                                     blank=True,
-                                     related_name="feature_type_dimensions",
-                                     related_query_name="feature_type_dimension",
-                                     verbose_name=_("feature type"),
-                                     help_text=_("the related feature type of this dimension entity"))
-    dataset_metadata = models.ForeignKey(to=DatasetMetadataRecord,
-                                         on_delete=models.CASCADE,
-                                         null=True,
-                                         blank=True,
-                                         related_name="dataset_metadata_dimensions",
-                                         related_query_name="dataset_metadata_dimension",
-                                         verbose_name=_("dataset metadata"),
-                                         help_text=_("the related dataset metadata of this dimension entity"))
-
-    def clean(self):
-        """ Raise ValidationError if layer and feature type and dataset metadata are null or if two of them
-            are configured.
-        """
-        if not self.layer and not self.feature_type and self.dataset_metadata:
-            raise ValidationError(
-                "either layer, feature type or dataset metadata must be linked.")
-        elif self.layer and self.feature_type or \
-                self.layer and self.dataset_metadata or \
-                self.feature_type and self.dataset_metadata:
-            raise ValidationError(
-                "link two or more related objects is not supported.")
-
-
 class TimeExtent(models.Model):
-    start = models.DateTimeField()
-    # FIXME: allow null=True, to signal no ending time interval
-    stop = models.DateTimeField()
-    # null signals infinity resolution or a single value if start and stop is equal
-    resolution = models.DurationField(null=True)
-    dimension = models.ForeignKey(to=Dimension,
-                                  on_delete=models.CASCADE,
-                                  related_name="time_extents",
-                                  related_query_name="time_extent",
-                                  verbose_name=_("related dimension"),
-                                  help_text=_("the related dimension where this interval was found."))
+    """
+    Kombiniertes Modell für Einzelwerte und Intervalle.
+    - Einzelwert: timerange.lower == timerange.upper
+    - Intervall: timerange.lower < timerange.upper
+    - resolution: optional, None/0 = unendlich fein
+    """
+    timerange = DateTimeRangeField()
+    resolution = models.DurationField(null=True, blank=True)
+
+    class Meta:
+        abstract = True
+        ordering = ["timerange"]
+        indexes = [
+            # GIST Index for fast Overlap- and Contains-Requests
+            GistIndex(fields=["timerange"]),
+        ]
+
+    def is_single_value(self):
+        return self.timerange.lower == self.timerange.upper
+
+    def __str__(self):
+        if self.is_single_value():
+            return f"{self.resource_id} @ {self.timerange.lower}"
+        else:
+            return f"{self.resource_id} [{self.timerange.lower} → {self.timerange.upper}, res={self.resolution}]"
+
+
+class LayerTimeExtent(TimeExtent):
+    layer = models.ForeignKey(
+        to="registry.Layer",
+        on_delete=models.CASCADE,
+        related_name="time_extents",
+        related_query_name="time_extent",
+        verbose_name=_("layer"),
+        help_text=_("the related layer of this time dimension entity")
+    )
+
+    class Meta:
+        indexes = TimeExtent._meta.indexes + [
+            # optional: additional Index on (resource, timerange) for Join-Requests
+            models.Index(fields=["layer", "timerange"]),
+        ]

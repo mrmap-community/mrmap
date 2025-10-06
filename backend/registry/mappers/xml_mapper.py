@@ -5,8 +5,7 @@ from uuid import uuid4
 from django.apps import apps
 from django.core.cache import caches
 from django.core.cache.backends.locmem import LocMemCache
-from django.db.models import ForeignKey, ManyToManyField
-from django.db.models.fields.reverse_related import ManyToManyRel, ManyToOneRel
+from django.db.models import ForeignKey
 from lxml import etree
 
 # -------------------------------------------------------------------
@@ -51,7 +50,12 @@ def set_parent_fk_on_instances(instances, fk_field_name, parent_instance):
 
 class XmlMapper:
 
-    def __init__(self, xml: Union[str, Path, bytes, IO, etree._Element], mapping: dict, uuid=uuid4()):
+    def __init__(
+        self,
+        xml: Union[str, Path, bytes, IO, etree._Element],
+        mapping: dict,
+        uuid=uuid4()
+    ):
         """
         Initialize XmlMapper.
 
@@ -140,7 +144,11 @@ class XmlMapper:
         if isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
             sub_many = xpath_or_spec.get("_many", False)
             parser = self.__class__(
-                xml=element, mapping=xpath_or_spec, uuid=self.uuid)
+                xml=element,
+                mapping=xpath_or_spec | {
+                    "_namespaces": self.mapping.get("_namespaces", {})},
+                uuid=self.uuid
+            )
             parsed = parser.traverse_spec(
                 xpath_or_spec,
                 namespaces,
@@ -312,11 +320,14 @@ class XmlMapper:
             for el in elements:
                 path = el.getroottree().getpath(el)
                 instance = parser(self, el)
-                if many:
-                    instances.append(instance)
+                if isinstance(instance, list):
+                    instances.extend(instance)
+                    for idx, inst in enumerate(instance):
+                        self.store_to_cache(f"{path}_{idx}", inst)
                 else:
                     instances = instance
-                self.store_to_cache(path, instance)
+                    self.store_to_cache(path, instance)
+
             return instances
 
         else:

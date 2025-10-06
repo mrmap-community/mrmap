@@ -1,9 +1,10 @@
 
-from datetime import timedelta
-
-from dateutil import parser as date_parser
+import isodate
+from dateutil.parser import isoparse
 from django.contrib.gis.geos import Polygon
 from registry.models import LayerTimeExtent
+from registry.models.metadata import MimeType
+from registry.models.service import WebMapServiceOperationUrl
 
 
 def int_to_bool(value: int = 0) -> bool:
@@ -81,8 +82,9 @@ def polygon_to_bbox(polygon):
 
 def parse_timeextent(mapper, el):
     """
-    Erwartet ein <Dimension name="time">- oder <Extent name="time">-Element.
-    Baut daraus ein LayerTimeExtent-Objekt für ein DateTimeRangeField.
+    Parser für <Extent name="time"> Elemente.
+    - Unterstützt Intervalle im Format 'start/end/resolution'
+    - Unterstützt mehrere Einzelwerte, komma-separiert
     """
     text = (el.text or "").strip()
     if not text:
@@ -90,30 +92,100 @@ def parse_timeextent(mapper, el):
 
     layer = mapper.get_instance_by_element(mapper.current_element)
 
-    # Einzelwert
-    if "/" not in text:
-        ts = date_parser.isoparse(text)
-        return LayerTimeExtent(
-            timerange=(ts, ts),
-            resolution=None,
-            layer=layer
-        )
+    instances = []
+    parts = [p.strip() for p in text.split(",") if p.strip()]
 
-    # Intervall (+ optional Auflösung)
-    parts = text.split("/")
-    start = date_parser.isoparse(parts[0]) if parts[0] else None
-    end = date_parser.isoparse(parts[1]) if len(
-        parts) > 1 and parts[1] else start
+    for part in parts:
+        # Intervall-Notation (start/end[/resolution])
+        if "/" in part:
+            segments = part.split("/")
+            if len(segments) < 2:
+                continue
 
-    resolution = None
-    if len(parts) == 3 and parts[2]:
-        token = parts[2].upper()
-        if token.startswith("P") and token.endswith("D"):
-            days = int(token[1:-1])
-            resolution = timedelta(days=days)
+            start = isoparse(segments[0])
+            end = isoparse(segments[1])
+            resolution = None
+            if len(segments) == 3:
+                # Auflösung: z.B. "P1D" -> relativedelta
+                resolution = _parse_duration(segments[2])
 
-    return LayerTimeExtent(
-        timerange=(start, end),   # ✅ direkt Tuple, kein psycopg2-Objekt
-        resolution=resolution,
-        layer=layer
-    )
+            inst = LayerTimeExtent(
+                timerange=(start, end),
+                resolution=resolution,
+                layer=layer,
+            )
+            instances.append(inst)
+
+        # Einzelwert
+        else:
+            dt = isoparse(part)
+            inst = LayerTimeExtent(
+                timerange=(dt, dt),
+                resolution=None,
+                layer=layer,
+            )
+            instances.append(inst)
+
+    return instances
+
+
+def _parse_duration(duration_str):
+    """
+    ISO-8601 Duration Parser.
+    Unterstützt Tage, Monate, Jahre, Stunden, Minuten, Sekunden.
+    Gibt ein relativedelta oder timedelta zurück.
+    """
+    if not duration_str:
+        return None
+
+    try:
+        # isodate.parse_duration gibt timedelta oder relativedelta zurück
+        return isodate.parse_duration(duration_str)
+    except Exception:
+        return None
+
+
+def parse_operation_urls(mapper, el):
+    """
+    Parst alle OperationUrls (GetCapabilities, GetMap, GetFeatureInfo, etc.)
+    aus einem <Request>-Element eines WMS-Capabilities-Dokuments.
+
+    Gibt eine Liste von WebMapServiceOperationUrl-Instanzen zurück.
+    """
+    instances = []
+    nsmap = mapper.mapping.get("_namespaces", None)
+
+    # Iteriere über alle Operationen im Request-Block
+    for op_el in el.xpath("./*", namespaces=nsmap):
+        operation_name = op_el.tag
+
+        # Alle MimeTypes unter <Format>
+        format_values = [
+            f.text.strip() for f in op_el.xpath("./Format", namespaces=nsmap) if f.text
+        ]
+
+        # Finde alle HTTP-Methoden und URLs
+        for method in ("Get", "Post"):
+            urls = op_el.xpath(
+                f"./DCPType/HTTP/{method}/OnlineResource/@xlink:href",
+                namespaces=nsmap,
+            )
+            for url in urls:
+                op_inst = WebMapServiceOperationUrl(
+                    operation=operation_name,
+                    method=method.upper(),
+                    url=url.strip(),
+                )
+                # TODO: store_to_cache
+                # MimeTypes als leere Liste initialisieren
+                op_inst._mime_types_parsed = []
+
+                # Falls MimeTypes gefunden → Dummy MimeType-Objekte erzeugen (noch nicht speichern)
+                for fmt in format_values:
+                    # TODO: store_to_cache
+                    mime_inst = MimeType(mime_type=fmt)
+                    op_inst._mime_types_parsed.append(mime_inst)
+
+                instances.append(op_inst)
+
+    return instances

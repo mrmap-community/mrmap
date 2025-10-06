@@ -34,6 +34,12 @@ XPATH_MAP = {
                         "address": "./ContactAddress/Address"
                     }
                 },
+                "operation_urls": {
+                    "_model": "registry.WebMapServiceOperationUrl",
+                    "_base_xpath": "./Capability/Request",
+                    "_many": True,
+                    "_parser": "registry.mappers.parsers.parse_operation_urls",
+                },
                 "keywords": {
                     "_model": "registry.Keyword",
                     "_base_xpath": "/WMT_MS_Capabilities/Service/KeywordList/Keyword",
@@ -130,7 +136,8 @@ XPATH_MAP = {
                                 }
                             }
                         },
-                        # TODO: model has no fk to the layer/service objects
+                        # TODO: model has no fk to the layer/service objects.
+                        # Use _parser or redesign model
                         "remote_metadata": {
                             "_model": "registry.RemoteMetadata",
                             "_base_xpath": "./MetadataURL/OnlineResource",
@@ -142,58 +149,14 @@ XPATH_MAP = {
                             "_model": "registry.LayerTimeExtent",
                             "_base_xpath": "./Extent[@name='time']",
                             "_many": True,
-                            # TODO: komplettes model mit speziallfunktion parsen
                             "_parser": "registry.mappers.parsers.parse_timeextent",
-                        }
+                        },
+
                     }
                 }
-            },
-
-            "reverse_relations": {
-                # "operation_urls": {
-                #     "_model": "registry.WebMapServiceOperationUrl",
-                #     "_aggregate": {
-                #               "GetCapabilities": {
-                #                   "operation": "GetCapabilities",
-                #                   "method": {
-                #                       "GET": "./Capability/Request/GetCapabilities/DCPType/HTTP/Get/OnlineResource/@xlink:href",
-                #                       "POST": "./Capability/Request/GetCapabilities/DCPType/HTTP/Post/OnlineResource/@xlink:href",
-                #                   },
-                #                   "mime_types": {
-                #                       "_model": "registry.MimeType",
-                #                       "mime_type": "./Capability/Request/GetCapabilities/Format",
-                #                   },
-                #               },
-                #         "GetMap": {
-                #                   "operation": "GetMap",
-                #                   "method": {
-                #                       "GET": "./Capability/Request/GetMap/DCPType/HTTP/Get/OnlineResource/@xlink:href",
-                #                       "POST": "./Capability/Request/GetMap/DCPType/HTTP/Post/OnlineResource/@xlink:href",
-                #                   },
-                #                   "mime_types": {
-                #                       "_model": "registry.MimeType",
-                #                       "mime_type": "./Capability/Request/GetMap/Format",
-                #                   },
-                #               },
-                #         "GetFeatureInfo": {
-                #                   "operation": "GetFeatureInfo",
-                #                   "method": {
-                #                       "GET": "./Capability/Request/GetFeatureInfo/DCPType/HTTP/Get/OnlineResource/@xlink:href",
-                #                       "POST": "./Capability/Request/GetFeatureInfo/DCPType/HTTP/Post/OnlineResource/@xlink:href",
-                #                   },
-                #                   "mime_types": {
-                #                       "_model": "registry.MimeType",
-                #                       "_xpath": "./Capability/Request/GetFeatureInfo/Format",
-                #                       "mime_type": ".",
-                #                   },
-                #               }
-                #     }
-                # },
-
-
             }
-        },
+        }
+    },
 
 
-    }
 }

@@ -161,31 +161,37 @@ def parse_operation_urls(mapper, el):
 
         # Alle MimeTypes unter <Format>
         format_values = [
-            f.text.strip() for f in op_el.xpath("./Format", namespaces=nsmap) if f.text
+            f for f in op_el.xpath("./Format", namespaces=nsmap) if f.text
         ]
 
         # Finde alle HTTP-Methoden und URLs
         for method in ("Get", "Post"):
             urls = op_el.xpath(
-                f"./DCPType/HTTP/{method}/OnlineResource/@xlink:href",
+                f"./DCPType/HTTP/{method}/OnlineResource",
                 namespaces=nsmap,
             )
             for url in urls:
-                op_inst = WebMapServiceOperationUrl(
-                    operation=operation_name,
-                    method=method.upper(),
-                    url=url.strip(),
-                )
-                # TODO: store_to_cache
-                # MimeTypes als leere Liste initialisieren
-                op_inst._mime_types_parsed = []
-
-                # Falls MimeTypes gefunden → Dummy MimeType-Objekte erzeugen (noch nicht speichern)
-                for fmt in format_values:
+                href = url.xpath("./@xlink:href", namespaces=nsmap)
+                if href and href[0]:
+                    op_inst = WebMapServiceOperationUrl(
+                        operation=operation_name,
+                        method=method.upper(),
+                        url=href[0].strip(),
+                    )
+                    path = url.getroottree().getpath(url)
+                    mapper.store_to_cache(path, op_inst)
                     # TODO: store_to_cache
-                    mime_inst = MimeType(mime_type=fmt)
-                    op_inst._mime_types_parsed.append(mime_inst)
+                    # MimeTypes als leere Liste initialisieren
+                    op_inst._mime_types_parsed = []
 
-                instances.append(op_inst)
+                    # Falls MimeTypes gefunden → Dummy MimeType-Objekte erzeugen (noch nicht speichern)
+                    for fmt in format_values:
+                        # TODO: store_to_cache
+                        mime_inst = MimeType(mime_type=fmt.text.strip())
+                        format_path = fmt.getroottree().getpath(fmt)
+                        mapper.store_to_cache(format_path, mime_inst)
+                        op_inst._mime_types_parsed.append(mime_inst)
+
+                    instances.append(op_inst)
 
     return instances

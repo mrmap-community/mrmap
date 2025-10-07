@@ -15,9 +15,8 @@ from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from mptt2.models import Tree
 from registry.enums.metadata import MetadataOriginEnum
-from registry.models.metadata import (Keyword, LayerTimeExtent, LegendUrl,
-                                      MetadataContact, MimeType,
-                                      ReferenceSystem, Style,
+from registry.models.metadata import (Keyword, LegendUrl, MetadataContact,
+                                      MimeType, ReferenceSystem, Style,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.querys.service import LayerQuerySet

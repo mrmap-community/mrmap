@@ -138,13 +138,13 @@ XPATH_MAP = {
                         },
                         # TODO: model has no fk to the layer/service objects.
                         # Use _parser or redesign model
-                        "remote_metadata": {
-                            "_model": "registry.RemoteMetadata",
-                            "_base_xpath": "./MetadataURL/OnlineResource",
-                            "fields": {
-                                "link": "./@xlink:href"
-                            }
-                        },
+                        # "remote_metadata": {
+                        #     "_model": "registry.RemoteMetadata",
+                        #     "_base_xpath": "./MetadataURL/OnlineResource",
+                        #     "fields": {
+                        #         "link": "./@xlink:href"
+                        #     }
+                        # },
                         "time_extents": {
                             "_model": "registry.LayerTimeExtent",
                             "_base_xpath": "./Extent[@name='time']",

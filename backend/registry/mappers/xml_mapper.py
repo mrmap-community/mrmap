@@ -1,16 +1,48 @@
+import threading
 from pathlib import Path
 from typing import IO, Union
 from uuid import uuid4
 
 from django.apps import apps
-from django.core.cache import caches
-from django.core.cache.backends.locmem import LocMemCache
 from django.db.models import ForeignKey
 from lxml import etree
 
 # -------------------------------------------------------------------
 # Utilities
 # -------------------------------------------------------------------
+
+
+class GlobalXmlCache:
+    """Ein globaler, threadsicherer Cache für XmlMapper-Instanzen."""
+    _lock = threading.RLock()
+    _data = {}
+
+    @classmethod
+    def set(cls, key, value):
+        with cls._lock:
+            cls._data[key] = value
+
+    @classmethod
+    def get(cls, key, default=None):
+        with cls._lock:
+            return cls._data.get(key, default)
+
+    @classmethod
+    def get_many(cls, keys):
+        with cls._lock:
+            return {k: cls._data.get(k) for k in keys}
+
+    @classmethod
+    def add_to_list(cls, key, value):
+        with cls._lock:
+            lst = cls._data.get(key, [])
+            lst.append(value)
+            cls._data[key] = lst
+
+    @classmethod
+    def clear(cls):
+        with cls._lock:
+            cls._data.clear()
 
 
 def get_model_class(label: str):
@@ -77,27 +109,19 @@ class XmlMapper:
             self.xml_str = self._load_xml(xml)
             self.xml_root = etree.fromstring(self.xml_str)
             self.current_element = self.xml_root
-        self.cache = self._get_cache()
-
-    def _get_cache(self):
-        cache = caches["local-memory"]
-        if isinstance(cache, LocMemCache):
-            # if this is not a local memory cache, the stored values are not immutable.
-            # We need this use case here
-            return cache
+        self.cache = GlobalXmlCache
 
     def store_to_cache(self, key, value):
-        if self.cache:
-            unique_key = f"{self.uuid}:{key}"
-            self.cache.set(unique_key, value)
-            self.cache.set(self.uuid, self.cache.get(
-                self.uuid, []) + [unique_key])
+        unique_key = f"{self.uuid}:{key}"
+        self.cache.set(unique_key, value)
+        self.cache.add_to_list(self.uuid, unique_key)
 
     def read_from_cache(self, key):
-        return self.cache.get(f"{self.uuid}:{key}") if self.cache else None
+        return self.cache.get(f"{self.uuid}:{key}")
 
     def read_all_from_cache(self):
-        return self.cache.get_many(self.cache.get(f"{self.uuid}", []))
+        all_keys = self.cache.get(self.uuid, [])
+        return self.cache.get_many(all_keys)
 
     def get_element_path(self, element):
         return element.getroottree().getpath(element)

@@ -48,13 +48,19 @@ class PersistenceHandler:
         if not instances:
             return {}
 
+        # 1️⃣ Bestimme die relevanten Unique-Felder (ignoriere 'id')
         unique_sets = self._get_unique_fields(None, model_cls)
-        if not unique_sets:
-            # Kein eindeutiges Feld → bulk_create alles
-            model_cls.objects.bulk_create(instances)
-            return {tuple(): inst for inst in instances}
+        key_fields = None
+        for fields in unique_sets:
+            if fields != ('id',):
+                key_fields = fields
+                break
 
-        key_fields = unique_sets[0]
+        # fallback, falls kein anderes eindeutiges Feld existiert
+        if key_fields is None:
+            key_fields = ('id',)
+
+        # 2️⃣ Deduplicate nach key_fields
         seen_keys = set()
         deduped_instances = []
         for inst in instances:
@@ -63,7 +69,7 @@ class PersistenceHandler:
                 seen_keys.add(key)
                 deduped_instances.append(inst)
 
-        # Existierende Objekte aus DB
+        # 3️⃣ Prüfe, welche Objekte bereits in DB existieren
         filters = models.Q()
         for key in seen_keys:
             filters |= models.Q(**dict(zip(key_fields, key)))
@@ -71,7 +77,7 @@ class PersistenceHandler:
         existing_keys = {tuple(getattr(e, f)
                                for f in key_fields): e for e in existing_objs}
 
-        # Neue Objekte bulk_create
+        # 4️⃣ Objekte, die noch erstellt werden müssen
         to_create = [
             inst for inst in deduped_instances
             if tuple(getattr(inst, f) for f in key_fields) not in existing_keys
@@ -79,19 +85,23 @@ class PersistenceHandler:
         if to_create:
             model_cls.objects.bulk_create(to_create, ignore_conflicts=True)
 
-        # Alle relevanten Objekte aus DB laden
+        # 5️⃣ Lade alle relevanten Objekte aus der DB
+        # wir nutzen die unique-Felder, nicht PK
         final_objs = list(
             model_cls.objects.filter(
-                models.Q(**{f"{key_fields[0]}__in": [k[0] for k in seen_keys]})
+                models.Q(
+                    **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in deduped_instances]})
             )
         )
         final_key_map = {tuple(getattr(o, f)
                                for f in key_fields): o for o in final_objs}
+
         return final_key_map
 
     # ------------------------
     # Redirect M2M _parsed fields
     # ------------------------
+
     @staticmethod
     def _redirect_m2m_references(instances_by_model, final_instances_map):
         for model_cls, instances in instances_by_model.items():
@@ -182,88 +192,110 @@ class PersistenceHandler:
     # Sort models by FK dependencies
     # ------------------------
     def _sort_models_by_dependencies(self):
-        model_deps = {}
         models_to_sort = set(self.instances_by_model.keys())
 
+        model_deps = {m: set() for m in models_to_sort}
+        reverse_deps = {m: set() for m in models_to_sort}
+
         for model_cls in models_to_sort:
-            deps = set()
             for f in model_cls._meta.concrete_fields:
                 if isinstance(f, models.ForeignKey):
-                    # nur FK zu Modellen, die geparst wurden
                     remote_model = f.remote_field.model
-                    if remote_model in models_to_sort:
-                        deps.add(remote_model)
-            model_deps[model_cls] = deps
+                    # Self-FK ignorieren
+                    if remote_model in models_to_sort and remote_model != model_cls:
+                        model_deps[model_cls].add(remote_model)
+                        reverse_deps[remote_model].add(model_cls)
 
         sorted_models = []
-        visited = set()
-        temp_mark = set()
+        no_deps = [m for m, deps in model_deps.items() if not deps]
 
-        def visit(m):
-            if m in visited:
-                return
-            if m in temp_mark:
-                # Zyklus erkannt, ignoriere – FKs werden beim Speichern sowieso gesetzt
-                return
-            temp_mark.add(m)
-            for dep in model_deps.get(m, set()):
-                visit(dep)
-            temp_mark.remove(m)
-            visited.add(m)
+        while no_deps:
+            m = no_deps.pop(0)
             sorted_models.append(m)
 
-        for m in models_to_sort:
-            visit(m)
+            for dependent in reverse_deps[m]:
+                model_deps[dependent].remove(m)
+                if not model_deps[dependent]:
+                    no_deps.append(dependent)
+
+        # Zyklische Abhängigkeiten (falls vorhanden) hinten anhängen
+        remaining = [m for m, deps in model_deps.items() if deps]
+        sorted_models.extend(remaining)
 
         return sorted_models
 
     # ------------------------
     # Redirect FK and M2M _parsed fields
     # ------------------------
+
     def _apply_parsed_references(self, instances_by_model, final_instances_map):
         """
         Setzt alle ForeignKey- und ManyToMany-Felder auf die final gespeicherten Objekte,
-        die zuvor als _parsed referenziert wurden.
+        die zuvor als _parsed referenziert wurden oder als mutable Objekte vorliegen.
+        Ignoriert 'id' als eindeutiges Feld, wenn das Objekt noch nicht gespeichert ist.
         """
         for model_cls, instances in instances_by_model.items():
             for inst in instances:
+                # -----------------------
+                # ForeignKeys
+                # -----------------------
+                for f in model_cls._meta.concrete_fields:
+                    if isinstance(f, models.ForeignKey):
+                        fk_obj = getattr(inst, f.name, None)
+                        if fk_obj is None:
+                            continue
+
+                        fk_type = f.remote_field.model
+                        ref_map = final_instances_map.get(fk_type, {})
+
+                        # Unique-Felder bestimmen, id ignorieren
+                        unique_sets = [s for s in PersistenceHandler._get_unique_fields(
+                            None, fk_type) if s != ('id',)]
+                        key_fields = unique_sets[0] if unique_sets else None
+                        if key_fields:
+                            try:
+                                ref_key = tuple(getattr(fk_obj, kf)
+                                                for kf in key_fields)
+                            except AttributeError:
+                                continue  # Feld nicht gesetzt
+                            final_obj = ref_map.get(ref_key)
+                            if final_obj:
+                                setattr(inst, f.name, final_obj)
+
+                # -----------------------
+                # ManyToMany (_parsed)
+                # -----------------------
+
                 for attr_name in dir(inst):
                     if attr_name.startswith("_") and attr_name.endswith("_parsed"):
                         parsed = getattr(inst, attr_name)
                         if parsed is None:
                             continue
-
-                        # Bestimme das zugehörige reale Feld
-                        # entfernt führendes _ und _parsed
                         field_name = attr_name[1:-7]
-                        # field_object = inst._meta.get_field(field_name)
+                        # TODO: results in has no field name... cause we iterate over the whole instance attributes...
+                        # fix this by using the model_cls._meta.local_many_to_many attribute,
+                        # which describes the m2m fields and then iterate over that and check if the _parsed_{m2m_field name exists}
+                        field_object = inst._meta.get_field(field_name)
+                        if not isinstance(field_object, models.ManyToManyField):
+                            continue
 
-                        if isinstance(parsed, list):  # M2M
-                            final_list = []
-                            for ref in parsed:
-                                ref_map = final_instances_map.get(
-                                    type(ref), {})
-                                # Key aus den Unique-Feldern bauen
-                                unique_sets = PersistenceHandler._get_unique_fields(
-                                    None, type(ref))
-                                key_fields = unique_sets[0] if unique_sets else None
-                                ref_key = tuple(getattr(ref, f)
-                                                for f in key_fields) if key_fields else ()
+                        final_list = []
+                        for ref in parsed:
+                            ref_map = final_instances_map.get(type(ref), {})
+                            unique_sets = [s for s in PersistenceHandler._get_unique_fields(
+                                None, type(ref)) if s != ('id',)]
+                            key_fields = unique_sets[0] if unique_sets else None
+                            if key_fields:
+                                try:
+                                    ref_key = tuple(getattr(ref, kf)
+                                                    for kf in key_fields)
+                                except AttributeError:
+                                    continue
                                 final_obj = ref_map.get(ref_key)
                                 if final_obj:
                                     final_list.append(final_obj)
-                            # M2M-Feld kann erst nach inst.save() gesetzt werden
-                            setattr(inst, attr_name, final_list)
-                        else:  # FK
-                            ref_map = final_instances_map.get(type(parsed), {})
-                            unique_sets = PersistenceHandler._get_unique_fields(
-                                None, type(parsed))
-                            key_fields = unique_sets[0] if unique_sets else None
-                            ref_key = tuple(getattr(parsed, f)
-                                            for f in key_fields) if key_fields else ()
-                            final_obj = ref_map.get(ref_key)
-                            if final_obj:
-                                setattr(inst, field_name, final_obj)
+
+                        getattr(inst, field_name).set(final_list)
 
     # ------------------------
     # Persist all

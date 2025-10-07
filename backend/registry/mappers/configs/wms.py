@@ -7,6 +7,7 @@ XPATH_MAP = {
             "xlink": XLINK_NAMESPACE
         },
         "_schema": "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd",
+        "_pre_save": "registry.mappers.extensions.compute_layer_mptt",
         "service": {
             "_model": "registry.WebMapService",
             "_base_xpath": "/WMT_MS_Capabilities",
@@ -37,6 +38,7 @@ XPATH_MAP = {
                 "operation_urls": {
                     "_model": "registry.WebMapServiceOperationUrl",
                     "_base_xpath": "./Capability/Request",
+                    "_create_mode": "get_or_create",
                     "_many": True,
                     "_parser": "registry.mappers.parsers.parse_operation_urls",
                 },
@@ -113,6 +115,7 @@ XPATH_MAP = {
                         "styles": {
                             "_model": "registry.Style",
                             "_base_xpath": "./Style",
+                            "_create_mode": "bulk",
                             "_many": True,
                             "fields": {
                                 "name": "./Name",
@@ -148,6 +151,7 @@ XPATH_MAP = {
                         "time_extents": {
                             "_model": "registry.LayerTimeExtent",
                             "_base_xpath": "./Extent[@name='time']",
+                            "_create_mode": "bulk",
                             "_many": True,
                             "_parser": "registry.mappers.parsers.parse_timeextent",
                         },

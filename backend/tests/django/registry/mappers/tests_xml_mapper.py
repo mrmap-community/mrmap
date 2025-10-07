@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django.test import TestCase
 from registry.mappers.configs.wms import XPATH_MAP
+from registry.mappers.persistence import PersistenceHandler
 from registry.mappers.xml_mapper import XmlMapper
 
 
@@ -21,4 +22,7 @@ class XmlMapperTest(TestCase):
 
         data = mapper.xml_to_django()
         instances_flat = mapper.read_all_from_cache()
+
+        handler = PersistenceHandler(mapper)
+        handler.persist_all()
         i = 0

@@ -232,7 +232,8 @@ class XmlMapper:
         for rev_name, rev_spec in self._get_reverse_fields(spec).items():
             parsed = self.parse_field(xml_element, rev_spec, namespaces)
             if not parsed:
-                return None
+                # no elements parsed. continue with next reverse field
+                continue
 
             # Standard: FK-Feld aus Reverse-Relation bestimmen
             child_parent_field = get_fk_field_name_from_reverse_relation(
@@ -253,7 +254,8 @@ class XmlMapper:
         for field_name, xpath_or_spec in self._get_foreign_fields(spec).items():
             if isinstance(xpath_or_spec, str):
                 parent = xml_element.getparent()
-                candidate = xml_element.find(xpath_or_spec)
+                candidate = xml_element.find(
+                    xpath_or_spec, namespaces=namespaces)
                 if parent is candidate and parent.tag == candidate.tag:
                     # self reference parent/child possible
                     # if django model is self referencing too,
@@ -274,7 +276,8 @@ class XmlMapper:
         for m2m_name, m2m_spec in self._get_m2m_fields(spec).items():
             parsed = self.parse_field(xml_element, m2m_spec, namespaces)
             if not parsed:
-                return None
+                # no instances created... continue with the next m2m field
+                continue
             # to simplify following code and reduce code duplications
             if not isinstance(parsed, list):
                 parsed = [parsed]

@@ -116,7 +116,10 @@
             "env": {
                 "SQL_PORT": "5555",
                 "SQL_USER": "mrmap",
-                "SQL_PASSWORD": "mrmap"
+                "SQL_PASSWORD": "mrmap",
+                "SQL_NAME": "test_mrmap",
+                "MRMAP_USER": "mrmap",
+                "MRMAP_PASSWORD": "mrmap"
             },
             "envFile": "${workspaceFolder}/.env",
         },

@@ -1,4 +1,6 @@
 
+from datetime import timedelta
+
 import isodate
 from dateutil.parser import isoparse
 from django.contrib.gis.geos import Polygon
@@ -45,21 +47,16 @@ def srs_to_code(value):
         return ""
 
 
-def bbox_to_polygon(values):
+def bbox_to_polygon(minx, maxx, miny, maxy):
     """
     Erwartet values als Sequenz: (minx, maxx, miny, maxy)
     Gibt ein Polygon zurück.
     """
-    if len(values) != 4:
-        raise ValueError(
-            "bbox_to_polygon expects 4 inputs (minx, maxx, miny, maxy)")
-    # Umwandlung in float
-    try:
-        minx, maxx, miny, maxy = map(float, values)
-    except (TypeError, ValueError) as e:
-        raise ValueError(
-            f"bbox_to_polygon: unable to parse floats from {values}: {e}")
     # GEOS from_bbox expects (xmin, ymin, xmax, ymax)
+    minx = float(minx)
+    maxx = float(maxx)
+    miny = float(miny)
+    maxy = float(maxy)
     return Polygon.from_bbox((minx, miny, maxx, maxy))
 
 
@@ -133,14 +130,27 @@ def _parse_duration(duration_str):
     """
     ISO-8601 Duration Parser.
     Unterstützt Tage, Monate, Jahre, Stunden, Minuten, Sekunden.
-    Gibt ein relativedelta oder timedelta zurück.
+    Gibt ein timedelta zurück (nicht isodate.Duration).
     """
     if not duration_str:
         return None
 
     try:
-        # isodate.parse_duration gibt timedelta oder relativedelta zurück
-        return isodate.parse_duration(duration_str)
+        dur = isodate.parse_duration(duration_str)
+
+        # Convert isodate.Duration → timedelta (approximate months/years)
+        if isinstance(dur, isodate.duration.Duration):
+            days = 0
+            if dur.years:
+                days += dur.years * 365
+            if dur.months:
+                days += dur.months * 30
+            dur = timedelta(
+                days=days + (dur.tdelta.days if dur.tdelta else 0),
+                seconds=(dur.tdelta.seconds if dur.tdelta else 0),
+                microseconds=(dur.tdelta.microseconds if dur.tdelta else 0),
+            )
+        return dur
     except Exception:
         return None
 
@@ -193,5 +203,7 @@ def parse_operation_urls(mapper, el):
                         op_inst._mime_types_parsed.append(mime_inst)
 
                     instances.append(op_inst)
+
+    return instances
 
     return instances

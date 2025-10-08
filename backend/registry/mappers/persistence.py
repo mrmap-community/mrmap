@@ -228,7 +228,7 @@ class PersistenceHandler:
     # Redirect FK and M2M _parsed fields
     # ------------------------
 
-    def _apply_parsed_references(self, instances_by_model, final_instances_map):
+    def _apply_foreign_keys(self, instances_by_model, final_instances_map):
         """
         Setzt alle ForeignKey- und ManyToMany-Felder auf die final gespeicherten Objekte,
         die zuvor als _parsed referenziert wurden oder als mutable Objekte vorliegen.
@@ -262,40 +262,36 @@ class PersistenceHandler:
                             if final_obj:
                                 setattr(inst, f.name, final_obj)
 
-                # -----------------------
-                # ManyToMany (_parsed)
-                # -----------------------
+    def _apply_parsed_m2m(self, final_instances_map):
+        # -----------------------
+        # ManyToMany (_parsed)
+        # -----------------------
+        for model_cls, instances in self.instances_by_model.items():
+            for inst in instances:
+                for field in model_cls._meta.local_many_to_many:
+                    parsed_instances_attr = f"_{field.name}_parsed"
+                    parsed = getattr(inst, parsed_instances_attr) if hasattr(
+                        inst, parsed_instances_attr) else None
+                    if parsed is None:
+                        continue
 
-                for attr_name in dir(inst):
-                    if attr_name.startswith("_") and attr_name.endswith("_parsed"):
-                        parsed = getattr(inst, attr_name)
-                        if parsed is None:
-                            continue
-                        field_name = attr_name[1:-7]
-                        # TODO: results in has no field name... cause we iterate over the whole instance attributes...
-                        # fix this by using the model_cls._meta.local_many_to_many attribute,
-                        # which describes the m2m fields and then iterate over that and check if the _parsed_{m2m_field name exists}
-                        field_object = inst._meta.get_field(field_name)
-                        if not isinstance(field_object, models.ManyToManyField):
-                            continue
+                    final_list = []
+                    for ref in parsed:
+                        ref_map = final_instances_map.get(type(ref), {})
+                        unique_sets = [s for s in PersistenceHandler._get_unique_fields(
+                            None, type(ref)) if s != ('id',)]
+                        key_fields = unique_sets[0] if unique_sets else None
+                        if key_fields:
+                            try:
+                                ref_key = tuple(getattr(ref, kf)
+                                                for kf in key_fields)
+                            except AttributeError:
+                                continue
+                            final_obj = ref_map.get(ref_key)
+                            if final_obj:
+                                final_list.append(final_obj)
 
-                        final_list = []
-                        for ref in parsed:
-                            ref_map = final_instances_map.get(type(ref), {})
-                            unique_sets = [s for s in PersistenceHandler._get_unique_fields(
-                                None, type(ref)) if s != ('id',)]
-                            key_fields = unique_sets[0] if unique_sets else None
-                            if key_fields:
-                                try:
-                                    ref_key = tuple(getattr(ref, kf)
-                                                    for kf in key_fields)
-                                except AttributeError:
-                                    continue
-                                final_obj = ref_map.get(ref_key)
-                                if final_obj:
-                                    final_list.append(final_obj)
-
-                        getattr(inst, field_name).set(final_list)
+                    getattr(inst, field.name).set(final_list)
 
     # ------------------------
     # Persist all
@@ -326,23 +322,19 @@ class PersistenceHandler:
                     final_key_map.values())
                 final_instances_map[model_cls] = final_key_map
             elif create_mode == "bulk":
+                # FK fields aktualisieren mit bereits gespeicherten instanzen
+                self._apply_foreign_keys(
+                    {model_cls: instances}, final_instances_map)
+                # TODO: the instances which we are creating in bulk, shoul also be part of final_instances_map.
+                # If not it is not safe way. Maybe any other instance would reference one of the created instances.
                 model_cls.objects.bulk_create(instances)
-            else:  # save
-                # FK _parsed vorbereiten, aber noch nicht M2M setzen
-                self._apply_parsed_references(
+            else:  # default save every instance
+                # FK fields aktualisieren mit bereits gespeicherten instanzen
+                self._apply_foreign_keys(
                     {model_cls: instances}, final_instances_map)
                 for inst in instances:
+                    # TODO: same as for bulk_create. The instance which will be saved here, becomes a safe pk and shoul become part of final_instances.
                     inst.save()
 
         # 4️⃣ Jetzt alle M2M-Felder aus _parsed setzen
-        for model_cls, instances in self.instances_by_model.items():
-            for inst in instances:
-                for attr_name in dir(inst):
-                    if attr_name.startswith("_") and attr_name.endswith("_parsed"):
-                        parsed = getattr(inst, attr_name)
-                        if parsed is None:
-                            continue
-                        field_name = attr_name[1:-7]
-                        # field_object = inst._meta.get_field(field_name)
-                        if isinstance(parsed, list):  # M2M
-                            getattr(inst, field_name).set(parsed)
+        self._apply_parsed_m2m(final_instances_map)

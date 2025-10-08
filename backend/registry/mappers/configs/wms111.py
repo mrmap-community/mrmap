@@ -35,6 +35,23 @@ XPATH_MAP = {
                         "address": "./ContactAddress/Address"
                     }
                 },
+                "metadata_contact": {
+                    "_model": "registry.MetadataContact",
+                    "_base_xpath": "/WMT_MS_Capabilities/Service/ContactInformation",
+                    "_create_mode": "get_or_create",
+                    "fields": {
+                        "name": "./ContactPersonPrimary/ContactOrganization",
+                        "person_name": "./ContactPersonPrimary/ContactPerson",
+                        "phone": "./ContactVoiceTelephone",
+                        "facsimile": "./ContactFacsimileTelephone",
+                        "email": "./ContactElectronicMailAddress",
+                        "country": "./ContactAddress/Country",
+                        "postal_code": "./ContactAddress/PostCode",
+                        "city": "./ContactAddress/City",
+                        "state_or_province": "./ContactAddress/StateOrProvince",
+                        "address": "./ContactAddress/Address"
+                    }
+                },
                 "operation_urls": {
                     "_model": "registry.WebMapServiceOperationUrl",
                     "_base_xpath": "./Capability/Request",
@@ -111,7 +128,6 @@ XPATH_MAP = {
                                 }
                             }
                         },
-
                         "styles": {
                             "_model": "registry.Style",
                             "_base_xpath": "./Style",
@@ -123,6 +139,7 @@ XPATH_MAP = {
                                 "legend_url": {
                                     "_model": "registry.LegendUrl",
                                     "_base_xpath": "./LegendURL",
+                                    "_create_mode": "bulk",
                                     "fields": {
                                         "height": "./@height",
                                         "width": "./@width",
@@ -155,12 +172,9 @@ XPATH_MAP = {
                             "_many": True,
                             "_parser": "registry.mappers.parsers.parse_timeextent",
                         },
-
                     }
                 }
             }
         }
     },
-
-
 }

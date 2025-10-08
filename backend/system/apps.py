@@ -86,6 +86,9 @@ class SystemConfig(AppConfig):
         # Connect signal handlers
         post_migrate.connect(create_default_system_tasks, sender=self)
 
-        if any(cmd in sys.argv for cmd in ["migrate", "makemigrations", "collectstatic", "createsuperuser"]):
+        # skip database init for certain commands (and tests)
+        if any(cmd in sys.argv for cmd in [
+            "migrate", "makemigrations", "collectstatic", "createsuperuser", "test"
+        ]):
             return
         sync_pg_views_if_missing()

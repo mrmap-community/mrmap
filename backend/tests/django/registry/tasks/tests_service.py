@@ -6,7 +6,7 @@ from django.test.utils import override_settings
 from django.urls.base import reverse
 from django_celery_results.models import GroupResult
 from notify.models import BackgroundProcess
-from registry.enums.service import AuthTypeEnum
+from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
 from registry.models.security import WebMapServiceAuthentication
 from registry.models.service import WebMapService
 from registry.tasks.service import build_ogc_service
@@ -123,7 +123,7 @@ class BuildOgcServiceTaskTest(TestCase):
 
         self.assertEqual(
             db_service.version,
-            "1.3.0"
+            OGCServiceVersionEnum.V_1_3_0.value
         )
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,

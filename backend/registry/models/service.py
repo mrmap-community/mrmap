@@ -68,8 +68,7 @@ class CommonServiceInfo(models.Model):
 class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo):
     """Abstract Service model to store OGC service."""
 
-    version: str = models.CharField(
-        max_length=10,
+    version = models.PositiveSmallIntegerField(
         choices=OGCServiceVersionEnum.choices,
         editable=False,
         verbose_name=_("version"),
@@ -105,13 +104,13 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 self.featuretypes.update(is_active=self.is_active)
 
     def major_version(self) -> int:
-        return int(self.version.split(".")[0])
+        return int(OGCServiceVersionEnum(self.version).label.split(".")[0])
 
     def minor_version(self) -> int:
-        return int(self.version.split(".")[1])
+        return int(OGCServiceVersionEnum(self.version).label.split(".")[1])
 
     def fix_version(self) -> int:
-        return int(self.version.split(".")[2])
+        return int(OGCServiceVersionEnum(self.version).label.split(".")[2])
 
     def get_session_for_request(self) -> Session:
         session = Session()
@@ -151,7 +150,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 cap,
                 {
                     "SERVICE": self.get_service_type(),
-                    "VERSION": self.version,
+                    "VERSION": OGCServiceVersionEnum(self.version).label,
                     "REQUEST": "GetCapabilities",
                 }
             )
@@ -251,11 +250,16 @@ class OperationUrl(models.Model):
 
     With that urls we can perform all needed request to a given service.
     """
-    method: str = models.CharField(
-        max_length=10,
+    method: str = models.PositiveSmallIntegerField(
         choices=HttpMethodEnum.choices,
         verbose_name=_("http method"),
         help_text=_("the http method you can perform for this url"),
+    )
+    operation: str = models.PositiveSmallIntegerField(
+        choices=OGCOperationEnum.choices,
+        # editable=False,
+        verbose_name=_("operation"),
+        help_text=_("the operation you can perform with this url."),
     )
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
     url: str = models.URLField(
@@ -263,13 +267,6 @@ class OperationUrl(models.Model):
         # editable=False,
         verbose_name=_("url"),
         help_text=_("the url for this operation"),
-    )
-    operation: str = models.CharField(
-        max_length=30,
-        choices=OGCOperationEnum.choices,
-        # editable=False,
-        verbose_name=_("operation"),
-        help_text=_("the operation you can perform with this url."),
     )
     mime_types = models.ManyToManyField(
         to="MimeType",  # use string to avoid from circular import error
@@ -287,7 +284,7 @@ class OperationUrl(models.Model):
         abstract = True
 
     def __str__(self):
-        return f"{self.operation} | {self.url} ({self.method})"
+        return f"{OGCOperationEnum(self.operation).label} | {self.url} ({HttpMethodEnum(self.method).label})"
 
     # def get_url(self, request):
     #     url_parsed = urlparse(self.url)
@@ -540,7 +537,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
 
             operation_url: dict = self.service.operation_urls.values('id', 'url').get(
                 operation=OGCOperationEnum.GET_MAP.value,
-                method="Get"
+                method=HttpMethodEnum.GET.value
             )
             url: str = operation_url["url"]
             image_format = MimeType.objects.filter(
@@ -552,7 +549,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             else:
                 url: str = self.service.operation_urls.values('url').get(
                     operation=OGCOperationEnum.GET_MAP.value,
-                    method="Get"
+                    method=HttpMethodEnum.GET.value
                 )["url"]
                 # TODO: check if this format is supported by the layer...
             image_format: str = format
@@ -579,7 +576,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
 
         # TODO: handle different versions here... version 1.0.0 has other query parameters
         query_params = {
-            "VERSION": self.service.version,
+            "VERSION": OGCServiceVersionEnum(self.service.version).label,
             "REQUEST": "GetMap",
             "SERVICE": "WMS",
             "LAYERS": self.identifier,
@@ -603,7 +600,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             if not info_format:
                 url_and_id: dict = self.service.operation_urls.values('id', 'url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                    method="Get"
+                    method=HttpMethodEnum.GET.value
                 )
                 url: str = url_and_id["url"]
                 _info_format: str = MimeType.objects.filter(
@@ -611,7 +608,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             else:
                 url: str = self.service.operation_urls.values('url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                    method="Get"
+                    method=HttpMethodEnum.GET.value
                 )["url"]
                 # TODO: check if this format is supported by the layer...
                 _info_format: str = "text/plain"
@@ -620,7 +617,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                 f"Service {self.service.title} does not suppoert operation GetFeatureInfo")
 
         query_params = {
-            "VERSION": self.service.version,
+            "VERSION": OGCServiceVersionEnum(self.service.version).label,
             "REQUEST": "GetFeatureInfo",
             "QUERY_LAYERS": self.identifier,
             "INFO_FORMAT": _info_format,
@@ -768,6 +765,4 @@ class FeatureTypeProperty(models.Model):
         ordering = ["-name"]
 
     def __str__(self):
-        return self.name
-        return self.name
         return self.name

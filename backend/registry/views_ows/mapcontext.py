@@ -1,6 +1,6 @@
 from django.db.models.query import Prefetch
 from extras.viewsets import JSONDetailView
-from registry.enums.service import OGCOperationEnum
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.mapcontext import MapContext, MapContextLayer
 from registry.models.service import WebMapServiceOperationUrl
 
@@ -24,7 +24,7 @@ class OwsContextView(JSONDetailView):
             "rendering_layer__service__operation_urls",
             queryset=WebMapServiceOperationUrl.objects.filter(
                 operation=OGCOperationEnum.GET_MAP.value,
-                method="Get"),
+                method=HttpMethodEnum.GET.value),
             to_attr="prefetched_get_map_operation_url"
         )
         prefetch_parents = Prefetch(

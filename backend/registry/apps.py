@@ -8,13 +8,13 @@ from registry.enums.service import (SecureableWFSOperationEnum,
 
 def create_wms_operations(sender, **kwargs):
     from registry.models.security import WebMapServiceOperation
-    for key, _ in SecureableWMSOperationEnum.choices:
+    for key, _x in SecureableWMSOperationEnum.choices:
         WebMapServiceOperation.objects.get_or_create(operation=key)
 
 
 def create_wfs_operations(sender, **kwargs):
     from registry.models.security import WebFeatureServiceOperation
-    for key, _ in SecureableWFSOperationEnum.choices:
+    for key, _x in SecureableWFSOperationEnum.choices:
         WebFeatureServiceOperation.objects.get_or_create(operation=key)
 
 

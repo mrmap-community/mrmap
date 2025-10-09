@@ -686,7 +686,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                verbose_name=_("reference systems"))
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
-
+    # TODO: use IntegerChoices instead
     spatial_res_type = models.CharField(max_length=20,
                                         choices=SpatialResType.choices,
                                         default="",
@@ -811,13 +811,14 @@ class DatasetMetadataRecord(MetadataRecord):
                                         related_query_name="%(class)s_dataset_contact",
                                         verbose_name=_("contact"),
                                         help_text=_("this is the contact which provides this dataset."))
-
+    # TODO: use IntegerChoices instead
     format = models.CharField(default="",
                               blank=True,
                               max_length=20,
                               choices=DatasetFormatEnum.choices,
                               verbose_name=_("format"),
                               help_text=_("The format in which the described dataset is stored."))
+    # TODO: use IntegerChoices instead
     charset = models.CharField(default="",
                                blank=True,
                                max_length=10,
@@ -832,6 +833,7 @@ class DatasetMetadataRecord(MetadataRecord):
 
     lineage_statement = models.TextField(blank=True,
                                          default="")
+    # TODO: use IntegerChoices instead
     update_frequency_code = models.CharField(max_length=20,
                                              choices=UPDATE_FREQUENCY_CHOICES,
                                              blank=True,

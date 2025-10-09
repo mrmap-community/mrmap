@@ -87,7 +87,7 @@ class WebMapServiceMonitoringRun(models.Model):
 
 
 class ProbeResult(models.Model):
-    status_code: int = models.IntegerField(
+    status_code: int = models.SmallIntegerField(
         editable=False,
         null=True,
         blank=True,

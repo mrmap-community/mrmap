@@ -12,7 +12,11 @@ XPATH_MAP = {
             "_model": "registry.WebMapService",
             "_base_xpath": "/WMT_MS_Capabilities",
             "fields": {
-                "version": "./@version",
+                "version":  {
+                    "_inputs": ("./@version",),
+                    "_parser": "registry.mappers.parsers.version_to_int",
+                    "_reverse_parser": "registry.mappers.parsers.int_to_version"
+                },
                 "title": "./Service/Title",
                 "abstract": "./Service/Abstract",
                 "fees": "./Service/Fees",

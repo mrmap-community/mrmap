@@ -197,7 +197,7 @@ class XmlMapper:
                         values.append(str(node))
             parser_func = load_function(xpath_or_spec["_parser"])
             try:
-                parsed = parser_func(*values)
+                parsed = parser_func(self, *values)
             except Exception as e:
                 # Logging oder Fallback
                 parsed = None

@@ -5,6 +5,8 @@ from django.conf import settings
 from notify.tasks import BackgroundProcessBased, finish_background_process
 from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.exceptions.metadata import UnknownMetadataKind
+from registry.mappers.persistence import PersistenceHandler
+from registry.mappers.xml_mapper import OGCServiceXmlMapper
 from registry.models import CatalogueService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadataRecord,
                                       WebFeatureServiceRemoteMetadata,
@@ -67,8 +69,6 @@ def build_ogc_service(
             phase='parse capabilities document...'
         )
 
-        parsed_service = get_parsed_service(capabilities_xml=response.content)
-
         self.update_state(
             state=states.STARTED,
             meta={'done': 2, 'total': 3, 'phase': 'persisting service...'}
@@ -77,30 +77,23 @@ def build_ogc_service(
             phase='persisting service...'
         )
 
+        mapper = OGCServiceXmlMapper.from_xml(response.content)
+        data = mapper.xml_to_django()
+        db_service = data[0]
+        handler = PersistenceHandler(mapper)
+        handler.persist_all()
+        db_service.refresh_from_db()
+
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        if parsed_service.service_type.name == "wms":
-            db_service = WebMapService.capabilities.create(
-                parsed_service=parsed_service)
-            resource_name = "WebMapService"
+        if isinstance(db_service, WebMapService):
             self_url = reverse(
                 viewname='registry:wms-detail', args=[db_service.pk])
-        elif parsed_service.service_type.name == "wfs":
-            db_service = WebFeatureService.capabilities.create(
-                parsed_service=parsed_service)
-            resource_name = "WebFeatureService"
+        elif isinstance(db_service, WebFeatureService):
             self_url = reverse(
                 viewname='registry:wfs-detail', args=[db_service.pk])
-        elif parsed_service.service_type.name == "csw":
-            db_service = CatalogueService.capabilities.create(
-                parsed_service=parsed_service)
-            resource_name = "CatalogueService"
+        elif isinstance(db_service, CatalogueService):
             self_url = reverse(
                 viewname='registry:csw-detail', args=[db_service.pk])
-        else:
-            self.update_background_process(
-                'Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.')
-            raise NotImplementedError(
-                "Unknown XML mapper detected. Only WMS, WFS and CSW services are allowed.")
 
         if auth:
             auth.service = db_service
@@ -114,7 +107,7 @@ def build_ogc_service(
         # TODO: use correct Serializer and render the json:api as result
         return_dict = {
             "data": {
-                "type": resource_name,
+                "type": db_service.__class__.__name__,
                 "id": str(db_service.pk),
                 "links": {
                     "self": self_url

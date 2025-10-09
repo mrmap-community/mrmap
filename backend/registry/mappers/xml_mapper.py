@@ -6,12 +6,12 @@ from uuid import uuid4
 from django.apps import apps
 from django.db.models import ForeignKey
 from lxml import etree
+from registry.mappers.configs import XPATH_MAP
+
 
 # -------------------------------------------------------------------
-# Utilities
+# Cache
 # -------------------------------------------------------------------
-
-
 class GlobalXmlCache:
     """Ein globaler, threadsicherer Cache für XmlMapper-Instanzen."""
     _lock = threading.RLock()
@@ -44,10 +44,9 @@ class GlobalXmlCache:
         with cls._lock:
             cls._data.clear()
 
-
-def get_model_class(label: str):
-    """Lädt eine Modelklasse anhand von app_label.ModelName"""
-    return apps.get_model(label)
+# -------------------------------------------------------------------
+# Utilities
+# -------------------------------------------------------------------
 
 
 def load_function(path: str):
@@ -69,15 +68,33 @@ def get_fk_field_name_from_reverse_relation(model_cls, reverse_field_name):
     return None
 
 
-def set_parent_fk_on_instances(instances, fk_field_name, parent_instance):
-    if not fk_field_name or not parent_instance or not instances:
-        return
+def load_file(xml: Union[str, Path, bytes, IO]) -> bytes:
+    """Normalize different input types to raw XML bytes for lxml."""
+    if isinstance(xml, etree._ElementTree):
+        return etree.tostring(xml.getroot())
 
-    if isinstance(instances, list):
-        for inst in instances:
-            setattr(inst, fk_field_name, parent_instance)
+    elif isinstance(xml, etree._Element):
+        return etree.tostring(xml)
+
+    elif isinstance(xml, Path):
+        return xml.read_bytes()
+
+    elif isinstance(xml, str):
+        # Heuristik: check if this is a filesystem path
+        p = Path(xml)
+        if p.exists():
+            return p.read_bytes()
+        return xml.encode("utf-8")  # interpret str as direct XML source
+
+    elif isinstance(xml, bytes):
+        return xml
+
+    elif hasattr(xml, "read"):
+        content = xml.read()
+        return content if isinstance(content, bytes) else content.encode("utf-8")
+
     else:
-        setattr(instances, fk_field_name, parent_instance)
+        raise TypeError(f"Unsupported XML input type: {type(xml)}")
 
 
 class XmlMapper:
@@ -106,7 +123,7 @@ class XmlMapper:
             self.xml_root = xml.getroottree().getroot()
         else:
             # Store raw XML data as string
-            self.xml_str = self._load_xml(xml)
+            self.xml_str = load_file(xml)
             self.xml_root = etree.fromstring(self.xml_str)
             self.current_element = self.xml_root
         self.cache = GlobalXmlCache
@@ -128,34 +145,6 @@ class XmlMapper:
 
     def get_instance_by_element(self, element):
         return self.read_from_cache(self.get_element_path(element))
-
-    def _load_xml(self, xml: Union[str, Path, bytes, IO]) -> bytes:
-        """Normalize different input types to raw XML bytes for lxml."""
-        if isinstance(xml, etree._ElementTree):
-            return etree.tostring(xml.getroot())
-
-        elif isinstance(xml, etree._Element):
-            return etree.tostring(xml)
-
-        elif isinstance(xml, Path):
-            return xml.read_bytes()
-
-        elif isinstance(xml, str):
-            # Heuristik: check if this is a filesystem path
-            p = Path(xml)
-            if p.exists():
-                return p.read_bytes()
-            return xml.encode("utf-8")  # interpret str as direct XML source
-
-        elif isinstance(xml, bytes):
-            return xml
-
-        elif hasattr(xml, "read"):
-            content = xml.read()
-            return content if isinstance(content, bytes) else content.encode("utf-8")
-
-        else:
-            raise TypeError(f"Unsupported XML input type: {type(xml)}")
 
     def parse_field(
         self,
@@ -390,3 +379,47 @@ class XmlMapper:
                 data.append(instance)
 
         return data
+
+
+class OGCServiceXmlMapper(XmlMapper):
+
+    @classmethod
+    def from_xml(cls, xml):
+        # Root-Element extrahieren
+        content = load_file(xml)
+        root = etree.fromstring(content)
+
+        # Service-Typ anhand des Root-Tags
+        tag = etree.QName(root).localname.lower()
+        if "wms" or "wmt" in tag:
+            service_type = "WMS"
+        elif "wfs" in tag:
+            service_type = "WFS"
+        elif "capabilities" in tag and "csw" in root.nsmap.values():
+            service_type = "CSW"
+        else:
+            raise ValueError("Unknown Service-Typ")
+
+        # Version aus Attribut
+        version = root.attrib.get("version")
+        if not version:
+            raise ValueError(
+                f"Version could not be detected for {service_type}")
+
+        # Mapping aus Registry auswählen
+        mapping = cls._select_mapping(service_type, version)
+
+        return cls(xml=root, mapping=mapping)
+
+    @staticmethod
+    def _select_mapping(service_type, version):
+        if (service_type, version) in XPATH_MAP:
+            return XPATH_MAP[(service_type, version)]
+        # Fallback: höchste verfügbare Version
+        available_versions = [
+            v for (s, v) in XPATH_MAP.keys() if s == service_type]
+        if not available_versions:
+            raise ValueError(f"No mapping for {service_type}")
+        fallback_version = sorted(available_versions, key=lambda v: tuple(
+            int(x) for x in v.split(".")))[-1]
+        return XPATH_MAP[(service_type, fallback_version)]

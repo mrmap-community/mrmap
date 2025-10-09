@@ -29,10 +29,9 @@ from registry.exceptions.service import (LayerNotQueryable,
                                          OperationNotSupported)
 from registry.managers.security import (WebFeatureServiceSecurityManager,
                                         WebMapServiceSecurityManager)
-from registry.managers.service import (CatalogueServiceCapabilitiesManager,
-                                       CatalogueServiceManager, LayerManager,
-                                       WebFeatureServiceCapabilitiesManager,
-                                       WebMapServiceCapabilitiesManager)
+from registry.managers.service import (CatalogueServiceManager, LayerManager,
+                                       WebFeatureServiceManager,
+                                       WebMapServiceManager)
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
@@ -177,7 +176,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    capabilities = WebMapServiceCapabilitiesManager()
+    objects = WebMapServiceManager()
     security = WebMapServiceSecurityManager()
     history = DefaultHistoryManager()
 
@@ -202,7 +201,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    capabilities = WebFeatureServiceCapabilitiesManager()
+    objects = WebFeatureServiceManager()
     security = WebFeatureServiceSecurityManager()
     history = DefaultHistoryManager()
 
@@ -230,7 +229,6 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    capabilities = CatalogueServiceCapabilitiesManager()
     objects = CatalogueServiceManager()
     history = DefaultHistoryManager()
 

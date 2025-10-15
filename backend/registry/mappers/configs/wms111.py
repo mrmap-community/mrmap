@@ -14,8 +14,8 @@ XPATH_MAP = {
             "fields": {
                 "version":  {
                     "_inputs": ("./@version",),
-                    "_parser": "registry.mappers.parsers.version_to_int",
-                    "_reverse_parser": "registry.mappers.parsers.int_to_version"
+                    "_parser": "registry.mappers.parsers.value.version_to_int",
+                    "_reverse_parser": "registry.mappers.parsers.value.int_to_version"
                 },
                 "title": "./Service/Title",
                 "abstract": "./Service/Abstract",
@@ -61,7 +61,7 @@ XPATH_MAP = {
                     "_base_xpath": "./Capability/Request",
                     "_create_mode": "get_or_create",
                     "_many": True,
-                    "_parser": "registry.mappers.parsers.parse_operation_urls",
+                    "_parser": "registry.mappers.parsers.wms.parse_operation_urls",
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
@@ -87,25 +87,25 @@ XPATH_MAP = {
                         "is_queryable": {
                             "_inputs": ("./@queryable",),
                             "_default": "0",
-                            "_parser": "registry.mappers.parsers.str_to_bool",
-                            "_reverse_parser": "registry.mappers.parsers.boolean_to_int"
+                            "_parser": "registry.mappers.parsers.value.str_to_bool",
+                            "_reverse_parser": "registry.mappers.parsers.value.boolean_to_int"
                         },
                         "is_opaque": {
                             "_inputs": ("./@opaque",),
                             "_default": "0",
-                            "_parser": "registry.mappers.parsers.str_to_bool",
-                            "_reverse_parser": "registry.mappers.parsers.boolean_to_int"
+                            "_parser": "registry.mappers.parsers.value.str_to_bool",
+                            "_reverse_parser": "registry.mappers.parsers.value.boolean_to_int"
                         },
                         "is_cascaded": {
                             "_inputs": ("./@cascaded",),
                             "_default": "0",
-                            "_parser": "registry.mappers.parsers.str_to_bool",
-                            "_reverse_parser": "registry.mappers.parsers.boolean_to_int"
+                            "_parser": "registry.mappers.parsers.value.str_to_bool",
+                            "_reverse_parser": "registry.mappers.parsers.value.boolean_to_int"
                         },
                         "bbox_lat_lon": {
                             "_inputs": ("./LatLonBoundingBox/@minx", "./LatLonBoundingBox/@maxx", "./LatLonBoundingBox/@miny", "./LatLonBoundingBox/@maxy"),
-                            "_parser": "registry.mappers.parsers.bbox_to_polygon",
-                            "_reverse_parser": "registry.mappers.parsers.polygon_to_bbox"
+                            "_parser": "registry.mappers.parsers.value.bbox_to_polygon",
+                            "_reverse_parser": "registry.mappers.parsers.value.polygon_to_bbox"
                         },
                         "keywords": {
                             "_model": "registry.Keyword",
@@ -124,11 +124,11 @@ XPATH_MAP = {
                             "fields": {
                                 "code": {
                                     "_inputs": ("./.",),
-                                    "_parser": "registry.mappers.parsers.srs_to_code",
+                                    "_parser": "registry.mappers.parsers.value.srs_to_code",
                                 },
                                 "prefix": {
                                     "_inputs": ("./.",),
-                                    "_parser": "registry.mappers.parsers.srs_to_prefix",
+                                    "_parser": "registry.mappers.parsers.value.srs_to_prefix",
                                 }
                             }
                         },
@@ -174,7 +174,7 @@ XPATH_MAP = {
                             "_base_xpath": "./Extent[@name='time']",
                             "_create_mode": "bulk",
                             "_many": True,
-                            "_parser": "registry.mappers.parsers.parse_timeextent",
+                            "_parser": "registry.mappers.parsers.value.parse_timeextent",
                         },
                     }
                 }

@@ -43,7 +43,7 @@ class PersistenceHandler:
     # ------------------------
     # Deduplicate & Bulk + Reload
     # ------------------------
-    @transaction.atomic
+
     def _persist_get_or_create_bulk(self, model_cls, instances):
         if not instances:
             return {}
@@ -296,7 +296,6 @@ class PersistenceHandler:
     # ------------------------
     # Persist all
     # ------------------------
-
     @transaction.atomic
     def persist_all(self):
         # 1️⃣ Pre-save Hook

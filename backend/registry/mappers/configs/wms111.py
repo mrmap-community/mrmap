@@ -174,7 +174,7 @@ XPATH_MAP = {
                             "_base_xpath": "./Extent[@name='time']",
                             "_create_mode": "bulk",
                             "_many": True,
-                            "_parser": "registry.mappers.parsers.value.parse_timeextent",
+                            "_parser": "registry.mappers.parsers.wms.parse_timeextent",
                         },
                     }
                 }

@@ -1,22 +1,18 @@
-from registry.mappers.namespaces import (FES_2_0_NAMEPSACE,
-                                         GML_3_2_2_NAMESPACE,
-                                         OWS_1_1_NAMESPACE,
-                                         WFS_2_0_0_NAMESPACE, XLINK_NAMESPACE)
+from registry.mappers.namespaces import (CSW_2_0_2_NAMESPACE, OWS_NAMESPACE,
+                                         XLINK_NAMESPACE)
 
 XPATH_MAP = {
     # (Service-Klasse, Version) -> Mapping Feldname -> XPath
-    ("WFS", "2.0.0"): {
+    ("CSW", "2.0.2"): {
         "_namespaces": {
             "xlink": XLINK_NAMESPACE,
-            "wfs": WFS_2_0_0_NAMESPACE,
-            "ows": OWS_1_1_NAMESPACE,
-            "gml": GML_3_2_2_NAMESPACE,
-            "fes": FES_2_0_NAMEPSACE
+            "csw": CSW_2_0_2_NAMESPACE,
+            "ows": OWS_NAMESPACE,
         },
-        "_schema": "http://www.opengis.net/wfs/2.0",
+        "_schema": "http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd",
         "service": {
-            "_model": "registry.WebFeatureService",
-            "_base_xpath": "/wfs:WFS_Capabilities",
+            "_model": "registry.CatalogueService",
+            "_base_xpath": "/csw:Capabilities",
             "fields": {
                 "version":  {
                     "_inputs": ("./@version",),
@@ -29,7 +25,7 @@ XPATH_MAP = {
                 "access_constraints": "./ows:ServiceIdentification/ows:AccessConstraints",
                 "service_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceProvider",
+                    "_base_xpath": "/csw:Capabilities/ows:ServiceProvider",
                     "_create_mode": "get_or_create",
                     "fields": {
                         "name": "./ows:ProviderName",
@@ -46,7 +42,7 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceProvider",
+                    "_base_xpath": "/csw:Capabilities/ows:ServiceProvider",
                     "_create_mode": "get_or_create",
                     "fields": {
                         "name": "./ows:ProviderName",
@@ -63,61 +59,18 @@ XPATH_MAP = {
                 },
                 "operation_urls": {
                     "_model": "registry.WebFeatureServiceOperationUrl",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation",
+                    "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata/ows:Operation",
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "_parser": "registry.mappers.parsers.wfs.parse_operation_urls",
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceIdentification/ows:Keywords/ows:Keyword",
+                    "_base_xpath": "/csw:Capabilities/ows:ServiceIdentification/ows:Keywords/ows:Keyword",
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "fields": {
                         "keyword": "./."
-                    }
-                },
-                "featuretypes": {
-                    "_model": "registry.FeatureType",
-                    "_base_xpath": "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType",
-                    "_create_mode": "bulk",
-                    "_many": True,
-                    "fields": {
-                        "identifier": "./wfs:Name",
-                        "title": "./wfs:Title",
-                        "abstract": "./wfs:Abstract",
-                        "bbox_lat_lon": {
-                            "_inputs": (
-                                "./ows:WGS84BoundingBox/ows:LowerCorner",
-                                "./ows:WGS84BoundingBox/ows:UpperCorner"),
-                            "_parser": "registry.mappers.parsers.wfs.bbox_to_polygon",
-                            "_reverse_parser": "registry.mappers.parsers.wfs.polygon_to_bbox"
-                        },
-                        "keywords": {
-                            "_model": "registry.Keyword",
-                            "_base_xpath": "./ows:Keywords/ows:Keyword",
-                            "_create_mode": "get_or_create",
-                            "_many": True,
-                            "fields": {
-                                "keyword": "./."
-                            }
-                        },
-                        "output_formats": {
-                            "_model": "registry.MimeType",
-                            "_base_xpath": "./wfs:OutputFormats/wfs:Format",
-                            "_create_mode": "get_or_create",
-                            "_many": True,
-                            "fields": {
-                                "mime_type": "./."
-                            }
-                        },
-                        "reference_systems": {
-                            "_model": "registry.ReferenceSystem",
-                            "_base_xpath": "./.",
-                            "_create_mode": "get_or_create",
-                            "_many": True,
-                            "_parser": "registry.mappers.parsers.wfs.parse_reference_systems",
-                        },
                     }
                 },
 

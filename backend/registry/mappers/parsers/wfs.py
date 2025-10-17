@@ -16,7 +16,7 @@ def parse_reference_systems(mapper, el):
     nsmap = mapper.mapping.get("_namespaces", None)
 
     # Iteriere über alle Operationen im Request-Block
-    for crs_el in el.xpath("./OtherCRS", namespaces=nsmap):
+    for crs_el in el.xpath("./wfs:OtherCRS", namespaces=nsmap):
         crs_el.text
         if crs_el.text:
             code = srs_to_code(mapper, crs_el.text)
@@ -27,10 +27,11 @@ def parse_reference_systems(mapper, el):
                     prefix=prefix
                 )
             )
-    default_crs_el = el.xpath("./DefaultCRS", namespaces=nsmap)
-    if default_crs_el and default_crs_el.text:
-        code = srs_to_code(mapper, crs_el.text)
-        prefix = srs_to_prefix(mapper, crs_el.text)
+    default_crs_el = el.xpath("./wfs:DefaultCRS", namespaces=nsmap)
+    if default_crs_el and len(default_crs_el) > 0 and default_crs_el[0].text:
+        code = srs_to_code(mapper, default_crs_el[0].text)
+        prefix = srs_to_prefix(mapper, default_crs_el[0].text)
+        # TODO: the crosstable should have an tag to signal that this is the default one.
         instances.append(
             ReferenceSystem(
                 code=code,

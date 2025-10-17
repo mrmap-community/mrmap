@@ -404,7 +404,12 @@ class XmlMapper:
         many = spec.get("_many", many)
         instances = [] if many else None
         elements = self._get_elements(spec, namespaces)
-
+        if spec and "featuretypes" in spec.get("fields", {}):
+            i = 0
+        if spec and "reference_systems" in spec.get("fields", {}):
+            i = 0
+        if spec and "ReferenceSystem" in spec.get("_model", {}):
+            i = 0
         if "_parser" in spec:
             parser = load_function(spec.get("_parser"))
 
@@ -466,11 +471,11 @@ class OGCServiceXmlMapper(XmlMapper):
 
         # Service-Typ anhand des Root-Tags
         tag = etree.QName(root).localname.lower()
-        if "wms" or "wmt" in tag:
+        if any(s in tag for s in ["wms", "wmt"]):
             service_type = "WMS"
         elif "wfs" in tag:
             service_type = "WFS"
-        elif "capabilities" in tag and "csw" in root.nsmap.values():
+        elif "capabilities" in tag and "csw" in root.nsmap.keys():
             service_type = "CSW"
         else:
             raise ValueError("Unknown Service-Typ")

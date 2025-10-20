@@ -6,6 +6,7 @@ from typing import IO, Union
 from uuid import uuid4
 
 from django.apps import apps
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import ForeignKey
 from lxml import etree
 from registry.mappers.configs import XPATH_MAP
@@ -64,8 +65,6 @@ class GlobalXmlCache:
             if expire_at < now:
                 del cls._data[key]
                 return default
-            # Key frisch halten, falls gewünscht (z.B. LRU-Verhalten)
-            cls._data.move_to_end(key)
             return value
 
     @classmethod
@@ -83,7 +82,6 @@ class GlobalXmlCache:
                     del cls._data[key]
                     result[key] = None
                 else:
-                    cls._data.move_to_end(key)
                     result[key] = value
         return result
 
@@ -317,21 +315,22 @@ class XmlMapper:
         model_cls = self._get_model_class(spec)
         for field_name, xpath_or_spec in self._get_foreign_fields(spec).items():
             if isinstance(xpath_or_spec, str):
+                # this is an xpath... this is only possible for parent/child (self) related fields
+                if not model_cls._meta.get_field(field_name).remote_field.model == model_cls:
+                    raise ImproperlyConfigured(
+                        f'field {field_name} does not reverence to it self')
+                # self reference parent/child possible
+                # if django model is self referencing too,
+                # it is a parent child tree referencing system
                 parent = xml_element.getparent()
+
                 candidate = xml_element.find(
                     xpath_or_spec, namespaces=namespaces)
                 if parent is candidate and parent.tag == candidate.tag:
-                    # self reference parent/child possible
-                    # if django model is self referencing too,
-                    # it is a parent child tree referencing system
-                    if model_cls._meta.get_field(field_name).remote_field.model == model_cls:
-                        parent_path = parent.getroottree().getpath(parent)
-                        parent_instance = self.read_from_cache(parent_path)
-                        if parent_instance:
-                            setattr(instance, field_name, parent_instance)
-                else:
-                    # TODO: raise valueerror or something else, cause this configuration is wrong
-                    pass
+                    parent_path = parent.getroottree().getpath(parent)
+                    parent_instance = self.read_from_cache(parent_path)
+                    if parent_instance:
+                        setattr(instance, field_name, parent_instance)
             else:
                 self.handle_flat_field(
                     field_name, instance, xml_element, xpath_or_spec, namespaces)
@@ -404,12 +403,6 @@ class XmlMapper:
         many = spec.get("_many", many)
         instances = [] if many else None
         elements = self._get_elements(spec, namespaces)
-        if spec and "featuretypes" in spec.get("fields", {}):
-            i = 0
-        if spec and "reference_systems" in spec.get("fields", {}):
-            i = 0
-        if spec and "ReferenceSystem" in spec.get("_model", {}):
-            i = 0
         if "_parser" in spec:
             parser = load_function(spec.get("_parser"))
 

@@ -4,6 +4,8 @@ from django.test import TestCase
 from registry.mappers.persistence import PersistenceHandler
 from registry.mappers.xml_mapper import OGCServiceXmlMapper
 from registry.models.metadata import Keyword, ReferenceSystem
+from tests.django.registry.mappers.expected_layer_data import \
+    DATA as LAYER_DATA
 
 
 class XmlMapperTest(TestCase):
@@ -22,18 +24,38 @@ class XmlMapperTest(TestCase):
         self.assertEqual(137, len(db_layers))
 
         db_crs = ReferenceSystem.objects.filter(layer__in=db_layers).distinct()
-        crs_expected = [900913, 4839, 4326, 4258, 3857, 3413,
-                        31468, 31467, 3045, 3044, 25833, 25832, 1000001]
 
-        self.assertEqual(len(crs_expected), len(db_crs))
-        for crs in crs_expected:
-            _ = ReferenceSystem(code=str(crs), prefix="EPSG")
-            self.assertIn(_, db_crs)
+        for layer in db_layers:
+            self.assertIn(layer.identifier, LAYER_DATA,
+                          f"Layer {layer.identifier} ist nicht in den erwateten Layern")
 
-        self.assertEqual(13, db_layers[0].reference_systems.count())
-        for crs in crs_expected:
-            _ = ReferenceSystem(code=str(crs), prefix="EPSG")
-            self.assertIn(_, db_layers[0].reference_systems.all())
+            expected = LAYER_DATA[layer.identifier]
+
+            # Title und Abstract prüfen
+            self.assertEqual(
+                layer.title, expected["title"], f"Layer {layer.identifier} hat falschen Title")
+            self.assertEqual(
+                layer.abstract, expected["abstract"], f"Layer {layer.identifier} hat falschen Abstract")
+            self.assertEqual(
+                layer.is_queryable, expected["is_queryable"], f"Layer {layer.identifier} hat falschen queryable")
+            self.assertEqual(
+                layer.is_opaque, expected["is_opaque"], f"Layer {layer.identifier} hat falschen opaque")
+            self.assertEqual(
+                layer.is_cascaded, expected["is_cascaded"], f"Layer {layer.identifier} hat falschen cascaded")
+            self.assertEqual(
+                layer.bbox_lat_lon.wkt if layer.bbox_lat_lon else None, expected["bbox_lat_lon"], f"Layer {layer.identifier} hat falsche bbox")
+
+            # Keywords prüfen
+            db_keywords = list(
+                layer.keywords.values_list('keyword', flat=True))
+            self.assertCountEqual(
+                db_keywords, expected["keywords"], f"Layer {layer.identifier} hat falsche Keywords")
+
+            # ReferenceSystems prüfen
+            db_crs = list(
+                layer.reference_systems.values_list('code', flat=True))
+            self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expected["reference_systems"]],
+                                  f"Layer {layer.identifier} hat falsche ReferenceSystems")
 
     def test_wms_1_1_1(self):
         self.xml = Path(Path.joinpath(

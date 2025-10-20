@@ -78,7 +78,7 @@ XPATH_MAP = {
                     "_create_mode": "bulk",
                     "_many": True,
                     "fields": {
-                        "mptt_parent": "../../wms:Layer",
+                        "mptt_parent": "..",
                         "title": "./wms:Title",
                         "abstract": "./wms:Abstract",
                         "identifier": "./wms:Name",

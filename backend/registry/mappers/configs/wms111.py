@@ -78,7 +78,7 @@ XPATH_MAP = {
                     "_create_mode": "bulk",
                     "_many": True,
                     "fields": {
-                        "mptt_parent": "../../Layer",
+                        "mptt_parent": "..",
                         "title": "./Title",
                         "abstract": "./Abstract",
                         "identifier": "./Name",

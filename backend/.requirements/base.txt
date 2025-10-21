@@ -70,3 +70,4 @@ camel-converter==4.0.1
 django-rest-knox==5.0.2
 django-pgviews-redux==0.11.0
 django-xml==4.0.1
+autobahn>=22.4.2,<25.10.0

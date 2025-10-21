@@ -500,10 +500,14 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
-
         indexes = [
         ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
-
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service", "identifier"],
+                name="unique_identifer_per_wms",
+            )
+        ] + Node.Meta.constraints + AbstractMetadata.Meta.constraints
         # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 
     def save(self, *args, **kwargs):
@@ -676,9 +680,14 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
-
         indexes = [
         ] + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service", "identifier"],
+                name="unique_identifer_per_wfs",
+            )
+        ] + AbstractMetadata.Meta.constraints
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the feature type and his related service.

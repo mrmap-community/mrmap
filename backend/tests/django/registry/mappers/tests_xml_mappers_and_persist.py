@@ -1,14 +1,41 @@
 from pathlib import Path
+from uuid import uuid4
 
 from django.test import TestCase
 from registry.mappers.persistence import PersistenceHandler
 from registry.mappers.xml_mapper import OGCServiceXmlMapper
-from registry.models.metadata import Keyword, ReferenceSystem
-from tests.django.registry.mappers.expected_layer_data import \
-    DATA as LAYER_DATA
+from registry.models.metadata import Keyword
+from tests.django.test_data.capabilities.wfs.expected_featuretype_data import \
+    EXPECTED_DATA as FEATURETYPE_DATA_2_0_0
+from tests.django.test_data.capabilities.wms.expected_layer_data_111 import \
+    LAYER_DATA as LAYER_DATA_1_1_1
+from tests.django.test_data.capabilities.wms.expected_layer_data_130 import \
+    LAYER_DATA as LAYER_DATA_1_3_0
 
 
 class XmlMapperTest(TestCase):
+
+    def __export_parsed_wfs_data(self, data):
+        expected_layer_data = {
+            item.identifier: {
+                "title": item.title,
+                "abstract": item.abstract,
+                "bbox_lat_lon": item.bbox_lat_lon.wkt if item.bbox_lat_lon else None,
+                "output_formats": list(item.output_formats.values_list("mime_type", flat=True)),
+                "keywords": list(item.keywords.values_list("keyword", flat=True)),
+                "reference_systems": list(item.reference_systems.values_list("code", flat=True)),
+            }
+            for item in data
+        }
+
+        import pprint
+        from pathlib import Path
+        file_path = Path(f"expected_data_{uuid4()}.py")
+
+        # Dictionary als Python-Code in die Datei schreiben
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write("EXPECTED_DATA = ")
+            f.write(pprint.pformat(expected_layer_data, indent=4))
 
     def _call_mapper_and_persistence_handler(self):
         """Test that create manager function works correctly."""
@@ -21,15 +48,14 @@ class XmlMapperTest(TestCase):
         wms = self.data[0]
 
         db_layers = wms.layers.all()
-        self.assertEqual(137, len(db_layers))
 
-        db_crs = ReferenceSystem.objects.filter(layer__in=db_layers).distinct()
+        self.assertEqual(len(self.layer_data), len(db_layers))
 
         for layer in db_layers:
-            self.assertIn(layer.identifier, LAYER_DATA,
+            self.assertIn(layer.identifier, self.layer_data,
                           f"Layer {layer.identifier} ist nicht in den erwateten Layern")
 
-            expected = LAYER_DATA[layer.identifier]
+            expected = self.layer_data[layer.identifier]
 
             # Title und Abstract prüfen
             self.assertEqual(
@@ -61,6 +87,7 @@ class XmlMapperTest(TestCase):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wms/1.1.1.xml'))
+        self.layer_data = LAYER_DATA_1_1_1
         self._call_mapper_and_persistence_handler()
         self._test_wms_success()
 
@@ -68,27 +95,41 @@ class XmlMapperTest(TestCase):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wms/1.3.0.xml'))
+        self.layer_data = LAYER_DATA_1_3_0
         self._call_mapper_and_persistence_handler()
         self._test_wms_success()
 
     def _test_wfs_success(self):
         wfs = self.data[0]
-
         db_featuretypes = wfs.featuretypes.all()
-        self.assertEqual(55, len(db_featuretypes))
 
-        db_crs = ReferenceSystem.objects.filter(
-            featuretype__in=db_featuretypes).distinct()
-        crs_expected = [4258, 4326]
+        self.assertEqual(len(FEATURETYPE_DATA_2_0_0), len(db_featuretypes))
 
-        self.assertEqual(len(crs_expected), len(db_crs))
-        for crs in crs_expected:
-            _ = ReferenceSystem(code=str(crs), prefix="EPSG")
-            self.assertIn(_, db_crs)
+        for featuretype in db_featuretypes:
+            self.assertIn(featuretype.identifier, FEATURETYPE_DATA_2_0_0,
+                          f"FeatureType {featuretype.identifier} ist nicht in den erwateten FeatureTypes")
 
-        self.assertEqual(1, db_featuretypes[0].reference_systems.count())
-        _ = ReferenceSystem(code=str(4258), prefix="EPSG")
-        self.assertIn(_, db_featuretypes[0].reference_systems.all())
+            expected = FEATURETYPE_DATA_2_0_0[featuretype.identifier]
+
+            # Title und Abstract prüfen
+            self.assertEqual(
+                featuretype.title, expected["title"], f"FeatureType {featuretype.identifier} hat falschen Title")
+            self.assertEqual(
+                featuretype.abstract, expected["abstract"], f"FeatureType {featuretype.identifier} hat falschen Abstract")
+            self.assertEqual(
+                featuretype.bbox_lat_lon.wkt if featuretype.bbox_lat_lon else None, expected["bbox_lat_lon"], f"FeatureType {featuretype.identifier} hat falsche bbox")
+
+            # Keywords prüfen
+            db_keywords = list(
+                featuretype.keywords.values_list('keyword', flat=True))
+            self.assertCountEqual(
+                db_keywords, expected["keywords"], f"FeatureType {featuretype.identifier} hat falsche Keywords")
+
+            # ReferenceSystems prüfen
+            db_crs = list(
+                featuretype.reference_systems.values_list('code', flat=True))
+            self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expected["reference_systems"]],
+                                  f"FeatureType {featuretype.identifier} hat falsche ReferenceSystems")
 
     def test_wfs_2_0_0(self):
         self.xml = Path(Path.joinpath(

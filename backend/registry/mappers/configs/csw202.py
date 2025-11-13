@@ -58,11 +58,11 @@ XPATH_MAP = {
                     }
                 },
                 "operation_urls": {
-                    "_model": "registry.WebFeatureServiceOperationUrl",
-                    "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata/ows:Operation",
+                    "_model": "registry.CataloguesServiceOperationUrl",
+                    "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata",
                     "_create_mode": "get_or_create",
                     "_many": True,
-                    "_parser": "registry.mappers.parsers.wfs.parse_operation_urls",
+                    "_parser": "registry.mappers.parsers.csw.parse_operation_urls",
                 },
                 "keywords": {
                     "_model": "registry.Keyword",

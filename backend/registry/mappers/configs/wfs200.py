@@ -63,7 +63,7 @@ XPATH_MAP = {
                 },
                 "operation_urls": {
                     "_model": "registry.WebFeatureServiceOperationUrl",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation",
+                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata",
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "_parser": "registry.mappers.parsers.wfs.parse_operation_urls",

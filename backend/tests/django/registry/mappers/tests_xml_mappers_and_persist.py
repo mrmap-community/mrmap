@@ -37,6 +37,26 @@ class XmlMapperTest(TestCase):
             f.write("EXPECTED_DATA = ")
             f.write(pprint.pformat(expected_layer_data, indent=4))
 
+    def __export_parsed_csw_data(self, data):
+        csw = data[0]
+
+        expected_data = {
+            "title": csw.title,
+            "abstract": csw.abstract,
+            "operation_urls": list(csw.operation_urls.values_list("method", "operation", "url")),
+            "keywords": list(csw.keywords.values_list("keyword", flat=True)),
+
+        }
+
+        import pprint
+        from pathlib import Path
+        file_path = Path(f"expected_data_{uuid4()}.py")
+
+        # Dictionary als Python-Code in die Datei schreiben
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write("EXPECTED_DATA = ")
+            f.write(pprint.pformat(expected_data, indent=4))
+
     def _call_mapper_and_persistence_handler(self):
         """Test that create manager function works correctly."""
         mapper = OGCServiceXmlMapper.from_xml(self.xml)
@@ -140,6 +160,7 @@ class XmlMapperTest(TestCase):
 
     def _test_csw_success(self):
         csw = self.data[0]
+        self.__export_parsed_csw_data(self.data)
 
         db_keywords = Keyword.objects.filter(
             catalogueservice_metadata=csw).distinct()

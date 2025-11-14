@@ -5,7 +5,7 @@ services:
   frontend:
     build:
       context: ./
-      dockerfile: ./docker/nginx.Dockerfile
+      dockerfile: ./docker/nginx/nginx.Dockerfile
       args:
         - VITE_API_BASE_URL=localhost:8001
         - VITE_API_SCHEMA=http
@@ -35,7 +35,7 @@ services:
 
   pre-commit-check:
     build:
-      context: ./mrmap
+      context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
       args:
         MRMAP_PRODUCTION: 'False'

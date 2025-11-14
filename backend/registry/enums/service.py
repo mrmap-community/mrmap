@@ -68,6 +68,8 @@ class OGCOperationEnum(SmartIntegerChoices):
     GET_RECORDS = 17, _("GetRecords")
     DESCRIBE_RECORD = 18, _("DescribeRecord")
     GET_RECORD_BY_ID = 19, _("GetRecordById")
+    GET_DOMAIN = 20, _("GetDomain")
+    GET_REPOSITORY_ITEM = 21, _("GetRepositoryItem")
 
 
 class HttpMethodEnum(SmartIntegerChoices):

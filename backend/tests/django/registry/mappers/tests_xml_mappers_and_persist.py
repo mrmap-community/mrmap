@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 from uuid import uuid4
 
@@ -40,12 +41,32 @@ class XmlMapperTest(TestCase):
     def __export_parsed_csw_data(self, data):
         csw = data[0]
 
+        # Zuerst alle Operation-URL-Zeilen holen:
+        raw_ops = csw.operation_urls.values_list(
+            "method", "operation", "url", "mime_types__mime_type"
+        )
+
+        # Jetzt gruppieren:
+        grouped = defaultdict(lambda: defaultdict(list))
+
+        for method, operation, url, mime in raw_ops:
+            if mime:
+                grouped[(method, operation, url)]["mime_types"].append(mime)
+            else:
+                # Sicherstellen, dass der Key existiert und später eine leere Liste bleibt
+                grouped[(method, operation, url)]
+
+        # Danach wieder in eine Liste überführen:
+        operation_urls = [
+            (method, operation, url, op_data["mime_types"])
+            for (method, operation, url), op_data in grouped.items()
+        ]
+
         expected_data = {
             "title": csw.title,
             "abstract": csw.abstract,
-            "operation_urls": list(csw.operation_urls.values_list("method", "operation", "url")),
+            "operation_urls": operation_urls,
             "keywords": list(csw.keywords.values_list("keyword", flat=True)),
-
         }
 
         import pprint

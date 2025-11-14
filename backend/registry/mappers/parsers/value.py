@@ -1,5 +1,6 @@
 from django.contrib.gis.geos import Polygon
-from registry.enums.service import OGCServiceVersionEnum
+from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
+                                    OGCServiceVersionEnum)
 
 
 def int_to_bool(mapper, value: int = 0) -> bool:
@@ -72,3 +73,15 @@ def polygon_to_bbox(mapper, polygon):
 
 def version_to_int(mapper, version):
     return OGCServiceVersionEnum(version).value
+
+
+def method_to_enum(mapper, url_element):
+    tag = url_element.tag
+    if "}" in tag:
+        tag = tag.split("}")[1]
+    if tag:
+        return HttpMethodEnum(tag)
+
+
+def operation_to_enum(mapper, operation_str):
+    return OGCOperationEnum(operation_str)

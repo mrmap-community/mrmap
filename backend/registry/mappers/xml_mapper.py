@@ -250,13 +250,7 @@ class XmlMapper:
                 else:
                     # Ob Attribut oder Elementtext
                     node = res[0]
-                    if isinstance(node, etree._ElementUnicodeResult):
-                        # Wenn Attribut oder direkte Text
-                        values.append(str(node))
-                    elif hasattr(node, "text"):
-                        values.append(node.text)
-                    else:
-                        values.append(str(node))
+                    values.append(node)
             parser_func = load_function(xpath_or_spec["_parser"])
             try:
                 parsed = parser_func(self, *values)
@@ -423,7 +417,6 @@ class XmlMapper:
             model_cls = self._get_model_class(spec)
 
             for el in elements:
-
                 path = el.getroottree().getpath(el)
                 instance = model_cls()
 

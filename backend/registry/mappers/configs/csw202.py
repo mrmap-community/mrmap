@@ -58,11 +58,32 @@ XPATH_MAP = {
                     }
                 },
                 "operation_urls": {
-                    "_model": "registry.CataloguesServiceOperationUrl",
-                    "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata",
+                    "_model": "registry.CatalogueServiceOperationUrl",
+                    "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//ows:*",
                     "_create_mode": "get_or_create",
                     "_many": True,
-                    "_parser": "registry.mappers.parsers.csw.parse_operation_urls",
+                    "fields": {
+                        "method": {
+                            "_inputs": (".",),
+                            "_parser": "registry.mappers.parsers.value.method_to_enum",
+                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_method",
+                        },
+                        "operation": {
+                            "_inputs": ("../../../@name",),
+                            "_parser": "registry.mappers.parsers.value.operation_to_enum",
+                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_operation"
+                        },
+                        "url": "./@xlink:href",
+                        "mime_types": {
+                            "_model": "registry.MimeType",
+                            "_base_xpath": '../../../ows:Parameter[@name="outputFormat"]/ows:Value',
+                            "_create_mode": "get_or_create",
+                            "_many": True,
+                            "fields": {
+                                "mime_type": "."
+                            }
+                        }
+                    }
                 },
                 "keywords": {
                     "_model": "registry.Keyword",

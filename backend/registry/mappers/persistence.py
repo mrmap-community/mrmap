@@ -96,6 +96,20 @@ class PersistenceHandler:
         final_key_map = {tuple(getattr(o, f)
                                for f in key_fields): o for o in final_objs}
 
+        # Mapping von Key -> Originalinstanz für nächsten Schritt notwendig
+        original_map = {
+            tuple(getattr(inst, f) for f in key_fields): inst
+            for inst in deduped_instances
+        }
+
+        # Nach Schritt 6: Füge private attributes zu den aus der db gezogenen neuen instanzen hinzu
+        for key, final_obj in final_key_map.items():
+            original_obj = original_map.get(key)
+            if original_obj is not None:
+                for attr, value in original_obj.__dict__.items():
+                    if attr.endswith("_parsed") and not hasattr(final_obj, attr):
+                        setattr(final_obj, attr, value)
+
         return final_key_map
 
     # ------------------------
@@ -332,7 +346,7 @@ class PersistenceHandler:
                 self._apply_foreign_keys(
                     {model_cls: instances}, final_instances_map)
                 for inst in instances:
-                    # TODO: same as for bulk_create. The instance which will be saved here, becomes a safe pk and shoul become part of final_instances.
+                    # TODO: same as for bulk_create. The instance which will be saved here, becomes a safe pk and should become part of final_instances.
                     inst.save()
 
         # 4️⃣ Jetzt alle M2M-Felder aus _parsed setzen

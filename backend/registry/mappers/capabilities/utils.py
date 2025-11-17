@@ -1,13 +1,14 @@
 from odin.mapping import assign, forward_mapping_factory
+from registry.enums.service import OGCServiceVersionEnum
 
 
 def get_import_path_for_xml_mapper(service):
     from registry.models.service import WebMapService
 
     if isinstance(service, WebMapService):
-        if service.version == "1.1.1":
+        if service.version == OGCServiceVersionEnum.V_1_1_1.value:
             return "ows_lib.xml_mapper.capabilities.wms.wms111"
-        elif service.version == "1.3.0":
+        elif service.version == OGCServiceVersionEnum.V_1_3_0.value:
             return "ows_lib.xml_mapper.capabilities.wms.wms130"
 
 
@@ -18,10 +19,10 @@ def get_mapper_for_service(service):
     if isinstance(service, WebMapService):
         from registry.mappers.capabilities.wms.wms import \
             WebMapServiceToXmlMappingBase
-        if service.version == "1.1.1":
+        if service.version == OGCServiceVersionEnum.V_1_1_1.value:
             from ows_lib.xml_mapper.capabilities.wms.wms111 import \
                 WebMapService as XmlWebMapService
-        elif service.version == "1.3.0":
+        elif service.version == OGCServiceVersionEnum.V_1_3_0.value:
             from ows_lib.xml_mapper.capabilities.wms.wms130 import \
                 WebMapService as XmlWebMapService
         else:
@@ -32,7 +33,7 @@ def get_mapper_for_service(service):
         from registry.mappers.capabilities.wfs.wfs import \
             WebFeatureServiceToXmlMappingBase
 
-        if service.version == "2.0.0":
+        if service.version == OGCServiceVersionEnum.V_2_0_0.value:
             from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
                 WebFeatureService as XmlWebFeatureService
         else:
@@ -43,7 +44,7 @@ def get_mapper_for_service(service):
         from registry.mappers.capabilities.csw.csw import \
             CatalogueServiceToXmlMappingBase
 
-        if service.version == "2.0.2":
+        if service.version == OGCServiceVersionEnum.V_2_0_2.value:
             from ows_lib.xml_mapper.capabilities.csw.csw202 import \
                 CatalogueService as XmlCatalogueService
         else:

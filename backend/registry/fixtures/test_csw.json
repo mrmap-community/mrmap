@@ -10,6 +10,7 @@
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
             "title": "CSW1",
             "abstract": "abstract1",
+            "version": 202,
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1",
@@ -33,6 +34,7 @@
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
             "title": "CSW2",
             "abstract": "abstract2",
+            "version": 202,
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1",
@@ -56,6 +58,7 @@
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
             "title": "CSW3",
             "abstract": "abstract3",
+            "version": 202,
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1",
@@ -77,9 +80,9 @@
         "model": "registry.CatalogueServiceOperationUrl",
         "pk": 1,
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetCapabilities",
+            "operation": 1,
             "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
         }
     },
@@ -87,9 +90,9 @@
         "model": "registry.CatalogueServiceOperationUrl",
         "pk": 2,
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetRecords",
+            "operation": 50,
             "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
         }
     },
@@ -97,9 +100,9 @@
         "model": "registry.CatalogueServiceOperationUrl",
         "pk": 3,
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetCapabilities",
+            "operation": 1,
             "service": "3df586c6-b89b-4ce5-980a-12dc3ca23df2"
         }
     },
@@ -107,9 +110,9 @@
         "model": "registry.CatalogueServiceOperationUrl",
         "pk": 4,
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetRecords",
+            "operation": 50,
             "service": "3df586c6-b89b-4ce5-980a-12dc3ca23df2"
         }
     },
@@ -117,9 +120,9 @@
         "model": "registry.CatalogueServiceOperationUrl",
         "pk": 5,
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetCapabilities",
+            "operation": 1,
             "service": "57cf66c2-3bde-49ad-b76e-bae49da57516"
         }
     },
@@ -127,9 +130,9 @@
         "model": "registry.CatalogueServiceOperationUrl",
         "pk": 6,
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetRecords",
+            "operation": 50,
             "service": "57cf66c2-3bde-49ad-b76e-bae49da57516"
         }
     },
@@ -143,6 +146,7 @@
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
             "title": "CSW1",
             "abstract": "abstract1",
+            "version": 202,
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1"
@@ -161,7 +165,7 @@
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1",
-            "version": "2.0.2"
+            "version": 202
         }
     },
     {
@@ -174,6 +178,7 @@
             "origin_url": "https://example.com?SERVICE=CSW&VERSION=2.0.2&REQUEST=GetCapabilities",
             "title": "CSW3",
             "abstract": "abstract3",
+            "version": 202,
             "service_url": "",
             "service_contact": "1",
             "metadata_contact": "1",

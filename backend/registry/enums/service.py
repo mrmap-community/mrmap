@@ -31,13 +31,13 @@ class OGCServiceEnum(TextChoices):
 
 
 class SecureableWMSOperationEnum(SmartIntegerChoices):
-    GET_MAP = 2, _("GetMap")
-    GET_FEATURE_INFO = 3, _("GetFeatureInfo")
+    GET_MAP = 20, _("GetMap")
+    GET_FEATURE_INFO = 21, _("GetFeatureInfo")
 
 
 class SecureableWFSOperationEnum(SmartIntegerChoices):
-    GET_FEATURE = 8, _("GetFeature")
-    TRANSACTION = 9, _("Transaction")
+    GET_FEATURE = 30, _("GetFeature")
+    TRANSACTION = 31, _("Transaction")
 
 
 class OGCOperationEnum(SmartIntegerChoices):

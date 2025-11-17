@@ -5,10 +5,7 @@ services:
   frontend:
     build:
       context: ./
-      dockerfile: ./docker/nginx.Dockerfile
-      args:
-        - VITE_API_BASE_URL=localhost:8001
-        - VITE_API_SCHEMA=http
+      dockerfile: ./docker/nginx/nginx.Dockerfile
 
   # Extend the existing postgis container with an accessible port for development purposes
   postgis:

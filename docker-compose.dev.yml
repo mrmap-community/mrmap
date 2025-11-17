@@ -38,6 +38,13 @@ services:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: /bin/sh -c "/opt/mrmap/.bash_scripts/pre_commit_check.sh"
+    environment:
+      EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
+      MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
+      SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
+      SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
     hostname: "mrmap-test"
     volumes:
       - type: bind
@@ -71,9 +78,16 @@ services:
       - mrmap-internal
     env_file:
       - ./docker/backend/.mrmap.env
+
     environment:
-      - DJANGO_DEBUG=0
-      - MRMAP_PRODUCTION=False
+      EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
+      MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
+      SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
+      SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
+      DJANGO_DEBUG: 0
+      MRMAP_PRODUCTION: False
     depends_on:
       - postgis
       - redis

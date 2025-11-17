@@ -1,5 +1,8 @@
 #!/bin/sh
 
+SQL_HOST="${SQL_HOST:-localhost}"
+SQL_PORT="${SQL_PORT:-5432}"
+
 # wait for database
 echo "checking database host is reachable..."
 while ! nc -z $SQL_HOST $SQL_PORT; do

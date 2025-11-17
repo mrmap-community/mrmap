@@ -136,6 +136,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     @property
     def client(self):
         try:
+            # TODO: #527
             cap = self.xml_backup
         except FileNotFoundError:
             # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
@@ -705,7 +706,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """Return the fetched described feature type document and update the content if save is True"""
-
+        # TODO: #527
         client = get_client(capabilities=self.service.xml_backup,
                             session=self.service.get_session_for_request())
         response = client.send_request(
@@ -728,6 +729,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             ValueError: if self.remote_content is null
         """
         if self.describe_feature_type_document:
+            # TODO: #527
             parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(
                 string=self.describe_feature_type_document,
                 xmlclass=XmlDescribedFeatureType,

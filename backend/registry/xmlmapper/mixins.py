@@ -6,6 +6,7 @@ from eulxml import xmlmap
 from lxml.etree import XPathEvalError
 
 
+# TODO: #527
 class DBModelConverterMixin:
     """ Abstract class which implements some generic functions to get the db model class and all relevant field content
         as dict.
@@ -134,4 +135,5 @@ class DBModelConverterMixin:
         """
         instance = cls()
         instance.update_fields(obj=initial)
+        return instance
         return instance

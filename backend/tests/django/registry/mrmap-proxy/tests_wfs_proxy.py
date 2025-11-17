@@ -16,6 +16,7 @@ from registry.models.security import AllowedWebFeatureServiceOperation
 from registry.models.service import WebFeatureService
 
 
+# TODO: #527
 class WebMapServiceProxyTest(TestCase):
 
     @classmethod
@@ -89,3 +90,4 @@ class WebMapServiceProxyTest(TestCase):
         self.assertEqual(feature_collection.number_returned, 4)
         self.assertTrue(allowed_area.overlaps(
             bounded_by), msg="configured allowed area does not overlaps the responsed bounding box")
+        bounded_by), msg = "configured allowed area does not overlaps the responsed bounding box")

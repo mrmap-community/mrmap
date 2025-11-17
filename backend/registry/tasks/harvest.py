@@ -174,6 +174,7 @@ def check_for_files_to_import(self, *args, **kwargs):
                 for file in files:
                     filename = os.path.join(dirpath, file)
                     try:
+                        # TODO: #527
                         metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(
                             filename=filename,
                             xmlclass=WrappedIsoMetadata)

@@ -6,6 +6,7 @@ from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
 from registry.models.metadata import DatasetMetadataRecord, Keyword
 
 
+# TODO: #527
 class IsoMetadataManagerTest(TestCase):
 
     def test_success(self):
@@ -24,4 +25,5 @@ class IsoMetadataManagerTest(TestCase):
         self.assertEqual(1, db_count)
 
         db_keyword_count = Keyword.objects.count()
+        self.assertEqual(6, db_keyword_count)
         self.assertEqual(6, db_keyword_count)

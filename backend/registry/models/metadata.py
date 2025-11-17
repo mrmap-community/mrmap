@@ -319,6 +319,7 @@ class RemoteMetadata(models.Model):
                 ValueError: if self.remote_content is null
         """
         if self.remote_content:
+            # TODO: #527
             self.parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.remote_content, "UTF-8"),
                                                                      xmlclass=WrappedIsoMetadata)
             return self.parsed_metadata.iso_metadata[0]

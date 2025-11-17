@@ -442,7 +442,7 @@ class HarvestingJob(ProcessingData):
             self.total_records = 0
             self.save()
             return self.total_records
-
+        # TODO: #527
         get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=first_response.content,
                                                                                      xmlclass=GetRecordsResponse)
         self.total_records = get_records_response.total_records

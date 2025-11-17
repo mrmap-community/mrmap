@@ -11,6 +11,7 @@ from registry.models.service import WebFeatureService
 from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 
+# TODO: #527
 class WebFeatureServiceSecurityManagerTest(TestCase):
 
     fixtures = ["test_keywords.json", "test_users.json", "test_wfs.json", "test_wfs_proxy.json",
@@ -54,4 +55,5 @@ class WebFeatureServiceSecurityManagerTest(TestCase):
                 allowed_area_union_given, tolerance=0.000000001))
 
         except AttributeError as e:
+            self.fail(msg=f"wfs object shall has the attribute '{e.name}'")
             self.fail(msg=f"wfs object shall has the attribute '{e.name}'")

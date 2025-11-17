@@ -62,6 +62,7 @@ def group_and_accumulate(rows, key_fields, accumulate_fields):
 class XmlMapperTest(TestCase):
 
     def __export_parsed_wfs_data(self, data):
+        """helper function to generate featuretype specific expected data"""
         expected_layer_data = {
             item.identifier: {
                 "title": item.title,
@@ -84,6 +85,7 @@ class XmlMapperTest(TestCase):
             f.write(pprint.pformat(expected_layer_data, indent=4))
 
     def __export_parsed_service_data(self, data):
+        """helper function to generate service specific expected data"""
         service = data[0]
 
         # Zuerst alle Operation-URL-Zeilen holen:

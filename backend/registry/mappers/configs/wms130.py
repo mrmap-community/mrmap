@@ -104,10 +104,10 @@ XPATH_MAP = {
                         },
                         "bbox_lat_lon": {
                             "_inputs": (
-                                "./wms:EX_GeographicBoundingBox/wms:westBoundLongitude",
-                                "./wms:EX_GeographicBoundingBox/wms:eastBoundLongitude",
-                                "./wms:EX_GeographicBoundingBox/wms:southBoundLatitude",
-                                "./wms:EX_GeographicBoundingBox/wms:northBoundLatitude"),
+                                "./wms:EX_GeographicBoundingBox/wms:westBoundLongitude/text()",
+                                "./wms:EX_GeographicBoundingBox/wms:eastBoundLongitude/text()",
+                                "./wms:EX_GeographicBoundingBox/wms:southBoundLatitude/text()",
+                                "./wms:EX_GeographicBoundingBox/wms:northBoundLatitude/text()"),
                             "_parser": "registry.mappers.parsers.value.bbox_to_polygon",
                             "_reverse_parser": "registry.mappers.parsers.value.polygon_to_bbox"
                         },
@@ -127,11 +127,11 @@ XPATH_MAP = {
                             "_many": True,
                             "fields": {
                                 "code": {
-                                    "_inputs": ("./.",),
+                                    "_inputs": ("./text()",),
                                     "_parser": "registry.mappers.parsers.value.srs_to_code",
                                 },
                                 "prefix": {
-                                    "_inputs": ("./.",),
+                                    "_inputs": ("./text()",),
                                     "_parser": "registry.mappers.parsers.value.srs_to_prefix",
                                 }
                             }

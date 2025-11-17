@@ -46,30 +46,32 @@ class OGCOperationEnum(SmartIntegerChoices):
     GET_CAPABILITIES = 1, _("GetCapabilities")
 
     # WMS
-    GET_MAP = 2, _("GetMap")
-    GET_FEATURE_INFO = 3, _("GetFeatureInfo")
-    DESCRIBE_LAYER = 4, _("DescribeLayer")
-    GET_LEGEND_GRAPHIC = 5, _("GetLegendGraphic")
-    GET_STYLES = 6, _("GetStyles")
-    PUT_STYLES = 7, _("PutStyles")
+    GET_MAP = 20, _("GetMap")
+    GET_FEATURE_INFO = 21, _("GetFeatureInfo")
+    DESCRIBE_LAYER = 22, _("DescribeLayer")
+    GET_LEGEND_GRAPHIC = 23, _("GetLegendGraphic")
+    GET_STYLES = 24, _("GetStyles")
+    PUT_STYLES = 25, _("PutStyles")
 
     # WFS
-    GET_FEATURE = 8, _("GetFeature")
-    TRANSACTION = 9, _("Transaction")
-    LOCK_FEATURE = 10, _("LockFeature")
-    DESCRIBE_FEATURE_TYPE = 11, _("DescribeFeatureType")
-    GET_FEATURE_WITH_LOCK = 12, _("GetFeatureWithLock")
-    GET_GML_OBJECT = 13, _("GetGmlObject")
-    LIST_STORED_QUERIES = 14, _("ListStoredQueries")
-    GET_PROPERTY_VALUE = 15, _("GetPropertyValue")
-    DESCRIBE_STORED_QUERIES = 16, _("DescribeStoredQueries")
+    GET_FEATURE = 30, _("GetFeature")
+    TRANSACTION = 31, _("Transaction")
+    LOCK_FEATURE = 32, _("LockFeature")
+    DESCRIBE_FEATURE_TYPE = 33, _("DescribeFeatureType")
+    GET_FEATURE_WITH_LOCK = 34, _("GetFeatureWithLock")
+    GET_GML_OBJECT = 35, _("GetGmlObject")
+    LIST_STORED_QUERIES = 36, _("ListStoredQueries")
+    GET_PROPERTY_VALUE = 37, _("GetPropertyValue")
+    DESCRIBE_STORED_QUERIES = 38, _("DescribeStoredQueries")
+    CREATE_STORED_QUERY = 39, _("CreateStoredQuery")
+    DROP_STORED_QUERY = 40, _("DropStoredQuery")
 
     # CSW
-    GET_RECORDS = 17, _("GetRecords")
-    DESCRIBE_RECORD = 18, _("DescribeRecord")
-    GET_RECORD_BY_ID = 19, _("GetRecordById")
-    GET_DOMAIN = 20, _("GetDomain")
-    GET_REPOSITORY_ITEM = 21, _("GetRepositoryItem")
+    GET_RECORDS = 50, _("GetRecords")
+    DESCRIBE_RECORD = 51, _("DescribeRecord")
+    GET_RECORD_BY_ID = 52, _("GetRecordById")
+    GET_DOMAIN = 53, _("GetDomain")
+    GET_REPOSITORY_ITEM = 54, _("GetRepositoryItem")
 
 
 class HttpMethodEnum(SmartIntegerChoices):

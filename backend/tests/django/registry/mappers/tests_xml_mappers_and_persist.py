@@ -5,13 +5,58 @@ from uuid import uuid4
 from django.test import TestCase
 from registry.mappers.persistence import PersistenceHandler
 from registry.mappers.xml_mapper import OGCServiceXmlMapper
-from registry.models.metadata import Keyword
+from tests.django.test_data.capabilities.csw.expected_service_data import \
+    EXPECTED_DATA as EXPECTED_CSW_SERVICE_DATA_2_0_2
 from tests.django.test_data.capabilities.wfs.expected_featuretype_data import \
     EXPECTED_DATA as FEATURETYPE_DATA_2_0_0
+from tests.django.test_data.capabilities.wfs.expected_service_data import \
+    EXPECTED_DATA as EXPECTED_WFS_SERVICE_DATA_2_0_0
 from tests.django.test_data.capabilities.wms.expected_layer_data_111 import \
     LAYER_DATA as LAYER_DATA_1_1_1
 from tests.django.test_data.capabilities.wms.expected_layer_data_130 import \
     LAYER_DATA as LAYER_DATA_1_3_0
+from tests.django.test_data.capabilities.wms.expected_service_data_111 import \
+    EXPECTED_DATA as EXPECTED_WMS_SERVICE_DATA_1_1_1
+from tests.django.test_data.capabilities.wms.expected_service_data_130 import \
+    EXPECTED_DATA as EXPECTED_WMS_SERVICE_DATA_1_3_0
+
+
+def group_and_accumulate(rows, key_fields, accumulate_fields):
+    """
+    rows: iterable von Tupeln (z. B. values_list(...))
+    key_fields: Liste der Felder, die als Schlüssel dienen
+    accumulate_fields: Liste der Felder, deren Werte gesammelt werden sollen
+    """
+    grouped = defaultdict(lambda: defaultdict(list))
+
+    # --- Gruppieren ---
+    for row in rows:
+        # row von Tupel -> dict
+        row_map = {field: value for field, value in zip(
+            key_fields + accumulate_fields, row)}
+
+        key = tuple(row_map[field] for field in key_fields)
+
+        for acc_field in accumulate_fields:
+            val = row_map.get(acc_field)
+            if val:
+                grouped[key][acc_field].append(val)
+            else:
+                grouped[key][acc_field]
+
+    # --- Rückgabe ---
+    result = []
+
+    for key, acc_data in grouped.items():
+        if len(accumulate_fields) == 1:
+            # nur EIN Akkufeld -> flatten wie im Beispiel
+            only_field = accumulate_fields[0]
+            result.append((*key, acc_data[only_field]))
+        else:
+            # mehrere -> dict wie gewohnt
+            result.append((*key, {f: acc_data[f] for f in accumulate_fields}))
+
+    return result
 
 
 class XmlMapperTest(TestCase):
@@ -38,35 +83,25 @@ class XmlMapperTest(TestCase):
             f.write("EXPECTED_DATA = ")
             f.write(pprint.pformat(expected_layer_data, indent=4))
 
-    def __export_parsed_csw_data(self, data):
-        csw = data[0]
+    def __export_parsed_service_data(self, data):
+        service = data[0]
 
         # Zuerst alle Operation-URL-Zeilen holen:
-        raw_ops = csw.operation_urls.values_list(
+        raw_ops = service.operation_urls.values_list(
             "method", "operation", "url", "mime_types__mime_type"
         )
 
-        # Jetzt gruppieren:
-        grouped = defaultdict(lambda: defaultdict(list))
-
-        for method, operation, url, mime in raw_ops:
-            if mime:
-                grouped[(method, operation, url)]["mime_types"].append(mime)
-            else:
-                # Sicherstellen, dass der Key existiert und später eine leere Liste bleibt
-                grouped[(method, operation, url)]
-
-        # Danach wieder in eine Liste überführen:
-        operation_urls = [
-            (method, operation, url, op_data["mime_types"])
-            for (method, operation, url), op_data in grouped.items()
-        ]
+        operation_urls = group_and_accumulate(
+            rows=raw_ops,
+            key_fields=["method", "operation", "url"],
+            accumulate_fields=["mime_types__mime_type"],
+        )
 
         expected_data = {
-            "title": csw.title,
-            "abstract": csw.abstract,
+            "title": service.title,
+            "abstract": service.abstract,
             "operation_urls": operation_urls,
-            "keywords": list(csw.keywords.values_list("keyword", flat=True)),
+            "keywords": list(service.keywords.values_list("keyword", flat=True)),
         }
 
         import pprint
@@ -85,60 +120,68 @@ class XmlMapperTest(TestCase):
         handler = PersistenceHandler(mapper)
         handler.persist_all()
 
-    def _test_wms_success(self):
+    def _test_service_success(self, expeced):
+        service = self.data[0]
+
+        self.assertEqual(service.title, expeced["title"])
+        self.assertEqual(
+            service.abstract, expeced["abstract"])
+
+        db_keywords = list(service.keywords.values_list('keyword', flat=True))
+        self.assertCountEqual(
+            db_keywords, expeced["keywords"], f"SERVICE hat falsche Keywords")
+
+        raw_ops = service.operation_urls.values_list(
+            "method", "operation", "url", "mime_types__mime_type"
+        )
+
+        operation_urls = group_and_accumulate(
+            rows=raw_ops,
+            key_fields=["method", "operation", "url"],
+            accumulate_fields=["mime_types__mime_type"],
+        )
+
+        self.assertCountEqual([(op[0], op[1], op[2], op[3]) for op in operation_urls], [(op[0], op[1], op[2], op[3]) for op in expeced["operation_urls"]],
+                              f"SERVICE hat falsche OperationUrls")
+
+    def _test_wms_success(self, expected):
         wms = self.data[0]
 
         db_layers = wms.layers.all()
 
-        self.assertEqual(len(self.layer_data), len(db_layers))
+        self.assertEqual(len(expected), len(db_layers))
 
         for layer in db_layers:
-            self.assertIn(layer.identifier, self.layer_data,
+            self.assertIn(layer.identifier, expected,
                           f"Layer {layer.identifier} ist nicht in den erwateten Layern")
 
-            expected = self.layer_data[layer.identifier]
+            _expected = expected[layer.identifier]
 
             # Title und Abstract prüfen
             self.assertEqual(
-                layer.title, expected["title"], f"Layer {layer.identifier} hat falschen Title")
+                layer.title, _expected["title"], f"Layer {layer.identifier} hat falschen Title")
             self.assertEqual(
-                layer.abstract, expected["abstract"], f"Layer {layer.identifier} hat falschen Abstract")
+                layer.abstract, _expected["abstract"], f"Layer {layer.identifier} hat falschen Abstract")
             self.assertEqual(
-                layer.is_queryable, expected["is_queryable"], f"Layer {layer.identifier} hat falschen queryable")
+                layer.is_queryable, _expected["is_queryable"], f"Layer {layer.identifier} hat falschen queryable")
             self.assertEqual(
-                layer.is_opaque, expected["is_opaque"], f"Layer {layer.identifier} hat falschen opaque")
+                layer.is_opaque, _expected["is_opaque"], f"Layer {layer.identifier} hat falschen opaque")
             self.assertEqual(
-                layer.is_cascaded, expected["is_cascaded"], f"Layer {layer.identifier} hat falschen cascaded")
+                layer.is_cascaded, _expected["is_cascaded"], f"Layer {layer.identifier} hat falschen cascaded")
             self.assertEqual(
-                layer.bbox_lat_lon.wkt if layer.bbox_lat_lon else None, expected["bbox_lat_lon"], f"Layer {layer.identifier} hat falsche bbox")
+                layer.bbox_lat_lon.wkt if layer.bbox_lat_lon else None, _expected["bbox_lat_lon"], f"Layer {layer.identifier} hat falsche bbox")
 
             # Keywords prüfen
             db_keywords = list(
                 layer.keywords.values_list('keyword', flat=True))
             self.assertCountEqual(
-                db_keywords, expected["keywords"], f"Layer {layer.identifier} hat falsche Keywords")
+                db_keywords, _expected["keywords"], f"Layer {layer.identifier} hat falsche Keywords")
 
             # ReferenceSystems prüfen
             db_crs = list(
                 layer.reference_systems.values_list('code', flat=True))
-            self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expected["reference_systems"]],
+            self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in _expected["reference_systems"]],
                                   f"Layer {layer.identifier} hat falsche ReferenceSystems")
-
-    def test_wms_1_1_1(self):
-        self.xml = Path(Path.joinpath(
-            Path(__file__).parent.resolve(),
-            '../../test_data/capabilities/wms/1.1.1.xml'))
-        self.layer_data = LAYER_DATA_1_1_1
-        self._call_mapper_and_persistence_handler()
-        self._test_wms_success()
-
-    def test_wms_1_3_0(self):
-        self.xml = Path(Path.joinpath(
-            Path(__file__).parent.resolve(),
-            '../../test_data/capabilities/wms/1.3.0.xml'))
-        self.layer_data = LAYER_DATA_1_3_0
-        self._call_mapper_and_persistence_handler()
-        self._test_wms_success()
 
     def _test_wfs_success(self):
         wfs = self.data[0]
@@ -172,29 +215,33 @@ class XmlMapperTest(TestCase):
             self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expected["reference_systems"]],
                                   f"FeatureType {featuretype.identifier} hat falsche ReferenceSystems")
 
+    def test_wms_1_1_1(self):
+        self.xml = Path(Path.joinpath(
+            Path(__file__).parent.resolve(),
+            '../../test_data/capabilities/wms/1.1.1.xml'))
+        self._call_mapper_and_persistence_handler()
+        self._test_service_success(expeced=EXPECTED_WMS_SERVICE_DATA_1_1_1)
+        self._test_wms_success(expected=LAYER_DATA_1_1_1)
+
+    def test_wms_1_3_0(self):
+        self.xml = Path(Path.joinpath(
+            Path(__file__).parent.resolve(),
+            '../../test_data/capabilities/wms/1.3.0.xml'))
+        self._call_mapper_and_persistence_handler()
+        self._test_service_success(expeced=EXPECTED_WMS_SERVICE_DATA_1_3_0)
+        self._test_wms_success(expected=LAYER_DATA_1_3_0)
+
     def test_wfs_2_0_0(self):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wfs/2.0.0.xml'))
         self._call_mapper_and_persistence_handler()
+        self._test_service_success(expeced=EXPECTED_WFS_SERVICE_DATA_2_0_0)
         self._test_wfs_success()
-
-    def _test_csw_success(self):
-        csw = self.data[0]
-        self.__export_parsed_csw_data(self.data)
-
-        db_keywords = Keyword.objects.filter(
-            catalogueservice_metadata=csw).distinct()
-        keywords_expected = ["catalogue", "discovery", "metadata"]
-
-        self.assertEqual(len(keywords_expected), len(db_keywords))
-        for keyword in keywords_expected:
-            _ = Keyword(keyword=keyword)
-            self.assertIn(_.keyword, keywords_expected)
 
     def test_csw_2_0_2(self):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/csw/2.0.2.xml'))
         self._call_mapper_and_persistence_handler()
-        self._test_csw_success()
+        self._test_service_success(expeced=EXPECTED_CSW_SERVICE_DATA_2_0_2)

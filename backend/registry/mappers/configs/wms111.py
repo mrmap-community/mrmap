@@ -123,11 +123,11 @@ XPATH_MAP = {
                             "_many": True,
                             "fields": {
                                 "code": {
-                                    "_inputs": ("./.",),
+                                    "_inputs": ("./text()",),
                                     "_parser": "registry.mappers.parsers.value.srs_to_code",
                                 },
                                 "prefix": {
-                                    "_inputs": ("./.",),
+                                    "_inputs": ("./text()",),
                                     "_parser": "registry.mappers.parsers.value.srs_to_prefix",
                                 }
                             }

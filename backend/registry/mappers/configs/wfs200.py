@@ -61,12 +61,34 @@ XPATH_MAP = {
                         "address": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:DeliveryPoint"
                     }
                 },
+
                 "operation_urls": {
                     "_model": "registry.WebFeatureServiceOperationUrl",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata",
+                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//ows:*",
                     "_create_mode": "get_or_create",
                     "_many": True,
-                    "_parser": "registry.mappers.parsers.wfs.parse_operation_urls",
+                    "fields": {
+                        "method": {
+                            "_inputs": (".",),
+                            "_parser": "registry.mappers.parsers.value.method_to_enum",
+                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_method",
+                        },
+                        "operation": {
+                            "_inputs": ("../../../@name",),
+                            "_parser": "registry.mappers.parsers.value.operation_to_enum",
+                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_operation"
+                        },
+                        "url": "./@xlink:href",
+                        "mime_types": {
+                            "_model": "registry.MimeType",
+                            "_base_xpath": '../../../ows:Parameter[@name="outputFormat"]/ows:Value',
+                            "_create_mode": "get_or_create",
+                            "_many": True,
+                            "fields": {
+                                "mime_type": "."
+                            }
+                        }
+                    },
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
@@ -88,8 +110,8 @@ XPATH_MAP = {
                         "abstract": "./wfs:Abstract",
                         "bbox_lat_lon": {
                             "_inputs": (
-                                "./ows:WGS84BoundingBox/ows:LowerCorner",
-                                "./ows:WGS84BoundingBox/ows:UpperCorner"),
+                                "./ows:WGS84BoundingBox/ows:LowerCorner/text()",
+                                "./ows:WGS84BoundingBox/ows:UpperCorner/text()"),
                             "_parser": "registry.mappers.parsers.wfs.bbox_to_polygon",
                             "_reverse_parser": "registry.mappers.parsers.wfs.polygon_to_bbox"
                         },

@@ -4,6 +4,7 @@ from importlib import import_module
 from odin.mapping import MappingBase, define, forward_mapping_factory
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
 from ows_lib.xml_mapper.utils import get_import_path_for_xml_mapper
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.metadata import DatasetMetadataRecord
 
 
@@ -51,8 +52,8 @@ class OgcServiceToXmlMappingBase(MappingBase):
         for operation_url in self.source.operation_urls.all():
             operation_urls.append(
                 OperationUrl(
-                    method=operation_url.method,
+                    method=HttpMethodEnum(operation_url.method).label,
                     url=operation_url.url,
-                    operation=operation_url.operation,
+                    operation=OGCOperationEnum(operation_url.operation).label,
                     mime_types=[str(mime_type) for mime_type in operation_url.mime_types.all()]))
         updated_service.operation_urls = operation_urls

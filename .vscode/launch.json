@@ -125,7 +125,7 @@
             "program": "${workspaceFolder}/backend/manage.py",
             "args": [
                 "test",
-                "backend/tests/django/registry/mappers/"
+                "backend/tests/django/"
             ],
             "django": true,
             "justMyCode": false,

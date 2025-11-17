@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from odin.mapping import MappingBase, MappingMeta, assign_field
 from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 
 
 class OgcServiceToXml(MappingBase, metaclass=MappingMeta):
@@ -18,9 +19,9 @@ class OgcServiceToXml(MappingBase, metaclass=MappingMeta):
         for operation_url in self.source.operation_urls.all():
             operation_urls.append(
                 OperationUrl(
-                    method=operation_url.method,
+                    method=HttpMethodEnum(operation_url.method).label,
                     url=operation_url.url,
-                    operation=operation_url.operation,
+                    operation=OGCOperationEnum(operation_url.operation).label,
                     mime_types=[str(mime_type) for mime_type in operation_url.mime_types.all()]))
         updated_service.operation_urls = operation_urls
 

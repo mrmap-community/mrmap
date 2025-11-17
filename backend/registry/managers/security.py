@@ -15,6 +15,7 @@ from django.db.models.query_utils import Q
 from django.http import HttpRequest
 from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.xml_responses.consts import GEOMETRY_DATA_TYPES
+from registry.enums.service import OGCOperationEnum
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
 
@@ -39,7 +40,7 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         return self.filter(
             secured_service__pk=service_pk,
             allowed_groups=None,
-            operations__operation__iexact=request.operation,
+            operations__operation=OGCOperationEnum(request.operation),
         ).filter_by_requested_entity(request=request) | self.filter(
             secured_service__pk=service_pk,
             allowed_groups__pk__in=Group.objects.filter(
@@ -47,7 +48,7 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             ).values_list("pk", flat=True)
             if request._djano_request.user.is_anonymous
             else request._djano_request.user.groups.values_list("pk", flat=True),
-            operations__operation__iexact=request.operation,
+            operations__operation=OGCOperationEnum(request.operation),
         ).filter_by_requested_entity(request=request)
 
     def get_allowed_areas(self, service_pk, request: HttpRequest):
@@ -239,7 +240,8 @@ class WebFeatureServiceSecurityManager(models.Manager):
             security_info = FeatureType.objects.filter(
                 service__pk=OuterRef("pk"),
                 identifier__in=request.requested_entities,
-                allowed_operation__operations__operation__icontains=request.operation.lower(),
+                allowed_operation__operations__operation=OGCOperationEnum(
+                    request.operation),
             ).annotate(
                 allowed_area_union=Union("allowed_operation__allowed_area"),
                 geometry_property_name=Subquery(FeatureTypeProperty.objects.filter(

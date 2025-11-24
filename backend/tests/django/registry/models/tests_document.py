@@ -7,7 +7,6 @@ from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
     WebFeatureService as XmlWebFeatureService
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     WebMapService as XmlWebMapService
-from ows_lib.xml_mapper.utils import get_import_path_for_xml_mapper
 from registry.models.metadata import Keyword
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -15,7 +14,7 @@ from registry.models.service import (CatalogueService, FeatureType, Layer,
 
 class CapabilitiesDocumentModelMixinTest(TestCase):
 
-    fixtures = ["test_keywords.json", "test_wms.json",
+    fixtures = ['test_users.json', "test_keywords.json", "test_wms.json",
                 "test_wfs.json", "test_csw.json"]
 
     def setUpWms(self):

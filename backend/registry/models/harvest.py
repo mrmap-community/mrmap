@@ -566,7 +566,8 @@ class HarvestingJob(ProcessingData):
                 self.log(
                     level=LogLevelEnum.WARNING.value,
                     kind=LogKindEnum.COUNT_MISSMATCH.value,
-                    description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
+                    description=f"{len(db_objs)}<{should_return_count}",
+                    extented_description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
                     f"URL: {request.url}"
                 )
 

@@ -10,7 +10,6 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-
 from guardian.shortcuts import assign_perm
 
 
@@ -46,6 +45,9 @@ class User(AbstractUser):
     class Meta:
         verbose_name = _('User')
         verbose_name_plural = _('Users')
+
+    def natural_key(self):
+        return (self.username,)
 
     def assign_object_perms(self):
         assign_perm(perm='view_user',

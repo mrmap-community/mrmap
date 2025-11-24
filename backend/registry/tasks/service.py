@@ -3,7 +3,6 @@ from urllib import parse
 from celery import chord, shared_task, states
 from django.conf import settings
 from notify.tasks import BackgroundProcessBased, finish_background_process
-from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.exceptions.metadata import UnknownMetadataKind
 from registry.mappers.persistence import PersistenceHandler
 from registry.mappers.xml_mapper import OGCServiceXmlMapper

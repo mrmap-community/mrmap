@@ -65,7 +65,8 @@ services:
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
-    tty: true # To support colorized log output of gherkin and other log information. 
+    # Do not activate tty!!!!! Analog issues as for celery-worker.. it can cause auto attaching issues..
+    #tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
       /bin/sh -c "python -m coverage run --branch --source='/opt/mrmap' /opt/mrmap/manage.py behave --simple --noinput --tags=-skip --no-skipped tests/behave/features && python -m coverage xml -i -o acceptance-tests-coverage-report.xml"
@@ -99,10 +100,11 @@ services:
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
-    tty: true # To support colorized log output of gherkin and other log information. 
+    # Do not activate tty!!!!! Analog issues as for celery-worker.. it can cause auto attaching issues..
+    #tty: true # To support colorized log output of gherkin and other log information. 
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
     command: >
-      /bin/sh -c "python -m coverage run --branch --source='/opt/mrmap' ./manage.py test /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o unit-tests-coverage-report.xml"
+      /bin/sh -c "python -m coverage run --branch --source='/opt/mrmap' ./manage.py test -v 3 /opt/mrmap/tests/ --noinput && python -m coverage xml -i -o unit-tests-coverage-report.xml"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind

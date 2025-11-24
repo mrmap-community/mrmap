@@ -3,16 +3,16 @@ from unittest.mock import patch
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.test.utils import override_settings
 from django_celery_beat.models import IntervalSchedule
 from MrMap.settings import BASE_DIR
 from registry.models.monitoring import (GetCapabilitiesProbe,
                                         GetCapabilitiesProbeResult,
                                         GetMapProbe, GetMapProbeResult,
+                                        WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import WebMapService
-from registry.tasks.monitoring import run_wms_monitoring
 from rest_framework import status
 from tests.django.utils import MockResponse
 
@@ -63,9 +63,9 @@ def setup_capabilitites_file(service_exception_url=False):
     wms.save()
 
 
-class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
+class WmsGetCapabilitiesMonitoringTaskTest(TransactionTestCase):
 
-    fixtures = ['test_keywords.json', 'test_wms.json']
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_wms.json']
 
     def setUp(self):
         self.wms: WebMapService = WebMapService.objects.get(
@@ -77,11 +77,12 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
             interval=self.interval
         )
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
+    @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
     @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
-    def test_run_wms_monitoring(self, mocked_run_checks):
+    def test_run_wms_monitoring(self, mocked_send_request,  mocked_on_commit):
         setup_capabilitites_file()
         cap_probe = GetCapabilitiesProbe.objects.create(
             setting=self.monitoring_setting,
@@ -92,14 +93,14 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
         )
         map_probe.layers.set(self.wms.layers.all())
 
-        eager_result = run_wms_monitoring.delay(
-            setting_pk=self.monitoring_setting.pk)
+        run = WebMapServiceMonitoringRun(setting=self.monitoring_setting)
+        run.save()
 
         self.assertEqual(1, GetCapabilitiesProbeResult.objects.count())
         self.assertEqual(1, GetMapProbeResult.objects.count())
         try:
             get_cap_result = GetCapabilitiesProbeResult.objects.get(
-                run__pk=eager_result.result,
+                run__pk=run.pk,
             )
             self.assertTrue(
                 get_cap_result.check_response_is_valid_xml_success)
@@ -121,7 +122,7 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
             )
 
             get_map_result = GetMapProbeResult.objects.get(
-                run__pk=eager_result.result,
+                run__pk=run.pk,
             )
             self.assertTrue(
                 get_map_result.check_response_image_success)
@@ -139,11 +140,12 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
         except ObjectDoesNotExist:
             self.fail("result was not found.")
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
+    @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
     @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
-    def test_run_wms_monitoring_with_service_exceptions(self, mocked_run_checks):
+    def test_run_wms_monitoring_with_service_exceptions(self, mocked_send_request,  mocked_on_commit):
         setup_capabilitites_file(service_exception_url=True)
         cap_probe = GetCapabilitiesProbe.objects.create(
             setting=self.monitoring_setting,
@@ -154,15 +156,15 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
         )
         map_probe.layers.set(self.wms.layers.all())
 
-        eager_result = run_wms_monitoring.delay(
-            setting_pk=self.monitoring_setting.pk)
+        run = WebMapServiceMonitoringRun(setting=self.monitoring_setting)
+        run.save()
 
         self.assertEqual(1, GetCapabilitiesProbeResult.objects.count())
         self.assertEqual(1, GetMapProbeResult.objects.count())
 
         try:
             get_cap_result = GetCapabilitiesProbeResult.objects.get(
-                run__pk=eager_result.result,
+                run__pk=run.pk,
             )
             self.assertTrue(
                 get_cap_result.check_response_is_valid_xml_success)
@@ -186,7 +188,7 @@ class WmsGetCapabilitiesMonitoringTaskTest(TestCase):
             )
 
             get_map_result = GetMapProbeResult.objects.get(
-                run__pk=eager_result.result,
+                run__pk=run.pk,
             )
             self.assertFalse(
                 get_map_result.check_response_image_success)

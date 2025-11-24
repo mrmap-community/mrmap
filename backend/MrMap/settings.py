@@ -531,7 +531,7 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "rfc5424",
+            "formatter": "simple",
             "level": "INFO"
         },
     },

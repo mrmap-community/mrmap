@@ -560,11 +560,11 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         if bbox:
             _bbox: Polygon = bbox
         else:
-            if hasattr(self, "bbox_inherited"):
-                _bbox: Polygon = self.bbox_inherited
+            if hasattr(self, "bbox_lat_lon_inherited"):
+                _bbox: Polygon = self.bbox_lat_lon_inherited
             else:
                 _bbox: Polygon = Layer.objects.with_inherited_attributes_cte(
-                ).values_list("bbox_inherited", flat=True).get(pk=self.pk)
+                ).values_list("bbox_lat_lon_inherited", flat=True).get(pk=self.pk)
 
         # if self.get_scale_max:
         #     # 1/100000

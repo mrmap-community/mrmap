@@ -16,7 +16,7 @@
         "pk": "1",
         "fields": {
             "name": "test settings",
-            "task": "registry.tasks.monitoring.run_wms_monitoring",
+            "task": "registry.tasks.monitoring.create_wms_monitoring_run",
             "kwargs": {
                 "setting_pk": "1"
             },

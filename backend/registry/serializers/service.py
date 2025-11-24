@@ -95,7 +95,7 @@ class LayerSerializer(
     )
 
     bbox_lat_lon = GeometryField(
-        source="bbox_inherited",
+        source="bbox_lat_lon_inherited",
         label=_("bbox"),
         help_text=_("this is the spatial extent of the layer."),
         read_only=True,

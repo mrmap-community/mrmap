@@ -92,13 +92,14 @@ class BackgroundProcessBased(Task):
                         query = query.filter(done_at__isnull=True)
                     with transaction.atomic():
                         query.update(**kwargs)
-                        if send_post_save:
-                            instance = query[0]
-                            post_save.send(
-                                BackgroundProcess,
-                                instance=instance,
-                                created=False
-                            )
+
+                    if send_post_save:
+                        instance = query[0]
+                        post_save.send(
+                            BackgroundProcess,
+                            instance=instance,
+                            created=False
+                        )
 
             except Exception as e:
                 logger.exception(e, stack_info=True, exc_info=True)

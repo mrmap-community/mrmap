@@ -19,7 +19,7 @@
             "history_type": "+",
             "history_relation": "9cc4889d-0cd4-4c3b-8975-58de6d30db41",
             "history_user": [
-                "mrmap"
+                "User1"
             ]
         }
     },
@@ -43,7 +43,7 @@
             "history_type": "+",
             "history_relation": "3df586c6-b89b-4ce5-980a-12dc3ca23df2",
             "history_user": [
-                "mrmap"
+                "User1"
             ]
         }
     },
@@ -67,7 +67,7 @@
             "history_type": "+",
             "history_relation": "57cf66c2-3bde-49ad-b76e-bae49da57516",
             "history_user": [
-                "mrmap"
+                "User1"
             ]
         }
     },
@@ -193,6 +193,7 @@
         "model": "registry.harvestingjob",
         "pk": "1",
         "fields": {
+            "total_records": 10,
             "service": "3df586c6-b89b-4ce5-980a-12dc3ca23df2"
         }
     },

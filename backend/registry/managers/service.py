@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Dict
 
 from camel_converter import to_snake
-from django.db.models import Exists, Model
+from django.db.models import Exists, Model, Prefetch, QuerySet
 from django.db.models import Value as V
 from django.db.models.expressions import F, OuterRef
 from django.db.models.functions import Coalesce
@@ -10,6 +10,8 @@ from django.db.models.manager import Manager
 from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
+from simple_history.models import HistoricalRecords
+from registry import models
 from registry.querys.service import LayerQuerySet
 
 
@@ -74,22 +76,30 @@ class TransientObjectsManagerMixin(object):
         return items
 
 
-class WebMapServiceManager(Manager):
-    def with_security_information(self):
-        from registry.models.security import AllowedWebMapServiceOperation
+class WebMapServiceQuerySet(QuerySet):
+    def prefetch_related_objects(self) -> "WebMapServiceQuerySet":
+        styles = Prefetch("styles", queryset=models.Style.objects.select_related("legend_url__mime_type"))
+        layers = Prefetch(
+            "layers",
+            queryset=models.Layer.objects.prefetch_related("keywords", "reference_systems", "time_extents", styles),
+        )
+        return self.select_related("service_contact", "metadata_contact").prefetch_related(
+            "operation_urls", "keywords", layers
+        )
 
-        return self.get_queryset().annotate(
+    def with_security_information(self) -> "WebMapServiceQuerySet":
+        return self.annotate(
             camouflage=Coalesce(
                 F("proxy_setting__camouflage"), V(False)),
             log_response=Coalesce(
                 F("proxy_setting__log_response"), V(False)),
             is_secured=Exists(
-                AllowedWebMapServiceOperation.objects.filter(
+                models.AllowedWebMapServiceOperation.objects.filter(
                     secured_service__id__exact=OuterRef("pk"),
                 )
             ),
             is_spatial_secured=Exists(
-                AllowedWebMapServiceOperation.objects.filter(
+                models.AllowedWebMapServiceOperation.objects.filter(
                     secured_service__id__exact=OuterRef("pk"),
                     allowed_area__isnull=False
                 )
@@ -97,31 +107,49 @@ class WebMapServiceManager(Manager):
         )
 
 
-class WebFeatureServiceManager(Manager):
-    def with_security_information(self):
-        from registry.models.security import AllowedWebFeatureServiceOperation
+class WebFeatureServiceQuerySet(QuerySet):
+    def prefetch_related_objects(self) -> "WebFeatureServiceQuerySet":
+        featuretypes = Prefetch(
+            "featuretypes",
+            queryset=models.FeatureType.objects.prefetch_related("keywords", "output_formats", "reference_systems"),
+        )
+        return self.select_related("service_contact", "metadata_contact").prefetch_related(
+            "operation_urls__mime_types", "keywords", featuretypes
+        )
 
-        return self.get_queryset().annotate(
+    def with_security_information(self) -> "WebFeatureServiceQuerySet":
+        return self.annotate(
             camouflage=Coalesce(
                 F("proxy_setting__camouflage"), V(False)),
             log_response=Coalesce(
                 F("proxy_setting__log_response"), V(False)),
             is_secured=Exists(
-                AllowedWebFeatureServiceOperation.objects.filter(
+                models.AllowedWebFeatureServiceOperation.objects.filter(
                     secured_service__id__exact=OuterRef("pk"),
                 )
             ),
             is_spatial_secured=Exists(
-                AllowedWebFeatureServiceOperation.objects.filter(
+                models.AllowedWebFeatureServiceOperation.objects.filter(
                     secured_service__id__exact=OuterRef("pk"),
                     allowed_area__isnull=False
                 )
             )
+        )
+
+
+class CatalogueServiceQuerySet(QuerySet):
+    def prefetch_related_objects(self) -> "CatalogueServiceQuerySet":
+        return self.select_related("service_contact", "metadata_contact").prefetch_related(
+            "operation_urls__mime_types", "keywords"
         )
 
 
 class CatalogueServiceManager(DefaultHistoryManager, CTEManager):
-    pass
+    def get_queryset(self) -> CatalogueServiceQuerySet:
+        return CatalogueServiceQuerySet(model=self.model, using=self._db)
+
+    def prefetch_related_objects(self) -> CatalogueServiceQuerySet:
+        return self.get_queryset().prefetch_related_objects()
 
 
 class FeatureTypeElementXmlManager(Manager):
@@ -129,8 +157,6 @@ class FeatureTypeElementXmlManager(Manager):
     def _reset_local_variables(self, **kwargs):
         # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
         # collect them once.
-        from simple_history.models import HistoricalRecords
-
         if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
             self.current_user = HistoricalRecords.context.request.user
 

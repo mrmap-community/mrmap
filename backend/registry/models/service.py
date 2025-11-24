@@ -30,8 +30,8 @@ from registry.exceptions.service import (LayerNotQueryable,
 from registry.managers.security import (WebFeatureServiceSecurityManager,
                                         WebMapServiceSecurityManager)
 from registry.managers.service import (CatalogueServiceManager, LayerManager,
-                                       WebFeatureServiceManager,
-                                       WebMapServiceManager)
+                                       WebFeatureServiceQuerySet,
+                                       WebMapServiceQuerySet)
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
@@ -177,7 +177,8 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    objects = WebMapServiceManager()
+
+    objects = WebMapServiceQuerySet.as_manager()
     security = WebMapServiceSecurityManager()
     history = DefaultHistoryManager()
 
@@ -202,7 +203,8 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    objects = WebFeatureServiceManager()
+
+    objects = WebFeatureServiceQuerySet.as_manager()
     security = WebFeatureServiceSecurityManager()
     history = DefaultHistoryManager()
 

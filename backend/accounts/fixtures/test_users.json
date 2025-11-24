@@ -235,21 +235,6 @@
         }
     },
     {
-        "model": "auth.group",
-        "pk": 4,
-        "fields": {
-            "name": "Testorganization",
-            "permissions": []
-        }
-    },
-    {
-        "model": "accounts.organization",
-        "pk": 4,
-        "fields": {
-            "group_ptr_id": 4
-        }
-    },
-    {
         "model": "accounts.user",
         "fields": {
             "password": "argon2$argon2id$v=19$m=102400,t=2,p=8$SFl2bHVYNGFoM0VCQ2VhRTFManlkRg$gNkcrXVr58njA+5CUE2RZg",

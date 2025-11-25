@@ -7,11 +7,11 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
-
 import logging
 import os
 import re
 import socket
+import sys
 from glob import glob
 from warnings import warn
 
@@ -72,6 +72,7 @@ if not os.path.exists(MEDIA_ROOT):
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 MRMAP_PRODUCTION = os.environ.get("MRMAP_PRODUCTION", default="False")
 MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
@@ -144,13 +145,15 @@ TEMPLATES = [
     },
 ]
 
-if DEBUG:
+# -------------------------------
+# Debug Toolbar nur aktiv, wenn DEBUG und nicht beim Testen
+# -------------------------------
+if DEBUG and not TESTING:
+    INSTALLED_APPS.append("debug_toolbar")
+    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
 
-    INSTALLED_APPS.append(
-        "debug_toolbar",
-    )
-    # Disable all panels by default
     DEBUG_TOOLBAR_CONFIG = {
+        # Alle Panels standardmäßig deaktivieren
         "DISABLE_PANELS": {
             "debug_toolbar.panels.history.HistoryPanel",
             "debug_toolbar.panels.versions.VersionsPanel",
@@ -166,13 +169,19 @@ if DEBUG:
             "debug_toolbar.panels.logging.LoggingPanel",
             "debug_toolbar.panels.redirects.RedirectsPanel",
             "debug_toolbar.panels.profiling.ProfilingPanel",
+            # Problematisches Panel für binary content
+            "debug_toolbar.panels.alerts.AlertsPanel",
         },
-        # "RENDER_PANELS": True,
         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
         "PRETTIFY_SQL": True,
     }
 
-    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
+else:
+    # Wenn DEBUG=0 oder Tests laufen, Toolbar komplett deaktivieren
+    if "debug_toolbar" in INSTALLED_APPS:
+        INSTALLED_APPS.remove("debug_toolbar")
+    if "debug_toolbar.middleware.DebugToolbarMiddleware" in MIDDLEWARE:
+        MIDDLEWARE.remove("debug_toolbar.middleware.DebugToolbarMiddleware")
 
 # Password hashes
 PASSWORD_HASHERS = [

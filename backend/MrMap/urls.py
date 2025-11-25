@@ -78,7 +78,7 @@ def protected_serve(request, path, document_root=None, show_indexes=False):
     return serve(request, path, document_root, show_indexes)
 
 
-if settings.DEBUG:
+if settings.DEBUG and not settings.TESTING:
     import debug_toolbar
     from django.conf import settings
     from django.conf.urls.static import static

@@ -22,7 +22,7 @@ def create_default_system_tasks(sender, **kwargs):
     )
 
 
-def sync_pg_views_if_missing():
+def sync_pg_views_if_missing(sender, **kwargs):
     import logging
 
     from django.apps import apps
@@ -88,7 +88,7 @@ class SystemConfig(AppConfig):
 
         # skip database init for certain commands (and tests)
         if any(cmd in sys.argv for cmd in [
-            "migrate", "makemigrations", "collectstatic", "createsuperuser", "test"
+            "migrate", "makemigrations", "collectstatic", "createsuperuser", "test", "behave"
         ]):
             return
-        sync_pg_views_if_missing()
+        post_migrate.connect(sync_pg_views_if_missing, sender=self)

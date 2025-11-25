@@ -592,7 +592,7 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.MultiPartParser",
     ),
     "DEFAULT_RENDERER_CLASSES": [
-        "extras.utils.BrowsableAPIRendererWithoutForms",
+        # "extras.utils.BrowsableAPIRendererWithoutForms",
         "rest_framework_json_api.renderers.JSONRenderer",
     ],
 

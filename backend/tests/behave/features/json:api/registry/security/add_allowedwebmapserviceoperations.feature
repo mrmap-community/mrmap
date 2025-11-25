@@ -21,11 +21,11 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
                         "operations": {
                             "data": [
                                 {
-                                    "id": "GetMap",
+                                    "id": 20,
                                     "type": "WebMapServiceOperation"
                                 },
                                 {
-                                    "id": "GetFeatureInfo",
+                                    "id": 21,
                                     "type": "WebMapServiceOperation"
                                 }
                             ]
@@ -93,11 +93,11 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
                         "operations": {
                             "data": [
                                 {
-                                    "id": "GetMap",
+                                    "id": 20,
                                     "type": "WebMapServiceOperation"
                                 },
                                 {
-                                    "id": "GetFeatureInfo",
+                                    "id": 21,
                                     "type": "WebMapServiceOperation"
                                 }
                             ]
@@ -165,11 +165,11 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
                         "operations": {
                             "data": [
                                 {
-                                    "id": "GetMap",
+                                    "id": 20,
                                     "type": "WebMapServiceOperation"
                                 },
                                 {
-                                    "id": "GetFeatureInfo",
+                                    "id": 21,
                                     "type": "WebMapServiceOperation"
                                 }
                             ]
@@ -209,11 +209,11 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
                         "operations": {
                             "data": [
                                 {
-                                    "id": "GetMap",
+                                    "id": 20,
                                     "type": "WebMapServiceOperation"
                                 },
                                 {
-                                    "id": "GetFeatureInfo",
+                                    "id": 21,
                                     "type": "WebMapServiceOperation"
                                 }
                             ]
@@ -265,11 +265,11 @@ Feature: AllowedWebMapServiceOperation Add Endpoint
                         "operations": {
                             "data": [
                                 {
-                                    "id": "GetMap",
+                                    "id": 20,
                                     "type": "WebMapServiceOperation"
                                 },
                                 {
-                                    "id": "GetFeatureInfo",
+                                    "id": 21,
                                     "type": "WebMapServiceOperation"
                                 }
                             ]

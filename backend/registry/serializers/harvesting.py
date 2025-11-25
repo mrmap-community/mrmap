@@ -1,4 +1,3 @@
-
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin,
@@ -10,13 +9,13 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (ChoiceField, DurationField,
-                                                 FloatField,
+from rest_framework_json_api.serializers import (ChoiceField, DateTimeField,
+                                                 DurationField, FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,
                                                  SerializerMethodField,
-                                                 UniqueTogetherValidator)
+                                                 ValidationError)
 from system.fields import CrontabStringField
 
 
@@ -141,15 +140,18 @@ class HarvestingJobSerializer(
             "harvested_dataset_metadata",
             "harvested_service_metadata"
         )
-        validators = [
-            UniqueTogetherValidator(
-                queryset=HarvestingJob.objects.filter(
-                    done_at__isnull=True),
-                fields=["service"],
-                message=_(
-                    "There is an existing running harvesting job for this service.")
+
+    def validate_service(self, value):
+        # cause model.full_clean ist not called and therefore no ValidationError is raised by the UniqueConstraint from model side.
+        # Instead without this extra validation, the endpoint will lead into IntegrityError --> 5xx internal server error
+        if HarvestingJob.objects.filter(
+            service=value,
+            done_at__isnull=True
+        ).exists():
+            raise ValidationError(
+                _("There is an existing running harvesting job for this service.")
             )
-        ]
+        return value
 
 
 class CreateHarvestingJobSerializer(HarvestingJobSerializer):

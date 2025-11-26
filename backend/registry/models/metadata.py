@@ -258,16 +258,16 @@ class Keyword(models.Model):
 
 
 class RemoteMetadata(models.Model):
-    """ Concrete model class to store linked iso metadata records while registration processing to fetch them after
+    """ Abstract model class to store linked iso metadata records while registration processing to fetch them after
         the service was registered. This helps us to parallelize the download processing with a celery group.
 
         To create the concrete metadata records the following workflow is necessary:
             1. fetch the remote content with fetch_remote_content(). After that the remote content was fetched.
             2. create the concrete metadata record (ServiceMetadataRecord | DatasetMetadataRecord) with create_metadata_instance()
 
-        todo: maybe this model could be refactored as general document class
+
     """
-    # todo: set link unique. IF we found one RemoteMetadata object with the same link, we can copy it and update the
+    # TODO: set link unique. IF we found one RemoteMetadata object with the same link, we can copy it and update the
     #  service fk to the service which was registered. Additional: we need to refactor the GenericForeignKey... We need
     #  then m2m relations to layers, featuretypes and services
     link = models.URLField(max_length=4094,
@@ -276,12 +276,6 @@ class RemoteMetadata(models.Model):
     remote_content = models.TextField(null=True,
                                       verbose_name=_("remote content"),
                                       help_text=_("the fetched content of the download url."))
-    content_type = models.ForeignKey(to=ContentType,
-                                     on_delete=models.CASCADE)
-    object_id = models.UUIDField(verbose_name=_("described resource"),
-                                 help_text=_("the uuid of the described service, layer or feature type"))
-    describes = GenericForeignKey(ct_field='content_type',
-                                  fk_field='object_id', )
 
     class Meta:
         abstract = True
@@ -343,23 +337,53 @@ class RemoteMetadata(models.Model):
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):
-    service = models.ForeignKey(to="registry.WebMapService",
-                                on_delete=models.CASCADE,
-                                related_name="remote_metadata",
-                                related_query_name="remote_metadata",
-                                verbose_name=_("web map service"),
-                                help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                            " was found in the GetCapabilites document of the related service."))
+    describes = models.ForeignKey(to="registry.WebMapService",
+                                  on_delete=models.CASCADE,
+                                  related_name="remote_metadata",
+                                  related_query_name="remote_metadata",
+                                  verbose_name=_("web map service"),
+                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                              " was found in the GetCapabilites document of the related service."))
+
+
+class LayerRemoteMetadata(RemoteMetadata):
+    describes = models.ForeignKey(to="registry.Layer",
+                                  on_delete=models.CASCADE,
+                                  related_name="remote_metadata",
+                                  related_query_name="remote_metadata",
+                                  verbose_name=_("layer"),
+                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                              " was found in the GetCapabilites document of the related service."))
 
 
 class WebFeatureServiceRemoteMetadata(RemoteMetadata):
-    service = models.ForeignKey(to="registry.WebFeatureService",
-                                on_delete=models.CASCADE,
-                                related_name="remote_metadata",
-                                related_query_name="remote_metadata",
-                                verbose_name=_("web map service"),
-                                help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                            " was found in the GetCapabilites document of the related service."))
+    describes = models.ForeignKey(to="registry.WebFeatureService",
+                                  on_delete=models.CASCADE,
+                                  related_name="remote_metadata",
+                                  related_query_name="remote_metadata",
+                                  verbose_name=_("web feature service"),
+                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                              " was found in the GetCapabilites document of the related service."))
+
+
+class FeatureTypeRemoteMetadata(RemoteMetadata):
+    describes = models.ForeignKey(to="registry.FeatureType",
+                                  on_delete=models.CASCADE,
+                                  related_name="remote_metadata",
+                                  related_query_name="remote_metadata",
+                                  verbose_name=_("featuretype"),
+                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                              " was found in the GetCapabilites document of the related service."))
+
+
+class CatalogueServiceRemoteMetadata(RemoteMetadata):
+    describes = models.ForeignKey(to="registry.CatalogueService",
+                                  on_delete=models.CASCADE,
+                                  related_name="remote_metadata",
+                                  related_query_name="remote_metadata",
+                                  verbose_name=_("catalogue service"),
+                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
+                                              " was found in the GetCapabilites document of the related service."))
 
 
 class MetadataTermsOfUse(models.Model):

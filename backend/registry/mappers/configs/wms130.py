@@ -1,10 +1,13 @@
-from registry.mappers.namespaces import WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE
+from registry.mappers.namespaces import (INSPIRE_COMMON, INSPIRE_VS,
+                                         WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE)
 
 XPATH_MAP = {
     ("WMS", "1.3.0"): {
         "_namespaces": {
             "xlink": XLINK_NAMESPACE,
-            "wms": WMS_1_3_0_NAMESPACE
+            "wms": WMS_1_3_0_NAMESPACE,
+            "inspire_common": INSPIRE_COMMON,
+            "inspire_vs": INSPIRE_VS
         },
         "_schema": "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd",
         "_pre_save": [
@@ -25,6 +28,13 @@ XPATH_MAP = {
                 "fees": "./wms:Service/wms:Fees",
                 "access_constraints": "./wms:Service/wms:AccessConstraints",
                 "service_url": "./wms:Service/wms:OnlineResource/@xlink:href",
+                "remote_metadata": {
+                    "_model": "registry.WebMapServiceRemoteMetadata",
+                    "_base_xpath": "./inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "fields": {
+                        "link": "./text()"
+                    }
+                },
                 "service_contact": {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "/wms:WMS_Capabilities/wms:Service/wms:ContactInformation",
@@ -167,15 +177,13 @@ XPATH_MAP = {
                                 }
                             }
                         },
-                        # TODO: model has no fk to the layer/service objects.
-                        # Use _parser or redesign model
-                        # "remote_metadata": {
-                        #     "_model": "registry.RemoteMetadata",
-                        #     "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
-                        #     "fields": {
-                        #         "link": "./@xlink:href"
-                        #     }
-                        # },
+                        "remote_metadata": {
+                            "_model": "registry.LayerRemoteMetadata",
+                            "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
+                            "fields": {
+                                "link": "./@xlink:href"
+                            }
+                        },
                         "time_extents": {
                             "_model": "registry.LayerTimeExtent",
                             "_base_xpath": "./wms:Dimension[@name='time']",

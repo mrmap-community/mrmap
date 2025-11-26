@@ -1,6 +1,6 @@
 from registry.mappers.namespaces import (FES_2_0_NAMEPSACE,
-                                         GML_3_2_2_NAMESPACE,
-                                         OWS_1_1_NAMESPACE,
+                                         GML_3_2_2_NAMESPACE, INSPIRE_COMMON,
+                                         INSPIRE_VS, OWS_1_1_NAMESPACE,
                                          WFS_2_0_0_NAMESPACE, XLINK_NAMESPACE)
 
 XPATH_MAP = {
@@ -11,7 +11,9 @@ XPATH_MAP = {
             "wfs": WFS_2_0_0_NAMESPACE,
             "ows": OWS_1_1_NAMESPACE,
             "gml": GML_3_2_2_NAMESPACE,
-            "fes": FES_2_0_NAMEPSACE
+            "fes": FES_2_0_NAMEPSACE,
+            "inspire_common": INSPIRE_COMMON,
+            "inspire_vs": INSPIRE_VS
         },
         "_schema": "http://www.opengis.net/wfs/2.0",
         "_pre_save": [
@@ -30,6 +32,13 @@ XPATH_MAP = {
                 "abstract": "./ows:ServiceIdentification/ows:Abstract",
                 "fees": "./ows:ServiceIdentification/ows:Fees",
                 "access_constraints": "./ows:ServiceIdentification/ows:AccessConstraints",
+                "remote_metadata": {
+                    "_model": "registry.WebFeatureServiceRemoteMetadata",
+                    "_base_xpath": "./ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "fields": {
+                        "link": "./text()"
+                    }
+                },
                 "service_contact": {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceProvider",
@@ -143,18 +152,15 @@ XPATH_MAP = {
                             "_many": True,
                             "_parser": "registry.mappers.parsers.wfs.parse_reference_systems",
                         },
+                        "remote_metadata": {
+                            "_model": "registry.FeatureTypeRemoteMetadata",
+                            "_base_xpath": "./wfs:MetadataURL",
+                            "fields": {
+                                "link": "./@xlink:href"
+                            }
+                        },
                     }
                 },
-
-                # TODO: model has no fk to the layer/service objects.
-                # Use _parser or redesign model
-                # "remote_metadata": {
-                #     "_model": "registry.RemoteMetadata",
-                #     "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
-                #     "fields": {
-                #         "link": "./@xlink:href"
-                #     }
-                # },
             }
         }
     },

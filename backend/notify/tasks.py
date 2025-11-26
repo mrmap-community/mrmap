@@ -94,12 +94,16 @@ class BackgroundProcessBased(Task):
                         query.update(**kwargs)
 
                     if send_post_save:
-                        instance = query[0]
-                        post_save.send(
-                            BackgroundProcess,
-                            instance=instance,
-                            created=False
-                        )
+                        try:
+                            instance = query.get()
+                            post_save.send(
+                                BackgroundProcess,
+                                instance=instance,
+                                created=False
+                            )
+                        except BackgroundProcess.DoesNotExist:
+                            logger.warning(
+                                f"Can't get BackgroundProcess by id {self.background_process_pk}")
 
             except Exception as e:
                 logger.exception(e, stack_info=True, exc_info=True)

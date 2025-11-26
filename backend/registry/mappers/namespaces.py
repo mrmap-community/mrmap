@@ -17,3 +17,6 @@ FES_2_0_NAMEPSACE = "http://www.opengis.net/fes/2.0"
 OGC_NAMESPACE = "http://www.opengis.net/ogc"
 
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+
+INSPIRE_COMMON = "http://inspire.ec.europa.eu/schemas/common/1.0"
+INSPIRE_VS = "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0"

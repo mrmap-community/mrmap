@@ -3,7 +3,7 @@ from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, Sum
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from django.db.models.sql.constants import LOUTER
-from django_cte import With
+from django_cte import CTE, with_cte
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              HistoryInformationViewSetMixin,
@@ -62,7 +62,7 @@ class WebMapServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebMapServices` from the system
     """
-    queryset = WebMapService.capabilities.all()
+    queryset = WebMapService.objects.all()
     serializer_classes = {
         "default": WebMapServiceSerializer,
         "list": WebMapServiceListSerializer,
@@ -232,7 +232,7 @@ class LayerViewSetMixin(
         "keywords": [
             Prefetch("keywords", queryset=Keyword.objects.only("id"))
         ],
-        "reference_system": [
+        "reference_systems": [
             Prefetch(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
@@ -345,7 +345,7 @@ class WebFeatureServiceViewSet(
         destroy:
             Endpoint to remove a registered `WebFeatureService` from the system
     """
-    queryset = WebFeatureService.capabilities.all()
+    queryset = WebFeatureService.objects.all()
     serializer_classes = {
         "default": WebFeatureServiceSerializer,
         "create": WebFeatureServiceCreateSerializer,
@@ -384,7 +384,7 @@ class WebFeatureServiceViewSet(
         ],
     }
     prefetch_for_not_includes = {
-        "feature_types": [
+        "featuretypes": [
             Prefetch(
                 "featuretypes",
                 queryset=FeatureType.objects.only(
@@ -677,7 +677,7 @@ class CatalogueServiceViewSetMixin(
                 "id",
                 filter=Q(service_metadata_record__isnull=False),
             )
-        relation_agg = With(
+        relation_agg = CTE(
             HarvestedMetadataRelation.objects
             .filter(~Q(collecting_state=CollectingStatenEnum.DUPLICATED.value))
             .values("harvesting_job_id")
@@ -695,7 +695,7 @@ class CatalogueServiceViewSetMixin(
             cte_kwargs.update({
                 "service_count": Sum(relation_agg.col.service_count)
             })
-        cte = With(
+        cte = CTE(
             relation_agg.join(
                 HarvestingJob,
                 id=relation_agg.col.harvesting_job_id,
@@ -706,13 +706,13 @@ class CatalogueServiceViewSetMixin(
         )
 
         if harvested_total_count_needed or harvested_dataset_count_needed or harvested_service_count_needed:
-            qs = (
-                cte.join(model_or_queryset=qs,
-                         id=cte.col.service_id,
-                         _join_type=LOUTER
-                         )
-                .with_cte(relation_agg)
-                .with_cte(cte)
+            qs = with_cte(
+                cte,
+                relation_agg,
+                select=cte.join(model_or_queryset=qs,
+                                id=cte.col.service_id,
+                                _join_type=LOUTER
+                                )
             )
 
         # --- step 3: annotation of the final values

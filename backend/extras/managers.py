@@ -1,7 +1,7 @@
 from typing import Any, MutableMapping, Optional, Tuple, TypeVar
 
 from django.db import models
-from django.db.models import Case, Count, F, Q, Value, When
+from django.db.models import Count, F, Q
 from django.db.models.constraints import UniqueConstraint
 from django.db.models.query import Prefetch
 

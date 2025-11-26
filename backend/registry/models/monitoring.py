@@ -2,6 +2,7 @@ from datetime import timedelta
 from io import BytesIO
 from typing import List
 
+from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
@@ -9,7 +10,6 @@ from django.db import transaction
 from django.db.models.fields import BooleanField, CharField
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
-from django_celery_results.models import GroupResult, TaskResult
 from epsg_cache.utils import adjust_axis_order
 from lxml import etree
 from PIL import Image, UnidentifiedImageError
@@ -39,7 +39,7 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if not self.pk and not self.task:
-            self.task = "registry.tasks.monitoring.run_wms_monitoring"
+            self.task = "registry.tasks.monitoring.create_wms_monitoring_run"
         if not self.pk and not self.kwargs:
             self.kwargs = {
                 "setting_pk": self.pk
@@ -52,7 +52,6 @@ class WebMapServiceMonitoringRun(models.Model):
     setting: WebMapServiceMonitoringSetting = models.ForeignKey(
         to=WebMapServiceMonitoringSetting,
         on_delete=models.PROTECT,
-
     )
     date_created = models.DateTimeField(
         auto_now_add=True,
@@ -66,28 +65,23 @@ class WebMapServiceMonitoringRun(models.Model):
         help_text=_('Datetime field when the run was done in UTC'),
         null=True,
         blank=True)
-    group_result = models.ForeignKey(
-        to=GroupResult,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL
-    )
 
-    def save(self, trigger_run_wms_monitoring=True, *args, **kwargs) -> None:
+    def save(self, *args, **kwargs) -> None:
+        adding = self._state.adding
         ret = super().save(*args, **kwargs)
-        if trigger_run_wms_monitoring:
+        if adding:
             from registry.tasks.monitoring import run_wms_monitoring
+
             transaction.on_commit(
                 lambda: run_wms_monitoring.apply_async(
-                    settings_pk=self.settings.pk,
-                    run_pk=self.pk
+                    args=(self.pk,)
                 )
             )
         return ret
 
 
 class ProbeResult(models.Model):
-    status_code: int = models.IntegerField(
+    status_code: int = models.SmallIntegerField(
         editable=False,
         null=True,
         blank=True,
@@ -114,14 +108,6 @@ class ProbeResult(models.Model):
         blank=True,
         verbose_name=_('Completed DateTime'),
         help_text=_('Datetime field when the task was completed in UTC'))
-    celery_task_result = models.OneToOneField(
-        to=TaskResult,
-        null=True,
-        default=None,
-        blank=True,
-        editable=False,
-        on_delete=models.SET_NULL
-    )
 
     class Meta:
         abstract = True
@@ -254,10 +240,9 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
             self.result.check_response_is_valid_xml_success = False
             self.result.check_response_is_valid_xml_message = f"response is not a valide xml. {e}"  # noqa
 
-    def run_checks(self, run: WebMapServiceMonitoringRun, celery_task_result: TaskResult, *args, **kwargs) -> GetMapProbeResult:
+    def run_checks(self, run: WebMapServiceMonitoringRun, *args, **kwargs) -> GetMapProbeResult:
         result = GetCapabilitiesProbeResult.objects.create(
             run=run,
-            celery_task_result=celery_task_result
         )
         self.result = result
         self.save()
@@ -333,15 +318,15 @@ class GetMapProbe(WebMapServiceProbe):
             self.result.check_response_image_success = False
             self.result.check_response_image_message = "Could not create image from response."
 
-    def run_checks(self, run: WebMapServiceMonitoringRun, celery_task_result: TaskResult, *args, **kwargs) -> GetMapProbeResult:
+    def run_checks(self, run: WebMapServiceMonitoringRun, *args, **kwargs) -> GetMapProbeResult:
         result = GetMapProbeResult.objects.create(
-            run=run, celery_task_result=celery_task_result)
+            run=run)
         self.result = result
         self.save()
         try:
             client = self.setting.service.client
             layers: list[Layer] = self.layers.with_inherited_attributes_cte()
-            bbox: Polygon = layers[0].bbox_inherited
+            bbox: Polygon = layers[0].bbox_lat_lon_inherited
             if client.capabilities.service_type.version == "1.3.0":
                 bbox = adjust_axis_order(bbox)
 

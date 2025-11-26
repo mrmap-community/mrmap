@@ -1,32 +1,17 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls.base import reverse
-from django_celery_results.models import GroupResult
 from notify.models import BackgroundProcess
-from registry.enums.service import AuthTypeEnum
+from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
 from registry.models.security import WebMapServiceAuthentication
 from registry.models.service import WebMapService
 from registry.tasks.service import build_ogc_service
 from requests.sessions import Session
 from rest_framework import status
-
-
-class MockResponse:
-
-    def __init__(self, status_code, content):
-        self.status_code = status_code
-
-        if isinstance(content, Path):
-            in_file = open(content, "rb")
-            self.content = in_file.read()
-            in_file.close()
-            self.text = self.content.decode('utf-8')
-        if isinstance(content, str):
-            self.text = content
-            self.content = bytes(self.text, 'utf-8')
+from tests.django.utils import MockResponse
 
 
 def side_effect(request, *args, **kwargs):
@@ -46,7 +31,7 @@ def side_effect(request, *args, **kwargs):
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RADOLAN-W4.xml')))
 
 
-class BuildOgcServiceTaskTest(TestCase):
+class BuildOgcServiceTaskTest(TransactionTestCase):
 
     def setUp(self):
         self.http_request = {
@@ -54,26 +39,25 @@ class BuildOgcServiceTaskTest(TestCase):
             "method": "GET",
             "content_type": "application/vnd.api+json",
             "data": {},
-            "user_pk": "somepk",
+            "user_pk": "af7aaeff-ce21-4e35-af4a-dd2caec92f0f",
         }
 
         self.background_process = BackgroundProcess.objects.create(
             phase="", process_type="registering", description="")
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch.object(Session, 'send', side_effect=side_effect)
-    def test_success_without_service_auth(self, mock_response):
+    @patch("registry.tasks.service.Session.send", side_effect=side_effect)
+    def test_success_without_service_auth(self, mock_send):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
-
         task = build_ogc_service.delay(get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
                                        collect_metadata_records=False,
                                        service_auth_pk=None,
                                        http_request=self.http_request,
                                        background_process_pk=self.background_process.pk,
-                                       **{'user_pk': 'somepk'})
+                                       **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
 
         db_service = WebMapService.objects.all()[:1][0]
 
@@ -89,14 +73,13 @@ class BuildOgcServiceTaskTest(TestCase):
         self.assertDictEqual(d1=task.result, d2=expected_result,
                              msg="Task result does not match expection.")
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch.object(Session, 'send', side_effect=side_effect)
-    def test_success_with_service_auth(self, mock_response):
+    def test_success_with_service_auth(self, mock_send):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
-
         auth = WebMapServiceAuthentication.objects.create(
             username="user", password="password", auth_type=AuthTypeEnum.BASIC.value)
 
@@ -105,7 +88,7 @@ class BuildOgcServiceTaskTest(TestCase):
                                          service_auth_pk=auth.pk,
                                          http_request=self.http_request,
                                          background_process_pk=self.background_process.pk,
-                                         **{'user_pk': 'somepk'})
+                                         **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
 
         db_service = WebMapService.objects.all()[:1][0]
 
@@ -123,14 +106,14 @@ class BuildOgcServiceTaskTest(TestCase):
 
         self.assertEqual(
             db_service.version,
-            "1.3.0"
+            OGCServiceVersionEnum.V_1_3_0.value
         )
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch.object(Session, 'send', side_effect=side_effect)
-    def test_success_with_collect_metadata_true(self, mock_response):
+    def test_success_with_collect_metadata_true(self, mock_send):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""
 
@@ -139,7 +122,7 @@ class BuildOgcServiceTaskTest(TestCase):
                                          service_auth_pk=None,
                                          http_request=self.http_request,
                                          background_process_pk=self.background_process.pk,
-                                         **{'user_pk': 'somepk'})
+                                         **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
 
         db_service = WebMapService.objects.all()[:1][0]
         # group_result = GroupResult.objects.latest('date_created')

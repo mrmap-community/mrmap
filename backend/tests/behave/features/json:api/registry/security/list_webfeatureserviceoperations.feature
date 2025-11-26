@@ -12,13 +12,13 @@ Feature: WebFeatureServiceOperation List Endpoint
         Then I expect that response json has an attribute "meta.pagination.count" with value "2"
 
     Scenario: Can search for operation 'GetFeature'
-        Given I set a queryparam "filter[search]" with value "GetFeature"
+        Given I set a queryparam "filter[search]" with value "30"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
     Scenario: Can search for operation 'Trans'
-        Given I set a queryparam "filter[search]" with value "Trans"
+        Given I set a queryparam "filter[search]" with value "31"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"

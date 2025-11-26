@@ -10,7 +10,7 @@ from eulxml import xmlmap
 from eulxml.xmlmap import XmlObject
 from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
 from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.mapping.capabilities.utils import get_mapper_for_service
+from registry.mappers.capabilities.utils import get_mapper_for_service
 
 
 def xml_backup_file_path(instance, filename):
@@ -65,6 +65,7 @@ class DocumentModelMixin(models.Model):
         :return xml_object: the xml mapper object
         :rtype: :class:`xmlmap.XmlObject`
         """
+        # TODO: #527
         return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string.encode("UTF-8"),
                                                  xmlclass=self.get_xml_mapper_cls())
 
@@ -87,6 +88,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
     @property
     def xml_backup(self) -> OGCServiceMixin:
+        # TODO: #527
         return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
 
     @property
@@ -95,6 +97,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
             The values from the database overwrites the values inside the xml document.
         """
+        # TODO: #527: C4
         mapper_cls = get_mapper_for_service(self)
         mapper = mapper_cls(source_obj=self)
         xml_object = mapper.update(destination_obj=self.xml_backup)

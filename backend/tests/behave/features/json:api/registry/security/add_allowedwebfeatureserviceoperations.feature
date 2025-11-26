@@ -21,11 +21,11 @@ Feature: AllowedWebFeatureServiceOperation Add Endpoint
                         "operations": {
                             "data": [
                                 {
-                                    "id": "GetFeature",
+                                    "id": 30,
                                     "type": "WebFeatureServiceOperation"
                                 },
                                 {
-                                    "id": "Transaction",
+                                    "id": 31,
                                     "type": "WebFeatureServiceOperation"
                                 }
                             ]
@@ -69,11 +69,11 @@ Feature: AllowedWebFeatureServiceOperation Add Endpoint
                         "operations": {
                             "data": [
                                 {
-                                    "id": "GetFeature",
+                                    "id": 30,
                                     "type": "WebFeatureServiceOperation"
                                 },
                                 {
-                                    "id": "Transaction",
+                                    "id": 31,
                                     "type": "WebFeatureServiceOperation"
                                 }
                             ]

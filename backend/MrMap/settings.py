@@ -7,12 +7,11 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
-
 import logging
-import multiprocessing
 import os
 import re
 import socket
+import sys
 from glob import glob
 from warnings import warn
 
@@ -73,6 +72,7 @@ if not os.path.exists(MEDIA_ROOT):
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 
 # SECURITY WARNING: don't run with debug turned on in production!
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 MRMAP_PRODUCTION = os.environ.get("MRMAP_PRODUCTION", default="False")
 MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
@@ -145,13 +145,15 @@ TEMPLATES = [
     },
 ]
 
-if DEBUG:
+# -------------------------------
+# Debug Toolbar nur aktiv, wenn DEBUG und nicht beim Testen
+# -------------------------------
+if DEBUG and not TESTING:
+    INSTALLED_APPS.append("debug_toolbar")
+    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
 
-    INSTALLED_APPS.append(
-        "debug_toolbar",
-    )
-    # Disable all panels by default
     DEBUG_TOOLBAR_CONFIG = {
+        # Alle Panels standardmäßig deaktivieren
         "DISABLE_PANELS": {
             "debug_toolbar.panels.history.HistoryPanel",
             "debug_toolbar.panels.versions.VersionsPanel",
@@ -167,13 +169,19 @@ if DEBUG:
             "debug_toolbar.panels.logging.LoggingPanel",
             "debug_toolbar.panels.redirects.RedirectsPanel",
             "debug_toolbar.panels.profiling.ProfilingPanel",
+            # Problematisches Panel für binary content
+            "debug_toolbar.panels.alerts.AlertsPanel",
         },
-        # "RENDER_PANELS": True,
         "SHOW_TOOLBAR_CALLBACK": lambda request: True,
         "PRETTIFY_SQL": True,
     }
 
-    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
+else:
+    # Wenn DEBUG=0 oder Tests laufen, Toolbar komplett deaktivieren
+    if "debug_toolbar" in INSTALLED_APPS:
+        INSTALLED_APPS.remove("debug_toolbar")
+    if "debug_toolbar.middleware.DebugToolbarMiddleware" in MIDDLEWARE:
+        MIDDLEWARE.remove("debug_toolbar.middleware.DebugToolbarMiddleware")
 
 # Password hashes
 PASSWORD_HASHERS = [
@@ -231,7 +239,7 @@ LANGUAGES = (
 )
 LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
 DEFAULT_DATE_TIME_FORMAT = "YYYY-MM-DD hh:mm:ss"
-TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE")
+TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "Europe/Berlin")
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
@@ -265,15 +273,13 @@ RESERVED_CONNECTION_SPACE = 10
 MAX_BACKEND_RESERVED_CONNECTIONS = 10
 DATABASES = {
     "default": {
-        "ENGINE": os.environ.get("SQL_ENGINE"),
-        "NAME": os.environ.get("SQL_DATABASE"),
+        "ENGINE": os.environ.get("SQL_ENGINE", "django.contrib.gis.db.backends.postgis"),
+        "NAME": os.environ.get("SQL_DATABASE", "mrmap"),
         "USER": os.environ.get("SQL_USER"),
         "PASSWORD": os.environ.get("SQL_PASSWORD"),
-        "HOST": os.environ.get("SQL_HOST"),
-        "PORT": os.environ.get("SQL_PORT"),
-
+        "HOST": os.environ.get("SQL_HOST", "localhost"),
+        "PORT": os.environ.get("SQL_PORT", "5432"),
         "CONN_HEALTH_CHECKS": True,
-
     }
 }
 # -------------------------
@@ -308,8 +314,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
 # Redis settings
 ################################################################
-REDIS_HOST = os.environ.get("REDIS_HOST")
-REDIS_PORT = os.environ.get("REDIS_PORT")
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 
 # Cache
@@ -534,7 +540,7 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "rfc5424",
+            "formatter": "simple",
             "level": "INFO"
         },
     },
@@ -595,7 +601,7 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.MultiPartParser",
     ),
     "DEFAULT_RENDERER_CLASSES": [
-        "extras.utils.BrowsableAPIRendererWithoutForms",
+        # "extras.utils.BrowsableAPIRendererWithoutForms",
         "rest_framework_json_api.renderers.JSONRenderer",
     ],
 

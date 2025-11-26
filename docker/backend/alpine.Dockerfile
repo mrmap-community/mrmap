@@ -1,7 +1,7 @@
 ################################
 # Base build Image
 ################################  
-FROM python:3.12.11-alpine3.22 AS compile-image
+FROM python:3.12.12-alpine3.22 AS compile-image
 ARG MRMAP_PRODUCTION
 
 RUN apk update && \
@@ -20,7 +20,7 @@ RUN if [ "${MRMAP_PRODUCTION}" = "False" ] ; then pip install -r ./.requirements
 ################################
 # MrMap Image
 ################################    
-FROM python:3.12.11-alpine3.22 AS runtime-image
+FROM python:3.12.12-alpine3.22 AS runtime-image
 ARG MRMAP_PRODUCTION
 COPY --from=compile-image /opt/venv /opt/venv
 

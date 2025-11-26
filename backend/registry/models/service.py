@@ -1,4 +1,4 @@
-from logging import Logger, getLogger
+from logging import Logger
 from uuid import uuid4
 
 from django.conf import settings
@@ -29,10 +29,9 @@ from registry.exceptions.service import (LayerNotQueryable,
                                          OperationNotSupported)
 from registry.managers.security import (WebFeatureServiceSecurityManager,
                                         WebMapServiceSecurityManager)
-from registry.managers.service import (CatalogueServiceCapabilitiesManager,
-                                       CatalogueServiceManager, LayerManager,
-                                       WebFeatureServiceCapabilitiesManager,
-                                       WebMapServiceCapabilitiesManager)
+from registry.managers.service import (CatalogueServiceManager, LayerManager,
+                                       WebFeatureServiceQuerySet,
+                                       WebMapServiceQuerySet)
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
@@ -68,8 +67,7 @@ class CommonServiceInfo(models.Model):
 class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceInfo):
     """Abstract Service model to store OGC service."""
 
-    version: str = models.CharField(
-        max_length=10,
+    version = models.PositiveSmallIntegerField(
         choices=OGCServiceVersionEnum.choices,
         editable=False,
         verbose_name=_("version"),
@@ -105,13 +103,13 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 self.featuretypes.update(is_active=self.is_active)
 
     def major_version(self) -> int:
-        return int(self.version.split(".")[0])
+        return int(OGCServiceVersionEnum(self.version).label.split(".")[0])
 
     def minor_version(self) -> int:
-        return int(self.version.split(".")[1])
+        return int(OGCServiceVersionEnum(self.version).label.split(".")[1])
 
     def fix_version(self) -> int:
-        return int(self.version.split(".")[2])
+        return int(OGCServiceVersionEnum(self.version).label.split(".")[2])
 
     def get_session_for_request(self) -> Session:
         session = Session()
@@ -138,6 +136,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     @property
     def client(self):
         try:
+            # TODO: #527
             cap = self.xml_backup
         except FileNotFoundError:
             # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
@@ -151,7 +150,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 cap,
                 {
                     "SERVICE": self.get_service_type(),
-                    "VERSION": self.version,
+                    "VERSION": OGCServiceVersionEnum(self.version).label,
                     "REQUEST": "GetCapabilities",
                 }
             )
@@ -178,7 +177,8 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    capabilities = WebMapServiceCapabilitiesManager()
+
+    objects = WebMapServiceQuerySet.as_manager()
     security = WebMapServiceSecurityManager()
     history = DefaultHistoryManager()
 
@@ -203,7 +203,8 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    capabilities = WebFeatureServiceCapabilitiesManager()
+
+    objects = WebFeatureServiceQuerySet.as_manager()
     security = WebFeatureServiceSecurityManager()
     history = DefaultHistoryManager()
 
@@ -231,7 +232,6 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         excluded_fields="search_vector",
         bases=[AdditionalTimeFieldsHistoricalModel,],
     )
-    capabilities = CatalogueServiceCapabilitiesManager()
     objects = CatalogueServiceManager()
     history = DefaultHistoryManager()
 
@@ -251,11 +251,16 @@ class OperationUrl(models.Model):
 
     With that urls we can perform all needed request to a given service.
     """
-    method: str = models.CharField(
-        max_length=10,
+    method: str = models.PositiveSmallIntegerField(
         choices=HttpMethodEnum.choices,
         verbose_name=_("http method"),
         help_text=_("the http method you can perform for this url"),
+    )
+    operation: str = models.PositiveSmallIntegerField(
+        choices=OGCOperationEnum.choices,
+        # editable=False,
+        verbose_name=_("operation"),
+        help_text=_("the operation you can perform with this url."),
     )
     # 2048 is the technically specified max length of an url. Some services urls scratches this limit.
     url: str = models.URLField(
@@ -263,13 +268,6 @@ class OperationUrl(models.Model):
         # editable=False,
         verbose_name=_("url"),
         help_text=_("the url for this operation"),
-    )
-    operation: str = models.CharField(
-        max_length=30,
-        choices=OGCOperationEnum.choices,
-        # editable=False,
-        verbose_name=_("operation"),
-        help_text=_("the operation you can perform with this url."),
     )
     mime_types = models.ManyToManyField(
         to="MimeType",  # use string to avoid from circular import error
@@ -287,7 +285,7 @@ class OperationUrl(models.Model):
         abstract = True
 
     def __str__(self):
-        return f"{self.operation} | {self.url} ({self.method})"
+        return f"{OGCOperationEnum(self.operation).label} | {self.url} ({HttpMethodEnum(self.method).label})"
 
     # def get_url(self, request):
     #     url_parsed = urlparse(self.url)
@@ -505,10 +503,14 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
-
         indexes = [
         ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
-
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service", "identifier"],
+                name="unique_identifer_per_wms",
+            )
+        ] + Node.Meta.constraints + AbstractMetadata.Meta.constraints
         # TODO: add a constraint, which checks if parent is None and bbox is None. This is not allowed
 
     def save(self, *args, **kwargs):
@@ -540,7 +542,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
 
             operation_url: dict = self.service.operation_urls.values('id', 'url').get(
                 operation=OGCOperationEnum.GET_MAP.value,
-                method="Get"
+                method=HttpMethodEnum.GET.value
             )
             url: str = operation_url["url"]
             image_format = MimeType.objects.filter(
@@ -552,7 +554,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             else:
                 url: str = self.service.operation_urls.values('url').get(
                     operation=OGCOperationEnum.GET_MAP.value,
-                    method="Get"
+                    method=HttpMethodEnum.GET.value
                 )["url"]
                 # TODO: check if this format is supported by the layer...
             image_format: str = format
@@ -560,11 +562,11 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         if bbox:
             _bbox: Polygon = bbox
         else:
-            if hasattr(self, "bbox_inherited"):
-                _bbox: Polygon = self.bbox_inherited
+            if hasattr(self, "bbox_lat_lon_inherited"):
+                _bbox: Polygon = self.bbox_lat_lon_inherited
             else:
                 _bbox: Polygon = Layer.objects.with_inherited_attributes_cte(
-                ).values_list("bbox_inherited", flat=True).get(pk=self.pk)
+                ).values_list("bbox_lat_lon_inherited", flat=True).get(pk=self.pk)
 
         # if self.get_scale_max:
         #     # 1/100000
@@ -579,7 +581,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
 
         # TODO: handle different versions here... version 1.0.0 has other query parameters
         query_params = {
-            "VERSION": self.service.version,
+            "VERSION": OGCServiceVersionEnum(self.service.version).label,
             "REQUEST": "GetMap",
             "SERVICE": "WMS",
             "LAYERS": self.identifier,
@@ -603,7 +605,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             if not info_format:
                 url_and_id: dict = self.service.operation_urls.values('id', 'url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                    method="Get"
+                    method=HttpMethodEnum.GET.value
                 )
                 url: str = url_and_id["url"]
                 _info_format: str = MimeType.objects.filter(
@@ -611,7 +613,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             else:
                 url: str = self.service.operation_urls.values('url').get(
                     operation=OGCOperationEnum.GET_FEATURE_INFO.value,
-                    method="Get"
+                    method=HttpMethodEnum.GET.value
                 )["url"]
                 # TODO: check if this format is supported by the layer...
                 _info_format: str = "text/plain"
@@ -620,7 +622,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
                 f"Service {self.service.title} does not suppoert operation GetFeatureInfo")
 
         query_params = {
-            "VERSION": self.service.version,
+            "VERSION": OGCServiceVersionEnum(self.service.version).label,
             "REQUEST": "GetFeatureInfo",
             "QUERY_LAYERS": self.identifier,
             "INFO_FORMAT": _info_format,
@@ -681,9 +683,14 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
     class Meta:
         verbose_name = _("feature type")
         verbose_name_plural = _("feature types")
-
         indexes = [
         ] + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
+        constraints = [
+            models.UniqueConstraint(
+                fields=["service", "identifier"],
+                name="unique_identifer_per_wfs",
+            )
+        ] + AbstractMetadata.Meta.constraints
 
     def save(self, *args, **kwargs):
         """Custom save function to handle activate process for the feature type and his related service.
@@ -701,7 +708,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """Return the fetched described feature type document and update the content if save is True"""
-
+        # TODO: #527
         client = get_client(capabilities=self.service.xml_backup,
                             session=self.service.get_session_for_request())
         response = client.send_request(
@@ -724,6 +731,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             ValueError: if self.remote_content is null
         """
         if self.describe_feature_type_document:
+            # TODO: #527
             parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(
                 string=self.describe_feature_type_document,
                 xmlclass=XmlDescribedFeatureType,
@@ -768,6 +776,4 @@ class FeatureTypeProperty(models.Model):
         ordering = ["-name"]
 
     def __str__(self):
-        return self.name
-        return self.name
         return self.name

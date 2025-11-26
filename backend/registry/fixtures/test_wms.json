@@ -15,7 +15,7 @@
         "fields": {
             "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "version": "1.3.0",
+            "version": 130,
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
@@ -29,7 +29,7 @@
             "history_type": "+",
             "history_relation": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "history_user": [
-                "mrmap"
+                "User1"
             ]
         }
     },
@@ -39,7 +39,7 @@
         "fields": {
             "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "version": "1.3.0",
+            "version": 130,
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
@@ -53,7 +53,7 @@
             "history_type": "~",
             "history_relation": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "history_user": [
-                "mrmap"
+                "User1"
             ]
         }
     },
@@ -80,7 +80,7 @@
             "history_type": "+",
             "history_relation": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
             "history_user": [
-                "mrmap"
+                "User1"
             ]
         }
     },
@@ -123,9 +123,9 @@
         "model": "registry.WebMapServiceOperationUrl",
         "pk": "1",
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetMap",
+            "operation": 20,
             "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "mime_types": [
                 1,
@@ -137,9 +137,9 @@
         "model": "registry.WebMapServiceOperationUrl",
         "pk": "2",
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?SERVICE=WMS&",
-            "operation": "GetFeatureInfo",
+            "operation": 21,
             "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "mime_types": [
                 3
@@ -150,9 +150,9 @@
         "model": "registry.WebMapServiceOperationUrl",
         "pk": "3",
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?SERVICE=WMS&",
-            "operation": "GetCapabilities",
+            "operation": 1,
             "service": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
             "mime_types": [
                 3
@@ -172,7 +172,7 @@
         "pk": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "version": "1.3.0",
+            "version": 130,
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
@@ -340,9 +340,9 @@
         "model": "registry.WebMapServiceOperationUrl",
         "pk": "4",
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://example.com/wms?",
-            "operation": "GetMap",
+            "operation": 20,
             "service": "1b195589-dcfa-403f-9e66-e7e1c0a67024",
             "mime_types": [
                 1,
@@ -355,7 +355,7 @@
         "pk": "1b195589-dcfa-403f-9e66-e7e1c0a67024",
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "version": "1.3.0",
+            "version": 130,
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "https://example.com?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",

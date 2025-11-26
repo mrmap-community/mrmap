@@ -143,6 +143,7 @@ class CswServiceView(View):
         cap_file = os.path.dirname(
             os.path.abspath(__file__)) + "/capabilitites.xml"
 
+        # TODO: #527: C4 requirement is needed to replace the following lines.
         capabilitites_doc: CatalogueService = load_xmlobject_from_file(
             cap_file, xmlclass=CatalogueService)
 
@@ -283,6 +284,7 @@ class CswServiceView(View):
             )
             for record in result:
                 try:
+                    # TODO: #527
                     xml.gmd_records.append(
                         record.xml_backup)
                 except XMLSyntaxError:
@@ -310,6 +312,7 @@ class CswServiceView(View):
             time_stamp=self.start_time,
         )
         for record in records:
+            # TODO: #527
             xml.gmd_records.append(record.xml_backup)
         return HttpResponse(
             status=200, content=xml.serialize(pretty=True),

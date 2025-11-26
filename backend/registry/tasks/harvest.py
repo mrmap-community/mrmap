@@ -47,6 +47,7 @@ def finish_harvesting_job(*args, **kwargs):
 )
 def call_fetch_total_records(*args, **kwargs):
     from registry.models.harvest import HarvestingJob, HarvestingLog
+
     harvesting_job: HarvestingJob = HarvestingJob.objects.select_related("service", "service__auth").get(
         pk=kwargs.get("harvesting_job_id"))
     try:
@@ -174,6 +175,7 @@ def check_for_files_to_import(self, *args, **kwargs):
                 for file in files:
                     filename = os.path.join(dirpath, file)
                     try:
+                        # TODO: #527
                         metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(
                             filename=filename,
                             xmlclass=WrappedIsoMetadata)

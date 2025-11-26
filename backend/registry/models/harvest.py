@@ -442,7 +442,7 @@ class HarvestingJob(ProcessingData):
             self.total_records = 0
             self.save()
             return self.total_records
-
+        # TODO: #527
         get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=first_response.content,
                                                                                      xmlclass=GetRecordsResponse)
         self.total_records = get_records_response.total_records
@@ -566,7 +566,8 @@ class HarvestingJob(ProcessingData):
                 self.log(
                     level=LogLevelEnum.WARNING.value,
                     kind=LogKindEnum.COUNT_MISSMATCH.value,
-                    description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
+                    description=f"{len(db_objs)}<{should_return_count}",
+                    extented_description=f"Only {len(db_objs)} received from {should_return_count} possible records.\n" +
                     f"URL: {request.url}"
                 )
 

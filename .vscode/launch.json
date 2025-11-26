@@ -80,7 +80,15 @@
                     "remoteRoot": "/opt/venv/lib/python3.12/site-packages"
                 }
             ],
-            "justMyCode": false
+            "justMyCode": false,
+            "env": {
+                "SQL_PORT": "5555",
+                "SQL_USER": "mrmap",
+                "SQL_PASSWORD": "mrmap",
+                "SQL_NAME": "test_mrmap",
+                "MRMAP_USER": "mrmap",
+                "MRMAP_PASSWORD": "mrmap"
+            },
         },
         {
             "name": "Debug: django-tests",
@@ -100,7 +108,36 @@
                     "remoteRoot": "/opt/venv/lib/python3.12/site-packages"
                 }
             ],
-            "justMyCode": false
+            "justMyCode": false,
+            "env": {
+                "SQL_PORT": "5555",
+                "SQL_USER": "mrmap",
+                "SQL_PASSWORD": "mrmap",
+                "SQL_NAME": "test_mrmap",
+                "MRMAP_USER": "mrmap",
+                "MRMAP_PASSWORD": "mrmap"
+            },
+        },
+        {
+            "name": "Debug: manage.py test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/manage.py",
+            "args": [
+                "test",
+                "backend/tests/django/"
+            ],
+            "django": true,
+            "justMyCode": false,
+            "env": {
+                "SQL_PORT": "5555",
+                "SQL_USER": "mrmap",
+                "SQL_PASSWORD": "mrmap",
+                "SQL_NAME": "test_mrmap",
+                "MRMAP_USER": "mrmap",
+                "MRMAP_PASSWORD": "mrmap"
+            },
+            "envFile": "${workspaceFolder}/.env",
         },
     ]
 }

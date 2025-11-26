@@ -41,11 +41,12 @@ Feature: CatalogueService List Endpoint
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "1"
 
-    Scenario: Can include dataset metadata
-        Given I set a queryparam "include" with value "harvestedDatasets"
-        When I send the request with GET method
-        Then I expect the response status is 200
-        Then I expect that response json has an attribute "included.[0].type" with value "DatasetMetadataRecord"
+    # We no longer support this, cause it could be over 600k of items
+    # Scenario: Can include dataset metadata
+    #     Given I set a queryparam "include" with value "harvestedDatasets"
+    #     When I send the request with GET method
+    #     Then I expect the response status is 200
+    #     Then I expect that response json has an attribute "included.[0].type" with value "DatasetMetadataRecord"
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"

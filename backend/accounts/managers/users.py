@@ -4,6 +4,8 @@ from django.db.models.functions.comparison import Coalesce
 
 
 class CustomUserManager(UserManager):
+    def get_by_natural_key(self, username):
+        return self.get(**{self.model.USERNAME_FIELD: username})
 
     def with_meta(self):
         return self.annotate(

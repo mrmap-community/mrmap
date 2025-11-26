@@ -5,7 +5,7 @@ from django.db.models import Case, Count, F, Prefetch, Q, Sum, Value, When
 from django.db.models.fields import DurationField, FloatField
 from django.db.models.functions import Ceil, Coalesce, Round
 from django.db.models.sql.constants import LOUTER
-from django_cte import With
+from django_cte import CTE, With, with_cte
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import (NestedModelViewSet, PreloadNotIncludesMixin,
                              SerializerClassesMixin, SparseFieldMixin)
@@ -261,18 +261,18 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
             })
         sums = None
         if dataset_cte_annotation or service_cte_annotation or cte_annotation:
-            sums = With(
+            sums = CTE(
                 queryset=HarvestedMetadataRelation.objects.values('harvesting_job_id').annotate(
                     **dataset_cte_annotation, **service_cte_annotation, **cte_annotation),
                 name="sums"
             )
-            qs = (
-                sums.join(model_or_queryset=qs,
-                          id=sums.col.harvesting_job_id,
-                          _join_type=LOUTER)
-                .with_cte(sums)
-            )
 
+            qs = with_cte(
+                sums,
+                select=sums.join(model_or_queryset=qs,
+                                 id=sums.col.harvesting_job_id,
+                                 _join_type=LOUTER)
+            )
             qs = self._prepare_qs_for_harvesting_stats(qs, sums)
 
         return qs
@@ -368,16 +368,16 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
 
     def construct_cte(self, qs, cte_kwargs, model, join_key, qs_annotation_kwargs={}, join_type=LOUTER):
         if cte_kwargs:
-            cte = With(
+            cte = CTE(
                 queryset=model.objects.values(
                     'job_id').annotate(**cte_kwargs),
                 name=f"{to_snake(model.__name__)}_cte"
             )
-            qs = (
-                cte.join(model_or_queryset=qs,
-                         id=getattr(cte.col, join_key),
-                         _join_type=join_type)
-                .with_cte(cte)
+            qs = with_cte(
+                cte,
+                select=cte.join(model_or_queryset=qs,
+                                id=getattr(cte.col, join_key),
+                                _join_type=join_type)
             )
             qs = self.annotate_qs_by_cte_fields(qs, cte_kwargs, cte)
         if qs_annotation_kwargs:

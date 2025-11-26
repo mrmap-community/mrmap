@@ -27,7 +27,7 @@ Feature: WebFeatureService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "4",
+                                "id": "1",
                                 "type": "Organization"
                             }
                         }
@@ -51,7 +51,7 @@ Feature: WebFeatureService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "4",
+                                "id": "1",
                                 "type": "Organization"
                             }
                         }
@@ -76,7 +76,7 @@ Feature: WebFeatureService Add Endpoint
                     "relationships": {
                         "owner": {
                             "data": {
-                                "id": "4",
+                                "id": "1",
                                 "type": "Organization"
                             }
                         }

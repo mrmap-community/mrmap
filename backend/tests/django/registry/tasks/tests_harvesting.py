@@ -1,8 +1,9 @@
 from pathlib import Path
+from unittest import skip
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from MrMap.settings import BASE_DIR
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
@@ -51,50 +52,58 @@ def setup_capabilitites_file():
     cap_file.close()
 
 
-class HarvestingGetHitsTaskTest(TestCase):
+# @skip("HarvestingGetHitsTaskTest")
+class HarvestingGetHitsTaskTest(TransactionTestCase):
 
-    fixtures = ['test_csw.json']
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
 
     def setUp(self):
         setup_capabilitites_file()
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
+    @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
+    @patch("celery.canvas.Signature.apply_async", return_value=None)
+    @patch("celery.canvas.Signature.apply", return_value=None)
+    @patch("celery.canvas.chord.apply_async", return_value=None)
     @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
-    def test_success(self, mocked_run_checks):
+    def test_success(self, mocked_send_request, mocked_chord_apply_async, mocked_apply, mocked_apply_async, mocked_on_commit):
         call_fetch_total_records.delay(harvesting_job_id=1)
         harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
         self.assertEqual(harvesting_job.total_records, 447773)
 
 
-class HarvestingGetRecordsTaskTest(TestCase):
+# @skip("HarvestingGetRecordsTaskTest")
+class HarvestingGetRecordsTaskTest(TransactionTestCase):
 
-    fixtures = ['test_csw.json']
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
 
     def setUp(self):
         setup_capabilitites_file()
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
     def test_success(self, mocked_run_checks):
+
         call_fetch_records.delay(harvesting_job_id=1, start_position=1)
         temporary_md_files_count: TemporaryMdMetadataFile = TemporaryMdMetadataFile.objects.filter(
             job__id=1).count()
         self.assertEqual(temporary_md_files_count, 10)
 
 
-class TemporaryMdMetadataFileToDbTaskTest(TestCase):
+# @skip("TemporaryMdMetadataFileToDbTaskTest")
+class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):
 
-    fixtures = ['test_csw.json']
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
 
     def setUp(self):
         setup_capabilitites_file()
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_ALWAYS_EAGER=True,
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     def test_success(self, ):
 

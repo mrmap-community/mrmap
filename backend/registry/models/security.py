@@ -39,6 +39,7 @@ class ServiceAuthentication(models.Model):
         verbose_name=_("password"),
         help_text=_("the password used for the authentication."),
     )
+    # TODO: use IntegerChoices instead
     auth_type = models.CharField(
         max_length=100,
         choices=AuthTypeEnum.choices,
@@ -187,21 +188,23 @@ class CatalogueServiceAuthentication(ServiceAuthentication):
 
 
 class WebMapServiceOperation(models.Model):
-    operation = models.CharField(
-        primary_key=True, max_length=30, choices=SecureableWMSOperationEnum.choices
+    operation = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=SecureableWMSOperationEnum.choices
     )
 
     def __str__(self) -> str:
-        return self.operation
+        return SecureableWMSOperationEnum(self.operation).label
 
 
 class WebFeatureServiceOperation(models.Model):
-    operation = models.CharField(
-        primary_key=True, max_length=30, choices=SecureableWFSOperationEnum.choices
+    operation = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=SecureableWFSOperationEnum.choices
     )
 
     def __str__(self) -> str:
-        return self.operation
+        return SecureableWFSOperationEnum(self.operation).label
 
 
 class AllowedOperation(models.Model):

@@ -10,8 +10,8 @@ from extras.utils import get_included_resources, get_sparse_fields
 from registry.expressions.layer_ctes import (AncestorsHeritageAggregatedCTE,
                                              AncestorsHeritageCTE,
                                              LayerSecurityInformationCTE)
-from registry.models.metadata import (DatasetMetadataRecord, Dimension,
-                                      Keyword, ReferenceSystem, Style)
+from registry.models.metadata import (DatasetMetadataRecord, Keyword,
+                                      LayerTimeExtent, ReferenceSystem, Style)
 
 
 class LayerQuerySet(QuerySet):
@@ -139,7 +139,7 @@ class LayerQuerySet(QuerySet):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return Dimension.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+        return LayerTimeExtent.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
 
     def inherited_styles(self) -> QuerySet:
         return Style.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
@@ -166,14 +166,11 @@ class LayerQuerySet(QuerySet):
                 distinct=True,
                 default=Value('[]'),
             ),
-            dimensions_inherited=JSONBAgg(
+            time_extents_inherited=JSONBAgg(
                 JSONObject(
-                    pk="layer_dimension__pk",
-                    name="layer_dimension__name",
-                    units="layer_dimension__units",
-                    parsed_extent="layer_dimension__parsed_extent",
+                    pk="time_extent__pk",
                 ),
-                filter=Q(layer_dimension__pk__isnull=False),
+                filter=Q(time_extent__pk__isnull=False),
                 distinct=True,
                 default=Value('[]'),
             ),
@@ -240,7 +237,7 @@ class LayerQuerySet(QuerySet):
     def get_ancestors_aggregated_cte(self):
         cte_fields = [
             "reference_systems_inherited",
-            "dimensions_inherited",
+            "time_extents_inherited",
             "styles_inherited",
         ]
         return self.build_cte_and_kwargs(
@@ -363,4 +360,5 @@ class RequestBasedPrefetch(Prefetch):
 
                  ):
 
+        super().__init__(lookup, queryset, to_attr)
         super().__init__(lookup, queryset, to_attr)

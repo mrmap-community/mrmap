@@ -96,6 +96,7 @@ class MapBenderSearchApi(View):
             gmd_metadata_response = client.send_request(csw_request)
 
             if gmd_metadata_response.status_code >= 200 and gmd_metadata_response.status_code < 400:
+                # TODO: #527: Edge Case. 'Client' component is needed here
                 parsed_get_records: GetRecordsResponse = load_xmlobject_from_string(
                     gmd_metadata_response.content, GetRecordsResponse)
 
@@ -161,6 +162,7 @@ class MapBenderSearchApi(View):
             result = []
         srv = []
         for record in result:
+            # TODO: #527
             gmd_metadata = record.xml_backup
             srv.append({
                 "id": record.pk,

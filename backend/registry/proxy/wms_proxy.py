@@ -399,6 +399,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 else:
                     xml_response = self.get_remote_response(request=request)
                     requested_response = xml_response
+                    # TODO: #527
                 feature_collection = xmlmap.load_xmlobject_from_string(
                     xml_response.content, xmlclass=FeatureCollection
                 )

@@ -16,6 +16,7 @@ from registry.models.security import AllowedWebFeatureServiceOperation
 from registry.models.service import WebFeatureService
 
 
+# TODO: #527
 class WebMapServiceProxyTest(TestCase):
 
     @classmethod

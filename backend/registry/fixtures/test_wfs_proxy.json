@@ -5,7 +5,7 @@
         "fields": {
             "id": "73cf78c9-6605-47fd-ac4f-1be59265df65",
             "date_stamp": "2013-03-16T17:41:28+00:00",
-            "version": "2.0.0",
+            "version": 200,
             "is_active": true,
             "origin": "capabilities",
             "origin_url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
@@ -52,7 +52,7 @@
         "fields": {
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "is_active": true,
-            "version": "2.0.0",
+            "version": 200,
             "origin": "capabilities",
             "origin_url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
             "title": "MapServer countires example",
@@ -87,9 +87,9 @@
         "model": "registry.WebFeatureServiceOperationUrl",
         "pk": "1",
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
-            "operation": "GetFeature",
+            "operation": 30,
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }
     },
@@ -97,9 +97,9 @@
         "model": "registry.WebFeatureServiceOperationUrl",
         "pk": "2",
         "fields": {
-            "method": "Post",
+            "method": 2,
             "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
-            "operation": "GetFeature",
+            "operation": 30,
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }
     },
@@ -107,9 +107,9 @@
         "model": "registry.WebFeatureServiceOperationUrl",
         "pk": "3",
         "fields": {
-            "method": "Get",
+            "method": 1,
             "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
-            "operation": "DescribeFeature",
+            "operation": 33,
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }
     },
@@ -117,9 +117,9 @@
         "model": "registry.WebFeatureServiceOperationUrl",
         "pk": "4",
         "fields": {
-            "method": "Post",
+            "method": 2,
             "url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map",
-            "operation": "DescribeFeature",
+            "operation": 33,
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65"
         }
     },

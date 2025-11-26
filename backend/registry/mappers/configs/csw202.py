@@ -59,7 +59,7 @@ XPATH_MAP = {
                 },
                 "operation_urls": {
                     "_model": "registry.CatalogueServiceOperationUrl",
-                    "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//ows:*",
+                    "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//*[self::ows:Post or self::ows:Get]",
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "fields": {

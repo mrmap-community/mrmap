@@ -1,4 +1,5 @@
 from mptt2.models import Node, Tree
+from registry.models.service import OperationUrl
 
 
 def split(context, value, token):
@@ -45,3 +46,23 @@ def compute_layer_mptt(mapper):
     # Wurzelknoten finden
     root_node = next(layer for layer in layers if layer.mptt_parent is None)
     assign_mptt(root_node)
+
+
+def clean_up_operation_urls(mapper):
+    """
+    throws away undefined operation urls.
+
+    :param mapper: the mapper instance
+    """
+
+    def is_invalid_operation_url(inst):
+        return (
+            inst.method is None
+            or not inst.url
+            or not inst.operation
+        )
+
+    cache = mapper.read_all_from_cache()
+    for key, inst in list(cache.items()):
+        if inst is None or isinstance(inst, OperationUrl) and is_invalid_operation_url(inst):
+            mapper.cache.delete(key)

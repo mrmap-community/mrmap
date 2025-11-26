@@ -10,6 +10,9 @@ XPATH_MAP = {
             "ows": OWS_NAMESPACE,
         },
         "_schema": "http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd",
+        "_pre_save": [
+            "registry.mappers.extensions.clean_up_operation_urls"
+        ],
         "service": {
             "_model": "registry.CatalogueService",
             "_base_xpath": "/csw:Capabilities",

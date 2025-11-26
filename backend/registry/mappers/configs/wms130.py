@@ -7,7 +7,10 @@ XPATH_MAP = {
             "wms": WMS_1_3_0_NAMESPACE
         },
         "_schema": "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd",
-        "_pre_save": "registry.mappers.extensions.compute_layer_mptt",
+        "_pre_save": [
+            "registry.mappers.extensions.compute_layer_mptt",
+            "registry.mappers.extensions.clean_up_operation_urls"
+        ],
         "service": {
             "_model": "registry.WebMapService",
             "_base_xpath": "/wms:WMS_Capabilities",

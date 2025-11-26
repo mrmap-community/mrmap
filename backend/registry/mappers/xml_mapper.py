@@ -3,7 +3,7 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import IO, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
@@ -66,6 +66,20 @@ class GlobalXmlCache:
                 del cls._data[key]
                 return default
             return value
+
+    @classmethod
+    def delete(cls, key):
+        with cls._lock:
+            cls._data.pop(key, None)
+
+            # ✅ uuid aus key bestimmen
+            uuid_str = key.split(":", 1)[0]
+
+            item = cls._data.get(UUID(uuid_str))
+            if item:
+                key_list, expire = item
+                if key in key_list:
+                    key_list.remove(key)
 
     @classmethod
     def get_many(cls, keys):

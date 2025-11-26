@@ -11,11 +11,11 @@ class PersistenceHandler:
         mapper: XmlMapper-Instanz
         """
         self.mapper = mapper
-        self.instances_by_model = self._build_instances_by_model()
 
     # ------------------------
     # Helper: load function
     # ------------------------
+
     @staticmethod
     def _load_function(path: str):
         mod_name, func_name = path.rsplit(".", 1)
@@ -196,11 +196,19 @@ class PersistenceHandler:
     # Run _pre_save hook
     # ------------------------
     def _run_pre_save_hook(self):
-        pre_save_func_path = self.mapper.mapping.get("_pre_save")
-        if not pre_save_func_path:
+        pre_save = self.mapper.mapping.get("_pre_save")
+        if not pre_save:
             return
-        pre_save_func = self._load_function(pre_save_func_path)
-        pre_save_func(self.mapper)
+
+        # Wenn nur ein einzelner Funktionspfad angegeben wurde → in Liste packen
+        if isinstance(pre_save, (list, tuple)):
+            hooks = pre_save
+        else:
+            hooks = (pre_save,)
+
+        for func_path in hooks:
+            pre_save_func = self._load_function(func_path)
+            pre_save_func(self.mapper)
 
     # ------------------------
     # Sort models by FK dependencies
@@ -314,6 +322,8 @@ class PersistenceHandler:
     def persist_all(self):
         # 1️⃣ Pre-save Hook
         self._run_pre_save_hook()
+
+        self.instances_by_model = self._build_instances_by_model()
 
         final_instances_map = {}
 

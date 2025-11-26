@@ -72,6 +72,7 @@ class OGCOperationEnum(SmartIntegerChoices):
     GET_RECORD_BY_ID = 52, _("GetRecordById")
     GET_DOMAIN = 53, _("GetDomain")
     GET_REPOSITORY_ITEM = 54, _("GetRepositoryItem")
+    HARVEST = 55, _("Harvest")
 
 
 class HttpMethodEnum(SmartIntegerChoices):

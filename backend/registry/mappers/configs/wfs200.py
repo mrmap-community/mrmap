@@ -14,6 +14,9 @@ XPATH_MAP = {
             "fes": FES_2_0_NAMEPSACE
         },
         "_schema": "http://www.opengis.net/wfs/2.0",
+        "_pre_save": [
+            "registry.mappers.extensions.clean_up_operation_urls"
+        ],
         "service": {
             "_model": "registry.WebFeatureService",
             "_base_xpath": "/wfs:WFS_Capabilities",

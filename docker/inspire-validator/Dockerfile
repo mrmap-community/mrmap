@@ -1,4 +1,4 @@
-FROM jetty:9.3.6
+FROM jetty:9.4.58-jre8
 MAINTAINER Carlos Palma <carlospalma at guadaltel.com>
 LABEL maintainer="Carlos Palma <carlospalma@guadaltel.com>"
 
@@ -73,12 +73,13 @@ ENV HTTPS_PROXY_USERNAME none
 # Optional password for authenticating against HTTP Secure proxy server or "none"
 ENV HTTPS_PROXY_PASSWORD none
 
-RUN mv /docker-entrypoint.bash /docker-entrypoint-jetty.bash
+# RUN mv /docker-entrypoint.bash /docker-entrypoint-jetty.bash
 COPY res/docker-entrypoint.sh /
 
+USER root
 RUN apt-get update; true
-RUN apt-get install -y squid3 zip unzip
-COPY res/squid.conf /etc/squid3/squid.conf
+RUN apt-get install -y squid zip unzip
+COPY res/squid.conf /etc/squid/squid.conf
 
 
 RUN apt-get install -y apache2
@@ -101,5 +102,9 @@ RUN mv $ETF_RELATIVE_URL.war /var/lib/jetty/webapps
 RUN chown jetty:jetty /var/lib/jetty/webapps
 
 #COPY --chown=jetty:jetty $ETF_RELATIVE_URL.war /var/lib/jetty/webapps
+
+RUN mkdir -p /etf/ds/db/repo
+COPY res/http-www.functx.com-1.0 /etf/ds/db/repo/http-www.functx.com-1.0
+
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["java","-jar","/usr/local/jetty/start.jar"]

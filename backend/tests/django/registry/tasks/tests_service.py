@@ -6,6 +6,8 @@ from django.test.utils import override_settings
 from django.urls.base import reverse
 from notify.models import BackgroundProcess
 from registry.enums.service import AuthTypeEnum, OGCServiceVersionEnum
+from registry.models.metadata import (DatasetMetadataRecord,
+                                      ServiceMetadataRecord)
 from registry.models.security import WebMapServiceAuthentication
 from registry.models.service import WebMapService
 from registry.tasks.service import build_ogc_service
@@ -16,7 +18,7 @@ from tests.django.utils import MockResponse
 
 def side_effect(request, *args, **kwargs):
     if request.url == 'https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities':
-        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/dwd_wms_1.3.0.xml')))
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/1.3.0.xml')))
     elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF':
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RBSN_FF.xml')))
     elif request.url == 'https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RH':
@@ -29,6 +31,8 @@ def side_effect(request, *args, **kwargs):
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RBSN_VPGB.xml')))
     elif request.url == 'https://gdk.gdi-de.org/gdi-de/srv/eng/csw?Service=CSW&Request=GetRecordById&Version=2.0.2&outputSchema=http://www.isotc211.org/2005/gmd&elementSetName=full&id=de.dwd.geoserver.fach.RADOLAN-W4':
         return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/RADOLAN-W4.xml')))
+    elif request.url == 'https://example.com/wms-metadata':
+        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/wms-service-metadata.xml')))
 
 
 class BuildOgcServiceTaskTest(TransactionTestCase):
@@ -125,6 +129,10 @@ class BuildOgcServiceTaskTest(TransactionTestCase):
                                          **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
 
         db_service = WebMapService.objects.all()[:1][0]
+        service_count = ServiceMetadataRecord.objects.count()
+        self.assertEqual(1, service_count)
+        dataset_count = DatasetMetadataRecord.objects.count()
+        self.assertEqual(6, dataset_count)
         # group_result = GroupResult.objects.latest('date_created')
 
         expected_result = {

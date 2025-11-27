@@ -191,8 +191,6 @@ class XmlMapperTest(TestCase):
                                   f"Layer {layer.identifier} hat falsche ReferenceSystems")
 
             # LayerMetadataUrl prüfen
-            if layer.identifier == 'dwd:RBSN_FF':
-                i = 0
             db_metadata_url = list(
                 layer.remote_metadata.values_list('link', flat=True))
             self.assertCountEqual([str(c) for c in db_metadata_url], [str(c) for c in _expected.get("remote_metadata", [])],

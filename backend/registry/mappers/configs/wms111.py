@@ -1,10 +1,13 @@
-from registry.mappers.namespaces import XLINK_NAMESPACE
+from registry.mappers.namespaces import (INSPIRE_COMMON, INSPIRE_VS,
+                                         XLINK_NAMESPACE)
 
 XPATH_MAP = {
     # (Service-Klasse, Version) -> Mapping Feldname -> XPath
     ("WMS", "1.1.1"): {
         "_namespaces": {
-            "xlink": XLINK_NAMESPACE
+            "xlink": XLINK_NAMESPACE,
+            "inspire_common": INSPIRE_COMMON,
+            "inspire_vs": INSPIRE_VS
         },
         "_schema": "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd",
         "_pre_save": [
@@ -24,6 +27,13 @@ XPATH_MAP = {
                 "abstract": "./Service/Abstract",
                 "fees": "./Service/Fees",
                 "access_constraints": "./Service/AccessConstraints",
+                "remote_metadata": {
+                    "_model": "registry.WebMapServiceRemoteMetadata",
+                    "_base_xpath": "/WMT_MS_Capabilities/Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "fields": {
+                        "link": "./."
+                    }
+                },
                 "service_url": "./Service/OnlineResource/@xlink:href",
                 "service_contact": {
                     "_model": "registry.MetadataContact",
@@ -163,15 +173,14 @@ XPATH_MAP = {
                                 }
                             }
                         },
-                        # TODO: model has no fk to the layer/service objects.
-                        # Use _parser or redesign model
-                        # "remote_metadata": {
-                        #     "_model": "registry.RemoteMetadata",
-                        #     "_base_xpath": "./MetadataURL/OnlineResource",
-                        #     "fields": {
-                        #         "link": "./@xlink:href"
-                        #     }
-                        # },
+                        "remote_metadata": {
+                            "_model": "registry.LayerRemoteMetadata",
+                            "_base_xpath": "./MetadataURL/OnlineResource",
+                            "_create_mode": "bulk",
+                            "fields": {
+                                "link": "./@xlink:href"
+                            }
+                        },
                         "time_extents": {
                             "_model": "registry.LayerTimeExtent",
                             "_base_xpath": "./Extent[@name='time']",

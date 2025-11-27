@@ -3139,7 +3139,8 @@ LAYER_DATA = {   None: {   'abstract': 'This is the Web Map Server of DWD.',
                           'reference_systems': ['1000001'],
                           'scale_max': None,
                           'scale_min': None,
-                          'title': 'Radarkomposit (W4)'},
+                          'title': 'Radarkomposit (W4)',
+                          'remote_metadata': ['https://gdk.gdi-de.org/gdi-de/srv/eng/csw?Service=CSW&Request=GetRecordById&Version=2.0.2&outputSchema=http://www.isotc211.org/2005/gmd&elementSetName=full&id=de.dwd.geoserver.fach.RADOLAN-W4']},
     'dwd:RBSN_FF': {   'abstract': 'Messwerte der Windgeschwindigkeit an den '
                                    'DWD Stationen im Regional Basic Synoptic '
                                    'Network (RBSN) der WMO. Erweitert um '
@@ -3160,7 +3161,8 @@ LAYER_DATA = {   None: {   'abstract': 'This is the Web Map Server of DWD.',
                        'reference_systems': ['4326'],
                        'scale_max': None,
                        'scale_min': None,
-                       'title': 'Windgeschwindigkeit an RBSN Stationen'},
+                       'title': 'Windgeschwindigkeit an RBSN Stationen',
+                       'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF']},
     'dwd:RBSN_RH': {   'abstract': 'Messwerte der relativen Feuchte an den DWD '
                                    'Stationen im Regional Basic Synoptic '
                                    'Network (RBSN) der WMO. Erweitert um '
@@ -3180,7 +3182,8 @@ LAYER_DATA = {   None: {   'abstract': 'This is the Web Map Server of DWD.',
                        'reference_systems': ['4326'],
                        'scale_max': None,
                        'scale_min': None,
-                       'title': 'Relative Feuchte an RBSN Stationen'},
+                       'title': 'Relative Feuchte an RBSN Stationen',
+                       'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RH']},
     'dwd:RBSN_RR': {   'abstract': 'Messwerte des Niederschlags an den DWD '
                                    'Stationen im Regional Basic Synoptic '
                                    'Network (RBSN) der WMO. Erweitert um '
@@ -3201,7 +3204,8 @@ LAYER_DATA = {   None: {   'abstract': 'This is the Web Map Server of DWD.',
                        'reference_systems': ['4326'],
                        'scale_max': None,
                        'scale_min': None,
-                       'title': 'Niederschlag an RBSN Stationen'},
+                       'title': 'Niederschlag an RBSN Stationen',
+                       'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RR']},
     'dwd:RBSN_T2m': {   'abstract': 'Messwerte der 2m Temperatur an den DWD '
                                     'Stationen im Regional Basic Synoptic '
                                     'Network (RBSN) der WMO. Erweitert um '
@@ -3222,7 +3226,8 @@ LAYER_DATA = {   None: {   'abstract': 'This is the Web Map Server of DWD.',
                         'reference_systems': ['4258'],
                         'scale_max': None,
                         'scale_min': None,
-                        'title': '2m Temperatur an RBSN Stationen'},
+                        'title': '2m Temperatur an RBSN Stationen',
+                        'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_T2m']},
     'dwd:RBSN_VPGB': {   'abstract': 'Messwerte des Niederschlags an den DWD '
                                      'Stationen im Regional Basic Synoptic '
                                      'Network der WMO. Erweitert um weitere '
@@ -3240,7 +3245,8 @@ LAYER_DATA = {   None: {   'abstract': 'This is the Web Map Server of DWD.',
                          'reference_systems': ['4326'],
                          'scale_max': None,
                          'scale_min': None,
-                         'title': 'potentielle Verdunstung an RBSN Stationen'},
+                         'title': 'potentielle Verdunstung an RBSN Stationen',
+                         'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_VPGB']},
     'dwd:RSMS_17_1961_30': {   'abstract': 'Niederschlag 1961-1990 '
                                            '(Jahresreferenzkarte)',
                                'bbox_lat_lon': None,

@@ -330,6 +330,33 @@
                 <ows:Value>wfs:StoredQuery</ows:Value>
             </ows:AllowedValues>
         </ows:Constraint>
+         <ows:ExtendedCapabilities xmlns="http://www.deegree.org/services/metadata" xmlns:inspire_common="http://inspire.ec.europa.eu/schemas/common/1.0" xmlns:inspire_dls="http://inspire.ec.europa.eu/schemas/inspire_dls/1.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://inspire.ec.europa.eu/schemas/common/1.0 http://inspire.ec.europa.eu/schemas/common/1.0/common.xsd http://inspire.ec.europa.eu/schemas/inspire_dls/1.0 http://inspire.ec.europa.eu/schemas/inspire_dls/1.0/inspire_dls.xsd">
+      <inspire_common:MetadataUrl>
+        <inspire_common:URL>https://example.com/wfs-metadata</inspire_common:URL>
+        <inspire_common:MediaType>application/vnd.ogc.csw.GetRecordByIdResponse_xml</inspire_common:MediaType>
+			
+      </inspire_common:MetadataUrl>
+      <inspire_common:SupportedLanguages>
+        <inspire_common:DefaultLanguage>
+          <inspire_common:Language>ger</inspire_common:Language>
+				
+        </inspire_common:DefaultLanguage>
+			
+      </inspire_common:SupportedLanguages>
+      <inspire_common:ResponseLanguage>
+        <inspire_common:Language>ger</inspire_common:Language>
+			
+      </inspire_common:ResponseLanguage>
+      <inspire_dls:SpatialDataSetIdentifier>
+        <inspire_common:Code>https://registry.gdi-de.org/id/de.hh/415b9c66-53fb-49f6-b8cf-735777e7ac5b</inspire_common:Code>
+				
+      </inspire_dls:SpatialDataSetIdentifier>
+      <inspire_dls:SpatialDataSetIdentifier>
+        <inspire_common:Code>https://registry.gdi-de.org/id/de.hh/415b9c66-53fb-49f6-b8cf-735777e7ac5b</inspire_common:Code>
+				
+      </inspire_dls:SpatialDataSetIdentifier>
+		
+    </ows:ExtendedCapabilities>
     </ows:OperationsMetadata>
     <FeatureTypeList>
         <FeatureType

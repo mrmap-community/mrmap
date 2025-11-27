@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE WMT_MS_Capabilities SYSTEM "https://maps.dwd.de/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd">
-<WMT_MS_Capabilities version="1.1.1" updateSequence="17081">
+<WMT_MS_Capabilities version="1.1.1" updateSequence="17081"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:inspire_common="http://inspire.ec.europa.eu/schemas/common/1.0"
+  xmlns:inspire_vs="http://inspire.ec.europa.eu/schemas/inspire_vs/1.0">
   <Service>
     <Name>OGC:WMS</Name>
     <Title>DWD GeoServer WMS</Title>
@@ -138,6 +141,25 @@
       <Format>application/json</Format>
       <Format>text/javascript</Format>
     </Exception>
+    <VendorSpecificCapabilities>
+      <inspire_vs:ExtendedCapabilities>
+        <inspire_common:MetadataUrl xsi:type="inspire_common:resourceLocatorType">
+          <inspire_common:URL>https://example.com/wms-metadata</inspire_common:URL>
+          <inspire_common:MediaType>application/vnd.iso.19139+xml</inspire_common:MediaType>
+        </inspire_common:MetadataUrl>
+        <inspire_common:SupportedLanguages>
+          <inspire_common:DefaultLanguage>
+            <inspire_common:Language>ger</inspire_common:Language>
+          </inspire_common:DefaultLanguage>
+          <inspire_common:SupportedLanguage>
+            <inspire_common:Language>ger</inspire_common:Language>
+          </inspire_common:SupportedLanguage>
+        </inspire_common:SupportedLanguages>
+        <inspire_common:ResponseLanguage>
+          <inspire_common:Language>ger</inspire_common:Language>
+        </inspire_common:ResponseLanguage>
+      </inspire_vs:ExtendedCapabilities>
+    </VendorSpecificCapabilities>
     <UserDefinedSymbolization SupportSLD="1" UserLayer="1" UserStyle="1" RemoteWFS="1"/>
     <Layer queryable="1" opaque="1" cascaded="1">
       <ScaleHint min="4.989528903" max="8.7308025"></ScaleHint>

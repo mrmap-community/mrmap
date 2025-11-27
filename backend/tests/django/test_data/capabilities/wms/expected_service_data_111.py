@@ -61,4 +61,5 @@ EXPECTED_DATA = {'abstract': 'This is the Web Map Server of DWD.',
                                      24,
                                      'http://example.com/wms?SERVICE=WMS&',
                                      ['application/vnd.ogc.sld+xml'])],
-                 'title': 'DWD GeoServer WMS'}
+                 'title': 'DWD GeoServer WMS',
+                 'remote_metadata': ['https://example.com/wms-metadata']}

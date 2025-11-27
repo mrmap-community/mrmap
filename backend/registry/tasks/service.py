@@ -1,3 +1,4 @@
+from itertools import chain
 from urllib import parse
 
 from celery import chord, shared_task, states
@@ -8,6 +9,8 @@ from registry.mappers.persistence import PersistenceHandler
 from registry.mappers.xml_mapper import OGCServiceXmlMapper
 from registry.models import CatalogueService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadataRecord,
+                                      FeatureTypeRemoteMetadata,
+                                      LayerRemoteMetadata,
                                       WebFeatureServiceRemoteMetadata,
                                       WebMapServiceRemoteMetadata)
 from registry.models.security import (WebFeatureServiceAuthentication,
@@ -124,11 +127,22 @@ def build_ogc_service(
     if collect_metadata_records:
         remote_metadata_list = None
         if isinstance(db_service, WebMapService):
-            remote_metadata_list = WebMapServiceRemoteMetadata.objects.filter(
-                service__pk=db_service.pk)
+            remote_metadata_list = list(chain(
+                WebMapServiceRemoteMetadata.objects.filter(
+                    describes__pk=db_service.pk),
+                LayerRemoteMetadata.objects.filter(
+                    describes__service__pk=db_service.pk)
+            ))
+
         elif isinstance(db_service, WebFeatureService):
-            remote_metadata_list = WebFeatureServiceRemoteMetadata.objects.filter(
-                service__pk=db_service.pk)
+            remote_metadata_list = list(chain(
+                WebFeatureServiceRemoteMetadata.objects.filter(
+                    describes__pk=db_service.pk),
+                FeatureTypeRemoteMetadata.objects.filter(
+                    describes__service__pk=db_service.pk
+                )
+            ))
+
         if remote_metadata_list:
             task_kwargs = {
                 "http_request": http_request,
@@ -138,7 +152,7 @@ def build_ogc_service(
             tasks = [
                 fetch_remote_metadata_xml.s(
                     remote_metadata.pk,
-                    db_service.__class__.__name__,
+                    remote_metadata.__class__.__name__,
                     **task_kwargs
                 )
                 for remote_metadata in remote_metadata_list]
@@ -178,13 +192,22 @@ def fetch_remote_metadata_xml(
     self.update_state(state=states.STARTED, meta={
                       'done': 0, 'total': 1, 'phase': 'fetching remote document...'})
 
-    remote_metadata = None
-    if class_name == 'WebMapService':
-        remote_metadata = WebMapServiceRemoteMetadata.objects.get(
-            pk=remote_metadata_id)
-    elif class_name == 'WebFeatureService':
-        remote_metadata = WebFeatureServiceRemoteMetadata.objects.get(
-            pk=remote_metadata_id)
+    match(class_name):
+        case "WebMapServiceRemoteMetadata":
+            remote_metadata = WebMapServiceRemoteMetadata.objects.get(
+                pk=remote_metadata_id)
+        case "LayerRemoteMetadata":
+            remote_metadata = LayerRemoteMetadata.objects.get(
+                pk=remote_metadata_id)
+        case "WebFeatureServiceRemoteMetadata":
+            remote_metadata = WebFeatureServiceRemoteMetadata.objects.get(
+                pk=remote_metadata_id)
+        case "LayerRemoteMetadata":
+            remote_metadata = FeatureTypeRemoteMetadata.objects.get(
+                pk=remote_metadata_id)
+        case _:
+            remote_metadata = None
+
     if not remote_metadata:
         return None
     try:
@@ -198,7 +221,7 @@ def fetch_remote_metadata_xml(
                 "type": "DatasetMetadataRecord" if isinstance(metadata_record, DatasetMetadataRecord) else "ServiceMetadata",
                 "id": f"{metadata_record.pk}",
                 "links": {
-                    "self": f"{reverse(viewname='registry:datasetmetadata-detail', args=[metadata_record.pk])}"
+                    "self": f"{reverse(viewname=f'registry:{"datasetmetadata" if isinstance(metadata_record, DatasetMetadataRecord) else "servicemetadata"}-detail', args=[metadata_record.pk])}"
                 }
             }
         }

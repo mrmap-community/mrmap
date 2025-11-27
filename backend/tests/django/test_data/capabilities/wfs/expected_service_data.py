@@ -21,4 +21,5 @@ EXPECTED_DATA = {'abstract': 'This is the Web Feature Server of DWD.',
                                     (2, 34, 'https://maps.dwd.de/geoserver/wfs', []),
                                     (1, 31, 'https://maps.dwd.de/geoserver/wfs', []),
                                     (2, 31, 'https://maps.dwd.de/geoserver/wfs', [])],
-                 'title': 'DWD GeoServer WFS'}
+                 'title': 'DWD GeoServer WFS',
+                 'remote_metadata': ['https://example.com/wfs-metadata']}

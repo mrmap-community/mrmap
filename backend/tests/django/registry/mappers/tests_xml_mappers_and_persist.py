@@ -146,6 +146,11 @@ class XmlMapperTest(TestCase):
         self.assertCountEqual([(op[0], op[1], op[2], op[3]) for op in operation_urls], [(op[0], op[1], op[2], op[3]) for op in expeced["operation_urls"]],
                               f"SERVICE hat falsche OperationUrls")
 
+        db_metadata_url = list(
+            service.remote_metadata.values_list('link', flat=True))
+        self.assertCountEqual([str(c) for c in db_metadata_url], [str(c) for c in expeced.get("remote_metadata", [])],
+                              f"Service hat falsche RemoteMetadata")
+
     def _test_wms_success(self, expected):
         wms = self.data[0]
 
@@ -185,6 +190,14 @@ class XmlMapperTest(TestCase):
             self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in _expected["reference_systems"]],
                                   f"Layer {layer.identifier} hat falsche ReferenceSystems")
 
+            # LayerMetadataUrl prüfen
+            if layer.identifier == 'dwd:RBSN_FF':
+                i = 0
+            db_metadata_url = list(
+                layer.remote_metadata.values_list('link', flat=True))
+            self.assertCountEqual([str(c) for c in db_metadata_url], [str(c) for c in _expected.get("remote_metadata", [])],
+                                  f"Layer {layer.identifier} hat falsche RemoteMetadata")
+
     def _test_wfs_success(self):
         wfs = self.data[0]
         db_featuretypes = wfs.featuretypes.all()
@@ -217,6 +230,12 @@ class XmlMapperTest(TestCase):
             self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expected["reference_systems"]],
                                   f"FeatureType {featuretype.identifier} hat falsche ReferenceSystems")
 
+            # FeatureTypeMetadataUrl prüfen
+            db_metadata_url = list(
+                featuretype.remote_metadata.values_list('link', flat=True))
+            self.assertCountEqual([str(c) for c in db_metadata_url], [str(c) for c in expected.get("remote_metadata", [])],
+                                  f"FeatureType {featuretype.identifier} hat falsche RemoteMetadata")
+
     def test_wms_1_1_1(self):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
@@ -238,6 +257,7 @@ class XmlMapperTest(TestCase):
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wfs/2.0.0.xml'))
         self._call_mapper_and_persistence_handler()
+        # self.__export_parsed_wfs_data(self.data[0].featuretypes.all())
         self._test_service_success(expeced=EXPECTED_WFS_SERVICE_DATA_2_0_0)
         self._test_wfs_success()
 

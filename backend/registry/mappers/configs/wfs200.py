@@ -34,9 +34,9 @@ XPATH_MAP = {
                 "access_constraints": "./ows:ServiceIdentification/ows:AccessConstraints",
                 "remote_metadata": {
                     "_model": "registry.WebFeatureServiceRemoteMetadata",
-                    "_base_xpath": "./ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
                     "fields": {
-                        "link": "./text()"
+                        "link": "./."
                     }
                 },
                 "service_contact": {
@@ -155,6 +155,7 @@ XPATH_MAP = {
                         "remote_metadata": {
                             "_model": "registry.FeatureTypeRemoteMetadata",
                             "_base_xpath": "./wfs:MetadataURL",
+                            "_create_mode": "bulk",
                             "fields": {
                                 "link": "./@xlink:href"
                             }

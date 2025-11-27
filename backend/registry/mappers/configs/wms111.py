@@ -27,6 +27,13 @@ XPATH_MAP = {
                 "abstract": "./Service/Abstract",
                 "fees": "./Service/Fees",
                 "access_constraints": "./Service/AccessConstraints",
+                "remote_metadata": {
+                    "_model": "registry.WebMapServiceRemoteMetadata",
+                    "_base_xpath": "/WMT_MS_Capabilities/Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "fields": {
+                        "link": "./."
+                    }
+                },
                 "service_url": "./Service/OnlineResource/@xlink:href",
                 "service_contact": {
                     "_model": "registry.MetadataContact",
@@ -167,10 +174,11 @@ XPATH_MAP = {
                             }
                         },
                         "remote_metadata": {
-                            "_model": "registry.WebMapServiceRemoteMetadata",
-                            "_base_xpath": "./VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                            "_model": "registry.LayerRemoteMetadata",
+                            "_base_xpath": "./MetadataURL/OnlineResource",
+                            "_create_mode": "bulk",
                             "fields": {
-                                "link": "./text()"
+                                "link": "./@xlink:href"
                             }
                         },
                         "time_extents": {

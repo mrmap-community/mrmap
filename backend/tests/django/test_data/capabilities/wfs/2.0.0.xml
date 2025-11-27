@@ -332,7 +332,7 @@
         </ows:Constraint>
          <ows:ExtendedCapabilities xmlns="http://www.deegree.org/services/metadata" xmlns:inspire_common="http://inspire.ec.europa.eu/schemas/common/1.0" xmlns:inspire_dls="http://inspire.ec.europa.eu/schemas/inspire_dls/1.0" xmlns:ows="http://www.opengis.net/ows/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://inspire.ec.europa.eu/schemas/common/1.0 http://inspire.ec.europa.eu/schemas/common/1.0/common.xsd http://inspire.ec.europa.eu/schemas/inspire_dls/1.0 http://inspire.ec.europa.eu/schemas/inspire_dls/1.0/inspire_dls.xsd">
       <inspire_common:MetadataUrl>
-        <inspire_common:URL>https://gdk.gdi-de.org/gdi-de/srv/eng/csw?Request=GetRecordById&amp;Version=2.0.2&amp;id=EF7DD5E9-9D7B-41B3-BDC5-15476304FF2F&amp;outputSchema=http://www.isotc211.org/2005/gmd&amp;elementSetName=full</inspire_common:URL>
+        <inspire_common:URL>https://example.com/wfs-metadata</inspire_common:URL>
         <inspire_common:MediaType>application/vnd.ogc.csw.GetRecordByIdResponse_xml</inspire_common:MediaType>
 			
       </inspire_common:MetadataUrl>

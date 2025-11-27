@@ -30,9 +30,9 @@ XPATH_MAP = {
                 "service_url": "./wms:Service/wms:OnlineResource/@xlink:href",
                 "remote_metadata": {
                     "_model": "registry.WebMapServiceRemoteMetadata",
-                    "_base_xpath": "./inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "_base_xpath": "/wms:WMS_Capabilities/wms:Capability/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
                     "fields": {
-                        "link": "./text()"
+                        "link": "./."
                     }
                 },
                 "service_contact": {
@@ -180,6 +180,7 @@ XPATH_MAP = {
                         "remote_metadata": {
                             "_model": "registry.LayerRemoteMetadata",
                             "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
+                            "_create_mode": "bulk",
                             "fields": {
                                 "link": "./@xlink:href"
                             }

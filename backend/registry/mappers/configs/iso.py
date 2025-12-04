@@ -18,10 +18,12 @@ XPATH_MAP = {
                 "title": "./gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
                 "abstract": "./gmd:abstract/gco:CharacterString",
                 "access_constraints": "./gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue=\"otherRestrictions\"]/gmd:otherConstraints/gco:CharacterString",
-                "code": "",
+                "code": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString | ./gmd:identificationInfo/srv:SV_ServiceIdentification",
                 "code_space": "",
-                # TODO: maybe parser is needed to convert simple Date information to DateTime
-                "date_stamp": "./gmd:dateStamp/*[self::gco:DateTime or self::gco:Date]",
+                "date_stamp": {
+                    "_inputs": ("./gmd:dateStamp/*[self::gco:DateTime or self::gco:Date]/text()",),
+                    "_parser": "registry.mappers.parsers.value.string_to_datetime",
+                },
                 "bounding_geometry": "",
                 "spatial_res_type": "",
                 "spatial_res_value": "",
@@ -32,9 +34,8 @@ XPATH_MAP = {
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "fields": {
-                      "keyword": "./gco:CharacterString"
+                        "keyword": "./gco:CharacterString"
                     }
-
                 },
                 "dataset_contact": {
                     "_model": "registry.MetadataContact",
@@ -49,19 +50,13 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier",
+                    "_base_xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
                     "_create_mode": "get_or_create",
                     "fields": {
-                        # "name": "./ows:ProviderName",
-                        # "person_name": "./ows:ServiceContact/ows:IndividualName",
-                        # "phone": "./ows:ServiceContact/ows:ContactInfo/ows:Phone/ows:Voice",
-                        # "facsimile": "./ows:ServiceContact/ows:ContactInfo/ows:Phone/ows:Facsimile",
-                        # "email": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:ElectronicMailAddress",
-                        # "country": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:Country",
-                        # "postal_code": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:PostalCode",
-                        # "city": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:City",
-                        # "state_or_province": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:AdministrativeArea",
-                        # "address": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:DeliveryPoint"
+                        "name": "./gmd:organisationName/gco:CharacterString",
+                        "person_name": "./gmd:individualName/gco:CharacterString",
+                        "phone": "./gmd:contactInfo/gmd:CI_Contact/gmd:phone/gmd:CI_Telephone/gmd:voice/gco:CharacterString",
+                        "email": "./gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString",
                     }
                 },
                 "reference_systems": {

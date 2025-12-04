@@ -1,4 +1,8 @@
+from datetime import datetime
+
 from django.contrib.gis.geos import Polygon
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
 
@@ -85,3 +89,16 @@ def method_to_enum(mapper, url_element):
 
 def operation_to_enum(mapper, operation_str):
     return OGCOperationEnum(operation_str)
+
+
+def string_to_datetime(value: str):
+    dt = parse_datetime(value)
+    if dt:
+        return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+
+    d = parse_date(value)
+    if d:
+        dt = datetime.combine(d, datetime.min.time())
+        return timezone.make_aware(dt)
+
+    raise ValueError(f"Ungültiges Datumsformat: {value}")

@@ -7,9 +7,14 @@ from uuid import UUID, uuid4
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import ForeignKey
+from django.db.models import ForeignKey, Manager, Model
 from lxml import etree
 from registry.mappers.configs import XPATH_MAP
+from registry import models
+
+from .xpath import util
+from .xpath.core import parse
+
 
 # -------------------------------------------------------------------
 # Cache
@@ -460,6 +465,120 @@ class XmlMapper:
 
         return data
 
+    def django_to_xml(self, instance: "models.DocumentModelMixin") -> etree.ElementTree:
+        namespaces = self.mapping.get("_namespaces", {})
+
+        for key, value in self.mapping.items():
+            if key.startswith("_"):
+                continue
+            if isinstance(value, dict) and "_model" in value and isinstance(instance, self._get_model_class(value)):
+                for element in self._get_elements(value, namespaces):
+                    mapper = self.__class__(element, value | {"_namespaces": namespaces})
+                    mapper._update_element(instance)
+
+        return self.current_element.getroottree()
+
+    def _update_element(self, obj: Model):
+        namespaces = self.mapping.get("_namespaces", {})
+
+        for fieldname, field in self.mapping.get("fields", {}).items():
+            if fieldname.startswith("mptt_"):  # TODO: are there other fields that need to be ignored?
+                continue
+            if isinstance(field, str):
+                self._set_value(field, getattr(obj, fieldname))
+            elif isinstance(field, dict) and "_inputs" in field and "_reverse_parser" in field:
+                reverse_parser_func = load_function(field["_reverse_parser"])
+                values = reverse_parser_func(self, getattr(obj, fieldname))
+                if not isinstance(values, (list, tuple)):
+                    values = (values,)
+                for xpath, value in zip(field["_inputs"], values):
+                    self._set_value(xpath, value)
+            elif isinstance(field, dict) and "_model" in field:
+                elements = self._get_elements(field, namespaces)
+                if not elements:
+                    # TODO: elements is empty -> create required elements
+                    continue  # TODO: remove this when implemented
+                if not field.get("_many", False):
+                    # ignore additional elements
+                    # TODO: probably should throw exception if len(elements) > 1
+                    mapper = self.__class__(elements[0], field | {"_namespaces": namespaces})
+                    related_obj = getattr(obj, fieldname)
+                    if isinstance(related_obj, Manager):
+                        # RemoteMetadata child models have a ForeignKey to a Service/Layer/FeatureType?!
+                        # The other direction would make more sense...
+                        assert related_obj.count() <= 1
+                        related_obj = related_obj.get()
+                    mapper._update_element(related_obj)
+                else:
+                    # obj should have a Manager
+                    related_objs = getattr(obj, fieldname).all()
+                    if len(related_objs) != len(elements):
+                        # TODO: create or delete elements as needed
+                        continue  # TODO: remove this when implemented
+                    # TODO: ordering might be an issue here
+                    for element, related_obj in zip(elements, related_objs):
+                        mapper = self.__class__(element, field | {"_namespaces": namespaces})
+                        mapper._update_element(related_obj)
+
+    def _set_value(self, xpath: str, value: str | int | None):
+        if xpath.rsplit("/")[-1].startswith("@"):
+            # this is an attribute
+            self._set_attribute(xpath, value)
+        else:
+            self._set_text(xpath, value)
+
+    def _set_text(self, xpath: str, value: str | int | None):
+        if value is None or value == "":
+            self._delete_element(xpath)
+            return
+
+        element = self._get_or_create_element(xpath)
+        element.text = str(value)
+
+    def _set_attribute(self, xpath: str, value: str | int | None):
+        if value is None or value == "":
+            # TODO: delete attribute
+            return
+
+        namespaces = self.mapping.get("_namespaces", {})
+        nsprefix, _, step = xpath.rsplit("/")[-1].lstrip("@").rpartition(":")
+        ns = namespaces.get(nsprefix, "")
+        element = self._get_or_create_element(xpath)
+        element.set(f"{{{ns}}}{step}", str(value))
+
+    def _get_or_create_element(self, xpath: str) -> etree.Element:
+        namespaces = self.mapping.get("_namespaces", {})
+        elements = self.current_element.xpath(xpath, namespaces=namespaces)
+        if isinstance(elements, list):
+            if len(elements) > 1:
+                raise  # TODO: meaningful exception
+            if elements:
+                element = elements[0]
+            else:
+                element = self._create_element(xpath)
+        else:
+            element = elements
+        if isinstance(element, etree._ElementUnicodeResult):
+            element = element.getparent()
+        if not isinstance(element, etree.Element):
+            raise  # TODO: meaningful exception
+        return element
+
+    def _create_element(self, xpath: str) -> etree.Element:
+        namespaces = self.mapping.get("_namespaces", {})
+        match = util.find_xml_node(xpath, self.current_element, {"namespaces": namespaces})
+        if match is not None:
+            return match
+        return util.create_xml_node(parse(xpath), self.current_element, {"namespaces": namespaces})
+
+    def _delete_element(self, xpath: str | None = None):
+        namespaces = self.mapping.get("_namespaces", {})
+        elements = self.current_element.xpath(xpath, namespaces=namespaces) if xpath else [self.current_element]
+        for element in elements:
+            if not (parent := element.getparent()):
+                continue
+            parent.remove(element)
+
 
 class OGCServiceXmlMapper(XmlMapper):
 
@@ -490,6 +609,11 @@ class OGCServiceXmlMapper(XmlMapper):
         mapping = cls._select_mapping(service_type, version)
 
         return cls(xml=root, mapping=mapping)
+
+    @classmethod
+    def to_xml(cls, instance: "models.DocumentModelMixin") -> etree.ElementTree:
+        mapper = cls.from_xml(instance.xml_backup_file)
+        return mapper.django_to_xml(instance)
 
     @staticmethod
     def _select_mapping(service_type, version):

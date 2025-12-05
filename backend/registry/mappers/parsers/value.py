@@ -9,6 +9,10 @@ def int_to_bool(mapper, value: int = 0) -> bool:
         return bool(value)
     raise ValueError(f"Ungültiger Wert {value}, nur 0 oder 1 erlaubt.")
 
+def boolean_to_int(mapper, value: bool = False) -> int:
+    """Wandelt False in 0 und True in 1 um."""
+    return int(value)
+
 
 def str_to_bool(mapper, value: str = "0") -> bool:
     """Wandelt den String '0' in False und '1' in True um. Andere Werte werfen einen ValueError."""
@@ -73,6 +77,9 @@ def polygon_to_bbox(mapper, polygon):
 
 def version_to_int(mapper, version):
     return OGCServiceVersionEnum(version).value
+
+def int_to_version(mapper, version: int):
+    return OGCServiceVersionEnum(version).label
 
 
 def method_to_enum(mapper, url_element):

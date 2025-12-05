@@ -1,14 +1,18 @@
-from django.contrib.postgres.fields import DateTimeRangeField
 from collections import defaultdict
+from datetime import datetime
 from importlib import import_module
+from logging import Logger
 
 from django.apps import apps
-from django.db import models, transaction
-from psycopg.types.range import Range
-from django.utils.timezone import is_naive, make_aware, get_default_timezone
-from datetime import datetime
-from logging import Logger
 from django.conf import settings
+from django.contrib.postgres.fields import DateTimeRangeField
+from django.core.files.base import ContentFile
+from django.db import models, transaction
+from django.utils.timezone import get_default_timezone, is_naive, make_aware
+from lxml import etree
+from psycopg.types.range import Range
+
+from registry.models.document import DocumentModelMixin
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -179,7 +183,7 @@ class PersistenceHandler:
         }
 
         self.inject_private_attributes(final_key_map, original_map)
-        
+
         return final_key_map
 
     def inject_private_attributes(self, final_objects, original_objects):
@@ -396,6 +400,16 @@ class PersistenceHandler:
 
                     getattr(inst, field.name).set(final_list)
 
+    def _save_xml_backup_file(self, instance: models.Model):
+        if not isinstance(instance, DocumentModelMixin):
+            return
+        if xml_str := getattr(self.mapper, "xml_str", None):
+            content = xml_str
+        else:
+            content = etree.tostring(self.mapper.xml_root.getroottree(), encoding="utf-8", pretty_print=True)
+        # calling save() on a FileField will also save the model instance
+        instance.xml_backup_file.save("backup.xml", content=ContentFile(content))
+
     # ------------------------
     # Persist all
     # ------------------------
@@ -438,6 +452,8 @@ class PersistenceHandler:
             else:  # default save every instance
                 for inst in instances:
                     inst.save()
+                    if isinstance(inst, DocumentModelMixin):
+                        self._save_xml_backup_file(inst)
                 final_key_map = self.build_final_key_map(instances)
                 self.final_instances_map[model_cls] = final_key_map
 

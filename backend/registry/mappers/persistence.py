@@ -2,7 +2,11 @@ from collections import defaultdict
 from importlib import import_module
 
 from django.apps import apps
+from django.core.files.base import ContentFile
 from django.db import models, transaction
+from lxml import etree
+
+from registry.models.document import DocumentModelMixin
 
 
 class PersistenceHandler:
@@ -315,6 +319,16 @@ class PersistenceHandler:
 
                     getattr(inst, field.name).set(final_list)
 
+    def _save_xml_backup_file(self, instance: models.Model):
+        if not isinstance(instance, DocumentModelMixin):
+            return
+        if xml_str := getattr(self.mapper, "xml_str", None):
+            content = xml_str
+        else:
+            content = etree.tostring(self.mapper.xml_root.getroottree(), encoding="utf-8", pretty_print=True)
+        # calling save() on a FileField will also save the model instance
+        instance.xml_backup_file.save("backup.xml", content=ContentFile(content))
+
     # ------------------------
     # Persist all
     # ------------------------
@@ -358,6 +372,7 @@ class PersistenceHandler:
                 for inst in instances:
                     # TODO: same as for bulk_create. The instance which will be saved here, becomes a safe pk and should become part of final_instances.
                     inst.save()
+                    self._save_xml_backup_file(inst)
 
         # 4️⃣ Jetzt alle M2M-Felder aus _parsed setzen
         self._apply_parsed_m2m(final_instances_map)

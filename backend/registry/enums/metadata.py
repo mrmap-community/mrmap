@@ -1,6 +1,9 @@
 from django.db.models.enums import TextChoices
+from django.utils.translation import gettext_lazy as _
+from extras.enums import SmartIntegerChoices
 
 
+# TODO: use IntegerChoices instead
 class CategoryOriginEnum(TextChoices):
     """ Defines sources for categories
     """
@@ -16,44 +19,42 @@ class CategoryOriginEnum(TextChoices):
         return [enum.name for enum in cls]
 
 
-class MetadataOriginEnum(TextChoices):
+class MetadataOriginEnum(SmartIntegerChoices):
     """ Defines origins from where a resource could be coming from
 
     """
-    CAPABILITIES = "Capabilities"
-    UPLOAD = "Upload"
-    FILE_SYSTEM_IMPORT = "File System Import"
-    EDITOR = "Editor"
-    CATALOGUE = "Catalogue"
+    CAPABILITIES = 1, _("Capabilities")
+    UPLOAD = 2, _("Upload")
+    FILE_SYSTEM_IMPORT = 3, _("File System Import")
+    EDITOR = 4, _("Editor")
+    CATALOGUE = 5, _("Catalogue")
 
 
-class MetadataRelationEnum(TextChoices):
-    """ Defines types of metadata relations for MetadataRelation model
-
-    """
-    VISUALIZES = "visualizes"
-    DESCRIBES = "describes"
-    HARVESTED_THROUGH = "harvestedThrough"
-    HARVESTED_PARENT = "harvestedParent"
-    PUBLISHED_BY = "publishedBy"
+class DatasetFormatEnum(SmartIntegerChoices):
+    DATABASE = 1, _("Database")
+    ESRI_SHAPE = 2, _("Esri shape")
+    CSV = 3, _("CSV")
+    GML = 4, _("GML")
+    GEOTIFF = 5, _("GeoTIFF")
 
 
-class DatasetFormatEnum(TextChoices):
-    DATABASE = "Database"
-    ESRI_SHAPE = "Esri shape"
-    CSV = "CSV"
-    GML = "GML"
-    GEOTIFF = "GeoTIFF"
+class LanguageChoices(SmartIntegerChoices):
+    ger = 1, _("ger")
+    en = 2, _("en")
 
 
-class MetadataCharset(TextChoices):
-    UTF8 = "utf8"
+class MetadataCharsetChoices(SmartIntegerChoices):
+    UTF8 = 8, _("utf8")
 
 
-class ReferenceSystemPrefixEnum(TextChoices):
+class ReferenceSystemPrefixChoices(TextChoices):
     EPSG = "EPSG"
 
 
-class SpatialResType(TextChoices):
-    GROUND_DISTANCE = "groundDistance"
-    SCALE_DISTANCE = "scaleDenominator"
+class UpdateFrequencyChoices(SmartIntegerChoices):
+    UNKNOWN = 0, _("unknown")
+    ANNUALLY = 1, _("annually")
+    BIANNUALLY = 2, _("biannually")
+    AS_NEEDED = 3, _("as needed")
+    IRREGULAR = 4, _("irregular")
+    NOT_PLANNED = 5, _("not planned")

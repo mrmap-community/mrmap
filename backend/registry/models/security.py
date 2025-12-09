@@ -188,20 +188,16 @@ class CatalogueServiceAuthentication(ServiceAuthentication):
 
 
 class WebMapServiceOperation(models.Model):
-    operation = models.PositiveSmallIntegerField(
-        primary_key=True,
-        choices=SecureableWMSOperationEnum.choices
-    )
+    operation = models.PositiveSmallIntegerField(primary_key=True,
+                                                 choices=SecureableWMSOperationEnum.choices)
 
     def __str__(self) -> str:
         return SecureableWMSOperationEnum(self.operation).label
 
 
 class WebFeatureServiceOperation(models.Model):
-    operation = models.PositiveSmallIntegerField(
-        primary_key=True,
-        choices=SecureableWFSOperationEnum.choices
-    )
+    operation = models.PositiveSmallIntegerField(primary_key=True,
+                                                 choices=SecureableWFSOperationEnum.choices)
 
     def __str__(self) -> str:
         return SecureableWFSOperationEnum(self.operation).label
@@ -254,7 +250,7 @@ class AllowedOperation(models.Model):
         constraints = [
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_allowed_area_not_empty",
-                check=Func(
+                condition=Func(
                     F("allowed_area"),
                     function="NOT st_isempty",
                     output_field=BooleanField(),
@@ -298,7 +294,7 @@ class AllowedWebMapServiceOperation(AllowedOperation):
     # constraints = {
     #     models.CheckConstraint(
     #         name="%(app_label)s_%(class)s_log_response_without_camouflage",
-    #         check=Q(camouflage=True, log_response=True) | Q(
+    #         condition=Q(camouflage=True, log_response=True) | Q(
     #             camouflage=True, log_response=False) | Q(camouflage=False, log_response=False)
     #     ),
     # }
@@ -396,7 +392,7 @@ class ProxySetting(models.Model):
         constraints = [
             models.CheckConstraint(
                 name="%(app_label)s_%(class)s_log_response_without_camouflage",
-                check=Q(camouflage=True, log_response=True)
+                condition=Q(camouflage=True, log_response=True)
                 | Q(camouflage=True, log_response=False)
                 | Q(camouflage=False, log_response=False),
             ),

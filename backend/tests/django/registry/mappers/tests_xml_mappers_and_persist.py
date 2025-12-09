@@ -4,7 +4,8 @@ from uuid import uuid4
 
 from django.test import TestCase
 from registry.mappers.persistence import PersistenceHandler
-from registry.mappers.xml_mapper import OGCServiceXmlMapper
+from registry.mappers.xml_mapper import (MDMetadataXmlMapper,
+                                         OGCServiceXmlMapper)
 from tests.django.test_data.capabilities.csw.expected_service_data import \
     EXPECTED_DATA as EXPECTED_CSW_SERVICE_DATA_2_0_2
 from tests.django.test_data.capabilities.wfs.expected_featuretype_data import \
@@ -115,11 +116,18 @@ class XmlMapperTest(TestCase):
             f.write("EXPECTED_DATA = ")
             f.write(pprint.pformat(expected_data, indent=4))
 
-    def _call_mapper_and_persistence_handler(self):
+    def _call_service_mapper_and_persistence_handler(self):
         """Test that create manager function works correctly."""
         mapper = OGCServiceXmlMapper.from_xml(self.xml)
         self.data = mapper.xml_to_django()
         handler = PersistenceHandler(mapper)
+        handler.persist_all()
+
+    def _call_iso_mapper_and_persistence_handler(self):
+        """Test that create manager function works correctly."""
+        mappers = MDMetadataXmlMapper.from_xml(self.xml)
+        self.data = mappers[0].xml_to_django()
+        handler = PersistenceHandler(mappers[0])
         handler.persist_all()
 
     def _test_service_success(self, expeced):
@@ -238,7 +246,7 @@ class XmlMapperTest(TestCase):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wms/1.1.1.xml'))
-        self._call_mapper_and_persistence_handler()
+        self._call_service_mapper_and_persistence_handler()
         self._test_service_success(expeced=EXPECTED_WMS_SERVICE_DATA_1_1_1)
         self._test_wms_success(expected=LAYER_DATA_1_1_1)
 
@@ -246,7 +254,7 @@ class XmlMapperTest(TestCase):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wms/1.3.0.xml'))
-        self._call_mapper_and_persistence_handler()
+        self._call_service_mapper_and_persistence_handler()
         self._test_service_success(expeced=EXPECTED_WMS_SERVICE_DATA_1_3_0)
         self._test_wms_success(expected=LAYER_DATA_1_3_0)
 
@@ -254,7 +262,7 @@ class XmlMapperTest(TestCase):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wfs/2.0.0.xml'))
-        self._call_mapper_and_persistence_handler()
+        self._call_service_mapper_and_persistence_handler()
         # self.__export_parsed_wfs_data(self.data[0].featuretypes.all())
         self._test_service_success(expeced=EXPECTED_WFS_SERVICE_DATA_2_0_0)
         self._test_wfs_success()
@@ -263,5 +271,12 @@ class XmlMapperTest(TestCase):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/csw/2.0.2.xml'))
-        self._call_mapper_and_persistence_handler()
+        self._call_service_mapper_and_persistence_handler()
         self._test_service_success(expeced=EXPECTED_CSW_SERVICE_DATA_2_0_2)
+
+    def test_iso_dataset(self):
+        self.xml = Path(Path.joinpath(
+            Path(__file__).parent.resolve(),
+            '../../test_data/iso_metadata/dataset.xml'))
+        self._call_iso_mapper_and_persistence_handler()
+        i = 0

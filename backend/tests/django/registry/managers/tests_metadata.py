@@ -13,7 +13,7 @@ class IsoMetadataManagerTest(TestCase):
         """Test that create manager function works correctly."""
 
         file_path = Path(Path.joinpath(
-            Path(__file__).parent.resolve(), '../../test_data/iso_metadata/RBSN_FF.xml')).resolve().__str__()
+            Path(__file__).parent.resolve(), '../../test_data/iso_metadata/dataset.xml')).resolve().__str__()
 
         parsed_doc = load_xmlobject_from_file(
             filename=file_path, xmlclass=WrappedIsoMetadata)

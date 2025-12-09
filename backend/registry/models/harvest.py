@@ -119,23 +119,23 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                                                 related_query_name="harvested_service_metadata_relation")
     collecting_state = models.PositiveSmallIntegerField(
         choices=CollectingStatenEnum.choices)
-    download_duration = models.DurationField(
-        null=True,
-        blank=True,
-        verbose_name=_("download duration"),
-        help_text=_("This is the duration it tooked proportionately to download this record. "
-                    "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"
-                    "To get the download duration over all for one harvesting job, aggregate this col."))
-    processing_duration = models.DurationField(
-        null=True,
-        blank=True,
-        verbose_name=_("processing duration"),
-        help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
-    history_date = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_('Created DateTime'),
-        help_text=_('Datetime field when the relation was created'),
-    )
+    download_duration = models.DurationField(null=True,
+                                             blank=True,
+                                             verbose_name=_(
+                                                 "download duration"),
+                                             help_text=_("This is the duration it tooked proportionately to download this record. "
+                                                         "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"
+                                                         "To get the download duration over all for one harvesting job, aggregate this col."))
+    processing_duration = models.DurationField(null=True,
+                                               blank=True,
+                                               verbose_name=_(
+                                                   "processing duration"),
+                                               help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
+    history_date = models.DateTimeField(auto_now_add=True,
+                                        verbose_name=_('Created DateTime'),
+                                        help_text=_(
+                                            'Datetime field when the relation was created'),
+                                        )
 
     objects = HarvestedMetadataRelationQuerySet.as_manager()
 

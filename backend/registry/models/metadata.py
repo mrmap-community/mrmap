@@ -1,7 +1,5 @@
 from uuid import uuid4
 
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
 from django.contrib.postgres.fields import DateTimeRangeField
@@ -18,9 +16,11 @@ from extras.managers import (DefaultHistoryManager,
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
-from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
+from registry.enums.metadata import (DatasetFormatEnum, LanguageChoices,
+                                     MetadataCharsetChoices,
                                      MetadataOriginEnum,
-                                     ReferenceSystemPrefixEnum, SpatialResType)
+                                     ReferenceSystemPrefixChoices,
+                                     UpdateFrequencyChoices)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         IsoMetadataManager, KeywordManager,
@@ -115,7 +115,7 @@ class ReferenceSystem(models.Model):
     code = models.CharField(max_length=100,
                             default="")
     prefix = models.CharField(max_length=255,
-                              choices=ReferenceSystemPrefixEnum.choices,
+                              choices=ReferenceSystemPrefixChoices.choices,
                               default="")
 
     class Meta:
@@ -133,7 +133,7 @@ class ReferenceSystem(models.Model):
 
     @property
     def crs(self):
-        if self.prefix == ReferenceSystemPrefixEnum.EPSG:
+        if self.prefix == ReferenceSystemPrefixChoices.EPSG:
             try:
                 return CRS_Registry.get(srid=self.code)
             except (ConnectionError, GDALException):
@@ -248,7 +248,7 @@ class Keyword(models.Model):
                 fields=["keyword"]
             ),
             models.CheckConstraint(
-                check=~Q(keyword="") | ~Q(keyword__isnull=True),
+                condition=~Q(keyword="") | ~Q(keyword__isnull=True),
                 name="%(app_label)s_%(class)s_non_empty_keywords",
             )
         ]
@@ -432,11 +432,11 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                                    "(gmd:fileIdentifier) OR for example if it is a layer/featuretype"
                                                    "the uuid of the described layer/featuretype shall be used to "
                                                    "identify the generated iso metadata xml."))
-    origin = models.CharField(max_length=20,
-                              choices=MetadataOriginEnum.choices,
-                              editable=False,
-                              verbose_name=_("origin"),
-                              help_text=_("Where the metadata record comes from."))
+    origin = models.PositiveSmallIntegerField(choices=MetadataOriginEnum.choices,
+                                              null=True,
+                                              editable=False,
+                                              verbose_name=_("origin"),
+                                              help_text=_("Where the metadata record comes from."))
     origin_url = models.URLField(max_length=4096,
                                  null=True,
                                  blank=True,
@@ -469,11 +469,11 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))
-    hits = models.IntegerField(default=0,
-                               verbose_name=_("hits"),
-                               help_text=_(
-                                   "how many times this metadata was requested by a client"),
-                               editable=False, )
+    hits = models.PositiveIntegerField(default=0,
+                                       verbose_name=_("hits"),
+                                       help_text=_(
+                                           "how many times this metadata was requested by a client"),
+                                       editable=False, )
     keywords = models.ManyToManyField(to=Keyword,
                                       blank=True,
                                       related_name="%(class)s_metadata",
@@ -481,7 +481,10 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
 
-    language = None  # TODO
+    language = models.PositiveSmallIntegerField(null=True,
+                                                choices=LanguageChoices.choices,
+                                                verbose_name=_("language"),
+                                                help_text=_("the language this metadata content is written."))
     category = None  # TODO: Inspire + iso + various
 
     # needed for Docuement mixin to load the backupfile into the correct xml mapper class
@@ -630,17 +633,16 @@ class MetadataRelation(models.Model):
                                       verbose_name=_("internal relation?"),
                                       help_text=_("true means that this relation is created by a user and the dataset "
                                                   "is maybe not linked in a capabilities document for example."))
-    origin = models.CharField(max_length=20,
-                              choices=MetadataOriginEnum.choices,
-                              verbose_name=_("origin"),
-                              help_text=_("determines where this relation was found or it is added by a user."))
+    origin = models.PositiveSmallIntegerField(choices=MetadataOriginEnum.choices,
+                                              verbose_name=_("origin"),
+                                              help_text=_("determines where this relation was found or it is added by a user."))
 
     class Meta:
 
         constraints = [
             models.CheckConstraint(
                 name="one_related_object_selected",
-                check=VALID_RELATIONS
+                condition=VALID_RELATIONS
             ),
             # service like resources can only have one describing service metadata
             models.UniqueConstraint(
@@ -709,18 +711,19 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                related_query_name="%(class)s",
                                                blank=True,
                                                verbose_name=_("reference systems"))
+    # TODO: check if this is calculate able
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
-    # TODO: use IntegerChoices instead
-    spatial_res_type = models.CharField(max_length=20,
-                                        choices=SpatialResType.choices,
-                                        default="",
-                                        verbose_name=_("resolution type"),
-                                        help_text=_("Ground resolution in meter or the equivalent scale."))
-    spatial_res_value = models.FloatField(null=True,
-                                          blank=True,
-                                          verbose_name=_("resolution value"),
-                                          help_text=_("The value depending on the selected resolution type."))
+    equivalent_scale = models.FloatField(null=True,
+                                         blank=True,
+                                         editable=False,
+                                         verbose_name=_("equivalent scale"),
+                                         help_text=_("1 cm : 100 cm for example"))
+    ground_res = models.FloatField(null=True,
+                                   blank=True,
+                                   editable=False,
+                                   verbose_name=_("ground resolution"),
+                                   help_text=_("pixel per meter for example"))
     code = models.CharField(max_length=4096,
                             blank=True,
                             default="",  # empty code signals broken dataset metadata records; means not inspire identifiable
@@ -754,10 +757,10 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                 condition=~Q(code="", code_space=""),
                 name='%(app_label)s_%(class)s_unique_together_code__and_code_space'),
             models.CheckConstraint(
-                name="%(app_label)s_%(class)s_check_spatial_res",
-                check=Q(spatial_res_type="", spatial_res_value=None)
-                | Q(spatial_res_type=SpatialResType.GROUND_DISTANCE, spatial_res_value__gte=0)
-                | Q(spatial_res_type=SpatialResType.SCALE_DISTANCE, spatial_res_value__gte=0)
+                name="%(app_label)s_%(class)s_check_scale_xor_res",
+                condition=Q(equivalent_scale=None, ground_res=None)
+                | Q(equivalent_scale__gte=0, ground_res=None)
+                | Q(equivalent_scale=None, ground_res__gte=0)
             )
         ] + AbstractMetadata.Meta.constraints
 
@@ -768,64 +771,6 @@ class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
-    SRS_AUTHORITIES_CHOICES = [
-        ("EPSG", "European Petroleum Survey Group (EPSG) Geodetic Parameter Registry"),
-    ]
-
-    CHARACTER_SET_CHOICES = [
-        ("utf8", "utf8"),
-        ("utf16", "utf16"),
-    ]
-
-    UPDATE_FREQUENCY_CHOICES = [
-        ("annually", "annually"),
-        ("asNeeded", "asNeeded"),
-        ("biannually", "biannually"),
-        ("irregular", "irregular"),
-        ("notPlanned", "notPlanned"),
-        ("unknown", "unknown"),
-    ]
-
-    LEGAL_RESTRICTION_CHOICES = [
-        ("copyright", "copyright"),
-        ("intellectualPropertyRights", "intellectualPropertyRights"),
-        ("license", "license"),
-        ("otherRestrictions", "otherRestrictions"),
-        ("patent", "patent"),
-        ("patentPending", "patentPending"),
-        ("restricted", "restricted"),
-        ("trademark", "trademark"),
-    ]
-
-    DISTRIBUTION_FUNCTION_CHOICES = [
-        ("download", "download"),
-        ("information", "information"),
-        ("offlineAccess", "offlineAccess"),
-        ("order", "order"),
-        ("search", "search"),
-    ]
-
-    DATA_QUALITY_SCOPE_CHOICES = [
-        ("attribute", "attribute"),
-        ("attributeType", "attributeType"),
-        ("collectionHardware", "collectionHardware"),
-        ("collectionSession", "collectionSession"),
-        ("dataset", "dataset"),
-        ("dimensionGroup", "dimensionGroup"),
-        ("feature", "feature"),
-        ("featureType", "featureType"),
-        ("fieldSession", "fieldSession"),
-        ("model", "model"),
-        ("nonGeographicDataset", "nonGeographicDataset"),
-        ("propertyType", "propertyType"),
-        ("series", "series"),
-        ("software", "software"),
-        ("service", "service"),
-        ("tile", "tile"),
-    ]
-
-    INDETERMINATE_POSITION_CHOICES = [
-        ("now", "now"), ("before", "before"), ("after", "after"), ("unknown", "unknown")]
 
     LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
     CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
@@ -836,20 +781,20 @@ class DatasetMetadataRecord(MetadataRecord):
                                         related_query_name="%(class)s_dataset_contact",
                                         verbose_name=_("contact"),
                                         help_text=_("this is the contact which provides this dataset."))
-    # TODO: use IntegerChoices instead
-    format = models.CharField(default="",
-                              blank=True,
-                              max_length=20,
-                              choices=DatasetFormatEnum.choices,
-                              verbose_name=_("format"),
-                              help_text=_("The format in which the described dataset is stored."))
-    # TODO: use IntegerChoices instead
-    charset = models.CharField(default="",
-                               blank=True,
-                               max_length=10,
-                               choices=MetadataCharset.choices,
-                               verbose_name=_("charset"),
-                               help_text=_("The charset which is used by the stored data."))
+    format = models.PositiveSmallIntegerField(null=True,
+                                              blank=True,
+                                              choices=DatasetFormatEnum.choices,
+                                              verbose_name=_("format"),
+                                              help_text=_("The format in which the described dataset is stored."))
+    charset = models.PositiveSmallIntegerField(null=True,
+                                               blank=True,
+                                               choices=MetadataCharsetChoices.choices,
+                                               verbose_name=_("charset"),
+                                               help_text=_("The charset which is used by the stored data."))
+    update_frequency_code = models.PositiveSmallIntegerField(choices=UpdateFrequencyChoices.choices,
+                                                             null=True,
+                                                             blank=True)
+
     inspire_top_consistence = models.BooleanField(default=False,
                                                   help_text=_("Flag to signal if the described data has a topologically"
                                                               " consistence."))
@@ -858,11 +803,6 @@ class DatasetMetadataRecord(MetadataRecord):
 
     lineage_statement = models.TextField(blank=True,
                                          default="")
-    # TODO: use IntegerChoices instead
-    update_frequency_code = models.CharField(max_length=20,
-                                             choices=UPDATE_FREQUENCY_CHOICES,
-                                             blank=True,
-                                             default="")
 
     change_log = HistoricalRecords(
         related_name="change_logs",

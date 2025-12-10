@@ -373,8 +373,7 @@ class XmlMapper:
                     mapper = self.__class__(elements[0], field | {"_namespaces": namespaces})
                     related_obj = getattr(obj, fieldname)
                     if isinstance(related_obj, Manager):
-                        # RemoteMetadata child models have a ForeignKey to a Service/Layer/FeatureType?!
-                        # The other direction would make more sense...
+                        # metadata url is linked via ForeignKey from RemoteMetadata to Service/Layer/FeatureType
                         assert related_obj.count() <= 1
                         related_obj = related_obj.get()
                     mapper._update_element(related_obj)
@@ -390,7 +389,7 @@ class XmlMapper:
                         mapper._update_element(related_obj)
 
     def _set_value(self, xpath: str, value: str | int | None):
-        if xpath.rsplit("/")[-1].startswith("@"):
+        if xpath.split("/")[-1].startswith("@"):
             # this is an attribute
             self._set_attribute(xpath, value)
         else:
@@ -401,30 +400,32 @@ class XmlMapper:
             self._delete_element(xpath)
             return
 
-        element = self._get_or_create_element(xpath)
+        element = self._get_element(xpath, create=True)
         element.text = str(value)
 
     def _set_attribute(self, xpath: str, value: str | int | None):
-        if value is None or value == "":
-            # TODO: delete attribute
-            return
-
         namespaces = self.mapping.get("_namespaces", {})
-        nsprefix, _, step = xpath.rsplit("/")[-1].lstrip("@").rpartition(":")
+        nsprefix, _, step = xpath.split("/")[-1].lstrip("@").rpartition(":")
         ns = namespaces.get(nsprefix, "")
-        element = self._get_or_create_element(xpath)
-        element.set(f"{{{ns}}}{step}", str(value))
 
-    def _get_or_create_element(self, xpath: str) -> etree.Element:
+        element = self._get_element(xpath)
+        if element is None:
+            if value is None or value == "":
+                return
+            else:
+                element = self._create_element(xpath)
+        value = str(value) if value is not None else ""
+        element.set(f"{{{ns}}}{step}", value)
+
+    def _get_element(self, xpath: str, create: bool = False) -> etree.Element | None:
         namespaces = self.mapping.get("_namespaces", {})
         elements = self.current_element.xpath(xpath, namespaces=namespaces)
         if isinstance(elements, list):
             if len(elements) > 1:
                 raise  # TODO: meaningful exception
-            if elements:
-                element = elements[0]
-            else:
-                element = self._create_element(xpath)
+            if not elements and not create:
+                return
+            element = elements[0] if elements else self._create_element(xpath)
         else:
             element = elements
         if isinstance(element, etree._ElementUnicodeResult):
@@ -435,15 +436,12 @@ class XmlMapper:
 
     def _create_element(self, xpath: str) -> etree.Element:
         namespaces = self.mapping.get("_namespaces", {})
-        match = util.find_xml_node(xpath, self.current_element, {"namespaces": namespaces})
-        if match is not None:
-            return match
         return util.create_xml_node(parse(xpath), self.current_element, {"namespaces": namespaces})
 
     def _delete_element(self, xpath: str | None = None):
         namespaces = self.mapping.get("_namespaces", {})
         elements = self.current_element.xpath(xpath, namespaces=namespaces) if xpath else [self.current_element]
         for element in elements:
-            if not (parent := element.getparent()):
+            if (parent := element.getparent()) is None:
                 continue
             parent.remove(element)

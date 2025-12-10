@@ -53,7 +53,7 @@ def create_xml_node(xast: ast.AST, node: etree.Element, context: dict, insert_in
             if xast.axis in (None, "child"):
                 new_node = _create_child_node(node, context, xast, insert_index)
             elif xast.axis in ("@", "attribute"):
-                new_node = _create_attribute_node(node, context, xast)
+                new_node = node
             else:
                 msg = (
                     "Missing element for '%s', and node creation is "
@@ -101,14 +101,6 @@ def _create_child_node(node: etree.Element, context: dict, step: ast.Step, inser
     else:
         node.append(new_node)
     return new_node
-
-def _create_attribute_node(node: etree.Element, context: dict, step: ast.Step) -> etree.Element:
-    node_name, node_xpath, nsmap = _get_attribute_name(step, context)
-    # create an empty attribute node
-    node.set(node_name, "")
-    # find via xpath so a 'smart' string can be returned and set normally
-    result = node.xpath(node_xpath, namespaces=nsmap)
-    return result[0]
 
 def _predicate_is_constructible(pred: ast.AST) -> bool:
     if isinstance(pred, ast.Step):

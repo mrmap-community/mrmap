@@ -44,7 +44,58 @@ class LanguageChoices(SmartIntegerChoices):
 
 
 class MetadataCharsetChoices(SmartIntegerChoices):
-    UTF8 = 8, _("utf8")
+    """Represents all valueable choices for MD_CharacterSetCode<<CodeList>> ISO19139"""
+    # 16-bit fixed size Universal Character Set, based on ISO/IEC 10646
+    UCS2 = 2, _("ucs2")
+    # 32-bit fixed size Universal Character Set, based on ISO/IEC 10646
+    UCS4 = 3, _("ucs4")
+    # 7-bit variable size UCS Transfer Format, based on ISO/IEC 10646
+    utf7 = 4, _("utf7")
+    # 8-bit variable size UCS Transfer Format, based on ISO/IEC 10646
+    UTF8 = 5, _("utf8")
+    # 16-bit variable size UCS Transfer Format, based on ISO/IEC 10646
+    utf16 = 6, _("utf16")
+    # ISO/IEC 8859-1, Information technology - 8-bit single-byte coded graphic character sets - Part 1: Latin alphabet No. 1
+    PART1 = 7, _("8859part1")
+    # ISO/IEC 8859-2, Information technology - 8-bit single-byte coded graphic character sets - Part 2: Latin alphabet No. 2
+    PART2 = 8, _("8859part2")
+    # ISO/IEC 8859-3, Information technology - 8-bit single-byte coded graphic character sets - Part 3: Latin alphabet No. 3
+    PART3 = 9, _("8859part3")
+    # ISO/IEC 8859-4, Information technology - 8-bit single-byte coded graphic character sets - Part 4: Latin alphabet No. 4
+    PART4 = 10, _("8859part4")
+    # ISO/IEC 8859-51, Information technology - 8-bit single-byte coded graphic character sets - Part 5: Latin/Cyrillic alphabet
+    PART5 = 11, _("8859part5")
+    # ISO/IEC 8859-6, Information technology - 8-bit single-byte coded graphic character sets - Part 6: Latin/Arabic alphabet
+    PART6 = 12, _("8859part6")
+    # ISO/IEC 8859-7, Information technology - 8-bit single-byte coded graphic character sets - Part 7: Latin/Greek alphabet
+    PART7 = 13, _("8859part7")
+    # ISO/IEC 8859-8, Information technology - 8-bit single-byte coded graphic character sets - Part 8: Latin/Hebrew alphabet
+    PART8 = 14, _("8859part8")
+    # ISO/IEC8859-9, Information technology - 8-bit single-byte coded graphic character sets - Part 9: Latin alphabet No. 5
+    PART9 = 15, _("8859part9")
+    # ISO/IEC 8859-10, Information technology - 8-bit single-byte coded graphic character sets - Part 10: Latin alphabet No. 6
+    PART10 = 16, _("8859part10")
+    # ISO/IEC 8859-11, Information technology - 8-bit single-byte coded graphic character sets - Part 11: Latin/Thai alphabet
+    PART11 = 17, _("8859part11")
+    # 18 (reserved for future use) a future ISO/IEC 8-bit single-byte coded graphic character set (e.g. possibly ISO/IEC 8859-12
+    # ISO/IEC 8859-13, Information technology - 8-bit single-byte coded graphic character sets - Part 13: Latin alphabet No. 7
+    PART13 = 19, _("8859part13")
+    # ISO/IEC 8859-14, Information technology - 8-bit single-byte coded graphic character sets - Part 14: Latin alphabet No. 8 (Celtic)
+    PART14 = 20, _("8859part14")
+    # ISO/IEC 8859-15, Information technology - 8-bit single-byte coded graphic character sets - Part 15: Latin alphabet No. 9
+    PART15 = 21, _("8859part15")
+    # ISO/IEC 8859-16, Information technology - 8-bit single-byte coded graphic character sets - Part 16: Latin alphabet No. 10
+    PART16 = 22, _("8859part16")
+    JIS = 23, _("jis")  # japanese code set used for electronic transmission
+    # japanese code set used on MS-DOS based machines
+    SHIFT_JIS = 24, _("shiftJIS")
+    EUC_JP = 25, _("eucJP")  # japanese code set used on UNIX based machines
+    US_ASCII = 26, _("usAscii")  # united states ASCII code set (ISO 646 US)
+    EBCDIC = 27, _("ebcdic")  # ibm mainframe code set
+    EUC_KR = 28, _("eucKR")  # korean code set
+    # traditional Chinese code set used in Taiwan, HongKong of China and other areas
+    BID_5 = 29, _("big5")
+    GB2312 = 30, _("GB2312")  # simplified Chinese code set
 
 
 class ReferenceSystemPrefixChoices(TextChoices):
@@ -52,9 +103,19 @@ class ReferenceSystemPrefixChoices(TextChoices):
 
 
 class UpdateFrequencyChoices(SmartIntegerChoices):
-    UNKNOWN = 0, _("unknown")
-    ANNUALLY = 1, _("annually")
-    BIANNUALLY = 2, _("biannually")
-    AS_NEEDED = 3, _("as needed")
-    IRREGULAR = 4, _("irregular")
-    NOT_PLANNED = 5, _("not planned")
+    """Represents all valueable choices for MD_MaintenanceFrequencyCode<<CodeList>> ISO19139"""
+
+    CONTINUAL = 2, _("continual")  # data is repeatedly and frequently updated
+    DAILY = 3, _("daily")  # data is updated each day
+    WEEKLY = 4, _("weekly")  # data is updated on a weekly basis
+    FORTNIGHTLY = 5, _("fortnightly")  # data is updated every two weeks
+    MONTHLY = 6, _("monthly")  # data is updated each month
+    QUARTERLY = 7, _("querterly")  # data is updated every three months
+    biannually = 8, _("biannually")  # data is updated twice each year
+    annually = 9, _("annually")  # data is updated every year
+    ASNEEDED = 10, _("as needed")  # data is updated as deemed necessary
+    # data is updated in intervals that are uneven in duration
+    IRREGULAR = 11, _("irregular")
+    NOTPLANNED = 12, _("not planned")  # there are no plans to update the data
+    # frequency of maintenance for the data is not known
+    UNKNOWN = 13, _("unknown")

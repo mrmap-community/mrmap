@@ -484,7 +484,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     language = models.PositiveSmallIntegerField(null=True,
                                                 choices=LanguageChoices.choices,
                                                 verbose_name=_("language"),
-                                                help_text=_("the language this metadata content is written."))
+                                                help_text=_("language used for documenting metadata"))
     category = None  # TODO: Inspire + iso + various
 
     # needed for Docuement mixin to load the backupfile into the correct xml mapper class
@@ -771,10 +771,6 @@ class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
-
-    LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
-    CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
-
     dataset_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="%(class)s_dataset_contact",
@@ -790,7 +786,7 @@ class DatasetMetadataRecord(MetadataRecord):
                                                blank=True,
                                                choices=MetadataCharsetChoices.choices,
                                                verbose_name=_("charset"),
-                                               help_text=_("The charset which is used by the stored data."))
+                                               help_text=_("full name of the character coding standard used for the metadata set"))
     update_frequency_code = models.PositiveSmallIntegerField(choices=UpdateFrequencyChoices.choices,
                                                              null=True,
                                                              blank=True)

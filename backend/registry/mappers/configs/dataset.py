@@ -19,6 +19,10 @@ XPATH_MAP = {
                     "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.charset_to_enum",
                 },
+                "update_frequency_code": {
+                    "_inputs": ("./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",),
+                    "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum"
+                },
                 "language": {
                     "_inputs": ("./gmd:language/gmd:LanguageCode/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.language_to_enum",
@@ -36,7 +40,6 @@ XPATH_MAP = {
                         "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
                     "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon"
                 },
-
                 "code": {
                     "_inputs": (
                         "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString/text()",

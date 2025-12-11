@@ -42,7 +42,7 @@ XPATH_MAP = {
                 },
                 "code": {
                     "_inputs": (
-                        "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString/text()",
+                        ".//gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString/text()",
                     ),
                     "_parser": "registry.mappers.parsers.value.string_to_code",
                 },
@@ -54,7 +54,6 @@ XPATH_MAP = {
                 },
                 "equivalent_scale": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer",
                 "ground_res": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gmd:Distance",
-
                 "keywords": {
                     "_model": "registry.Keyword",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString",

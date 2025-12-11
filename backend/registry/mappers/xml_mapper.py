@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 from collections import OrderedDict
@@ -269,7 +270,7 @@ class XmlMapper:
             try:
                 parsed = parser_func(self, *values)
             except Exception as e:
-                # Logging oder Fallback
+                logging.error(f"Error parsing field with {xpath_or_spec['_parser']}: {e}")
                 parsed = None
             finally:
                 return parsed

@@ -156,22 +156,22 @@ def string_to_code_space(mapper, code):
 
 def _parse_geographic_bbox(mapper, element):
     nsmap = mapper.mapping.get("_namespaces", None)
-    min_x = element.find(
+    min_x = float(element.findtext(
         "./gmd:westBoundLongitude/gco:Decimal",
         namespaces=nsmap
-    )
-    max_x = element.find(
+    ))
+    max_x = float(element.findtext(
         "./gmd:eastBoundLongitude/gco:Decimal",
         namespaces=nsmap
-    )
-    min_y = element.find(
+    ))
+    min_y = float(element.findtext(
         "./gmd:southBoundLatitude/gco:Decimal",
         namespaces=nsmap
-    )
-    max_y = element.find(
+    ))
+    max_y = float(element.findtext(
         "./gmd:northBoundLatitude/gco:Decimal",
         namespaces=nsmap
-    )
+    ))
 
     if min_x and max_x and min_y and max_y:
         return Polygon((
@@ -186,7 +186,7 @@ def _parse_geographic_bbox(mapper, element):
 def _parse_bounding_polygon(mapper, element):
     geometries = []
     for gmd_polygon in element.iterfind("./gmd:polygon"):
-        srs_name = gmd_polygon.find("./@srsName")
+        srs_name = gmd_polygon.findtext("./@srsName")
         geometry = GEOSGeometry.from_gml(etree.tostring(gmd_polygon))
 
         if srs_name:
@@ -200,18 +200,20 @@ def _parse_bounding_polygon(mapper, element):
 def iso_bbox_to_multipolygon(mapper, elements):
     polygons = []
 
+    if isinstance(elements, etree.Element):
+        elements = [elements]
+
     for element in elements:
 
-        if element.tag == "gmd:EX_GeographicBoundingBox":
-            polygon = _parse_geographic_bbox(mapper, elements)
+        if element.tag == "{http://www.isotc211.org/2005/gmd}EX_GeographicBoundingBox":
+            polygon = _parse_geographic_bbox(mapper, element)
             if polygon:
                 polygons.append(polygon)
 
-        elif element.tag == "gmd:EX_BoundingPolygon":
-            multipolygon = _parse_bounding_polygon(mapper, elements)
+        elif element.tag == "{http://www.isotc211.org/2005/gmd}EX_BoundingPolygon":
+            multipolygon = _parse_bounding_polygon(mapper, element)
             if multipolygon:
                 polygons.extend(multipolygon)
 
     if polygons:
-        return MultiPolygon(polygons)
         return MultiPolygon(polygons)

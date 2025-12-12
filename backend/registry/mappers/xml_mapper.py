@@ -363,30 +363,42 @@ class XmlMapper:
                 for xpath, value in zip(field["_inputs"], values):
                     self._set_value(xpath, value)
             elif isinstance(field, dict) and "_model" in field:
-                elements = self._get_elements(field, namespaces)
-                if not elements:
-                    # TODO: elements is empty -> create required elements
-                    continue  # TODO: remove this when implemented
                 if not field.get("_many", False):
-                    # ignore additional elements
-                    # TODO: probably should throw exception if len(elements) > 1
-                    mapper = self.__class__(elements[0], field | {"_namespaces": namespaces})
+                    element = self._get_element(field.get("_base_xpath", "."), create=True)
+                    mapper = self.__class__(element, field | {"_namespaces": namespaces})
                     related_obj = getattr(obj, fieldname)
+
+                    # metadata url is linked via ForeignKey from RemoteMetadata to Service/Layer/FeatureType
                     if isinstance(related_obj, Manager):
-                        # metadata url is linked via ForeignKey from RemoteMetadata to Service/Layer/FeatureType
-                        assert related_obj.count() <= 1
-                        related_obj = related_obj.get()
+                        try:
+                            related_obj = related_obj.get()
+                        except related_obj.model.DoesNotExist:
+                            # TODO: should the corresponding xml element be deleted or left untouched?
+                            continue
+
                     mapper._update_element(related_obj)
+                elif field.get("_parser", ""):  # likely not a 1:1 relation
+                    if not field.get("_reverse_parser", ""):
+                        continue
+                    # TODO
                 else:
-                    # obj should have a Manager
+                    elements = self._get_elements(field, namespaces)
+                    # obj.fieldname should be a Manager
                     related_objs = getattr(obj, fieldname).all()
-                    if len(related_objs) != len(elements):
+
+                    while len(related_objs) != len(elements):
                         # TODO: create or delete elements as needed
-                        continue  # TODO: remove this when implemented
-                    # TODO: ordering might be an issue here
-                    for element, related_obj in zip(elements, related_objs):
-                        mapper = self.__class__(element, field | {"_namespaces": namespaces})
-                        mapper._update_element(related_obj)
+                        if len(related_objs) > len(elements):
+                            self._create_element(field["_base_xpath"])
+                        else:
+                            break  # TODO: remove this when implemented
+                        elements = self._get_elements(field, namespaces)
+                        related_objs = getattr(obj, fieldname).all()
+                    else:  # if we break out of the loop, the following block is skipped
+                        # TODO: ordering might be an issue here
+                        for element, related_obj in zip(elements, related_objs):
+                            mapper = self.__class__(element, field | {"_namespaces": namespaces})
+                            mapper._update_element(related_obj)
 
     def _set_value(self, xpath: str, value: str | int | None):
         if xpath.split("/")[-1].startswith("@"):

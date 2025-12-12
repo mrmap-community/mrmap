@@ -108,7 +108,7 @@ def update_frequency_code_to_enum(mapper, update_frequence_code_str):
     return UpdateFrequencyChoices(update_frequence_code_str)
 
 
-def string_to_datetime(value: str):
+def string_to_datetime(mapper, value: str):
     dt = parse_datetime(value)
     if dt:
         return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
@@ -147,11 +147,11 @@ def _split_code(mapper, code_string):
 
 
 def string_to_code(mapper, code):
-    _split_code(mapper, code)[0]
+    return _split_code(mapper, code)[0]
 
 
 def string_to_code_space(mapper, code):
-    _split_code(mapper, code)[1]
+    return _split_code(mapper, code)[1]
 
 
 def _parse_geographic_bbox(mapper, element):

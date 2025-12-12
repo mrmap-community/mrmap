@@ -270,7 +270,8 @@ class XmlMapper:
             try:
                 parsed = parser_func(self, *values)
             except Exception as e:
-                logging.error(f"Error parsing field with {xpath_or_spec['_parser']}: {e}")
+                logging.error(
+                    f"Error parsing field with {xpath_or_spec['_parser']}: {e}")
                 parsed = None
             finally:
                 return parsed
@@ -416,6 +417,8 @@ class XmlMapper:
             parser = load_function(spec.get("_parser"))
 
             for el in elements:
+                # FIXME: AttributeError: 'lxml.etree._ElementUnicodeResult' object has no attribute 'getroottree'
+                # instead try to get the element above this unicoderesult
                 path = el.getroottree().getpath(el)
                 instance = parser(self, el)
                 if isinstance(instance, list):

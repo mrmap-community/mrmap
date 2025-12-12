@@ -1,3 +1,4 @@
+from lxml import etree
 from registry.models.metadata import ReferenceSystem
 
 
@@ -7,6 +8,8 @@ def parse_reference_systems(mapper, elements):
 
     """
     instances = []
+    if isinstance(elements, etree.Element):
+        elements = [elements]
     for element in elements:
         code = ""
         prefix = ""

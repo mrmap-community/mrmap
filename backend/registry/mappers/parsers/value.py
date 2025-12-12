@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from epsg_cache.utils import get_epsg_srid
 from lxml import etree
-from registry.enums.metadata import (MetadataCharsetChoices,
+from registry.enums.metadata import (LanguageChoices, MetadataCharsetChoices,
                                      UpdateFrequencyChoices)
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
@@ -102,7 +102,7 @@ def charset_to_enum(mapper, charset_str):
 
 
 def language_to_enum(mapper, language_str):
-    return MetadataCharsetChoices(language_str)
+    return LanguageChoices(language_str)
 
 
 def update_frequency_code_to_enum(mapper, update_frequence_code_str):

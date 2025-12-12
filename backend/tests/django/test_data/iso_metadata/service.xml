@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/cat/csw/2.0.2 http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd">
+  <csw:SearchStatus timestamp="2025-12-12T09:31:53" />
+  <csw:SearchResults numberOfRecordsMatched="1251" numberOfRecordsReturned="1" elementSet="summary" nextRecord="2">
+    <gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd">
+      <gmd:fileIdentifier xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gco:CharacterString>ee065040-1015-44c7-839e-e8e349c74bbd</gco:CharacterString>
+      </gmd:fileIdentifier>
+      <gmd:language xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="ger" />
+      </gmd:language>
+      <gmd:characterSet xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_CharacterSetCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" />
+      </gmd:characterSet>
+      <gmd:hierarchyLevel xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ScopeCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_ScopeCode" codeListValue="service">service</gmd:MD_ScopeCode>
+      </gmd:hierarchyLevel>
+      <gmd:hierarchyLevelName xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gco:CharacterString>service</gco:CharacterString>
+      </gmd:hierarchyLevelName>
+      <gmd:contact />
+      <gmd:dateStamp xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gco:Date>2025-12-08</gco:Date>
+      </gmd:dateStamp>
+      <gmd:metadataStandardName xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gco:CharacterString>ISO19119</gco:CharacterString>
+      </gmd:metadataStandardName>
+      <gmd:metadataStandardVersion xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gco:CharacterString>2005/PDAM 1</gco:CharacterString>
+      </gmd:metadataStandardVersion>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/25832">EPSG 25832: ETRS89 / UTM Zone 32N</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/31467">EPSG 31467: DHDN / Gauss-Krüger Zone 3</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/4326">EPSG 4326: WGS 84 / geographisch</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/31468">EPSG 31468: DHDN / Gauss-Krüger Zone 4</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/25833">EPSG 25833: ETRS89 / UTM Zone 33N</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/4258">EPSG 4258: ETRS89 / geographisch</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/3857">EPSG 3857: WGS 84 / Pseudo-Mercator</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:referenceSystemInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_ReferenceSystem>
+          <gmd:referenceSystemIdentifier>
+            <gmd:RS_Identifier>
+              <gmd:code>
+                <gmx:Anchor xlink:href="http://www.opengis.net/def/crs/EPSG/0/31258">EPSG 31258: MGI / Austria GK M31</gmx:Anchor>
+              </gmd:code>
+            </gmd:RS_Identifier>
+          </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+      </gmd:referenceSystemInfo>
+      <gmd:identificationInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <srv:SV_ServiceIdentification>
+          <gmd:citation>
+            <gmd:CI_Citation>
+              <gmd:title>
+                <gco:CharacterString>Rohstoffgewinnungsstellen in Bayern - WMS</gco:CharacterString>
+              </gmd:title>
+              <gmd:date>
+                <gmd:CI_Date>
+                  <gmd:date>
+                    <gco:DateTime>2024-09-01T00:00:00.000+02:00</gco:DateTime>
+                  </gmd:date>
+                  <gmd:dateType>
+                    <gmd:CI_DateTypeCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode" codeListValue="creation" />
+                  </gmd:dateType>
+                </gmd:CI_Date>
+              </gmd:date>
+            </gmd:CI_Citation>
+          </gmd:citation>
+          <gmd:abstract>
+            <gco:CharacterString>Die Rohstoffgewinnungsstellen stellen historische und aktuelle Abbaustellen dar, welche durch die Gewinnungsflächen näher bestimmt werden. Durch Auswertungen von Luftbildern und Digitalem Geländemodell, sowie durch Geländebefahrungen wurde der Zustand der Rohstoffgewinnungsfläche in Abbau, Aufgelassen, Halde, Verfüllung, Wasser und Betriebsgelände unterteilt. In kleineren Maßstäben werden die Gewinnungsflächen durch einen Umgriff des gesamten Abbaugebiets dargestellt. Die Ausdehnung der Flächen und der Betriebszustand der Abbaustellen spiegeln den Zustand zum Aufnahmezeitpunkt des letzten Luftbildes wieder und stellt nicht den Tagesaktuellen Zustand dar. Der Darstellungsmaßstab für die einzelnen Themen ist: Gewinnungsstellen (aktiv): ab 1 : 7.500, Gewinnungsstellen (inaktiv): ab 1 : 7.500 bis 150.000, Gewinnungsflächen nutzungsdifferenziert (aktiv): 1 : 7.500 bis 1 : 49.999, Gewinnungsflächen nutzungsdifferenziert (inaktiv): 1 : 7.500 bis 1 : 49.999, Gewinnungsflächen Übersicht (aktiv): 1 : 50.000 bis 1 : 200.000, Gewinnungsflächen Übersicht (inaktiv): 1 : 50.000 bis 1 : 200.000 Maßstab: 1:null; Bodenauflösung: 1m; Scanauflösung (DPI): null</gco:CharacterString>
+          </gmd:abstract>
+          <gmd:pointOfContact>
+            <gmd:CI_ResponsibleParty uuid="5688d14d-ba52-4e2e-927c-9812e583823a">
+              <gmd:organisationName>
+                <gco:CharacterString>Bayerisches Landesamt für Umwelt</gco:CharacterString>
+              </gmd:organisationName>
+              <gmd:contactInfo>
+                <gmd:CI_Contact>
+                  <gmd:address>
+                    <gmd:CI_Address>
+                      <gmd:deliveryPoint>
+                        <gco:CharacterString>Bürgermeister-Ulrich-Straße 160</gco:CharacterString>
+                      </gmd:deliveryPoint>
+                      <gmd:city>
+                        <gco:CharacterString>Augsburg</gco:CharacterString>
+                      </gmd:city>
+                      <gmd:administrativeArea>
+                        <gco:CharacterString>Bayern</gco:CharacterString>
+                      </gmd:administrativeArea>
+                      <gmd:postalCode>
+                        <gco:CharacterString>86179</gco:CharacterString>
+                      </gmd:postalCode>
+                      <gmd:country>
+                        <gco:CharacterString>DEU</gco:CharacterString>
+                      </gmd:country>
+                      <gmd:electronicMailAddress>
+                        <gco:CharacterString>datenstelle@lfu.bayern.de</gco:CharacterString>
+                      </gmd:electronicMailAddress>
+                    </gmd:CI_Address>
+                  </gmd:address>
+                  <gmd:onlineResource>
+                    <gmd:CI_OnlineResource>
+                      <gmd:linkage>
+                        <gmd:URL>https://www.lfu.bayern.de</gmd:URL>
+                      </gmd:linkage>
+                    </gmd:CI_OnlineResource>
+                  </gmd:onlineResource>
+                </gmd:CI_Contact>
+              </gmd:contactInfo>
+              <gmd:role>
+                <gmd:CI_RoleCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact" />
+              </gmd:role>
+            </gmd:CI_ResponsibleParty>
+          </gmd:pointOfContact>
+          <gmd:graphicOverview>
+            <gmd:MD_BrowseGraphic>
+              <gmd:fileName>
+                <gco:CharacterString>https://www.lfu.bayern.de/gdi/md/geologie/rohstoffgewinnung.png</gco:CharacterString>
+              </gmd:fileName>
+            </gmd:MD_BrowseGraphic>
+          </gmd:graphicOverview>
+          <gmd:resourceConstraints>
+            <gmd:MD_LegalConstraints />
+          </gmd:resourceConstraints>
+          <gmd:resourceConstraints>
+            <gmd:MD_LegalConstraints>
+              <gmd:accessConstraints>
+                <gmd:MD_RestrictionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode" codeListValue="otherRestrictions">otherRestrictions</gmd:MD_RestrictionCode>
+              </gmd:accessConstraints>
+            </gmd:MD_LegalConstraints>
+          </gmd:resourceConstraints>
+          <srv:serviceType>
+            <gco:LocalName>view</gco:LocalName>
+          </srv:serviceType>
+          <srv:serviceTypeVersion>
+            <gco:CharacterString>OGC:WMS 1.3.0</gco:CharacterString>
+          </srv:serviceTypeVersion>
+          <srv:extent>
+            <gmd:EX_Extent>
+              <gmd:geographicElement>
+                <gmd:EX_GeographicBoundingBox>
+                  <gmd:westBoundLongitude>
+                    <gco:Decimal>9.09</gco:Decimal>
+                  </gmd:westBoundLongitude>
+                  <gmd:eastBoundLongitude>
+                    <gco:Decimal>13.98</gco:Decimal>
+                  </gmd:eastBoundLongitude>
+                  <gmd:southBoundLatitude>
+                    <gco:Decimal>47.17</gco:Decimal>
+                  </gmd:southBoundLatitude>
+                  <gmd:northBoundLatitude>
+                    <gco:Decimal>50.59</gco:Decimal>
+                  </gmd:northBoundLatitude>
+                </gmd:EX_GeographicBoundingBox>
+              </gmd:geographicElement>
+            </gmd:EX_Extent>
+          </srv:extent>
+          <srv:couplingType>
+            <srv:SV_CouplingType codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#SV_CouplingType" codeListValue="tight" />
+          </srv:couplingType>
+          <srv:containsOperations>
+            <srv:SV_OperationMetadata>
+              <srv:operationName>
+                <gco:CharacterString>GetCapabilities</gco:CharacterString>
+              </srv:operationName>
+              <srv:DCP>
+                <srv:DCPList codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CSW_DCPCodeType" codeListValue="WebServices" />
+              </srv:DCP>
+              <srv:connectPoint>
+                <gmd:CI_OnlineResource>
+                  <gmd:linkage>
+                    <gmd:URL>https://www.lfu.bayern.de/gdi/wms/geologie/rohstoff_gewinnungsstellen?REQUEST=GetCapabilities&amp;SERVICE=WMS</gmd:URL>
+                  </gmd:linkage>
+                </gmd:CI_OnlineResource>
+              </srv:connectPoint>
+            </srv:SV_OperationMetadata>
+          </srv:containsOperations>
+          <srv:containsOperations>
+            <srv:SV_OperationMetadata>
+              <srv:operationName>
+                <gco:CharacterString>GetFeatureInfo</gco:CharacterString>
+              </srv:operationName>
+              <srv:DCP>
+                <srv:DCPList codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CSW_DCPCodeType" codeListValue="WebServices" />
+              </srv:DCP>
+              <srv:connectPoint>
+                <gmd:CI_OnlineResource>
+                  <gmd:linkage>
+                    <gmd:URL>https://www.lfu.bayern.de/gdi/wms/geologie/rohstoff_gewinnungsstellen?</gmd:URL>
+                  </gmd:linkage>
+                </gmd:CI_OnlineResource>
+              </srv:connectPoint>
+            </srv:SV_OperationMetadata>
+          </srv:containsOperations>
+          <srv:containsOperations>
+            <srv:SV_OperationMetadata>
+              <srv:operationName>
+                <gco:CharacterString>GetMap</gco:CharacterString>
+              </srv:operationName>
+              <srv:DCP>
+                <srv:DCPList codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CSW_DCPCodeType" codeListValue="WebServices" />
+              </srv:DCP>
+              <srv:connectPoint>
+                <gmd:CI_OnlineResource>
+                  <gmd:linkage>
+                    <gmd:URL>https://www.lfu.bayern.de/gdi/wms/geologie/rohstoff_gewinnungsstellen?</gmd:URL>
+                  </gmd:linkage>
+                </gmd:CI_OnlineResource>
+              </srv:connectPoint>
+            </srv:SV_OperationMetadata>
+          </srv:containsOperations>
+        </srv:SV_ServiceIdentification>
+      </gmd:identificationInfo>
+      <gmd:distributionInfo xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:geonet="http://www.fao.org/geonetwork"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:igctx="https://www.ingrid-oss.eu/schemas/igctx"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <gmd:MD_Distribution>
+          <gmd:distributionFormat>
+            <gmd:MD_Format>
+              <gmd:name>
+                <gco:CharacterString>Sonstiges</gco:CharacterString>
+              </gmd:name>
+              <gmd:version gco:nilReason="unknown" />
+            </gmd:MD_Format>
+          </gmd:distributionFormat>
+          <gmd:transferOptions>
+            <gmd:MD_DigitalTransferOptions>
+              <gmd:onLine>
+                <gmd:CI_OnlineResource>
+                  <gmd:linkage>
+                    <gmd:URL>https://www.lfu.bayern.de/gdi/wms/geologie/rohstoff_gewinnungsstellen?</gmd:URL>
+                  </gmd:linkage>
+                </gmd:CI_OnlineResource>
+              </gmd:onLine>
+            </gmd:MD_DigitalTransferOptions>
+          </gmd:transferOptions>
+          <gmd:transferOptions>
+            <gmd:MD_DigitalTransferOptions>
+              <gmd:onLine>
+                <gmd:CI_OnlineResource>
+                  <gmd:linkage>
+                    <gmd:URL>https://www.lfu.bayern.de/gdi/wms/geologie/rohstoff_gewinnungsstellen?REQUEST=GetCapabilities&amp;SERVICE=WMS</gmd:URL>
+                  </gmd:linkage>
+                </gmd:CI_OnlineResource>
+              </gmd:onLine>
+            </gmd:MD_DigitalTransferOptions>
+          </gmd:transferOptions>
+        </gmd:MD_Distribution>
+      </gmd:distributionInfo>
+    </gmd:MD_Metadata>
+  </csw:SearchResults>
+</csw:GetRecordsResponse>

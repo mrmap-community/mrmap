@@ -8,6 +8,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
 from eulxml import xmlmap
@@ -420,7 +421,14 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       help_text=_('date that the metadata was created. If this is a metadata record '
                                                   'which is parsed from remote iso metadata, the date stamp of the '
                                                   'remote iso metadata will be used.'),
-                                      auto_now_add=True,
+                                      # Do not use this setting.
+                                      # From django docs: Automatically set the field to now when the object is first created.
+                                      # Useful for creation of timestamps. Note that the current date is always used;
+                                      # it’s not just a default value that you can override.
+                                      # So even if you set a value for this field when creating the object, it will be ignored.
+                                      # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+                                      # auto_now_add=True,
+                                      default=now,
                                       editable=False,
                                       db_index=True)
     file_identifier = models.CharField(max_length=1000,
@@ -732,6 +740,12 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                   blank=True,
                                   default="",
                                   help_text=_("code space for the given identifier"))
+    charset = models.PositiveSmallIntegerField(null=True,
+                                               blank=True,
+                                               choices=MetadataCharsetChoices.choices,
+                                               verbose_name=_("charset"),
+                                               help_text=_("full name of the character coding standard used for the metadata set"))
+
     resource_identifier = GeneratedField(
         expression=CombinedExpression(
             F("code_space"),
@@ -782,15 +796,9 @@ class DatasetMetadataRecord(MetadataRecord):
                                               choices=DatasetFormatEnum.choices,
                                               verbose_name=_("format"),
                                               help_text=_("The format in which the described dataset is stored."))
-    charset = models.PositiveSmallIntegerField(null=True,
-                                               blank=True,
-                                               choices=MetadataCharsetChoices.choices,
-                                               verbose_name=_("charset"),
-                                               help_text=_("full name of the character coding standard used for the metadata set"))
     update_frequency_code = models.PositiveSmallIntegerField(choices=UpdateFrequencyChoices.choices,
                                                              null=True,
                                                              blank=True)
-
     inspire_top_consistence = models.BooleanField(default=False,
                                                   help_text=_("Flag to signal if the described data has a topologically"
                                                               " consistence."))

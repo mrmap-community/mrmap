@@ -42,7 +42,7 @@ XPATH_MAP = {
                 },
                 "code": {
                     "_inputs": (
-                        ".//gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString/text()",
+                        "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString/text()",
                     ),
                     "_parser": "registry.mappers.parsers.value.string_to_code",
                 },

@@ -20,6 +20,10 @@ from tests.django.test_data.capabilities.wms.expected_service_data_111 import \
     EXPECTED_DATA as EXPECTED_WMS_SERVICE_DATA_1_1_1
 from tests.django.test_data.capabilities.wms.expected_service_data_130 import \
     EXPECTED_DATA as EXPECTED_WMS_SERVICE_DATA_1_3_0
+from tests.django.test_data.iso_metadata.expected_dataset_data import \
+    EXPECTED_DATA as EXPECTED_DATASET_DATA
+from tests.django.test_data.iso_metadata.expected_service_data import \
+    EXPECTED_DATA as EXPECTED_SERVICE_DATA
 
 
 def group_and_accumulate(rows, key_fields, accumulate_fields):
@@ -116,6 +120,31 @@ class XmlMapperTest(TestCase):
             f.write("EXPECTED_DATA = ")
             f.write(pprint.pformat(expected_data, indent=4))
 
+    def __export_parsed_metadata(self, data):
+        """helper function to generate service specific expected data"""
+        md = data[0]
+
+        expected_data = {
+            "title": md.title,
+            "abstract": md.abstract,
+            "date_stamp": str(md.date_stamp),
+            "access_constraints": md.access_constraints,
+            "file_identifier": md.file_identifier,
+            "language": md.language,
+            "bounding_geometry": md.bounding_geometry.wkt if md.bounding_geometry else None,
+            "keywords": list(md.keywords.values_list("keyword", flat=True)),
+            "reference_systems": list(md.reference_systems.values_list("code", flat=True)),
+        }
+
+        import pprint
+        from pathlib import Path
+        file_path = Path(f"expected_data_{uuid4()}.py")
+
+        # Dictionary als Python-Code in die Datei schreiben
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write("EXPECTED_DATA = ")
+            f.write(pprint.pformat(expected_data, indent=4))
+
     def _call_service_mapper_and_persistence_handler(self):
         """Test that create manager function works correctly."""
         mapper = OGCServiceXmlMapper.from_xml(self.xml)
@@ -127,6 +156,7 @@ class XmlMapperTest(TestCase):
         """Test that create manager function works correctly."""
         mappers = MDMetadataXmlMapper.from_xml(self.xml)
         self.data = mappers[0].xml_to_django()
+        # self.__export_parsed_metadata(self.data)
         handler = PersistenceHandler(mappers[0])
         handler.persist_all()
 
@@ -158,6 +188,25 @@ class XmlMapperTest(TestCase):
             service.remote_metadata.values_list('link', flat=True))
         self.assertCountEqual([str(c) for c in db_metadata_url], [str(c) for c in expeced.get("remote_metadata", [])],
                               f"Service hat falsche RemoteMetadata")
+
+    def _test_md_success(self, expeced):
+        md = self.data[0]
+
+        self.assertEqual(md.title, expeced["title"])
+        self.assertEqual(md.abstract, expeced["abstract"])
+        self.assertEqual(str(md.date_stamp), expeced["date_stamp"])
+        self.assertEqual(md.file_identifier, expeced["file_identifier"])
+        self.assertEqual(md.language, expeced["language"])
+
+        db_keywords = list(md.keywords.values_list('keyword', flat=True))
+        self.assertCountEqual(
+            db_keywords, expeced["keywords"], f"MetadataRecord hat falsche Keywords")
+
+        # ReferenceSystems prüfen
+        db_crs = list(
+            md.reference_systems.values_list('code', flat=True))
+        self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expeced["reference_systems"]],
+                              f"MetadataRecord {md.file_identifier} hat falsche ReferenceSystems")
 
     def _test_wms_success(self, expected):
         wms = self.data[0]
@@ -279,4 +328,11 @@ class XmlMapperTest(TestCase):
             Path(__file__).parent.resolve(),
             '../../test_data/iso_metadata/dataset.xml'))
         self._call_iso_mapper_and_persistence_handler()
-        i = 0
+        self._test_md_success(expeced=EXPECTED_DATASET_DATA)
+
+    def test_iso_service(self):
+        self.xml = Path(Path.joinpath(
+            Path(__file__).parent.resolve(),
+            '../../test_data/iso_metadata/service.xml'))
+        self._call_iso_mapper_and_persistence_handler()
+        self._test_md_success(expeced=EXPECTED_SERVICE_DATA)

@@ -46,7 +46,13 @@ class ProcessingData(models.Model):
         verbose_name=_('phase'),
         help_text=_('Current phase of the process'))
     date_created = models.DateTimeField(
-        auto_now_add=True,
+        # Do not use this setting.
+        # From django docs: Automatically set the field to now when the object is first created.
+        # Useful for creation of timestamps. Note that the current date is always used;
+        # it’s not just a default value that you can override.
+        # So even if you set a value for this field when creating the object, it will be ignored.
+        # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+        # auto_now_add=True,
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
@@ -754,7 +760,14 @@ class HarvestingLog(models.Model):
         related_query_name='log'
     )
     timestamp = models.DateTimeField(
-        auto_now_add=True,
+        # Do not use this setting.
+        # From django docs: Automatically set the field to now when the object is first created.
+        # Useful for creation of timestamps. Note that the current date is always used;
+        # it’s not just a default value that you can override.
+        # So even if you set a value for this field when creating the object, it will be ignored.
+        # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+        # auto_now_add=True,
+        default=now,
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the task result was created in UTC')
     )

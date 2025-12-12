@@ -56,11 +56,12 @@ def bbox_to_polygon(mapper, minx, maxx, miny, maxy):
     Gibt ein Polygon zurück.
     """
     # GEOS from_bbox expects (xmin, ymin, xmax, ymax)
-    minx = float(minx)
-    maxx = float(maxx)
-    miny = float(miny)
-    maxy = float(maxy)
-    return Polygon.from_bbox((minx, miny, maxx, maxy))
+    if minx and maxx and miny and maxy:
+        minx = float(minx)
+        maxx = float(maxx)
+        miny = float(miny)
+        maxy = float(maxy)
+        return Polygon.from_bbox((minx, miny, maxx, maxy))
 
 
 def polygon_to_bbox(mapper, polygon):

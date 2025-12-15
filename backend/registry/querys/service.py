@@ -11,7 +11,7 @@ from registry.expressions.layer_ctes import (AncestorsHeritageAggregatedCTE,
                                              AncestorsHeritageCTE,
                                              LayerSecurityInformationCTE)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
-                                      LayerTimeExtent, ReferenceSystem, Style)
+                                      TimeExtent, ReferenceSystem, Style)
 
 
 class LayerQuerySet(QuerySet):
@@ -139,7 +139,7 @@ class LayerQuerySet(QuerySet):
         :return: all dimensions of this layer
         :rtype: :class:`django.db.models.query.QuerySet`
         """
-        return LayerTimeExtent.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
+        return TimeExtent.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
 
     def inherited_styles(self) -> QuerySet:
         return Style.objects.filter(layer__in=self.ancestors_per_layer(layer_attribute="layer__", include_self=True).values("pk")).distinct("name")
@@ -168,9 +168,9 @@ class LayerQuerySet(QuerySet):
             ),
             time_extents_inherited=JSONBAgg(
                 JSONObject(
-                    pk="time_extent__pk",
+                    pk="time_extents__pk",
                 ),
-                filter=Q(time_extent__pk__isnull=False),
+                filter=Q(time_extents__pk__isnull=False),
                 distinct=True,
                 default=Value('[]'),
             ),

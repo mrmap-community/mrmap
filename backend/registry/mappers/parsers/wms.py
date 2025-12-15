@@ -5,9 +5,10 @@ import isodate
 from dateutil.parser import isoparse
 from lxml import etree
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
-from registry.models import LayerTimeExtent
+from registry.models import TimeExtent
 from registry.models.metadata import MimeType
 from registry.models.service import WebMapServiceOperationUrl
+from psycopg.types.range import Range
 
 
 def parse_timeextent(mapper, el):
@@ -19,8 +20,6 @@ def parse_timeextent(mapper, el):
     text = (el.text or "").strip()
     if not text:
         return None
-
-    layer = mapper.get_instance_by_element(mapper.current_element)
 
     instances = []
     parts = [p.strip() for p in text.split(",") if p.strip()]
@@ -39,20 +38,18 @@ def parse_timeextent(mapper, el):
                 # Auflösung: z.B. "P1D" -> relativedelta
                 resolution = _parse_duration(mapper, segments[2])
 
-            inst = LayerTimeExtent(
-                timerange=(start, end),
+            inst = TimeExtent(
+                timerange=Range(start, end, bounds="[]"),
                 resolution=resolution,
-                layer=layer,
             )
             instances.append(inst)
 
         # Einzelwert
         else:
             dt = isoparse(part)
-            inst = LayerTimeExtent(
-                timerange=(dt, dt),
+            inst = TimeExtent(
+                timerange=Range(dt, dt, bounds="[]"),
                 resolution=None,
-                layer=layer,
             )
             instances.append(inst)
 

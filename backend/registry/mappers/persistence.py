@@ -93,12 +93,14 @@ class PersistenceHandler:
                     **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in deduped_instances]})
             )
         )
-        final_key_map = {tuple(getattr(o, f)
+        # FIXME: spececial case if field is DateTimeRangeField. Then the value is kind of Range(dt, dt) 
+        final_key_map = {tuple(str(getattr(o, f))
                                for f in key_fields): o for o in final_objs}
 
         # Mapping von Key -> Originalinstanz für nächsten Schritt notwendig
+        # FIXME: spececial case if field is DateTimeRangeField. Then the value is kind of Range(dt, dt) 
         original_map = {
-            tuple(getattr(inst, f) for f in key_fields): inst
+            tuple(str(getattr(inst, f)) for f in key_fields): inst
             for inst in deduped_instances
         }
 
@@ -305,7 +307,8 @@ class PersistenceHandler:
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
                             try:
-                                ref_key = tuple(getattr(ref, kf)
+                                # FIXME: spececial case if field is DateTimeRangeField. Then the value is kind of Range(dt, dt) 
+                                ref_key = tuple(str(getattr(ref, kf))
                                                 for kf in key_fields)
                             except AttributeError:
                                 continue

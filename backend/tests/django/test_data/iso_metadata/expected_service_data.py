@@ -27,5 +27,6 @@ EXPECTED_DATA = {
     'keywords': [],
     'language': 1,
     'reference_systems': ['25832', '31467', '4326', '31468', '25833', '4258', '3857', '31258'],
+    'time_extents': ['2001-01-01 00:00:00+01:00'],
     'title': 'Rohstoffgewinnungsstellen in Bayern - WMS'
 }

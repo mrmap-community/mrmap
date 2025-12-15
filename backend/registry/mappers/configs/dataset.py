@@ -1,10 +1,11 @@
-from registry.mappers.namespaces import (GCO_NAMESPACE, GMD_NAMESPACE,
+from registry.mappers.namespaces import (GCO_NAMESPACE, GMD_NAMESPACE, GML_3_2_2_NAMESPACE,
                                          SRV_NAMESPACE)
 
 XPATH_MAP = {
     ("ISO", "dataset"): {
         "_namespaces": {
             "gmd": GMD_NAMESPACE,
+            "gml": GML_3_2_2_NAMESPACE,
             "gco": GCO_NAMESPACE,
             "srv": SRV_NAMESPACE,
         },
@@ -90,7 +91,16 @@ XPATH_MAP = {
                     "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString",
                     "_create_mode": "get_or_create",
                     "_many": True,
-                    "_parser": "registry.mappers.parsers.iso.parse_reference_systems",
+                    "fields": {
+                        "code": {
+                           "_inputs": ("./text()",),
+                            "_parser": "registry.mappers.parsers.iso.parse_code",
+                        },
+                        "prefix": {
+                           "_inputs": ("./text()",),
+                            "_parser": "registry.mappers.parsers.iso.parse_prefix",
+                        },
+                    },
                 },
                 # TODO
                 # "categories": {
@@ -98,14 +108,14 @@ XPATH_MAP = {
                 #     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
 
                 # },
-                # TODO
-                # "dimensions": {
-                #     "_model": "registry.DatasetMetadataRecordTimeExtend",
-                #     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent | ./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
-                #     "_create_mode": "get_or_create",
-                #     "_many": True,
-                #     "_parser": "registry.mappers.parsers.wms.parse_timeextent",
-                # },
+                
+                "time_extents": {
+                    "_model": "registry.TimeExtent",
+                    "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
+                    "_create_mode": "get_or_create",
+                    "_many": True,
+                    "_parser": "registry.mappers.parsers.iso.parse_timeextent",
+                },
             }
         }
     },

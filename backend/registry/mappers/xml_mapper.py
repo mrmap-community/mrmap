@@ -229,7 +229,12 @@ class XmlMapper:
         return self.cache.get_many(all_keys)
 
     def get_element_path(self, element):
-        return element.getroottree().getpath(element)
+        if isinstance(element, etree._ElementUnicodeResult):
+            parent = element.getparent()
+            path = f"{parent.getroottree().getpath(parent)}/text()"
+        else:
+            path = element.getroottree().getpath(element)
+        return path
 
     def get_instance_by_element(self, element):
         return self.read_from_cache(self.get_element_path(element))
@@ -417,9 +422,7 @@ class XmlMapper:
             parser = load_function(spec.get("_parser"))
 
             for el in elements:
-                # FIXME: AttributeError: 'lxml.etree._ElementUnicodeResult' object has no attribute 'getroottree'
-                # instead try to get the element above this unicoderesult
-                path = el.getroottree().getpath(el)
+                path = self.get_element_path(el)
                 instance = parser(self, el)
                 if isinstance(instance, list):
                     instances.extend(instance)
@@ -435,7 +438,7 @@ class XmlMapper:
             model_cls = self._get_model_class(spec)
 
             for el in elements:
-                path = el.getroottree().getpath(el)
+                path = self.get_element_path(el)
                 instance = model_cls()
 
                 self.handle_flat_fields(instance, el, spec, namespaces)

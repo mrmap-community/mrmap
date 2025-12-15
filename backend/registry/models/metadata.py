@@ -36,6 +36,54 @@ from urllib3 import Retry
 
 CRS_Registry = Registry()
 
+class TimeExtent(models.Model):
+    """
+    Kombiniertes Modell für Einzelwerte und Intervalle.
+    - Einzelwert: timerange.lower == timerange.upper
+    - Intervall: timerange.lower < timerange.upper
+    - resolution: optional, None/0 = unendlich fein
+    """
+    timerange = DateTimeRangeField(
+        default_bounds="[]",
+        null=False,
+        blank=False,
+        verbose_name=_("time range"),
+        help_text=_("The time range represented by this TimeExtent.")
+    )
+    resolution = models.DurationField(
+        null=True, 
+        blank=True,
+        verbose_name=_("resolution"),
+        help_text=_("The resolution of the time extent. Null or 0 means infinite fine resolution.")
+    )
+
+    class Meta:
+        ordering = ["timerange"]
+        indexes = [
+            # GIST Index for fast Overlap- and Contains-Requests
+            GistIndex(fields=["timerange"]),
+            models.Index(fields=["resolution"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(timerange__isempty=True),
+                name="timerange_not_empty",
+            ),
+            models.UniqueConstraint(fields=['timerange', 'resolution'],
+                                    name='%(app_label)s_%(class)s_unique_timerange_resolution')
+        ]
+    def __eq__(self, __value: object) -> bool:
+        return self.timerange == __value.timerange and self.resolution == __value.resolution
+
+    def is_single_value(self):
+        return self.timerange.lower == self.timerange.upper
+
+    def __str__(self):
+        if self.is_single_value():
+            return f"{self.timerange.lower}"
+        else:
+            return f"{self.timerange.lower} → {self.timerange.upper}, res={self.resolution}"
+
 
 class MimeType(models.Model):
     mime_type = models.CharField(max_length=500,
@@ -746,6 +794,16 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                verbose_name=_("charset"),
                                                help_text=_("full name of the character coding standard used for the metadata set"))
 
+    time_extents = models.ManyToManyField(
+        to=TimeExtent,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s",
+        related_query_name="%(app_label)s_%(class)s",
+        verbose_name=_("time extent"),
+        help_text=_("all time extents which are available for this metadata record."),
+    )
+
     resource_identifier = GeneratedField(
         expression=CombinedExpression(
             F("code_space"),
@@ -807,6 +865,7 @@ class DatasetMetadataRecord(MetadataRecord):
 
     lineage_statement = models.TextField(blank=True,
                                          default="")
+
 
     change_log = HistoricalRecords(
         related_name="change_logs",
@@ -914,46 +973,3 @@ class ServiceMetadataRecord(MetadataRecord):
         ] + MetadataRecord.Meta.constraints
 
 
-class TimeExtent(models.Model):
-    """
-    Kombiniertes Modell für Einzelwerte und Intervalle.
-    - Einzelwert: timerange.lower == timerange.upper
-    - Intervall: timerange.lower < timerange.upper
-    - resolution: optional, None/0 = unendlich fein
-    """
-    timerange = DateTimeRangeField()
-    resolution = models.DurationField(null=True, blank=True)
-
-    class Meta:
-        abstract = True
-        ordering = ["timerange"]
-        indexes = [
-            # GIST Index for fast Overlap- and Contains-Requests
-            GistIndex(fields=["timerange"]),
-        ]
-
-    def is_single_value(self):
-        return self.timerange.lower == self.timerange.upper
-
-    def __str__(self):
-        if self.is_single_value():
-            return f"{self.resource_id} @ {self.timerange.lower}"
-        else:
-            return f"{self.resource_id} [{self.timerange.lower} → {self.timerange.upper}, res={self.resolution}]"
-
-
-class LayerTimeExtent(TimeExtent):
-    layer = models.ForeignKey(
-        to="registry.Layer",
-        on_delete=models.CASCADE,
-        related_name="time_extents",
-        related_query_name="time_extent",
-        verbose_name=_("layer"),
-        help_text=_("the related layer of this time dimension entity")
-    )
-
-    class Meta:
-        indexes = TimeExtent._meta.indexes + [
-            # optional: additional Index on (resource, timerange) for Join-Requests
-            models.Index(fields=["layer", "timerange"]),
-        ]

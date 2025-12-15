@@ -11,4 +11,5 @@ EXPECTED_DATA = {'abstract': 'Messwerte der Windgeschwindigkeit an den DWD Stati
                  'keywords': ['meteorological', 'inspireidentifiziert', 'Wind', 'meteorology', 'Meteorologisch-geografische Kennwerte', 'Deutschland',],
                  'language': 1,
                  'reference_systems': ['4258', '4326'],
+                 'time_extents': ['2016-02-25 00:00:00+00:00'],
                  'title': 'Windgeschwindigkeit an RBSN Stationen'}

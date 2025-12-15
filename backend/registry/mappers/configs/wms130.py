@@ -186,9 +186,9 @@ XPATH_MAP = {
                             }
                         },
                         "time_extents": {
-                            "_model": "registry.LayerTimeExtent",
+                            "_model": "registry.TimeExtent",
                             "_base_xpath": "./wms:Dimension[@name='time']",
-                            "_create_mode": "bulk",
+                            "_create_mode": "get_or_create",
                             "_many": True,
                             "_parser": "registry.mappers.parsers.wms.parse_timeextent",
                         },

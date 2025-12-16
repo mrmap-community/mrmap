@@ -124,7 +124,7 @@ class UpdateFrequencyChoices(SmartIntegerChoices):
 class CategoryChoices(SmartIntegerChoices):
     """Represents all valueable choices for  MD_TopicCategoryCode<<CodeList>> ISO19115-2"""
     """
-        farming, biota, boundaries, climatologyMeteorolgyAtmosphere, economy, elevation,
+        farming, biota, boundaries, climatologyMeteorologyAtmosphere, economy, elevation,
         environement, geoscientificInformation, health, imageryBaseMapsEarchCover,
         intelligenceMilitary, inlandWaters, location, oceans, planningCadastre, society, structure,
         transportation, utilitiesCommunication
@@ -132,7 +132,7 @@ class CategoryChoices(SmartIntegerChoices):
     FARMING = 1, _("farming")  # rearing of animals and/or cultivation of plants Examples: agriculture, irrigation, aquaculture, plantations, herding, pests and diseases affecting crops and livestock
     BIOTA = 2, _("biota")  # flora and fauna Examples: vegetation, wildlife, ecosystems, habitats, species distribution
     BOUNDARIES = 3, _("boundaries")  # political and administrative boundaries
-    CLIMATOLOGYMETEOROLOGYATMOSPHERE = 4, _("climatologyMeteorolgyAtmosphere") # processes and phenomena of the atmosphere Examples: cloud cover, weather, climate, atmospheric conditions, climate change, precipitation
+    CLIMATOLOGYMETEOROLOGYATMOSPHERE = 4, _("climatologyMeteorologyAtmosphere") # processes and phenomena of the atmosphere Examples: cloud cover, weather, climate, atmospheric conditions, climate change, precipitation
     ECONOMY = 5, _("economy")  # economic activities and conditions Examples: employment, industries, income, production, consumption, trade, tourism
     ELEVATION = 6, _("elevation")  # height or depth of the Earth's surface Examples: topography, bathymetry, slope, terrain models, contours, digital elevation
     ENVIRONEMENT = 7, _("environement")  # environmental resources, protection and conservation Examples: natural resources, pollution, environmental monitoring, environmental impact assessments

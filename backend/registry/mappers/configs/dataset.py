@@ -109,7 +109,7 @@ XPATH_MAP = {
                     "_many": True,
                     "fields": {
                         "category": {
-                            "_inputs": ("./.",), 
+                            "_inputs": ("./text()",), 
                             "_parser": "registry.mappers.parsers.value.topic_category_to_enum",
                         }
                     }

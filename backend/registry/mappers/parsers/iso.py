@@ -3,7 +3,7 @@ from lxml import etree
 from registry.models.metadata import TimeExtent
 from dateutil.parser import isoparse
 from dateutil import parser
-from datetime import timedelta
+from datetime import timedelta, UTC
 from dateutil.parser import ParserError
 from psycopg.types.range import Range
 from django.utils import timezone
@@ -89,9 +89,9 @@ def parse_timeextent(mapper, time_extent_element):
         dt_start = isoparse(begin_position)
         dt_end = isoparse(end_position)
         if timezone.is_naive(dt_start):
-            dt_start = timezone.make_aware(dt_start, timezone=timezone.get_default_timezone())
+            dt_start = timezone.make_aware(dt_start, timezone=UTC)
         if timezone.is_naive(dt_end):
-            dt_end = timezone.make_aware(dt_end, timezone=timezone.get_default_timezone())
+            dt_end = timezone.make_aware(dt_end, timezone=UTC)
         if dt_start and dt_end:
             return TimeExtent(
                 timerange=Range(dt_start, dt_end, bounds="[]"),
@@ -100,7 +100,7 @@ def parse_timeextent(mapper, time_extent_element):
     if begin_position and not end_position:
         dt = isoparse(begin_position)
         if timezone.is_naive(dt):
-            dt = timezone.make_aware(dt, timezone=timezone.get_default_timezone())
+            dt = timezone.make_aware(dt, timezone=UTC)
         if dt:
             return TimeExtent(
                 timerange=Range(dt, dt, bounds="[]"),

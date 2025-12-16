@@ -1,9 +1,12 @@
+from django.contrib.postgres.fields import DateTimeRangeField
 from collections import defaultdict
 from importlib import import_module
 
 from django.apps import apps
 from django.db import models, transaction
-
+from psycopg.types.range import Range
+from django.utils.timezone import is_naive, make_aware, get_default_timezone
+from datetime import datetime
 
 class PersistenceHandler:
     def __init__(self, mapper):
@@ -39,6 +42,57 @@ class PersistenceHandler:
                 unique_sets.append(tuple(constraint.fields))
 
         return unique_sets
+
+    def _normalize_key_value(self, field, value):
+        """
+        Wandelt Feldwerte in eine stabile, vergleichbare Repräsentation um.
+        """
+        if value is None:
+            return None
+
+        # -----------------------------
+        # DateTimeRangeField
+        # -----------------------------
+        if isinstance(field, DateTimeRangeField):
+            if not isinstance(value, Range):
+                return value
+
+            def normalize_dt(dt):
+                if dt is None:
+                    return None
+                if is_naive(dt):
+                    dt = make_aware(dt, get_default_timezone())
+                return dt.astimezone(get_default_timezone())
+
+            return (
+                normalize_dt(value.lower),
+                normalize_dt(value.upper),
+                value.bounds,
+            )
+
+        # -----------------------------
+        # datetime
+        # -----------------------------
+        if isinstance(value, datetime):
+            if is_naive(value):
+                value = make_aware(value, get_default_timezone())
+            return value.astimezone(get_default_timezone())
+
+        # -----------------------------
+        # Fallback
+        # -----------------------------
+        return value
+
+
+    def make_instance_key(self, instance, key_fields):
+        model = type(instance)
+        return tuple(
+            self._normalize_key_value(
+                model._meta.get_field(f),
+                getattr(instance, f)
+            )
+            for f in key_fields
+        )
 
     # ------------------------
     # Deduplicate & Bulk + Reload
@@ -93,15 +147,12 @@ class PersistenceHandler:
                     **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in deduped_instances]})
             )
         )
-        # FIXME: spececial case if field is DateTimeRangeField. Then the value is kind of Range(dt, dt) 
-        final_key_map = {tuple(str(getattr(o, f))
-                               for f in key_fields): o for o in final_objs}
+        final_key_map = {
+            self.make_instance_key(o, key_fields): o for o in final_objs
+        }
 
-        # Mapping von Key -> Originalinstanz für nächsten Schritt notwendig
-        # FIXME: spececial case if field is DateTimeRangeField. Then the value is kind of Range(dt, dt) 
         original_map = {
-            tuple(str(getattr(inst, f)) for f in key_fields): inst
-            for inst in deduped_instances
+            self.make_instance_key(inst, key_fields): inst for inst in deduped_instances
         }
 
         # Nach Schritt 6: Füge private attributes zu den aus der db gezogenen neuen instanzen hinzu
@@ -307,9 +358,7 @@ class PersistenceHandler:
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
                             try:
-                                # FIXME: spececial case if field is DateTimeRangeField. Then the value is kind of Range(dt, dt) 
-                                ref_key = tuple(str(getattr(ref, kf))
-                                                for kf in key_fields)
+                                ref_key = self.make_instance_key(ref, key_fields)
                             except AttributeError:
                                 continue
                             final_obj = ref_map.get(ref_key)

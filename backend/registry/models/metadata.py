@@ -82,7 +82,7 @@ class TimeExtent(models.Model):
         if self.is_single_value():
             return f"{self.timerange.lower}"
         else:
-            return f"{self.timerange.lower} → {self.timerange.upper}, res={self.resolution}"
+            return f"{self.timerange.lower};{self.timerange.upper};{self.resolution or 0}"
 
 
 class MimeType(models.Model):
@@ -500,7 +500,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                  verbose_name=_("origin url"),
                                  help_text=_("the url of the document where the information of this metadata record "
                                              "comes from"))
-    title: str = models.CharField(max_length=1000,
+    title = models.CharField(max_length=1000,
                                   verbose_name=_("title"),
                                   help_text=_(
                                       "a short descriptive title for this metadata"),
@@ -725,25 +725,9 @@ class MetadataRelation(models.Model):
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
-    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_metadata_records",
-                                                  related_query_name="%(app_label)s_%(class)s_metadata_record",
-                                                  blank=True,
-                                                  verbose_name=_("layers"),
-                                                  help_text=_("all layers which are linking to this dataset metadata in"
-                                                              " there capabilities."))
-    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
-                                                         through=MetadataRelation,
-                                                         editable=False,
-                                                         related_name="%(app_label)s_%(class)s_metadata_records",
-                                                         related_query_name="%(app_label)s_%(class)s_metadata_record",
-                                                         blank=True,
-                                                         verbose_name=_(
-                                                             "feature types"),
-                                                         help_text=_("all feature types which are linking to this "
-                                                                     "dataset metadata in there capabilities."))
+    # TODO: check if this is calculate able
+    inspire_interoperability = models.BooleanField(default=False,
+                                                   help_text=_("flag to signal if this "))
 
     harvested_through = models.ManyToManyField(to="registry.CatalogueService",
                                                related_name="%(app_label)s_%(class)s_metadata_records",
@@ -752,7 +736,6 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                blank=True,
                                                verbose_name=_("services"),
                                                help_text=_("all services from which this dataset was harvested."))
-
     bounding_geometry = MultiPolygonField(null=True,
                                           blank=True, )
     metadata_contact = models.ForeignKey(to=MetadataContact,
@@ -767,9 +750,6 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                related_query_name="%(class)s",
                                                blank=True,
                                                verbose_name=_("reference systems"))
-    # TODO: check if this is calculate able
-    inspire_interoperability = models.BooleanField(default=False,
-                                                   help_text=_("flag to signal if this "))
     equivalent_scale = models.FloatField(null=True,
                                          blank=True,
                                          editable=False,
@@ -843,6 +823,25 @@ class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
+    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
+                                                  through=MetadataRelation,
+                                                  editable=False,
+                                                  related_name="%(app_label)s_%(class)s_metadata_records",
+                                                  related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                  blank=True,
+                                                  verbose_name=_("layers"),
+                                                  help_text=_("all layers which are linking to this dataset metadata in"
+                                                              " there capabilities."))
+    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
+                                                         through=MetadataRelation,
+                                                         editable=False,
+                                                         related_name="%(app_label)s_%(class)s_metadata_records",
+                                                         related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                         blank=True,
+                                                         verbose_name=_(
+                                                             "feature types"),
+                                                         help_text=_("all feature types which are linking to this "
+                                                                     "dataset metadata in there capabilities."))
     dataset_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="%(class)s_dataset_contact",

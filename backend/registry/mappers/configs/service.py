@@ -89,14 +89,13 @@ XPATH_MAP = {
                 #     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
 
                 # },
-                # TODO
-                # "time_extents": {
-                #     "_model": "registry.TimeExtent",
-                #     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent | ./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
-                #     "_create_mode": "get_or_create",
-                #     "_many": True,
-                #     "_parser": "registry.mappers.parsers.wms.parse_timeextent",
-                # },
+                "time_extents": {
+                    "_model": "registry.TimeExtent",
+                    "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
+                    "_create_mode": "get_or_create",
+                    "_many": True,
+                    "_parser": "registry.mappers.parsers.iso.parse_timeextent",
+                },
             }
         }
     },

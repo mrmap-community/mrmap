@@ -2,6 +2,7 @@
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
+from registry.enums.metadata import CategoryChoices
 from registry.enums.service import (SecureableWFSOperationEnum,
                                     SecureableWMSOperationEnum)
 
@@ -17,6 +18,11 @@ def create_wfs_operations(sender, **kwargs):
     for key, _x in SecureableWFSOperationEnum.choices:
         WebFeatureServiceOperation.objects.get_or_create(operation=key)
 
+
+def create_categories(sender, **kwargs):
+    from registry.models.metadata import Category
+    for key, _x in CategoryChoices.choices:
+        Category.objects.get_or_create(category=key)
 
 def create_file_system_import_task(sender, **kwargs):
     # this will create the periodic task as database object which is
@@ -54,6 +60,7 @@ class RegistryConfig(AppConfig):
         # Implicitly connect signal handlers decorated with @receiver.
         post_migrate.connect(create_wms_operations, sender=self)
         post_migrate.connect(create_wfs_operations, sender=self)
+        post_migrate.connect(create_categories, sender=self)
 
         post_migrate.connect(create_file_system_import_task, sender=self)
         post_migrate.connect(find_orphan_metadata_objects, sender=self)

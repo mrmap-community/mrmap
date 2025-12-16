@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 from epsg_cache.utils import get_epsg_srid
 from lxml import etree
 from registry.mappers.parsers.utils import get_tag
-from registry.enums.metadata import (LanguageChoices, MetadataCharsetChoices,
+from registry.enums.metadata import (CategoryChoices, LanguageChoices, MetadataCharsetChoices,
                                      UpdateFrequencyChoices)
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
@@ -106,6 +106,9 @@ def language_to_enum(mapper, language_str):
 
 def update_frequency_code_to_enum(mapper, update_frequence_code_str):
     return UpdateFrequencyChoices(update_frequence_code_str)
+
+def topic_category_to_enum(mapper, topic_category_str):
+    return CategoryChoices(topic_category_str)
 
 
 def string_to_datetime(mapper, value: str):

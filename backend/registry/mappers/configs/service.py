@@ -83,12 +83,6 @@ XPATH_MAP = {
                         },
                     },
                 },
-                # TODO
-                # "categories": {
-                #    "_model": "registry.Category",
-                #     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
-
-                # },
                 "time_extents": {
                     "_model": "registry.TimeExtent",
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",

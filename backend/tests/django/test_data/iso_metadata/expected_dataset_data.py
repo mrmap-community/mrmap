@@ -12,4 +12,6 @@ EXPECTED_DATA = {'abstract': 'Messwerte der Windgeschwindigkeit an den DWD Stati
                  'language': 1,
                  'reference_systems': ['4258', '4326'],
                  'time_extents': ['2016-02-25 00:00:00+00:00'],
-                 'title': 'Windgeschwindigkeit an RBSN Stationen'}
+                 'title': 'Windgeschwindigkeit an RBSN Stationen',
+                 'categories': ['climatologyMeteorologyAtmosphere']
+}

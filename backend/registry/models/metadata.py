@@ -17,7 +17,7 @@ from extras.managers import (DefaultHistoryManager,
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
                                                           WrappedIsoMetadata)
-from registry.enums.metadata import (DatasetFormatEnum, LanguageChoices,
+from registry.enums.metadata import (CategoryChoices, DatasetFormatEnum, LanguageChoices,
                                      MetadataCharsetChoices,
                                      MetadataOriginEnum,
                                      ReferenceSystemPrefixChoices,
@@ -94,7 +94,26 @@ class MimeType(models.Model):
 
     def __str__(self):
         return self.mime_type
+    
+class Category(models.Model):
+    category = models.PositiveSmallIntegerField(null=True,
+                                                blank=True,
+                                                choices=CategoryChoices.choices,
+                                                verbose_name=_("category"),
+                                                help_text=_("the topic category of the dataset"))
+    
+    def __str__(self) -> str:
+        return CategoryChoices(self.category).label if self.category else _("No Category")
 
+    class Meta:
+        ordering = ["category"]
+        indexes = [
+            models.Index(fields=["category"])
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=['category'],
+                                    name='%(app_label)s_%(class)s_unique_category')
+        ]
 
 class Style(models.Model):
     layer = models.ForeignKey(to="registry.Layer",
@@ -536,14 +555,14 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
-
+    # TODO: in ISO19115-2 1..∞ languages possible
     language = models.PositiveSmallIntegerField(null=True,
+                                                blank=True,
                                                 choices=LanguageChoices.choices,
                                                 verbose_name=_("language"),
                                                 help_text=_("language used for documenting metadata"))
-    category = None  # TODO: Inspire + iso + various
-
     # needed for Docuement mixin to load the backupfile into the correct xml mapper class
+    # TODO: remove this after #531 is done
     xml_mapper_cls = MdMetadata
 
     class Meta:
@@ -725,6 +744,7 @@ class MetadataRelation(models.Model):
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
+
     # TODO: check if this is calculate able
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
@@ -773,7 +793,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                choices=MetadataCharsetChoices.choices,
                                                verbose_name=_("charset"),
                                                help_text=_("full name of the character coding standard used for the metadata set"))
-
+    
     time_extents = models.ManyToManyField(
         to=TimeExtent,
         blank=True,
@@ -864,7 +884,12 @@ class DatasetMetadataRecord(MetadataRecord):
 
     lineage_statement = models.TextField(blank=True,
                                          default="")
-
+    categories = models.ManyToManyField(to=Category,
+                                        blank=True,
+                                        related_name="%(class)s_metadata",
+                                        related_query_name="%(class)s_metadata",
+                                        verbose_name=_("categories"),
+                                        help_text=_("the topic categories of the dataset"))
 
     change_log = HistoricalRecords(
         related_name="change_logs",

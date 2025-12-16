@@ -119,3 +119,33 @@ class UpdateFrequencyChoices(SmartIntegerChoices):
     NOTPLANNED = 12, _("not planned")  # there are no plans to update the data
     # frequency of maintenance for the data is not known
     UNKNOWN = 13, _("unknown")
+
+
+class CategoryChoices(SmartIntegerChoices):
+    """Represents all valueable choices for  MD_TopicCategoryCode<<CodeList>> ISO19115-2"""
+    """
+        farming, biota, boundaries, climatologyMeteorolgyAtmosphere, economy, elevation,
+        environement, geoscientificInformation, health, imageryBaseMapsEarchCover,
+        intelligenceMilitary, inlandWaters, location, oceans, planningCadastre, society, structure,
+        transportation, utilitiesCommunication
+    """
+    FARMING = 1, _("farming")  # rearing of animals and/or cultivation of plants Examples: agriculture, irrigation, aquaculture, plantations, herding, pests and diseases affecting crops and livestock
+    BIOTA = 2, _("biota")  # flora and fauna Examples: vegetation, wildlife, ecosystems, habitats, species distribution
+    BOUNDARIES = 3, _("boundaries")  # political and administrative boundaries
+    CLIMATOLOGYMETEOROLOGYATMOSPHERE = 4, _("climatologyMeteorolgyAtmosphere") # processes and phenomena of the atmosphere Examples: cloud cover, weather, climate, atmospheric conditions, climate change, precipitation
+    ECONOMY = 5, _("economy")  # economic activities and conditions Examples: employment, industries, income, production, consumption, trade, tourism
+    ELEVATION = 6, _("elevation")  # height or depth of the Earth's surface Examples: topography, bathymetry, slope, terrain models, contours, digital elevation
+    ENVIRONEMENT = 7, _("environement")  # environmental resources, protection and conservation Examples: natural resources, pollution, environmental monitoring, environmental impact assessments
+    GEOSCIENTIFICINFORMATION = 8, _("geoscientificInformation")  # solid Earth and its processes Examples: geology, geophysics, soils, minerals, seismic activity, volcanology
+    HEALTH = 9, _("health")  # human health and disease Examples: disease distribution, health facilities, sanitation, epidemiology
+    IMAGERYBASEMAPSEARTHCOVER = 10, _("imageryBaseMapsEarchCover")  # remotely sensed imagery and base maps Examples: satellite imagery, aerial photography, land cover, land use
+    INTELLIGENCEMILITARY = 11, _("intelligenceMilitary")  # military bases, facilities, operations and activities
+    INLANDWATERS = 12, _("inlandWaters")  # water courses and bodies on the Earth's surface Examples: rivers, lakes, wetlands, reservoirs, watersheds
+    LOCATION = 13, _("location")  # named locations and their associated information Examples: place names, postal codes, address locations
+    OCEANS = 14, _("oceans")  # marine and coastal areas Examples: sea floor, coastal zones, marine ecosystems, oceanographic features
+    PLANNINGCADASTRE = 15, _("planningCadastre")  # land use planning and cadastral information Examples: zoning, land parcels, property boundaries, land ownership
+    SOCIETY = 16, _("society")  # social systems and activities Examples: demographics, education, culture, religion, social services
+    STRUCTURE = 17, _("structure")  # man-made features and structures Examples: buildings, infrastructure, utilities, transportation networks
+    TRANSPORTATION = 18, _("transportation")  # transport networks and services Examples: roads, railways, airports, public transit
+    UTILITIESCOMMUNICATION = 19, _("utilitiesCommunication")  # utility and communication networks Examples: power lines, water supply, telecommunications, broadcasting
+    

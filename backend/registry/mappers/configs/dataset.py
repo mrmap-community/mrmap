@@ -102,13 +102,18 @@ XPATH_MAP = {
                         },
                     },
                 },
-                # TODO
-                # "categories": {
-                #    "_model": "registry.Category",
-                #     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
-
-                # },
-                
+                "categories": {
+                   "_model": "registry.Category",
+                    "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
+                    "_create_mode": "get_or_create",
+                    "_many": True,
+                    "fields": {
+                        "category": {
+                            "_inputs": ("./.",), 
+                            "_parser": "registry.mappers.parsers.value.topic_category_to_enum",
+                        }
+                    }
+                },
                 "time_extents": {
                     "_model": "registry.TimeExtent",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",

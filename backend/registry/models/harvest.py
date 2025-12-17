@@ -17,6 +17,8 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from eulxml import xmlmap
+from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.persistence.handler import PersistenceHandler
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
@@ -288,7 +290,6 @@ class HarvestingJob(ProcessingData):
 
     def add_harvested_metadata_relation(
             self,
-            md_metadata,
             related_object,
             collecting_state,
             download_duration,
@@ -299,7 +300,7 @@ class HarvestingJob(ProcessingData):
                   "collecting_state": collecting_state,
                   "download_duration": download_duration,
                   "processing_duration": processing_duration}
-        if md_metadata.is_dataset:
+        if related_object.__class__.__name__ == "DatasetMetadataRecord":
             kwargs.pop("service_metadata_record")
             kwargs.update({"dataset_metadata_record": related_object})
         try:
@@ -665,65 +666,57 @@ class TemporaryMdMetadataFile(models.Model):
         return super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self):
-
         with self.md_metadata_file.open('r') as _file:
-
-            md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
-                string=_file.read(),
-                xmlclass=XmlMdMetadata)
             try:
-                db_metadata = None
-                update_or_create_kwargs = {
-                    'parsed_metadata': md_metadata,
-                    'origin': MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                    'origin_url': self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job.service_id else "http://localhost"
-                }
                 start_db_processing = now()
-                if md_metadata.is_service:
-                    db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                        **update_or_create_kwargs)
-                elif md_metadata.is_dataset:
-                    db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                        **update_or_create_kwargs)
-                else:
-                    raise NotImplementedError(
-                        f"file is neither service nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
-                if db_metadata:
+
+                mappers = MDMetadataXmlMapper.from_xml(_file.read())
+                instance = mappers[0].xml_to_django()
+                handler = PersistenceHandler(
+                    mapper=mappers[0], 
+                    defaults={
+                        "dataset": {
+                            "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                            'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                        }
+                    }
+                )
+                handler.persist_all()
+
+                instance.refresh_from_db()
+                created, update = instance._custom_state
+
+                if instance:
                     if self.job:
                         end_db_processing = now()
                         relation = self.update_relations(
-                            md_metadata,
-                            exists,
+                            not created,
                             update,
-                            db_metadata,
+                            instance,
                             end_db_processing - start_db_processing
                         )
                         if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
                             # do not delete this entries for analyze purposes
                             import_error = {
                                 "reason": "duplicated",
-                                "db_metadata.pk": db_metadata.pk,
-                                "db_metadata.file_identifier": db_metadata.file_identifier,
-                                "db_metadata.code_space": db_metadata.code_space,
-                                "db_metadata.code": db_metadata.code,
-                                "md_metadata.file_identifier": md_metadata.file_identifier,
-                                "md_metadata.code": md_metadata.code,
-                                "md_metadata.code_space": md_metadata.code_space
+                                "db_metadata.pk": instance.pk,
+                                "db_metadata.file_identifier": instance.file_identifier,
+                                "db_metadata.code_space": instance.code_space,
+                                "db_metadata.code": instance.code,
                             }
                             self.has_import_error = True
                             self.import_error = str(import_error)
                             self.save()
-                            return db_metadata, update, exists
-                        elif update or not exists:
+                            return instance, update, not created
+                        elif update or created:
                             # something has changed... so tell us from what service this changes come from
                             update_change_reason(
-                                db_metadata,
+                                instance,
                                 'fileimport'if self.job.service is None else f'csw:{self.job.service}'
                             )
 
                     self.delete()
-
-                    return db_metadata, update, exists
+                    return instance, update, not created
             except Exception as e:
                 import traceback
                 exc_info = sys.exc_info()
@@ -733,14 +726,13 @@ class TemporaryMdMetadataFile(models.Model):
                 self.save()
                 raise e
 
-    def update_relations(self, md_metadata, exists, update, db_metadata, duration):
+    def update_relations(self, exists, update, db_metadata, duration):
         # TODO: is this relation still needed? Or is it enough to collect the harvested through by the harvested_metadata_relations?
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 
         collecting_state = CollectingStatenEnum.UPDATED.value if exists and update else CollectingStatenEnum.EXISTING.value if exists and not update else CollectingStatenEnum.NEW.value
         return self.job.add_harvested_metadata_relation(
-            md_metadata,
             db_metadata,
             collecting_state,
             self.download_duration,

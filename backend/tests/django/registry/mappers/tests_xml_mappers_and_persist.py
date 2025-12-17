@@ -1,11 +1,10 @@
 from collections import defaultdict
 from pathlib import Path
-from unittest import skip
 from uuid import uuid4
 
 from django.test import TestCase
-from registry.mappers.persistence import PersistenceHandler
-from registry.mappers.xml_mapper import (MDMetadataXmlMapper,
+from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.factory import (MDMetadataXmlMapper,
                                          OGCServiceXmlMapper)
 from tests.django.test_data.capabilities.csw.expected_service_data import \
     EXPECTED_DATA as EXPECTED_CSW_SERVICE_DATA_2_0_2
@@ -197,13 +196,16 @@ class XmlMapperTest(TestCase):
         self.assertEqual(md.abstract, expeced["abstract"])
         self.assertEqual(str(md.date_stamp), expeced["date_stamp"])
         self.assertEqual(md.file_identifier, expeced["file_identifier"])
-        self.assertEqual(md.language, expeced["language"])
+        
+        db_languages = list(md.languages.values_list('value', flat=True))
+        self.assertCountEqual(
+            db_languages, expeced["languages"], f"MetadataRecord hat falsche languages")
 
         db_keywords = list(md.keywords.values_list('keyword', flat=True))
         self.assertCountEqual(
             db_keywords, expeced["keywords"], f"MetadataRecord hat falsche Keywords")
 
-        db_categories = list(md.categories.values_list('category', flat=True) if hasattr(md, 'categories') else [])
+        db_categories = list(md.categories.values_list('value', flat=True) if hasattr(md, 'categories') else [])
         self.assertCountEqual(
             db_categories, expeced.get("categories", []), f"MetadataRecord hat falsche Categories")
 

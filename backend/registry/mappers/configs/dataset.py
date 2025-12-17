@@ -15,18 +15,15 @@ XPATH_MAP = {
         "dataset": {
             "_model": "registry.DatasetMetadataRecord",
             "_base_xpath": "/gmd:MD_Metadata",
+            "_create_mode": "registry.mappers.persistence.custom.get_or_create_metadatarecord",
             "fields": {
                 "charset": {
-                    "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode/@codeListValue",),
+                    "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode[@codeList='http://wis.wmo.int/2011/schemata/iso19139_2007/schema/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode']/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.charset_to_enum",
                 },
                 "update_frequency_code": {
                     "_inputs": ("./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum"
-                },
-                "language": {
-                    "_inputs": ("./gmd:language/gmd:LanguageCode/@codeListValue",),
-                    "_parser": "registry.mappers.parsers.value.language_to_enum",
                 },
                 "title": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
                 "abstract": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract/gco:CharacterString",
@@ -86,6 +83,18 @@ XPATH_MAP = {
                         "email": "./gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString",
                     }
                 },
+                "languages": {
+                    "_model": "registry.Language",
+                    "_base_xpath": "./gmd:language/gmd:LanguageCode[@codeList='http://www.loc.gov/standards/iso639-2/']",
+                    "_create_mode": "get_or_create",
+                    "_many": True,
+                    "fields": {
+                      "value": {
+                        "_inputs": ("./@codeListValue",),
+                        "_parser": "registry.mappers.parsers.value.language_to_enum",
+                      }
+                    }
+                },
                 "reference_systems": {
                     "_model": "registry.ReferenceSystem",
                     "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString",
@@ -103,12 +112,12 @@ XPATH_MAP = {
                     },
                 },
                 "categories": {
-                   "_model": "registry.Category",
+                    "_model": "registry.IsoCategory",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "fields": {
-                        "category": {
+                        "value": {
                             "_inputs": ("./text()",), 
                             "_parser": "registry.mappers.parsers.value.topic_category_to_enum",
                         }

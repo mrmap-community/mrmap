@@ -13,6 +13,7 @@ from django.db.models.expressions import F, Func
 from django.db.models.fields import BooleanField
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from extras.models import ChoiceModel
 from extras.validators import geometry_is_empty
 from PIL import Image
 from registry.enums.service import (AuthTypeEnum, SecureableWFSOperationEnum,
@@ -187,20 +188,25 @@ class CatalogueServiceAuthentication(ServiceAuthentication):
     )
 
 
-class WebMapServiceOperation(models.Model):
-    operation = models.PositiveSmallIntegerField(primary_key=True,
-                                                 choices=SecureableWMSOperationEnum.choices)
+class WebMapServiceOperation(ChoiceModel):
+    CHOICES = SecureableWMSOperationEnum.choices
+    value = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=CHOICES,
+        verbose_name=_("operation"),
+        help_text=_("the operation which is allowed for this wms")
+    )
+   
 
-    def __str__(self) -> str:
-        return SecureableWMSOperationEnum(self.operation).label
 
-
-class WebFeatureServiceOperation(models.Model):
-    operation = models.PositiveSmallIntegerField(primary_key=True,
-                                                 choices=SecureableWFSOperationEnum.choices)
-
-    def __str__(self) -> str:
-        return SecureableWFSOperationEnum(self.operation).label
+class WebFeatureServiceOperation(ChoiceModel):
+    CHOICES = SecureableWFSOperationEnum.choices
+    value = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=CHOICES,
+        verbose_name=_("operation"),
+        help_text=_("the operation which is allowed for this wfs")
+    )
 
 
 class AllowedOperation(models.Model):

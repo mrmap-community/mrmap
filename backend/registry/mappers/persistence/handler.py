@@ -8,12 +8,14 @@ from psycopg.types.range import Range
 from django.utils.timezone import is_naive, make_aware, get_default_timezone
 from datetime import datetime
 
+
 class PersistenceHandler:
-    def __init__(self, mapper):
+    def __init__(self, mapper, defaults={}):
         """
         mapper: XmlMapper-Instanz
         """
         self.mapper = mapper
+        self.defaults = defaults
 
     # ------------------------
     # Helper: load function
@@ -98,10 +100,10 @@ class PersistenceHandler:
     # Deduplicate & Bulk + Reload
     # ------------------------
 
-    def _persist_get_or_create_bulk(self, model_cls, instances):
+    def _persist_get_or_create_bulk(self, instances):
         if not instances:
             return {}
-
+        model_cls = instances[0].__class__
         # 1️⃣ Bestimme die relevanten Unique-Felder (ignoriere 'id')
         unique_sets = self._get_unique_fields(None, model_cls)
         key_fields = None
@@ -139,6 +141,12 @@ class PersistenceHandler:
         if to_create:
             model_cls.objects.bulk_create(to_create, ignore_conflicts=True)
 
+        return self.build_final_key_map(deduped_instances, key_fields)
+
+
+    def build_final_key_map(self, deduped_instances, key_fields):
+        model_cls = deduped_instances[0].__class__
+        
         # 5️⃣ Lade alle relevanten Objekte aus der DB
         # wir nutzen die unique-Felder, nicht PK
         final_objs = list(
@@ -147,6 +155,7 @@ class PersistenceHandler:
                     **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in deduped_instances]})
             )
         )
+        # TODO: add warning logging if the number of final_objs differs to the number of parsed instances
         final_key_map = {
             self.make_instance_key(o, key_fields): o for o in final_objs
         }
@@ -155,20 +164,22 @@ class PersistenceHandler:
             self.make_instance_key(inst, key_fields): inst for inst in deduped_instances
         }
 
+        self.inject_private_attributes(final_key_map, original_map)
+        
+        return final_key_map
+
+    def inject_private_attributes(self, final_objects, original_objects):
         # Nach Schritt 6: Füge private attributes zu den aus der db gezogenen neuen instanzen hinzu
-        for key, final_obj in final_key_map.items():
-            original_obj = original_map.get(key)
+        for key, final_obj in final_objects.items():
+            original_obj = original_objects.get(key)
             if original_obj is not None:
                 for attr, value in original_obj.__dict__.items():
                     if attr.endswith("_parsed") and not hasattr(final_obj, attr):
                         setattr(final_obj, attr, value)
 
-        return final_key_map
-
     # ------------------------
     # Redirect M2M _parsed fields
     # ------------------------
-
     @staticmethod
     def _redirect_m2m_references(instances_by_model, final_instances_map):
         for model_cls, instances in instances_by_model.items():
@@ -387,26 +398,27 @@ class PersistenceHandler:
             instances = self.instances_by_model.get(model_cls, [])
             if not instances:
                 continue
+            # FK fields aktualisieren mit bereits gespeicherten instanzen
+            self._apply_foreign_keys(
+                {model_cls: instances}, final_instances_map)
 
             create_mode = getattr(model_cls, "_create_mode", "save")
-
-            if create_mode == "get_or_create":
-                final_key_map = self._persist_get_or_create_bulk(
-                    model_cls, instances)
+            create_func = self._persist_get_or_create_bulk
+            kwargs = {}
+            if "." in create_mode or create_mode == "get_or_create":
+                if "." in create_mode:
+                    create_func = self._load_function(create_mode)
+                    kwargs = {"handler": self}
+                final_key_map = create_func(instances, **kwargs)
                 self.instances_by_model[model_cls] = list(
                     final_key_map.values())
                 final_instances_map[model_cls] = final_key_map
+
             elif create_mode == "bulk":
-                # FK fields aktualisieren mit bereits gespeicherten instanzen
-                self._apply_foreign_keys(
-                    {model_cls: instances}, final_instances_map)
                 # TODO: the instances which we are creating in bulk, shoul also be part of final_instances_map.
                 # If not it is not safe way. Maybe any other instance would reference one of the created instances.
                 model_cls.objects.bulk_create(instances)
             else:  # default save every instance
-                # FK fields aktualisieren mit bereits gespeicherten instanzen
-                self._apply_foreign_keys(
-                    {model_cls: instances}, final_instances_map)
                 for inst in instances:
                     # TODO: same as for bulk_create. The instance which will be saved here, becomes a safe pk and should become part of final_instances.
                     inst.save()

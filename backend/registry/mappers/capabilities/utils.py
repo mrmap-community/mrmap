@@ -2,16 +2,6 @@ from odin.mapping import assign, forward_mapping_factory
 from registry.enums.service import OGCServiceVersionEnum
 
 
-def get_import_path_for_xml_mapper(service):
-    from registry.models.service import WebMapService
-
-    if isinstance(service, WebMapService):
-        if service.version == OGCServiceVersionEnum.V_1_1_1.value:
-            return "ows_lib.xml_mapper.capabilities.wms.wms111"
-        elif service.version == OGCServiceVersionEnum.V_1_3_0.value:
-            return "ows_lib.xml_mapper.capabilities.wms.wms130"
-
-
 def get_mapper_for_service(service):
     from registry.models.service import (CatalogueService, WebFeatureService,
                                          WebMapService)

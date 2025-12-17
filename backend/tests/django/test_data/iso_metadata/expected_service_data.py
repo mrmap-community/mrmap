@@ -25,7 +25,7 @@ EXPECTED_DATA = {
     'date_stamp': '2025-12-08 00:00:00+01:00',
     'file_identifier': 'ee065040-1015-44c7-839e-e8e349c74bbd',
     'keywords': [],
-    'language': 1,
+    'languages': [110],
     'reference_systems': ['25832', '31467', '4326', '31468', '25833', '4258', '3857', '31258'],
     'time_extents': ['1980-01-01 00:00:00+00:00;2024-12-31 23:59:59+00:00;0'],
     'title': 'Rohstoffgewinnungsstellen in Bayern - WMS'

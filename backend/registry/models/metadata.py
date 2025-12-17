@@ -11,20 +11,18 @@ from django.db.models.fields.generated import GeneratedField
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
-from eulxml import xmlmap
+from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.factory import MDMetadataXmlMapper
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
-from extras.models import AdditionalTimeFieldsHistoricalModel
-from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
-                                                          WrappedIsoMetadata)
-from registry.enums.metadata import (CategoryChoices, DatasetFormatEnum, LanguageChoices,
-                                     MetadataCharsetChoices,
+from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
+from registry.enums.metadata import (DatasetFormatEnum, 
                                      MetadataOriginEnum,
                                      ReferenceSystemPrefixChoices,
-                                     UpdateFrequencyChoices)
+                                     )
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
-                                        IsoMetadataManager, KeywordManager,
+                                        KeywordManager,
                                         ServiceMetadataRecordManager)
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
@@ -33,8 +31,11 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
+from registry.enums.iso import (LanguageChoices, CategoryChoices, MetadataCharsetChoices, UpdateFrequencyChoices)
+
 
 CRS_Registry = Registry()
+
 
 class TimeExtent(models.Model):
     """
@@ -94,26 +95,26 @@ class MimeType(models.Model):
 
     def __str__(self):
         return self.mime_type
-    
-class Category(models.Model):
-    category = models.PositiveSmallIntegerField(null=True,
-                                                blank=True,
-                                                choices=CategoryChoices.choices,
-                                                verbose_name=_("category"),
-                                                help_text=_("the topic category of the dataset"))
-    
-    def __str__(self) -> str:
-        return CategoryChoices(self.category).label if self.category else _("No Category")
 
-    class Meta:
-        ordering = ["category"]
-        indexes = [
-            models.Index(fields=["category"])
-        ]
-        constraints = [
-            models.UniqueConstraint(fields=['category'],
-                                    name='%(app_label)s_%(class)s_unique_category')
-        ]
+
+class IsoCategory(ChoiceModel):
+    CHOICES = CategoryChoices.choices
+    value = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=CHOICES,
+        verbose_name=_("category"),
+        help_text=_("the topic category of the dataset"))
+
+
+class Language(ChoiceModel):
+    CHOICES = LanguageChoices.choices
+    value = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=CHOICES,
+        verbose_name=_("language"),
+        help_text=_("the language code as per ISO 639-2")
+    )
+
 
 class Style(models.Model):
     layer = models.ForeignKey(to="registry.Layer",
@@ -374,34 +375,27 @@ class RemoteMetadata(models.Model):
             raise NoContent(
                 f"Can't fetch content from remote for RemoteMetadata with id {self.pk}")
 
-    def parse(self):
-        """ Return the parsed self.remote_content
-
-            Raises:
-                ValueError: if self.remote_content is null
-        """
-        if self.remote_content:
-            # TODO: #527
-            self.parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.remote_content, "UTF-8"),
-                                                                     xmlclass=WrappedIsoMetadata)
-            return self.parsed_metadata.iso_metadata[0]
-        else:
-            raise ValueError(
-                "there is no fetched content. You need to call fetch_remote_content() first.")
-
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
-        from registry.models.service import (CatalogueService,
-                                             WebFeatureService, WebMapService)
-        if isinstance(self.describes, (WebMapService, WebFeatureService, CatalogueService)):
-            metadata_cls = ServiceMetadataRecord
-        else:
-            metadata_cls = DatasetMetadataRecord
-        db_metadata, _, _ = metadata_cls.iso_metadata.update_or_create_from_parsed_metadata(parsed_metadata=self.parse(),
-                                                                                            related_object=self.describes,
-                                                                                            origin_url=self.link,
-                                                                                            **kwargs)
-        return db_metadata
+        
+        mappers = MDMetadataXmlMapper.from_xml(self.remote_content)
+        instance = mappers[0].xml_to_django()
+        handler = PersistenceHandler(
+            mapper=mappers[0], 
+            defaults={
+                "dataset": {
+                    "origin": MetadataOriginEnum.CAPABILITIES.value,
+                    "origin_url": self.link
+                }
+            }
+        )
+        handler.persist_all()
+
+        instance.refresh_from_db()
+
+        instance.add_dataset_metadata_relation(
+                    related_object=self.describes)
+        return instance
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):
@@ -555,15 +549,13 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
-    # TODO: in ISO19115-2 1..∞ languages possible
-    language = models.PositiveSmallIntegerField(null=True,
-                                                blank=True,
-                                                choices=LanguageChoices.choices,
-                                                verbose_name=_("language"),
-                                                help_text=_("language used for documenting metadata"))
-    # needed for Docuement mixin to load the backupfile into the correct xml mapper class
-    # TODO: remove this after #531 is done
-    xml_mapper_cls = MdMetadata
+    
+    languages = models.ManyToManyField(to=Language,
+                                       blank=True,
+                                       related_name="%(class)s_metadata",
+                                       related_query_name="%(class)s_metadata",
+                                       verbose_name=_("languages"),
+                                       help_text=_("languages used for documenting metadata"))
 
     class Meta:
         abstract = True
@@ -606,7 +598,6 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
                                          related_name="metadata_contact_%(class)s_metadata",
                                          verbose_name=_("metadata contact"),
                                          help_text=_("This is the contact for the metadata information."))
-    iso_metadata = IsoMetadataManager()
 
     class Meta:
         abstract = True
@@ -836,8 +827,6 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
             )
         ] + AbstractMetadata.Meta.constraints
 
-    iso_metadata = IsoMetadataManager()
-
 
 class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
@@ -884,7 +873,7 @@ class DatasetMetadataRecord(MetadataRecord):
 
     lineage_statement = models.TextField(blank=True,
                                          default="")
-    categories = models.ManyToManyField(to=Category,
+    categories = models.ManyToManyField(to=IsoCategory,
                                         blank=True,
                                         related_name="%(class)s_metadata",
                                         related_query_name="%(class)s_metadata",

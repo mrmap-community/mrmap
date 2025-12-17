@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 from epsg_cache.utils import get_epsg_srid
 from lxml import etree
 from registry.mappers.parsers.utils import get_tag
-from registry.enums.metadata import (CategoryChoices, LanguageChoices, MetadataCharsetChoices,
+from registry.enums.iso import (CategoryChoices, LanguageChoices, MetadataCharsetChoices,
                                      UpdateFrequencyChoices)
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)

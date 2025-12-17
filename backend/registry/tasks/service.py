@@ -5,8 +5,8 @@ from celery import chord, shared_task, states
 from django.conf import settings
 from notify.tasks import BackgroundProcessBased, finish_background_process
 from registry.exceptions.metadata import UnknownMetadataKind
-from registry.mappers.persistence import PersistenceHandler
-from registry.mappers.xml_mapper import OGCServiceXmlMapper
+from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.factory import OGCServiceXmlMapper
 from registry.models import CatalogueService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadataRecord,
                                       FeatureTypeRemoteMetadata,

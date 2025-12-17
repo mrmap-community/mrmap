@@ -17,7 +17,7 @@ from lxml import etree
 from lxml.builder import ElementMaker
 
 from . import ast
-from .core import serialize
+from .core import parse, serialize
 
 
 def _find_terminal_step(xast: ast.AST) -> ast.Step:
@@ -79,6 +79,11 @@ def create_xml_node(xast: ast.AST, node: etree.Element, context: dict, insert_in
             if left_node is None:
                 left_node = create_xml_node(xast.left, node, context)
             return create_xml_node(xast.right, left_node, context)
+
+    elif isinstance(xast, ast.AbsolutePath):
+        relative_xast = parse(serialize(xast.relative).partition("/")[2])
+        root = node.getroottree().getroot()
+        return create_xml_node(relative_xast, root, context)
 
     # anything else, throw an exception:
     msg = (

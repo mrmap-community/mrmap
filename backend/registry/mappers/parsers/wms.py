@@ -1,14 +1,20 @@
-
+import typing
+from collections import defaultdict
 from datetime import timedelta
 
 import isodate
 from dateutil.parser import isoparse
 from lxml import etree
+from lxml.builder import ElementMaker
+
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models import TimeExtent
 from registry.models.metadata import MimeType
 from registry.models.service import WebMapServiceOperationUrl
 from psycopg.types.range import Range
+
+if typing.TYPE_CHECKING:
+    from django.db.models import Manager
 
 
 def parse_timeextent(mapper, el):
@@ -71,7 +77,7 @@ def _parse_duration(mapper, duration_str):
         dur = isodate.parse_duration(duration_str)
 
         # Convert isodate.Duration → timedelta (approximate months/years)
-        if isinstance(dur, isodate.duration.Duration):
+        if isinstance(dur, isodate.Duration):
             days = 0
             if dur.years:
                 days += dur.years * 365
@@ -157,3 +163,51 @@ def parse_operation_urls(mapper, el):
                 instances.append(op_inst)
 
     return instances
+
+
+def reverse_parse_operation_urls(mapper, qs: "Manager[WebMapServiceOperationUrl]") -> etree.Element:
+    namespaces = mapper.mapping.get("_namespaces", {})
+    E = ElementMaker(namespace=namespaces.get("wms"), nsmap=namespaces)
+
+    operations: dict[str, dict[str, typing.Any]] = defaultdict(dict)
+    # example structure:
+    # operations = {
+    #     "GetCapabilities": {
+    #         "urls": {"Get": "http://example.com/map", "Post": "http://example.com/map"},
+    #         "mime_types": {"text/xml"},
+    #     },
+    #     "GetMap": {
+    #         "urls": {"Get": "http://example.com/map"},
+    #         "mime_types": {"image/png", "image/tiff"}
+    #         },
+    # }
+
+    # collect data from django objects
+    for operation_url in qs.all():
+        operations[operation_url.get_operation_display()].setdefault("urls", dict())[operation_url.get_method_display()] = operation_url.url
+        for mime_type in operation_url.mime_types.all():
+            operations[operation_url.get_operation_display()].setdefault("mime_types", set()).add(mime_type.mime_type)
+
+    # build XML element
+    request = E("Request")
+    for operation_name, operation in operations.items():
+        op = E(operation_name)
+        for mime_type in sorted(operation.get("mime_types", [])):
+            op.append(E("Format", mime_type))
+
+        http = E("HTTP")
+        op.append(E("DCPType", http))
+
+        for method, url in operation.get("urls", {}).items():
+            http.append(
+                E(
+                    method,
+                    E(
+                        "OnlineResource",
+                        **{f"{{{namespaces['xlink']}}}type": "simple", f"{{{namespaces['xlink']}}}href": url},
+                    ),
+                )
+            )
+        request.append(op)
+
+    return request

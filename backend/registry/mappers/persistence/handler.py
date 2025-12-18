@@ -16,6 +16,7 @@ class PersistenceHandler:
         """
         self.mapper = mapper
         self.defaults = defaults
+        self.final_instances_map = {}
 
     # ------------------------
     # Helper: load function
@@ -96,15 +97,7 @@ class PersistenceHandler:
             for f in key_fields
         )
 
-    # ------------------------
-    # Deduplicate & Bulk + Reload
-    # ------------------------
-
-    def _persist_get_or_create_bulk(self, instances):
-        if not instances:
-            return {}
-        model_cls = instances[0].__class__
-        # 1️⃣ Bestimme die relevanten Unique-Felder (ignoriere 'id')
+    def _get_key_fields(self, model_cls):
         unique_sets = self._get_unique_fields(None, model_cls)
         key_fields = None
         for fields in unique_sets:
@@ -115,6 +108,18 @@ class PersistenceHandler:
         # fallback, falls kein anderes eindeutiges Feld existiert
         if key_fields is None:
             key_fields = ('id',)
+        return key_fields
+
+    # ------------------------
+    # Deduplicate & Bulk + Reload
+    # ------------------------
+
+    def _persist_get_or_create_bulk(self, instances):
+        if not instances:
+            return {}
+        model_cls = instances[0].__class__
+        # 1️⃣ Bestimme die relevanten Unique-Felder (ignoriere 'id')
+        key_fields = self._get_key_fields(model_cls)
 
         # 2️⃣ Deduplicate nach key_fields
         seen_keys = set()
@@ -141,18 +146,19 @@ class PersistenceHandler:
         if to_create:
             model_cls.objects.bulk_create(to_create, ignore_conflicts=True)
 
-        return self.build_final_key_map(deduped_instances, key_fields)
+        return self.build_final_key_map(deduped_instances)
 
 
-    def build_final_key_map(self, deduped_instances, key_fields):
-        model_cls = deduped_instances[0].__class__
-        
+    def build_final_key_map(self, instances, key_fields=None):
+        model_cls = instances[0].__class__
+        if not key_fields:
+            key_fields = self._get_key_fields(model_cls)
         # 5️⃣ Lade alle relevanten Objekte aus der DB
         # wir nutzen die unique-Felder, nicht PK
         final_objs = list(
             model_cls.objects.filter(
                 models.Q(
-                    **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in deduped_instances]})
+                    **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in instances]})
             )
         )
         # TODO: add warning logging if the number of final_objs differs to the number of parsed instances
@@ -161,7 +167,7 @@ class PersistenceHandler:
         }
 
         original_map = {
-            self.make_instance_key(inst, key_fields): inst for inst in deduped_instances
+            self.make_instance_key(inst, key_fields): inst for inst in instances
         }
 
         self.inject_private_attributes(final_key_map, original_map)
@@ -174,7 +180,7 @@ class PersistenceHandler:
             original_obj = original_objects.get(key)
             if original_obj is not None:
                 for attr, value in original_obj.__dict__.items():
-                    if attr.endswith("_parsed") and not hasattr(final_obj, attr):
+                    if (attr.endswith("_parsed") or attr.endswith('_custom_state')) and not hasattr(final_obj, attr):
                         setattr(final_obj, attr, value)
 
     # ------------------------
@@ -314,7 +320,7 @@ class PersistenceHandler:
     # Redirect FK and M2M _parsed fields
     # ------------------------
 
-    def _apply_foreign_keys(self, instances_by_model, final_instances_map):
+    def _apply_foreign_keys(self, instances_by_model):
         """
         Setzt alle ForeignKey- und ManyToMany-Felder auf die final gespeicherten Objekte,
         die zuvor als _parsed referenziert wurden oder als mutable Objekte vorliegen.
@@ -332,7 +338,7 @@ class PersistenceHandler:
                             continue
 
                         fk_type = f.remote_field.model
-                        ref_map = final_instances_map.get(fk_type, {})
+                        ref_map = self.final_instances_map.get(fk_type, {})
 
                         # Unique-Felder bestimmen, id ignorieren
                         unique_sets = [s for s in PersistenceHandler._get_unique_fields(
@@ -348,7 +354,7 @@ class PersistenceHandler:
                             if final_obj:
                                 setattr(inst, f.name, final_obj)
 
-    def _apply_parsed_m2m(self, final_instances_map):
+    def _apply_parsed_m2m(self):
         # -----------------------
         # ManyToMany (_parsed)
         # -----------------------
@@ -363,7 +369,7 @@ class PersistenceHandler:
 
                     final_list = []
                     for ref in parsed:
-                        ref_map = final_instances_map.get(type(ref), {})
+                        ref_map = self.final_instances_map.get(type(ref), {})
                         unique_sets = [s for s in PersistenceHandler._get_unique_fields(
                             None, type(ref)) if s != ('id',)]
                         key_fields = unique_sets[0] if unique_sets else None
@@ -388,7 +394,6 @@ class PersistenceHandler:
 
         self.instances_by_model = self._build_instances_by_model()
 
-        final_instances_map = {}
 
         # 2️⃣ Alle Models nach Abhängigkeiten sortieren
         sorted_models = self._sort_models_by_dependencies()
@@ -400,7 +405,7 @@ class PersistenceHandler:
                 continue
             # FK fields aktualisieren mit bereits gespeicherten instanzen
             self._apply_foreign_keys(
-                {model_cls: instances}, final_instances_map)
+                {model_cls: instances})
 
             create_mode = getattr(model_cls, "_create_mode", "save")
             create_func = self._persist_get_or_create_bulk
@@ -412,16 +417,18 @@ class PersistenceHandler:
                 final_key_map = create_func(instances, **kwargs)
                 self.instances_by_model[model_cls] = list(
                     final_key_map.values())
-                final_instances_map[model_cls] = final_key_map
+                self.final_instances_map[model_cls] = final_key_map
 
             elif create_mode == "bulk":
-                # TODO: the instances which we are creating in bulk, shoul also be part of final_instances_map.
-                # If not it is not safe way. Maybe any other instance would reference one of the created instances.
-                model_cls.objects.bulk_create(instances)
+                objs = model_cls.objects.bulk_create(instances)
+                final_key_map = self.build_final_key_map(objs)
+                self.final_instances_map[model_cls] = final_key_map
             else:  # default save every instance
                 for inst in instances:
-                    # TODO: same as for bulk_create. The instance which will be saved here, becomes a safe pk and should become part of final_instances.
                     inst.save()
+                final_key_map = self.build_final_key_map(instances)
+                self.final_instances_map[model_cls] = final_key_map
 
         # 4️⃣ Jetzt alle M2M-Felder aus _parsed setzen
-        self._apply_parsed_m2m(final_instances_map)
+        self._apply_parsed_m2m()
+        return self.final_instances_map

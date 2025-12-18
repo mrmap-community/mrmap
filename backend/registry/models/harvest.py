@@ -666,57 +666,59 @@ class TemporaryMdMetadataFile(models.Model):
         return super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self):
-        with self.md_metadata_file.open('r') as _file:
+        with self.md_metadata_file.open('rb') as _file:
             try:
                 start_db_processing = now()
 
                 mappers = MDMetadataXmlMapper.from_xml(_file.read())
-                instance = mappers[0].xml_to_django()
-                handler = PersistenceHandler(
-                    mapper=mappers[0], 
-                    defaults={
-                        "dataset": {
-                            "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                            'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
-                        }
-                    }
-                )
-                handler.persist_all()
-
-                instance.refresh_from_db()
-                created, update = instance._custom_state
-
-                if instance:
-                    if self.job:
-                        end_db_processing = now()
-                        relation = self.update_relations(
-                            not created,
-                            update,
-                            instance,
-                            end_db_processing - start_db_processing
-                        )
-                        if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
-                            # do not delete this entries for analyze purposes
-                            import_error = {
-                                "reason": "duplicated",
-                                "db_metadata.pk": instance.pk,
-                                "db_metadata.file_identifier": instance.file_identifier,
-                                "db_metadata.code_space": instance.code_space,
-                                "db_metadata.code": instance.code,
+                instances = mappers[0].xml_to_django()
+                result = []
+                for instance in instances:
+                    handler = PersistenceHandler(
+                        mapper=mappers[0], 
+                        defaults={
+                            "dataset": {
+                                "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                                'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
                             }
-                            self.has_import_error = True
-                            self.import_error = str(import_error)
-                            self.save()
-                            return instance, update, not created
-                        elif update or created:
-                            # something has changed... so tell us from what service this changes come from
-                            update_change_reason(
-                                instance,
-                                'fileimport'if self.job.service is None else f'csw:{self.job.service}'
-                            )
+                        }
+                    )
+                    created_instances = handler.persist_all()
+                    created_instance = created_instances.get(instance.__class__, {}).get((instance.file_identifier,), None)
+                    # after persit handler has created the instances on db side, the objects are no longer identical
 
-                    self.delete()
-                    return instance, update, not created
+                    if created_instance:
+                        created, update = created_instance._custom_state
+                        if self.job:
+                            end_db_processing = now()
+                            relation = self.update_relations(
+                                not created,
+                                update,
+                                created_instance,
+                                end_db_processing - start_db_processing
+                            )
+                            if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
+                                # do not delete this entries for analyze purposes
+                                import_error = {
+                                    "reason": "duplicated",
+                                    "db_metadata.pk": created_instance.pk,
+                                    "db_metadata.file_identifier": created_instance.file_identifier,
+                                    "db_metadata.code_space": created_instance.code_space,
+                                    "db_metadata.code": created_instance.code,
+                                }
+                                self.has_import_error = True
+                                self.import_error = str(import_error)
+                                self.save()
+                                return created_instance, update, not created
+                            elif update or created:
+                                # something has changed... so tell us from what service this changes come from
+                                update_change_reason(
+                                    created_instance,
+                                    'fileimport'if self.job.service is None else f'csw:{self.job.service}'
+                                )
+                        result.append((created_instance, update, not created))
+                self.delete()
+                return result
             except Exception as e:
                 import traceback
                 exc_info = sys.exc_info()

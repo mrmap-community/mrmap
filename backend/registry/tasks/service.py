@@ -83,22 +83,23 @@ def build_ogc_service(
         data = mapper.xml_to_django()
         db_service = data[0]
         handler = PersistenceHandler(mapper)
-        handler.persist_all()
-        db_service.refresh_from_db()
+        created_instances = handler.persist_all()
+        created_instance = next(iter(created_instances.get(db_service.__class__, {}).values()))
+
 
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        if isinstance(db_service, WebMapService):
+        if isinstance(created_instance, WebMapService):
             self_url = reverse(
-                viewname='registry:wms-detail', args=[db_service.pk])
-        elif isinstance(db_service, WebFeatureService):
+                viewname='registry:wms-detail', args=[created_instance.pk])
+        elif isinstance(created_instance, WebFeatureService):
             self_url = reverse(
-                viewname='registry:wfs-detail', args=[db_service.pk])
-        elif isinstance(db_service, CatalogueService):
+                viewname='registry:wfs-detail', args=[created_instance.pk])
+        elif isinstance(created_instance, CatalogueService):
             self_url = reverse(
-                viewname='registry:csw-detail', args=[db_service.pk])
+                viewname='registry:csw-detail', args=[created_instance.pk])
 
         if auth:
-            auth.service = db_service
+            auth.service = created_instance
             auth.save()
 
         self.update_state(
@@ -109,8 +110,8 @@ def build_ogc_service(
         # TODO: use correct Serializer and render the json:api as result
         return_dict = {
             "data": {
-                "type": db_service.__class__.__name__,
-                "id": str(db_service.pk),
+                "type": created_instance.__class__.__name__,
+                "id": str(created_instance.pk),
                 "links": {
                     "self": self_url
                 }

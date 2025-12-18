@@ -378,7 +378,7 @@ class RemoteMetadata(models.Model):
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
         
-        mappers = MDMetadataXmlMapper.from_xml(self.remote_content)
+        mappers = MDMetadataXmlMapper.from_xml(self.remote_content.encode())
         instance = mappers[0].xml_to_django()
         handler = PersistenceHandler(
             mapper=mappers[0], 
@@ -389,13 +389,11 @@ class RemoteMetadata(models.Model):
                 }
             }
         )
-        handler.persist_all()
-
-        instance.refresh_from_db()
-
-        instance.add_dataset_metadata_relation(
+        created_instances = handler.persist_all()
+        created_instance = created_instances.get(instance.__class__, {}).get((instance.file_identifier,), None)
+        created_instance.add_dataset_metadata_relation(
                     related_object=self.describes)
-        return instance
+        return created_instance
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):

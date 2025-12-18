@@ -377,11 +377,14 @@ class XmlMapper:
                             continue
 
                     mapper._update_element(related_obj)
-                elif field.get("_parser", ""):  # likely not a 1:1 relation
-                    if not field.get("_reverse_parser", ""):
+                elif "_parser" in field:
+                    if "_reverse_parser" not in field:
                         continue
-                    # TODO
-                else:
+                    old_element = self._get_element(field["_base_xpath"])
+                    reverse_parser_func = load_function(field["_reverse_parser"])
+                    new_element = reverse_parser_func(self, getattr(obj, fieldname))
+                    old_element.getparent().replace(old_element, new_element)
+                else:  # field["_many"] == True
                     elements = self._get_elements(field, namespaces)
                     # obj.fieldname should be a Manager
                     related_objs = getattr(obj, fieldname).all()
@@ -390,8 +393,12 @@ class XmlMapper:
                         # TODO: create or delete elements as needed
                         if len(related_objs) > len(elements):
                             self._create_element(field["_base_xpath"])
-                        else:
-                            break  # TODO: remove this when implemented
+                        else:  # len(related_objs) < len(elements)
+                            if "//" in field["_base_xpath"]:
+                                # we do not support deleting elements in a nested structure yet
+                                break
+                            to_be_removed = elements.pop()
+                            to_be_removed.getparent().remove(to_be_removed)
                         elements = self._get_elements(field, namespaces)
                         related_objs = getattr(obj, fieldname).all()
                     else:  # if we break out of the loop, the following block is skipped

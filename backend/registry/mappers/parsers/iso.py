@@ -2,11 +2,14 @@ from lxml import etree
 
 from registry.models.metadata import TimeExtent
 from dateutil.parser import isoparse
-from dateutil import parser
 from datetime import timedelta, UTC
-from dateutil.parser import ParserError
-from psycopg.types.range import Range
 from django.utils import timezone
+from logging import Logger
+from django.conf import settings
+
+logger: Logger = settings.ROOT_LOGGER
+
+import isodate
 
 
 def parse_reference_systems(mapper, crs_str):
@@ -63,13 +66,14 @@ def parse_timeextent(mapper, time_extent_element):
     interval_unit = time_extent_element.xpath("./gml:TimePeriod/gml:timeInterval/@unit", namespaces=nsmap)
     resolution = None
     if duration_str:
-        try:
-            # Use dateutil.parser to parse the duration string into a datetime object
-            parsed = parser.parse(duration_str)
-            # Convert the parsed datetime to a timedelta (if applicable)
-            resolution = timedelta(days=parsed.day, seconds=parsed.second, microseconds=parsed.microsecond)
-        except ParserError:
-            raise ValueError(f"Invalid duration format: {duration_str}")
+        duration = isodate.parse_duration(duration_str)
+
+        # isodate may return datetime.timedelta or isodate.Duration
+        if isinstance(duration, timedelta):
+            resolution = duration
+        else:
+            # Convert Duration (years/months not supported by timedelta)
+            resolution = duration.tdelta
 
     elif interval_value and interval_unit:
         """
@@ -94,7 +98,8 @@ def parse_timeextent(mapper, time_extent_element):
             dt_end = timezone.make_aware(dt_end, timezone=UTC)
         if dt_start and dt_end:
             return TimeExtent(
-                timerange=Range(dt_start, dt_end, bounds="[]"),
+                begin=dt_start,
+                end=dt_end,
                 resolution=resolution
             )
     if begin_position and not end_position:
@@ -103,6 +108,18 @@ def parse_timeextent(mapper, time_extent_element):
             dt = timezone.make_aware(dt, timezone=UTC)
         if dt:
             return TimeExtent(
-                timerange=Range(dt, dt, bounds="[]"),
+                begin=dt,
+                end=dt,
                 resolution=resolution
             )   
+    if not begin_position and not end_position and resolution:
+        # rolling window
+        return TimeExtent(
+            begin=None,
+            end=None,
+            resolution=resolution,
+            is_relative=True
+        )   
+
+
+    logger.warning(f"Unable to parse TimeExtent from values: {begin_position} {end_position} {duration_str} {interval_value} {interval_unit}")

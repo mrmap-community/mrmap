@@ -7,6 +7,10 @@ from django.db import models, transaction
 from psycopg.types.range import Range
 from django.utils.timezone import is_naive, make_aware, get_default_timezone
 from datetime import datetime
+from logging import Logger
+from django.conf import settings
+
+logger: Logger = settings.ROOT_LOGGER
 
 
 class PersistenceHandler:
@@ -227,6 +231,10 @@ class PersistenceHandler:
         cache = self.mapper.read_all_from_cache()
 
         for element_path, instance in cache.items():
+            if not instance:
+                logger.warning(f"elemt '{element_path}' is None")
+                continue
+
             spec = self._find_spec_for_instance(self.mapper.mapping, instance)
             model_cls = type(instance)
             create_mode = spec.get("_create_mode", "save")
@@ -237,8 +245,8 @@ class PersistenceHandler:
         # Flatten und attach _create_mode auf ModelClass
         flat_instances = {cls: data["instances"]
                           for cls, data in instances_by_model.items()}
-        for cls, data in instances_by_model.items():
-            setattr(cls, "_create_mode", data["_create_mode"])
+        for inst, data in instances_by_model.items():
+            setattr(inst, "_create_mode", data["_create_mode"])
 
         return flat_instances
 

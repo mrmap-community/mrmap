@@ -42,3 +42,9 @@ class DatasetFormatEnum(SmartIntegerChoices):
 
 class ReferenceSystemPrefixChoices(TextChoices):
     EPSG = "EPSG"
+
+
+class TimeExtentKind(SmartIntegerChoices):
+    SINGLE_VALUE = 1, _("Single Value")
+    INTERVAL = 2, _("Interval")
+    ROLLING = 3, _("Rolling")

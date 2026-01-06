@@ -1,6 +1,7 @@
 from logging import Logger
 from django.conf import settings
 from django.db import models
+from registry.querys.metadata import TimeExtentQuerySet
 from extras.managers import UniqueConstraintDefaultValueManager
 
 
@@ -46,3 +47,12 @@ class ServiceMetadataRecordManager(UniqueConstraintDefaultValueManager):
             SearchableServiceMetadataRecord
         SearchableServiceMetadataRecord.refresh()
         return objs
+
+
+class TimeExtentManager(models.Manager):
+
+    def get_queryset(self):
+        return TimeExtentQuerySet(self.model, using=self._db)
+
+    def with_effective_timerange(self):
+        return self.get_queryset().with_effective_timerange()

@@ -39,7 +39,8 @@ def parse_timeextent(mapper, el):
                 resolution = _parse_duration(mapper, segments[2])
 
             inst = TimeExtent(
-                timerange=Range(start, end, bounds="[]"),
+                begin=start,
+                end=end,
                 resolution=resolution,
             )
             instances.append(inst)
@@ -48,7 +49,8 @@ def parse_timeextent(mapper, el):
         else:
             dt = isoparse(part)
             inst = TimeExtent(
-                timerange=Range(dt, dt, bounds="[]"),
+                begin=dt,
+                end=dt,
                 resolution=None,
             )
             instances.append(inst)

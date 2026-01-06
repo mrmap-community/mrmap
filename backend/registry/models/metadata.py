@@ -2,8 +2,7 @@ from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
-from django.contrib.postgres.fields import DateTimeRangeField
-from django.contrib.postgres.indexes import GistIndex
+from django.contrib.postgres.indexes import BTreeIndex
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import CombinedExpression, F
@@ -18,12 +17,12 @@ from extras.managers import (DefaultHistoryManager,
 from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
 from registry.enums.metadata import (DatasetFormatEnum, 
                                      MetadataOriginEnum,
-                                     ReferenceSystemPrefixChoices,
+                                     ReferenceSystemPrefixChoices, TimeExtentKind,
                                      )
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         KeywordManager,
-                                        ServiceMetadataRecordManager)
+                                        ServiceMetadataRecordManager, TimeExtentManager)
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
@@ -32,24 +31,68 @@ from requests.exceptions import ConnectionError
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
 from registry.enums.iso import (LanguageChoices, CategoryChoices, MetadataCharsetChoices, UpdateFrequencyChoices)
-
+from django.db.transaction import atomic
+from django.db.models import F, Q
+import logging
 
 CRS_Registry = Registry()
 
 
+IS_SINGLE_VALUE = Q(
+    Q(begin=F("end"))
+)
+IS_INTERVAL = Q( 
+    Q(end__gte=F("begin")) &
+    Q(is_relative=False)
+)
+
+IS_ROLLING = Q(
+    is_relative=True, 
+    begin__isnull=True,
+    end__isnull=True,
+    resolution__isnull=False
+)
+
+
 class TimeExtent(models.Model):
+    """Combined modell for singlevalue und intervalls.
+
+    - Singlevalue: begin == end
+    - Interval: begin < end
+    
+    Meta information:
+    - Resolution: optional, None/0 = unendlich fein
+    
+
+    Rolling (window) temporal extent example:
+    <gmd:EX_Extent id="timeperiodExtent"> 
+        <gmd:temporalElement> 
+            <gmd:EX_TemporalExtent> 
+                <gmd:extent> 
+                    <gml:TimePeriod gml:id="d146058e755a1052958"> 
+                        <gml:beginPosition indeterminatePosition="unknown"/> 
+                        <gml:endPosition indeterminatePosition="now"/> 
+                        <gml:duration>-P3D</gml:duration> 
+                    </gml:TimePeriod> 
+                </gmd:extent> 
+            </gmd:EX_TemporalExtent> 
+        </gmd:temporalElement> 
+    </gmd:EX_Extent>
+
+    Note: The valid values for indeterminatePosition are “unknown”, “after”, “before”, and “now”
+    
     """
-    Kombiniertes Modell für Einzelwerte und Intervalle.
-    - Einzelwert: timerange.lower == timerange.upper
-    - Intervall: timerange.lower < timerange.upper
-    - resolution: optional, None/0 = unendlich fein
-    """
-    timerange = DateTimeRangeField(
-        default_bounds="[]",
-        null=False,
+    begin = models.DateTimeField(
+        null=True,
         blank=False,
-        verbose_name=_("time range"),
-        help_text=_("The time range represented by this TimeExtent.")
+        verbose_name=_("begin"),
+        help_text=_("the begin of the time period")
+    )
+    end = models.DateTimeField(
+        null=True,
+        blank=False,
+        verbose_name=_("begin"),
+        help_text=_("the end of the time period")
     )
     resolution = models.DurationField(
         null=True, 
@@ -57,33 +100,56 @@ class TimeExtent(models.Model):
         verbose_name=_("resolution"),
         help_text=_("The resolution of the time extent. Null or 0 means infinite fine resolution.")
     )
+    is_relative = models.BooleanField(default=False)
+
+
+    objects = TimeExtentManager()
 
     class Meta:
-        ordering = ["timerange"]
+        ordering = ["begin"]
         indexes = [
-            # GIST Index for fast Overlap- and Contains-Requests
-            GistIndex(fields=["timerange"]),
+            # BTreeIndex Index for fast Overlap- and Contains-Requests
+            BTreeIndex(fields=["begin", "end"]),
             models.Index(fields=["resolution"]),
         ]
         constraints = [
             models.CheckConstraint(
-                condition=~Q(timerange__isempty=True),
-                name="timerange_not_empty",
+                condition=(IS_SINGLE_VALUE | IS_INTERVAL | IS_ROLLING),
+                name="kind_check",
             ),
-            models.UniqueConstraint(fields=['timerange', 'resolution'],
+            models.UniqueConstraint(fields=['begin', 'end', 'resolution'],
                                     name='%(app_label)s_%(class)s_unique_timerange_resolution')
         ]
+    
     def __eq__(self, __value: object) -> bool:
-        return self.timerange == __value.timerange and self.resolution == __value.resolution
+        return self.begin == __value.begin and self.end == __value.end and self.resolution == __value.resolution and self.is_relative == __value.is_relative
 
+    @property
+    def kind(self):
+        if self.begin and self.end and self.begin == self.end:
+            return TimeExtentKind.SINGLE_VALUE
+        elif self.begin and self.end and self.begin < self.end:
+            return TimeExtentKind.INTERVAL
+        elif self.is_relative and not self.begin and not self.end and self.resolution:
+            return TimeExtentKind.ROLLING
+        return None
+
+    @property
     def is_single_value(self):
-        return self.timerange.lower == self.timerange.upper
+        return self.kind == TimeExtentKind.SINGLE_VALUE
+    
+    @property
+    def is_rolling(self):
+        return self.kind == TimeExtentKind.ROLLING
 
     def __str__(self):
-        if self.is_single_value():
-            return f"{self.timerange.lower}"
+        if self.is_single_value:
+            return f"{self.begin}"
+        elif self.is_rolling:
+            current = now()
+            return f"{current-self.resolution};{current};0"
         else:
-            return f"{self.timerange.lower};{self.timerange.upper};{self.resolution or 0}"
+            return f"{self.begin};{self.end};{self.resolution or 0}"
 
 
 class MimeType(models.Model):
@@ -379,7 +445,8 @@ class RemoteMetadata(models.Model):
         """ Return the created metadata record, based on the content_type of the described element. """
         
         mappers = MDMetadataXmlMapper.from_xml(self.remote_content.encode())
-        instance = mappers[0].xml_to_django()
+        data = mappers[0].xml_to_django()
+        parsed_instance = data[0]
         handler = PersistenceHandler(
             mapper=mappers[0], 
             defaults={
@@ -390,7 +457,12 @@ class RemoteMetadata(models.Model):
             }
         )
         created_instances = handler.persist_all()
-        created_instance = created_instances.get(instance.__class__, {}).get((instance.file_identifier,), None)
+        created_instance = created_instances.get(parsed_instance.__class__, {}).get((parsed_instance.file_identifier,), None)
+        
+        if not created_instance:
+            logging.warning(f"{parsed_instance.file_identifier}")
+            return
+        
         created_instance.add_dataset_metadata_relation(
                     related_object=self.describes)
         return created_instance
@@ -906,12 +978,12 @@ class DatasetMetadataRecord(MetadataRecord):
         elif related_object and related_object._meta.model == FeatureType:
             kwargs.update({"feature_type": related_object,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-
-        relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
-            dataset_metadata=self,
-            is_internal=is_internal,
-            **kwargs
-        )
+        with atomic():
+            relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
+                dataset_metadata=self,
+                is_internal=is_internal,
+                **kwargs
+            )
         return relation
 
     def remove_dataset_metadata_relation(self, related_object, internal, origin):

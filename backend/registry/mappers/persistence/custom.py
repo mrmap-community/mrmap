@@ -23,7 +23,6 @@ def get_or_create_metadatarecord(instances, handler):
     db_obj, created = instance.__class__.objects.select_for_update().get_or_create(
             defaults=defaults, file_identifier=instance.file_identifier)
     
-    
     db_objs.append(db_obj)
     
     if not created and instance.date_stamp > db_obj.date_stamp:

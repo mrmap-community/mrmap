@@ -127,6 +127,7 @@ class XmlMapper:
                         f"Error parsing field with xpath '{xpath_expr}': {e}"
                     )
                 if not res:
+                    logging.debug(f"No result by xpath '{xpath_expr}'. Fallback _default is used.")
                     values.append(xpath_or_spec.get("_default", None))
                 else:
                     # Ob Attribut oder Elementtext
@@ -135,9 +136,11 @@ class XmlMapper:
             parser_func = load_function(xpath_or_spec["_parser"])
             try:
                 parsed = parser_func(self, *values)
+                if parsed is None:
+                    logging.debug(f"{xpath_or_spec["_parser"]} does return None with args: {values}")
             except Exception as e:
                 logging.error(
-                    f"Error parsing field with {xpath_or_spec['_parser']}: {e}")
+                    f"Error parsing field with function {xpath_or_spec['_parser']} with args: {values}: {e}")
                 parsed = None
             finally:
                 return parsed

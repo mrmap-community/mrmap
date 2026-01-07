@@ -148,7 +148,11 @@ class PersistenceHandler:
             if tuple(getattr(inst, f) for f in key_fields) not in existing_keys
         ]
         if to_create:
-            model_cls.objects.bulk_create(to_create, ignore_conflicts=True)
+            objs = model_cls.objects.bulk_create(objs=to_create)
+
+            # ⚠️ Warning logging if counts differ
+            if len(to_create) != len(objs):
+                logger.warning(f"not all objects created {len(objs)} != {len(to_create)}")
 
         return self.build_final_key_map(deduped_instances)
 
@@ -165,7 +169,7 @@ class PersistenceHandler:
                     **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in instances]})
             )
         )
-        # TODO: add warning logging if the number of final_objs differs to the number of parsed instances
+
         final_key_map = {
             self.make_instance_key(o, key_fields): o for o in final_objs
         }

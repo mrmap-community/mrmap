@@ -47,10 +47,10 @@ IS_INTERVAL = Q(
 )
 
 IS_ROLLING = Q(
-    is_relative=True, 
     begin__isnull=True,
     end__isnull=True,
-    resolution__isnull=False
+    resolution__isnull=False,
+    is_relative=True
 )
 
 
@@ -117,7 +117,7 @@ class TimeExtent(models.Model):
                 condition=(IS_SINGLE_VALUE | IS_INTERVAL | IS_ROLLING),
                 name="kind_check",
             ),
-            models.UniqueConstraint(fields=['begin', 'end', 'resolution'],
+            models.UniqueConstraint(fields=['begin', 'end', 'resolution', 'is_relative'],
                                     name='%(app_label)s_%(class)s_unique_timerange_resolution')
         ]
     
@@ -457,13 +457,21 @@ class RemoteMetadata(models.Model):
             }
         )
         created_instances = handler.persist_all()
-        created_instance = created_instances.get(parsed_instance.__class__, {}).get((parsed_instance.file_identifier,), None)
+        # search by unique file_identifier to get the created record.
+        created_instance = next(
+            (
+                v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
+                if parsed_instance.file_identifier in k
+            ),
+            None
+        )
         
         if not created_instance:
-            logging.warning(f"{parsed_instance.file_identifier}")
+            i=0
+            logging.warning(f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
             return
         
-        created_instance.add_dataset_metadata_relation(
+        created_instance.add_metadata_relation(
                     related_object=self.describes)
         return created_instance
 
@@ -897,6 +905,63 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
             )
         ] + AbstractMetadata.Meta.constraints
 
+    def add_metadata_relation(self, related_object=None, origin=None, is_internal=False):
+
+        kwargs = {}
+        if related_object and related_object.__class__.__name__ == "Layer":
+            kwargs.update({"layer": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value,})
+        elif related_object and related_object.__class__.__name__ == "FeatureType":
+            kwargs.update({"feature_type": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object and related_object.__class__.__name__ == "WebMapService":
+            kwargs.update({"wms": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
+            kwargs.update({"wfs": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object and related_object.__class__.__name__ == "CatalogueService":
+            kwargs.update({"csw": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        
+        if self.__class__.__name__ == "DatasetMetadataRecord":
+            kwargs.update({"dataset_metadata": self})
+        elif self.__class__.__name__ == "ServiceMetadataRecord":
+            kwargs.update({"service_metadata": self})
+        
+        with atomic():
+            relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
+                is_internal=is_internal,
+                **kwargs
+            )
+        return relation
+
+    def remove_metadata_relation(self, related_object, internal, origin):
+        kwargs = {}
+        if related_object and related_object.__class__.__name__ == "Layer":
+            kwargs.update({"layer": related_object})
+        elif related_object and related_object.__class__.__name__ == "FeatureType":
+            kwargs.update({"feature_type": related_object})
+        elif related_object and related_object.__class__.__name__ == "WebMapService":
+            kwargs.update({"wms": related_object})
+        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
+            kwargs.update({"wfs": related_object})
+        elif related_object and related_object.__class__.__name__ == "CatalogueService":
+            kwargs.update({"csw": related_object})
+        else:
+            return
+        
+        if self.__class__.__name__ == "DatasetMetadataRecord":
+            kwargs.update({"dataset_metadata": self})
+        elif self.__class__.__name__ == "ServiceMetadataRecord":
+            kwargs.update({"service_metadata": self})
+        MetadataRelation.objects.select_for_update().filter(
+            is_internal=internal,
+            origin=origin,
+            **kwargs
+        ).delete()
+
+
 
 class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
@@ -967,41 +1032,6 @@ class DatasetMetadataRecord(MetadataRecord):
         indexes = [
             models.Index(fields=["code", "code_space"]),
         ] + AbstractMetadata.Meta.indexes
-
-    def add_dataset_metadata_relation(self, related_object=None, origin=None, is_internal=False):
-        from registry.models.service import FeatureType, Layer
-
-        kwargs = {}
-        if related_object and related_object._meta.model == Layer:
-            kwargs.update({"layer": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object._meta.model == FeatureType:
-            kwargs.update({"feature_type": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        with atomic():
-            relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
-                dataset_metadata=self,
-                is_internal=is_internal,
-                **kwargs
-            )
-        return relation
-
-    def remove_dataset_metadata_relation(self, related_object, internal, origin):
-        from registry.models.service import FeatureType, Layer
-
-        kwargs = {}
-        if related_object._meta.model == Layer:
-            kwargs.update({"layer": related_object})
-        elif related_object._meta.model == FeatureType:
-            kwargs.update({"feature_type": related_object})
-        else:
-            return
-        MetadataRelation.objects.select_for_update().filter(
-            dataset_metadata=self,
-            is_internal=internal,
-            origin=origin,
-            **kwargs
-        ).delete()
 
 
 class ServiceMetadataRecord(MetadataRecord):

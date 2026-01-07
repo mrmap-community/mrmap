@@ -200,9 +200,10 @@ def _parse_bounding_polygon(mapper, element):
     return MultiPolygon(geometries)
 
 
-def iso_bbox_to_multipolygon(mapper, elements):
+def iso_bbox_to_multipolygon(mapper, elements=[]):
     polygons = []
-
+    if elements is None:
+        elements = []
     if isinstance(elements, etree.Element):
         elements = [elements]
 

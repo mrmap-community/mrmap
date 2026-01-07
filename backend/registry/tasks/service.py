@@ -220,9 +220,9 @@ def fetch_remote_metadata_xml(
         return {
             "data": {
                 "type": "DatasetMetadataRecord" if isinstance(metadata_record, DatasetMetadataRecord) else "ServiceMetadata",
-                "id": f"{metadata_record.pk}",
+                "id": f"{metadata_record.pk if metadata_record else None}",
                 "links": {
-                    "self": f"{reverse(viewname=f'registry:{"datasetmetadata" if isinstance(metadata_record, DatasetMetadataRecord) else "servicemetadata"}-detail', args=[metadata_record.pk])}"
+                    "self": f"{reverse(viewname=f'registry:{"datasetmetadata" if isinstance(metadata_record, DatasetMetadataRecord) else "servicemetadata"}-detail', args=[metadata_record.pk]) if metadata_record else None}"
                 }
             }
         }

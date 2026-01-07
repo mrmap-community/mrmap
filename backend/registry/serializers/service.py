@@ -10,7 +10,7 @@ from extras.serializers import (HistoryInformationSerializer,
 from extras.validators import validate_get_capablities_uri
 from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
-                                      LayerTimeExtent, MetadataContact,
+                                      TimeExtent, MetadataContact,
                                       ReferenceSystem, Style)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
@@ -155,7 +155,7 @@ class LayerSerializer(
     time_extents = SerializerMethodResourceRelatedField(
         label=_("time extents"),
         help_text=_("available time extents of this layer."),
-        model=LayerTimeExtent,
+        model=TimeExtent,
         many=True,
         read_only=True,
     )
@@ -197,7 +197,7 @@ class LayerSerializer(
         return self._convert_dict_to_object(getattr(instance, "reference_systems_inherited", []), ReferenceSystem)
 
     def get_time_extents(self, instance):
-        return self._convert_dict_to_object(getattr(instance, "time_extents_inherited", []), LayerTimeExtent)
+        return self._convert_dict_to_object(getattr(instance, "time_extents_inherited", []), TimeExtent)
 
     def get_styles(self, instance):
         return self._convert_dict_to_object(getattr(instance, "styles_inherited", []), Style, defaults={"layer": Layer(pk=instance.pk)})

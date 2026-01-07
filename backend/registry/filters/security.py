@@ -36,5 +36,5 @@ class AllowedWebMapServiceOperationFilterSet(GeoFilterSet):
             "description": ["exact", "icontains", "contains"],
             "secured_service__id": ["exact", "icontains", "contains"],
             "secured_layers__id": ["exact", "icontains", "contains"],
-            "operations__operation": ["exact", "icontains", "contains"],
+            "operations__value": ["exact", "icontains", "contains"],
         }

@@ -35,7 +35,7 @@ from registry.managers.service import (CatalogueServiceManager, LayerManager,
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
-                                      Style)
+                                      Style, TimeExtent)
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
@@ -397,6 +397,15 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
         verbose_name=_("reference systems"),
         help_text=_("all reference systems which this element supports"),
     )
+    time_extents = models.ManyToManyField(
+        to="TimeExtent",
+        blank=True,
+        editable=False,
+        related_name="%(class)s",
+        related_query_name="%(class)s",
+        verbose_name=_("time extent"),
+        help_text=_("all time extents which are available for this layer."),
+    )
 
     class Meta:
         abstract = True
@@ -491,6 +500,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
             "images. None value means no restriction."
         ),
     )
+
     change_log = HistoricalRecords(
         related_name="change_logs",
         excluded_fields="search_vector",

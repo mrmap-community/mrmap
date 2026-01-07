@@ -1,21 +1,38 @@
 
+import logging
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
-from registry.enums.service import (SecureableWFSOperationEnum,
-                                    SecureableWMSOperationEnum)
 
 
-def create_wms_operations(sender, **kwargs):
-    from registry.models.security import WebMapServiceOperation
-    for key, _x in SecureableWMSOperationEnum.choices:
-        WebMapServiceOperation.objects.get_or_create(operation=key)
+def create_choice_model_entries(sender, **kwargs):
+    """Automatisch alle ChoiceModel-Subklassen erkennen und nur fehlende CHOICES eintragen."""
+    from registry.models import ChoiceModel  # Baseclass
+    from django.apps import apps
 
+    logger = logging.getLogger(__name__)
 
-def create_wfs_operations(sender, **kwargs):
-    from registry.models.security import WebFeatureServiceOperation
-    for key, _x in SecureableWFSOperationEnum.choices:
-        WebFeatureServiceOperation.objects.get_or_create(operation=key)
+    # Alle Modelle der App "registry" holen
+    all_models = apps.get_app_config('registry').get_models()
+
+    for model in all_models:
+        if issubclass(model, ChoiceModel) and model is not ChoiceModel:
+            choices = getattr(model, "CHOICES", [])
+            if not choices:
+                continue
+
+            # Existierende Werte abrufen
+            existing_values = set(model.objects.values_list('value', flat=True))
+
+            # Nur die Werte eintragen, die noch fehlen
+            missing_values = [value for value, _ in choices if value not in existing_values]
+
+            if missing_values:
+                objs = [model(value=value) for value in missing_values]
+                model.objects.bulk_create(objs)
+                logger.info(f"Inserted {len(objs)} new entries for {model.__name__}")
+            else:
+                logger.info(f"No new entries needed for {model.__name__}")
 
 
 def create_file_system_import_task(sender, **kwargs):
@@ -52,8 +69,7 @@ class RegistryConfig(AppConfig):
 
     def ready(self):
         # Implicitly connect signal handlers decorated with @receiver.
-        post_migrate.connect(create_wms_operations, sender=self)
-        post_migrate.connect(create_wfs_operations, sender=self)
+        post_migrate.connect(create_choice_model_entries, sender=self)
 
         post_migrate.connect(create_file_system_import_task, sender=self)
         post_migrate.connect(find_orphan_metadata_objects, sender=self)

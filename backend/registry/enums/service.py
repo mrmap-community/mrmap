@@ -82,6 +82,8 @@ class HttpMethodEnum(SmartIntegerChoices):
     GET = 1, _("Get")
     POST = 2, _("Post")
 
+# TODO: use IntegerChoices instead
+
 
 class AuthTypeEnum(TextChoices):
     """ Defines all supported authentification types """

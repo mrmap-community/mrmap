@@ -123,6 +123,7 @@ class HarvestingJobSerializer(
     progress = FloatField(read_only=True)
 
     phase = IntegerField(required=False)
+    # TODO: use IntegerChoices instead
     log_level = ChoiceField(default=LogLevelEnum.INFO,
                             choices=LogLevelEnum.choices)
 

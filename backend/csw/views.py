@@ -151,7 +151,7 @@ class CswServiceView(View):
 
         capabilitites_doc.title = "Mr. Map CSW"
         capabilitites_doc.service_contact = ServiceMetadataContact(name="test")
-
+        # TODO: 527
         capabilitites_doc.operation_urls.extend(
             [
                 OperationUrl(method="Get", operation="GetCapabilities",

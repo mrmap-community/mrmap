@@ -1,185 +1,16 @@
-import threading
-import time
-from collections import OrderedDict
+import logging
 from pathlib import Path
 from typing import IO, Union
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import ForeignKey
 from lxml import etree
 from registry.mappers.configs import XPATH_MAP
-
-# -------------------------------------------------------------------
-# Cache
-# -------------------------------------------------------------------
-
-
-class GlobalXmlCache:
-    """Threadsicherer Cache mit TTL und automatischem Hintergrund-Cleanup."""
-    _lock = threading.RLock()
-    _data = OrderedDict()  # key -> (value, expire_time)
-    _ttl_seconds = 3600  # 1 Stunde TTL
-    _cleanup_interval = 300  # Alle 5 Minuten cleanup durchführen
-
-    _cleanup_thread = None
-    _stop_event = threading.Event()
-
-    @classmethod
-    def _start_cleanup_thread(cls):
-        if cls._cleanup_thread is None or not cls._cleanup_thread.is_alive():
-            cls._stop_event.clear()
-            cls._cleanup_thread = threading.Thread(
-                target=cls._cleanup_loop, daemon=True)
-            cls._cleanup_thread.start()
-
-    @classmethod
-    def _cleanup_loop(cls):
-        while not cls._stop_event.wait(cls._cleanup_interval):
-            cls._cleanup_expired_locked()
-
-    @classmethod
-    def stop_cleanup_thread(cls):
-        """Stoppt den Hintergrund-Cleanup-Thread (z.B. beim Programmende)."""
-        cls._stop_event.set()
-        if cls._cleanup_thread:
-            cls._cleanup_thread.join()
-
-    @classmethod
-    def set(cls, key, value):
-        expire_at = time.time() + cls._ttl_seconds
-        with cls._lock:
-            cls._data[key] = (value, expire_at)
-            cls._data.move_to_end(key)
-        cls._start_cleanup_thread()
-
-    @classmethod
-    def get(cls, key, default=None):
-        now = time.time()
-        with cls._lock:
-            item = cls._data.get(key)
-            if item is None:
-                return default
-            value, expire_at = item
-            if expire_at < now:
-                del cls._data[key]
-                return default
-            return value
-
-    @classmethod
-    def delete(cls, key):
-        with cls._lock:
-            cls._data.pop(key, None)
-
-            # ✅ uuid aus key bestimmen
-            uuid_str = key.split(":", 1)[0]
-
-            item = cls._data.get(UUID(uuid_str))
-            if item:
-                key_list, expire = item
-                if key in key_list:
-                    key_list.remove(key)
-
-    @classmethod
-    def get_many(cls, keys):
-        now = time.time()
-        result = OrderedDict()
-        with cls._lock:
-            for key in keys:
-                item = cls._data.get(key)
-                if item is None:
-                    result[key] = None
-                    continue
-                value, expire_at = item
-                if expire_at < now:
-                    del cls._data[key]
-                    result[key] = None
-                else:
-                    result[key] = value
-        return result
-
-    @classmethod
-    def add_to_list(cls, key, value):
-        with cls._lock:
-            item = cls._data.get(key)
-            now = time.time()
-            expire_at = now + cls._ttl_seconds
-
-            if item is None or item[1] < now:
-                # Wenn Schlüssel nicht existiert oder abgelaufen, neuen Eintrag mit Liste starten
-                cls._data[key] = ([value], expire_at)
-            else:
-                lst, expire_at = item
-                lst.append(value)
-                cls._data[key] = (lst, expire_at)
-            cls._data.move_to_end(key)
-
-    @classmethod
-    def clear(cls):
-        with cls._lock:
-            cls._data.clear()
-
-    @classmethod
-    def _cleanup_expired_locked(cls):
-        """Entfernt abgelaufene Einträge. Muss mit Lock gehalten aufgerufen werden."""
-        now = time.time()
-        keys_to_delete = [k for k, (_, expire_at)
-                          in cls._data.items() if expire_at < now]
-        for k in keys_to_delete:
-            del cls._data[k]
-
-# -------------------------------------------------------------------
-# Utilities
-# -------------------------------------------------------------------
-
-
-def load_function(path: str):
-    """Importiert eine Funktion aus einem string 'module.func'"""
-    mod_name, func_name = path.rsplit(".", 1)
-    mod = __import__(mod_name, fromlist=[func_name])
-    return getattr(mod, func_name)
-
-
-def get_fk_field_name_from_reverse_relation(model_cls, reverse_field_name):
-    """
-    Gegeben: Parent-Modellklasse und Reverse-Relation-Feldname (z.B. 'layers').
-    Liefert: FK-Feldname im Child-Modell, das auf Parent verweist (z.B. 'service').
-    """
-    ref_rel = next(field for field in model_cls._meta.related_objects if field.get_accessor_name(
-    ) == reverse_field_name)
-    if ref_rel:
-        return ref_rel.field.name
-    return None
-
-
-def load_file(xml: Union[str, Path, bytes, IO]) -> bytes:
-    """Normalize different input types to raw XML bytes for lxml."""
-    if isinstance(xml, etree._ElementTree):
-        return etree.tostring(xml.getroot())
-
-    elif isinstance(xml, etree._Element):
-        return etree.tostring(xml)
-
-    elif isinstance(xml, Path):
-        return xml.read_bytes()
-
-    elif isinstance(xml, str):
-        # Heuristik: check if this is a filesystem path
-        p = Path(xml)
-        if p.exists():
-            return p.read_bytes()
-        return xml.encode("utf-8")  # interpret str as direct XML source
-
-    elif isinstance(xml, bytes):
-        return xml
-
-    elif hasattr(xml, "read"):
-        content = xml.read()
-        return content if isinstance(content, bytes) else content.encode("utf-8")
-
-    else:
-        raise TypeError(f"Unsupported XML input type: {type(xml)}")
+from lxml.etree import XPathEvalError
+from registry.mappers.cache import GlobalXmlCache
+from registry.mappers.utils import load_function, get_fk_field_name_from_reverse_relation, load_file
 
 
 class XmlMapper:
@@ -214,6 +45,32 @@ class XmlMapper:
             self.xml_root = etree.fromstring(self.xml_str)
             self.current_element = self.xml_root
         self.cache = GlobalXmlCache
+        self.data = []
+
+    def serialize_document(
+        self,
+        pretty_print: bool = True,
+        xml_declaration: bool = True,
+        encoding: str = "utf-8"
+    ) -> bytes:
+        """
+        Serializes self.xml_root as a complete XML document.
+
+        Args:
+            pretty_print (bool): Pretty-print the XML.
+            xml_declaration (bool): Include XML declaration.
+            encoding (str): Output encoding.
+
+        Returns:
+            bytes: Serialized XML document.
+        """
+        return etree.tostring(
+            self.xml_root,
+            pretty_print=pretty_print,
+            xml_declaration=xml_declaration,
+            encoding=encoding
+        )
+
 
     def store_to_cache(self, key, value):
         unique_key = f"{self.uuid}:{key}"
@@ -228,7 +85,12 @@ class XmlMapper:
         return self.cache.get_many(all_keys)
 
     def get_element_path(self, element):
-        return element.getroottree().getpath(element)
+        if isinstance(element, etree._ElementUnicodeResult):
+            parent = element.getparent()
+            path = f"{parent.getroottree().getpath(parent)}/text()"
+        else:
+            path = element.getroottree().getpath(element)
+        return path
 
     def get_instance_by_element(self, element):
         return self.read_from_cache(self.get_element_path(element))
@@ -258,8 +120,14 @@ class XmlMapper:
         elif isinstance(xpath_or_spec, dict) and "_inputs" in xpath_or_spec and "_parser" in xpath_or_spec:
             values = []
             for xpath_expr in xpath_or_spec["_inputs"]:
-                res = element.xpath(xpath_expr, namespaces=namespaces)
+                try:
+                    res = element.xpath(xpath_expr, namespaces=namespaces)
+                except XPathEvalError as e:
+                    logging.error(
+                        f"Error parsing field with xpath '{xpath_expr}': {e}"
+                    )
                 if not res:
+                    logging.debug(f"No result by xpath '{xpath_expr}'. Fallback _default is used.")
                     values.append(xpath_or_spec.get("_default", None))
                 else:
                     # Ob Attribut oder Elementtext
@@ -268,8 +136,11 @@ class XmlMapper:
             parser_func = load_function(xpath_or_spec["_parser"])
             try:
                 parsed = parser_func(self, *values)
+                if parsed is None:
+                    logging.debug(f"{xpath_or_spec["_parser"]} does return None with args: {values}")
             except Exception as e:
-                # Logging oder Fallback
+                logging.error(
+                    f"Error parsing field with function {xpath_or_spec['_parser']} with args: {values}: {e}")
                 parsed = None
             finally:
                 return parsed
@@ -415,7 +286,7 @@ class XmlMapper:
             parser = load_function(spec.get("_parser"))
 
             for el in elements:
-                path = el.getroottree().getpath(el)
+                path = self.get_element_path(el)
                 instance = parser(self, el)
                 if isinstance(instance, list):
                     instances.extend(instance)
@@ -431,7 +302,7 @@ class XmlMapper:
             model_cls = self._get_model_class(spec)
 
             for el in elements:
-                path = el.getroottree().getpath(el)
+                path = self.get_element_path(el)
                 instance = model_cls()
 
                 self.handle_flat_fields(instance, el, spec, namespaces)
@@ -450,56 +321,12 @@ class XmlMapper:
     def xml_to_django(self):
         namespaces = self.mapping.get("_namespaces", None)
 
-        data = []
         for key, value in self.mapping.items():
             if key.startswith("_"):
                 continue
             instance = self.traverse_spec(value, namespaces)
             if instance:
-                data.append(instance)
+                self.data.append(instance)
 
-        return data
+        return self.data
 
-
-class OGCServiceXmlMapper(XmlMapper):
-
-    @classmethod
-    def from_xml(cls, xml):
-        # Root-Element extrahieren
-        content = load_file(xml)
-        root = etree.fromstring(content)
-
-        # Service-Typ anhand des Root-Tags
-        tag = etree.QName(root).localname.lower()
-        if any(s in tag for s in ["wms", "wmt"]):
-            service_type = "WMS"
-        elif "wfs" in tag:
-            service_type = "WFS"
-        elif "capabilities" in tag and "csw" in root.nsmap.keys():
-            service_type = "CSW"
-        else:
-            raise ValueError("Unknown Service-Typ")
-
-        # Version aus Attribut
-        version = root.attrib.get("version")
-        if not version:
-            raise ValueError(
-                f"Version could not be detected for {service_type}")
-
-        # Mapping aus Registry auswählen
-        mapping = cls._select_mapping(service_type, version)
-
-        return cls(xml=root, mapping=mapping)
-
-    @staticmethod
-    def _select_mapping(service_type, version):
-        if (service_type, version) in XPATH_MAP:
-            return XPATH_MAP[(service_type, version)]
-        # Fallback: höchste verfügbare Version
-        available_versions = [
-            v for (s, v) in XPATH_MAP.keys() if s == service_type]
-        if not available_versions:
-            raise ValueError(f"No mapping for {service_type}")
-        fallback_version = sorted(available_versions, key=lambda v: tuple(
-            int(x) for x in v.split(".")))[-1]
-        return XPATH_MAP[(service_type, fallback_version)]

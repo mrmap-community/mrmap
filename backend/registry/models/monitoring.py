@@ -8,6 +8,7 @@ from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from django.db.models.fields import BooleanField, CharField
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from epsg_cache.utils import adjust_axis_order
@@ -54,13 +55,27 @@ class WebMapServiceMonitoringRun(models.Model):
         on_delete=models.PROTECT,
     )
     date_created = models.DateTimeField(
-        auto_now_add=True,
+        # Do not use this setting.
+        # From django docs: Automatically set the field to now when the object is first created.
+        # Useful for creation of timestamps. Note that the current date is always used;
+        # it’s not just a default value that you can override.
+        # So even if you set a value for this field when creating the object, it will be ignored.
+        # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+        # auto_now_add=True,
+        default=now,
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the run was created in UTC'),
         null=True,
         blank=True)
     date_done = models.DateTimeField(
-        auto_now_add=True,
+        # Do not use this setting.
+        # From django docs: Automatically set the field to now when the object is first created.
+        # Useful for creation of timestamps. Note that the current date is always used;
+        # it’s not just a default value that you can override.
+        # So even if you set a value for this field when creating the object, it will be ignored.
+        # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+        # auto_now_add=True,
+        default=now,
         verbose_name=_('Done DateTime'),
         help_text=_('Datetime field when the run was done in UTC'),
         null=True,
@@ -100,7 +115,14 @@ class ProbeResult(models.Model):
         verbose_name=_("request duration"),
         help_text=_("elapsed time of the request"))
     date_created = models.DateTimeField(
-        auto_now_add=True,
+        # Do not use this setting.
+        # From django docs: Automatically set the field to now when the object is first created.
+        # Useful for creation of timestamps. Note that the current date is always used;
+        # it’s not just a default value that you can override.
+        # So even if you set a value for this field when creating the object, it will be ignored.
+        # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+        # auto_now_add=True,
+        default=now,
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the task result was created in UTC'))
     date_done = models.DateTimeField(

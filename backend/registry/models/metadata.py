@@ -1,30 +1,28 @@
 from uuid import uuid4
 
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
-from django.contrib.postgres.fields import DateTimeRangeField
-from django.contrib.postgres.indexes import GistIndex
+from django.contrib.postgres.indexes import BTreeIndex
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
-from eulxml import xmlmap
+from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.factory import MDMetadataXmlMapper
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
-from extras.models import AdditionalTimeFieldsHistoricalModel
-from ows_lib.xml_mapper.iso_metadata.iso_metadata import (MdMetadata,
-                                                          WrappedIsoMetadata)
-from registry.enums.metadata import (DatasetFormatEnum, MetadataCharset,
+from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
+from registry.enums.metadata import (DatasetFormatEnum, 
                                      MetadataOriginEnum,
-                                     ReferenceSystemPrefixEnum, SpatialResType)
+                                     ReferenceSystemPrefixChoices, TimeExtentKind,
+                                     )
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
-                                        IsoMetadataManager, KeywordManager,
-                                        ServiceMetadataRecordManager)
+                                        KeywordManager,
+                                        ServiceMetadataRecordManager, TimeExtentManager)
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
@@ -32,8 +30,126 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
+from registry.enums.iso import (LanguageChoices, CategoryChoices, MetadataCharsetChoices, UpdateFrequencyChoices)
+from django.db.transaction import atomic
+from django.db.models import F, Q
+import logging
 
 CRS_Registry = Registry()
+
+
+IS_SINGLE_VALUE = Q(
+    Q(begin=F("end"))
+)
+IS_INTERVAL = Q( 
+    Q(end__gte=F("begin")) &
+    Q(is_relative=False)
+)
+
+IS_ROLLING = Q(
+    begin__isnull=True,
+    end__isnull=True,
+    resolution__isnull=False,
+    is_relative=True
+)
+
+
+class TimeExtent(models.Model):
+    """Combined modell for singlevalue und intervalls.
+
+    - Singlevalue: begin == end
+    - Interval: begin < end
+    
+    Meta information:
+    - Resolution: optional, None/0 = unendlich fein
+    
+
+    Rolling (window) temporal extent example:
+    <gmd:EX_Extent id="timeperiodExtent"> 
+        <gmd:temporalElement> 
+            <gmd:EX_TemporalExtent> 
+                <gmd:extent> 
+                    <gml:TimePeriod gml:id="d146058e755a1052958"> 
+                        <gml:beginPosition indeterminatePosition="unknown"/> 
+                        <gml:endPosition indeterminatePosition="now"/> 
+                        <gml:duration>-P3D</gml:duration> 
+                    </gml:TimePeriod> 
+                </gmd:extent> 
+            </gmd:EX_TemporalExtent> 
+        </gmd:temporalElement> 
+    </gmd:EX_Extent>
+
+    Note: The valid values for indeterminatePosition are “unknown”, “after”, “before”, and “now”
+    
+    """
+    begin = models.DateTimeField(
+        null=True,
+        blank=False,
+        verbose_name=_("begin"),
+        help_text=_("the begin of the time period")
+    )
+    end = models.DateTimeField(
+        null=True,
+        blank=False,
+        verbose_name=_("begin"),
+        help_text=_("the end of the time period")
+    )
+    resolution = models.DurationField(
+        null=True, 
+        blank=True,
+        verbose_name=_("resolution"),
+        help_text=_("The resolution of the time extent. Null or 0 means infinite fine resolution.")
+    )
+    is_relative = models.BooleanField(default=False)
+
+
+    objects = TimeExtentManager()
+
+    class Meta:
+        ordering = ["begin"]
+        indexes = [
+            # BTreeIndex Index for fast Overlap- and Contains-Requests
+            BTreeIndex(fields=["begin", "end"]),
+            models.Index(fields=["resolution"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(IS_SINGLE_VALUE | IS_INTERVAL | IS_ROLLING),
+                name="kind_check",
+            ),
+            models.UniqueConstraint(fields=['begin', 'end', 'resolution', 'is_relative'],
+                                    name='%(app_label)s_%(class)s_unique_timerange_resolution')
+        ]
+    
+    def __eq__(self, __value: object) -> bool:
+        return self.begin == __value.begin and self.end == __value.end and self.resolution == __value.resolution and self.is_relative == __value.is_relative
+
+    @property
+    def kind(self):
+        if self.begin and self.end and self.begin == self.end:
+            return TimeExtentKind.SINGLE_VALUE
+        elif self.begin and self.end and self.begin < self.end:
+            return TimeExtentKind.INTERVAL
+        elif self.is_relative and not self.begin and not self.end and self.resolution:
+            return TimeExtentKind.ROLLING
+        return None
+
+    @property
+    def is_single_value(self):
+        return self.kind == TimeExtentKind.SINGLE_VALUE
+    
+    @property
+    def is_rolling(self):
+        return self.kind == TimeExtentKind.ROLLING
+
+    def __str__(self):
+        if self.is_single_value:
+            return f"{self.begin}"
+        elif self.is_rolling:
+            current = now()
+            return f"{current-self.resolution};{current};0"
+        else:
+            return f"{self.begin};{self.end};{self.resolution or 0}"
 
 
 class MimeType(models.Model):
@@ -45,6 +161,25 @@ class MimeType(models.Model):
 
     def __str__(self):
         return self.mime_type
+
+
+class IsoCategory(ChoiceModel):
+    CHOICES = CategoryChoices.choices
+    value = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=CHOICES,
+        verbose_name=_("category"),
+        help_text=_("the topic category of the dataset"))
+
+
+class Language(ChoiceModel):
+    CHOICES = LanguageChoices.choices
+    value = models.PositiveSmallIntegerField(
+        primary_key=True,
+        choices=CHOICES,
+        verbose_name=_("language"),
+        help_text=_("the language code as per ISO 639-2")
+    )
 
 
 class Style(models.Model):
@@ -115,7 +250,7 @@ class ReferenceSystem(models.Model):
     code = models.CharField(max_length=100,
                             default="")
     prefix = models.CharField(max_length=255,
-                              choices=ReferenceSystemPrefixEnum.choices,
+                              choices=ReferenceSystemPrefixChoices.choices,
                               default="")
 
     class Meta:
@@ -133,7 +268,7 @@ class ReferenceSystem(models.Model):
 
     @property
     def crs(self):
-        if self.prefix == ReferenceSystemPrefixEnum.EPSG:
+        if self.prefix == ReferenceSystemPrefixChoices.EPSG:
             try:
                 return CRS_Registry.get(srid=self.code)
             except (ConnectionError, GDALException):
@@ -248,7 +383,7 @@ class Keyword(models.Model):
                 fields=["keyword"]
             ),
             models.CheckConstraint(
-                check=~Q(keyword="") | ~Q(keyword__isnull=True),
+                condition=~Q(keyword="") | ~Q(keyword__isnull=True),
                 name="%(app_label)s_%(class)s_non_empty_keywords",
             )
         ]
@@ -306,34 +441,39 @@ class RemoteMetadata(models.Model):
             raise NoContent(
                 f"Can't fetch content from remote for RemoteMetadata with id {self.pk}")
 
-    def parse(self):
-        """ Return the parsed self.remote_content
-
-            Raises:
-                ValueError: if self.remote_content is null
-        """
-        if self.remote_content:
-            # TODO: #527
-            self.parsed_metadata = xmlmap.load_xmlobject_from_string(string=bytes(self.remote_content, "UTF-8"),
-                                                                     xmlclass=WrappedIsoMetadata)
-            return self.parsed_metadata.iso_metadata[0]
-        else:
-            raise ValueError(
-                "there is no fetched content. You need to call fetch_remote_content() first.")
-
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
-        from registry.models.service import (CatalogueService,
-                                             WebFeatureService, WebMapService)
-        if isinstance(self.describes, (WebMapService, WebFeatureService, CatalogueService)):
-            metadata_cls = ServiceMetadataRecord
-        else:
-            metadata_cls = DatasetMetadataRecord
-        db_metadata, _, _ = metadata_cls.iso_metadata.update_or_create_from_parsed_metadata(parsed_metadata=self.parse(),
-                                                                                            related_object=self.describes,
-                                                                                            origin_url=self.link,
-                                                                                            **kwargs)
-        return db_metadata
+        
+        mappers = MDMetadataXmlMapper.from_xml(self.remote_content.encode())
+        data = mappers[0].xml_to_django()
+        parsed_instance = data[0]
+        handler = PersistenceHandler(
+            mapper=mappers[0], 
+            defaults={
+                "dataset": {
+                    "origin": MetadataOriginEnum.CAPABILITIES.value,
+                    "origin_url": self.link
+                }
+            }
+        )
+        created_instances = handler.persist_all()
+        # search by unique file_identifier to get the created record.
+        created_instance = next(
+            (
+                v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
+                if parsed_instance.file_identifier in k
+            ),
+            None
+        )
+        
+        if not created_instance:
+            i=0
+            logging.warning(f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
+            return
+        
+        created_instance.add_metadata_relation(
+                    related_object=self.describes)
+        return created_instance
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):
@@ -420,7 +560,14 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       help_text=_('date that the metadata was created. If this is a metadata record '
                                                   'which is parsed from remote iso metadata, the date stamp of the '
                                                   'remote iso metadata will be used.'),
-                                      auto_now_add=True,
+                                      # Do not use this setting.
+                                      # From django docs: Automatically set the field to now when the object is first created.
+                                      # Useful for creation of timestamps. Note that the current date is always used;
+                                      # it’s not just a default value that you can override.
+                                      # So even if you set a value for this field when creating the object, it will be ignored.
+                                      # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+                                      # auto_now_add=True,
+                                      default=now,
                                       editable=False,
                                       db_index=True)
     file_identifier = models.CharField(max_length=1000,
@@ -432,11 +579,11 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                                    "(gmd:fileIdentifier) OR for example if it is a layer/featuretype"
                                                    "the uuid of the described layer/featuretype shall be used to "
                                                    "identify the generated iso metadata xml."))
-    origin = models.CharField(max_length=20,
-                              choices=MetadataOriginEnum.choices,
-                              editable=False,
-                              verbose_name=_("origin"),
-                              help_text=_("Where the metadata record comes from."))
+    origin = models.PositiveSmallIntegerField(choices=MetadataOriginEnum.choices,
+                                              null=True,
+                                              editable=False,
+                                              verbose_name=_("origin"),
+                                              help_text=_("Where the metadata record comes from."))
     origin_url = models.URLField(max_length=4096,
                                  null=True,
                                  blank=True,
@@ -444,7 +591,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                  verbose_name=_("origin url"),
                                  help_text=_("the url of the document where the information of this metadata record "
                                              "comes from"))
-    title: str = models.CharField(max_length=1000,
+    title = models.CharField(max_length=1000,
                                   verbose_name=_("title"),
                                   help_text=_(
                                       "a short descriptive title for this metadata"),
@@ -469,23 +616,24 @@ class AbstractMetadata(MetadataDocumentModelMixin):
     is_searchable = models.BooleanField(default=False,
                                         verbose_name=_("is searchable"),
                                         help_text=_("only searchable metadata will be returned from the search api"))
-    hits = models.IntegerField(default=0,
-                               verbose_name=_("hits"),
-                               help_text=_(
-                                   "how many times this metadata was requested by a client"),
-                               editable=False, )
+    hits = models.PositiveIntegerField(default=0,
+                                       verbose_name=_("hits"),
+                                       help_text=_(
+                                           "how many times this metadata was requested by a client"),
+                                       editable=False, )
     keywords = models.ManyToManyField(to=Keyword,
                                       blank=True,
                                       related_name="%(class)s_metadata",
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
-
-    language = None  # TODO
-    category = None  # TODO: Inspire + iso + various
-
-    # needed for Docuement mixin to load the backupfile into the correct xml mapper class
-    xml_mapper_cls = MdMetadata
+    
+    languages = models.ManyToManyField(to=Language,
+                                       blank=True,
+                                       related_name="%(class)s_metadata",
+                                       related_query_name="%(class)s_metadata",
+                                       verbose_name=_("languages"),
+                                       help_text=_("languages used for documenting metadata"))
 
     class Meta:
         abstract = True
@@ -528,7 +676,6 @@ class ServiceMetadata(MetadataTermsOfUse, AbstractMetadata):
                                          related_name="metadata_contact_%(class)s_metadata",
                                          verbose_name=_("metadata contact"),
                                          help_text=_("This is the contact for the metadata information."))
-    iso_metadata = IsoMetadataManager()
 
     class Meta:
         abstract = True
@@ -630,17 +777,16 @@ class MetadataRelation(models.Model):
                                       verbose_name=_("internal relation?"),
                                       help_text=_("true means that this relation is created by a user and the dataset "
                                                   "is maybe not linked in a capabilities document for example."))
-    origin = models.CharField(max_length=20,
-                              choices=MetadataOriginEnum.choices,
-                              verbose_name=_("origin"),
-                              help_text=_("determines where this relation was found or it is added by a user."))
+    origin = models.PositiveSmallIntegerField(choices=MetadataOriginEnum.choices,
+                                              verbose_name=_("origin"),
+                                              help_text=_("determines where this relation was found or it is added by a user."))
 
     class Meta:
 
         constraints = [
             models.CheckConstraint(
                 name="one_related_object_selected",
-                check=VALID_RELATIONS
+                condition=VALID_RELATIONS
             ),
             # service like resources can only have one describing service metadata
             models.UniqueConstraint(
@@ -667,25 +813,10 @@ class MetadataRelation(models.Model):
 
 
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
-    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_metadata_records",
-                                                  related_query_name="%(app_label)s_%(class)s_metadata_record",
-                                                  blank=True,
-                                                  verbose_name=_("layers"),
-                                                  help_text=_("all layers which are linking to this dataset metadata in"
-                                                              " there capabilities."))
-    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
-                                                         through=MetadataRelation,
-                                                         editable=False,
-                                                         related_name="%(app_label)s_%(class)s_metadata_records",
-                                                         related_query_name="%(app_label)s_%(class)s_metadata_record",
-                                                         blank=True,
-                                                         verbose_name=_(
-                                                             "feature types"),
-                                                         help_text=_("all feature types which are linking to this "
-                                                                     "dataset metadata in there capabilities."))
+
+    # TODO: check if this is calculate able
+    inspire_interoperability = models.BooleanField(default=False,
+                                                   help_text=_("flag to signal if this "))
 
     harvested_through = models.ManyToManyField(to="registry.CatalogueService",
                                                related_name="%(app_label)s_%(class)s_metadata_records",
@@ -694,7 +825,6 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                blank=True,
                                                verbose_name=_("services"),
                                                help_text=_("all services from which this dataset was harvested."))
-
     bounding_geometry = MultiPolygonField(null=True,
                                           blank=True, )
     metadata_contact = models.ForeignKey(to=MetadataContact,
@@ -709,18 +839,16 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                related_query_name="%(class)s",
                                                blank=True,
                                                verbose_name=_("reference systems"))
-    inspire_interoperability = models.BooleanField(default=False,
-                                                   help_text=_("flag to signal if this "))
-    # TODO: use IntegerChoices instead
-    spatial_res_type = models.CharField(max_length=20,
-                                        choices=SpatialResType.choices,
-                                        default="",
-                                        verbose_name=_("resolution type"),
-                                        help_text=_("Ground resolution in meter or the equivalent scale."))
-    spatial_res_value = models.FloatField(null=True,
-                                          blank=True,
-                                          verbose_name=_("resolution value"),
-                                          help_text=_("The value depending on the selected resolution type."))
+    equivalent_scale = models.FloatField(null=True,
+                                         blank=True,
+                                         editable=False,
+                                         verbose_name=_("equivalent scale"),
+                                         help_text=_("1 cm : 100 cm for example"))
+    ground_res = models.FloatField(null=True,
+                                   blank=True,
+                                   editable=False,
+                                   verbose_name=_("ground resolution"),
+                                   help_text=_("pixel per meter for example"))
     code = models.CharField(max_length=4096,
                             blank=True,
                             default="",  # empty code signals broken dataset metadata records; means not inspire identifiable
@@ -729,6 +857,22 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                   blank=True,
                                   default="",
                                   help_text=_("code space for the given identifier"))
+    charset = models.PositiveSmallIntegerField(null=True,
+                                               blank=True,
+                                               choices=MetadataCharsetChoices.choices,
+                                               verbose_name=_("charset"),
+                                               help_text=_("full name of the character coding standard used for the metadata set"))
+    
+    time_extents = models.ManyToManyField(
+        to=TimeExtent,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s",
+        related_query_name="%(app_label)s_%(class)s",
+        verbose_name=_("time extent"),
+        help_text=_("all time extents which are available for this metadata record."),
+    )
+
     resource_identifier = GeneratedField(
         expression=CombinedExpression(
             F("code_space"),
@@ -754,102 +898,108 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                 condition=~Q(code="", code_space=""),
                 name='%(app_label)s_%(class)s_unique_together_code__and_code_space'),
             models.CheckConstraint(
-                name="%(app_label)s_%(class)s_check_spatial_res",
-                check=Q(spatial_res_type="", spatial_res_value=None)
-                | Q(spatial_res_type=SpatialResType.GROUND_DISTANCE, spatial_res_value__gte=0)
-                | Q(spatial_res_type=SpatialResType.SCALE_DISTANCE, spatial_res_value__gte=0)
+                name="%(app_label)s_%(class)s_check_scale_xor_res",
+                condition=Q(equivalent_scale=None, ground_res=None)
+                | Q(equivalent_scale__gte=0, ground_res=None)
+                | Q(equivalent_scale=None, ground_res__gte=0)
             )
         ] + AbstractMetadata.Meta.constraints
 
-    iso_metadata = IsoMetadataManager()
+    def add_metadata_relation(self, related_object=None, origin=None, is_internal=False):
+
+        kwargs = {}
+        if related_object and related_object.__class__.__name__ == "Layer":
+            kwargs.update({"layer": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value,})
+        elif related_object and related_object.__class__.__name__ == "FeatureType":
+            kwargs.update({"feature_type": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object and related_object.__class__.__name__ == "WebMapService":
+            kwargs.update({"wms": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
+            kwargs.update({"wfs": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        elif related_object and related_object.__class__.__name__ == "CatalogueService":
+            kwargs.update({"csw": related_object,
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
+        
+        if self.__class__.__name__ == "DatasetMetadataRecord":
+            kwargs.update({"dataset_metadata": self})
+        elif self.__class__.__name__ == "ServiceMetadataRecord":
+            kwargs.update({"service_metadata": self})
+        
+        with atomic():
+            relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
+                is_internal=is_internal,
+                **kwargs
+            )
+        return relation
+
+    def remove_metadata_relation(self, related_object, internal, origin):
+        kwargs = {}
+        if related_object and related_object.__class__.__name__ == "Layer":
+            kwargs.update({"layer": related_object})
+        elif related_object and related_object.__class__.__name__ == "FeatureType":
+            kwargs.update({"feature_type": related_object})
+        elif related_object and related_object.__class__.__name__ == "WebMapService":
+            kwargs.update({"wms": related_object})
+        elif related_object and related_object.__class__.__name__ == "WebFeatureService":
+            kwargs.update({"wfs": related_object})
+        elif related_object and related_object.__class__.__name__ == "CatalogueService":
+            kwargs.update({"csw": related_object})
+        else:
+            return
+        
+        if self.__class__.__name__ == "DatasetMetadataRecord":
+            kwargs.update({"dataset_metadata": self})
+        elif self.__class__.__name__ == "ServiceMetadataRecord":
+            kwargs.update({"service_metadata": self})
+        MetadataRelation.objects.select_for_update().filter(
+            is_internal=internal,
+            origin=origin,
+            **kwargs
+        ).delete()
+
 
 
 class DatasetMetadataRecord(MetadataRecord):
     """ Concrete model class for dataset metadata records, which are parsed from iso metadata xml.
 
     """
-    SRS_AUTHORITIES_CHOICES = [
-        ("EPSG", "European Petroleum Survey Group (EPSG) Geodetic Parameter Registry"),
-    ]
-
-    CHARACTER_SET_CHOICES = [
-        ("utf8", "utf8"),
-        ("utf16", "utf16"),
-    ]
-
-    UPDATE_FREQUENCY_CHOICES = [
-        ("annually", "annually"),
-        ("asNeeded", "asNeeded"),
-        ("biannually", "biannually"),
-        ("irregular", "irregular"),
-        ("notPlanned", "notPlanned"),
-        ("unknown", "unknown"),
-    ]
-
-    LEGAL_RESTRICTION_CHOICES = [
-        ("copyright", "copyright"),
-        ("intellectualPropertyRights", "intellectualPropertyRights"),
-        ("license", "license"),
-        ("otherRestrictions", "otherRestrictions"),
-        ("patent", "patent"),
-        ("patentPending", "patentPending"),
-        ("restricted", "restricted"),
-        ("trademark", "trademark"),
-    ]
-
-    DISTRIBUTION_FUNCTION_CHOICES = [
-        ("download", "download"),
-        ("information", "information"),
-        ("offlineAccess", "offlineAccess"),
-        ("order", "order"),
-        ("search", "search"),
-    ]
-
-    DATA_QUALITY_SCOPE_CHOICES = [
-        ("attribute", "attribute"),
-        ("attributeType", "attributeType"),
-        ("collectionHardware", "collectionHardware"),
-        ("collectionSession", "collectionSession"),
-        ("dataset", "dataset"),
-        ("dimensionGroup", "dimensionGroup"),
-        ("feature", "feature"),
-        ("featureType", "featureType"),
-        ("fieldSession", "fieldSession"),
-        ("model", "model"),
-        ("nonGeographicDataset", "nonGeographicDataset"),
-        ("propertyType", "propertyType"),
-        ("series", "series"),
-        ("software", "software"),
-        ("service", "service"),
-        ("tile", "tile"),
-    ]
-
-    INDETERMINATE_POSITION_CHOICES = [
-        ("now", "now"), ("before", "before"), ("after", "after"), ("unknown", "unknown")]
-
-    LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
-    CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
-
+    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
+                                                  through=MetadataRelation,
+                                                  editable=False,
+                                                  related_name="%(app_label)s_%(class)s_metadata_records",
+                                                  related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                  blank=True,
+                                                  verbose_name=_("layers"),
+                                                  help_text=_("all layers which are linking to this dataset metadata in"
+                                                              " there capabilities."))
+    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
+                                                         through=MetadataRelation,
+                                                         editable=False,
+                                                         related_name="%(app_label)s_%(class)s_metadata_records",
+                                                         related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                         blank=True,
+                                                         verbose_name=_(
+                                                             "feature types"),
+                                                         help_text=_("all feature types which are linking to this "
+                                                                     "dataset metadata in there capabilities."))
     dataset_contact = models.ForeignKey(to=MetadataContact,
                                         on_delete=models.RESTRICT,
                                         related_name="%(class)s_dataset_contact",
                                         related_query_name="%(class)s_dataset_contact",
                                         verbose_name=_("contact"),
                                         help_text=_("this is the contact which provides this dataset."))
-    # TODO: use IntegerChoices instead
-    format = models.CharField(default="",
-                              blank=True,
-                              max_length=20,
-                              choices=DatasetFormatEnum.choices,
-                              verbose_name=_("format"),
-                              help_text=_("The format in which the described dataset is stored."))
-    # TODO: use IntegerChoices instead
-    charset = models.CharField(default="",
-                               blank=True,
-                               max_length=10,
-                               choices=MetadataCharset.choices,
-                               verbose_name=_("charset"),
-                               help_text=_("The charset which is used by the stored data."))
+    format = models.PositiveSmallIntegerField(null=True,
+                                              blank=True,
+                                              choices=DatasetFormatEnum.choices,
+                                              verbose_name=_("format"),
+                                              help_text=_("The format in which the described dataset is stored."))
+    update_frequency_code = models.PositiveSmallIntegerField(choices=UpdateFrequencyChoices.choices,
+                                                             null=True,
+                                                             blank=True)
     inspire_top_consistence = models.BooleanField(default=False,
                                                   help_text=_("Flag to signal if the described data has a topologically"
                                                               " consistence."))
@@ -858,11 +1008,12 @@ class DatasetMetadataRecord(MetadataRecord):
 
     lineage_statement = models.TextField(blank=True,
                                          default="")
-    # TODO: use IntegerChoices instead
-    update_frequency_code = models.CharField(max_length=20,
-                                             choices=UPDATE_FREQUENCY_CHOICES,
-                                             blank=True,
-                                             default="")
+    categories = models.ManyToManyField(to=IsoCategory,
+                                        blank=True,
+                                        related_name="%(class)s_metadata",
+                                        related_query_name="%(class)s_metadata",
+                                        verbose_name=_("categories"),
+                                        help_text=_("the topic categories of the dataset"))
 
     change_log = HistoricalRecords(
         related_name="change_logs",
@@ -881,41 +1032,6 @@ class DatasetMetadataRecord(MetadataRecord):
         indexes = [
             models.Index(fields=["code", "code_space"]),
         ] + AbstractMetadata.Meta.indexes
-
-    def add_dataset_metadata_relation(self, related_object=None, origin=None, is_internal=False):
-        from registry.models.service import FeatureType, Layer
-
-        kwargs = {}
-        if related_object and related_object._meta.model == Layer:
-            kwargs.update({"layer": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        elif related_object and related_object._meta.model == FeatureType:
-            kwargs.update({"feature_type": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-
-        relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
-            dataset_metadata=self,
-            is_internal=is_internal,
-            **kwargs
-        )
-        return relation
-
-    def remove_dataset_metadata_relation(self, related_object, internal, origin):
-        from registry.models.service import FeatureType, Layer
-
-        kwargs = {}
-        if related_object._meta.model == Layer:
-            kwargs.update({"layer": related_object})
-        elif related_object._meta.model == FeatureType:
-            kwargs.update({"feature_type": related_object})
-        else:
-            return
-        MetadataRelation.objects.select_for_update().filter(
-            dataset_metadata=self,
-            is_internal=internal,
-            origin=origin,
-            **kwargs
-        ).delete()
 
 
 class ServiceMetadataRecord(MetadataRecord):
@@ -970,46 +1086,3 @@ class ServiceMetadataRecord(MetadataRecord):
         ] + MetadataRecord.Meta.constraints
 
 
-class TimeExtent(models.Model):
-    """
-    Kombiniertes Modell für Einzelwerte und Intervalle.
-    - Einzelwert: timerange.lower == timerange.upper
-    - Intervall: timerange.lower < timerange.upper
-    - resolution: optional, None/0 = unendlich fein
-    """
-    timerange = DateTimeRangeField()
-    resolution = models.DurationField(null=True, blank=True)
-
-    class Meta:
-        abstract = True
-        ordering = ["timerange"]
-        indexes = [
-            # GIST Index for fast Overlap- and Contains-Requests
-            GistIndex(fields=["timerange"]),
-        ]
-
-    def is_single_value(self):
-        return self.timerange.lower == self.timerange.upper
-
-    def __str__(self):
-        if self.is_single_value():
-            return f"{self.resource_id} @ {self.timerange.lower}"
-        else:
-            return f"{self.resource_id} [{self.timerange.lower} → {self.timerange.upper}, res={self.resolution}]"
-
-
-class LayerTimeExtent(TimeExtent):
-    layer = models.ForeignKey(
-        to="registry.Layer",
-        on_delete=models.CASCADE,
-        related_name="time_extents",
-        related_query_name="time_extent",
-        verbose_name=_("layer"),
-        help_text=_("the related layer of this time dimension entity")
-    )
-
-    class Meta:
-        indexes = TimeExtent._meta.indexes + [
-            # optional: additional Index on (resource, timerange) for Join-Requests
-            models.Index(fields=["layer", "timerange"]),
-        ]

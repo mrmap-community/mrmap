@@ -7,7 +7,7 @@
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "version": 200,
             "is_active": true,
-            "origin": "capabilities",
+            "origin": 1,
             "origin_url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
             "title": "MapServer countires example",
             "service_url": "",
@@ -30,7 +30,7 @@
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65",
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "ms:Countries",
-            "origin": "capabilities",
+            "origin": 1,
             "title": "Countries",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
@@ -53,7 +53,7 @@
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "is_active": true,
             "version": 200,
-            "origin": "capabilities",
+            "origin": 1,
             "origin_url": "http://mrmap-mapserver/cgi-bin/mapserv?map=/etc/mapserver/mapfiles/wfs_test_data.map&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
             "title": "MapServer countires example",
             "service_url": "",
@@ -68,7 +68,7 @@
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65",
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "ms:Countries",
-            "origin": "capabilities",
+            "origin": 1,
             "title": "Countries"
         }
     },
@@ -79,7 +79,7 @@
             "service": "73cf78c9-6605-47fd-ac4f-1be59265df65",
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "ms:Rivers",
-            "origin": "capabilities",
+            "origin": 1,
             "title": "Rivers"
         }
     },

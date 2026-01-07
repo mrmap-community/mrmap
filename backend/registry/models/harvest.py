@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from uuid import uuid4
-
+from lxml import etree
 from celery import chord
 from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
@@ -16,13 +16,12 @@ from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
-from eulxml import xmlmap
+from registry.mappers.namespaces import CSW_2_0_2_NAMESPACE
+from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.persistence.handler import PersistenceHandler
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
-from ows_lib.xml_mapper.iso_metadata.iso_metadata import \
-    MdMetadata as XmlMdMetadata
-from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
 from registry.enums.harvesting import (CollectingStatenEnum,
                                        HarvestingPhaseEnum, LogKindEnum,
                                        LogLevelEnum)
@@ -46,7 +45,13 @@ class ProcessingData(models.Model):
         verbose_name=_('phase'),
         help_text=_('Current phase of the process'))
     date_created = models.DateTimeField(
-        auto_now_add=True,
+        # Do not use this setting.
+        # From django docs: Automatically set the field to now when the object is first created.
+        # Useful for creation of timestamps. Note that the current date is always used;
+        # it’s not just a default value that you can override.
+        # So even if you set a value for this field when creating the object, it will be ignored.
+        # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+        # auto_now_add=True,
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
@@ -119,23 +124,23 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                                                 related_query_name="harvested_service_metadata_relation")
     collecting_state = models.PositiveSmallIntegerField(
         choices=CollectingStatenEnum.choices)
-    download_duration = models.DurationField(
-        null=True,
-        blank=True,
-        verbose_name=_("download duration"),
-        help_text=_("This is the duration it tooked proportionately to download this record. "
-                    "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"
-                    "To get the download duration over all for one harvesting job, aggregate this col."))
-    processing_duration = models.DurationField(
-        null=True,
-        blank=True,
-        verbose_name=_("processing duration"),
-        help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
-    history_date = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_('Created DateTime'),
-        help_text=_('Datetime field when the relation was created'),
-    )
+    download_duration = models.DurationField(null=True,
+                                             blank=True,
+                                             verbose_name=_(
+                                                 "download duration"),
+                                             help_text=_("This is the duration it tooked proportionately to download this record. "
+                                                         "This means if the GetRecords response contains 50 records for example, the request duration was 50 * self.download_duration"
+                                                         "To get the download duration over all for one harvesting job, aggregate this col."))
+    processing_duration = models.DurationField(null=True,
+                                               blank=True,
+                                               verbose_name=_(
+                                                   "processing duration"),
+                                               help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
+    history_date = models.DateTimeField(auto_now_add=True,
+                                        verbose_name=_('Created DateTime'),
+                                        help_text=_(
+                                            'Datetime field when the relation was created'),
+                                        )
 
     objects = HarvestedMetadataRelationQuerySet.as_manager()
 
@@ -282,7 +287,6 @@ class HarvestingJob(ProcessingData):
 
     def add_harvested_metadata_relation(
             self,
-            md_metadata,
             related_object,
             collecting_state,
             download_duration,
@@ -293,7 +297,7 @@ class HarvestingJob(ProcessingData):
                   "collecting_state": collecting_state,
                   "download_duration": download_duration,
                   "processing_duration": processing_duration}
-        if md_metadata.is_dataset:
+        if related_object.__class__.__name__ == "DatasetMetadataRecord":
             kwargs.pop("service_metadata_record")
             kwargs.update({"dataset_metadata_record": related_object})
         try:
@@ -429,6 +433,18 @@ class HarvestingJob(ProcessingData):
             record_types.append("service")
         return record_types
 
+    def get_total_records(self, response):
+        ns = {
+            "csw": CSW_2_0_2_NAMESPACE
+        }
+        tree = etree.fromstring(response.content)
+        search_results = tree.find(
+            ".//csw:SearchResults",
+            namespaces=ns
+        )
+        total_records = int(search_results.get("numberOfRecordsMatched", 0))
+        return total_records
+
     def fetch_total_records(self) -> int:
         client = self.service.client
 
@@ -442,10 +458,8 @@ class HarvestingJob(ProcessingData):
             self.total_records = 0
             self.save()
             return self.total_records
-        # TODO: #527
-        get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=first_response.content,
-                                                                                     xmlclass=GetRecordsResponse)
-        self.total_records = get_records_response.total_records
+
+        self.total_records = self.get_total_records(first_response)
         if not self.total_records:
             # try again, cause some csw server implementations are broken and don't support our default TypeName query param
             second_response: Response = client.send_request(
@@ -460,10 +474,7 @@ class HarvestingJob(ProcessingData):
                 self.save()
                 return self.total_records
 
-            get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=second_response.content,
-                                                                                         xmlclass=GetRecordsResponse)
-
-            self.total_records = get_records_response.total_records
+            self.total_records = self.get_total_records(second_response)
 
             if not self.total_records:
                 # terminate celery workflow by returning total records = 0
@@ -529,25 +540,41 @@ class HarvestingJob(ProcessingData):
         if self._check_xml_response(response):
             self._log_response_error(response=response)
             return
+        
+        
+        # XML einlesen
+        tree = etree.fromstring(response.content)
 
-        get_records_response: GetRecordsResponse = xmlmap.load_xmlobject_from_string(string=response.content,
-                                                                                     xmlclass=GetRecordsResponse)
+        # Namespaces definieren
+        ns = {
+            "gmd": "http://www.isotc211.org/2005/gmd"
+        }
 
-        md_metadata: XmlMdMetadata
+        # Alle MD_Metadata-Elemente finden
+        md_elements = tree.xpath("//gmd:MD_Metadata", namespaces=ns)
+
         db_md_metadata_file_list = []
-        records_count = len(get_records_response.gmd_records)
+        records_count = len(md_elements)
 
-        for idx, md_metadata in enumerate(get_records_response.gmd_records):
+        for idx, md_metadata in enumerate(md_elements, start=1):
             db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile(
                 job=self,
                 request_id=datestamp,
                 requested_url=response.url,
                 download_duration=response.elapsed / records_count
             )
+
             # save the file without saving the instance in db... this will be done with bulk_create
+            xml_bytes = etree.tostring(
+                md_metadata,
+                xml_declaration=True,
+                encoding="UTF-8",
+                pretty_print=True
+            )
+
             db_md_metadata_file.md_metadata_file.save(
                 name=f"record_nr_{idx + start_position}",
-                content=ContentFile(content=md_metadata.serialize()),
+                content=ContentFile(content=xml_bytes),
                 save=False)
             db_md_metadata_file_list.append(db_md_metadata_file)
         db_objs = 0
@@ -659,65 +686,59 @@ class TemporaryMdMetadataFile(models.Model):
         return super(TemporaryMdMetadataFile, self).delete(*args, **kwargs)
 
     def md_metadata_file_to_db(self):
-
-        with self.md_metadata_file.open('r') as _file:
-
-            md_metadata: XmlMdMetadata = xmlmap.load_xmlobject_from_string(
-                string=_file.read(),
-                xmlclass=XmlMdMetadata)
+        with self.md_metadata_file.open('rb') as _file:
             try:
-                db_metadata = None
-                update_or_create_kwargs = {
-                    'parsed_metadata': md_metadata,
-                    'origin': MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
-                    'origin_url': self.job.service.client.get_record_by_id_request(id=md_metadata.file_identifier).url if self.job.service_id else "http://localhost"
-                }
                 start_db_processing = now()
-                if md_metadata.is_service:
-                    db_metadata, update, exists = ServiceMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                        **update_or_create_kwargs)
-                elif md_metadata.is_dataset:
-                    db_metadata, update, exists = DatasetMetadataRecord.iso_metadata.update_or_create_from_parsed_metadata(
-                        **update_or_create_kwargs)
-                else:
-                    raise NotImplementedError(
-                        f"file is neither service nor dataset record. HierarchyLevel: {md_metadata._hierarchy_level}")
-                if db_metadata:
-                    if self.job:
-                        end_db_processing = now()
-                        relation = self.update_relations(
-                            md_metadata,
-                            exists,
-                            update,
-                            db_metadata,
-                            end_db_processing - start_db_processing
-                        )
-                        if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
-                            # do not delete this entries for analyze purposes
-                            import_error = {
-                                "reason": "duplicated",
-                                "db_metadata.pk": db_metadata.pk,
-                                "db_metadata.file_identifier": db_metadata.file_identifier,
-                                "db_metadata.code_space": db_metadata.code_space,
-                                "db_metadata.code": db_metadata.code,
-                                "md_metadata.file_identifier": md_metadata.file_identifier,
-                                "md_metadata.code": md_metadata.code,
-                                "md_metadata.code_space": md_metadata.code_space
+
+                mappers = MDMetadataXmlMapper.from_xml(_file.read())
+                instances = mappers[0].xml_to_django()
+                result = []
+                for instance in instances:
+                    handler = PersistenceHandler(
+                        mapper=mappers[0], 
+                        defaults={
+                            "dataset": {
+                                "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                                'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
                             }
-                            self.has_import_error = True
-                            self.import_error = str(import_error)
-                            self.save()
-                            return db_metadata, update, exists
-                        elif update or not exists:
-                            # something has changed... so tell us from what service this changes come from
-                            update_change_reason(
-                                db_metadata,
-                                'fileimport'if self.job.service is None else f'csw:{self.job.service}'
+                        }
+                    )
+                    created_instances = handler.persist_all()
+                    created_instance = created_instances.get(instance.__class__, {}).get((instance.file_identifier,), None)
+                    # after persit handler has created the instances on db side, the objects are no longer identical
+
+                    if created_instance:
+                        created, update = created_instance._custom_state
+                        if self.job:
+                            end_db_processing = now()
+                            relation = self.update_relations(
+                                not created,
+                                update,
+                                created_instance,
+                                end_db_processing - start_db_processing
                             )
-
-                    self.delete()
-
-                    return db_metadata, update, exists
+                            if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
+                                # do not delete this entries for analyze purposes
+                                import_error = {
+                                    "reason": "duplicated",
+                                    "db_metadata.pk": created_instance.pk,
+                                    "db_metadata.file_identifier": created_instance.file_identifier,
+                                    "db_metadata.code_space": created_instance.code_space,
+                                    "db_metadata.code": created_instance.code,
+                                }
+                                self.has_import_error = True
+                                self.import_error = str(import_error)
+                                self.save()
+                                return created_instance, update, not created
+                            elif update or created:
+                                # something has changed... so tell us from what service this changes come from
+                                update_change_reason(
+                                    created_instance,
+                                    'fileimport'if self.job.service is None else f'csw:{self.job.service}'
+                                )
+                        result.append((created_instance, update, not created))
+                self.delete()
+                return result
             except Exception as e:
                 import traceback
                 exc_info = sys.exc_info()
@@ -727,14 +748,13 @@ class TemporaryMdMetadataFile(models.Model):
                 self.save()
                 raise e
 
-    def update_relations(self, md_metadata, exists, update, db_metadata, duration):
+    def update_relations(self, exists, update, db_metadata, duration):
         # TODO: is this relation still needed? Or is it enough to collect the harvested through by the harvested_metadata_relations?
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 
         collecting_state = CollectingStatenEnum.UPDATED.value if exists and update else CollectingStatenEnum.EXISTING.value if exists and not update else CollectingStatenEnum.NEW.value
         return self.job.add_harvested_metadata_relation(
-            md_metadata,
             db_metadata,
             collecting_state,
             self.download_duration,
@@ -754,7 +774,14 @@ class HarvestingLog(models.Model):
         related_query_name='log'
     )
     timestamp = models.DateTimeField(
-        auto_now_add=True,
+        # Do not use this setting.
+        # From django docs: Automatically set the field to now when the object is first created.
+        # Useful for creation of timestamps. Note that the current date is always used;
+        # it’s not just a default value that you can override.
+        # So even if you set a value for this field when creating the object, it will be ignored.
+        # If you want to be able to modify this field, set the following instead of auto_now_add=True:
+        # auto_now_add=True,
+        default=now,
         verbose_name=_('Created DateTime'),
         help_text=_('Datetime field when the task result was created in UTC')
     )

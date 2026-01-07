@@ -1,7 +1,8 @@
 from django.db.models import Model
 from django.db.models.expressions import F, Func
-from django.db.models.fields import DateField, IntegerField
+from django.db.models.fields import DateField, IntegerField, PositiveSmallIntegerField
 from django.db.models.fields.generated import GeneratedField
+from django.utils.translation import gettext_lazy as _
 
 
 class HistoricalRecordMixin:
@@ -75,3 +76,23 @@ class AdditionalTimeFieldsHistoricalModel(Model):
 
     class Meta:
         abstract = True
+
+
+class ChoiceModel(Model):
+    """Abstract Modell für Choice-based Entities such as Language, Charset, etc."""
+    value = PositiveSmallIntegerField(
+        choices=[],
+        primary_key=True,
+        verbose_name=_("value")
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ["value"]
+
+    def __str__(self):
+        return self.get_label()
+
+    def get_label(self):
+        choices = getattr(self, "CHOICES", [])
+        return dict(choices).get(self.value, _("Unknown"))

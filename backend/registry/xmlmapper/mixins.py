@@ -136,4 +136,3 @@ class DBModelConverterMixin:
         instance = cls()
         instance.update_fields(obj=initial)
         return instance
-        return instance

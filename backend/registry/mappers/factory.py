@@ -1,7 +1,7 @@
 from lxml import etree
 from registry.mappers.configs import XPATH_MAP
-from registry.mappers.xml_mapper import XmlMapper
 from registry.mappers.utils import load_file
+from registry.mappers.xml_mapper import XmlMapper
 
 
 class OGCServiceXmlMapper(XmlMapper):
@@ -11,8 +11,6 @@ class OGCServiceXmlMapper(XmlMapper):
         # Root-Element extrahieren
         content = load_file(xml)
         root = etree.fromstring(content)
-
-        root.find
 
         # Service-Typ anhand des Root-Tags
         tag = etree.QName(root).localname.lower()

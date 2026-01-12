@@ -5,7 +5,7 @@ from registry.client.utils import update_queryparams
 from requests import Request
 
 
-class WebMapServiceMixin(OgcClient):
+class WebMapServiceClient(OgcClient):
     """WebMapService class which implements some basic functionality for all wms client applications"""
 
     @property

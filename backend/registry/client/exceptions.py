@@ -41,3 +41,17 @@ class MissingCrsParam(MissingQueryParam):
 
     def __init__(self, msg="'SRS', 'CRS' or 'srsName' query parameter was missed", *args, **kwargs):
         super().__init__(msg, *args, **kwargs)
+
+
+class MissingConstraintLanguageParameter(MissingQueryParam):
+    """Raised when the 'CONSTRAINTLANGUAGE' query param is missed"""
+
+    def __init__(self, msg="'CONSTRAINTLANGUAGE' query parameter was missed", *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)
+
+
+class InvalidParameterValueException(Exception):
+    """Raised when a query parameter has an invalid value"""
+
+    def __init__(self, msg="invalid query parameter value", *args, **kwargs):
+        super().__init__(msg, *args, **kwargs)

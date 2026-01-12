@@ -23,7 +23,6 @@ class DocumentModelMixin(models.Model):
 
     :attr xml_backup: the original xml as backup to restore the xml fields.
     """
-    xml_mapper_cls = None
     xml_backup_file = models.FileField(verbose_name=_("xml backup"),
                                        help_text=_(
                                            "the original xml as backup to restore the xml field."),
@@ -34,15 +33,19 @@ class DocumentModelMixin(models.Model):
     class Meta:
         abstract = True
 
-    def get_xml_mapper_cls(self):
-        """Return the configured xml_mapper_cls attribute.
+    @property
+    def xml_backup(self) -> bytes:
+        """Return the backup xml as XmlObject.
 
-        :raises ImproperlyConfigured: if the concrete model does not configure the xml_mapper_cls attribute.
+        :return xml_object: the xml mapper object
+        :rtype: :class:`xmlmap.XmlObject`
         """
-        warn("get_xml_mapper_cls is deprecated. use utility functions of ows_lib package in stead.")
-        if self.xml_mapper_cls:
-            return self.xml_mapper_cls
-        raise ImproperlyConfigured("xml_mapper_cls attribute is needed.")
+        try:
+            with open(self.xml_backup_file.path, "rb") as file:
+                string = file.read()
+            return string
+        except ValueError:
+            return ""
 
     @property
     def xml_backup_string(self) -> str:
@@ -51,25 +54,10 @@ class DocumentModelMixin(models.Model):
         :return xml_backup: the xml_backup_file as string or empty string if FileNotFound
         :rtype: str
         """
-        try:
-            with open(self.xml_backup_file.path, "r") as file:
-                string = file.read()
-            return string if isinstance(string, str) else string.decode("UTF-8")
-        except ValueError:
-            return ""
-
-    @property
-    def xml_backup(self) -> XmlObject:
-        """Return the backup xml as XmlObject.
-
-        :return xml_object: the xml mapper object
-        :rtype: :class:`xmlmap.XmlObject`
-        """
-        # TODO: #527
-        return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string.encode("UTF-8"),
-                                                 xmlclass=self.get_xml_mapper_cls())
+        return self.xml_backup.decode("UTF-8")
 
     @abstractmethod
+    # TODO: #527
     def xml_secured(self, request: HttpRequest) -> XmlObject:
         """Camouflage all urls which are founded in current xml from the xml property on-the-fly with the hostname
         from the given request.

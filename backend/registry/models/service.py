@@ -17,12 +17,10 @@ from extras.models import (AdditionalTimeFieldsHistoricalModel,
                            HistoricalRecordMixin)
 from extras.utils import update_url_base, update_url_query_params
 from mptt2.models import Node
-from ows_lib.client.csw.mixins import \
-    CatalogueServiceMixin as CatalogueServiceClient
-from ows_lib.client.utils import get_client
-from ows_lib.client.wfs.mixins import \
-    WebFeatureServiceMixin as WebFeatureServiceClient
-from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
+from registry.client.core import OgcClient
+from registry.client.csw.base import CatalogueServiceClient
+from registry.client.wfs.base import WebFeatureServiceClient
+from registry.client.wms.base import WebMapServiceClient
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
 from registry.exceptions.service import (LayerNotQueryable,
@@ -35,7 +33,7 @@ from registry.managers.service import (CatalogueServiceManager, LayerManager,
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
-                                      Style, TimeExtent)
+                                      Style)
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
@@ -134,9 +132,8 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 return None
 
     @property
-    def client(self):
+    def capabilities(self) -> str | bytes:
         try:
-            # TODO: #527
             cap = self.xml_backup
         except FileNotFoundError:
             # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
@@ -155,7 +152,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 }
             )
 
-            logger.error(
+            logger.warning(
                 msg=f"{self.__str__()} has no capabilities file stored. Trying fallback by url.",
                 extra={
                     "structured_data": {
@@ -165,10 +162,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                     }
                 })
 
-        return get_client(
-            capabilities=cap,
-            session=self.get_session_for_request()
-        )
+    @property
+    def client(self) -> OgcClient:
+        raise NotImplementedError
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
@@ -194,7 +190,10 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     @property
     def client(self) -> WebMapServiceClient:
-        return super().client
+        return WebMapServiceClient(
+            capabilities=self.capabilities,
+            session=self.get_session_for_request()
+        )
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
@@ -216,7 +215,10 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
     @property
     def client(self) -> WebFeatureServiceClient:
-        return super().client
+        return WebFeatureServiceClient(
+            capabilities=self.capabilities,
+            session=self.get_session_for_request()
+        )
 
 
 class CatalogueService(HistoricalRecordMixin, OgcService):
@@ -243,7 +245,10 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
 
     @property
     def client(self) -> CatalogueServiceClient:
-        return super().client
+        return CatalogueServiceClient(
+            capabilities=self.capabilities,
+            session=self.get_session_for_request()
+        )
 
 
 class OperationUrl(models.Model):
@@ -718,11 +723,11 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """Return the fetched described feature type document and update the content if save is True"""
-        # TODO: #527
-        client = get_client(capabilities=self.service.xml_backup,
-                            session=self.service.get_session_for_request())
-        response = client.send_request(
-            client.prepare_describe_feature_type_request(type_names=self.identifier))
+        response = self.service.client.send_request(
+            request=self.service.client.describe_feature_type_request(
+                type_names=[self.identifier])
+        )
+
         if response.status_code <= 202 and "xml" in response.headers["content-type"]:
             self.describe_feature_type_document = response.content
             if save:

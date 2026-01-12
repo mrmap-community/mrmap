@@ -3,13 +3,17 @@ from typing import Dict, List
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.models.query_utils import Q
 from django.http.request import HttpRequest as DjangoRequest
+from eulxml.xmlmap import XmlObject, load_xmlobject_from_string
 from lark.exceptions import LarkError
-from lxml.etree import XMLSyntaxError
+from lxml.etree import XMLSyntaxError, etree
 from pygeofilter.backends.django.evaluate import to_filter
 from pygeofilter.parsers.ecql import parse as parse_ecql
-from pygeofilter.parsers.fes.parser import parse as parse_fes
 from pygeofilter.parsers.fes.util import NodeParsingError
-from registry.client.exceptions import MissingBboxParam, MissingServiceParam
+from registry.client.contrib.fes.parser import parse as parse_fes
+from registry.client.exceptions import (InvalidParameterValueException,
+                                        MissingBboxParam,
+                                        MissingConstraintLanguageParameter,
+                                        MissingServiceParam)
 from registry.client.utils import (construct_polygon_from_bbox_query_param,
                                    get_requested_feature_types,
                                    get_requested_layers, get_requested_records)
@@ -26,7 +30,7 @@ class OGCRequest(Request):
         self._ogc_query_params: Dict = {}
         self._bbox: GEOSGeometry = None
         self._requested_entities: List[str] = []
-        self._xml_request = None
+        self._xml_request: XmlObject = None
         self.operation = "unknown"
         self.service_version = "unknown"
         self.service_type = "unknown"
@@ -37,12 +41,14 @@ class OGCRequest(Request):
                 "VERSION", "")
             self.service_type: str = self.ogc_query_params.get("SERVICE", "")
         elif self.method == "POST" and self.data and isinstance(self.data, bytes):
-            post_request: PostRequest = load_xmlobject_from_string(
-                string=self.data, xmlclass=PostRequest)
-
-            self.operation: str = post_request.operation
-            self.service_version: str = post_request.version
-            self.service_type: str = post_request.service_type
+            post_request = etree.fromstring(self.data)
+            nsmap = post_request.nsmap.copy()
+            self.operation = post_request.xpath(
+                "local-name()",
+                namespaces=nsmap,
+            )
+            self.service_version = post_request.get("@version")
+            self.service_type = post_request.get("@service")
 
     @classmethod
     def from_django_request(cls, request: DjangoRequest):
@@ -96,7 +102,7 @@ class OGCRequest(Request):
                 constraint_language = self.ogc_query_params.get(
                     "CONSTRAINTLANGUAGE", "")
                 if constraint and not constraint_language:
-                    return MissingConstraintLanguageParameterException(ogc_request=self)
+                    return MissingConstraintLanguageParameter(ogc_request=self)
 
                 elif constraint and constraint_language:
                     if constraint_language == "CQL_TEXT":
@@ -279,7 +285,7 @@ class OGCRequest(Request):
         return self._ogc_query_params
 
     @property
-    def xml_request(self):
+    def xml_request(self) -> XmlObject:
         """Constructs a xml request object based on the given request.
 
         This function analyzes the given request by its method and operation. 
@@ -293,8 +299,7 @@ class OGCRequest(Request):
             if self.is_get_feature_request:  # NOSONAR: See todo above
                 # FIXME: depending on version, different xml mapper are needed...
                 if self.is_post:
-                    self._xml_request: GetFeatureRequest = load_xmlobject_from_string(
-                        string=self.data, xmlclass=GetFeatureRequest)
+                    self._xml_request = etree.fromstring(self.data)
                 elif self.is_get:
                     # we construct a xml get feature request to post it with a filter
                     queries: List[Query] = []

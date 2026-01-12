@@ -12,8 +12,8 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from ows_lib.client.mixins import OgcClient
 from ows_lib.models.ogc_request import OGCRequest
+from registry.client.core import OgcClient
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import OgcService
 from registry.proxy.ogc_exceptions import (DisabledException,

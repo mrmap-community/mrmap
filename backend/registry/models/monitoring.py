@@ -270,7 +270,7 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
         self.save()
         try:
             client = self.setting.service.client
-            request = client.get_capabilitites_request()
+            request = client.get_capabilities_request()
             result.monitored_uri = request.url
 
             response = client.send_request(
@@ -349,7 +349,7 @@ class GetMapProbe(WebMapServiceProbe):
             client = self.setting.service.client
             layers: list[Layer] = self.layers.with_inherited_attributes_cte()
             bbox: Polygon = layers[0].bbox_lat_lon_inherited
-            if client.capabilities.service_type.version == "1.3.0":
+            if client.service_version == "1.3.0":
                 bbox = adjust_axis_order(bbox)
 
             request = client.get_map_request(

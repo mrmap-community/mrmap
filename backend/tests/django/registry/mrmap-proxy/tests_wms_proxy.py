@@ -1,3 +1,4 @@
+from importlib import resources
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +11,7 @@ from django.test import Client, TestCase
 from epsg_cache.models import Origin, SpatialReference
 from epsg_cache.registry import Registry
 from lxml import etree, objectify
+from lxml.doctestcompare import LXMLOutputChecker
 from MrMap.settings import BASE_DIR
 from PIL import Image, ImageChops
 from registry.models.security import AllowedWebMapServiceOperation
@@ -23,9 +25,8 @@ class MockResponse:
         self.status_code = status_code
 
         if isinstance(content, Path):
-            in_file = open(content, "rb")
-            self.content = in_file.read()
-            in_file.close()
+            with open(content, "rb") as in_file:
+                self.content = in_file.read()
 
         if isinstance(content, bytes):
             self.content = content
@@ -119,6 +120,28 @@ class WebMapServiceProxyTest(TestCase):
 
         return equal_size and equal_alphas and equal_content
 
+    def assertXmlSchema(self, xml_content: bytes, schema_path: str, schema_file: str) -> bool:
+        with resources.files(schema_path).joinpath(schema_file).open("rb") as f:
+            xsd = f.read()
+
+        xmlschema_doc = etree.parse(BytesIO(xsd))
+        xmlschema = etree.XMLSchema(xmlschema_doc)
+
+        doc = etree.fromstring(xml_content)
+        self.assertTrue(xmlschema.validate(
+            doc), xmlschema.error_log.last_error)
+
+    def assertXmlEquals(self, got_xml: bytes, expected_xml: bytes) -> bool:
+        """
+        Compare two XML documents semantically.
+        Returns True if equivalent, False otherwise.
+        """
+        parser = etree.XMLParser(remove_blank_text=True)
+        got_tree = etree.fromstring(got_xml, parser)
+        expected_tree = etree.fromstring(expected_xml, parser)
+        self.assertEqual(etree.tostring(got_tree), etree.tostring(expected_tree),
+                         "XML documents are not identical.")
+
     @patch.object(
         target=WebMapServiceProxy,
         attribute="get_remote_response",
@@ -157,18 +180,25 @@ class WebMapServiceProxyTest(TestCase):
             self.wms_url,
             self.query_params
         )
-
         self.assertEqual(200, response.status_code)
 
-        response_xml = objectify.fromstring(response.content)
-        expected_xml = objectify.fromstring(b'<?xml version="1.0" encoding="UTF-8"?>'
-                                            b'<ServiceExceptionReport version="1.3.0" xmlns="http://www.opengis.net/ogc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ogc">'
-                                            b'<ServiceException code="LayerNotDefined" locator="LAYERS">'
-                                            b'unknown layer'
-                                            b'</ServiceException>'
-                                            b'</ServiceExceptionReport>')
-        self.assertEqual(etree.tostring(response_xml),
-                         etree.tostring(expected_xml))
+        got_xml = response.content
+        expected_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<ogc:ServiceExceptionReport version="1.3.0" '
+            'xmlns:ogc="http://www.opengis.net/ogc">'
+            '<ogc:ServiceException code="LayerNotDefined" locator="LAYERS">'
+            'unknown layer'
+            '</ogc:ServiceException>'
+            '</ogc:ServiceExceptionReport>'
+        ).encode()
+
+        self.assertXmlSchema(
+            got_xml,
+            "registry.ows_lib.xml.schemas",
+            "wmsExceptionReport130.xsd"
+        )
+        self.assertXmlEquals(got_xml, expected_xml)
 
     def test_forbidden_exception_if_one_requested_layer_is_not_enabled(self):
         self.query_params.update({"LAYERS": "node1"})
@@ -179,15 +209,22 @@ class WebMapServiceProxyTest(TestCase):
 
         self.assertEqual(200, response.status_code)
 
-        response_xml = objectify.fromstring(response.content)
-        expected_xml = objectify.fromstring(b'<?xml version="1.0" encoding="UTF-8"?>'
-                                            b'<ServiceExceptionReport version="1.3.0" xmlns="http://www.opengis.net/ogc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/ogc">'
-                                            b'<ServiceException code="Forbidden">'
-                                            b'The requesting user has no permissions to access the service.'
-                                            b'</ServiceException>'
-                                            b'</ServiceExceptionReport>')
-        self.assertEqual(etree.tostring(response_xml),
-                         etree.tostring(expected_xml))
+        got_xml = response.content
+        expected_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<ogc:ServiceExceptionReport version="1.3.0" xmlns:ogc="http://www.opengis.net/ogc">'
+            '<ogc:ServiceException code="Forbidden">'
+            'The requesting user has no permissions to access the service.'
+            '</ogc:ServiceException>'
+            '</ogc:ServiceExceptionReport>'
+        ).encode()
+
+        self.assertXmlSchema(
+            got_xml,
+            "registry.ows_lib.xml.schemas",
+            "wmsExceptionReport130.xsd"
+        )
+        self.assertXmlEquals(got_xml, expected_xml)
 
     @patch.object(
         target=WebMapServiceProxy,

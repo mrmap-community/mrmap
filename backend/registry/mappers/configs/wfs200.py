@@ -1,19 +1,16 @@
-from registry.mappers.namespaces import (FES_2_0_NAMEPSACE,
-                                         GML_3_2_2_NAMESPACE, INSPIRE_COMMON,
-                                         INSPIRE_VS, OWS_1_1_NAMESPACE,
-                                         WFS_2_0_0_NAMESPACE, XLINK_NAMESPACE)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
     # (Service-Klasse, Version) -> Mapping Feldname -> XPath
     ("WFS", "2.0.0"): {
         "_namespaces": {
-            "xlink": XLINK_NAMESPACE,
-            "wfs": WFS_2_0_0_NAMESPACE,
-            "ows": OWS_1_1_NAMESPACE,
-            "gml": GML_3_2_2_NAMESPACE,
-            "fes": FES_2_0_NAMEPSACE,
-            "inspire_common": INSPIRE_COMMON,
-            "inspire_vs": INSPIRE_VS
+            "xlink": NAMESPACE_LOOKUP["xlink"],
+            "wfs": NAMESPACE_LOOKUP["wfs_2_0_0"],
+            "ows": NAMESPACE_LOOKUP["ows_1_1"],
+            "gml": NAMESPACE_LOOKUP["gml_3_2_2"],
+            "fes": NAMESPACE_LOOKUP["fes_2_0"],
+            "inspire_common": NAMESPACE_LOOKUP["inspire_common"],
+            "inspire_vs": NAMESPACE_LOOKUP["inspire_vs"]
         },
         "_schema": "http://www.opengis.net/wfs/2.0",
         "_pre_save": [

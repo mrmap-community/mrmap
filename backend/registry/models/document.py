@@ -1,15 +1,9 @@
 from abc import abstractmethod
-from warnings import warn
 
-from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from eulxml import xmlmap
-from eulxml.xmlmap import XmlObject
-from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
-from ows_lib.xml_mapper.utils import get_parsed_service
 from registry.mappers.capabilities.utils import get_mapper_for_service
 
 
@@ -58,7 +52,7 @@ class DocumentModelMixin(models.Model):
 
     @abstractmethod
     # TODO: #527
-    def xml_secured(self, request: HttpRequest) -> XmlObject:
+    def xml_secured(self, request: HttpRequest):
         """Camouflage all urls which are founded in current xml from the xml property on-the-fly with the hostname
         from the given request.
 
@@ -75,12 +69,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         abstract = True
 
     @property
-    def xml_backup(self) -> OGCServiceMixin:
-        # TODO: #527
-        return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
-
-    @property
-    def updated_capabilitites(self) -> XmlObject:
+    def updated_capabilitites(self):
         """Returns the current version of the capabilities document.
 
             The values from the database overwrites the values inside the xml document.
@@ -132,6 +121,6 @@ class MetadataDocumentModelMixin(DocumentModelMixin):
         # todo: restore_dict = self.xml().get_field_dict()
         raise NotImplementedError
 
-    def xml_secured(self, request: HttpRequest) -> XmlObject:
+    def xml_secured(self, request: HttpRequest):
         # todo
         return self.xml

@@ -1,13 +1,12 @@
-from registry.mappers.namespaces import (CSW_2_0_2_NAMESPACE, OWS_NAMESPACE,
-                                         XLINK_NAMESPACE)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
     # (Service-Klasse, Version) -> Mapping Feldname -> XPath
     ("CSW", "2.0.2"): {
         "_namespaces": {
-            "xlink": XLINK_NAMESPACE,
-            "csw": CSW_2_0_2_NAMESPACE,
-            "ows": OWS_NAMESPACE,
+            "xlink": NAMESPACE_LOOKUP["xlink"],
+            "csw": NAMESPACE_LOOKUP["csw_2_0_2"],
+            "ows": NAMESPACE_LOOKUP["ows"],
         },
         "_schema": "http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd",
         "_pre_save": [

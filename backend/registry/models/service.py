@@ -17,10 +17,6 @@ from extras.models import (AdditionalTimeFieldsHistoricalModel,
                            HistoricalRecordMixin)
 from extras.utils import update_url_base, update_url_query_params
 from mptt2.models import Node
-from registry.client.core import OgcClient
-from registry.client.csw.base import CatalogueServiceClient
-from registry.client.wfs.base import WebFeatureServiceClient
-from registry.client.wms.base import WebMapServiceClient
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
 from registry.exceptions.service import (LayerNotQueryable,
@@ -34,6 +30,10 @@ from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
                                       Style)
+from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.csw.csw import CatalogueServiceClient
+from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
+from registry.ows_lib.wms.wms import WebMapServiceClient
 from registry.xmlmapper.ogc.wfs_describe_feature_type import \
     DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
@@ -161,6 +161,8 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                         }
                     }
                 })
+        finally:
+            return cap
 
     @property
     def client(self) -> OgcClient:

@@ -1,8 +1,9 @@
 import re
 from typing import List
 
-from registry.client.core import OgcClient
-from registry.client.utils import update_queryparams
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
+from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.request.utils import update_queryparams
 from requests import Request
 
 
@@ -18,7 +19,8 @@ class CatalogueServiceClient(OgcClient):
     def queryable_type_name(self):
         """Returns the first matching string of the constraints list which matches the name 'type'"""
         prog = re.compile(r'(\w+:type$)|(^type$)')
-        if any((_match := prog.match(item)) for item in self.get_records_constraints):
+        # TODO
+        if any((_match := prog.match(item.text)) for item in self.get_records_constraints):
             return _match.group(0)
         else:
             return "type"
@@ -76,7 +78,7 @@ class CatalogueServiceClient(OgcClient):
 
         url = update_queryparams(
             url=self.get_operation_url_by_name_and_method(
-                "GetRecords", "Get").url,
+                OGCOperationEnum.GET_RECORDS, HttpMethodEnum.GET),
             params=params)
 
         return Request(method="GET", url=url)
@@ -99,7 +101,7 @@ class CatalogueServiceClient(OgcClient):
 
         url = update_queryparams(
             url=self.get_operation_url_by_name_and_method(
-                "GetRecordById", "Get").url,
+                OGCOperationEnum.GET_RECORD_BY_ID, HttpMethodEnum.GET),
             params=params)
 
         return Request(method="GET", url=url)

@@ -29,9 +29,9 @@ from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
-from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
-                                           MissingServiceParameterException,
-                                           OperationNotSupportedException)
+from registry.ows_lib.response.exceptions import (
+    MissingRequestParameterException, MissingServiceParameterException,
+    OperationNotSupportedException)
 
 
 @method_decorator(csrf_exempt, name="dispatch")

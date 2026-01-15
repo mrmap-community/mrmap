@@ -1,13 +1,12 @@
-from registry.mappers.namespaces import (INSPIRE_COMMON, INSPIRE_VS,
-                                         WMS_1_3_0_NAMESPACE, XLINK_NAMESPACE)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
     ("WMS", "1.3.0"): {
         "_namespaces": {
-            "xlink": XLINK_NAMESPACE,
-            "wms": WMS_1_3_0_NAMESPACE,
-            "inspire_common": INSPIRE_COMMON,
-            "inspire_vs": INSPIRE_VS
+            "xlink": NAMESPACE_LOOKUP["xlink"],
+            "wms": NAMESPACE_LOOKUP["wms_1_3_0"],
+            "inspire_common": NAMESPACE_LOOKUP["inspire_common"],
+            "inspire_vs": NAMESPACE_LOOKUP["inspire_vs"]
         },
         "_schema": "https://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd",
         "_pre_save": [

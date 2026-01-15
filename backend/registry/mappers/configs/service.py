@@ -1,16 +1,14 @@
-from registry.mappers.namespaces import (GCO_NAMESPACE, GMD_NAMESPACE, GML_3_2_2_NAMESPACE,
-                                         GMX_NAMESPACE, SRV_NAMESPACE,
-                                         XLINK_NAMESPACE)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
     ("ISO", "service"): {
         "_namespaces": {
-            "gmd": GMD_NAMESPACE,
-            "gco": GCO_NAMESPACE,
-            "gml": GML_3_2_2_NAMESPACE,
-            "gmx": GMX_NAMESPACE,
-            "srv": SRV_NAMESPACE,
-            "xlink": XLINK_NAMESPACE,
+            "gmd": NAMESPACE_LOOKUP["gmd"],
+            "gco": NAMESPACE_LOOKUP["gco"],
+            "gml": NAMESPACE_LOOKUP["gml_3_2_2"],
+            "gmx": NAMESPACE_LOOKUP["gmx"],
+            "srv": NAMESPACE_LOOKUP["srv"],
+            "xlink": NAMESPACE_LOOKUP["xlink"],
         },
         "_schema": "http://www.isotc211.org/2005/gmd",
         "_pre_save": [
@@ -69,10 +67,10 @@ XPATH_MAP = {
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "fields": {
-                      "value": {
-                        "_inputs": ("./@codeListValue",),
-                        "_parser": "registry.mappers.parsers.value.language_to_enum",
-                      }
+                        "value": {
+                            "_inputs": ("./@codeListValue",),
+                            "_parser": "registry.mappers.parsers.value.language_to_enum",
+                        }
                     }
                 },
                 "reference_systems": {
@@ -82,11 +80,11 @@ XPATH_MAP = {
                     "_many": True,
                     "fields": {
                         "code": {
-                           "_inputs": ("./@xlink:href",),
+                            "_inputs": ("./@xlink:href",),
                             "_parser": "registry.mappers.parsers.iso.parse_code",
                         },
                         "prefix": {
-                           "_inputs": ("./@xlink:href",),
+                            "_inputs": ("./@xlink:href",),
                             "_parser": "registry.mappers.parsers.iso.parse_prefix",
                         },
                     },

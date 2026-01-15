@@ -12,15 +12,14 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from ows_lib.models.ogc_request import OGCRequest
-from registry.client.core import OgcClient
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import OgcService
-from registry.proxy.ogc_exceptions import (DisabledException,
-                                           ForbiddenException,
-                                           MissingRequestParameterException,
-                                           MissingVersionParameterException)
-from registry.proxy.ogc_exceptions import \
+from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.request.ogc_request import OGCRequest
+from registry.ows_lib.response.exceptions import (
+    DisabledException, ForbiddenException, MissingRequestParameterException,
+    MissingVersionParameterException)
+from registry.ows_lib.response.exceptions import \
     NotImplementedError as MrMapNotImplementedError
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from requests import Request
@@ -89,9 +88,11 @@ class OgcServiceProxyView(View):
 
     def check_request(self):
         if not self.ogc_request.operation:
-            return MissingRequestParameterException(ogc_request=self.ogc_request)
+            return MissingRequestParameterException(service_type=self.ogc_request.service_type.lower(),
+                                                    service_version=self.ogc_request.service_version)
         elif not self.ogc_request.service_version:
-            return MissingVersionParameterException(ogc_request=self.ogc_request)
+            return MissingVersionParameterException(service_type=self.ogc_request.service_type.lower(),
+                                                    service_version=self.service.version)
 
     def post(self, request, *args, **kwargs):
         return self.get_and_post(request=request, *args, **kwargs)
@@ -125,7 +126,7 @@ class OgcServiceProxyView(View):
         if self.ogc_request.is_get_capabilities_request:
             return self.get_capabilities()
         elif not self.service.is_active:
-            return DisabledException(ogc_request=self.ogc_request)
+            return DisabledException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
         # elif self.service.is_unknown_layer:
         #     return LayerNotDefined()
         elif (
@@ -146,9 +147,10 @@ class OgcServiceProxyView(View):
             try:
                 return self.secure_request()
             except NotImplementedError:
-                return MrMapNotImplementedError(ogc_request=self.ogc_request)
+                return MrMapNotImplementedError(service_type=self.ogc_request.service_type.lower(),
+                                                service_version=self.ogc_request.service_version)
         else:
-            return ForbiddenException(ogc_request=self.ogc_request)
+            return ForbiddenException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
 
     def get_capabilities(self):
         """Return the camouflaged capabilities document of the founded service.

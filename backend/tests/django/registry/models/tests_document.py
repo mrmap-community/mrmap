@@ -7,6 +7,7 @@ from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
     WebFeatureService as XmlWebFeatureService
 from ows_lib.xml_mapper.capabilities.wms.wms130 import \
     WebMapService as XmlWebMapService
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.metadata import Keyword
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -98,7 +99,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         # check service operation urls
         self.assertEqual(3, len(capabilities.operation_urls))
         self.assertEqual("http://example.com/wms?",
-                         capabilities.get_operation_url_by_name_and_method("GetMap", "Get").url)
+                         capabilities.get_operation_url_by_name_and_method(OGCOperationEnum.GET_MAP, HttpMethodEnum.GET))
 
         # check service metadata
         self.assertEqual("huhu", capabilities.title)
@@ -127,7 +128,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         # check service operation urls
         self.assertEqual(1, len(capabilities.operation_urls))
         self.assertEqual("http://example.com/wfs?",
-                         capabilities.get_operation_url_by_name_and_method("GetFeature", "Get").url)
+                         capabilities.get_operation_url_by_name_and_method(OGCOperationEnum.GET_FEATURE, HttpMethodEnum.GET))
 
         # check service metadata
         self.assertEqual("huhu", capabilities.title)
@@ -148,7 +149,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         # check service operation urls
         self.assertEqual(2, len(capabilities.operation_urls))
         self.assertEqual("http://example.com/wms?",
-                         capabilities.get_operation_url_by_name_and_method("GetCapabilities", "Get").url)
+                         capabilities.get_operation_url_by_name_and_method(OGCOperationEnum.GET_CAPABILITIES, HttpMethodEnum.GET))
 
         # check service metadata
         self.assertEqual("huhu", capabilities.title)

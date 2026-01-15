@@ -1,6 +1,6 @@
 
 
-from ows_lib.xml_mapper.exceptions import OGCServiceException
+from registry.ows_lib.response.exceptions import OGCServiceException
 
 
 class InvalidQuery(OGCServiceException):

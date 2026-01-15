@@ -5,9 +5,9 @@ from accounts.models.users import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import RequestFactory, TestCase
 from eulxml.xmlmap import load_xmlobject_from_file
-from ows_lib.models.ogc_request import OGCRequest
 from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
 from registry.models.service import WebFeatureService
+from registry.ows_lib.request.ogc_request import OGCRequest
 from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 

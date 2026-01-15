@@ -1,23 +1,27 @@
 from typing import Dict, List
+from xml.sax.saxutils import unescape
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db.models.query_utils import Q
 from django.http.request import HttpRequest as DjangoRequest
-from eulxml.xmlmap import XmlObject, load_xmlobject_from_string
 from lark.exceptions import LarkError
-from lxml.etree import XMLSyntaxError, etree
+from lxml import etree
+from lxml.etree import QName, XMLSyntaxError
 from pygeofilter.backends.django.evaluate import to_filter
 from pygeofilter.parsers.ecql import parse as parse_ecql
+from pygeofilter.parsers.fes.parser import parse as parse_fes
 from pygeofilter.parsers.fes.util import NodeParsingError
-from registry.client.contrib.fes.parser import parse as parse_fes
-from registry.client.exceptions import (InvalidParameterValueException,
-                                        MissingBboxParam,
-                                        MissingConstraintLanguageParameter,
-                                        MissingServiceParam)
-from registry.client.utils import (construct_polygon_from_bbox_query_param,
-                                   get_requested_feature_types,
-                                   get_requested_layers, get_requested_records)
 from registry.enums.service import OGCOperationEnum
+from registry.ows_lib.client.exceptions import (MissingBboxParam,
+                                                MissingServiceParam)
+from registry.ows_lib.csw.request_builder import CSWBuilder
+from registry.ows_lib.request.utils import (
+    construct_polygon_from_bbox_query_param, get_requested_feature_types,
+    get_requested_layers, get_requested_records)
+from registry.ows_lib.response.exceptions import (
+    InvalidParameterValueException,
+    MissingConstraintLanguageParameterException)
+from registry.ows_lib.wfs.request_builder import WFSBuilder
 from requests import Request
 
 
@@ -30,7 +34,7 @@ class OGCRequest(Request):
         self._ogc_query_params: Dict = {}
         self._bbox: GEOSGeometry = None
         self._requested_entities: List[str] = []
-        self._xml_request: XmlObject = None
+        self._xml_request = None
         self.operation = "unknown"
         self.service_version = "unknown"
         self.service_type = "unknown"
@@ -41,14 +45,11 @@ class OGCRequest(Request):
                 "VERSION", "")
             self.service_type: str = self.ogc_query_params.get("SERVICE", "")
         elif self.method == "POST" and self.data and isinstance(self.data, bytes):
-            post_request = etree.fromstring(self.data)
-            nsmap = post_request.nsmap.copy()
-            self.operation = post_request.xpath(
-                "local-name()",
-                namespaces=nsmap,
-            )
-            self.service_version = post_request.get("@version")
-            self.service_type = post_request.get("@service")
+            self._xml_request = etree.fromstring(self.data)
+
+            self.operation = QName(self._xml_request).localname
+            self.service_version = self._xml_request.get("version")
+            self.service_type = self._xml_request.get("service_type", "")
 
     @classmethod
     def from_django_request(cls, request: DjangoRequest):
@@ -81,6 +82,7 @@ class OGCRequest(Request):
                     self._requested_entities.extend(
                         get_requested_feature_types(params=self.ogc_query_params))
                 elif self.is_post:
+                    # todo
                     self._requested_entities.extend(
                         self.xml_request.requested_feature_types)
             elif self.is_get_record_by_id_request:
@@ -102,7 +104,7 @@ class OGCRequest(Request):
                 constraint_language = self.ogc_query_params.get(
                     "CONSTRAINTLANGUAGE", "")
                 if constraint and not constraint_language:
-                    return MissingConstraintLanguageParameter(ogc_request=self)
+                    return MissingConstraintLanguageParameterException(ogc_request=self)
 
                 elif constraint and constraint_language:
                     if constraint_language == "CQL_TEXT":
@@ -284,79 +286,99 @@ class OGCRequest(Request):
 
         return self._ogc_query_params
 
+    def parse_sortby_param(value: str) -> list[tuple[str, str]]:
+        """
+        Parse OGC SortBy KVP into internal representation.
+
+        Example:
+        "dc:title:A,dc:date:D"
+        → [("dc:title", "ASC"), ("dc:date", "DESC")]
+        """
+        result = []
+
+        for part in value.split(","):
+            part = part.strip()
+            if not part:
+                continue
+
+            tokens = part.split(":")
+            if len(tokens) == 1:
+                prop = tokens[0]
+                order = "ASC"
+            elif len(tokens) == 2:
+                prop, dir_ = tokens
+                order = "DESC" if dir_.upper().startswith("D") else "ASC"
+            else:
+                # QName with colon(s)
+                prop = ":".join(tokens[:-1])
+                dir_ = tokens[-1]
+                order = "DESC" if dir_.upper().startswith("D") else "ASC"
+
+            result.append((prop, order))
+
+        return result
+
+    def build_get_records_from_get(self):
+        builder = CSWBuilder(service_version=self.service_version)
+        self._xml_request = builder.build_get_records(
+            type_names=self.ogc_query_params.get("typeNames"),
+            result_type=self.ogc_query_params.get("resultType"),
+            element_set=self.ogc_query_params.get("ElementSetName", "summary"),
+            sort_by=self.parse_sortby_param(
+                self.ogc_query_params.get("SortBy", "")),
+            constraint=self.ogc_query_params.get("Constraint"),
+            constraint_language=self.ogc_query_params.get("CONSTRAINTLANGUAGE")
+        )
+
+    def build_get_record_by_id_from_get(self):
+        builder = CSWBuilder(service_version=self.service_version)
+        self._xml_request = builder.build_get_record_by_id(
+            ids=self.ogc_query_params.get("id", "").split(","),
+            element_set_name=self.ogc_query_params.get(
+                "ElementSetName", "summary")
+        )
+
+    def build_get_feature_from_get(self):
+        builder = WFSBuilder(service_version=self.service_version)
+
+        xml = unescape(self.ogc_query_params.get("FILTER", ""))
+        filter = etree.fromstring(xml.encode("utf-8")) if xml else None
+
+        self._xml_request = builder.build_get_feature(
+            type_names=self.requested_entities,
+            filter_xml=filter,
+            srs_name=self.ogc_query_params.get("srsName", None),
+            count=int(self.ogc_query_params.get("count", 0)) or None,
+            start_index=int(self.ogc_query_params.get(
+                "startIndex", 0)) or None,
+        )
+
     @property
-    def xml_request(self) -> XmlObject:
-        """Constructs a xml request object based on the given request.
+    def xml_request(self):
+        """Constructs a xml request object based on the given HTTP GET request.
 
         This function analyzes the given request by its method and operation. 
-        If it is a get request, the get feature operation for example will be converted to an postable xml object.
+        If it is a get request, the get feature operation for example will be converted to an postable xml.
 
         :return: The mapped xml object
-        :rtype: XmlObject
+        :rtype: etree._Element
         """
         if not self._xml_request:
             # TODO: implement the xml request generation for other requests too.
             if self.is_get_feature_request:  # NOSONAR: See todo above
-                # FIXME: depending on version, different xml mapper are needed...
                 if self.is_post:
                     self._xml_request = etree.fromstring(self.data)
                 elif self.is_get:
-                    # we construct a xml get feature request to post it with a filter
-                    queries: List[Query] = []
-                    for feature_type in self.requested_entities:
-                        query: Query = Query()
-                        query.type_names = feature_type
-                        queries.append(query)
-                    self._xml_request: GetFeatureRequest = GetFeatureRequest()
-                    self._xml_request.queries = queries
+                    # FIXME: depending on version, different xml mapper are needed...
+                    self._xml_request = self.build_get_feature_from_get()
             elif self.is_get_records_request:
                 if self.is_post:
-                    self._xml_request: GetRecordsRequest = load_xmlobject_from_string(
-                        string=self.data, xmlclass=GetRecordsRequest)
+                    self._xml_request = etree.fromstring(self.data)
                 elif self.is_get:
-                    sort_by = self.ogc_query_params.get("SortBy")
-                    if sort_by:
-                        element_name, a_or_d = sort_by.split(":")
-                        if a_or_d == "A":
-                            sort_by = element_name
-                        elif a_or_d == "D":
-                            sort_by = f"-{element_name}"
-                    constraint = self.ogc_query_params.get("Constraint")
-                    constraint_language = self.ogc_query_params.get(
-                        "CONSTRAINTLANGUAGE")
-                    self._xml_request = GetRecordsRequest()
-                    self._xml_request.service_version = self.ogc_query_params.get(
-                        "VERSION")
-                    self._xml_request.service_type = self.ogc_query_params.get(
-                        "SERVICE")
-                    self._xml_request.result_type = self.ogc_query_params.get(
-                        "resultType")
-                    self._xml_request.start_position = self.ogc_query_params.get(
-                        "startPosition")
-                    self._xml_request.max_records = self.ogc_query_params.get(
-                        "maxRecords")
-                    self._xml_request.element_set_name = self.ogc_query_params.get(
-                        "ElementSetName")
-                    self._xml_request.sort_by = sort_by
-                    if constraint and constraint_language == "CQL_TEXT":
-                        self._xml_request.cql_filter = constraint
-                        self._xml_request.constraint_version = "1.1.0"
-                    elif constraint and constraint_language == "FILTER":
-                        self._xml_request.fes_filter = load_xmlobject_from_string(
-                            constraint, XmlObject)
-                        self._xml_request.constraint_version = "1.1.0"
+                    self.build_get_records_from_get()
             elif self.is_get_record_by_id_request:
                 if self.is_post:
-                    self._xml_request: GetRecordByIdRequest = load_xmlobject_from_string(
-                        string=self.data, xmlclass=GetRecordByIdRequest)
+                    self._xml_request = etree.fromstring(self.data)
                 elif self.is_get:
-                    self._xml_request = GetRecordByIdRequest()
-                    self._xml_request.service_version = self.ogc_query_params.get(
-                        "VERSION")
-                    self._xml_request.service_type = self.ogc_query_params.get(
-                        "SERVICE")
-                    self._xml_request.element_set_name = self.ogc_query_params.get(
-                        "ElementSetName")
-                    self._xml_request.ids = self.ogc_query_params.get(
-                        "id", "").split(",")
+                    self.build_get_record_by_id_from_get()
         return self._xml_request

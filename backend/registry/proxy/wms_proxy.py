@@ -9,11 +9,12 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from eulxml import xmlmap
 from extras.utils import execute_threads
-from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from PIL import Image, ImageDraw, ImageFont
 from registry.models.service import WebMapService
+from registry.ows_lib.response.exceptions import (ForbiddenException,
+                                                  LayerNotDefined)
+from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
 from registry.proxy.mixins import OgcServiceProxyView
-from registry.proxy.ogc_exceptions import ForbiddenException, LayerNotDefined
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
 from requests import Request, Session
 
@@ -74,7 +75,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         """
 
         if self.service.is_unknown_layer:
-            return LayerNotDefined(ogc_request=self.ogc_request)
+            return LayerNotDefined(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
         else:
             return super().get_and_post(request, *args, **kwargs)
 
@@ -414,7 +415,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
-        return ForbiddenException(ogc_request=self.ogc_request)
+        return ForbiddenException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
 
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.

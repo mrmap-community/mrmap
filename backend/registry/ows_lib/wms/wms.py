@@ -1,7 +1,8 @@
 from typing import Dict, List, Tuple
 
-from registry.client.core import OgcClient
-from registry.client.utils import update_queryparams
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
+from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.request.utils import update_queryparams
 from requests import Request
 
 
@@ -92,7 +93,9 @@ class WebMapServiceClient(OgcClient):
 
         url = update_queryparams(
             url=self.get_operation_url_by_name_and_method(
-                self.get_map_operation_name, "Get").url,
+                OGCOperationEnum.GET_MAP,
+                HttpMethodEnum.GET
+            ),
             params=params)
 
         return Request(method="GET", url=url)
@@ -144,7 +147,9 @@ class WebMapServiceClient(OgcClient):
 
         url = update_queryparams(
             url=self.get_operation_url_by_name_and_method(
-                self.get_feature_info_operation_name, "Get").url,
+                OGCOperationEnum.GET_FEATURE_INFO,
+                HttpMethodEnum.GET
+            ),
             params=params)
 
         return Request(method="GET", url=url)

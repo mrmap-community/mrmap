@@ -5,8 +5,9 @@ from django.contrib.gis.gdal import SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from epsg_cache.registry import Registry
 from epsg_cache.utils import get_epsg_srid
-from registry.client.exceptions import (MissingBboxParam, MissingCrsParam,
-                                        MissingServiceParam)
+from registry.ows_lib.client.exceptions import (MissingBboxParam,
+                                                MissingCrsParam,
+                                                MissingServiceParam)
 
 
 def update_queryparams(url: str, params: Dict):

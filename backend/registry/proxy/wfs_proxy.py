@@ -84,8 +84,11 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                     service_type=self.ogc_request.service_type.lower(),
                     service_version=self.ogc_request.service_version,
                     message="MrMap currently can only handle wfs 2.x.x GetFeature requests")
+
             self.ogc_request.xml_request.secure_spatial(
-                feature_types=self.service.security_info_per_feature_type)
+                feature_types=self.service.security_info_per_feature_type
+            )
+
         except NotImplementedError:
             return ForbiddenException(
                 service_type=self.ogc_request.service_type.lower(),
@@ -94,6 +97,37 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
         response = self.remote_service.send_request(
             self.remote_service.get_feature_request(get_feature_request=self.ogc_request.xml_request))
         return self.return_http_response(response=response)
+
+    def secure_spatial(self, feature_types: List[dict]) -> None:
+
+        lookup_dict = {}
+        for feature_type in feature_types:
+            try:
+                lookup_dict.update({
+                    feature_type.get("type_name"): {
+                        "geometry_property_name": feature_type.get("geometry_property_name"),
+                        "allowed_area_union": feature_type.get("allowed_area_union")
+                    }})
+            except AttributeError:
+                raise AttributeError(
+                    "feature_types list shall be provides as a list of dicts with kind {'type_name': val, 'geometry_property_name': val, 'allowed_area_union': val}")
+
+        query: Query
+        for query in self.queries:
+            _feature_type = lookup_dict.get(query.type_names[0], {})
+            _polygon = _feature_type.get(
+                "allowed_area_union", GEOSGeometry("POLYGON EMPTY"))
+            _geometry_property_name = _feature_type.get(
+                "geometry_property_name", "THE_GEOM")
+
+            if len(query.type_names) == 1 and _polygon and not _polygon.empty:
+                self._adjust_filter_node(query=query)
+                self._append_spatial_filter_condition(
+                    polygon=_polygon, value_reference=_geometry_property_name, query=query)
+
+            elif len(query.type_names) > 1:
+                raise NotImplementedError(
+                    "Currently we can't secure a query with multple type names in a single query node.")
 
     def handle_secured_transaction(self):
         #  Transaction: Transaction operations does not contains area of interest.

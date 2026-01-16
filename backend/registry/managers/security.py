@@ -25,9 +25,9 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
-        """Collects only the AllowedWebMapServiceOperation objects where all requested_entities are part of."""
+        """Collects only the AllowedWebServiceOperation objects where all requested_entities are part of."""
         lookup, identifiers = self.get_entity_identifiers(request=request)
-        query = None
+        query = Q()
         for identifier in identifiers:
             _query = Q(**{lookup: identifier})
             if query:
@@ -125,7 +125,7 @@ class AllowedWebFeatureServiceOperationQuerySet(AllowedOgcServiceOperationQueryS
         return "secured_feature_types__identifier__iexact", request.requested_entities
 
 
-class WebMapServiceSecurityManager(models.Manager):
+class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapServiceOperationQuerySet)):
 
     def is_unknown_layer(self, service_pk, request: HttpRequest) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, layer__identifier__in=request.requested_entities))
@@ -193,19 +193,7 @@ class WebMapServiceSecurityManager(models.Manager):
         return self.prepare_with_security_info(request=request).get(*args, **kwargs)
 
 
-class WebFeatureServiceSecurityManager(models.Manager):
-
-    def filter_by_requested_entity(self, request):
-        """Collects only the AllowedWebMapServiceOperation objects where all requested_entities are part of."""
-        lookup, identifiers = self.get_entity_identifiers(request=request)
-        query = None
-        for identifier in identifiers:
-            _query = Q(**{lookup: identifier})
-            if query:
-                query &= _query
-            else:
-                query = _query
-        return self.filter(query)
+class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFeatureServiceOperationQuerySet)):
 
     def is_unknown_feature_type(self, service_pk, feature_types: List[str]) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))

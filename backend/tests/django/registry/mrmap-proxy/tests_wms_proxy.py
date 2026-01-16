@@ -10,8 +10,7 @@ from django.db.models.query_utils import Q
 from django.test import Client, TestCase
 from epsg_cache.models import Origin, SpatialReference
 from epsg_cache.registry import Registry
-from lxml import etree, objectify
-from lxml.doctestcompare import LXMLOutputChecker
+from lxml import etree
 from MrMap.settings import BASE_DIR
 from PIL import Image, ImageChops
 from registry.models.security import AllowedWebMapServiceOperation

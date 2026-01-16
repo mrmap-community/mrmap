@@ -39,7 +39,7 @@ class DocumentModelMixin(models.Model):
                 string = file.read()
             return string
         except ValueError:
-            return ""
+            return b""
 
     @property
     def xml_backup_string(self) -> str:

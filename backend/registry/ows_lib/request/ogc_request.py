@@ -8,6 +8,7 @@ from lark.exceptions import LarkError
 from lxml import etree
 from lxml.etree import QName, XMLSyntaxError
 from pygeofilter.backends.django.evaluate import to_filter
+from pygeofilter.parsers.ecql import parse as parse_cql
 from pygeofilter.parsers.ecql import parse as parse_ecql
 from pygeofilter.parsers.fes.parser import parse as parse_fes
 from pygeofilter.parsers.fes.util import NodeParsingError
@@ -78,23 +79,15 @@ class OGCRequest(Request):
                 self._requested_entities.extend(
                     get_requested_layers(params=self.ogc_query_params))
             elif self.is_get_feature_request:
-                if self.is_get:
-                    self._requested_entities.extend(
-                        get_requested_feature_types(params=self.ogc_query_params))
-                elif self.is_post:
-                    # todo
-                    self._requested_entities.extend(
-                        self.xml_request.requested_feature_types)
+                self._requested_entities.extend(
+                    get_requested_feature_types(
+                        params=self.ogc_query_params if self.is_get else self.xml_request)
+                )
             elif self.is_get_record_by_id_request:
-                if self.is_get:
-                    self._requested_entities.extend(
-                        get_requested_records(params=self.ogc_query_params)
-                    )
-                elif self.is_post:
-                    self._requested_entities.extend(
-                        self.xml_request.ids)
-            else:
-                pass
+                self._requested_entities.extend(
+                    get_requested_records(
+                        params=self.ogc_query_params if self.is_get else self.xml_request)
+                )
         return self._requested_entities
 
     def filter_constraint(self, field_mapping=None, mapping_choices=None) -> Q:
@@ -127,9 +120,34 @@ class OGCRequest(Request):
                             ogc_request=self,
                             message="Provided CONSTRAINTLANGUAGE is not supported.")
             elif self.is_post:
-                return self.xml_request.get_django_filter(field_mapping, mapping_choices)
+                return self.get_django_filter(field_mapping, mapping_choices)
 
         return Q()
+
+    def get_django_filter(self, field_mapping=None, mapping_choices=None):
+        if not self.fes_filter and not self.cql_filter:
+            return Q()
+        elif self.fes_filter:
+            try:
+                ast = parse_fes(
+                    self.fes_filter.node)
+                return to_filter(ast, field_mapping, mapping_choices)
+            except (XMLSyntaxError, NodeParsingError) as e:
+                return InvalidParameterValueException(
+                    ogc_request=self,
+                    message=e
+                )
+        elif self.cql_filter:
+            try:
+                ast = parse_cql(
+                    self.cql_filter.node
+                )
+                return to_filter(ast, field_mapping, mapping_choices)
+            except Exception as e:
+                return InvalidParameterValueException(
+                    ogc_request=self,
+                    message=e
+                )
 
     @property
     def is_wms(self) -> bool:
@@ -363,7 +381,7 @@ class OGCRequest(Request):
         :return: The mapped xml object
         :rtype: etree._Element
         """
-        if not self._xml_request:
+        if self._xml_request is None:
             # TODO: implement the xml request generation for other requests too.
             if self.is_get_feature_request:  # NOSONAR: See todo above
                 if self.is_post:

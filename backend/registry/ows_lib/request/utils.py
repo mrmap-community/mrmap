@@ -1,10 +1,11 @@
 import urllib.parse
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from django.contrib.gis.gdal import SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from epsg_cache.registry import Registry
 from epsg_cache.utils import get_epsg_srid
+from lxml import etree
 from registry.ows_lib.client.exceptions import (MissingBboxParam,
                                                 MissingCrsParam,
                                                 MissingServiceParam)
@@ -179,23 +180,80 @@ def get_requested_layers(params: Dict) -> List[str]:
     return list(filter(None, params.get("LAYERS", params.get("layers", "")).split(",")))
 
 
-def get_requested_feature_types(params: Dict) -> List[str]:
-    """Filters the given params by requested featuretypes
-
-    :param params: all query parameters
-    :type params: Dict
-    :return: the requested featuretypes from the query params
-    :rtype: List[str]
+def get_requested_feature_types(
+    params: Union[Dict[str, str], etree._Element]
+) -> List[str]:
     """
-    return list(filter(None, params.get("TYPENAMES", params.get("typenames", "")).split(",")))
+    Extract requested feature types from query parameters or an XML element.
 
+    Supports:
+    - Dict-based query params (e.g., GET requests)
+    - lxml XML elements (e.g., WFS POST requests)
 
-def get_requested_records(params: Dict) -> List[str]:
-    """Filters the given params by requested featuretypes
-
-    :param params: all query parameters
-    :type params: Dict
-    :return: the requested featuretypes from the query params
-    :rtype: List[str]
+    :param params: Query parameters dict or XML root element
+    :return: List of requested feature types
     """
-    return list(filter(None, params.get("Id", "").split(",")))
+    # --- Case 1: Dict ---
+    if isinstance(params, dict):
+        value = params.get("TYPENAMES") or params.get("typenames") or ""
+        return [v for v in value.split(",") if v]
+
+    # --- Case 2: XML element ---
+    if isinstance(params, etree._Element):
+        feature_types: List[str] = []
+
+        # map default namespace to 'wfs' if None
+        nsmap = {k if k is not None else "wfs": v for k,
+                 v in params.nsmap.items()}
+
+        # find all Query elements in the correct namespace
+        queries = params.xpath(".//wfs:Query", namespaces=nsmap)
+        for q in queries:
+            if q.get("typeNames"):
+                feature_types.extend([t.strip()
+                                     for t in q.get("typeNames").split(",")])
+            elif q.get("typeName"):
+                feature_types.append(q.get("typeName"))
+
+        return feature_types
+
+    raise TypeError(
+        "params must be either Dict[str, str] or lxml.etree._Element")
+
+
+def get_requested_records(
+    params: Union[Dict[str, str], etree._Element]
+) -> List[str]:
+    """
+    Extract requested record IDs from query parameters or a CSW XML element.
+
+    Supports:
+    - Dict-based query params (e.g., GET requests)
+    - lxml XML elements (e.g., CSW GetRecords POST requests)
+
+    :param params: Query parameters dict or XML root element
+    :return: List of requested record IDs
+    """
+    # --- Case 1: Dict ---
+    if isinstance(params, dict):
+        value = params.get("Id") or params.get("id") or ""
+        return [v for v in value.split(",") if v]
+
+    # --- Case 2: XML element ---
+    if isinstance(params, etree._Element):
+        record_ids: List[str] = []
+
+        # auto-detect namespaces
+        nsmap = {k if k is not None else "default": v for k,
+                 v in params.nsmap.items()}
+
+        # find all <csw:Id> elements anywhere in the XML
+        ids = params.xpath(".//*/Id | .//*/csw:Id", namespaces=nsmap)
+        for el in ids:
+            if el.text:
+                record_ids.append(el.text.strip())
+
+        return record_ids
+
+    raise TypeError(
+        "params must be either Dict[str, str] or lxml.etree._Element")

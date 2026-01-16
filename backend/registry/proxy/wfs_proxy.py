@@ -112,6 +112,11 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                 raise AttributeError(
                     "feature_types list shall be provides as a list of dicts with kind {'type_name': val, 'geometry_property_name': val, 'allowed_area_union': val}")
 
+        original_request = self.ogc_request._xml_request
+
+        # TODO: addopt this to lxml parsing with etree
+        original_request.xpath(
+            "//wfs:Query", namespaces=self.ogc_request.namespaces)
         query: Query
         for query in self.queries:
             _feature_type = lookup_dict.get(query.type_names[0], {})

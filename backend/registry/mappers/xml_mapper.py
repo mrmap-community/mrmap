@@ -5,12 +5,16 @@ from uuid import uuid4
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import ForeignKey
+from django.db.models import ForeignKey, Manager, Model
 from lxml import etree
-from registry.mappers.configs import XPATH_MAP
-from lxml.etree import XPathEvalError
+
+from registry import models
 from registry.mappers.cache import GlobalXmlCache
-from registry.mappers.utils import load_function, get_fk_field_name_from_reverse_relation, load_file
+from registry.mappers.configs import XPATH_MAP
+from registry.mappers.utils import get_fk_field_name_from_reverse_relation, load_file, load_function
+
+from .xpath import util
+from .xpath.core import parse
 
 
 class XmlMapper:
@@ -122,7 +126,7 @@ class XmlMapper:
             for xpath_expr in xpath_or_spec["_inputs"]:
                 try:
                     res = element.xpath(xpath_expr, namespaces=namespaces)
-                except XPathEvalError as e:
+                except etree.XPathEvalError as e:
                     logging.error(
                         f"Error parsing field with xpath '{xpath_expr}': {e}"
                     )
@@ -330,3 +334,133 @@ class XmlMapper:
 
         return self.data
 
+    def django_to_xml(self, instance: "models.DocumentModelMixin") -> etree.ElementTree:
+        namespaces = self.mapping.get("_namespaces", {})
+
+        for key, value in self.mapping.items():
+            if key.startswith("_"):
+                continue
+            if isinstance(value, dict) and "_model" in value and isinstance(instance, self._get_model_class(value)):
+                for element in self._get_elements(value, namespaces):
+                    mapper = self.__class__(element, value | {"_namespaces": namespaces})
+                    mapper._update_element(instance)
+
+        return self.current_element.getroottree()
+
+    def _update_element(self, obj: Model):
+        namespaces = self.mapping.get("_namespaces", {})
+
+        for fieldname, field in self.mapping.get("fields", {}).items():
+            if fieldname.startswith("mptt_"):  # TODO: are there other fields that need to be ignored?
+                continue
+            if isinstance(field, str):
+                self._set_value(field, getattr(obj, fieldname))
+            elif isinstance(field, dict) and "_inputs" in field and "_reverse_parser" in field:
+                reverse_parser_func = load_function(field["_reverse_parser"])
+                values = reverse_parser_func(self, getattr(obj, fieldname))
+                if not isinstance(values, (list, tuple)):
+                    values = (values,)
+                for xpath, value in zip(field["_inputs"], values):
+                    self._set_value(xpath, value)
+            elif isinstance(field, dict) and "_model" in field:
+                if not field.get("_many", False):
+                    element = self._get_element(field.get("_base_xpath", "."), create=True)
+                    mapper = self.__class__(element, field | {"_namespaces": namespaces})
+                    related_obj = getattr(obj, fieldname)
+
+                    # metadata url is linked via ForeignKey from RemoteMetadata to Service/Layer/FeatureType
+                    if isinstance(related_obj, Manager):
+                        try:
+                            related_obj = related_obj.get()
+                        except related_obj.model.DoesNotExist:
+                            # TODO: should the corresponding xml element be deleted or left untouched?
+                            continue
+
+                    mapper._update_element(related_obj)
+                elif "_parser" in field:
+                    if "_reverse_parser" not in field:
+                        continue
+                    old_element = self._get_element(field["_base_xpath"])
+                    reverse_parser_func = load_function(field["_reverse_parser"])
+                    new_element = reverse_parser_func(self, getattr(obj, fieldname))
+                    old_element.getparent().replace(old_element, new_element)
+                else:  # field["_many"] == True
+                    elements = self._get_elements(field, namespaces)
+                    # obj.fieldname should be a Manager
+                    related_objs = getattr(obj, fieldname).all()
+
+                    while len(related_objs) != len(elements):
+                        # TODO: create or delete elements as needed
+                        if len(related_objs) > len(elements):
+                            self._create_element(field["_base_xpath"])
+                        else:  # len(related_objs) < len(elements)
+                            if "//" in field["_base_xpath"]:
+                                # we do not support deleting elements in a nested structure yet
+                                break
+                            to_be_removed = elements.pop()
+                            to_be_removed.getparent().remove(to_be_removed)
+                        elements = self._get_elements(field, namespaces)
+                        related_objs = getattr(obj, fieldname).all()
+                    else:  # if we break out of the loop, the following block is skipped
+                        # TODO: ordering might be an issue here
+                        for element, related_obj in zip(elements, related_objs):
+                            mapper = self.__class__(element, field | {"_namespaces": namespaces})
+                            mapper._update_element(related_obj)
+
+    def _set_value(self, xpath: str, value: str | int | None):
+        if xpath.split("/")[-1].startswith("@"):
+            # this is an attribute
+            self._set_attribute(xpath, value)
+        else:
+            self._set_text(xpath, value)
+
+    def _set_text(self, xpath: str, value: str | int | None):
+        if value is None or value == "":
+            self._delete_element(xpath)
+            return
+
+        element = self._get_element(xpath, create=True)
+        element.text = str(value)
+
+    def _set_attribute(self, xpath: str, value: str | int | None):
+        namespaces = self.mapping.get("_namespaces", {})
+        nsprefix, _, step = xpath.split("/")[-1].lstrip("@").rpartition(":")
+        ns = namespaces.get(nsprefix, "")
+
+        element = self._get_element(xpath)
+        if element is None:
+            if value is None or value == "":
+                return
+            else:
+                element = self._create_element(xpath)
+        value = str(value) if value is not None else ""
+        element.set(f"{{{ns}}}{step}", value)
+
+    def _get_element(self, xpath: str, create: bool = False) -> etree.Element | None:
+        namespaces = self.mapping.get("_namespaces", {})
+        elements = self.current_element.xpath(xpath, namespaces=namespaces)
+        if isinstance(elements, list):
+            if len(elements) > 1:
+                raise  # TODO: meaningful exception
+            if not elements and not create:
+                return
+            element = elements[0] if elements else self._create_element(xpath)
+        else:
+            element = elements
+        if isinstance(element, etree._ElementUnicodeResult):
+            element = element.getparent()
+        if not isinstance(element, etree.Element):
+            raise  # TODO: meaningful exception
+        return element
+
+    def _create_element(self, xpath: str) -> etree.Element:
+        namespaces = self.mapping.get("_namespaces", {})
+        return util.create_xml_node(parse(xpath), self.current_element, {"namespaces": namespaces})
+
+    def _delete_element(self, xpath: str | None = None):
+        namespaces = self.mapping.get("_namespaces", {})
+        elements = self.current_element.xpath(xpath, namespaces=namespaces) if xpath else [self.current_element]
+        for element in elements:
+            if (parent := element.getparent()) is None:
+                continue
+            parent.remove(element)

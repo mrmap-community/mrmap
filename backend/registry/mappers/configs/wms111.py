@@ -74,6 +74,7 @@ XPATH_MAP = {
                     "_create_mode": "get_or_create",
                     "_many": True,
                     "_parser": "registry.mappers.parsers.wms.parse_operation_urls",
+                    "_reverse_parser": "registry.mappers.parsers.wms.reverse_parse_operation_urls",
                 },
                 "keywords": {
                     "_model": "registry.Keyword",

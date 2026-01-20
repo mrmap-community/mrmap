@@ -1,4 +1,6 @@
 from lxml import etree
+
+from registry import models
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.xml_mapper import XmlMapper
 from registry.mappers.utils import load_file
@@ -11,8 +13,6 @@ class OGCServiceXmlMapper(XmlMapper):
         # Root-Element extrahieren
         content = load_file(xml)
         root = etree.fromstring(content)
-
-        root.find
 
         # Service-Typ anhand des Root-Tags
         tag = etree.QName(root).localname.lower()
@@ -35,6 +35,11 @@ class OGCServiceXmlMapper(XmlMapper):
         mapping = cls._select_mapping(service_type, version)
 
         return cls(xml=root, mapping=mapping)
+
+    @classmethod
+    def to_xml(cls, instance: "models.DocumentModelMixin") -> etree.ElementTree:
+        mapper = cls.from_xml(instance.xml_backup_file)
+        return mapper.django_to_xml(instance)
 
     @staticmethod
     def _select_mapping(service_type, version):

@@ -20,6 +20,11 @@ def int_to_bool(mapper, value: int = 0) -> bool:
     raise ValueError(f"Ungültiger Wert {value}, nur 0 oder 1 erlaubt.")
 
 
+def boolean_to_int(mapper, value: bool = False) -> int:
+    """Wandelt False in 0 und True in 1 um."""
+    return int(value)
+
+
 def str_to_bool(mapper, value: str = "0") -> bool:
     """Wandelt den String '0' in False und '1' in True um. Andere Werte werfen einen ValueError."""
     if value == "0":
@@ -29,26 +34,34 @@ def str_to_bool(mapper, value: str = "0") -> bool:
     raise ValueError(f"Ungültiger Wert {value!r}, nur '0' oder '1' erlaubt.")
 
 
-def srs_to_prefix(mapper, value):
-    if "::" in value:
-        # example: ref_system = urn:ogc:def:crs:EPSG::4326
-        return value.rsplit(":")[-3]
-    elif ":" in value:
-        # example: ref_system = EPSG:4326
-        return value.rsplit(":")[-2]
-    else:
-        return ""
+def srs_to_prefix(mapper, value: str):
+    match value.split(":"):
+        case [prefix, _]:
+            # example: EPSG:4326
+            return prefix
+        case ["urn", "ogc", "def", "crs", prefix, *_]:
+            # examples:
+            # urn:ogc:def:crs:EPSG::4326
+            # urn:ogc:def:crs:EPSG:6.3:26986
+            # urn:ogc:def:crs:OGC:1.3:AUTO42003:1:-100:45
+            return prefix
+        case _:
+            return ""
 
 
-def srs_to_code(mapper, value):
-    if "::" in value:
-        # example: ref_system = urn:ogc:def:crs:EPSG::4326
-        return value.rsplit(":")[-1]
-    elif ":" in value:
-        # example: ref_system = EPSG:4326
-        return value.rsplit(":")[-1]
-    else:
-        return ""
+def srs_to_code(mapper, value: str):
+    match value.split(":"):
+        case [_, code]:
+            # example: EPSG:4326
+            return code
+        case ["urn", "ogc", "def", "crs", _, _, code, *_]:
+            # examples:
+            # urn:ogc:def:crs:EPSG::4326
+            # urn:ogc:def:crs:EPSG:6.3:26986
+            # urn:ogc:def:crs:OGC:1.3:AUTO42003:1:-100:45
+            return code
+        case _:
+            return ""
 
 
 def bbox_to_polygon(mapper, minx, maxx, miny, maxy):
@@ -84,6 +97,10 @@ def polygon_to_bbox(mapper, polygon):
 
 def version_to_int(mapper, version):
     return OGCServiceVersionEnum(version).value
+
+
+def int_to_version(mapper, version: int):
+    return OGCServiceVersionEnum(version).label
 
 
 def method_to_enum(mapper, url_element):

@@ -1,6 +1,7 @@
 
 
 import json
+from typing import List
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.utils.decorators import method_decorator

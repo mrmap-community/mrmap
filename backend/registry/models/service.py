@@ -12,10 +12,12 @@ from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from eulxml import xmlmap
+from extras.decorators import warn_on_queries
 from extras.managers import DefaultHistoryManager
 from extras.models import (AdditionalTimeFieldsHistoricalModel,
                            HistoricalRecordMixin)
 from extras.utils import update_url_base, update_url_query_params
+from lxml import etree
 from mptt2.models import Node
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
@@ -195,6 +197,34 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         return WebMapServiceClient(
             capabilities=self.capabilities,
             session=self.get_session_for_request()
+        )
+
+    @warn_on_queries
+    def xml_secured(self, request) -> str:
+        new_url = self.get_secured_url(
+            request=request, url_name="wms-operation")
+
+        # Hint: this can only work performant if all related objects are retreived with select_related and prefetch_related
+        # therefore we have the @warn_on_queries decorator here to warn us if this is not the case.
+        # We simply iterate over all related objects and update the urls.
+        for operation_url in self.operation_urls.all():
+            operation_url.url = new_url
+        if self.service_url:
+            self.service_url = new_url
+        for layer in self.layers.all():
+            for style in layer.styles.all():
+                style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+
+        # TODO: only support xml Exception format --> remove all others
+        # TODO: camouflage metadata urls also
+
+        capabilities_xml = self.get_updated_capabilitites()
+
+        return etree.tostring(
+            capabilities_xml.getroottree().getroot(),
+            pretty_print=True,
+            xml_declaration=True,
+            encoding="UTF-8"
         )
 
 

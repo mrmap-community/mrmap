@@ -75,7 +75,6 @@ XPATH_MAP = {
                     "_model": "registry.WebFeatureServiceOperationUrl",
                     "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//*[self::ows:Post or self::ows:Get]",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "method": {
                             "_inputs": (".",),
@@ -92,7 +91,6 @@ XPATH_MAP = {
                             "_model": "registry.MimeType",
                             "_base_xpath": '../../../ows:Parameter[@name="outputFormat"]/ows:Value',
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "fields": {
                                 "mime_type": "."
                             }
@@ -103,7 +101,6 @@ XPATH_MAP = {
                     "_model": "registry.Keyword",
                     "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceIdentification/ows:Keywords/ows:Keyword",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "keyword": "./."
                     }
@@ -112,7 +109,6 @@ XPATH_MAP = {
                     "_model": "registry.FeatureType",
                     "_base_xpath": "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType",
                     "_create_mode": "bulk",
-                    "_many": True,
                     "fields": {
                         "identifier": "./wfs:Name",
                         "title": "./wfs:Title",
@@ -128,7 +124,6 @@ XPATH_MAP = {
                             "_model": "registry.Keyword",
                             "_base_xpath": "./ows:Keywords/ows:Keyword",
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "fields": {
                                 "keyword": "./."
                             }
@@ -137,7 +132,6 @@ XPATH_MAP = {
                             "_model": "registry.MimeType",
                             "_base_xpath": "./wfs:OutputFormats/wfs:Format",
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "fields": {
                                 "mime_type": "./."
                             }
@@ -146,7 +140,6 @@ XPATH_MAP = {
                             "_model": "registry.ReferenceSystem",
                             "_base_xpath": "./.",
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "_parser": "registry.mappers.parsers.wfs.parse_reference_systems",
                         },
                         "remote_metadata": {

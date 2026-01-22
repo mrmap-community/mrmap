@@ -45,7 +45,6 @@ XPATH_MAP = {
                     "_model": "registry.Keyword",
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "keyword": "./."
                     }
@@ -65,7 +64,6 @@ XPATH_MAP = {
                     "_model": "registry.Language",
                     "_base_xpath": "./gmd:language/gmd:LanguageCode[@codeList='http://www.loc.gov/standards/iso639-2/']",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "value": {
                             "_inputs": ("./@codeListValue",),
@@ -77,7 +75,6 @@ XPATH_MAP = {
                     "_model": "registry.ReferenceSystem",
                     "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gmx:Anchor",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "code": {
                             "_inputs": ("./@xlink:href",),
@@ -93,7 +90,6 @@ XPATH_MAP = {
                     "_model": "registry.TimeExtent",
                     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
                 },
             }

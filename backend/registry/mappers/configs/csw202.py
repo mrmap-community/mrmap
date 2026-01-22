@@ -63,7 +63,6 @@ XPATH_MAP = {
                     "_model": "registry.CatalogueServiceOperationUrl",
                     "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//*[self::ows:Post or self::ows:Get]",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "method": {
                             "_inputs": (".",),
@@ -80,7 +79,6 @@ XPATH_MAP = {
                             "_model": "registry.MimeType",
                             "_base_xpath": '../../../ows:Parameter[@name="outputFormat"]/ows:Value',
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "fields": {
                                 "mime_type": "."
                             }
@@ -91,7 +89,6 @@ XPATH_MAP = {
                     "_model": "registry.Keyword",
                     "_base_xpath": "/csw:Capabilities/ows:ServiceIdentification/ows:Keywords/ows:Keyword",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "keyword": "./."
                     }

@@ -18,6 +18,30 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
     fixtures = ['test_users.json', "test_keywords.json", "test_wms.json",
                 "test_wfs.json", "test_csw.json"]
 
+    def assertXpathValue(self, tree, xpath: str, expected: str) -> str:
+        namespaces = tree.getroot().nsmap.copy()
+        if None in namespaces:
+            namespaces["d"] = namespaces.pop(None)
+
+        result = tree.xpath(xpath, namespaces=namespaces)
+        self.assertTrue(result[0] if result else None == expected)
+
+    def assertXpathValues(self, tree, xpath: str, expected: str) -> str:
+        namespaces = tree.getroot().nsmap.copy()
+        if None in namespaces:
+            namespaces["d"] = namespaces.pop(None)
+
+        result = tree.xpath(xpath, namespaces=namespaces)
+        self.assertListEqual([value.text for value in result], expected)
+
+    def assertXpathCount(self, tree, xpath: str, expected_count: int) -> str:
+        namespaces = tree.getroot().nsmap.copy()
+        if None in namespaces:
+            namespaces["d"] = namespaces.pop(None)
+
+        result = tree.xpath(xpath, namespaces=namespaces)
+        self.assertEqual(len(result), expected_count)
+
     def setUpWms(self):
         self.wms: WebMapService = WebMapService.objects.get(
             pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
@@ -94,7 +118,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         self.setUpCsw()
 
     def test_current_capabilities_of_wms(self):
-        capabilities: XmlWebMapService = self.wms.updated_capabilitites
+        capabilities = self.wms.get_updated_capabilitites()
 
         # check service operation urls
         self.assertEqual(3, len(capabilities.operation_urls))
@@ -102,28 +126,38 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
                          capabilities.get_operation_url_by_name_and_method(OGCOperationEnum.GET_MAP, HttpMethodEnum.GET))
 
         # check service metadata
-        self.assertEqual("huhu", capabilities.title)
-
+        self.assertXpathValue(
+            capabilities,
+            ".//d:WMS_Capabilities/d:Service/d:Title",
+            "huhu")
         # check root layer metadata
-        self.assertEqual("hihi",
-                         capabilities.root_layer.title)
-        self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(capabilities.root_layer.keywords)))
+        self.assertXpathValue(
+            capabilities,
+            ".//d:WMS_Capabilities/d:Capability/d:Layer/d:Title",
+            "hihi")
+        self.assertXpathValues(capabilities,
+                               ".//d:WMS_Capabilities/d:Capability/d:Layer/d:KeywordList/d:Keyword",
+                               ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
 
         # check a layer metadata in deep
-        some_layer = capabilities.get_layer_by_identifier(
-            identifier="node1.1.1")
-        self.assertEqual("hoho", some_layer.title)
-        self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(some_layer.keywords)))
-
-        self.assertEqual(7, len(capabilities._layers),
-                         msg="only 7 layers are active.")
-        self.assertIsNone(
-            capabilities.get_layer_by_identifier(identifier="node1.1.2"))
+        self.assertXpathValue(
+            capabilities,
+            ".//d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.1']/d:Title",
+            "hoho")
+        self.assertXpathValues(capabilities,
+                               ".//d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.1']/d:KeywordList/d:Keyword",
+                               ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
+        self.assertXpathCount(
+            capabilities,
+            ".//d:WMS_Capabilities/d:Capability/d:Layer/d:Layer",
+            7)
+        self.assertXpathCount(
+            capabilities,
+            ".//d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.2']",
+            0)
 
     def test_current_capabilitites_of_wfs(self):
-        capabilities: XmlWebFeatureService = self.wfs.updated_capabilitites
+        capabilities: XmlWebFeatureService = self.wfs.get_updated_capabilitites()
 
         # check service operation urls
         self.assertEqual(1, len(capabilities.operation_urls))
@@ -144,7 +178,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
                          msg="only 3 feature types are active.")
 
     def test_current_capabilitites_of_csw(self):
-        capabilities: XmlCatalogueService = self.csw.updated_capabilitites
+        capabilities: XmlCatalogueService = self.csw.get_updated_capabilitites()
 
         # check service operation urls
         self.assertEqual(2, len(capabilities.operation_urls))

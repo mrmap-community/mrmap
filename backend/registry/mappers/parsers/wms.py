@@ -6,12 +6,10 @@ import isodate
 from dateutil.parser import isoparse
 from lxml import etree
 from lxml.builder import ElementMaker
-
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models import TimeExtent
 from registry.models.metadata import MimeType
 from registry.models.service import WebMapServiceOperationUrl
-from psycopg.types.range import Range
 
 if typing.TYPE_CHECKING:
     from django.db.models import Manager
@@ -184,9 +182,11 @@ def reverse_parse_operation_urls(mapper, qs: "Manager[WebMapServiceOperationUrl]
 
     # collect data from django objects
     for operation_url in qs.all():
-        operations[operation_url.get_operation_display()].setdefault("urls", dict())[operation_url.get_method_display()] = operation_url.url
+        operations[operation_url.get_operation_display()].setdefault(
+            "urls", dict())[operation_url.get_method_display()] = operation_url.url
         for mime_type in operation_url.mime_types.all():
-            operations[operation_url.get_operation_display()].setdefault("mime_types", set()).add(mime_type.mime_type)
+            operations[operation_url.get_operation_display()].setdefault(
+                "mime_types", set()).add(mime_type.mime_type)
 
     # build XML element
     request = E("Request")

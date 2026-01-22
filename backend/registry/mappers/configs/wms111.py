@@ -72,7 +72,6 @@ XPATH_MAP = {
                     "_model": "registry.WebMapServiceOperationUrl",
                     "_base_xpath": "./Capability/Request",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "_parser": "registry.mappers.parsers.wms.parse_operation_urls",
                     "_reverse_parser": "registry.mappers.parsers.wms.reverse_parse_operation_urls",
                 },
@@ -80,7 +79,6 @@ XPATH_MAP = {
                     "_model": "registry.Keyword",
                     "_base_xpath": "/WMT_MS_Capabilities/Service/KeywordList/Keyword",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "keyword": "./."
                     }
@@ -89,7 +87,6 @@ XPATH_MAP = {
                     "_model": "registry.Layer",
                     "_base_xpath": "/WMT_MS_Capabilities/Capability//Layer",
                     "_create_mode": "bulk",
-                    "_many": True,
                     "fields": {
                         "mptt_parent": "..",
                         "title": "./Title",
@@ -124,7 +121,6 @@ XPATH_MAP = {
                             "_model": "registry.Keyword",
                             "_base_xpath": "./KeywordList/Keyword",
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "fields": {
                                 "keyword": "./."
                             }
@@ -133,7 +129,6 @@ XPATH_MAP = {
                             "_model": "registry.ReferenceSystem",
                             "_base_xpath": "./SRS",
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "fields": {
                                 "code": {
                                     "_inputs": ("./text()",),
@@ -149,7 +144,6 @@ XPATH_MAP = {
                             "_model": "registry.Style",
                             "_base_xpath": "./Style",
                             "_create_mode": "bulk",
-                            "_many": True,
                             "fields": {
                                 "name": "./Name",
                                 "title": "./Title",
@@ -185,7 +179,6 @@ XPATH_MAP = {
                             "_model": "registry.TimeExtent",
                             "_base_xpath": "./Extent[@name='time']",
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "_parser": "registry.mappers.parsers.wms.parse_timeextent",
                         },
                     }

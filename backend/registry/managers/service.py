@@ -7,12 +7,11 @@ from django.db.models import Value as V
 from django.db.models.expressions import F, OuterRef
 from django.db.models.functions import Coalesce
 from django.db.models.manager import Manager
-from django_cte import CTEManager
 from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
-from simple_history.models import HistoricalRecords
 from registry import models
 from registry.querys.service import LayerQuerySet
+from simple_history.models import HistoricalRecords
 
 
 class TransientObjectsManagerMixin(object):
@@ -77,11 +76,13 @@ class TransientObjectsManagerMixin(object):
 
 
 class WebMapServiceQuerySet(QuerySet):
-    def prefetch_related_objects(self) -> "WebMapServiceQuerySet":
-        styles = Prefetch("styles", queryset=models.Style.objects.select_related("legend_url__mime_type"))
+    def prefetch_whole_service(self) -> "WebMapServiceQuerySet":
+        styles = Prefetch("styles", queryset=models.Style.objects.select_related(
+            "legend_url__mime_type"))
         layers = Prefetch(
             "layers",
-            queryset=models.Layer.objects.prefetch_related("keywords", "reference_systems", "time_extents", styles),
+            queryset=models.Layer.objects.prefetch_related(
+                "keywords", "reference_systems", "time_extents", styles),
         )
         return self.select_related("service_contact", "metadata_contact").prefetch_related(
             "operation_urls", "keywords", layers
@@ -108,10 +109,11 @@ class WebMapServiceQuerySet(QuerySet):
 
 
 class WebFeatureServiceQuerySet(QuerySet):
-    def prefetch_related_objects(self) -> "WebFeatureServiceQuerySet":
+    def prefetch_whole_service(self) -> "WebFeatureServiceQuerySet":
         featuretypes = Prefetch(
             "featuretypes",
-            queryset=models.FeatureType.objects.prefetch_related("keywords", "output_formats", "reference_systems"),
+            queryset=models.FeatureType.objects.prefetch_related(
+                "keywords", "output_formats", "reference_systems"),
         )
         return self.select_related("service_contact", "metadata_contact").prefetch_related(
             "operation_urls__mime_types", "keywords", featuretypes
@@ -138,18 +140,14 @@ class WebFeatureServiceQuerySet(QuerySet):
 
 
 class CatalogueServiceQuerySet(QuerySet):
-    def prefetch_related_objects(self) -> "CatalogueServiceQuerySet":
+    def prefetch_whole_service(self) -> "CatalogueServiceQuerySet":
         return self.select_related("service_contact", "metadata_contact").prefetch_related(
             "operation_urls__mime_types", "keywords"
         )
 
 
-class CatalogueServiceManager(DefaultHistoryManager, CTEManager):
-    def get_queryset(self) -> CatalogueServiceQuerySet:
-        return CatalogueServiceQuerySet(model=self.model, using=self._db)
-
-    def prefetch_related_objects(self) -> CatalogueServiceQuerySet:
-        return self.get_queryset().prefetch_related_objects()
+class CatalogueServiceManager(Manager.from_queryset(CatalogueServiceQuerySet), Manager.from_queryset(DefaultHistoryManager)):
+    pass
 
 
 class FeatureTypeElementXmlManager(Manager):

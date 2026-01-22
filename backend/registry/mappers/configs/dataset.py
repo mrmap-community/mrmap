@@ -55,7 +55,6 @@ XPATH_MAP = {
                     "_model": "registry.Keyword",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "keyword": "./."
                     }
@@ -86,7 +85,6 @@ XPATH_MAP = {
                     "_model": "registry.Language",
                     "_base_xpath": "./gmd:language/gmd:LanguageCode[@codeList='http://www.loc.gov/standards/iso639-2/']",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "value": {
                             "_inputs": ("./@codeListValue",),
@@ -98,7 +96,6 @@ XPATH_MAP = {
                     "_model": "registry.ReferenceSystem",
                     "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "code": {
                             "_inputs": ("./text()",),
@@ -114,7 +111,6 @@ XPATH_MAP = {
                     "_model": "registry.IsoCategory",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "fields": {
                         "value": {
                             "_inputs": ("./text()",),
@@ -126,7 +122,6 @@ XPATH_MAP = {
                     "_model": "registry.TimeExtent",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
                 },
             }

@@ -4,13 +4,11 @@ from typing import IO, Union
 from uuid import uuid4
 
 from django.apps import apps
-from django.core.exceptions import ImproperlyConfigured
-from django.db.models import ForeignKey, Manager, ManyToManyField, Model
-from django.db.models.fields.related import ForeignObjectRel, RelatedField
+from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
+from django.db.models import ForeignKey, Model
 from lxml import etree
 from registry import models
 from registry.mappers.cache import GlobalXmlCache
-from registry.mappers.configs import XPATH_MAP
 from registry.mappers.utils import (compose_xpath,
                                     get_fk_field_name_from_reverse_relation,
                                     is_editable_concrete_field,
@@ -433,7 +431,12 @@ class XmlMapper:
                 is_many = is_many_relation(obj, fieldname)
 
                 if not is_many:
-                    related_obj = getattr(obj, fieldname)
+                    try:
+                        related_obj = getattr(obj, fieldname)
+                    except ObjectDoesNotExist:
+                        # happens if this is a reverse one-to-one relation and no related object exists
+                        related_obj = None
+
                     if related_obj is None:
                         # TODO: should the corresponding xml element be deleted or left untouched?
                         continue

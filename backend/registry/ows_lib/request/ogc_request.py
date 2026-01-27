@@ -1,7 +1,6 @@
 from typing import Dict, List
 from xml.sax.saxutils import unescape
 
-from django.contrib.gis.gdal.geometries import OGRGeometry
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models.query_utils import Q
 from django.http.request import HttpRequest as DjangoRequest
@@ -480,7 +479,7 @@ class OGCRequest(Request):
             spatial_filter = builder.build_spatial_filter(
                 geometry=polygon.ogr,
                 value_reference=geom_prop,
-                operator="Intersects",
+                operator="Within",
             )
 
             # find existing <fes:Filter> if present

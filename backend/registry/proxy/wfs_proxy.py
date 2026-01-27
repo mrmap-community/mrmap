@@ -90,6 +90,14 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
                 self.service.security_info_per_feature_type
             )
 
+            self.ogc_request.xml_request.getroottree().write(
+                "output.xml",
+                encoding="utf-8",
+                xml_declaration=True,
+                standalone=True,
+                pretty_print=True
+            )
+
         except NotImplementedError:
             return ForbiddenException(
                 service_type=self.ogc_request.service_type.lower(),

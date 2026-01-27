@@ -75,6 +75,21 @@ class XSDSkeletonBuilder:
 
         return dfs(element_name)
 
+    def iter(self, xml: etree._Element, local_name: str | None = None):
+        """
+        Iterate over all descendants (or children) optionally filtered by local-name.
+
+        :param parent: the element to iterate over, defaults to root if None
+        :param local_name: optional local-name to filter elements
+        :yield: etree._Element
+        """
+        if xml is None:
+            return  # nothing to iterate
+
+        for el in xml.iter():
+            if local_name is None or etree.QName(el).localname == local_name:
+                yield el
+
     def build_deep_element(
         self,
         element_name,
@@ -320,7 +335,11 @@ class XSDSkeletonBuilder:
         Add an element not defined in the active XSD
         (e.g. ogc:Filter, gml:Envelope)
         """
-        el = etree.SubElement(parent, qname)
+        if parent is None:
+            el = etree.Element(qname)
+        else:
+            el = etree.SubElement(parent, qname)
+
         if attributes:
             for k, v in attributes.items():
                 el.set(k, v)

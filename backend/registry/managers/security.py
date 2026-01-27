@@ -208,6 +208,84 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
         )
 
     def prepare_with_security_info(self, request: OGCRequest):
+        """
+        Prepare a queryset annotated with security and proxy metadata for a
+        Web Feature Service (WFS) OGC request.
+
+        The method returns a Django QuerySet of WFS services. Depending on the
+        request type and operation, the queryset is annotated with different
+        security-related fields used during request evaluation and response
+        filtering.
+
+        Annotation behavior by request type
+        -----------------------------------
+        1. GetCapabilities requests
+        The queryset is annotated with:
+        - camouflage (bool):
+            Whether the service response should be camouflaged.
+            Derived from proxy_setting.camouflage, defaults to False.
+
+        2. Non-secureable operations
+        (request.operation.lower() not in SECURE_ABLE_OPERATIONS_LOWER)
+        The queryset is annotated with:
+        - log_response (bool):
+            Whether the service response should be logged.
+            Derived from proxy_setting.log_response, defaults to False.
+
+        3. GetFeature requests (secureable)
+        The queryset is fully annotated with service-level and
+        feature-type-level security information.
+
+        Service-level annotations:
+        - camouflage (bool)
+        - log_response (bool)
+        - is_unknown_feature_type (bool):
+            True if at least one requested feature type is not known
+            for the service.
+        - is_secured (bool):
+            True if the service has any security configuration.
+        - is_user_principle_entitled (bool):
+            True if the requesting user is entitled to access the service
+            (superusers are always entitled).
+        - is_spatial_secured (bool):
+            True if spatial restrictions apply for the requested feature types
+            and no unrestricted (empty) allowed areas exist.
+
+        Feature-type-level annotation:
+        - security_info_per_feature_type (List[dict]):
+            An array of JSON objects, one per requested feature type, with the
+            following structure:
+
+            {
+                "type_name": str,
+                "geometry_property_name": str,
+                "allowed_area_union": Geometry | None
+            }
+
+            where:
+            - type_name:
+                Identifier of the feature type.
+            - geometry_property_name:
+                Name of the geometry property of the feature type. If no
+                geometry property is defined, defaults to "THE_GEOM".
+            - allowed_area_union:
+                A spatial union of all allowed areas applicable to the feature
+                type for the requested operation, or None if no spatial
+                restriction applies.
+
+        Parameters
+        ----------
+        request : OGCRequest
+            Parsed WFS OGC request containing operation, requested feature types,
+            user information, and request parameters.
+
+        Returns
+        -------
+        QuerySet
+            A queryset of WFS services annotated with proxy and security metadata.
+            For GetFeature requests, the queryset includes per-feature-type
+            security information encoded as JSON.
+        """
         if request.is_get_capabilities_request:
             return self.get_queryset().annotate(
                 camouflage=Coalesce(F("proxy_setting__camouflage"), V(False))

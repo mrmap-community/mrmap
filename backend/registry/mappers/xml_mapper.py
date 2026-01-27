@@ -283,9 +283,14 @@ class XmlMapper:
             raise ValueError("Spec missing _model")
         return apps.get_model(model_label)
 
-    def _get_concrete_xpath(self, instance, spec):
+    def compile_concrete_xpath(self, instance, spec):
         """
         Fully spec-driven concrete XPath builder.
+
+        WARNING:
+        This XPath is instance-specific and must NOT be persisted.
+        It is derived from spec + instance state.
+
         """
 
         base_xpath = spec["_base_xpath"]
@@ -304,7 +309,7 @@ class XmlMapper:
 
             # Parent handling
             if xpath_or_spec == "..":
-                parent_xpath = self._get_concrete_xpath(value, spec)
+                parent_xpath = self.compile_concrete_xpath(value, spec)
                 continue
 
             # Simple xpath
@@ -396,13 +401,14 @@ class XmlMapper:
     def django_to_xml(self, instance: "models.DocumentModelMixin") -> etree.ElementTree:
         namespaces = self.mapping.get("_namespaces", {})
 
-        for key, value in self.mapping.items():
+        for key, xpath_or_spec in self.mapping.items():
             if key.startswith("_"):
                 continue
-            if isinstance(value, dict) and "_model" in value and isinstance(instance, self._get_model_class(value)):
-                for element in self._get_elements(value, namespaces):
+            if isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec and isinstance(instance, self._get_model_class(xpath_or_spec)):
+                for element in self._get_elements(xpath_or_spec, namespaces):
+                    # this are all elements from the original xml
                     mapper = self.__class__(
-                        element, value | {"_namespaces": namespaces})
+                        element, xpath_or_spec | {"_namespaces": namespaces})
                     mapper._update_element(instance)
 
         return self.current_element.getroottree()
@@ -410,21 +416,22 @@ class XmlMapper:
     def _update_element(self, obj: Model):
         namespaces = self.mapping.get("_namespaces", {})
 
-        for fieldname, field in self.mapping.get("fields", {}).items():
+        for fieldname, xpath_or_spec in self.mapping.get("fields", {}).items():
             # TODO: are there other fields that need to be ignored?
             if fieldname.startswith("mptt_"):
                 continue
-            if isinstance(field, str):
+            if isinstance(xpath_or_spec, str):
                 # simple XPath
-                self._set_value(field, getattr(obj, fieldname))
-            elif isinstance(field, dict) and "_inputs" in field and "_reverse_parser" in field:
-                reverse_parser_func = load_function(field["_reverse_parser"])
+                self._set_value(xpath_or_spec, getattr(obj, fieldname))
+            elif isinstance(xpath_or_spec, dict) and "_inputs" in xpath_or_spec and "_reverse_parser" in xpath_or_spec:
+                reverse_parser_func = load_function(
+                    xpath_or_spec["_reverse_parser"])
                 values = reverse_parser_func(self, getattr(obj, fieldname))
                 if not isinstance(values, (list, tuple)):
                     values = (values,)
-                for xpath, value in zip(field["_inputs"], values):
+                for xpath, value in zip(xpath_or_spec["_inputs"], values):
                     self._set_value(xpath, value)
-            elif isinstance(field, dict) and "_model" in field:
+            elif isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
                 # related object fk/m2m/reverse
                 logging.warning(
                     f"Processing related field '{fieldname}' of model '{obj._meta.label}'")
@@ -441,44 +448,46 @@ class XmlMapper:
                         # TODO: should the corresponding xml element be deleted or left untouched?
                         continue
 
-                    xpath = self._get_concrete_xpath(related_obj, field)
+                    xpath = self.compile_concrete_xpath(
+                        related_obj, xpath_or_spec)
                     element = self._get_element(xpath, create=True)
                     mapper = self.__class__(
-                        element, field | {"_namespaces": namespaces})
+                        element, xpath_or_spec | {"_namespaces": namespaces})
 
                     mapper._update_element(related_obj)
-                elif "_parser" in field:
-                    if "_reverse_parser" not in field:
+                elif "_parser" in xpath_or_spec:
+                    if "_reverse_parser" not in xpath_or_spec:
                         continue
-                    xpath = self._get_concrete_xpath(obj, field)
+                    xpath = self.compile_concrete_xpath(obj, xpath_or_spec)
                     old_element = self._get_element(xpath)
                     reverse_parser_func = load_function(
-                        field["_reverse_parser"])
+                        xpath_or_spec["_reverse_parser"])
                     new_element = reverse_parser_func(
                         self, getattr(obj, fieldname))
                     old_element.getparent().replace(old_element, new_element)
                 else:
-                    elements = self._get_elements(field, namespaces)
+                    elements = self._get_elements(xpath_or_spec, namespaces)
                     # obj.fieldname should be a Manager
                     related_objs = getattr(obj, fieldname).all()
 
                     while len(related_objs) != len(elements):
                         # TODO: create or delete elements as needed
                         if len(related_objs) > len(elements):
-                            self._create_element(field["_base_xpath"])
+                            self._create_element(xpath_or_spec["_base_xpath"])
                         else:  # len(related_objs) < len(elements)
-                            if "//" in field["_base_xpath"]:
+                            if "//" in xpath_or_spec["_base_xpath"]:
                                 # we do not support deleting elements in a nested structure yet
                                 break
                             to_be_removed = elements.pop()
                             to_be_removed.getparent().remove(to_be_removed)
-                        elements = self._get_elements(field, namespaces)
+                        elements = self._get_elements(
+                            xpath_or_spec, namespaces)
                         related_objs = getattr(obj, fieldname).all()
                     else:  # if we break out of the loop, the following block is skipped
                         # TODO: ordering might be an issue here
                         for element, related_obj in zip(elements, related_objs):
                             mapper = self.__class__(
-                                element, field | {"_namespaces": namespaces})
+                                element, xpath_or_spec | {"_namespaces": namespaces})
                             mapper._update_element(related_obj)
 
     def _set_value(self, xpath: str, value: str | int | None):

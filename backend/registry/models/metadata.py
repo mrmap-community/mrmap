@@ -1,28 +1,32 @@
+import logging
 from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
 from django.contrib.postgres.indexes import BTreeIndex
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
+from django.db.transaction import atomic
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
-from registry.mappers.persistence.handler import PersistenceHandler
-from registry.mappers.factory import MDMetadataXmlMapper
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
 from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
-from registry.enums.metadata import (DatasetFormatEnum,
-                                     MetadataOriginEnum,
-                                     ReferenceSystemPrefixChoices, TimeExtentKind,
-                                     )
+from registry.enums.iso import (CategoryChoices, LanguageChoices,
+                                MetadataCharsetChoices, UpdateFrequencyChoices)
+from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
+                                     ReferenceSystemPrefixChoices,
+                                     TimeExtentKind)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         KeywordManager,
-                                        ServiceMetadataRecordManager, TimeExtentManager)
+                                        ServiceMetadataRecordManager,
+                                        TimeExtentManager)
+from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
@@ -30,11 +34,6 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
-from registry.enums.iso import (
-    LanguageChoices, CategoryChoices, MetadataCharsetChoices, UpdateFrequencyChoices)
-from django.db.transaction import atomic
-from django.db.models import F, Q
-import logging
 
 CRS_Registry = Registry()
 

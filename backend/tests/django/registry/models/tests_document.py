@@ -119,10 +119,8 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
     def test_current_capabilities_of_wms(self):
         capabilities = self.wms.get_updated_capabilitites()
 
-        # check service operation urls
-        # self.assertEqual(3, len(capabilities.operation_urls))
-        # self.assertEqual("http://example.com/wms?",
-        #                capabilities.get_operation_url_by_name_and_method(OGCOperationEnum.GET_MAP, HttpMethodEnum.GET))
+        self.assertXpathCount(
+            capabilities, "/d:WMS_Capabilities/d:Capability/d:Request/*", 3)
 
         # check service metadata
         self.assertXpathValue(
@@ -159,30 +157,44 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         capabilities: XmlWebFeatureService = self.wfs.get_updated_capabilitites()
 
         # check service operation urls
-        self.assertEqual(1, len(capabilities.operation_urls))
-        self.assertEqual("http://example.com/wfs?",
-                         capabilities.get_operation_url_by_name_and_method(OGCOperationEnum.GET_FEATURE, HttpMethodEnum.GET))
+        self.assertXpathCount(
+            capabilities,
+            "/wfs:WFS_Capabilities/ows:OperationsMetadata//ows:Operation",
+            1)
 
         # check service metadata
-        self.assertEqual("huhu", capabilities.title)
+        self.assertXpathValue(
+            capabilities,
+            "/wfs:WFS_Capabilities/ows:ServiceIdentification/ows:Title/text()",
+            "huhu")
 
         # check a feature type metadata
-        some_feature_type = capabilities.get_feature_type_by_identifier(
-            identifier="node2")
-        self.assertEqual("hoho", some_feature_type.title)
-        self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(some_feature_type.keywords)))
+        self.assertXpathValue(
+            capabilities,
+            "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='node2']/wfs:Title/text()",
+            "hoho")
 
-        self.assertEqual(3, len(capabilities.feature_types),
-                         msg="only 3 feature types are active.")
+        self.assertXpathValues(capabilities,
+                               "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='node2']/ows:Keywords/ows:Keyword/text()",
+                               ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
+
+        self.assertXpathCount(
+            capabilities,
+            "/wfs:WFS_Capabilities/wfs:FeatureTypeList//wfs:FeatureType",
+            3)
 
     def test_current_capabilitites_of_csw(self):
         capabilities: XmlCatalogueService = self.csw.get_updated_capabilitites()
 
         # check service operation urls
-        self.assertEqual(2, len(capabilities.operation_urls))
-        self.assertEqual("http://example.com/wms?",
-                         capabilities.get_operation_url_by_name_and_method(OGCOperationEnum.GET_CAPABILITIES, HttpMethodEnum.GET))
+        self.assertXpathCount(
+            capabilities,
+            "/csw:Capabilities/ows:OperationsMetadata//ows:Operation",
+            6)
 
         # check service metadata
-        self.assertEqual("huhu", capabilities.title)
+        self.assertXpathValue(
+            capabilities,
+            "/csw:Capabilities/ows:ServiceIdentification/ows:Title/text()",
+            "huhu")
+        # TODO: check other metadata too (keywords, etc..)

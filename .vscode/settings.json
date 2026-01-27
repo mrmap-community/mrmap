@@ -42,5 +42,12 @@
   "sonarlint.connectedMode.project": {
     "connectionId": "mrmap-community",
     "projectKey": "mrmap-community_backend"
-  }
+  },
+  "python-envs.pythonProjects": [
+    {
+      "path": "",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ]
 }

@@ -1,7 +1,8 @@
 from typing import Dict, List
 from xml.sax.saxutils import unescape
 
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.gdal.geometries import OGRGeometry
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models.query_utils import Q
 from django.http.request import HttpRequest as DjangoRequest
 from lark.exceptions import LarkError
@@ -372,7 +373,7 @@ class OGCRequest(Request):
         )
 
     @property
-    def xml_request(self):
+    def xml_request(self) -> etree._Element:
         """Constructs a xml request object based on the given HTTP GET request.
 
         This function analyzes the given request by its method and operation. 
@@ -400,3 +401,96 @@ class OGCRequest(Request):
                 elif self.is_get:
                     self.build_get_record_by_id_from_get()
         return self._xml_request
+
+    @property
+    def content(self) -> bytes:
+        return etree.tostring(
+            self._xml_request,
+            pretty_print=True,
+            xml_declaration=True,
+            encoding="UTF-8"
+        )
+
+    def secure_get_feature_request(self, security_info_per_feature_type: List[dict]):
+        """
+
+        Parameters
+        ----------
+        security_info_per_feature_type: List[dict]
+            An array of JSON objects, one per requested feature type, with the
+            following structure:
+
+            {
+                "type_name": str,
+                "geometry_property_name": str,
+                "allowed_area_union": Geometry | None
+            }
+
+            where:
+            - type_name:
+                Identifier of the feature type.
+            - geometry_property_name:
+                Name of the geometry property of the feature type. If no
+                geometry property is defined, defaults to "THE_GEOM".
+            - allowed_area_union:
+                A spatial union of all allowed areas applicable to the feature
+                type for the requested operation, or None if no spatial
+                restriction applies.
+        """
+        if not self.is_get_feature_request:
+            return
+
+        if self._xml_request is None:
+            _ = self.xml_request  # force XML construction
+
+        try:
+            lookup = {
+                ft["type_name"]: {
+                    "geometry_property_name": ft.get("geometry_property_name", "THE_GEOM"),
+                    "allowed_area_union": ft["allowed_area_union"],
+                }
+                for ft in security_info_per_feature_type
+            }
+        except (TypeError, KeyError):
+            raise TypeError(
+                "security_info_per_feature_type must be a list of dicts with keys: "
+                "'type_name', 'geometry_property_name', 'allowed_area_union'"
+            )
+
+        # Builder is the single authority for filters
+        builder = WFSBuilder(service_version=self.service_version)
+
+        for query in builder.iter(self._xml_request, local_name="Query"):
+            type_name = query.get(
+                "typeNames") or query.get("typeName")
+            if not type_name:
+                continue
+
+            info = lookup.get(type_name)
+            if not info:
+                continue
+
+            polygon: Polygon = info["allowed_area_union"]
+            if not polygon or polygon.empty:
+                continue
+
+            geom_prop = info["geometry_property_name"]
+
+            # 🔐 build spatial filter using WFSBuilder (schema-safe)
+            spatial_filter = builder.build_spatial_filter(
+                geometry=polygon.ogr,
+                value_reference=geom_prop,
+                operator="Intersects",
+            )
+
+            # find existing <fes:Filter> if present
+            existing_filter = next(
+                builder.iter(query, local_name="Filter"), None
+            )
+
+            if existing_filter is not None:
+                # AND existing filter with spatial restriction
+                builder.and_filter(existing_filter, spatial_filter)
+            else:
+                # attach new filter directly
+                query.append(spatial_filter)

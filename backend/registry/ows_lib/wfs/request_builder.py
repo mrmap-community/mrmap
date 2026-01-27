@@ -1,8 +1,13 @@
+from django.contrib.gis.gdal.geometries import OGRGeometry
 from lxml import etree
 from registry.ows_lib.xml.builder import XSDSkeletonBuilder
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 
 class WFSBuilder(XSDSkeletonBuilder):
+    FES_NS = NAMESPACE_LOOKUP["fes_2_0"]
+    GML_NS = NAMESPACE_LOOKUP["gml_3_2_2"]
+
     def __init__(self, service_version="2.0.2"):
         self.builder = XSDSkeletonBuilder(
             ("wfs", "GetCapabilitites", service_version)
@@ -57,3 +62,71 @@ class WFSBuilder(XSDSkeletonBuilder):
                 query.append(filter_xml)
 
         return root
+
+    def build_spatial_filter(
+        self,
+        *,
+        geometry: OGRGeometry,
+        value_reference: str,
+        operator: str = "Intersects",
+    ) -> etree._Element:
+        """
+        Build a FES 2.0 spatial filter using XSDSkeletonBuilder helpers.
+        """
+
+        # <fes:Filter>
+        filter_el = self.add_foreign_child(
+            parent=None,  # temporary root
+            qname=etree.QName(self.FES_NS, "Filter"),
+        )
+
+        # <fes:Intersects>
+        intersects = self.add_foreign_child(
+            filter_el,
+            etree.QName(self.FES_NS, operator),
+        )
+
+        # <fes:ValueReference>
+        self.add_foreign_child(
+            intersects,
+            etree.QName(self.FES_NS, "ValueReference"),
+            text=value_reference,
+        )
+
+        # geometry → GML (foreign, but allowed)
+        gml_str = geometry.gml
+        # inject namespace on the root element
+        if gml_str.startswith("<gml:"):
+            parts = gml_str.split(" ", 1)  # after <gml:Polygon
+            gml_str = f'{parts[0]} xmlns:gml="{self.GML_NS}" {parts[1]}'
+        gml_el = etree.fromstring(gml_str.encode("utf-8"))
+        intersects.append(gml_el)
+
+        return filter_el
+
+    def and_filter(
+        self,
+        existing_filter: etree._Element,
+        new_filter: etree._Element,
+    ) -> None:
+        """
+        AND an existing <fes:Filter> with another one.
+        """
+
+        fes_ns = self.FES_NS
+
+        existing_children = list(existing_filter)
+        new_children = list(new_filter)
+
+        existing_filter.clear()
+
+        and_el = self.add_foreign_child(
+            existing_filter,
+            etree.QName(fes_ns, "And"),
+        )
+
+        for el in existing_children:
+            and_el.append(el)
+
+        for el in new_children:
+            and_el.append(el)

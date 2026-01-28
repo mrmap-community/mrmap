@@ -1,5 +1,6 @@
 XSD_LOOKUP = {
     ("wfs", "GetCapabilitites", "2.0.0"): "wfsCapabilitites200.xsd",
+    ("wfs", "GetCapabilitites", "2.0.2"): "wfsCapabilitites200.xsd",
     ("wfs", "Exception", "2.0.0"): "wfsExceptionReport202.xsd",
     ("wms", "Exception", "1.1.1"): "wmsExceptionReport111.xsd",
     ("wms", "Exception", "1.3.0"): "wmsExceptionReport130.xsd",

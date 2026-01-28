@@ -5,7 +5,6 @@ from ows_lib.xml_mapper.capabilities.csw.csw202 import \
     CatalogueService as XmlCatalogueService
 from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
     WebFeatureService as XmlWebFeatureService
-from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.metadata import Keyword
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -67,7 +66,9 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         some_layer: Layer = self.wms.layers.get(identifier="node1.1.1")
         some_layer.title = "hoho"
         some_layer.keywords.set(
-            Keyword.objects.filter(keyword__contains="ergiebiger Dauerregen"))
+            Keyword.objects.filter(
+                # this also contains extrem ergiebiger Dauerregen
+                keyword__contains="ergiebiger Dauerregen"))
         some_layer.save()
 
     def setUpWfs(self):
@@ -91,8 +92,10 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         some_feature_type: FeatureType = FeatureType.objects.get(
             identifier="node2")
         some_feature_type.title = "hoho"
-        some_feature_type.keywords.set(Keyword.objects.filter(
-            keyword__contains="ergiebiger Dauerregen"))
+        some_feature_type.keywords.set(
+            Keyword.objects.filter(
+                # this also contains extrem ergiebiger Dauerregen
+                keyword__contains="ergiebiger Dauerregen"))
         some_feature_type.save()
 
     def setUpCsw(self):
@@ -118,6 +121,13 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
 
     def test_current_capabilities_of_wms(self):
         capabilities = self.wms.get_updated_capabilitites()
+        capabilities.write(
+            "output.xml",
+            encoding="utf-8",
+            xml_declaration=True,
+            standalone=True,
+            pretty_print=True
+        )
 
         self.assertXpathCount(
             capabilities, "/d:WMS_Capabilities/d:Capability/d:Request/*", 3)
@@ -133,7 +143,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
             "/d:WMS_Capabilities/d:Capability/d:Layer/d:Title/text()",
             "hihi")
         self.assertXpathValues(capabilities,
-                               "/d:WMS_Capabilities/d:Capability/d:Layer/d:KeywordList/d:Keyword/text()",
+                               "/d:WMS_Capabilities/d:Capability/d:Layer/d:KeywordList/d:Keyword",
                                ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
 
         # check a layer metadata in deep
@@ -142,7 +152,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
             "/d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.1']/d:Title/text()",
             "hoho")
         self.assertXpathValues(capabilities,
-                               "/d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.1']/d:KeywordList/d:Keyword/text()",
+                               "/d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.1']/d:KeywordList/d:Keyword",
                                ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
         self.assertXpathCount(
             capabilities,
@@ -160,7 +170,7 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         self.assertXpathCount(
             capabilities,
             "/wfs:WFS_Capabilities/ows:OperationsMetadata//ows:Operation",
-            1)
+            11)
 
         # check service metadata
         self.assertXpathValue(
@@ -175,13 +185,13 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
             "hoho")
 
         self.assertXpathValues(capabilities,
-                               "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='node2']/ows:Keywords/ows:Keyword/text()",
+                               "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='node2']/ows:Keywords/ows:Keyword",
                                ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
 
         self.assertXpathCount(
             capabilities,
             "/wfs:WFS_Capabilities/wfs:FeatureTypeList//wfs:FeatureType",
-            3)
+            4)
 
     def test_current_capabilitites_of_csw(self):
         capabilities: XmlCatalogueService = self.csw.get_updated_capabilitites()

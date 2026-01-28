@@ -22,7 +22,7 @@ from registry.ows_lib.request.utils import (
 from registry.ows_lib.response.exceptions import (
     InvalidParameterValueException,
     MissingConstraintLanguageParameterException)
-from registry.ows_lib.wfs.request_builder import WFSBuilder
+from registry.ows_lib.wfs.xml_builder import WFSBuilder
 from requests import Request
 
 

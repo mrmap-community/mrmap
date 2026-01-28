@@ -9,9 +9,7 @@ class WFSBuilder(XSDSkeletonBuilder):
     GML_NS = NAMESPACE_LOOKUP["gml_3_2_2"]
 
     def __init__(self, service_version="2.0.2"):
-        self.builder = XSDSkeletonBuilder(
-            ("wfs", "GetCapabilitites", service_version)
-        )
+        super().__init__(("wfs", "GetCapabilitites", service_version))
 
     def build_get_feature(
         self,
@@ -62,6 +60,36 @@ class WFSBuilder(XSDSkeletonBuilder):
                 query.append(filter_xml)
 
         return root
+
+    def set_bbox(
+        self,
+        geometry: OGRGeometry,
+        feature_type: etree._Element
+    ) -> etree._Element:
+
+        min_x = str(geometry.extent[0])
+        min_y = str(geometry.extent[1])
+        max_x = str(geometry.extent[2])
+        max_y = str(geometry.extent[3])
+
+        lower_corner = f"{min_x} f{min_y}"
+        upper_corner = f"{max_x} f{max_y}"
+        bbox = self.add_foreign_child(
+            feature_type,
+            etree.QName(NAMESPACE_LOOKUP["ows_1_1"], "WGS84BoundingBox"),
+        )
+        self.add_foreign_child(
+            bbox,
+            etree.QName(NAMESPACE_LOOKUP["ows_1_1"], "LowerCorner"),
+            text=lower_corner
+        )
+        self.add_foreign_child(
+            bbox,
+            etree.QName(NAMESPACE_LOOKUP["ows_1_1"], "UpperCorner"),
+            text=upper_corner
+        )
+
+        return bbox
 
     def build_spatial_filter(
         self,

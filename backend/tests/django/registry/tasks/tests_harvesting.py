@@ -8,6 +8,7 @@ from MrMap.settings import BASE_DIR
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.models.metadata import DatasetMetadataRecord
 from registry.models.service import CatalogueService
+from registry.ows_lib.client.core import OgcClient
 from registry.tasks.harvest import (call_fetch_records,
                                     call_fetch_total_records,
                                     call_md_metadata_file_to_db)
@@ -51,7 +52,6 @@ def setup_capabilitites_file():
     cap_file.close()
 
 
-# @skip("HarvestingGetHitsTaskTest")
 class HarvestingGetHitsTaskTest(TransactionTestCase):
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
@@ -66,14 +66,17 @@ class HarvestingGetHitsTaskTest(TransactionTestCase):
     @patch("celery.canvas.Signature.apply_async", return_value=None)
     @patch("celery.canvas.Signature.apply", return_value=None)
     @patch("celery.canvas.chord.apply_async", return_value=None)
-    @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect
+    )
     def test_success(self, mocked_send_request, mocked_chord_apply_async, mocked_apply, mocked_apply_async, mocked_on_commit):
         call_fetch_total_records.delay(harvesting_job_id=1)
         harvesting_job: HarvestingJob = HarvestingJob.objects.get(pk=1)
         self.assertEqual(harvesting_job.total_records, 447773)
 
 
-# @skip("HarvestingGetRecordsTaskTest")
 class HarvestingGetRecordsTaskTest(TransactionTestCase):
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
@@ -84,7 +87,11 @@ class HarvestingGetRecordsTaskTest(TransactionTestCase):
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect
+    )
     def test_success(self, mocked_run_checks):
 
         call_fetch_records.delay(harvesting_job_id=1, start_position=1)
@@ -93,7 +100,6 @@ class HarvestingGetRecordsTaskTest(TransactionTestCase):
         self.assertEqual(temporary_md_files_count, 10)
 
 
-# @skip("TemporaryMdMetadataFileToDbTaskTest")
 class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']

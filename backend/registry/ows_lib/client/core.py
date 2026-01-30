@@ -3,6 +3,7 @@ from abc import ABC
 from lxml import etree
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.exceptions import InitialError
+from registry.ows_lib.request.utils import update_queryparams
 from requests import Request, Response, Session
 
 
@@ -182,12 +183,23 @@ class OgcClient(ABC):
         :rtype: Request
         """
         method = HttpMethodEnum.GET
-        url = self.get_operation_url_by_name_and_method(
-            OGCOperationEnum.GET_CAPABILITIES, method)
+
+        params = {
+            "VERSION": self.service_version,
+            "REQUEST": OGCOperationEnum.GET_CAPABILITIES.label,
+            "SERVICE": self.service_type
+        }
+
+        url = update_queryparams(
+            url=self.get_operation_url_by_name_and_method(
+                OGCOperationEnum.GET_CAPABILITIES,
+                HttpMethodEnum.GET
+            ),
+            params=params)
 
         return Request(method=method.label.upper(), url=url)
 
-    def send_request(self, request: Request, timeout: int = 10) -> Response:
+    def send_request(self, request: Request, timeout: int = 10, *args, **kwargs) -> Response:
         """Sends a given request with internal session object.
 
         :param request: A request object that shall be sended
@@ -200,4 +212,4 @@ class OgcClient(ABC):
         :rtype: requests.Response
 
         """
-        return self.session.send(request=request.prepare(), timeout=timeout)
+        return self.session.send(request=request.prepare(), timeout=timeout, *args, **kwargs)

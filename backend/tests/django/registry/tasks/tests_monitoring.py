@@ -13,6 +13,7 @@ from registry.models.monitoring import (GetCapabilitiesProbe,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import WebMapService
+from registry.ows_lib.client.core import OgcClient
 from rest_framework import status
 from tests.django.utils import MockResponse
 
@@ -81,7 +82,11 @@ class WmsGetCapabilitiesMonitoringTaskTest(TransactionTestCase):
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
-    @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
+    @patch.object(
+        OgcClient,
+        "send_request",
+        side_effect=side_effect
+    )
     def test_run_wms_monitoring(self, mocked_send_request,  mocked_on_commit):
         setup_capabilitites_file()
         cap_probe = GetCapabilitiesProbe.objects.create(
@@ -144,7 +149,11 @@ class WmsGetCapabilitiesMonitoringTaskTest(TransactionTestCase):
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
-    @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
+    @patch.object(
+        OgcClient,
+        "send_request",
+        side_effect=side_effect
+    )
     def test_run_wms_monitoring_with_service_exceptions(self, mocked_send_request,  mocked_on_commit):
         setup_capabilitites_file(service_exception_url=True)
         cap_probe = GetCapabilitiesProbe.objects.create(

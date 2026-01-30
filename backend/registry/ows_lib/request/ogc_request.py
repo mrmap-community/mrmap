@@ -480,7 +480,7 @@ class OGCRequest(Request):
             spatial_filter = builder.build_spatial_filter(
                 geometry=polygon.ogr,
                 value_reference=geom_prop,
-                operator="Intersects",
+                operator="Within",
             )
 
             # find existing <fes:Filter> if present

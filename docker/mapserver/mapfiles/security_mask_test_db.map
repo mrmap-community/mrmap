@@ -30,7 +30,7 @@ MAP
         END
 
         CONNECTIONTYPE POSTGIS
-        CONNECTION "host=postgis dbname=test_mrmap user=mrmap password=mrmap port=5432"
+        CONNECTION "host=postgis dbname=test_mrmap user=${DB_USER} password=${DB_PASSWORD} port=${DB_PORT}"
 
 
        DATA "geom FROM (

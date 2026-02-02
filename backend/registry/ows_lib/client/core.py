@@ -196,7 +196,7 @@ class OgcClient(ABC):
         )
         return Request(method=method.label.upper(), url=url)
 
-    def send_request(self, request: Request, timeout: int = 10) -> Response:
+    def send_request(self, request: Request, timeout: int = 10, *args, **kwargs) -> Response:
         """Sends a given request with internal session object.
 
         :param request: A request object that shall be sended
@@ -209,6 +209,4 @@ class OgcClient(ABC):
         :rtype: requests.Response
 
         """
-        return self.session.send(request=request.prepare(), timeout=timeout)
-        return self.session.send(request=request.prepare(), timeout=timeout)
-        return self.session.send(request=request.prepare(), timeout=timeout)
+        return self.session.send(request=request.prepare(), timeout=timeout, *args, **kwargs)

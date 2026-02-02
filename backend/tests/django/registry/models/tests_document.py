@@ -8,37 +8,13 @@ from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
 from registry.models.metadata import Keyword
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
+from tests.django.contrib import XpathTestCase
 
 
-class CapabilitiesDocumentModelMixinTest(TestCase):
+class CapabilitiesDocumentModelMixinTest(XpathTestCase):
 
     fixtures = ['test_users.json', "test_keywords.json", "test_wms.json",
                 "test_wfs.json", "test_csw.json"]
-
-    def assertXpathValue(self, tree, xpath: str, expected: str) -> str:
-        namespaces = tree.getroot().nsmap.copy()
-        if None in namespaces:
-            namespaces["d"] = namespaces.pop(None)
-
-        result = tree.xpath(xpath, namespaces=namespaces)
-        self.assertTrue(result[0] if result else None == expected,
-                        msg=f"Value Missmatch from xpath {xpath}: {result} does not equals {expected} ")
-
-    def assertXpathValues(self, tree, xpath: str, expected: str) -> str:
-        namespaces = tree.getroot().nsmap.copy()
-        if None in namespaces:
-            namespaces["d"] = namespaces.pop(None)
-
-        result = tree.xpath(xpath, namespaces=namespaces)
-        self.assertListEqual([value.text for value in result], expected)
-
-    def assertXpathCount(self, tree, xpath: str, expected_count: int) -> str:
-        namespaces = tree.getroot().nsmap.copy()
-        if None in namespaces:
-            namespaces["d"] = namespaces.pop(None)
-
-        result = tree.xpath(xpath, namespaces=namespaces)
-        self.assertEqual(len(result), expected_count)
 
     def setUpWms(self):
         self.wms: WebMapService = WebMapService.objects.get(

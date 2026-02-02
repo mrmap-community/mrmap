@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, TransactionTestCase
+from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django_celery_beat.models import IntervalSchedule
 from MrMap.settings import BASE_DIR

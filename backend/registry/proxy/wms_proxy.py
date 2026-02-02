@@ -7,7 +7,7 @@ from queue import Queue
 from threading import Thread
 
 from django.conf import settings
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -20,7 +20,6 @@ from registry.ows_lib.response.exceptions import (ForbiddenException,
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
 from registry.proxy.mixins import OgcServiceProxyView
 from registry.xmlmapper.ogc.feature_collection import FeatureCollection
-from requests import Request, Session
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -89,61 +88,59 @@ class WebMapServiceProxy(OgcServiceProxyView):
         White (255) = masked/restricted
         Black (0) = allowed
         Assumes self.service.allowed_area_union is always a Polygon.
+        Uses ogc_request.bbox as the clipping polygon (correct axis order).
         """
 
         width = int(self.ogc_request.ogc_query_params["WIDTH"])
         height = int(self.ogc_request.ogc_query_params["HEIGHT"])
 
-        minx, miny, maxx, maxy = map(
-            float, self.ogc_request.ogc_query_params["BBOX"].split(",")
-        )
+        # Get the requested bbox polygon (already a GEOSGeometry)
+        request_bbox: GEOSGeometry = self.ogc_request.bbox
 
-        crs_qp = "CRS" if "CRS" in self.ogc_request.ogc_query_params else "SRS"
-        requested_srid = int(
-            self.ogc_request.ogc_query_params[crs_qp].split(":")[-1]
-        )
+        if request_bbox.empty:
+            # fallback to fully masked if bbox is missing
+            return Image.new("RGB", (width, height), (255, 255, 255))
 
-        # Fully masked by default (white)
+        # Get bounds for world->pixel conversion
+        # (xmin, ymin, xmax, ymax)
+        minx, miny, maxx, maxy = request_bbox.extent
+
+        # Fully masked by default
         mask = Image.new("L", (width, height), 255)
         draw = ImageDraw.Draw(mask)
 
         try:
-            geom = self.service.allowed_area_union
+            geom: Polygon = self.service.allowed_area_union
             if geom is None or geom.empty:
                 return mask.convert("RGB")
 
-            # Transform to requested CRS if needed
-            if geom.srid != requested_srid:
-                geom = geom.transform(requested_srid, clone=True)
+            # Transform geometry to bbox SRID if needed
+            if geom.srid != request_bbox.srid:
+                geom = geom.transform(request_bbox.srid, clone=True)
 
-            # Clip geometry to requested BBOX
-            request_bbox = Polygon.from_bbox((minx, miny, maxx, maxy))
+            # Clip allowed area to request bbox
             geom = geom.intersection(request_bbox)
             if geom.empty:
                 return mask.convert("RGB")
 
-            # Helper: world -> pixel coords
+            # Convert world coordinates to pixel coordinates
             def world_to_pixel(x, y):
                 px = (x - minx) / (maxx - minx) * width
-                py = height - (y - miny) / (maxy - miny) * height
+                py = height - (y - miny) / (maxy - miny) * height  # flip Y
                 return (px, py)
 
-            # Draw exterior ring (allowed area = black)
-            exterior_coords = [
-                world_to_pixel(x, y) for x, y in geom[0].coords
-            ]
+            # Draw exterior (allowed area = black)
+            exterior_coords = [world_to_pixel(x, y) for x, y in geom[0].coords]
             draw.polygon(exterior_coords, fill=0)
 
-            # Draw interior rings (holes) back to white
+            # Draw interiors (holes) as white
             for interior_ring in geom[1:]:
-                hole_coords = [
-                    world_to_pixel(x, y) for x, y in interior_ring.coords
-                ]
+                hole_coords = [world_to_pixel(x, y)
+                               for x, y in interior_ring.coords]
                 draw.polygon(hole_coords, fill=255)
 
         except Exception as e:
             logging.exception("Error creating secured mask: %s", e)
-            # If something goes wrong → fully masked
             mask = Image.new("L", (width, height), 255)
 
         return mask.convert("RGB")

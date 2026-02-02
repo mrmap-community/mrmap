@@ -55,6 +55,14 @@ REMOTE_RESPONSE = MockResponse(
 )
 
 
+def epsg_side_effect(*args, **kwargs):
+    return EPSG_API_25832_RESPONSE
+
+
+def remote_effect(*args, **kwargs):
+    return REMOTE_RESPONSE
+
+
 class WebMapServiceProxyTest(TestCase):
 
     @classmethod
@@ -144,12 +152,12 @@ class WebMapServiceProxyTest(TestCase):
     @patch.object(
         target=WebMapServiceProxy,
         attribute="get_remote_response",
-        side_effect=[REMOTE_RESPONSE],
+        side_effect=remote_effect,
     )
     @patch.object(
         target=Registry,
         attribute="_fetch_coord_ref_system",
-        side_effect=[EPSG_API_25832_RESPONSE],
+        side_effect=epsg_side_effect,
     )
     def test_matching_secured_map(self, mocked_proxy, mocked_registry):
         expected_png_path = Path(
@@ -169,7 +177,7 @@ class WebMapServiceProxyTest(TestCase):
 
         received_image = Image.open(BytesIO(response.content))
         expected_image = Image.open(fp=expected_png_path)
-        
+
         self.assertTrue(self.are_images_equal(received_image, expected_image))
 
     def test_unknown_layer_exception(self):

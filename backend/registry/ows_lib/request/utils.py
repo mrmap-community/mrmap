@@ -113,16 +113,16 @@ def _construct_polygon_from_bbox_query_param_for_wms(get_dict):
     :rtype: :class:`django.contrib.gis.geos.polygon.Polygon`
     """
     try:
-        _, minor_version, _ = get_dict["version"].split(
+        _, minor_version, _ = get_dict.get("version", get_dict.get("VERSION")).split(
             ".")
         minor_version = int(minor_version)
-        srid = get_dict.get("srs", None)
+        srid = get_dict.get("srs", get_dict.get("SRS", None))
         if not srid:
-            srid = get_dict.get("crs", None)
+            srid = get_dict.get("crs", get_dict.get("CRS", None))
             if not srid:
                 raise MissingCrsParam
 
-        bbox = get_dict["bbox"]
+        bbox = get_dict.get("bbox", get_dict.get("BBOX"))
         min_x, min_y, max_x, max_y = bbox.split(",")
         min_x = float(min_x)
         min_y = float(min_y)

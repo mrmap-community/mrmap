@@ -26,9 +26,21 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+
   mapserver:
+    image: camptocamp/mapserver:7.6
+    hostname: "mrmap-mapserver"
+    volumes:
+      - type: bind
+        source: ./docker/mapserver/mapfiles
+        target: /etc/mapserver/mapfiles
+      - type: bind
+        source: ./docker/mapserver/shapefiles
+        target: /etc/mapserver/shapefiles
     ports:
       - "8090:80"
+    networks:
+      - mrmap-internal
 
   pre-commit-check:
     build:

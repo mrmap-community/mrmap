@@ -180,12 +180,7 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
                     ),
                     allowed_area_union=self.get_allowed_operation_qs().get_allowed_areas(
                         service_pk=OuterRef("pk"), request=request
-                    ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom'),
-                    allowed_area_pks=self.get_allowed_operation_qs().get_allowed_areas(
-                        service_pk=OuterRef("pk"), request=request
-                    ).values('secured_service__pk').annotate(pks=ArrayAgg('pk')).values('pks'),
-
-
+                    ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom')
                 )
             )
 

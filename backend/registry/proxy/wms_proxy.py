@@ -7,6 +7,7 @@ from queue import Queue
 from threading import Thread
 
 from django.conf import settings
+from django.contrib.gis.geos import Polygon
 from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -83,63 +84,69 @@ class WebMapServiceProxy(OgcServiceProxyView):
             return super().get_and_post(request, *args, **kwargs)
 
     def _create_secured_service_mask(self):
-        """Creates call to local mapserver and returns the response
-        Gets a mask image, which can be used to remove restricted areas from another image
-        Returns:
-             secured_image (Image)
-        # TODO: calculate the security mask without mapserver as depending subsystem
         """
+        Create a security mask for WMS GetMap using PIL.
+        White (255) = masked/restricted
+        Black (0) = allowed
+        Assumes self.service.allowed_area_union is always a Polygon.
+        """
+
+        width = int(self.ogc_request.ogc_query_params["WIDTH"])
+        height = int(self.ogc_request.ogc_query_params["HEIGHT"])
+
+        minx, miny, maxx, maxy = map(
+            float, self.ogc_request.ogc_query_params["BBOX"].split(",")
+        )
+
         crs_qp = "CRS" if "CRS" in self.ogc_request.ogc_query_params else "SRS"
-        width = int(self.ogc_request.ogc_query_params.get("WIDTH"))
-        height = int(self.ogc_request.ogc_query_params.get("HEIGHT"))
+        requested_srid = int(
+            self.ogc_request.ogc_query_params[crs_qp].split(":")[-1]
+        )
+
+        # Fully masked by default (white)
+        mask = Image.new("L", (width, height), 255)
+        draw = ImageDraw.Draw(mask)
+
         try:
-            from django.db import connection
-            db_name = connection.settings_dict["NAME"]
-            query_parameters = {
-                "VERSION": self.ogc_request.ogc_query_params.get("VERSION"),
-                "REQUEST": "GetMap",
-                "SERVICE": "WMS",
-                "FORMAT": "image/png",
-                "LAYERS": "mask",
-                crs_qp: self.ogc_request.ogc_query_params.get(crs_qp),
-                "BBOX": self.ogc_request.ogc_query_params.get("BBOX"),
-                "WIDTH": width,
-                "HEIGHT": height,
-                "TRANSPARENT": "TRUE",
-                "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
-                "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
-                "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
-                "map": f"/etc/mapserver/mapfiles/security_mask{'_test_db' if 'test' in db_name else ''}.map",
-                "keys": ",".join(str(pk) for pk in self.service.allowed_area_pks)
-            }
+            geom = self.service.allowed_area_union
+            if geom is None or geom.empty:
+                return mask.convert("RGB")
 
-            request = Request(
-                method="GET", url=settings.MAPSERVER_URL, params=query_parameters
-            )
-            session = Session()
-            response = session.send(request.prepare())
+            # Transform to requested CRS if needed
+            if geom.srid != requested_srid:
+                geom = geom.transform(requested_srid, clone=True)
 
-            mask = Image.open(io.BytesIO(response.content))
+            # Clip geometry to requested BBOX
+            request_bbox = Polygon.from_bbox((minx, miny, maxx, maxy))
+            geom = geom.intersection(request_bbox)
+            if geom.empty:
+                return mask.convert("RGB")
 
-            # Put combined mask on white background
-            background = Image.new("RGB", (width, height), (255, 255, 255))
-            background.paste(mask, mask=mask)
+            # Helper: world -> pixel coords
+            def world_to_pixel(x, y):
+                px = (x - minx) / (maxx - minx) * width
+                py = height - (y - miny) / (maxy - miny) * height
+                return (px, py)
+
+            # Draw exterior ring (allowed area = black)
+            exterior_coords = [
+                world_to_pixel(x, y) for x, y in geom[0].coords
+            ]
+            draw.polygon(exterior_coords, fill=0)
+
+            # Draw interior rings (holes) back to white
+            for interior_ring in geom[1:]:
+                hole_coords = [
+                    world_to_pixel(x, y) for x, y in interior_ring.coords
+                ]
+                draw.polygon(hole_coords, fill=255)
+
         except Exception as e:
-            settings.ROOT_LOGGER.exception(e)
-            # If anything occurs during the mask creation, we have to make sure the response won't contain any
-            # information at all.
-            # So create an error mask
-            background = Image.new(
-                "RGB",
-                (width, height),
-                (
-                    settings.ERROR_MASK_VAL,
-                    settings.ERROR_MASK_VAL,
-                    settings.ERROR_MASK_VAL,
-                ),
-            )
+            logging.exception("Error creating secured mask: %s", e)
+            # If something goes wrong → fully masked
+            mask = Image.new("L", (width, height), 255)
 
-        return background
+        return mask.convert("RGB")
 
     def _get_default_ttf(self, font_size: int) -> ImageFont.FreeTypeFont:
         system = platform.system()
@@ -310,6 +317,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         # we fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the
         # mask are generated at the same time. This speed up the process by ~30%!
+        # TODO: secured_service_mask is now generated with PIL. Check if multithreading is still needed.
         thread_list = []
         results = Queue()
         # to differ the results we return a dict for the remote response

@@ -169,7 +169,7 @@ class WebMapServiceProxyTest(TestCase):
 
         received_image = Image.open(BytesIO(response.content))
         expected_image = Image.open(fp=expected_png_path)
-
+        
         self.assertTrue(self.are_images_equal(received_image, expected_image))
 
     def test_unknown_layer_exception(self):

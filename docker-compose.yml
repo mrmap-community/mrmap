@@ -35,24 +35,6 @@ services:
     environment:
       - loglevel=error
 
-  mapserver:
-    image: camptocamp/mapserver:7.6
-    hostname: "mrmap-mapserver"
-    volumes:
-      - type: bind
-        source: ./docker/mapserver/mapfiles
-        target: /etc/mapserver/mapfiles
-      - type: bind
-        source: ./docker/mapserver/shapefiles
-        target: /etc/mapserver/shapefiles
-    networks:
-      - mrmap-internal
-    environment:
-      DB_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"      
-      DB_NAME: "${DB_NAME:?Please configure DB_NAME in the .env file}"
-      DB_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
-      DB_PORT: "${DB_PORT:?Please configure DB_PORT in the .env file}"
-
   backend:
     build:
       context: ./backend

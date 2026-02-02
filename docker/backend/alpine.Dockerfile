@@ -28,7 +28,7 @@ COPY --from=compile-image /opt/venv /opt/venv
 RUN addgroup -g 1000 mrmapgroup \
     && adduser -D -u 1000 -G mrmapgroup mrmapuser \
     && apk update \
-    && apk add --no-cache libpq netcat-openbsd yaml gettext gdal geos libressl py3-psycopg postgresql-client\
+    && apk add --no-cache font-dejavu libpq netcat-openbsd yaml gettext gdal geos libressl py3-psycopg postgresql-client\
     && rm -rf /var/cache/apk/* \
     && mkdir -p /var/mrmap/backend/media \
     && mkdir -p /var/log/mrmap/backend \

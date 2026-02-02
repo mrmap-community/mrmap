@@ -1,5 +1,8 @@
 import copy
 import io
+import logging
+import platform
+from pathlib import Path
 from queue import Queue
 from threading import Thread
 
@@ -138,6 +141,35 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
         return background
 
+    def _get_default_ttf(self, font_size: int) -> ImageFont.FreeTypeFont:
+        system = platform.system()
+
+        candidates = []
+
+        if system == "Linux":
+            candidates = [
+                # Alpine
+                Path("/usr/share/fonts/dejavu/DejaVuSans.ttf"),
+                # Debian / Ubuntu
+                Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            ]
+        elif system == "Darwin":  # macOS
+            candidates = [
+                Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+                Path("/Library/Fonts/Arial.ttf"),
+            ]
+        elif system == "Windows":
+            candidates = [
+                Path(r"C:\Windows\Fonts\arial.ttf"),
+            ]
+
+        for path in candidates:
+            if path.exists():
+                return ImageFont.truetype(str(path), font_size)
+
+        # Absolute last-resort fallback
+        return ImageFont.load_default(font_size)
+
     def _create_image_with_text(self, w: int, h: int, txt: str):
         """Renders text on an empty image
         Args:
@@ -151,10 +183,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         text_img = Image.new("RGBA", (width, int(h)), (255, 255, 255, 0))
         draw = ImageDraw.Draw(text_img)
         font_size = int(h * settings.FONT_IMG_RATIO)
-
-        font = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size
-        )
+        font = self._get_default_ttf(font_size)
         draw.text((0, 0), txt, (0, 0, 0), font=font)
 
         return text_img
@@ -425,4 +454,8 @@ class WebMapServiceProxy(OgcServiceProxyView):
         if self.ogc_request.is_get_map_request:
             return self.handle_secured_get_map()
         elif self.ogc_request.is_get_feature_info_request:
+            return self.handle_secured_get_feature_info()
+            return self.handle_secured_get_feature_info()
+            return self.handle_secured_get_feature_info()
+            return self.handle_secured_get_feature_info()
             return self.handle_secured_get_feature_info()

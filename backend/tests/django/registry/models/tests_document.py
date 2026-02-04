@@ -106,7 +106,7 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
         )
 
         self.assertXpathCount(
-            capabilities, "/d:WMS_Capabilities/d:Capability/d:Request/*", 3)
+            capabilities, "/d:WMS_Capabilities/d:Capability/d:Request/*", 6)
 
         # check service metadata
         self.assertXpathValue(

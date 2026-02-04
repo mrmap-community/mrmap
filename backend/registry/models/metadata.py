@@ -467,7 +467,6 @@ class RemoteMetadata(models.Model):
         )
 
         if not created_instance:
-            i = 0
             logging.warning(
                 f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
             return

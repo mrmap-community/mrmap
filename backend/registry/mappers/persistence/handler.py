@@ -3,7 +3,6 @@ from datetime import datetime
 from importlib import import_module
 from logging import Logger
 
-from django.apps import apps
 from django.conf import settings
 from django.contrib.postgres.fields import DateTimeRangeField
 from django.core.files.base import ContentFile
@@ -11,7 +10,7 @@ from django.db import models, transaction
 from django.utils.timezone import get_default_timezone, is_naive, make_aware
 from lxml import etree
 from psycopg.types.range import Range
-
+from registry.mappers.utils import find_spec_for_instance, get_unique_fields
 from registry.models.document import DocumentModelMixin
 
 logger: Logger = settings.ROOT_LOGGER
@@ -35,24 +34,6 @@ class PersistenceHandler:
         mod_name, func_name = path.rsplit(".", 1)
         mod = import_module(mod_name)
         return getattr(mod, func_name)
-
-    # ------------------------
-    # Helper: Unique Fields
-    # ------------------------
-    @staticmethod
-    def _get_unique_fields(_, model_cls):
-        """Gibt die Unique-Feld-Kombinationen für das Modell zurück."""
-        unique_sets = []
-
-        for field in model_cls._meta.concrete_fields:
-            if field.unique:
-                unique_sets.append((field.name,))
-
-        for constraint in getattr(model_cls._meta, "constraints", []):
-            if isinstance(constraint, models.UniqueConstraint):
-                unique_sets.append(tuple(constraint.fields))
-
-        return unique_sets
 
     def _normalize_key_value(self, field, value):
         """
@@ -94,7 +75,6 @@ class PersistenceHandler:
         # -----------------------------
         return value
 
-
     def make_instance_key(self, instance, key_fields):
         model = type(instance)
         return tuple(
@@ -106,7 +86,7 @@ class PersistenceHandler:
         )
 
     def _get_key_fields(self, model_cls):
-        unique_sets = self._get_unique_fields(None, model_cls)
+        unique_sets = get_unique_fields(model_cls)
         key_fields = None
         for fields in unique_sets:
             if fields != ('id',):
@@ -156,10 +136,10 @@ class PersistenceHandler:
 
             # ⚠️ Warning logging if counts differ
             if len(to_create) != len(objs):
-                logger.warning(f"not all objects created {len(objs)} != {len(to_create)}")
+                logger.warning(
+                    f"not all objects created {len(objs)} != {len(to_create)}")
 
         return self.build_final_key_map(deduped_instances)
-
 
     def build_final_key_map(self, instances, key_fields=None):
         model_cls = instances[0].__class__
@@ -201,7 +181,7 @@ class PersistenceHandler:
     @staticmethod
     def _redirect_m2m_references(instances_by_model, final_instances_map):
         for model_cls, instances in instances_by_model.items():
-            unique_sets = PersistenceHandler._get_unique_fields(
+            unique_sets = get_unique_fields(
                 None, model_cls)
             key_fields = unique_sets[0] if unique_sets else None
             for inst in instances:
@@ -243,7 +223,7 @@ class PersistenceHandler:
                 logger.warning(f"elemt '{element_path}' is None")
                 continue
 
-            spec = self._find_spec_for_instance(self.mapper.mapping, instance)
+            spec = find_spec_for_instance(self.mapper.mapping, instance)
             model_cls = type(instance)
             create_mode = spec.get("_create_mode", "save")
             entries = instances_by_model[model_cls]
@@ -257,26 +237,6 @@ class PersistenceHandler:
             setattr(inst, "_create_mode", data["_create_mode"])
 
         return flat_instances
-
-    @staticmethod
-    def _find_spec_for_instance(specs: dict, instance):
-        """Sucht rekursiv das Spec für eine Instanz."""
-        for key, value in specs.items():
-            if not isinstance(value, dict):
-                continue
-            model_label = value.get("_model")
-            if model_label:
-                model_cls = apps.get_model(model_label)
-                if isinstance(instance, model_cls):
-                    return value
-            # rekursiv
-            for field_spec in value.get("fields", {}).values():
-                if isinstance(field_spec, dict) and "_model" in field_spec:
-                    found = PersistenceHandler._find_spec_for_instance(
-                        {key: field_spec}, instance)
-                    if found:
-                        return found
-        return {}
 
     # ------------------------
     # Run _pre_save hook
@@ -357,7 +317,7 @@ class PersistenceHandler:
                         ref_map = self.final_instances_map.get(fk_type, {})
 
                         # Unique-Felder bestimmen, id ignorieren
-                        unique_sets = [s for s in PersistenceHandler._get_unique_fields(
+                        unique_sets = [s for s in get_unique_fields(
                             None, fk_type) if s != ('id',)]
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
@@ -386,12 +346,13 @@ class PersistenceHandler:
                     final_list = []
                     for ref in parsed:
                         ref_map = self.final_instances_map.get(type(ref), {})
-                        unique_sets = [s for s in PersistenceHandler._get_unique_fields(
+                        unique_sets = [s for s in get_unique_fields(
                             None, type(ref)) if s != ('id',)]
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
                             try:
-                                ref_key = self.make_instance_key(ref, key_fields)
+                                ref_key = self.make_instance_key(
+                                    ref, key_fields)
                             except AttributeError:
                                 continue
                             final_obj = ref_map.get(ref_key)
@@ -406,9 +367,11 @@ class PersistenceHandler:
         if xml_str := getattr(self.mapper, "xml_str", None):
             content = xml_str
         else:
-            content = etree.tostring(self.mapper.xml_root.getroottree(), encoding="utf-8", pretty_print=True)
+            content = etree.tostring(
+                self.mapper.xml_root.getroottree(), encoding="utf-8", pretty_print=True)
         # calling save() on a FileField will also save the model instance
-        instance.xml_backup_file.save("backup.xml", content=ContentFile(content))
+        instance.xml_backup_file.save(
+            "backup.xml", content=ContentFile(content))
 
     # ------------------------
     # Persist all
@@ -419,7 +382,6 @@ class PersistenceHandler:
         self._run_pre_save_hook()
 
         self.instances_by_model = self._build_instances_by_model()
-
 
         # 2️⃣ Alle Models nach Abhängigkeiten sortieren
         sorted_models = self._sort_models_by_dependencies()

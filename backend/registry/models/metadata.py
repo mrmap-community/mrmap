@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
@@ -150,6 +151,51 @@ class TimeExtent(models.Model):
             return f"{current-self.resolution};{current};0"
         else:
             return f"{self.begin};{self.end};{self.resolution or 0}"
+
+    def iso_resolution(self) -> str:
+        """
+        Convert a timedelta to ISO 8601 duration (P[n]DT[n]H[n]M[n]S).
+        Only supports days, hours, minutes, seconds.
+        """
+        if self.resolution is None or self.resolution.total_seconds() == 0:
+            return "P0D"
+
+        days = self.resolution.days
+        seconds = self.resolution.seconds
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        duration = "P"
+        if days:
+            duration += f"{days}D"
+        if hours or minutes or seconds:
+            duration += "T"
+            if hours:
+                duration += f"{hours}H"
+            if minutes:
+                duration += f"{minutes}M"
+            if seconds:
+                duration += f"{seconds}S"
+        return duration
+
+    def xml_value(self):
+        """
+        Serialize a single TimeExtent instance to string.
+        - Single value: ISO timestamp
+        - Interval: 'begin/end/resolution' (resolution as ISO 8601 duration)
+        - Rolling: 'now - resolution;now;0' (dynamic)
+        """
+        if self.is_single_value:
+            return self.begin.isoformat()
+
+        elif self.is_rolling:
+            current = now()
+            start = current - self.resolution
+            return f"{start.isoformat()};{current.isoformat()};0"
+
+        else:  # Interval
+            resolution_str = self.iso_resolution()
+            return f"{self.begin.isoformat()}/{self.end.isoformat()}/{resolution_str}"
 
 
 class MimeType(models.Model):

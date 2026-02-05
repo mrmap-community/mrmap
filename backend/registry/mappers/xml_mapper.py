@@ -390,7 +390,7 @@ class XmlMapper:
         base_xpath = xpath_or_spec.get("_base_xpath", ".")
         concrete_xpath = build_concrete_xpath(
             xpath_or_spec,
-            instance
+            instance,
         )
         try:
             child_xml_element = xml_element.xpath(
@@ -414,14 +414,8 @@ class XmlMapper:
         if not instance and not child_xml_element:
             # nothing to do. xml has no element and db has no instance. thats fine.
             pass
-        elif not instance:
-            # there is a xml element but no db instance. XML element shall be removed
-            remove_element_or_attribute(
-                child_xml_element,
-                ".",
-                nsmap
-            )
-        elif not child_xml_element:
+
+        elif child_xml_element is None and instance:
             # there is no xml element but a db instance. Create this one on XML
             child_xml_element = ensure_element_for_instance(
                 xml_element,
@@ -434,14 +428,31 @@ class XmlMapper:
                 xpath_or_spec,
                 instance
             )
+        elif child_xml_element is not None and instance:
+            # existing element found. Sync it with db data.
+            self.sync_spec_to_xml(
+                child_xml_element,
+                xpath_or_spec,
+                instance
+            )
+        return child_xml_element
 
     def sync_spec_to_xml(self, xml_element: etree._Element, spec, db_instance):
         if not isinstance(xml_element, etree._Element):
             raise ValueError(
                 f"can not sync for element of type {type(xml_element)}")
 
+        if isinstance(spec, dict) and "_reverse_parser" in spec:
+            # Use _reverse_parser if defined
+            reverse_parser_path = spec.get(
+                "_reverse_parser") if isinstance(spec, dict) else None
+            if reverse_parser_path:
+                parser_func = load_function(reverse_parser_path)
+                # parser function shall creates / update / delete the xml node
+                parser_func(self, xml_element, db_instance)
+            return
         for field_name, xpath_or_spec in spec.get("fields", {}).items():
-            if isinstance(xpath_or_spec, str) or isinstance(xpath_or_spec, dict) and "_reverse_parser" in xpath_or_spec:
+            if isinstance(xpath_or_spec, str) or isinstance(xpath_or_spec, dict) and "_model" not in xpath_or_spec:
                 # simple concrete field
                 self.sync_field_to_xml(
                     xml_element,
@@ -456,22 +467,34 @@ class XmlMapper:
                 is_many = is_many_relation(db_instance.__class__, field_name)
                 base_xpath = xpath_or_spec.get("_base_xpath", ".")
 
-                delete_able_elements = set(xml_element.xpath(
-                    base_xpath,
-                    namespaces=nsmap
-                ))
+                delete_able_elements = {
+                    e.getroottree().getpath(e): e
+                    for e in xml_element.xpath(base_xpath, namespaces=nsmap)
+                }
 
                 if is_many:
                     for related_obj in field.all():
-                        self.sync_xml_with_instance(
+                        synced = self.sync_xml_with_instance(
                             xml_element,
                             xpath_or_spec,
                             related_obj)
 
-                    for child_xml_element in delete_able_elements:
-                        remove_element_or_attribute(
-                            child_xml_element, ".", nsmap)
+                        delete_able_elements.pop(
+                            synced.getroottree().getpath(synced), None)
+
+                    for elem in delete_able_elements.values():
+                        remove_element_or_attribute(elem, ".", nsmap)
                 else:
+                    if not field:
+                        # happens if a one to one kind relation is None.
+                        # TODO: find all child elements based on xpath and remove them
+                        # xpath = xpath_or_spec.get("fields", {}).get(field_name)
+                        # remove_element_or_attribute(
+                        #    xml_element,
+                        #    xpath,
+                        #    nsmap
+                        # )
+                        continue
                     self.sync_xml_with_instance(
                         xml_element,
                         xpath_or_spec,
@@ -497,8 +520,8 @@ class XmlMapper:
         """
         namespaces = self.mapping.get("_namespaces", {})
         if not value:
-            remove_element_or_attribute(xml_element, xpath, namespaces)
+            pass
+            # remove_element_or_attribute(xml_element, xpath, namespaces)
         else:
             # set value normally
-            set_text_or_attribute(xml_element, xpath, namespaces, value)
             set_text_or_attribute(xml_element, xpath, namespaces, value)

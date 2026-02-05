@@ -19,7 +19,8 @@ class XpathTestCase(TestCase):
 
     def assertXpathValue(self, tree, xpath: str, expected: str) -> str:
         result = self._get_by_xpath(tree, xpath)
-        self.assertTrue(result[0] if result else None == expected,
+        result = result[0] if result else None
+        self.assertTrue(result == expected,
                         msg=f"Value Missmatch from xpath {xpath}: {result} does not equals {expected} ")
 
     def assertXpathValues(self, tree, xpath: str, expected: str) -> str:

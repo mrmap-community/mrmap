@@ -79,12 +79,12 @@ XPATH_MAP = {
                 },
                 "operation_urls": {
                     "_model": "registry.WebMapServiceOperationUrl",
-                    "_base_xpath": "./wms:Capability/wms:Request",
+                    "_base_xpath": "./wms:Capability/wms:Request/*/wms:DCPType/wms:HTTP/*",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.wms.parse_operation_urls",
                     "_reverse_parser": "registry.mappers.parsers.wms.reverse_parse_operation_urls",
                     "_identifier": {
-                        "xpath": "./wms:Capability/wms:Request/wms:{operation}/wms:DCPType/wms:HTTP/wms:{method}",
+                        "compiler": "registry.mappers.identifiers.operation_url_identifier"
                     },
                 },
                 "keywords": {
@@ -102,7 +102,9 @@ XPATH_MAP = {
                     "_model": "registry.Layer",
                     "_base_xpath": "./wms:Capability//wms:Layer",
                     "_create_mode": "bulk",
-                    "_identifier": "./wms:Name/text()",
+                    "_identifier": {
+                        "compiler": "registry.mappers.identifiers.layer_identifier",
+                    },
                     "fields": {
                         "mptt_parent": "..",
                         "title": "./wms:Title",
@@ -142,7 +144,7 @@ XPATH_MAP = {
                             "_base_xpath": "./wms:KeywordList/wms:Keyword",
                             "_create_mode": "get_or_create",
                             "_identifier": {
-                                "xpath": "./[text()='{keyword}']",
+                                "xpath": "./wms:KeywordList/wms:Keyword[text()='{keyword}']",
                             },
                             "fields": {
                                 "keyword": "./."
@@ -153,7 +155,7 @@ XPATH_MAP = {
                             "_base_xpath": "./wms:CRS",
                             "_create_mode": "get_or_create",
                             "_identifier": {
-                                "xpath": "./[text()={prefix}:{code}]",
+                                "xpath": "./wms:CRS[text()='{prefix}:{code}']",
                             },
                             "fields": {
                                 "code": {
@@ -171,7 +173,7 @@ XPATH_MAP = {
                             "_base_xpath": "./wms:Style",
                             "_create_mode": "bulk",
                             "_identifier": {
-                                "xpath": "./wms:Name[text()='{name}']",
+                                "xpath": "./wms:Style/wms:Name[text()='{name}']",
                             },
                             "fields": {
                                 "name": "./wms:Name",
@@ -204,7 +206,7 @@ XPATH_MAP = {
                             "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
                             "_create_mode": "bulk",
                             "_identifier": {
-                                "xpath": "./[@xlink:href='{link}']",
+                                "xpath": "./wms:MetadataURL/wms:OnlineResource[@xlink:href='{link}']",
                             },
                             "fields": {
                                 "link": "./@xlink:href"

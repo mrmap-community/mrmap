@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import IO, Union
 
@@ -251,7 +252,7 @@ def remove_element_or_attribute(xml_element, xpath: str, nsmap: dict):
         leaf, _ = ensure_path(xml_element, parent_path, nsmap)
         if attr_name in leaf.attrib:
             del leaf.attrib[attr_name]
-        remove_empty_parents(leaf, xml_element)
+        # remove_empty_parents(leaf, xml_element)
     else:
         leaf, _ = ensure_path(xml_element, xpath, nsmap)
         parent = leaf.getparent() if hasattr(leaf, 'getparent') else None
@@ -284,10 +285,27 @@ def set_text_or_attribute(xml_element, xpath: str, nsmap: dict, value):
         leaf.text = str(value)
 
 
-def build_concrete_xpath(spec: dict, instance) -> str:
+def resolve_field(obj, path: str):
+    """
+    Resolve a dotted path like 'operation.label' from an object.
+    If the final attribute is callable, call it automatically.
+    """
+    current = obj
+    parts = path.split(".")
+    for i, attr in enumerate(parts):
+        if current is None:
+            return None
+        current = getattr(current, attr, None)
+    # If the final value is callable, call it
+    if callable(current):
+        return current()
+    return current
+
+
+def build_concrete_xpath(spec: dict, instance: "models.Model") -> str:
     """
     Build a concrete XPath from a Django model instance using its spec mapping.
-    Works recursively with nested models.
+    Supports nested attributes and automatically calls callables.
 
     Args:
         spec: Mapping dictionary for the model (must contain _base_xpath and optionally _identifier)
@@ -296,41 +314,53 @@ def build_concrete_xpath(spec: dict, instance) -> str:
     Returns:
         str: Concrete XPath pointing to this instance
     """
-    base_xpath = spec.get("_base_xpath", "").rstrip("/")
     identifier_cfg = spec.get("_identifier")
 
-    # 1️⃣ Build identifier XPath from template
     identifier_xpath = ""
+
     if identifier_cfg:
-        if isinstance(identifier_cfg, str):
-            template = identifier_cfg
-        elif isinstance(identifier_cfg, dict) and "xpath" in identifier_cfg:
-            template = identifier_cfg["xpath"]
+        # 🔹 CASE 1: compiler function (preferred)
+        if "compiler" in identifier_cfg:
+            try:
+                func = load_function(identifier_cfg["compiler"])
+                return func(instance)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Error generating xpath via compiler "
+                    f"'{identifier_cfg['compiler']}': {e}"
+                )
+
+        # 🔹 CASE 2: literal / template XPath
+        elif "xpath" in identifier_cfg:
+            xpath_spec = identifier_cfg["xpath"]
+
+            if not isinstance(xpath_spec, str):
+                raise ValueError("_identifier['xpath'] must be a string")
+
+            field_names = set(re.findall(r"{([\w\.]+)}", xpath_spec))
+            field_values = {}
+
+            for name in field_names:
+                value = resolve_field(instance, name)
+                if value is None:
+                    raise KeyError(
+                        f"Instance missing field for xpath template: {name}")
+                field_values[name] = value
+
+            identifier_xpath = xpath_spec.format(**field_values)
+
         else:
             raise ValueError(
-                "_identifier must be string or dict with 'xpath' key")
+                "_identifier must define either 'compiler' or 'xpath'"
+            )
 
-        # Use instance fields to fill template
-        fields = {attr: getattr(instance, attr, None)
-                  for attr in instance.__dict__}
-        try:
-            identifier_xpath = template.format(**fields)
-        except KeyError as e:
-            raise KeyError(f"Instance missing field for xpath template: {e}")
-
-    # 2️⃣ Handle relative XPaths like "." or "./field"
+    # Normalize relative paths
     if identifier_xpath.startswith("./"):
         identifier_xpath = identifier_xpath[2:]
     elif identifier_xpath == ".":
         identifier_xpath = ""
-
-    # 3️⃣ Join base_xpath and identifier
-    parts = [base_xpath]
     if identifier_xpath:
-        parts.append(identifier_xpath)
-
-    concrete_xpath = "/".join(part for part in parts if part)
-    return concrete_xpath
+        return identifier_xpath
 
 
 def ensure_element_for_instance(

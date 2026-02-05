@@ -104,15 +104,22 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
             standalone=True,
             pretty_print=True
         )
-
-        self.assertXpathCount(
-            capabilities, "/d:WMS_Capabilities/d:Capability/d:Request/*", 6)
-
         # check service metadata
         self.assertXpathValue(
             capabilities,
             "/d:WMS_Capabilities/d:Service/d:Title/text()",
             "huhu")
+
+        self.assertXpathValues(capabilities,
+                               "/d:WMS_Capabilities/d:Service/d:KeywordList/d:Keyword",
+                               [
+                                   "meteorology",
+                                   # shall be removed: "climatology"
+                               ])
+
+        self.assertXpathCount(
+            capabilities, "/d:WMS_Capabilities/d:Capability/d:Request/*", 6)
+
         # check root layer metadata
         self.assertXpathValue(
             capabilities,

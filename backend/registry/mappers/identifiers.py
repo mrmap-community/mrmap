@@ -1,4 +1,3 @@
-
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.service import Layer, OperationUrl
 
@@ -30,15 +29,7 @@ def layer_identifier(instance: Layer) -> str:
 
     # 2️⃣ Compute index at each level using ONLY mptt math
     for node in chain:
-        parent = node.mptt_parent
-
-        if parent is None:
-            # Root layer
-            index = (node.mptt_lft - 1) // 2
-        else:
-            index = (node.mptt_lft - parent.mptt_lft - 1) // 2
-
-        xpath_parts.append(f"wms:Layer[{index}]")
+        xpath_parts.append(f"wms:Layer[{node.sibling_index + 1}]")
 
     xpath = "/".join(xpath_parts)
     return xpath

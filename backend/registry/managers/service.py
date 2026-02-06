@@ -1,92 +1,144 @@
-from collections.abc import Sequence
-from typing import Dict
-
-from camel_converter import to_snake
-from django.db.models import Exists, Model, Prefetch, QuerySet
+from django.db.models import Exists, F, Prefetch, QuerySet
 from django.db.models import Value as V
+from django.db.models import Window
 from django.db.models.expressions import F, OuterRef
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, RowNumber
 from django.db.models.manager import Manager
 from extras.managers import DefaultHistoryManager
+from extras.utils import build_queryset, merge_spec_auto
 from mptt2.managers import TreeManager
 from registry import models
 from registry.querys.service import LayerQuerySet
 from simple_history.models import HistoricalRecords
 
+PREFETCH_SPEC = {
+    "select": ["service_contact", "metadata_contact"],
+    "prefetch": {
+        "operation_urls": {},
+        "keywords": {},
+        "layers": {
+            "model": "registry.Layer",
+            "select": [],
+            "prefetch": {
+                "keywords": {},
+                "reference_systems": {},
+                "time_extents": {},
+                "styles": {
+                    "model": "registry.Style",
+                    "select": ["legend_url", "legend_url__mime_type"],
+                },
+            },
+            "annotate": {
+                "sibling_index": Window(
+                    expression=RowNumber(),
+                    partition_by=[F("mptt_parent")],
+                    order_by=F("mptt_lft").asc(),
+                ) - 1
 
-class TransientObjectsManagerMixin(object):
+            },
+        },
+    },
 
-    _transient_objects = {}
+}
 
-    def _update_transient_objects(self, kv: Dict):
-        for key, value in kv.items():
-            if isinstance(value, Sequence) and not isinstance(value, str):
-                current_value = self._transient_objects.get(key, [])
-                current_value.extend(value)
-                self._transient_objects.update({key: current_value})
-            else:
-                self._transient_objects.update({key: value})
+SIBLING_INDEX_DEFINITION = Window(
+    expression=RowNumber(),
+    partition_by=[F("mptt_parent")],
+    order_by=F("mptt_lft").asc(),
+) - 1
 
-    def _persist_transient_objects(self):
-        set_attr_key = None
-        get_attr_key = None
-        for key, value in self._transient_objects.items():
-            if "pre_db_job" in key:
-                # handle command like "update__style_id__with__style.pk"
-                # foreignkey id attribute is not updated after bulk_create is done. So we need to update it manually
-                # before we create related objects in bulk.
-                # todo: find better way to update foreignkey id
-                cmd = value.split("__")
-                set_attr_key = cmd[1]
-                get_attr_key = cmd[3]
-            elif isinstance(value, Sequence) and len(value) > 0:
-                if set_attr_key and get_attr_key:
-                    for obj in value:
-                        # handle pre db job detected by last loop
-                        setattr(obj, set_attr_key, getattr(
-                            obj, get_attr_key.split(".")[1]))
-                    set_attr_key = None
-                    get_attr_key = None
-                value[0]._meta.model.objects.bulk_create(objs=value)
-
-    def _handle_transient_m2m_objects(self, db_obj: Model):
-        m2m_fields = [field.name for field in db_obj._meta.local_many_to_many]
-        transient_fields = filter(
-            lambda key: '__transient' in key, db_obj.__dict__.keys())
-        transient_m2m_fields = [
-            transient_field for transient_field in transient_fields if any(m2m_field in transient_field for m2m_field in m2m_fields)]
-
-        for key in transient_m2m_fields:
-            attr = getattr(db_obj, key.split("__transient_")[1])
-            attr.add(*getattr(db_obj, key))
-
-    def get_or_create_list(self, list, model_cls):
-        items = []
-
-        for item in list:
-            # TODO: slow get_or_create solution - maybe there is a better way to do this
-            if isinstance(item, str):
-                db_item, _ = model_cls.objects.get_or_create(
-                    **{to_snake(model_cls.__name__): item})
-            else:
-                db_item, _ = model_cls.objects.get_or_create(
-                    **item.transform_to_model())
-            items.append(db_item)
-        return items
+SIBLING_INDEX_SPEC = {
+    "prefetch": {
+        "layers": {
+            # "select": ["mptt_parent"],
+            "annotate": {
+                "sibling_index": SIBLING_INDEX_DEFINITION
+            },
+            "prefetch": {
+                "mptt_parent": {
+                    "model": "registry.Layer",
+                    "annotate": {
+                        "sibling_index": SIBLING_INDEX_DEFINITION
+                    }
+                }
+            }
+        }
+    }
+}
 
 
 class WebMapServiceQuerySet(QuerySet):
-    def prefetch_whole_service(self) -> "WebMapServiceQuerySet":
-        styles = Prefetch("styles", queryset=models.Style.objects.select_related(
-            "legend_url__mime_type"))
-        layers = Prefetch(
-            "layers",
-            queryset=models.Layer.objects.prefetch_related(
-                "keywords", "reference_systems", "time_extents", styles),
+    def prefetch_whole_service(
+        self,
+        prefetch_spec: dict | None = None,
+        with_sibling_index: bool = False,
+    ) -> "WebMapServiceQuerySet":
+        """
+        Prefetch and select all related objects required to efficiently
+        load a complete Web Map Service hierarchy, optionally adding
+        annotations such as a sibling index for hierarchical layers.
+
+        This method applies a declarative prefetch specification to the
+        queryset, allowing fine-grained control over which related
+        objects are fetched via ``select_related`` and ``prefetch_related``.
+        Nested relations and custom querysets are supported.
+
+        By default, a canonical ``PREFETCH_SPEC`` is used. Callers may
+        extend or override it by passing a partial ``prefetch_spec``
+        dictionary. Only specified keys are overridden; all unspecified
+        relations fall back to the defaults.
+
+        Additionally, setting ``with_sibling_index=True`` annotates
+        all layers with a ``sibling_index`` field, calculated using
+        a SQL window function (RowNumber) partitioned by ``parent_id``
+        and ordered by the MPTT left value. This is useful for
+        efficiently accessing the position of a layer among its siblings.
+
+        Args:
+            prefetch_spec (dict, optional):
+                A partial prefetch specification used to extend or override
+                the default behavior. Supports nested ``select``,
+                ``prefetch``, and ``annotate`` keys.
+            with_sibling_index (bool, optional):
+                If True, adds a ``sibling_index`` annotation to each layer,
+                representing its zero-based position among sibling layers.
+
+        Returns:
+            WebMapServiceQuerySet:
+                A queryset with all configured relations eagerly loaded,
+                and annotations applied if requested.
+
+        Example:
+            # Default prefetch
+            >>> WebMapService.objects.prefetch_whole_service()
+
+            # Prefetch with sibling index annotation
+            >>> WebMapService.objects.prefetch_whole_service(
+            ...     with_sibling_index=True
+            ... )
+
+            # Prefetch with sibling index and custom select override
+            >>> WebMapService.objects.prefetch_whole_service(
+            ...     with_sibling_index=True,
+            ...     prefetch_spec={
+            ...         "prefetch": {
+            ...             "layers": {
+            ...                 "select": ["mptt_parent"],
+            ...             }
+            ...         }
+            ...     }
+            ... )
+        """
+        spec = (
+            merge_spec_auto(PREFETCH_SPEC, prefetch_spec)
+            if prefetch_spec
+            else PREFETCH_SPEC
         )
-        return self.select_related("service_contact", "metadata_contact").prefetch_related(
-            "operation_urls", "keywords", layers
-        )
+
+        if with_sibling_index:
+            spec = merge_spec_auto(spec, SIBLING_INDEX_SPEC)
+
+        return build_queryset(self, spec)
 
     def with_security_information(self) -> "WebMapServiceQuerySet":
         return self.annotate(

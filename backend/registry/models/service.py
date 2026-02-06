@@ -190,6 +190,9 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     @cached_property
     def root_layer(self):
+        # FIXME: this will touch the db on first time.
+        # IF the layers where prefetched allready,
+        # we lose any additonal information like annotated sibling_index for example.
         return self.layers.get(mptt_parent=None)
 
     @property
@@ -226,6 +229,24 @@ class WebMapService(HistoricalRecordMixin, OgcService):
             xml_declaration=True,
             encoding="UTF-8"
         )
+
+    def get_updated_capabilitites(self) -> etree.ElementTree:
+        """ 
+        FIXME: check if self is well prefetched. 
+        If not call self.objects.prefetch_whole_service(
+            ...    with_sibling_index=True,
+            ...    prefetch_spec={
+            ...         "prefetch": {
+            ...             "layers": {
+            ...                 "select": ["mptt_parent"],
+            ...             }
+            ...         }
+            ...     }
+            ...  )
+        Otherwise this will fail caulse layer index calculation for xpath compiling will fail
+
+        """
+        return super().get_updated_capabilitites()
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):

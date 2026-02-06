@@ -17,7 +17,16 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
                 "test_wfs.json", "test_csw.json"]
 
     def setUpWms(self):
-        self.wms: WebMapService = WebMapService.objects.get(
+        self.wms: WebMapService = WebMapService.objects.prefetch_whole_service(
+            with_sibling_index=True,
+            # prefetch_spec={
+            #    "prefetch": {
+            #        "layers": {
+            #            "select": ["mptt_parent"],
+            #        }
+            #    }
+            # }
+        ).get(
             pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
         cap_file = open(
             f"{BASE_DIR}/tests/django/test_data/capabilities/wms/fixture_1.3.0.xml", mode="rb")

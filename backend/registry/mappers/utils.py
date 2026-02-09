@@ -186,38 +186,6 @@ def find_spec_for_instance(spec: dict, instance):
     return {}
 
 
-def ensure_path(root, xpath, nsmap=None):
-    """
-    Ensure that the given XPath exists under root.
-    Returns the element or text target.
-
-    Handles simple XPaths and ending with /text().
-    """
-    parts = xpath.strip("/").split("/")
-    current = root
-    is_text = False
-
-    # Check if last part is text()
-    if parts[-1] == "text()":
-        is_text = True
-        parts = parts[:-1]
-
-    for part in parts:
-        tag_name = part.split("[")[0]  # ignore any predicate
-        found = current.find(tag_name, namespaces=nsmap)
-        if found is None:
-            if ":" in tag_name:
-                prefix, local = tag_name.split(":", 1)
-                ns_uri = nsmap[prefix]
-                tag = f"{{{ns_uri}}}{local}"
-            else:
-                tag = tag_name
-            found = etree.SubElement(current, tag)
-        current = found
-
-    return current, is_text
-
-
 def remove_empty_parents(element, stop_at):
     """
     Recursively remove element if it has no text, no attributes,
@@ -252,7 +220,8 @@ def remove_element_or_attribute(xml_element, xpath: str, nsmap: dict):
         leaf, _ = ensure_path(xml_element, parent_path, nsmap)
         if attr_name in leaf.attrib:
             del leaf.attrib[attr_name]
-        # remove_empty_parents(leaf, xml_element)
+        # TODO:
+        remove_empty_parents(leaf, xml_element)
     else:
         leaf, _ = ensure_path(xml_element, xpath, nsmap)
         parent = leaf.getparent() if hasattr(leaf, 'getparent') else None
@@ -302,7 +271,7 @@ def resolve_field(obj, path: str):
     return current
 
 
-def build_concrete_xpath(spec: dict, instance: "models.Model") -> str:
+def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
     """
     Build a concrete XPath from a Django model instance using its spec mapping.
     Supports nested attributes and automatically calls callables.
@@ -323,7 +292,7 @@ def build_concrete_xpath(spec: dict, instance: "models.Model") -> str:
         if "compiler" in identifier_cfg:
             try:
                 func = load_function(identifier_cfg["compiler"])
-                return func(instance)
+                return func(mapper, instance)
             except Exception as e:
                 raise RuntimeError(
                     f"Error generating xpath via compiler "
@@ -363,22 +332,81 @@ def build_concrete_xpath(spec: dict, instance: "models.Model") -> str:
         return identifier_xpath
 
 
+def split_parent_and_leaf(xpath: str):
+    parts = xpath.strip("/").split("/")
+    if not parts:
+        raise ValueError("Invalid XPath")
+
+    parent_parts = parts[:-1]
+    leaf_part = parts[-1]
+
+    return parent_parts, leaf_part
+
+
+def extract_tag_name(xpath_part: str) -> str:
+    # Removes predicates like [text()='foo']
+    return xpath_part.split("[", 1)[0]
+
+
+def ensure_path(root, xpath, nsmap=None):
+    """
+    Ensure that the given XPath exists under root.
+    Returns the element or text target.
+
+    Handles simple XPaths and ending with /text().
+    """
+    parts = xpath.strip("/").split("/")
+    current = root
+    is_text = False
+
+    # Check if last part is text()
+    if parts[-1] == "text()":
+        is_text = True
+        parts = parts[:-1]
+
+    for part in parts:
+        tag_name = part.split("[")[0]  # ignore any predicate
+        found = current.find(tag_name, namespaces=nsmap)
+        if found is None:
+            if ":" in tag_name:
+                prefix, local = tag_name.split(":", 1)
+                ns_uri = nsmap[prefix]
+                tag = f"{{{ns_uri}}}{local}"
+            else:
+                tag = tag_name
+            found = etree.SubElement(current, tag)
+        current = found
+
+    return current, is_text
+
+
 def ensure_element_for_instance(
+    mapper,
     parent: etree._Element,
     spec: dict,
     instance,
-    nsmap: dict
+    nsmap: dict,
 ) -> etree._Element:
     """
     Ensure that the XML element for a Django instance exists
     and return it.
     """
-    concrete_xpath = build_concrete_xpath(spec, instance)
+    concrete_xpath = build_concrete_xpath(mapper, spec, instance)
 
-    element = parent.xpath(concrete_xpath, namespaces=nsmap)
-    if element:
-        return element[0]
+    parent_parts, leaf_part = split_parent_and_leaf(concrete_xpath)
+    leaf_tag = extract_tag_name(leaf_part)
 
-    # Create path step by step
-    leaf, _ = ensure_path(parent, concrete_xpath, nsmap)
-    return leaf
+    # Ensure the parent path exists
+    parent_xpath = "/".join(parent_parts)
+    parent_elem, _ = ensure_path(parent, parent_xpath, nsmap)
+
+    # Resolve namespace-aware tag
+    if ":" in leaf_tag:
+        prefix, local = leaf_tag.split(":", 1)
+        ns_uri = nsmap[prefix]
+        tag = f"{{{ns_uri}}}{local}"
+    else:
+        tag = leaf_tag
+
+    # ALWAYS create a new leaf element
+    return etree.SubElement(parent_elem, tag)

@@ -18,6 +18,7 @@ from registry.mappers.utils import (build_concrete_xpath,
 
 
 class XmlMapper:
+    db_instance = None
 
     def __init__(
         self,
@@ -370,7 +371,7 @@ class XmlMapper:
         # all deterministic xpaths are available under self.get_all_xpaths()
         # parsed instances are available under self.read_from_cache()
         # or read all instances by using self.read_all_from_cache()
-
+        self.db_instance = db_instance
         for key, xpath_or_spec in self.mapping.items():
             if key.startswith("_"):
                 continue
@@ -389,6 +390,7 @@ class XmlMapper:
         nsmap = self.mapping.get("_namespaces", {})
         base_xpath = xpath_or_spec.get("_base_xpath", ".")
         concrete_xpath = build_concrete_xpath(
+            self,
             xpath_or_spec,
             instance,
         )
@@ -418,6 +420,7 @@ class XmlMapper:
         elif child_xml_element is None and instance:
             # there is no xml element but a db instance. Create this one on XML
             child_xml_element = ensure_element_for_instance(
+                self,
                 xml_element,
                 xpath_or_spec,
                 instance,
@@ -473,7 +476,11 @@ class XmlMapper:
                 }
 
                 if is_many:
+                    from registry.models.metadata import Keyword
+
                     for related_obj in field.all():
+                        if isinstance(related_obj, Keyword):
+                            i = 0
                         synced = self.sync_xml_with_instance(
                             xml_element,
                             xpath_or_spec,

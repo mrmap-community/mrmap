@@ -1,5 +1,4 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
 from MrMap.settings import BASE_DIR
 from ows_lib.xml_mapper.capabilities.csw.csw202 import \
     CatalogueService as XmlCatalogueService
@@ -18,14 +17,6 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
 
     def setUpWms(self):
         self.wms: WebMapService = WebMapService.objects.prefetch_whole_service(
-            with_sibling_index=True,
-            # prefetch_spec={
-            #    "prefetch": {
-            #        "layers": {
-            #            "select": ["mptt_parent"],
-            #        }
-            #    }
-            # }
         ).get(
             pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
         cap_file = open(
@@ -45,7 +36,9 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
         self.wms.root_layer.title = "hihi"
         self.wms.root_layer.save()
         self.wms.root_layer.keywords.set(
-            Keyword.objects.filter(keyword__contains="ergiebiger Dauerregen"))
+            Keyword.objects.filter(
+                # this also contains extrem ergiebiger Dauerregen
+                keyword__contains="ergiebiger Dauerregen"))
 
         # change a layer metadata in deep
         some_layer: Layer = self.wms.layers.get(identifier="node1.1.1")
@@ -55,6 +48,11 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
                 # this also contains extrem ergiebiger Dauerregen
                 keyword__contains="ergiebiger Dauerregen"))
         some_layer.save()
+
+        # refetching again with all annotations..
+        self.wms: WebMapService = WebMapService.objects.prefetch_whole_service(
+        ).get(
+            pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
 
     def setUpWfs(self):
         self.wfs: WebFeatureService = WebFeatureService.objects.get(
@@ -149,11 +147,11 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
         self.assertXpathCount(
             capabilities,
             "/d:WMS_Capabilities/d:Capability/d:Layer/d:Layer",
-            7)
+            3)
         self.assertXpathCount(
             capabilities,
             "/d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.2']",
-            0)
+            1)
 
     def test_current_capabilitites_of_wfs(self):
         capabilities: XmlWebFeatureService = self.wfs.get_updated_capabilitites()

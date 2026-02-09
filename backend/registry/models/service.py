@@ -190,9 +190,19 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     @cached_property
     def root_layer(self):
-        # FIXME: this will touch the db on first time.
-        # IF the layers where prefetched allready,
-        # we lose any additonal information like annotated sibling_index for example.
+        """
+        Use prefetched layers if available to avoid an extra DB hit
+        and to preserve annotations. Fall back to a DB query otherwise.
+        """
+        if (
+            hasattr(self, "_prefetched_objects_cache")
+            and "layers" in self._prefetched_objects_cache
+        ):
+            for layer in self._prefetched_objects_cache["layers"]:
+                if layer.mptt_parent_id is None:
+                    return layer
+
+        # Not prefetched → let the DB do the work
         return self.layers.get(mptt_parent=None)
 
     @property

@@ -283,7 +283,7 @@ def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
     Returns:
         str: Concrete XPath pointing to this instance
     """
-    identifier_cfg = spec.get("_identifier")
+    identifier_cfg = spec.get("_reverse", {}).get("_identifier")
 
     identifier_xpath = ""
 

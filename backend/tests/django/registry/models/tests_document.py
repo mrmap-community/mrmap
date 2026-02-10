@@ -132,6 +132,11 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
             capabilities,
             "/d:WMS_Capabilities/d:Capability/d:Layer/d:Title/text()",
             "hihi")
+        self.assertXpathValue(
+            capabilities,
+            "/d:WMS_Capabilities/d:Capability/d:Layer/text()",
+            "",
+            strip_result=True)
         self.assertXpathValues(capabilities,
                                "/d:WMS_Capabilities/d:Capability/d:Layer/d:KeywordList/d:Keyword",
                                ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])

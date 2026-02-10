@@ -454,7 +454,13 @@ class XmlMapper:
                 # parser function shall creates / update / delete the xml node
                 parser_func(self, xml_element, db_instance)
             return
+
+        ignore_fields = spec.get("_reverse", {}).get(
+            "_ignore_fields", []) if isinstance(spec, dict) else []
+
         for field_name, xpath_or_spec in spec.get("fields", {}).items():
+            if field_name in ignore_fields:
+                continue
             if isinstance(xpath_or_spec, str) or isinstance(xpath_or_spec, dict) and "_model" not in xpath_or_spec:
                 # simple concrete field
                 self.sync_field_to_xml(
@@ -479,8 +485,6 @@ class XmlMapper:
                     from registry.models.metadata import Keyword
 
                     for related_obj in field.all():
-                        if isinstance(related_obj, Keyword):
-                            i = 0
                         synced = self.sync_xml_with_instance(
                             xml_element,
                             xpath_or_spec,

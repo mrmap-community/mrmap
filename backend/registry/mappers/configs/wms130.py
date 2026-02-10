@@ -30,8 +30,10 @@ XPATH_MAP = {
                 "remote_metadata": {
                     "_model": "registry.WebMapServiceRemoteMetadata",
                     "_base_xpath": "./wms:Capability/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
-                    "_identifier": {
-                        "xpath": "./wms:Capability/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./wms:Capability/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                        },
                     },
                     "fields": {
                         "link": "./."
@@ -41,8 +43,10 @@ XPATH_MAP = {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "./wms:Service/wms:ContactInformation",
                     "_create_mode": "get_or_create",
-                    "_identifier": {
-                        "xpath": "./wms:Service/wms:ContactInformation",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./wms:Service/wms:ContactInformation",
+                        },
                     },
                     "fields": {
                         "name": "./wms:ContactPersonPrimary/wms:ContactOrganization",
@@ -61,8 +65,10 @@ XPATH_MAP = {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "./wms:Service/wms:ContactInformation",
                     "_create_mode": "get_or_create",
-                    "_identifier": {
-                        "xpath": "./wms:Service/wms:ContactInformation",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./wms:Service/wms:ContactInformation",
+                        },
                     },
                     "fields": {
                         "name": "./wms:ContactPersonPrimary/wms:ContactOrganization",
@@ -83,16 +89,20 @@ XPATH_MAP = {
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.wms.parse_operation_urls",
                     "_reverse_parser": "registry.mappers.parsers.wms.reverse_parse_operation_urls",
-                    "_identifier": {
-                        "compiler": "registry.mappers.identifiers.operation_url_identifier"
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.operation_url_identifier"
+                        },
                     },
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
                     "_base_xpath": "./wms:Service/wms:KeywordList/wms:Keyword",
                     "_create_mode": "get_or_create",
-                    "_identifier": {
-                        "xpath": "./wms:Service/wms:KeywordList/wms:Keyword[text()='{keyword}']",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./wms:Service/wms:KeywordList/wms:Keyword[text()='{keyword}']",
+                        },
                     },
                     "fields": {
                         "keyword": "./."
@@ -102,8 +112,11 @@ XPATH_MAP = {
                     "_model": "registry.Layer",
                     "_base_xpath": "./wms:Capability//wms:Layer",
                     "_create_mode": "bulk",
-                    "_identifier": {
-                        "compiler": "registry.mappers.identifiers.layer_identifier",
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.layer_identifier",
+                        },
+                        "_ignore_fields": ["mptt_parent"]
                     },
                     "fields": {
                         "mptt_parent": "..",
@@ -143,8 +156,10 @@ XPATH_MAP = {
                             "_model": "registry.Keyword",
                             "_base_xpath": "./wms:KeywordList/wms:Keyword",
                             "_create_mode": "get_or_create",
-                            "_identifier": {
-                                "xpath": "./wms:KeywordList/wms:Keyword[text()='{keyword}']",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./wms:KeywordList/wms:Keyword[text()='{keyword}']",
+                                },
                             },
                             "fields": {
                                 "keyword": "./."
@@ -154,8 +169,10 @@ XPATH_MAP = {
                             "_model": "registry.ReferenceSystem",
                             "_base_xpath": "./wms:CRS",
                             "_create_mode": "get_or_create",
-                            "_identifier": {
-                                "xpath": "./wms:CRS[text()='{prefix}:{code}']",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./wms:CRS[text()='{prefix}:{code}']",
+                                },
                             },
                             "fields": {
                                 "code": {
@@ -172,8 +189,10 @@ XPATH_MAP = {
                             "_model": "registry.Style",
                             "_base_xpath": "./wms:Style",
                             "_create_mode": "bulk",
-                            "_identifier": {
-                                "xpath": "./wms:Style/wms:Name[text()='{name}']",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./wms:Style/wms:Name[text()='{name}']",
+                                },
                             },
                             "fields": {
                                 "name": "./wms:Name",
@@ -182,8 +201,10 @@ XPATH_MAP = {
                                     "_model": "registry.LegendUrl",
                                     "_base_xpath": "./wms:LegendURL",
                                     "_create_mode": "bulk",
-                                    "_identifier": {
-                                        "xpath": "./OnlineResource/[@xlink:href='{legend_url}']",
+                                    "_reverse": {
+                                        "_identifier": {
+                                            "xpath": "./OnlineResource/[@xlink:href='{legend_url}']",
+                                        },
                                     },
                                     "fields": {
                                         "height": "./@height",
@@ -205,8 +226,10 @@ XPATH_MAP = {
                             "_model": "registry.LayerRemoteMetadata",
                             "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
                             "_create_mode": "bulk",
-                            "_identifier": {
-                                "xpath": "./wms:MetadataURL/wms:OnlineResource[@xlink:href='{link}']",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./wms:MetadataURL/wms:OnlineResource[@xlink:href='{link}']",
+                                },
                             },
                             "fields": {
                                 "link": "./@xlink:href"
@@ -218,9 +241,11 @@ XPATH_MAP = {
                             "_create_mode": "get_or_create",
                             "_parser": "registry.mappers.parsers.wms.parse_timeextent",
                             "_reverse_parser": "registry.mappers.parsers.wms.timeextent_to_value",
-                            "_identifier": {
-                                "xpath": "./wms:Dimension[@name='time'][text()='{value}']",
-                                "parser": "registry.mappers.parsers.wms.timeextent_to_value"
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./wms:Dimension[@name='time'][text()='{value}']",
+                                    "parser": "registry.mappers.parsers.wms.timeextent_to_value"
+                                },
                             },
                         },
                     }

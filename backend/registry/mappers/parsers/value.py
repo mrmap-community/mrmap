@@ -6,11 +6,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from epsg_cache.utils import get_epsg_srid
 from lxml import etree
-from registry.mappers.parsers.utils import get_tag
-from registry.enums.iso import (CategoryChoices, LanguageChoices, MetadataCharsetChoices,
-                                     UpdateFrequencyChoices)
+from registry.enums.iso import (CategoryChoices, LanguageChoices,
+                                MetadataCharsetChoices, UpdateFrequencyChoices)
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
+from registry.mappers.parsers.utils import get_tag
 
 
 def int_to_bool(mapper, value: int = 0) -> bool:
@@ -109,8 +109,16 @@ def method_to_enum(mapper, url_element):
         return HttpMethodEnum(tag)
 
 
+def serialize_method(mapper, value):
+    return HttpMethodEnum(value).label
+
+
 def operation_to_enum(mapper, operation_str):
     return OGCOperationEnum(operation_str)
+
+
+def serialize_operation(mapper, value):
+    return OGCOperationEnum(value).label
 
 
 def charset_to_enum(mapper, charset_str):
@@ -121,11 +129,20 @@ def language_to_enum(mapper, language_str):
     return LanguageChoices(language_str)
 
 
+def int_to_language(mapper, value):
+    return LanguageChoices(value).label
+
+
 def update_frequency_code_to_enum(mapper, update_frequence_code_str):
     return UpdateFrequencyChoices(update_frequence_code_str)
 
+
 def topic_category_to_enum(mapper, topic_category_str):
     return CategoryChoices(topic_category_str)
+
+
+def enum_to_topic_category(mapper, value):
+    return CategoryChoices(value).label
 
 
 def string_to_datetime(mapper, value: str):

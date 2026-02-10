@@ -91,7 +91,7 @@ XPATH_MAP = {
                     "_reverse_parser": "registry.mappers.parsers.wms.reverse_parse_operation_urls",
                     "_reverse": {
                         "_identifier": {
-                            "compiler": "registry.mappers.identifiers.operation_url_identifier"
+                            "compiler": "registry.mappers.identifiers.wms_operation_url_identifier"
                         },
                     },
                 },

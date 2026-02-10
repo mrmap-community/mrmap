@@ -749,6 +749,15 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             "the fetched content of the download describe feature" " type document."
         ),
     )
+    # TODO: this srs needs to be added to reference_systems per annotation or otherwise for search purpose
+    default_reference_system = models.ForeignKey(
+        to="ReferenceSystem",  # to avoid circular import error
+        on_delete=models.PROTECT,
+        related_name="as_default_featuretype",
+        related_query_name="as_default_featuretypes",
+        verbose_name=_("default reference system"),
+        help_text=_("the default reference system for this feature type"),
+    )
 
     change_log = HistoricalRecords(
         related_name="change_logs",

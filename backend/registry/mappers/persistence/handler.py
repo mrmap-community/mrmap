@@ -182,7 +182,7 @@ class PersistenceHandler:
     def _redirect_m2m_references(instances_by_model, final_instances_map):
         for model_cls, instances in instances_by_model.items():
             unique_sets = get_unique_fields(
-                None, model_cls)
+                model_cls)
             key_fields = unique_sets[0] if unique_sets else None
             for inst in instances:
                 for attr_name in dir(inst):
@@ -318,7 +318,7 @@ class PersistenceHandler:
 
                         # Unique-Felder bestimmen, id ignorieren
                         unique_sets = [s for s in get_unique_fields(
-                            None, fk_type) if s != ('id',)]
+                            fk_type) if s != ('id',)]
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
                             try:
@@ -347,7 +347,7 @@ class PersistenceHandler:
                     for ref in parsed:
                         ref_map = self.final_instances_map.get(type(ref), {})
                         unique_sets = [s for s in get_unique_fields(
-                            None, type(ref)) if s != ('id',)]
+                            type(ref)) if s != ('id',)]
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
                             try:

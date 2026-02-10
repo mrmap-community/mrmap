@@ -31,15 +31,25 @@ XPATH_MAP = {
                 "access_constraints": "./ows:ServiceIdentification/ows:AccessConstraints",
                 "remote_metadata": {
                     "_model": "registry.WebFeatureServiceRemoteMetadata",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "_base_xpath": "./ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                        },
+                    },
                     "fields": {
                         "link": "./."
                     }
                 },
                 "service_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceProvider",
+                    "_base_xpath": "./ows:ServiceProvider",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:ServiceProvider",
+                        },
+                    },
                     "fields": {
                         "name": "./ows:ProviderName",
                         "person_name": "./ows:ServiceContact/ows:IndividualName",
@@ -55,8 +65,13 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceProvider",
+                    "_base_xpath": "./ows:ServiceProvider",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:ServiceProvider",
+                        },
+                    },
                     "fields": {
                         "name": "./ows:ProviderName",
                         "person_name": "./ows:ServiceContact/ows:IndividualName",
@@ -70,21 +85,25 @@ XPATH_MAP = {
                         "address": "./ows:ServiceContact/ows:ContactInfo/ows:Address/ows:DeliveryPoint"
                     }
                 },
-
                 "operation_urls": {
                     "_model": "registry.WebFeatureServiceOperationUrl",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//*[self::ows:Post or self::ows:Get]",
+                    "_base_xpath": "./ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//*[self::ows:Post or self::ows:Get]",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.wfs_operation_url_identifier"
+                        },
+                    },
                     "fields": {
                         "method": {
                             "_inputs": (".",),
                             "_parser": "registry.mappers.parsers.value.method_to_enum",
-                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_method",
+                            "_reverse_parser": "registry.mappers.parsers.value.serialize_method",
                         },
                         "operation": {
                             "_inputs": ("../../../@name",),
                             "_parser": "registry.mappers.parsers.value.operation_to_enum",
-                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_operation"
+                            "_reverse_parser": "registry.mappers.parsers.value.serialize_operation"
                         },
                         "url": "./@xlink:href",
                         "mime_types": {
@@ -99,16 +118,26 @@ XPATH_MAP = {
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
-                    "_base_xpath": "/wfs:WFS_Capabilities/ows:ServiceIdentification/ows:Keywords/ows:Keyword",
+                    "_base_xpath": "./ows:ServiceIdentification/ows:Keywords/ows:Keyword",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:ServiceIdentification/ows:Keywords/ows:Keyword[text()='{keyword}']",
+                        },
+                    },
                     "fields": {
                         "keyword": "./."
                     }
                 },
                 "featuretypes": {
                     "_model": "registry.FeatureType",
-                    "_base_xpath": "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType",
+                    "_base_xpath": "./wfs:FeatureTypeList/wfs:FeatureType",
                     "_create_mode": "bulk",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./wfs:FeatureTypeList/wfs:FeatureType/wfs:Name[text()='{identifier}']",
+                        },
+                    },
                     "fields": {
                         "identifier": "./wfs:Name",
                         "title": "./wfs:Title",
@@ -124,6 +153,11 @@ XPATH_MAP = {
                             "_model": "registry.Keyword",
                             "_base_xpath": "./ows:Keywords/ows:Keyword",
                             "_create_mode": "get_or_create",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./ows:Keywords/ows:Keyword[text()='{keyword}']",
+                                },
+                            },
                             "fields": {
                                 "keyword": "./."
                             }
@@ -132,20 +166,46 @@ XPATH_MAP = {
                             "_model": "registry.MimeType",
                             "_base_xpath": "./wfs:OutputFormats/wfs:Format",
                             "_create_mode": "get_or_create",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./wfs:OutputFormats/wfs:Format[text()='{mime_type}']",
+                                },
+                            },
                             "fields": {
                                 "mime_type": "./."
                             }
                         },
-                        "reference_systems": {
+                        "default_reference_system": {
                             "_model": "registry.ReferenceSystem",
-                            "_base_xpath": "./.",
+                            "_base_xpath": "./wfs:DefaultCRS",
                             "_create_mode": "get_or_create",
                             "_parser": "registry.mappers.parsers.wfs.parse_reference_systems",
+                            "_reverse": {
+                                "_identifier": {
+                                    "compiler": "registry.mappers.identifiers.wfs_default_reference_system_identifier",
+                                },
+                            },
+                        },
+                        "reference_systems": {
+                            "_model": "registry.ReferenceSystem",
+                            "_base_xpath": "./wfs:OtherCRS",
+                            "_create_mode": "get_or_create",
+                            "_parser": "registry.mappers.parsers.wfs.parse_reference_systems",
+                            "_reverse": {
+                                "_identifier": {
+                                    "compiler": "registry.mappers.identifiers.wfs_other_reference_system_identifier",
+                                },
+                            },
                         },
                         "remote_metadata": {
                             "_model": "registry.FeatureTypeRemoteMetadata",
                             "_base_xpath": "./wfs:MetadataURL",
                             "_create_mode": "bulk",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./wfs:MetadataURL[@xlink:href='{link}']",
+                                },
+                            },
                             "fields": {
                                 "link": "./@xlink:href"
                             }

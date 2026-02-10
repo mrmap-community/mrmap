@@ -115,13 +115,13 @@ def parse_operation_urls(mapper, el):
                      for f in el.xpath("../../.././wms:Format", namespaces=nsmap)
                      if f.text]
 
-    if method_name is None or operation_enum is None or url is None:
+    if method_name is None or operation_enum is None or url is None or url.text is None or url.text == "":
         return
 
     op_inst = WebMapServiceOperationUrl(
         operation=operation_enum,
         method=method_enum,
-        url=url.strip(),
+        url=url.text.strip(),
     )
 
     # optionales Cache-Handling

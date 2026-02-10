@@ -19,10 +19,12 @@ XPATH_MAP = {
                 "charset": {
                     "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode[@codeList='http://wis.wmo.int/2011/schemata/iso19139_2007/schema/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode']/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.charset_to_enum",
+                    # TODO: "_reverse_parser": "",
                 },
                 "update_frequency_code": {
                     "_inputs": ("./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode/@codeListValue",),
                     "_parser": "registry.mappers.parsers.value.update_frequency_code_to_enum"
+                    # TODO: "_reverse_parser": "",
                 },
                 "title": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString",
                 "abstract": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:abstract/gco:CharacterString",
@@ -30,12 +32,14 @@ XPATH_MAP = {
                 "date_stamp": {
                     "_inputs": ("./gmd:dateStamp/*[self::gco:DateTime or self::gco:Date]/text()",),
                     "_parser": "registry.mappers.parsers.value.string_to_datetime",
+                    # TODO: "_reverse_parser": "",
                 },
                 "file_identifier": "./gmd:fileIdentifier/gco:CharacterString",
                 "bounding_geometry": {
                     "_inputs": (
                         "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:geographicElement/*[self::gmd:EX_GeographicBoundingBox or self::gmd:EX_BoundingPolygon]",),
                     "_parser": "registry.mappers.parsers.value.iso_bbox_to_multipolygon"
+                    # TODO: "_reverse_parser": "",
                 },
                 "code": {
                     "_inputs": (
@@ -55,6 +59,11 @@ XPATH_MAP = {
                     "_model": "registry.Keyword",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString[text()='{keyword}']",
+                        },
+                    },
                     "fields": {
                         "keyword": "./."
                     }
@@ -63,6 +72,11 @@ XPATH_MAP = {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:pointOfContact/gmd:CI_ResponsibleParty",
+                        },
+                    },
                     "fields": {
                         "name": "./gmd:organisationName/gco:CharacterString",
                         "person_name": "./gmd:individualName/gco:CharacterString",
@@ -74,6 +88,11 @@ XPATH_MAP = {
                     "_model": "registry.MetadataContact",
                     "_base_xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./gmd:contact/gmd:CI_ResponsibleParty",
+                        },
+                    },
                     "fields": {
                         "name": "./gmd:organisationName/gco:CharacterString",
                         "person_name": "./gmd:individualName/gco:CharacterString",
@@ -85,10 +104,16 @@ XPATH_MAP = {
                     "_model": "registry.Language",
                     "_base_xpath": "./gmd:language/gmd:LanguageCode[@codeList='http://www.loc.gov/standards/iso639-2/']",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.language_identifier",
+                        },
+                    },
                     "fields": {
                         "value": {
                             "_inputs": ("./@codeListValue",),
                             "_parser": "registry.mappers.parsers.value.language_to_enum",
+                            "_reverse_parser": "registry.mappers.parsers.value.int_to_language"
                         }
                     }
                 },
@@ -96,25 +121,28 @@ XPATH_MAP = {
                     "_model": "registry.ReferenceSystem",
                     "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString",
                     "_create_mode": "get_or_create",
-                    "fields": {
-                        "code": {
-                            "_inputs": ("./text()",),
-                            "_parser": "registry.mappers.parsers.iso.parse_code",
-                        },
-                        "prefix": {
-                            "_inputs": ("./text()",),
-                            "_parser": "registry.mappers.parsers.iso.parse_prefix",
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.refence_system_identifier",
                         },
                     },
+                    "_parser": "registry.mappers.parsers.iso.parse_reference_system",
+                    "_reverse_parser": "registry.mappers.parsers.iso.serialize_reference_system",
                 },
                 "categories": {
                     "_model": "registry.IsoCategory",
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.category_identifier",
+                        },
+                    },
                     "fields": {
                         "value": {
                             "_inputs": ("./text()",),
                             "_parser": "registry.mappers.parsers.value.topic_category_to_enum",
+                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_topic_category",
                         }
                     }
                 },
@@ -123,6 +151,12 @@ XPATH_MAP = {
                     "_base_xpath": "./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.iso.parse_timeextent",
+                    # TODO: "__reverse_parser": "",
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.timeextent_identifier",
+                        },
+                    },
                 },
             }
         }

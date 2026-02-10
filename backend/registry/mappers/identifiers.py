@@ -1,5 +1,8 @@
+from registry.enums.iso import CategoryChoices, LanguageChoices
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.mappers.xml_mapper import XmlMapper
+from registry.models.metadata import (IsoCategory, Language, ReferenceSystem,
+                                      TimeExtent)
 from registry.models.service import Layer, OperationUrl, WebMapService
 
 
@@ -43,6 +46,46 @@ def layer_identifier(mapper: XmlMapper, instance: Layer) -> str:
         return xpath
 
 
-def operation_url_identifier(mapper: XmlMapper, instance: OperationUrl):
-    xpath = f"./wms:Capability/wms:Request/wms:{OGCOperationEnum(instance.operation).label}/wms:DCPType/wms:HTTP/wms:{HttpMethodEnum(instance.method).label}"
+def wms_operation_url_identifier(mapper: XmlMapper, instance: OperationUrl):
+    if mapper.mapping.get("_namespaces", {}).get("wms", None):
+        xpath = f"./wms:Capability/wms:Request/wms:{OGCOperationEnum(instance.operation).label}/wms:DCPType/wms:HTTP/wms:{HttpMethodEnum(instance.method).label}"
+    else:
+        xpath = f"./Capability/Request/{OGCOperationEnum(instance.operation).label}/DCPType/HTTP/{HttpMethodEnum(instance.method).label}"
+    return xpath
+
+
+def wfs_operation_url_identifier(mapper: XmlMapper, instance: OperationUrl):
+    xpath = f"./ows:OperationsMetadata/ows:Operation[@name='{OGCOperationEnum(instance.operation).label}']/ows:DCP/ows:HTTP/ows:{HttpMethodEnum(instance.method).label}"
+    return xpath
+
+
+def wfs_default_reference_system_identifier(mapper: XmlMapper, instance: ReferenceSystem):
+    xpath = f"./wfs:DefaultCRS[text()='urn:ogc:def:crs:{instance.prefix.upper()}::{instance.code}']"
+    return xpath
+
+
+def wfs_other_reference_system_identifier(mapper: XmlMapper, instance: ReferenceSystem):
+    xpath = f"./wfs:OtherCRS[text()='urn:ogc:def:crs:{instance.prefix.upper()}::{instance.code}']"
+    return xpath
+
+
+def language_identifier(mapper: XmlMapper, instance: Language):
+    xpath = f"./gmd:language/gmd:LanguageCode[@codeList='http://www.loc.gov/standards/iso639-2/'][@codeListValue='{LanguageChoices(instance.value).label}']"
+    return xpath
+
+
+def refence_system_identifier(mapper: XmlMapper, instance: ReferenceSystem):
+    xpath = f"./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString/text()='http://www.opengis.net/def/crs/{instance.prefix.upper()}/0/{instance.code}'"
+    return xpath
+
+
+def category_identifier(mapper: XmlMapper, instance: IsoCategory):
+    xpath = f"./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:topicCategory/gmd:MD_TopicCategoryCode/text()='{CategoryChoices(instance.value).label}'"
+    return xpath
+
+
+def timeextent_identifier(mapper: XmlMapper, instance: TimeExtent):
+    # ./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent
+    # ./gmd:identificationInfo/gmd:MD_DataIdentification/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent
+    xpath = f""
     return xpath

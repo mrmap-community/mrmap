@@ -35,6 +35,7 @@
             "origin": 1,
             "title": "wfs1-node1",
             "abstract": "wfs1-node1",
+            "default_reference_system": "1",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
             "history_type": "+",
@@ -96,7 +97,8 @@
                 [
                     "meteorology"
                 ]
-            ]
+            ],
+            "default_reference_system": "1"
         }
     },
     {
@@ -109,7 +111,8 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": 1,
             "title": "node2",
-            "is_active": true
+            "is_active": true,
+            "default_reference_system": "1"
         }
     },
     {
@@ -122,7 +125,8 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": 1,
             "title": "node3",
-            "is_active": true
+            "is_active": true,
+            "default_reference_system": "1"
         }
     },
     {
@@ -135,7 +139,8 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": 1,
             "title": "node4",
-            "is_active": false
+            "is_active": false,
+            "default_reference_system": "1"
         }
     },
     {
@@ -174,7 +179,8 @@
             "bbox_lat_lon": "SRID=4326;POLYGON ((-180 -90, -180 90, 180 90, 180 -90, -180 -90))",
             "origin": 1,
             "title": "wfs2-node1",
-            "abstract": "wfs2-node1"
+            "abstract": "wfs2-node1",
+            "default_reference_system": "1"
         }
     }
 ]

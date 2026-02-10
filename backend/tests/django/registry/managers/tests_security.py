@@ -14,7 +14,7 @@ from tests.django.settings import DJANGO_TEST_ROOT_DIR
 # TODO: #527
 class WebFeatureServiceSecurityManagerTest(TestCase):
 
-    fixtures = ["test_keywords.json", "test_users.json", "test_wfs.json", "test_wfs_proxy.json",
+    fixtures = ["test_keywords.json", "test_crs.json", "test_users.json", "test_wfs.json", "test_wfs_proxy.json",
                 "test_allowed_wfs_operation.json"]
 
     def test_get_with_security_info(self):

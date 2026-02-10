@@ -21,7 +21,9 @@ class WebMapServiceProxyTest(XpathTestCase):
         # Otherwise the objects are not present in the database if the mapserver instance is connecting.
         call_command("loaddata", "test_users.json", verbosity=0)
         call_command("loaddata", "test_keywords.json", verbosity=0)
+        call_command("loaddata", "test_crs.json", verbosity=0)
         call_command("loaddata", "test_wfs_proxy.json", verbosity=0)
+
         call_command(
             "loaddata", "test_allowed_wfs_operation.json", verbosity=0)
 

@@ -12,7 +12,7 @@ from tests.django.contrib import XpathTestCase
 
 class CapabilitiesDocumentModelMixinTest(XpathTestCase):
 
-    fixtures = ['test_users.json', "test_keywords.json", "test_wms.json",
+    fixtures = ['test_users.json', "test_keywords.json", "test_crs.json", "test_wms.json",
                 "test_wfs.json", "test_csw.json"]
 
     def setUpWms(self):
@@ -104,13 +104,7 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
 
     def test_current_capabilities_of_wms(self):
         capabilities = self.wms.get_updated_capabilitites()
-        capabilities.write(
-            "output.xml",
-            encoding="utf-8",
-            xml_declaration=True,
-            standalone=True,
-            pretty_print=True
-        )
+
         # check service metadata
         self.assertXpathValue(
             capabilities,

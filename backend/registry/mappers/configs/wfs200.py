@@ -10,7 +10,6 @@ XPATH_MAP = {
             "gml": NAMESPACE_LOOKUP["gml_3_2_2"],
             "fes": NAMESPACE_LOOKUP["fes_2_0"],
             "inspire_common": NAMESPACE_LOOKUP["inspire_common"],
-            "inspire_vs": NAMESPACE_LOOKUP["inspire_vs"]
         },
         "_schema": "http://www.opengis.net/wfs/2.0",
         "_pre_save": [
@@ -135,7 +134,7 @@ XPATH_MAP = {
                     "_create_mode": "bulk",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./wfs:FeatureTypeList/wfs:FeatureType/wfs:Name[text()='{identifier}']",
+                            "xpath": "./wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='{identifier}']",
                         },
                     },
                     "fields": {
@@ -179,7 +178,7 @@ XPATH_MAP = {
                             "_model": "registry.ReferenceSystem",
                             "_base_xpath": "./wfs:DefaultCRS",
                             "_create_mode": "get_or_create",
-                            "_parser": "registry.mappers.parsers.wfs.parse_reference_systems",
+                            "_parser": "registry.mappers.parsers.wfs.parse_reference_system",
                             "_reverse": {
                                 "_identifier": {
                                     "compiler": "registry.mappers.identifiers.wfs_default_reference_system_identifier",

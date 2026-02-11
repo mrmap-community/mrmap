@@ -6,6 +6,16 @@ from registry.models.metadata import ReferenceSystem
 from registry.ows_lib.wfs.xml_builder import WFSBuilder
 
 
+def parse_reference_system(mapper, el):
+    if el.text:
+        code = srs_to_code(mapper, el.text)
+        prefix = srs_to_prefix(mapper, el.text)
+        return ReferenceSystem(
+            code=code,
+            prefix=prefix
+        )
+
+
 def parse_reference_systems(mapper, el):
     """
     Parst alle DefaultCRS und OtherCRS des aktuellen FeatureType.
@@ -15,16 +25,9 @@ def parse_reference_systems(mapper, el):
     nsmap = mapper.mapping.get("_namespaces", None)
 
     for crs_el in el.xpath("./.", namespaces=nsmap):
-        crs_el.text
-        if crs_el.text:
-            code = srs_to_code(mapper, crs_el.text)
-            prefix = srs_to_prefix(mapper, crs_el.text)
-            instances.append(
-                ReferenceSystem(
-                    code=code,
-                    prefix=prefix
-                )
-            )
+        instances.append(
+            parse_reference_system(mapper, crs_el)
+        )
 
     return instances
 

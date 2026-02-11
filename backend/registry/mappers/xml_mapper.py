@@ -389,6 +389,9 @@ class XmlMapper:
     def sync_xml_with_instance(self, xml_element, xpath_or_spec, instance):
         nsmap = self.mapping.get("_namespaces", {})
         base_xpath = xpath_or_spec.get("_base_xpath", ".")
+        from registry.models import FeatureType
+        if isinstance(instance, FeatureType):
+            i = 0
         concrete_xpath = build_concrete_xpath(
             self,
             xpath_or_spec,
@@ -475,14 +478,18 @@ class XmlMapper:
                 field = getattr(db_instance, field_name, None)
                 is_many = is_many_relation(db_instance.__class__, field_name)
                 base_xpath = xpath_or_spec.get("_base_xpath", ".")
-
-                delete_able_elements = {
-                    e.getroottree().getpath(e): e
-                    for e in xml_element.xpath(base_xpath, namespaces=nsmap)
-                }
-
+                if base_xpath == "./wfs:FeatureTypeList/wfs:FeatureType":
+                    i = 0
+                try:
+                    delete_able_elements = {
+                        e.getroottree().getpath(e): e
+                        for e in xml_element.xpath(base_xpath, namespaces=nsmap)
+                    }
+                except etree.XPathEvalError as e:
+                    msg = f"Error evaluating base_xpath '{base_xpath}' for field '{field_name}': {e}"
+                    logging.error(msg)
+                    raise ValueError(msg)
                 if is_many:
-                    from registry.models.metadata import Keyword
 
                     for related_obj in field.all():
                         synced = self.sync_xml_with_instance(

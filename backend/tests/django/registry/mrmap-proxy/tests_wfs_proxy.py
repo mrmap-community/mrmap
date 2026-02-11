@@ -98,9 +98,9 @@ class WebMapServiceProxyTest(XpathTestCase):
 
         self.assertEqual(200, response.status_code)
         self.assertXpathValue(
-            response_xml, "/wfs:FeatureCollection/@numberMatched", 4)
+            response_xml, "/wfs:FeatureCollection/@numberMatched", "4")
         self.assertXpathValue(
-            response_xml, "/wfs:FeatureCollection/@numberReturned", 4)
+            response_xml, "/wfs:FeatureCollection/@numberReturned", "4")
         self.assertTrue(
             allowed_area.overlaps(bounded_by_geometry),
             msg="configured allowed area does not overlaps the responsed bounding box"

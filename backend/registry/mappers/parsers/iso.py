@@ -1,7 +1,7 @@
-import isodate
 from datetime import UTC, timedelta
 from logging import Logger
 
+import isodate
 from dateutil.parser import isoparse
 from django.conf import settings
 from django.utils import timezone
@@ -11,9 +11,8 @@ from registry.models.metadata import ReferenceSystem, TimeExtent
 logger: Logger = settings.ROOT_LOGGER
 
 
-def parse_reference_system(mapper, crs_str: str):
-    if isinstance(crs_str, etree._Element):
-        raise ValueError("Expected string, got Element")
+def parse_reference_system(mapper, el: etree._Element):
+    crs_str = el.text.strip()
 
     code = ""
     prefix = ""

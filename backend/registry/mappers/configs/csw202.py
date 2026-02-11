@@ -7,6 +7,7 @@ XPATH_MAP = {
             "xlink": NAMESPACE_LOOKUP["xlink"],
             "csw": NAMESPACE_LOOKUP["csw_2_0_2"],
             "ows": NAMESPACE_LOOKUP["ows"],
+            "inspire_common": NAMESPACE_LOOKUP["inspire_common"],
         },
         "_schema": "http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd",
         "_pre_save": [

@@ -1,5 +1,4 @@
 import typing
-from collections import defaultdict
 from datetime import timedelta
 
 import isodate
@@ -109,10 +108,11 @@ def parse_operation_urls(mapper, el):
     operation_name = el.xpath("local-name(../../../.)")
     operation_enum = OGCOperationEnum(operation_name)
 
-    url = el.find("./wms:OnlineResource", namespaces=nsmap)
+    url = el.find(
+        f"./{"wms:"if "wms" in nsmap else ""}OnlineResource", namespaces=nsmap)
 
     format_values = [f
-                     for f in el.xpath("../../.././wms:Format", namespaces=nsmap)
+                     for f in el.xpath(f"../../.././{"wms:"if "wms" in nsmap else ""}Format", namespaces=nsmap)
                      if f.text]
 
     if method_name is None or operation_enum is None or url is None or url.text is None or url.text == "":

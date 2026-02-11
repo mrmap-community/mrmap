@@ -85,7 +85,7 @@ XPATH_MAP = {
                 },
                 "operation_urls": {
                     "_model": "registry.WebMapServiceOperationUrl",
-                    "_base_xpath": "./Capability/Request",
+                    "_base_xpath": "./Capability/Request/*/DCPType/HTTP/*",
                     "_create_mode": "get_or_create",
                     "_parser": "registry.mappers.parsers.wms.parse_operation_urls",
                     "_reverse_parser": "registry.mappers.parsers.wms.reverse_parse_operation_urls",

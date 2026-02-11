@@ -11,8 +11,10 @@ from registry.models.metadata import ReferenceSystem, TimeExtent
 logger: Logger = settings.ROOT_LOGGER
 
 
-def parse_reference_system(mapper, el: etree._Element):
-    crs_str = el.text.strip()
+def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeResult):
+
+    crs_str = el.text.strip() if isinstance(
+        el, etree._Element) else el.strip()
 
     code = ""
     prefix = ""

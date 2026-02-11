@@ -93,7 +93,7 @@ XPATH_MAP = {
                 },
                 "reference_systems": {
                     "_model": "registry.ReferenceSystem",
-                    "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gmx:Anchor",
+                    "_base_xpath": "./gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gmx:Anchor/@xlink:href",
                     "_create_mode": "get_or_create",
                     "_reverse": {
                         "_identifier": {

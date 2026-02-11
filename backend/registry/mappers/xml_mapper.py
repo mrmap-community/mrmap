@@ -319,8 +319,11 @@ class XmlMapper:
                     instances.extend(instance)
                     for idx, inst in enumerate(instance):
                         self.store_to_cache(f"{path}_{idx}", inst)
-                else:
-                    instances = instance
+                elif instance is not None:
+                    if is_many:
+                        instances.append(instance)
+                    else:
+                        instances = instance
                     self.store_to_cache(path, instance)
 
             return instances

@@ -106,26 +106,30 @@ def parse_operation_urls(mapper, el):
     method_enum = HttpMethodEnum(method_name)
 
     operation_name = el.xpath("local-name(../../../.)")
-    operation_enum = OGCOperationEnum(operation_name)
+    operation_enum = OGCOperationEnum(
+        operation_name) if operation_name else None
 
-    url = el.find(
+    online_resource = el.find(
         f"./{"wms:"if "wms" in nsmap else ""}OnlineResource", namespaces=nsmap)
+    url = online_resource.xpath(
+        "./@xlink:href", namespaces=nsmap) if online_resource is not None else None
 
     format_values = [f
                      for f in el.xpath(f"../../.././{"wms:"if "wms" in nsmap else ""}Format", namespaces=nsmap)
                      if f.text]
 
-    if method_name is None or operation_enum is None or url is None or url.text is None or url.text == "":
+    if method_name is None or operation_enum is None or url is None:
         return
+    url = url[0]
 
     op_inst = WebMapServiceOperationUrl(
         operation=operation_enum,
         method=method_enum,
-        url=url.text.strip(),
+        url=url.strip(),
     )
 
-    # optionales Cache-Handling
-    path = url.getroottree().getpath(url)
+    # Cache-Handling
+    path = online_resource.getroottree().getpath(online_resource)
     mapper.store_to_cache(path, op_inst)
 
     # MimeTypes vorbereiten (noch nicht speichern)

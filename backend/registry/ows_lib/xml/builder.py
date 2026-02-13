@@ -8,341 +8,204 @@ XS = f"{{{XS_NS}}}"
 
 
 class XSDSkeletonBuilder:
+    def __init__(self, schema_key: tuple[str, str, str]):
+        """
+        schema_key: (service, schema_name, version)
+        Example: ('csw', 'discovery', '2.0.2')
+        """
+        self._loaded_schemas = set()
+        self.elements = {}           # (tns, name) -> element
+        self.types = {}              # (tns, name) -> complexType
+        self.attribute_groups = {}   # (tns, name) -> attributeGroup
+        self.parents = {}            # child_name -> list of parent type names
 
-    def __init__(self, xsd: bytes | tuple[str, str, str]):
-        # child_name -> list of (parent_element_name, complexType)
-        self.parents = {}
-        # Load XSD bytes
-        if isinstance(xsd, tuple):
-            try:
-                xsd_filename = XSD_LOOKUP[xsd]
-            except KeyError:
-                raise ValueError(f"Unsupported XSD lookup: {xsd}")
-            with resources.files("registry.ows_lib.xml.schemas").joinpath(xsd_filename).open("rb") as f:
-                xsd = f.read()
+        # Lookup XSD filename
+        try:
+            xsd_filename = XSD_LOOKUP[schema_key]
+        except KeyError:
+            raise ValueError(f"Unsupported schema lookup: {schema_key}")
 
-        self.tree = etree.fromstring(xsd)
-        self.root = self.tree.getroottree().getroot()
+        schema_dir = resources.files("registry.ows_lib.xml.schemas")
+        with schema_dir.joinpath(xsd_filename).open("rb") as f:
+            xsd_bytes = f.read()
 
-        self.elements = {}
-        self.types = {}
-        self.attribute_groups = {}
+        self.root = etree.fromstring(xsd_bytes)
 
-        self._index_schema()
+        # Register as loaded
+        self._loaded_schemas.add(self._schema_id(self.root, xsd_filename))
 
-    def _index_schema(self):
-        for el in self.root.findall(f".//{XS}element"):
+        # Resolve imports/includes recursively
+        self._resolve_external_schemas(self.root)
+
+        # Index elements/types
+        self._index_schema(self.root)
+
+    # ------------------------- Schema utilities -------------------------
+    def _schema_id(self, root, source=None):
+        return (root.get("targetNamespace"), source)
+
+    def _resolve_external_schemas(self, root):
+        schema_dir = resources.files("registry.ows_lib.xml.schemas")
+        for tag in ("include", "import"):
+            for node in root.findall(f"{XS}{tag}"):
+                schema_location = node.get("schemaLocation")
+                if not schema_location:
+                    continue
+                try:
+                    with schema_dir.joinpath(schema_location).open("rb") as f:
+                        xsd_bytes = f.read()
+                except FileNotFoundError:
+                    continue  # skip missing schemas
+
+                external_root = etree.fromstring(xsd_bytes)
+                schema_id = self._schema_id(external_root, schema_location)
+                if schema_id in self._loaded_schemas:
+                    continue
+
+                self._loaded_schemas.add(schema_id)
+                self._resolve_external_schemas(external_root)
+                self._index_schema(external_root)
+
+    # ------------------------- Indexing -------------------------
+    def _index_schema(self, root):
+        tns = root.get("targetNamespace")
+
+        # Elements
+        for el in root.findall(f".//{XS}element"):
             if "name" in el.attrib:
-                self.elements[el.attrib["name"]] = el
+                self.elements[(tns, el.attrib["name"])] = el
 
-        for ct in self.root.findall(f".//{XS}complexType"):
+        # ComplexTypes
+        for ct in root.findall(f".//{XS}complexType"):
             if "name" in ct.attrib:
-                self.types[ct.attrib["name"]] = ct
+                name = ct.attrib["name"]
+                self.types[(tns, name)] = ct
 
                 for child in ct.findall(f".//{XS}element"):
-                    name = child.get("ref") or child.get("name")
-                    if name:
-                        child_name = name.split(":")[-1]
-                        self.parents.setdefault(
-                            child_name, []).append(ct.attrib["name"])
+                    name_attr = child.get("ref") or child.get("name")
+                    if name_attr:
+                        child_name = name_attr.split(":")[-1]
+                        self.parents.setdefault(child_name, []).append(name)
 
-        for ag in self.root.findall(f".//{XS}attributeGroup"):
+        # AttributeGroups
+        for ag in root.findall(f".//{XS}attributeGroup"):
             if "name" in ag.attrib:
-                self.attribute_groups[ag.attrib["name"]] = ag
+                self.attribute_groups[(tns, ag.attrib["name"])] = ag
 
-    def _find_element_path(self, element_name):
-        """
-        Returns a list like: [Root, ..., Parent, element_name]
-        """
-        visited = set()
-
-        def dfs(name):
-            if name in visited:
-                return None
-            visited.add(name)
-
-            # root element
-            if name in self.elements and self.elements[name].get("type"):
-                return [name]
-
-            for parent_type in self.parents.get(name, []):
-                for el_name, el in self.elements.items():
-                    if el.get("type", "").endswith(parent_type):
-                        path = dfs(el_name)
-                        if path:
-                            return path + [name]
-            return None
-
-        return dfs(element_name)
-
-    def iter(self, xml: etree._Element, local_name: str | None = None):
-        """
-        Iterate over all descendants (or children) optionally filtered by local-name.
-
-        :param parent: the element to iterate over, defaults to root if None
-        :param local_name: optional local-name to filter elements
-        :yield: etree._Element
-        """
-        if xml is None:
-            return  # nothing to iterate
-
-        for el in xml.iter():
-            if local_name is None or etree.QName(el).localname == local_name:
-                yield el
-
-    def build_deep_element(
-        self,
-        element_name,
-        nsmap=None,
-        attributes=None,
-    ):
-        path = self._find_element_path(element_name)
-        if not path:
-            raise ValueError(
-                f"No valid path found for element '{element_name}'")
-
-        root_name = path[0]
-        root = self.build_element(root_name, nsmap=nsmap)
-
-        current = root
-        for name in path[1:]:
-            current = self._ensure_child(current, name)
-
-        # apply attributes/text only to target
-        if attributes:
-            for k, v in attributes.items():
-                if k == "_text":
-                    current.text = v
-                else:
-                    current.set(k, v)
-
-        return root
-
-    def _ensure_child(self, parent, child_name):
-        # already exists
-        for c in parent:
-            if etree.QName(c).localname == child_name:
-                return c
-
-        child = etree.SubElement(parent, self._element_qname(child_name))
-        self._apply_element_type(child, child_name)
-        return child
-
-    # -------------------- Helper functions --------------------
-    def _schema_nsmap(self):
-        return {k: v for k, v in (self.root.nsmap or {}).items() if v != XS_NS}
-
-    def _element_qname(self, element_name):
+    # ------------------------- Element builder -------------------------
+    def build_element(self, element_name, nsmap=None, attributes=None, children_attributes=None):
         tns = self.root.get("targetNamespace")
-        if tns:
-            return etree.QName(tns, element_name)
-        return element_name
+        qname = etree.QName(tns, element_name)
+        if nsmap is None:
+            nsmap = {k: v for k, v in (
+                self.root.nsmap or {}).items() if v != XS_NS}
 
-    def _attribute_value(self, attr):
-        if "fixed" in attr.attrib:
-            return attr.get("fixed")
-        if "default" in attr.attrib:
-            return attr.get("default")
-        t = attr.get("type", "")
-        if t.endswith("boolean"):
-            return "false"
-        if t.endswith(("integer", "decimal")):
-            return "0"
-        if "date" in t:
-            return "1970-01-01T00:00:00Z"
+        el = etree.Element(qname, nsmap=nsmap)
+        self._apply_element_type(
+            el, (tns, element_name), attributes, children_attributes)
+        return el
 
-    # -------------------- Core builder functions --------------------
-    def _apply_element_type(self, xml_el, element_name, attributes=None, children_attributes=None):
-        xsd_el = self.elements[element_name]
-        type_name = xsd_el.get("type")
-        if type_name:
-            type_name = type_name.split(":")[-1]
-            ct = self.types.get(type_name)
-            if ct is not None:
-                self._apply_complex_type(
-                    xml_el, ct, attributes=attributes, children_attributes=children_attributes)
-
-    def _apply_complex_type(self, xml_el, ct, attributes=None, children_attributes=None):
-        # simpleContent / extension
-        ext = ct.find(f"{XS}simpleContent/{XS}extension")
-        if ext is not None:
-            # Set text from attributes if provided, else default
-            if attributes and "_text" in attributes:
-                xml_el.text = attributes["_text"]
-
-            for attr in ext.findall(f"{XS}attribute"):
-                if attr.get("use") == "prohibited":
-                    continue
-                attr_value = self._attribute_value(attr)
-                if attr_value:
-                    xml_el.set(attr.get("name"), attr_value)
-            if attributes:
-                for k, v in attributes.items():
-                    if k != "_text":  # don't override text here
-                        xml_el.set(k, v)
+    def _apply_element_type(self, xml_el, key, attributes=None, children_attributes=None):
+        el = self.elements.get(key)
+        if el is None:
             return
 
-        # complexContent / extension
+        type_attr = el.get("type")  # e.g., "csw:CapabilitiesType"
+        if type_attr:
+            # Split prefix
+            if ":" in type_attr:
+                prefix, localname = type_attr.split(":")
+                nsmap = self.root.nsmap
+                ns = nsmap.get(prefix)
+                if ns is None:
+                    raise ValueError(
+                        f"Unknown namespace prefix '{prefix}' in type '{type_attr}'")
+            else:
+                ns = self.root.get("targetNamespace")
+                localname = type_attr
+            # Lookup complexType by (namespace, localname)
+            ct = self.types.get((ns, localname))
+            if ct:
+                self._apply_complex_type(
+                    xml_el, ct, attributes, children_attributes)
+
+    def _apply_complex_type(self, xml_el, ct, attributes=None, children_attributes=None):
+        # complexContent/extension
         ext = ct.find(f"{XS}complexContent/{XS}extension")
         if ext is not None:
             base = ext.get("base")
             if base:
-                base_name = base.split(":")[-1]
-                base_ct = self.types.get(base_name)
-                if base_ct is not None:
-                    self._apply_complex_type(
-                        xml_el, base_ct, attributes=attributes, children_attributes=children_attributes)
-            self._apply_particles_and_attrs(
-                xml_el, ext, attributes_map=children_attributes)
+                q = etree.QName(base)
+                base_ct = self.types.get((q.namespace, q.localname))
+                if base_ct:
+                    self._apply_complex_type(xml_el, base_ct)
+            self._apply_particles_and_attrs(xml_el, ext, children_attributes)
             if attributes:
                 for k, v in attributes.items():
                     if k != "_text":
                         xml_el.set(k, v)
+            if attributes and "_text" in attributes:
+                xml_el.text = attributes["_text"]
             return
 
-        # direct sequence / attributes
-        self._apply_particles_and_attrs(
-            xml_el, ct, attributes_map=children_attributes)
-        if attributes:
-            for k, v in attributes.items():
-                if k != "_text":
-                    xml_el.set(k, v)
+        ext = ct.find(f"{XS}complexContent/{XS}extension")
+        if ext is not None:
+            base = ext.get("base")  # e.g., "ows:CapabilitiesBaseType"
+            if base:
+                # Resolve prefix
+                if ":" in base:
+                    prefix, localname = base.split(":")
+                    nsmap = ct.getroottree().getroot().nsmap  # or self.root.nsmap
+                    ns = nsmap.get(prefix)
+                    if ns is None:
+                        raise ValueError(
+                            f"Unknown namespace prefix '{prefix}' in base type '{base}'")
+                else:
+                    ns = self.root.get("targetNamespace")
+                    localname = base
+
+                # Lookup complexType by (namespace, localname)
+                base_ct = self.types.get((ns, localname))
+                if base_ct is not None:
+                    self._apply_complex_type(
+                        xml_el, base_ct, attributes=None, children_attributes=children_attributes)
+
+        # direct sequence/attributes
+        self._apply_particles_and_attrs(xml_el, ct, children_attributes)
+        if attributes and "_text" in attributes:
+            xml_el.text = attributes["_text"]
 
     def _apply_particles_and_attrs(self, xml_el, node, attributes_map=None):
-        # sequence
-        seq = node.find(f"{XS}sequence")
-        if seq is not None:
+        # sequence elements
+        for seq in node.findall(f"{XS}sequence"):
             for child in seq.findall(f"{XS}element"):
                 mino = int(child.get("minOccurs", "1"))
-                # create child if required or if attributes provided
-                create = mino > 0 or (
-                    attributes_map and child.get("name") in attributes_map)
-                if create:
-                    name = child.get("ref") or child.get("name")
-                    name_local = name.split(":")[-1]
-                    child_xml = etree.SubElement(
-                        xml_el, self._element_qname(name_local))
-                    child_attrs = attributes_map.get(
-                        name_local) if attributes_map else None
-                    type_name = child.get("type")
-                    if type_name:
-                        type_name = type_name.split(":")[-1]
-                        ct = self.types.get(type_name)
-                        if ct is not None:
+                name = child.get("ref") or child.get("name")
+                name_local = name.split(":")[-1]
+                child_attrs = None
+                if attributes_map:
+                    child_attrs = attributes_map.get(name_local)
+                if mino == 0 and not child_attrs:
+                    continue
+                occurrences = 1
+                if isinstance(child_attrs, list):
+                    occurrences = len(child_attrs)
+                for i in range(occurrences):
+                    sub_attrs = child_attrs[i] if isinstance(
+                        child_attrs, list) else child_attrs
+                    ns = etree.QName(child.get("ref") or child.get(
+                        "name")).namespace or self.root.get("targetNamespace")
+                    sub_el = etree.SubElement(
+                        xml_el, etree.QName(ns, name_local))
+                    type_attr = child.get("type")
+                    if type_attr:
+                        q = etree.QName(type_attr)
+                        ct = self.types.get((q.namespace, q.localname))
+                        if ct:
                             self._apply_complex_type(
-                                child_xml,
-                                ct,
-                                attributes=child_attrs,
-                                children_attributes=None
-                            )
-
-        # attributeGroup
-        for ag in node.findall(f"{XS}attributeGroup"):
-            ref = ag.get("ref").split(":")[-1]
-            self._apply_attribute_group(xml_el, ref)
+                                sub_el, ct, attributes=sub_attrs, children_attributes=sub_attrs)
 
         # attributes
         for attr in node.findall(f"{XS}attribute"):
-            if attr.get("use") == "prohibited":
-                continue
-            xml_el.set(attr.get("name"), self._attribute_value(attr))
-
-    def _apply_attribute_group(self, xml_el, group_name):
-        ag = self.attribute_groups.get(group_name)
-        if ag is None:
-            return
-        for attr in ag.findall(f"{XS}attribute"):
-            if attr.get("use") == "required" or "default" in attr.attrib or "fixed" in attr.attrib:
-                xml_el.set(attr.get("name"), self._attribute_value(attr))
-
-    # -------------------- Public builder --------------------
-    def build_element(self, element_name, nsmap=None, attributes=None, children_attributes=None):
-        xsd_el = self.elements[element_name]
-
-        if nsmap is None:
-            nsmap = self._schema_nsmap() or None
-
-        qname = self._element_qname(element_name)
-        xml_el = etree.Element(qname, nsmap=nsmap)
-
-        # Apply type + attributes
-        # 1. Named type
-        type_name = xsd_el.get("type")
-        if type_name:
-            type_name = type_name.split(":")[-1]
-            ct = self.types.get(type_name)
-            if ct is not None:
-                self._apply_complex_type(
-                    xml_el, ct,
-                    attributes=attributes,
-                    children_attributes=children_attributes
-                )
-        # 2. Anonymous complexType
-        else:
-            ct = xsd_el.find(f"{XS}complexType")
-            if ct is not None:
-                self._apply_complex_type(
-                    xml_el, ct,
-                    attributes=attributes,
-                    children_attributes=children_attributes
-                )
-
-        # Apply attributes directly on element (if no type)
-        if attributes:
-            for k, v in attributes.items():
-                if k != "_text":
-                    xml_el.set(k, v)
-            if "_text" in attributes:
-                xml_el.text = attributes["_text"]
-
-        return xml_el
-
-    def add_child_element(self, parent, child_name, attributes=None):
-        child = etree.SubElement(parent, self._element_qname(child_name))
-        self._apply_element_type(child, child_name, attributes=attributes)
-        return child
-
-    def ensure_element(self, parent, name):
-        """
-        Ensure a child element exists (do not duplicate).
-        """
-        for child in parent:
-            if etree.QName(child).localname == name:
-                return child
-
-        child = etree.SubElement(parent, self._element_qname(name))
-        self._apply_element_type(child, name)
-        return child
-
-    def set_required_attributes(self, el, type_name):
-        """
-        Apply required/default/fixed attributes for a complexType.
-        """
-        ct = self.types.get(type_name)
-        if not ct:
-            return
-
-        self._apply_complex_type(el, ct)
-
-    def add_foreign_child(
-        self,
-        parent,
-        qname: etree.QName,
-        text=None,
-        attributes=None,
-    ):
-        """
-        Add an element not defined in the active XSD
-        (e.g. ogc:Filter, gml:Envelope)
-        """
-        if parent is None:
-            el = etree.Element(qname)
-        else:
-            el = etree.SubElement(parent, qname)
-
-        if attributes:
-            for k, v in attributes.items():
-                el.set(k, v)
-        if text is not None:
-            el.text = text
-        return el
+            xml_el.set(attr.get("name"), attr.get(
+                "fixed") or attr.get("default") or "")

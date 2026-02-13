@@ -55,4 +55,3 @@ class WebFeatureServiceSecurityManagerTest(TestCase):
 
         except AttributeError as e:
             self.fail(msg=f"wfs object shall has the attribute '{e.name}'")
-            self.fail(msg=f"wfs object shall has the attribute '{e.name}'")

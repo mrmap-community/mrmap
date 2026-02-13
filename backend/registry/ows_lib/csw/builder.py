@@ -1,3 +1,5 @@
+from typing import List
+
 from lxml import etree
 from registry.ows_lib.xml.builder import XSDSkeletonBuilder
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
@@ -5,7 +7,23 @@ from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 class CSWBuilder(XSDSkeletonBuilder):
     def __init__(self, service_version="2.0.2"):
-        super().__init__(("csw", "Exception", service_version))
+        super().__init__(("csw", "discovery", service_version))
+        self.service_version = service_version
+
+    def build_capabilities(self, title, abstract, keywords=None):
+        keywords = keywords or []
+        children_attrs = {
+            "ServiceIdentification": {
+                "Title": {"_text": title},
+                "Abstract": {"_text": abstract},
+                "ServiceType": {"_text": "CSW"},
+                "ServiceTypeVersion": {"_text": self.service_version},
+                "Keywords": {"Keyword": [{"_text": k} for k in keywords]} if keywords else None
+            }
+        }
+        root = self.build_element(
+            "Capabilities", children_attributes=children_attrs)
+        return root
 
     def build_get_record_by_id(
         self,

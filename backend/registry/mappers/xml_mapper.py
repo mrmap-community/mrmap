@@ -481,8 +481,7 @@ class XmlMapper:
                 field = getattr(db_instance, field_name, None)
                 is_many = is_many_relation(db_instance.__class__, field_name)
                 base_xpath = xpath_or_spec.get("_base_xpath", ".")
-                if base_xpath == "./wfs:FeatureTypeList/wfs:FeatureType":
-                    i = 0
+
                 try:
                     delete_able_elements = {
                         e.getroottree().getpath(e): e

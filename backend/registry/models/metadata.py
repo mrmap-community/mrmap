@@ -1,5 +1,4 @@
 import logging
-from datetime import timedelta
 from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField

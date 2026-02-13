@@ -5,6 +5,7 @@ XSD_LOOKUP = {
     ("wms", "Exception", "1.1.1"): "wmsExceptionReport111.xsd",
     ("wms", "Exception", "1.3.0"): "wmsExceptionReport130.xsd",
     ("csw", "discovery", "2.0.2"): "cswDiscovery.xsd",
+    ("ows", "common", "1.0.0"): "owsAll.xsd",
 }
 
 NAMESPACE_LOOKUP = {

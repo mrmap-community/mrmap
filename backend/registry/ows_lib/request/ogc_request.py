@@ -15,7 +15,7 @@ from pygeofilter.parsers.fes.util import NodeParsingError
 from registry.enums.service import OGCOperationEnum
 from registry.ows_lib.client.exceptions import (MissingBboxParam,
                                                 MissingServiceParam)
-from registry.ows_lib.csw.request_builder import CSWBuilder
+from registry.ows_lib.csw.builder import CSWBuilder
 from registry.ows_lib.request.utils import (
     construct_polygon_from_bbox_query_param, get_requested_feature_types,
     get_requested_layers, get_requested_records)

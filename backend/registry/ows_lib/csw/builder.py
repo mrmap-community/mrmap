@@ -1,7 +1,8 @@
-from typing import List
-
 from lxml import etree
-from registry.ows_lib.xml.builder import XSDSkeletonBuilder
+from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
+                                    OGCServiceVersionEnum)
+from registry.models.service import CatalogueService
+from registry.ows_lib.xml.builder import XMLBuilder, XSDSkeletonBuilder
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 
@@ -10,8 +11,40 @@ class CSWBuilder(XSDSkeletonBuilder):
         super().__init__(("csw", "discovery", service_version))
         self.service_version = service_version
 
-    def build_capabilities(self, title, abstract, keywords=None):
+    def transform_operation_urls(self, operation_urls):
+        transformed_operations = []
+        for name, operation_url in operation_urls.items():
+            operation = {
+                "_attributes": {"name": name},
+                "DCP": {
+                    "HTTP": {
+                        method.capitalize(): {
+                            "_attributes": {"xlink:href": operation_url["href"]}
+                        }
+                        for method in operation_url.get("methods", [])
+                    }
+                },
+            }
+            if "parameters" in operation_url:
+                operation["Parameters"] = {
+                    "Parameter": {
+                        "_attributes": {"name": operation_url["parameters"]["name"]},
+                        "Value": [{"_text": v} for v in operation_url["parameters"]["values"]]
+                    }
+                }
+            transformed_operations.append(operation)
+        return transformed_operations
+
+    def build_capabilities(
+        self,
+        title,
+        abstract,
+        operation_urls,
+        keywords=None,
+    ):
         keywords = keywords or []
+        transformed_operations = self.transform_operation_urls(operation_urls)
+
         children_attrs = {
             "ServiceIdentification": {
                 "Title": {"_text": title},
@@ -19,10 +52,15 @@ class CSWBuilder(XSDSkeletonBuilder):
                 "ServiceType": {"_text": "CSW"},
                 "ServiceTypeVersion": {"_text": self.service_version},
                 "Keywords": {"Keyword": [{"_text": k} for k in keywords]} if keywords else None
+            },
+            "OperationsMetadata": {
+                "Operation": transformed_operations
             }
         }
         root = self.build_element(
-            "Capabilities", children_attributes=children_attrs)
+            "Capabilities",
+            children_attributes=children_attrs
+        )
         return root
 
     def build_get_record_by_id(
@@ -182,3 +220,73 @@ class CSWBuilder(XSDSkeletonBuilder):
                 etree.QName(NAMESPACE_LOOKUP["ogc"], "SortOrder"),
                 text=order,
             )
+
+
+class CSWCapabilities(XMLBuilder):
+    NSMAP = {
+        "ows": NAMESPACE_LOOKUP["ows"],
+        "csw": NAMESPACE_LOOKUP["csw_2_0_2"],
+        "ogc": NAMESPACE_LOOKUP["ogc"],
+        "xlink": NAMESPACE_LOOKUP["xlink"],
+    }
+
+    def __init__(self, csw: CatalogueService):
+        self.csw = csw
+
+    def to_xml(self):
+        root = etree.Element(
+            etree.QName(self.NSMAP["csw"], "Capabilities"),
+            nsmap=self.NSMAP,
+            version=str(OGCServiceVersionEnum(self.csw.version).label),
+        )
+
+        self._build_service_identification(root)
+        self._build_operations_metadata(root)
+        self._build_filter_capabilities(root)
+
+        return root
+
+    # -----------------------------------
+
+    def _build_service_identification(self, root):
+        si = self.el(self.NSMAP["ows"], "ServiceIdentification", parent=root)
+
+        self.el(self.NSMAP["ows"], "Title", si, text=self.csw.title)
+        self.el(self.NSMAP["ows"], "Abstract", si, text=self.csw.abstract)
+        self.el(self.NSMAP["ows"], "ServiceType", si, text="CSW")
+        self.el(self.NSMAP["ows"], "ServiceTypeVersion",
+                si, text=str(OGCServiceVersionEnum(self.csw.version).label))
+        keywords = self.csw.keywords.all()
+        if keywords:
+            kw = self.el(self.NSMAP["ows"], "Keywords", si)
+            for k in keywords:
+                self.el(self.NSMAP["ows"], "Keyword", kw, text=k)
+
+    # -----------------------------------
+
+    def _build_operations_metadata(self, root):
+        ops_meta = self.el(self.NSMAP["ows"],
+                           "OperationsMetadata", parent=root)
+        operation_urls = self.csw.operation_urls.all()
+        for op in operation_urls:
+            name = str(OGCOperationEnum(op.operation))
+            method = str(HttpMethodEnum(op.method))
+
+            op_el = self.el(self.NSMAP["ows"],
+                            "Operation", ops_meta, name=name)
+
+            dcp = self.el(self.NSMAP["ows"], "DCP", op_el)
+            http = self.el(self.NSMAP["ows"], "HTTP", dcp)
+
+            method_el = self.el(self.NSMAP["ows"], method, http)
+            method_el.set(
+                etree.QName(self.NSMAP["xlink"], "href"),
+                op.url
+            )
+
+    # -----------------------------------
+
+    def _build_filter_capabilities(self, root):
+        self.el(self.NSMAP["ogc"], "Filter_Capabilities", parent=root)
+        self.el(self.NSMAP["ogc"], "Filter_Capabilities", parent=root)
+        self.el(self.NSMAP["ogc"], "Filter_Capabilities", parent=root)

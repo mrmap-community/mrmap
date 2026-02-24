@@ -257,10 +257,10 @@ class XSDSkeletonBuilder:
 
 class XMLBuilder:
 
-    def el(self, ns, name, parent=None, text=None, **attrs):
-        element = etree.Element(etree.QName(ns, name)) \
+    def el(self, ns, local_name, parent=None, text=None, **attrs):
+        element = etree.Element(etree.QName(ns, local_name)) \
             if parent is None else \
-            etree.SubElement(parent, etree.QName(ns, name))
+            etree.SubElement(parent, etree.QName(ns, local_name))
 
         if text:
             element.text = text

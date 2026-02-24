@@ -1,4 +1,3 @@
-import os
 from itertools import chain
 
 from csw.exceptions import InvalidQuery, NotSupported
@@ -14,12 +13,9 @@ from django.template.response import TemplateResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from eulxml.xmlmap import load_xmlobject_from_file
 from lxml.etree import XMLSyntaxError
 from ows_lib.models.ogc_request import OGCRequest
-from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
-                                                        ServiceMetadataContact)
-from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
+from ows_lib.xml_mapper.capabilities.csw.csw202 import CatalogueService
 from ows_lib.xml_mapper.exceptions import OGCServiceException
 from ows_lib.xml_mapper.xml_responses.csw.achnowledgment import Acknowledgement
 from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
@@ -29,9 +25,11 @@ from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
+from registry.ows_lib.csw.builder import CSWCapabilities
 from registry.ows_lib.response.exceptions import (
     MissingRequestParameterException, MissingServiceParameterException,
     OperationNotSupportedException)
+from registry.settings import MRMAP_CSW_PK
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -140,37 +138,20 @@ class CswServiceView(View):
             flat=True
         )[:10]
 
-        cap_file = os.path.dirname(
-            os.path.abspath(__file__)) + "/capabilitites.xml"
+        csw = CatalogueService.objects.get(pk=MRMAP_CSW_PK)
 
-        # TODO: #527: C4 requirement is needed to replace the following lines.
-        capabilitites_doc: CatalogueService = load_xmlobject_from_file(
-            cap_file, xmlclass=CatalogueService)
-
-        capabilitites_doc.keywords = keywords
-
-        capabilitites_doc.title = "Mr. Map CSW"
-        capabilitites_doc.service_contact = ServiceMetadataContact(name="test")
-        # TODO: 527
-        capabilitites_doc.operation_urls.extend(
-            [
-                OperationUrl(method="Get", operation="GetCapabilities",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Get", operation="GetRecords",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Post", operation="GetRecords",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Get", operation="GetRecordById",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Post", operation="GetRecordById",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"])
-            ]
+        builder = CSWCapabilities(
+            csw,
+            extra_keywords=list(keywords),
+            base_url=request.build_absolute_uri("/csw")
         )
+        capabilitites_doc = builder.to_xml_string()
+
         if (settings.DEBUG):
-            return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc.serializeDocument(pretty=True)})
+            return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc})
         return HttpResponse(
             status=200,
-            content=capabilitites_doc.serializeDocument(pretty=True),
+            content=capabilitites_doc,
             content_type="application/xml"
         )
 

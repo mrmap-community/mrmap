@@ -230,8 +230,15 @@ class CSWCapabilities(XMLBuilder):
         "xlink": NAMESPACE_LOOKUP["xlink"],
     }
 
-    def __init__(self, csw: CatalogueService):
+    def __init__(
+        self,
+        csw: CatalogueService,
+        extra_keywords: list[str] = None,
+        base_url: str = None,
+    ):
         self.csw = csw
+        self.extra_keywords = extra_keywords or []
+        self.base_url = base_url
 
     def to_xml(self):
         root = etree.Element(
@@ -246,6 +253,24 @@ class CSWCapabilities(XMLBuilder):
 
         return root
 
+    def to_xml_string(self):
+        return etree.tostring(
+            self.to_xml(),
+            pretty_print=True,
+            xml_declaration=True,
+            encoding="UTF-8"
+        ).decode("utf-8")
+
+    def _get_keywords(self):
+        # existing persisted keywords (if any)
+        persisted = [kw.keyword for kw in self.csw.keywords.all()]
+
+        # merge with runtime keywords
+        return list(set(persisted + self.extra_keywords))
+
+    def _get_operation_url(self):
+        return self.base_url
+
     # -----------------------------------
 
     def _build_service_identification(self, root):
@@ -256,7 +281,7 @@ class CSWCapabilities(XMLBuilder):
         self.el(self.NSMAP["ows"], "ServiceType", si, text="CSW")
         self.el(self.NSMAP["ows"], "ServiceTypeVersion",
                 si, text=str(OGCServiceVersionEnum(self.csw.version).label))
-        keywords = self.csw.keywords.all()
+        keywords = self._get_keywords()
         if keywords:
             kw = self.el(self.NSMAP["ows"], "Keywords", si)
             for k in keywords:
@@ -269,8 +294,8 @@ class CSWCapabilities(XMLBuilder):
                            "OperationsMetadata", parent=root)
         operation_urls = self.csw.operation_urls.all()
         for op in operation_urls:
-            name = str(OGCOperationEnum(op.operation))
-            method = str(HttpMethodEnum(op.method))
+            name = str(OGCOperationEnum(op.operation).label)
+            method = str(HttpMethodEnum(op.method).label)
 
             op_el = self.el(self.NSMAP["ows"],
                             "Operation", ops_meta, name=name)
@@ -281,12 +306,10 @@ class CSWCapabilities(XMLBuilder):
             method_el = self.el(self.NSMAP["ows"], method, http)
             method_el.set(
                 etree.QName(self.NSMAP["xlink"], "href"),
-                op.url
+                self._get_operation_url() or op.url
             )
 
     # -----------------------------------
 
     def _build_filter_capabilities(self, root):
-        self.el(self.NSMAP["ogc"], "Filter_Capabilities", parent=root)
-        self.el(self.NSMAP["ogc"], "Filter_Capabilities", parent=root)
         self.el(self.NSMAP["ogc"], "Filter_Capabilities", parent=root)

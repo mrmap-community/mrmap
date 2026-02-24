@@ -78,7 +78,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 1,
+        "pk": 1234,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -88,7 +88,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 2,
+        "pk": 1235,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -98,7 +98,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 3,
+        "pk": 1236,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -108,7 +108,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 4,
+        "pk": 1237,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -118,7 +118,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 5,
+        "pk": 1238,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -128,7 +128,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 6,
+        "pk": 1239,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -149,7 +149,12 @@
             "version": 202,
             "service_url": "",
             "service_contact": "1",
-            "metadata_contact": "1"
+            "metadata_contact": "1",
+            "keywords": [
+                [
+                    "meteorology"
+                ]
+            ]
         }
     },
     {

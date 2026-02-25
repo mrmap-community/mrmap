@@ -143,8 +143,124 @@ class CswServiceView(View):
         builder = CSWCapabilities(
             csw,
             extra_keywords=list(keywords),
-            base_url=request.build_absolute_uri("/csw")
+            base_url=request.build_absolute_uri("/csw"),
+            operation_parameters={
+                "GetRecords": {
+                    "CONSTRAINTLANGUAGE": ["FILTER", "CQL_TEXT"],
+                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],
+                    "outputFormat": ["application/xml"],
+                    "ElementSetName": ["full"],
+                    "resultType": ["results", "hits", "validate"],
+                    "typeNames": ["gmd:MD_Metadata"],
+                },
+                "GetRecordById": {
+                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],
+                    "outputFormat": ["application/xml"],
+                    "ElementSetName": ["full"],
+                    "typeNames": ["gmd:MD_Metadata"],
+                },
+            },
+            filter_capabilities={
+                "Spatial_Capabilities": {
+                    "GeometryOperands": [
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:Point"
+                        },
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:LineString"
+                        },
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:Polygon"
+                        }
+                    ],
+                    "SpatialOperators": [
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "BBOX"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Contains"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Crosses"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Disjoint"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Equals"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Intersects"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Overlaps"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Touches"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Within"
+                        }
+                    ],
+                },
+                "Scalar_Capabilities": {
+                    "LogicalOperators": [
+                        {
+                            "name": "LogicalOperator",
+                            "text": "AND"
+                        },
+                        {
+                            "name": "LogicalOperator",
+                            "text": "OR"
+                        },
+                        {
+                            "name": "LogicalOperator",
+                            "text": "NOT"
+                        }
+                    ],
+
+                    "ComparisonOperators": [
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "EqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "NotEqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "LessThan"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "GreaterThan"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "LessThanEqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "GreaterThanEqualTo"
+                        }
+                    ]
+                }
+            }
         )
+
         capabilitites_doc = builder.to_xml_string()
 
         if (settings.DEBUG):

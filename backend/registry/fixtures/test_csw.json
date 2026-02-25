@@ -12,8 +12,8 @@
             "abstract": "abstract1",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
             "history_type": "+",
@@ -36,8 +36,8 @@
             "abstract": "abstract2",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
             "history_type": "+",
@@ -60,8 +60,8 @@
             "abstract": "abstract3",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
             "history_type": "+",
@@ -73,7 +73,7 @@
     },
     {
         "model": "registry.metadatacontact",
-        "pk": "1",
+        "pk": "1234",
         "fields": {}
     },
     {
@@ -148,8 +148,8 @@
             "abstract": "abstract1",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "keywords": [
                 [
                     "meteorology"
@@ -168,8 +168,8 @@
             "title": "CSW2",
             "abstract": "abstract2",
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "version": 202
         }
     },
@@ -185,8 +185,8 @@
             "abstract": "abstract3",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "keywords": [
                 [
                     "meteorology"

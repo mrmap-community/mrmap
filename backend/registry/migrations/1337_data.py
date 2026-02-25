@@ -9,10 +9,18 @@ from registry.settings import MRMAP_CSW_PK
 
 
 def load_initial_data(apps, schema_editor):
-    MetadataContact = apps.get_model("registry", "MetadataContact")
-    CatalogueService = apps.get_model("registry", "CatalogueService")
+    MetadataContact = apps.get_model(
+        "registry",
+        "MetadataContact"
+    )
+    CatalogueService = apps.get_model(
+        "registry",
+        "CatalogueService"
+    )
     CatalogueServiceOperationUrl = apps.get_model(
-        "registry", "CatalogueServiceOperationUrl")
+        "registry",
+        "CatalogueServiceOperationUrl"
+    )
 
     with transaction.atomic():
         contact, _ = MetadataContact.objects.get_or_create(

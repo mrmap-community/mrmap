@@ -235,10 +235,14 @@ class CSWCapabilities(XMLBuilder):
         csw: CatalogueService,
         extra_keywords: list[str] = None,
         base_url: str = None,
+        operation_parameters: dict = None,
+        filter_capabilities: dict = None,
     ):
         self.csw = csw
         self.extra_keywords = extra_keywords or []
         self.base_url = base_url
+        self.operation_parameters = operation_parameters or {}
+        self.filter_capabilities = filter_capabilities or {}
 
     def to_xml(self):
         root = etree.Element(
@@ -248,6 +252,7 @@ class CSWCapabilities(XMLBuilder):
         )
 
         self._build_service_identification(root)
+        self._build_service_provider(root)
         self._build_operations_metadata(root)
         self._build_filter_capabilities(root)
 
@@ -281,11 +286,49 @@ class CSWCapabilities(XMLBuilder):
         self.el(self.NSMAP["ows"], "ServiceType", si, text="CSW")
         self.el(self.NSMAP["ows"], "ServiceTypeVersion",
                 si, text=str(OGCServiceVersionEnum(self.csw.version).label))
+        self.el(self.NSMAP["ows"], "Fees", si, text=self.csw.fees or "None")
+        self.el(self.NSMAP["ows"], "AccessConstraints", si,
+                text=self.csw.access_constraints or "None")
         keywords = self._get_keywords()
         if keywords:
             kw = self.el(self.NSMAP["ows"], "Keywords", si)
             for k in keywords:
                 self.el(self.NSMAP["ows"], "Keyword", kw, text=k)
+
+    # -----------------------------------
+
+    def _build_service_provider(self, root):
+
+        sp = self.el(self.NSMAP["ows"], "ServiceProvider", parent=root)
+
+        self.el(self.NSMAP["ows"], "ProviderName", sp,
+                text=self.csw.service_contact.name)
+
+        sc = self.el(self.NSMAP["ows"], "ServiceContact", parent=sp)
+        self.el(self.NSMAP["ows"], "IndividualName", sc,
+                text=self.csw.service_contact.person_name) if self.csw.service_contact.person_name else None
+
+        ci = self.el(self.NSMAP["ows"], "ContactInfo", parent=sc)
+
+        phone = self.el(self.NSMAP["ows"], "Phone", parent=ci)
+        self.el(self.NSMAP["ows"], "Voice", phone,
+                text=self.csw.service_contact.phone) if self.csw.service_contact.phone else None
+        self.el(self.NSMAP["ows"], "Facsimile", phone,
+                text=self.csw.service_contact.facsimile) if self.csw.service_contact.facsimile else None
+
+        address = self.el(self.NSMAP["ows"], "Address", parent=ci)
+        self.el(self.NSMAP["ows"], "DeliveryPoint", address,
+                text=self.csw.service_contact.address) if self.csw.service_contact.address else None
+        self.el(self.NSMAP["ows"], "City", address,
+                text=self.csw.service_contact.city) if self.csw.service_contact.city else None
+        self.el(self.NSMAP["ows"], "PostalCode", address,
+                text=self.csw.service_contact.postal_code) if self.csw.service_contact.postal_code else None
+        self.el(self.NSMAP["ows"], "PostalCode", address,
+                text=self.csw.service_contact.postal_code) if self.csw.service_contact.postal_code else None
+        self.el(self.NSMAP["ows"], "Country", address,
+                text=self.csw.service_contact.country) if self.csw.service_contact.country else None
+        self.el(self.NSMAP["ows"], "ElectronicMailAddress", address,
+                text=self.csw.service_contact.email) if self.csw.service_contact.email else None
 
     # -----------------------------------
 
@@ -308,8 +351,180 @@ class CSWCapabilities(XMLBuilder):
                 etree.QName(self.NSMAP["xlink"], "href"),
                 self._get_operation_url() or op.url
             )
+            if self.operation_parameters.get(name):
+                params_el = self.el(self.NSMAP["ows"], "Parameters", op_el)
+                for param_name, param_values in self.operation_parameters[name].items():
+                    param_el = self.el(
+                        self.NSMAP["ows"], "Parameter", params_el, name=param_name)
+                    for v in param_values:
+                        self.el(self.NSMAP["ows"], "Value", param_el, text=v)
 
     # -----------------------------------
 
     def _build_filter_capabilities(self, root):
-        self.el(self.NSMAP["ogc"], "Filter_Capabilities", parent=root)
+        """
+        example:  
+        <ogc:Spatial_Capabilities>
+            <ogc:GeometryOperands>
+                <ogc:GeometryOperand>gml:Point</ogc:GeometryOperand>
+                <ogc:GeometryOperand>gml:LineString</ogc:GeometryOperand>
+                <ogc:GeometryOperand>gml:Polygon</ogc:GeometryOperand>
+                <ogc:GeometryOperand>gml:Envelope</ogc:GeometryOperand>
+            </ogc:GeometryOperands>
+            <ogc:SpatialOperators>
+                <ogc:SpatialOperator name="BBOX"/>
+                <ogc:SpatialOperator name="Beyond"/>
+                <ogc:SpatialOperator name="Contains"/>
+                <ogc:SpatialOperator name="Crosses"/>
+                <ogc:SpatialOperator name="Disjoint"/>
+                <ogc:SpatialOperator name="DWithin"/>
+                <ogc:SpatialOperator name="Equals"/>
+                <ogc:SpatialOperator name="Intersects"/>
+                <ogc:SpatialOperator name="Overlaps"/>
+                <ogc:SpatialOperator name="Touches"/>
+                <ogc:SpatialOperator name="Within"/>
+            </ogc:SpatialOperators>
+        </ogc:Spatial_Capabilities>
+        <ogc:Scalar_Capabilities>
+            <ogc:LogicalOperators/>
+            <ogc:ComparisonOperators>
+                <ogc:ComparisonOperator>Between</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>EqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>GreaterThan</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>GreaterThanEqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>LessThan</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>LessThanEqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>Like</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>NotEqualTo</ogc:ComparisonOperator>
+                <ogc:ComparisonOperator>NullCheck</ogc:ComparisonOperator>
+            </ogc:ComparisonOperators>
+            <ogc:ArithmeticOperators>
+                <ogc:Functions>
+                    <ogc:FunctionNames>
+                        <ogc:FunctionName nArgs="1">length</ogc:FunctionName>
+                        <ogc:FunctionName nArgs="1">lower</ogc:FunctionName>
+                        <ogc:FunctionName nArgs="1">ltrim</ogc:FunctionName>
+                        <ogc:FunctionName nArgs="1">rtrim</ogc:FunctionName>
+                        <ogc:FunctionName nArgs="1">trim</ogc:FunctionName>
+                        <ogc:FunctionName nArgs="1">upper</ogc:FunctionName>
+                    </ogc:FunctionNames>
+                </ogc:Functions>
+            </ogc:ArithmeticOperators>
+        </ogc:Scalar_Capabilities>
+
+            self.filter_capabilities = {
+                "Spatial_Capabilities": {
+                    "GeometryOperands": [
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:Point"
+                        },
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:LineString"
+                        },
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:Polygon"
+                        }
+                    ],
+                    "SpatialOperators": [
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "BBOX"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Contains"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Crosses"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Disjoint"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Equals"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Intersects"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Overlaps"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Touches"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Within"
+                        }
+                    ],
+                },
+                "Scalar_Capabilities": {
+                    "LogicalOperators": [
+                        {
+                            "name": "LogicalOperator",
+                            "text": "AND"
+                        },
+                        {
+                            "name": "LogicalOperator",
+                            "text": "OR"
+                        },
+                        {
+                            "name": "LogicalOperator",
+                            "text": "NOT"
+                        }
+                    ],
+
+                    "ComparisonOperators": [
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "EqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "NotEqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "LessThan"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "GreaterThan"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "LessThanEqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "GreaterThanEqualTo"
+                        }
+                    ]
+                }
+            }
+        )
+
+        """
+        filter_capabilities = self.el(
+            self.NSMAP["ogc"], "Filter_Capabilities", parent=root)
+        for fc_name, fc_content in self.filter_capabilities.items():
+            fc_el = self.el(self.NSMAP["ogc"], fc_name, filter_capabilities)
+            for content_name, content_items in fc_content.items():
+                content_el = self.el(self.NSMAP["ogc"], content_name, fc_el)
+                for item in content_items:
+                    self.el(
+                        self.NSMAP["ogc"],
+                        item["name"],
+                        content_el,
+                        text=item.get("text"),
+                        **({"name": item["_name"]} if "_name" in item else {})
+                    )

@@ -15,7 +15,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from lxml.etree import XMLSyntaxError
 from ows_lib.models.ogc_request import OGCRequest
-from ows_lib.xml_mapper.capabilities.csw.csw202 import CatalogueService
 from ows_lib.xml_mapper.exceptions import OGCServiceException
 from ows_lib.xml_mapper.xml_responses.csw.achnowledgment import Acknowledgement
 from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
@@ -25,6 +24,7 @@ from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
+from registry.models.service import CatalogueService
 from registry.ows_lib.csw.builder import CSWCapabilities
 from registry.ows_lib.response.exceptions import (
     MissingRequestParameterException, MissingServiceParameterException,

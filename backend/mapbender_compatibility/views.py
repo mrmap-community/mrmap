@@ -9,11 +9,12 @@ from django.http.request import HttpRequest as HttpRequest
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from eulxml.xmlmap import load_xmlobject_from_string
-from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
+from lxml import etree
+from registry.mappers.factory import MDMetadataXmlMapper
 from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.service import CatalogueService as DBCatalogueService
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 
 # TODO: log the request on this view. HTTP_Referer, searchUrl, searchText, HTTP_USER_AGENT, catalogueId
@@ -96,27 +97,35 @@ class MapBenderSearchApi(View):
             gmd_metadata_response = client.send_request(csw_request)
 
             if gmd_metadata_response.status_code >= 200 and gmd_metadata_response.status_code < 400:
-                # TODO: #527: Edge Case. 'Client' component is needed here
-                parsed_get_records: GetRecordsResponse = load_xmlobject_from_string(
-                    gmd_metadata_response.content, GetRecordsResponse)
 
-                for gmd_metadata in parsed_get_records.gmd_records:
-                    get_record_by_id_url = client.get_record_by_id_request(
-                        id=gmd_metadata.file_identifier)
+                xml = etree.fromstring(gmd_metadata_response.content)
 
-                    srv.append({
-                        "id": gmd_metadata.file_identifier,
-                        "date": gmd_metadata.date_stamp,
-                        "datasetId": f"{gmd_metadata.code_space}{gmd_metadata.code}",
-                        "previewUrl": "TODO",
-                        "respOrg": gmd_metadata.metadata_contact.name if gmd_metadata.metadata_contact else "",
-                        "bbox": ",".join([str(coord) for coord in gmd_metadata.bounding_geometry.extent]) if gmd_metadata.bounding_geometry else None,
-                        "title": gmd_metadata.title,
-                        "abstract": gmd_metadata.abstract,
-                        "mdLink": get_record_by_id_url.url,
-                        "htmlLink": f'https://www.geoportal.rlp.de/mapbender/php/mod_exportIso19139.php?url={parse.quote_plus(get_record_by_id_url.url)}&resolveCoupledResources=true',
-                    })
-                content["md"]["nresults"] = parsed_get_records.total_records or 0
+                total_records = int(xml.xpath("/csw:GetRecordsResponse/csw:SearchResults/@numberOfRecordsMatched", namespaces={
+                    "csw": NAMESPACE_LOOKUP["csw_2_0_2"]
+                })[0] or 0)
+
+                mappers = MDMetadataXmlMapper.from_xml(
+                    gmd_metadata_response.content)
+                for mapper in mappers:
+                    data = mapper.xml_to_django()
+                    for md_metadata in data:
+                        get_record_by_id_url = client.get_record_by_id_request(
+                            id=md_metadata.file_identifier)
+
+                        srv.append({
+                            "id": md_metadata.file_identifier,
+                            "date": md_metadata.date_stamp,
+                            "datasetId": md_metadata.file_identifier,
+                            "previewUrl": "TODO",
+                            "respOrg": md_metadata.metadata_contact.name if md_metadata.metadata_contact else None,
+                            "bbox": ",".join([str(coord) for coord in md_metadata.bounding_geometry.extent]) if md_metadata.bounding_geometry else None,
+                            "title": md_metadata.title,
+                            "abstract": md_metadata.abstract,
+                            "mdLink": get_record_by_id_url.url,
+                            "htmlLink": f'https://www.geoportal.rlp.de/mapbender/php/mod_exportIso19139.php?url={parse.quote_plus(get_record_by_id_url.url)}&resolveCoupledResources=true',
+                        })
+
+                content["md"]["nresults"] = total_records
         except DBCatalogueService.DoesNotExist:
             # TODO: response with error code
             pass

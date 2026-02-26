@@ -214,4 +214,33 @@ XPATH_MAP = {
             }
         }
     },
+    ("DescribeFeatureType", "2.0.0"): {
+        "_namespaces": {
+            "gml": NAMESPACE_LOOKUP["gml_3_2_2"],
+            "xsd": NAMESPACE_LOOKUP["xsd"],
+            "wfs": NAMESPACE_LOOKUP["wfs_2_0_0"],
+        },
+        "feature_type_element": {
+            "_model": "registry.FeatureTypeProperty",
+            "_base_xpath": "//xsd:complexType/xsd:complexContent/xsd:extension/xsd:sequence/xsd:element",
+            "_create_mode": "bulk",
+            "fields": {
+                "name": "./@name",
+                "data_type": "./@type",
+                "required": {
+                    "_inputs": ("./@nillable",),
+                    "_parser": "registry.mappers.parsers.value.str_to_bool",
+                    "_reverse_parser": "registry.mappers.parsers.value.boolean_to_int"
+                },
+                "max_occurs": {
+                    "_inputs": ("./@maxOccurs",),
+                    "_parser": "registry.mappers.parsers.value.str_to_int",
+                },
+                "min_occurs": {
+                    "_inputs": ("./@min_occurs",),
+                    "_parser": "registry.mappers.parsers.value.str_to_int",
+                },
+            }
+        }
+    }
 }

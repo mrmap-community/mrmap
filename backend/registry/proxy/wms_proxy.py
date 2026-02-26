@@ -11,15 +11,16 @@ from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from eulxml import xmlmap
+from epsg_cache.utils import adjust_axis_order
 from extras.utils import execute_threads
+from lxml import etree
 from PIL import Image, ImageDraw, ImageFont
 from registry.models.service import WebMapService
 from registry.ows_lib.response.exceptions import (ForbiddenException,
                                                   LayerNotDefined)
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.proxy.mixins import OgcServiceProxyView
-from registry.xmlmapper.ogc.feature_collection import FeatureCollection
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -434,18 +435,21 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 else:
                     xml_response = self.get_remote_response(request=request)
                     requested_response = xml_response
-                    # TODO: #527
-                feature_collection = xmlmap.load_xmlobject_from_string(
-                    xml_response.content, xmlclass=FeatureCollection
+
+                xml = etree.fromstring(xml_response.content)
+                gml = xml.xpath(
+                    "//gml:boundedBy/gml:*",
+                    namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
                 )
+                geometry = GEOSGeometry.from_gml(etree.tostring(gml[0]))
                 # FIXME: depends on xml wms version not on the registered service version
                 axis_order_correction = (
                     True if self.service.major_service_version >= 2 else False
                 )
-                polygon = feature_collection.bounded_by.get_geometry(
-                    axis_order_correction
-                )
-                if self.service.allowed_area_union.contains(polygon.convex_hull):
+                if axis_order_correction:
+                    geometry = adjust_axis_order(geometry)
+
+                if self.service.allowed_area_union.contains(geometry.convex_hull):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
@@ -459,8 +463,4 @@ class WebMapServiceProxy(OgcServiceProxyView):
         if self.ogc_request.is_get_map_request:
             return self.handle_secured_get_map()
         elif self.ogc_request.is_get_feature_info_request:
-            return self.handle_secured_get_feature_info()
-            return self.handle_secured_get_feature_info()
-            return self.handle_secured_get_feature_info()
-            return self.handle_secured_get_feature_info()
             return self.handle_secured_get_feature_info()

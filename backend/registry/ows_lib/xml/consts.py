@@ -26,6 +26,7 @@ NAMESPACE_LOOKUP = {
     "fes_2_0": "http://www.opengis.net/fes/2.0",
     "ogc": "http://www.opengis.net/ogc",
     "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    "xsd": "http://www.w3.org/2001/XMLSchema",
     "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
     "inspire_vs": "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0"
 }

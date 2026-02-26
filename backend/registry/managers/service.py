@@ -8,7 +8,6 @@ from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from registry import models
 from registry.querys.service import LayerQuerySet
-from simple_history.models import HistoricalRecords
 
 SIBLING_INDEX = Coalesce(
     Window(
@@ -119,25 +118,5 @@ class CatalogueServiceManager(Manager.from_queryset(CatalogueServiceQuerySet), M
     pass
 
 
-class FeatureTypeElementXmlManager(Manager):
-
-    def _reset_local_variables(self, **kwargs):
-        # bulk_create will not call the default save() of CommonInfo model. So we need to set the attributes manual. We
-        # collect them once.
-        if hasattr(HistoricalRecords.context, "request") and hasattr(HistoricalRecords.context.request, "user"):
-            self.current_user = HistoricalRecords.context.request.user
-
-    def create_from_parsed_xml(self, parsed_xml, related_object, *args, **kwargs):
-        self._reset_local_variables(**kwargs)
-
-        db_element_list = []
-        for element in parsed_xml.elements:
-            db_element_list.append(self.model(feature_type=related_object,
-                                              *args,
-                                              **element.get_field_dict()))
-        return self.model.objects.bulk_create(objs=db_element_list)
-
-
 class LayerManager(Manager.from_queryset(LayerQuerySet), DefaultHistoryManager, TreeManager):
-    pass
     pass

@@ -11,7 +11,6 @@ from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from eulxml import xmlmap
 from extras.decorators import warn_on_queries
 from extras.managers import DefaultHistoryManager
 from extras.models import (AdditionalTimeFieldsHistoricalModel,
@@ -28,6 +27,9 @@ from registry.managers.security import (WebFeatureServiceSecurityManager,
 from registry.managers.service import (CatalogueServiceManager, LayerManager,
                                        WebFeatureServiceQuerySet,
                                        WebMapServiceQuerySet)
+from registry.mappers.configs import XPATH_MAP
+from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.xml_mapper import XmlMapper
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
@@ -36,8 +38,6 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.ows_lib.wms.wms import WebMapServiceClient
-from registry.xmlmapper.ogc.wfs_describe_feature_type import \
-    DescribedFeatureType as XmlDescribedFeatureType
 from requests import Session
 from simple_history.models import HistoricalRecords
 
@@ -818,12 +818,10 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             ValueError: if self.remote_content is null
         """
         if self.describe_feature_type_document:
-            # TODO: #527
-            parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(
-                string=self.describe_feature_type_document,
-                xmlclass=XmlDescribedFeatureType,
-            )
-            return parsed_feature_type_elements
+            mapper = XmlMapper(xml=self.describe_feature_type_document,
+                               mapping=XPATH_MAP[("DescribeFeatureType", "2.0.0")])
+            mapper.xml_to_django()
+            return mapper
         else:
             raise ValueError(
                 "there is no fetched content. You need to call fetch_describe_feature_type_document() "
@@ -832,9 +830,16 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def create_element_instances(self):
         """Return the created FeatureTypeElement record(s)"""
-        return FeatureTypeProperty.xml_objects.create_from_parsed_xml(
-            parsed_xml=self.parse(), related_object=self
+        mapper = self.parse()
+        handler = PersistenceHandler(
+            mapper=mapper,
+            defaults={
+                "feature_type_element": {
+                    "feature_type": self,
+                }
+            }
         )
+        return handler.persist_all()
 
 
 class FeatureTypeProperty(models.Model):

@@ -27,11 +27,16 @@ def boolean_to_int(mapper, value: bool = False) -> int:
 
 def str_to_bool(mapper, value: str = "0") -> bool:
     """Wandelt den String '0' in False und '1' in True um. Andere Werte werfen einen ValueError."""
-    if value == "0":
+    if value == "0" or value == "false":
         return False
-    if value == "1":
+    if value == "1" or value == "true":
         return True
     raise ValueError(f"Ungültiger Wert {value!r}, nur '0' oder '1' erlaubt.")
+
+
+def str_to_int(mapper, value: str = "0") -> int:
+    """Wandelt den String '0' in 0 und '1' in 1 um. Andere Werte werfen einen ValueError."""
+    return int(value)
 
 
 def srs_to_prefix(mapper, value: str):

@@ -13,22 +13,17 @@ from django.template.response import TemplateResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from lxml.etree import XMLSyntaxError
-from ows_lib.models.ogc_request import OGCRequest
-from ows_lib.xml_mapper.exceptions import OGCServiceException
-from ows_lib.xml_mapper.xml_responses.csw.achnowledgment import Acknowledgement
-from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
-    GetRecordsResponse as GetRecordByIdResponse
-from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
+from lxml import etree
 from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
-from registry.ows_lib.csw.builder import CSWCapabilities
+from registry.ows_lib.csw.builder import CSWBuilder, CSWCapabilities
+from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.ows_lib.response.exceptions import (
     MissingRequestParameterException, MissingServiceParameterException,
-    OperationNotSupportedException)
+    OGCServiceException, OperationNotSupportedException)
 from registry.settings import MRMAP_CSW_PK
 
 
@@ -356,38 +351,42 @@ class CswServiceView(View):
         records_returned = len(result)
 
         result_type = self.ogc_request.xml_request.result_type or "hits"
+        builder = CSWBuilder()
 
         if result_type == "hits":
-            xml = GetRecordsResponse(
+            xml = builder.build_get_records_response(
                 total_records=total_records,
                 records_returned=records_returned,
                 version="2.0.2",
                 time_stamp=self.start_time,
-                next_record=0 if next_record == total_records else next_record
+                next_record=0 if next_record == total_records else next_record,
             )
         elif result_type == "validate":
             # no errors while here. So the request was acknowledget as successfully
-            xml = Acknowledgement(
+            xml = builder.build_acknowledgement(
                 time_stamp=self.start_time,
-                echoed_get_records_request=self.ogc_request.xml_request
-            )
+                echoed_get_records_request=self.ogc_request.xml_request)
         else:
-            xml = GetRecordsResponse(
+            gmd_records = [
+                etree.fromstring(record.xml_backup)
+                for record in result
+            ]
+            xml = builder.build_get_records_response(
                 total_records=total_records,
                 records_returned=records_returned,
                 version="2.0.2",
                 time_stamp=self.start_time,
-                next_record=0 if next_record == total_records else next_record
+                next_record=0 if next_record == total_records else next_record,
+                gmd_records=gmd_records
             )
-            for record in result:
-                try:
-                    # TODO: #527
-                    xml.gmd_records.append(
-                        record.xml_backup)
-                except XMLSyntaxError:
-                    continue
 
-        return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xhtml+xml")
+        content = etree.tostring(
+            xml,
+            pretty_print=True,
+            encoding="utf-8",
+            xml_declaration=True
+        )
+        return HttpResponse(status=200, content=content, content_type="application/xhtml+xml")
 
     def get_record_by_id(self, request):
         requested_entities = self.ogc_request.requested_entities
@@ -404,15 +403,17 @@ class CswServiceView(View):
             service_metadata_records = ServiceMetadataRecord.objects.filter(
                 file_identifier__in=requested_entities)
         records = chain(dataset_metadata_records, service_metadata_records)
-        xml = GetRecordByIdResponse(
-            version="2.0.2",
-            time_stamp=self.start_time,
-        )
-        for record in records:
-            # TODO: #527
-            xml.gmd_records.append(record.xml_backup)
+
+        gmd_records = [
+            etree.fromstring(record.xml_backup)
+            for record in records
+        ]
+
+        builder = CSWBuilder()
+        xml = builder.build_get_records_by_id_response(gmd_records=gmd_records)
+
         return HttpResponse(
-            status=200, content=xml.serialize(pretty=True),
+            status=200, content=etree.tostring(xml, pretty_print=True, encoding="utf-8", xml_declaration=True),
             content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):

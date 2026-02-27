@@ -1,7 +1,6 @@
 from lxml import etree
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
-from registry.models.service import CatalogueService
 from registry.ows_lib.xml.builder import XMLBuilder, XSDSkeletonBuilder
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
@@ -118,6 +117,67 @@ class CSWBuilder(XSDSkeletonBuilder):
 
         return root
 
+    def build_get_records_response(
+        self,
+        total_records,
+        records_returned,
+        version="2.0.2",
+        next_record=None,
+        record_schema="http://www.isotc211.org/2005/gmd",
+        element_set="full",
+        result_set_id=None,
+        expires=None,
+        time_stamp=None,
+        csw_records=None,
+        gmd_records=None,
+    ):
+        children_attrs = {
+            "SearchStatus": {
+                "_attributes": {"timestamp": time_stamp.isoformat() if time_stamp else None}
+            },
+            "SearchResults": {
+                "_attributes": {
+                    "numberOfRecordsMatched": total_records,
+                    "numberOfRecordsReturned": records_returned,
+                    "nextRecord": next_record,
+                    "recordSchema": record_schema,
+                    "elementSetName": element_set,
+                    "resultSetId": result_set_id,
+                    "expires": expires.isoformat() if expires else None,
+                },
+                "Record": csw_records or [],
+                "{http://www.isotc211.org/2005/gmd}MD_Metadata": gmd_records or []
+            }
+        }
+
+        root = self.build_element(
+            "GetRecordsResponse",
+            attributes={
+                "version": version,
+                "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation":
+                    "http://www.opengis.net/cat/csw/2.0.2 http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd"
+            },
+            children_attributes=children_attrs
+        )
+        return root
+
+    def build_get_records_by_id_response(
+            self,
+            gmd_records):
+        children_attrs = {
+            "{http://www.isotc211.org/2005/gmd}MD_Metadata": gmd_records or []
+        }
+        root = self.build_element(
+            "GetRecordByIdResponse",
+            attributes={
+                "version": "2.0.2",
+                "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation":
+                    "http://www.opengis.net/cat/csw/2.0.2 http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd"
+            },
+            children_attributes=children_attrs
+        )
+        return root
+
     def _build_element_set_name(self, parent, value="summary"):
         esn = self.add_child_element(
             parent,
@@ -221,6 +281,30 @@ class CSWBuilder(XSDSkeletonBuilder):
                 text=order,
             )
 
+    def build_acknowledgement(self, timestamp, request_id=None, echoed_request=None):
+        root = self.build_element(
+            "Acknowledgement",
+            attributes={
+                "timestamp": timestamp.isoformat(),
+            },
+        )
+
+        if request_id:
+            self.add_child_element(
+                root,
+                "RequestId",
+                text=request_id,
+            )
+
+        if echoed_request:
+            echo_el = self.add_child_element(
+                root,
+                "EchoedRequest",
+            )
+            echo_el.append(echoed_request)
+
+        return root
+
 
 class CSWCapabilities(XMLBuilder):
     NSMAP = {
@@ -232,7 +316,7 @@ class CSWCapabilities(XMLBuilder):
 
     def __init__(
         self,
-        csw: CatalogueService,
+        csw,
         extra_keywords: list[str] = None,
         base_url: str = None,
         operation_parameters: dict = None,

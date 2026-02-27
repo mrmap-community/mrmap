@@ -33,6 +33,22 @@ class XSDSkeletonBuilder:
     # Schema utilities
     # ============================================================
 
+    def iter(self, root, local_name=None, namespace=None):
+        """
+        Iterate over elements optionally filtered by local_name and/or namespace.
+        """
+
+        for el in root.iter():
+            qname = etree.QName(el)
+
+            if local_name and qname.localname != local_name:
+                continue
+
+            if namespace and qname.namespace != namespace:
+                continue
+
+            yield el
+
     def _schema_id(self, root, source=None):
         return (root.get("targetNamespace"), source)
 
@@ -139,6 +155,15 @@ class XSDSkeletonBuilder:
 
         type_attr = el.get("type")
         if not type_attr:
+            # check for inline complexType
+            ct = el.find(f"{XS}complexType")
+            if ct is not None:
+                self._apply_complex_type(
+                    xml_el,
+                    ct,
+                    attributes=attributes,
+                    children_attributes=children_attributes,
+                )
             return
 
         ns, local = self._resolve_qname(type_attr, el)
@@ -153,7 +178,33 @@ class XSDSkeletonBuilder:
 
     def _apply_complex_type(self, xml_el, ct,
                             attributes=None, children_attributes=None):
+        # handle simpleContent
+        simple = ct.find(f"{XS}simpleContent/{XS}extension")
+        if simple is not None:
+            # apply attributes
+            for attr in simple.findall(f"{XS}attribute"):
+                name = attr.get("name")
+                if not name or name in xml_el.attrib:
+                    continue
 
+                fixed = attr.get("fixed")
+                default = attr.get("default")
+
+                if fixed is not None:
+                    xml_el.set(name, fixed)
+                elif default is not None:
+                    xml_el.set(name, default)
+                # else: do nothing (optional attribute)
+
+            # apply provided attributes and text
+            if attributes:
+                for k, v in attributes.items():
+                    if k == "_text":
+                        xml_el.text = v
+                    else:
+                        xml_el.set(k, v)
+
+            return
         # ---- handle extension inheritance first ----
         ext = ct.find(f"{XS}complexContent/{XS}extension")
         if ext is not None:
@@ -248,11 +299,35 @@ class XSDSkeletonBuilder:
         # default attributes from schema
         for attr in node.findall(f"{XS}attribute"):
             name = attr.get("name")
-            if name and name not in xml_el.attrib:
-                xml_el.set(
-                    name,
-                    attr.get("fixed") or attr.get("default") or ""
-                )
+            if not name or name in xml_el.attrib:
+                continue
+
+            fixed = attr.get("fixed")
+            default = attr.get("default")
+
+            if fixed is not None:
+                xml_el.set(name, fixed)
+            elif default is not None:
+                xml_el.set(name, default)
+            # else: do nothing (optional attribute)
+
+    def add_foreign_child(self, parent, ns, name, text=None, nsmap=None, **attrs):
+        qname = etree.QName(ns, name)
+
+        # If no parent → create new root element
+        if parent is None:
+            el = etree.Element(qname, nsmap=nsmap)
+        else:
+            el = etree.SubElement(parent, qname)
+
+        if text is not None:
+            el.text = str(text)
+
+        for k, v in attrs.items():
+            if v is not None:
+                el.set(k, str(v))
+
+        return el
 
 
 class XMLBuilder:

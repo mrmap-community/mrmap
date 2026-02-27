@@ -57,10 +57,16 @@ class OGCServiceException(HttpResponse):
 
         # Build attributes dict only with non-empty values
         child_attributes = {
-            "code": self.code,
-            "locator": self.get_locator(),
             "_text": self.get_message()
         }
+
+        if self.code and self.code != "":
+            child_attributes["code"] = self.code
+
+        locator = self.get_locator()
+        if locator and locator != "":
+            child_attributes["locator"] = locator
+
         # Remove keys with None or empty values
         child_attributes = {k: v for k, v in child_attributes.items() if v}
 

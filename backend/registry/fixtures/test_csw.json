@@ -74,7 +74,19 @@
     {
         "model": "registry.metadatacontact",
         "pk": "1234",
-        "fields": {}
+        "fields": {
+            "name": "Deutscher Wetterdienst",
+            "person_name": "",
+            "email": "info@dwd.de",
+            "phone": "",
+            "facsimile": "",
+            "city": "Offenbach",
+            "postal_code": "63067",
+            "address_type": "",
+            "address": "Frankfurter Strasse 135",
+            "state_or_province": "Hessen",
+            "country": "Germany"
+        }
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",

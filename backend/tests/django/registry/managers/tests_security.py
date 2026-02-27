@@ -1,40 +1,33 @@
 import json
-import os
 
 from accounts.models.users import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import RequestFactory, TestCase
 from registry.models.service import WebFeatureService
 from registry.ows_lib.request.ogc_request import OGCRequest
-from tests.django.settings import DJANGO_TEST_ROOT_DIR
 
 
-# TODO: #527
 class WebFeatureServiceSecurityManagerTest(TestCase):
 
     fixtures = ["test_keywords.json", "test_crs.json", "test_users.json", "test_wfs.json", "test_wfs_proxy.json",
                 "test_allowed_wfs_operation.json"]
 
     def test_get_with_security_info(self):
-        path = os.path.join(DJANGO_TEST_ROOT_DIR,
-                            "./test_data/xml_requests/get_feature_2.0.0.xml")
+        get_feature_request = """<?xml version="1.0" encoding="UTF-8"?>
+            <GetFeature version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2"
+                xmlns="http://www.opengis.net/wfs/2.0"
+                xmlns:fes="http://www.opengis.net/fes/2.0"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:ms="http://www.someserver.example.com/ms"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wfs/2.0
+                                http://schemas.opengis.net/wfs/2.0/wfs.xsd
+                                http://www.opengis.net/gml/3.2
+                                http://schemas.opengis.net/gml/3.2.1/gml.xsd
+                                http://www.someserver.example.com/ms">
 
-        get_feature_request = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <GetFeature version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2"
-            xmlns="http://www.opengis.net/wfs/2.0"
-            xmlns:fes="http://www.opengis.net/fes/2.0"
-            xmlns:gml="http://www.opengis.net/gml/3.2"
-            xmlns:ms="http://www.someserver.example.com/ms"
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wfs/2.0
-                            http://schemas.opengis.net/wfs/2.0/wfs.xsd
-                            http://www.opengis.net/gml/3.2
-                            http://schemas.opengis.net/gml/3.2.1/gml.xsd
-                            http://www.someserver.example.com/ms">
-
-            <Query typeNames="ms:Countries, ms:Rivers">
-            </Query>
-        </GetFeature>
+                <Query typeNames="ms:Countries, ms:Rivers">
+                </Query>
+            </GetFeature>
         """
 
         factory = RequestFactory()

@@ -59,10 +59,10 @@ services:
       - "0.0.0.0:3010:5678"
 
   django-tests:
-    #command: >
-    #  /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests/django/ --noinput"
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests.django.registry.ows_lib.tests_builder.CSWBuilderTest.test_csw_builder --noinput"
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests/django/ --noinput"
+    #command: >
+    #  /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests.django.registry.mrmap-proxy.tests_wms_proxy.WebMapServiceProxyTest.test_forbidden_exception_if_one_requested_layer_is_not_enabled --noinput"
     # command: >
     #   /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage
     #   run --branch --source='/opt/mrmap' /opt/mrmap/manage.py test

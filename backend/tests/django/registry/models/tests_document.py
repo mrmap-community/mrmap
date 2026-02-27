@@ -1,9 +1,5 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from MrMap.settings import BASE_DIR
-from ows_lib.xml_mapper.capabilities.csw.csw202 import \
-    CatalogueService as XmlCatalogueService
-from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
-    WebFeatureService as XmlWebFeatureService
 from registry.models.metadata import Keyword
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -153,7 +149,7 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
             1)
 
     def test_current_capabilitites_of_wfs(self):
-        capabilities: XmlWebFeatureService = self.wfs.get_updated_capabilitites()
+        capabilities = self.wfs.get_updated_capabilitites()
 
         # check service operation urls
         self.assertXpathCount(
@@ -183,7 +179,7 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
             4)
 
     def test_current_capabilitites_of_csw(self):
-        capabilities: XmlCatalogueService = self.csw.get_updated_capabilitites()
+        capabilities = self.csw.get_updated_capabilitites()
 
         # check service operation urls
         self.assertXpathCount(

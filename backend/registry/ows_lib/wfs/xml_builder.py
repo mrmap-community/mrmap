@@ -75,17 +75,20 @@ class WFSBuilder(XSDSkeletonBuilder):
         lower_corner = f"{min_x} f{min_y}"
         upper_corner = f"{max_x} f{max_y}"
         bbox = self.add_foreign_child(
-            feature_type,
-            etree.QName(NAMESPACE_LOOKUP["ows_1_1"], "WGS84BoundingBox"),
+            parent=feature_type,
+            ns=NAMESPACE_LOOKUP["ows_1_1"],
+            name="WGS84BoundingBox",
         )
         self.add_foreign_child(
-            bbox,
-            etree.QName(NAMESPACE_LOOKUP["ows_1_1"], "LowerCorner"),
+            parent=bbox,
+            ns=NAMESPACE_LOOKUP["ows_1_1"],
+            name="LowerCorner",
             text=lower_corner
         )
         self.add_foreign_child(
-            bbox,
-            etree.QName(NAMESPACE_LOOKUP["ows_1_1"], "UpperCorner"),
+            parent=bbox,
+            ns=NAMESPACE_LOOKUP["ows_1_1"],
+            name="UpperCorner",
             text=upper_corner
         )
 
@@ -105,19 +108,22 @@ class WFSBuilder(XSDSkeletonBuilder):
         # <fes:Filter>
         filter_el = self.add_foreign_child(
             parent=None,  # temporary root
-            qname=etree.QName(self.FES_NS, "Filter"),
+            ns=self.FES_NS,
+            name="Filter",
         )
 
         # <fes:Intersects>
         intersects = self.add_foreign_child(
-            filter_el,
-            etree.QName(self.FES_NS, operator),
+            parent=filter_el,
+            ns=self.FES_NS,
+            name=operator,
         )
 
         # <fes:ValueReference>
         self.add_foreign_child(
-            intersects,
-            etree.QName(self.FES_NS, "ValueReference"),
+            parent=intersects,
+            ns=self.FES_NS,
+            name="ValueReference",
             text=value_reference,
         )
 

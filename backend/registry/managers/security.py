@@ -3,7 +3,6 @@ from typing import Any, List, Tuple
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db import models
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
@@ -13,10 +12,23 @@ from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
-from ows_lib.models.ogc_request import OGCRequest
-from ows_lib.xml_mapper.xml_responses.consts import GEOMETRY_DATA_TYPES
 from registry.enums.service import OGCOperationEnum
+from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
+
+GEOMETRY_DATA_TYPES = [
+    "gml:MultiPolygonPropertyType",
+    "gml:MultiSurfacePropertyType",
+    "gml:PolygonPropertyType",
+    "gml:SurfacePropertyType",
+    "gml:MultiLineStringPropertyType",
+    "gml:MultiCurvePropertyType",
+    "gml:LineStringPropertyType",
+    "gml:GeometryPropertyType",
+    "gml:CurvePropertyType",
+    "gml:PointPropertyType",
+    "gml:MultiPointPropertyType"
+]
 
 
 class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):

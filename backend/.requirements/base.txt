@@ -59,8 +59,6 @@ channels==4.3.1
 channels[daphne]==4.3.1
 # adds redis cache backend implementation for channels package
 channels-redis==4.3.0
-# Object mapper lib
-odin==2.10
 django-cte==2.0.0
 drf-spectacular-jsonapi==0.5.2
 django-ows-lib==0.17.1

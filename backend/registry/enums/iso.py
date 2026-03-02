@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from extras.enums import SmartIntegerChoices
 
+
 class MetadataCharsetChoices(SmartIntegerChoices):
     """Represents all valueable choices for MD_CharacterSetCode<<CodeList>> ISO19139"""
     # 16-bit fixed size Universal Character Set, based on ISO/IEC 10646
@@ -84,25 +85,42 @@ class CategoryChoices(SmartIntegerChoices):
         transportation, utilitiesCommunication
     """
     FARMING = 1, _("farming")  # rearing of animals and/or cultivation of plants Examples: agriculture, irrigation, aquaculture, plantations, herding, pests and diseases affecting crops and livestock
-    BIOTA = 2, _("biota")  # flora and fauna Examples: vegetation, wildlife, ecosystems, habitats, species distribution
+    # flora and fauna Examples: vegetation, wildlife, ecosystems, habitats, species distribution
+    BIOTA = 2, _("biota")
     BOUNDARIES = 3, _("boundaries")  # political and administrative boundaries
-    CLIMATOLOGYMETEOROLOGYATMOSPHERE = 4, _("climatologyMeteorologyAtmosphere") # processes and phenomena of the atmosphere Examples: cloud cover, weather, climate, atmospheric conditions, climate change, precipitation
-    ECONOMY = 5, _("economy")  # economic activities and conditions Examples: employment, industries, income, production, consumption, trade, tourism
-    ELEVATION = 6, _("elevation")  # height or depth of the Earth's surface Examples: topography, bathymetry, slope, terrain models, contours, digital elevation
-    ENVIRONEMENT = 7, _("environement")  # environmental resources, protection and conservation Examples: natural resources, pollution, environmental monitoring, environmental impact assessments
-    GEOSCIENTIFICINFORMATION = 8, _("geoscientificInformation")  # solid Earth and its processes Examples: geology, geophysics, soils, minerals, seismic activity, volcanology
-    HEALTH = 9, _("health")  # human health and disease Examples: disease distribution, health facilities, sanitation, epidemiology
-    IMAGERYBASEMAPSEARTHCOVER = 10, _("imageryBaseMapsEarchCover")  # remotely sensed imagery and base maps Examples: satellite imagery, aerial photography, land cover, land use
-    INTELLIGENCEMILITARY = 11, _("intelligenceMilitary")  # military bases, facilities, operations and activities
-    INLANDWATERS = 12, _("inlandWaters")  # water courses and bodies on the Earth's surface Examples: rivers, lakes, wetlands, reservoirs, watersheds
-    LOCATION = 13, _("location")  # named locations and their associated information Examples: place names, postal codes, address locations
-    OCEANS = 14, _("oceans")  # marine and coastal areas Examples: sea floor, coastal zones, marine ecosystems, oceanographic features
-    PLANNINGCADASTRE = 15, _("planningCadastre")  # land use planning and cadastral information Examples: zoning, land parcels, property boundaries, land ownership
-    SOCIETY = 16, _("society")  # social systems and activities Examples: demographics, education, culture, religion, social services
-    STRUCTURE = 17, _("structure")  # man-made features and structures Examples: buildings, infrastructure, utilities, transportation networks
-    TRANSPORTATION = 18, _("transportation")  # transport networks and services Examples: roads, railways, airports, public transit
-    UTILITIESCOMMUNICATION = 19, _("utilitiesCommunication")  # utility and communication networks Examples: power lines, water supply, telecommunications, broadcasting
-    
+    # processes and phenomena of the atmosphere Examples: cloud cover, weather, climate, atmospheric conditions, climate change, precipitation
+    CLIMATOLOGYMETEOROLOGYATMOSPHERE = 4, _("climatologyMeteorologyAtmosphere")
+    # economic activities and conditions Examples: employment, industries, income, production, consumption, trade, tourism
+    ECONOMY = 5, _("economy")
+    # height or depth of the Earth's surface Examples: topography, bathymetry, slope, terrain models, contours, digital elevation
+    ELEVATION = 6, _("elevation")
+    # environmental resources, protection and conservation Examples: natural resources, pollution, environmental monitoring, environmental impact assessments
+    EVNVIRONMENT = 7, _("environment")
+    # solid Earth and its processes Examples: geology, geophysics, soils, minerals, seismic activity, volcanology
+    GEOSCIENTIFICINFORMATION = 8, _("geoscientificInformation")
+    # human health and disease Examples: disease distribution, health facilities, sanitation, epidemiology
+    HEALTH = 9, _("health")
+    # remotely sensed imagery and base maps Examples: satellite imagery, aerial photography, land cover, land use
+    IMAGERYBASEMAPSEARTHCOVER = 10, _("imageryBaseMapsEarthCover")
+    # military bases, facilities, operations and activities
+    INTELLIGENCEMILITARY = 11, _("intelligenceMilitary")
+    # water courses and bodies on the Earth's surface Examples: rivers, lakes, wetlands, reservoirs, watersheds
+    INLANDWATERS = 12, _("inlandWaters")
+    # named locations and their associated information Examples: place names, postal codes, address locations
+    LOCATION = 13, _("location")
+    # marine and coastal areas Examples: sea floor, coastal zones, marine ecosystems, oceanographic features
+    OCEANS = 14, _("oceans")
+    # land use planning and cadastral information Examples: zoning, land parcels, property boundaries, land ownership
+    PLANNINGCADASTRE = 15, _("planningCadastre")
+    # social systems and activities Examples: demographics, education, culture, religion, social services
+    SOCIETY = 16, _("society")
+    # man-made features and structures Examples: buildings, infrastructure, utilities, transportation networks
+    STRUCTURE = 17, _("structure")
+    # transport networks and services Examples: roads, railways, airports, public transit
+    TRANSPORTATION = 18, _("transportation")
+    # utility and communication networks Examples: power lines, water supply, telecommunications, broadcasting
+    UTILITIESCOMMUNICATION = 19, _("utilitiesCommunication")
+
 
 class LanguageChoices(SmartIntegerChoices):
     # ISO 639-2 language codes
@@ -126,7 +144,8 @@ class LanguageChoices(SmartIntegerChoices):
     ANP = 18, _("anp")  # Angika
     APA = 19, _("apa")  # Apache languages
     ARA = 20, _("ara")  # Arabic
-    ARC = 21, _("arc")  # Official Aramaic (700–300 BCE); Imperial Aramaic (700–300 BCE)
+    # Official Aramaic (700–300 BCE); Imperial Aramaic (700–300 BCE)
+    ARC = 21, _("arc")
     ARG = 22, _("arg")  # Aragonese
     ARN = 23, _("arn")  # Mapudungun; Mapuche
     ARP = 24, _("arp")  # Arapaho
@@ -190,7 +209,8 @@ class LanguageChoices(SmartIntegerChoices):
     CHO = 82, _("cho")  # Choctaw
     CHP = 83, _("chp")  # Chipewyan ; Dene Suline
     CHR = 84, _("chr")  # Cherokee
-    CHU = 85, _("chu")  # Church Slavic ; Old Slavonic ; Church Slavonic ; Old Bulgarian ; Old Church Slavonic
+    # Church Slavic ; Old Slavonic ; Church Slavonic ; Old Bulgarian ; Old Church Slavonic
+    CHU = 85, _("chu")
     CHV = 86, _("chv")  # Chuvash
     CHY = 87, _("chy")  # Cheyenne
     CMC = 88, _("cmc")  # Chamic languages
@@ -306,7 +326,8 @@ class LanguageChoices(SmartIntegerChoices):
     IKU = 198, _("iku")  # Inuktitut
     ILE = 199, _("ile")  # Interlingue; Occidental
     ILO = 200, _("ilo")  # Iloko
-    INA = 201, _("ina")  # Interlingua ( International Auxiliary Language Association )
+    # Interlingua ( International Auxiliary Language Association )
+    INA = 201, _("ina")
     INC = 202, _("inc")  # Indic languages
     IND = 203, _("ind")  # Indonesian
     INE = 204, _("ine")  # Indo-European languages
@@ -443,7 +464,8 @@ class LanguageChoices(SmartIntegerChoices):
     NQO = 335, _("nqo")  # N'Ko
     NSO = 336, _("nso")  # Pedi ; Sepedi ; Northern Sotho
     NUB = 337, _("nub")  # Nubian languages
-    NWC = 338, _("nwc")  # Classical Newari ; Old Newari ; Classical Nepal Bhasa
+    # Classical Newari ; Old Newari ; Classical Nepal Bhasa
+    NWC = 338, _("nwc")
     NYA = 339, _("nya")  # Chichewa ; Chewa ; Nyanja
     NYM = 340, _("nym")  # Nyamwezi
     NYN = 341, _("nyn")  # Nyankole

@@ -16,6 +16,7 @@ XPATH_MAP = {
         "service": {
             "_model": "registry.ServiceMetadataRecord",
             "_base_xpath": "/gmd:MD_Metadata",
+            "_create_mode": "registry.mappers.persistence.custom.get_or_create_metadatarecord",
             "fields": {
                 "charset": {
                     "_inputs": ("./gmd:characterSet/gmd:MD_CharacterSetCode[@codeList='http://wis.wmo.int/2011/schemata/iso19139_2007/schema/resources/Codelist/ML_gmxCodelists.xml#MD_CharacterSetCode']/@codeListValue",),

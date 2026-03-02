@@ -700,6 +700,10 @@ class TemporaryMdMetadataFile(models.Model):
                             "dataset": {
                                 "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
                                 'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                            },
+                            "service": {
+                                "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                                'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
                             }
                         }
                     )
@@ -738,7 +742,7 @@ class TemporaryMdMetadataFile(models.Model):
                                     'fileimport'if self.job.service is None else f'csw:{self.job.service}'
                                 )
                         result.append((created_instance, update, not created))
-                self.delete()
+                        self.delete()
                 return result
             except Exception as e:
                 import traceback

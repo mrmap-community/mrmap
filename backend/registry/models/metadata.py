@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
@@ -49,8 +50,8 @@ IS_INTERVAL = Q(
 IS_ROLLING = Q(
     begin__isnull=True,
     end__isnull=True,
-    resolution__isnull=False,
-    is_relative=True
+    is_relative=True,
+    resolution__gt=timedelta(0),
 )
 
 
@@ -95,8 +96,8 @@ class TimeExtent(models.Model):
         help_text=_("the end of the time period")
     )
     resolution = models.DurationField(
-        null=True,
         blank=True,
+        default=timedelta(0),
         verbose_name=_("resolution"),
         help_text=_(
             "The resolution of the time extent. Null or 0 means infinite fine resolution.")
@@ -121,8 +122,15 @@ class TimeExtent(models.Model):
                                     name='%(app_label)s_%(class)s_unique_timerange_resolution')
         ]
 
-    def __eq__(self, __value: object) -> bool:
-        return self.begin == __value.begin and self.end == __value.end and self.resolution == __value.resolution and self.is_relative == __value.is_relative
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TimeExtent):
+            return NotImplemented
+        return (
+            self.begin == other.begin
+            and self.end == other.end
+            and self.resolution == other.resolution
+            and self.is_relative == other.is_relative
+        )
 
     @property
     def kind(self):
@@ -130,7 +138,12 @@ class TimeExtent(models.Model):
             return TimeExtentKind.SINGLE_VALUE
         elif self.begin and self.end and self.begin < self.end:
             return TimeExtentKind.INTERVAL
-        elif self.is_relative and not self.begin and not self.end and self.resolution:
+        elif (
+            self.is_relative
+            and self.begin is None
+            and self.end is None
+            and not self.has_infinite_resolution
+        ):
             return TimeExtentKind.ROLLING
         return None
 
@@ -142,6 +155,10 @@ class TimeExtent(models.Model):
     def is_rolling(self):
         return self.kind == TimeExtentKind.ROLLING
 
+    @property
+    def has_infinite_resolution(self) -> bool:
+        return self.resolution == timedelta(0)
+
     def __str__(self):
         if self.is_single_value:
             return f"{self.begin}"
@@ -149,14 +166,15 @@ class TimeExtent(models.Model):
             current = now()
             return f"{current-self.resolution};{current};0"
         else:
-            return f"{self.begin};{self.end};{self.resolution or 0}"
+            res = self.resolution if self.resolution.total_seconds() != 0 else 0
+            return f"{self.begin};{self.end};{res}"
 
     def iso_resolution(self) -> str:
         """
         Convert a timedelta to ISO 8601 duration (P[n]DT[n]H[n]M[n]S).
         Only supports days, hours, minutes, seconds.
         """
-        if self.resolution is None or self.resolution.total_seconds() == 0:
+        if self.has_infinite_resolution:
             return "P0D"
 
         days = self.resolution.days

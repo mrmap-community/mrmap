@@ -39,7 +39,7 @@ def parse_timeextent(mapper, el):
 
             start = isoparse(segments[0])
             end = isoparse(segments[1])
-            resolution = None
+            resolution = timedelta(0)
             if len(segments) == 3:
                 # Auflösung: z.B. "P1D" -> relativedelta
                 resolution = _parse_duration(mapper, segments[2])
@@ -57,7 +57,7 @@ def parse_timeextent(mapper, el):
             inst = TimeExtent(
                 begin=dt,
                 end=dt,
-                resolution=None,
+                resolution=timedelta(0),
             )
             instances.append(inst)
 

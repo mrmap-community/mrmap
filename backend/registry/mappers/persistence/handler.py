@@ -141,6 +141,19 @@ class PersistenceHandler:
 
         return self.build_final_key_map(deduped_instances)
 
+    def _persist_get_or_create(self, instances):
+        model_cls = instances[0].__class__
+        key_fields = self._get_key_fields(model_cls)
+        db_instances = []
+        for inst in instances:
+            obj, created = model_cls.objects.get_or_create(
+                **{f: getattr(inst, f) for f in key_fields},
+                defaults={f.name: getattr(
+                    inst, f.name) for f in model_cls._meta.fields if f.name not in key_fields}
+            )
+            db_instances.append(obj)
+        return self.build_final_key_map(db_instances)
+
     def build_final_key_map(self, instances, key_fields=None):
         model_cls = instances[0].__class__
         if not key_fields:
@@ -396,17 +409,21 @@ class PersistenceHandler:
                 {model_cls: instances})
 
             create_mode = getattr(model_cls, "_create_mode", "save")
-            create_func = self._persist_get_or_create_bulk
+            # create_func = self._persist_get_or_create_bulk
             kwargs = {}
-            if "." in create_mode or create_mode == "get_or_create":
-                if "." in create_mode:
-                    create_func = self._load_function(create_mode)
-                    kwargs = {"handler": self}
+            if "." in create_mode:
+                create_func = self._load_function(create_mode)
+                kwargs = {"handler": self}
                 final_key_map = create_func(instances, **kwargs)
                 self.instances_by_model[model_cls] = list(
                     final_key_map.values())
                 self.final_instances_map[model_cls] = final_key_map
-
+            elif create_mode == "get_or_create":
+                final_key_map = self._persist_get_or_create(
+                    instances, **kwargs)
+                self.instances_by_model[model_cls] = list(
+                    final_key_map.values())
+                self.final_instances_map[model_cls] = final_key_map
             elif create_mode == "bulk":
                 objs = model_cls.objects.bulk_create(instances)
                 final_key_map = self.build_final_key_map(objs)

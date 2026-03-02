@@ -50,7 +50,7 @@ def parse_timeextent(mapper, time_extent_element):
         "./gml:TimePeriod/gml:timeInterval/text()", namespaces=nsmap)
     interval_unit = time_extent_element.xpath(
         "./gml:TimePeriod/gml:timeInterval/@unit", namespaces=nsmap)
-    resolution = None
+    resolution = timedelta(0)
     if duration_str:
         duration = isodate.parse_duration(duration_str)
 

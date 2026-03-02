@@ -143,9 +143,9 @@ def call_md_metadata_file_to_db(*args, **kwargs):
             'job__service__auth',
         ).get(pk=md_metadata_file_id)
 
-        db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
+        results = temporary_md_metadata_file.md_metadata_file_to_db()
 
-        return str(db_metadata.pk), update, exists
+        return [(str(result[0].pk), result[1], result[2]) for result in results if result is not None]
     except Exception:
         TemporaryMdMetadataFile.objects.select_for_update().filter(pk=md_metadata_file_id).update(
             has_import_error=True,

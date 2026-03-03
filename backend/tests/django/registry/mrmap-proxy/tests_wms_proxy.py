@@ -192,8 +192,8 @@ class WebMapServiceProxyTest(TestCase):
         got_xml = response.content
         expected_xml = (
             '<?xml version="1.0" encoding="UTF-8"?>'
-            '<ogc:ServiceExceptionReport version="1.3.0" '
-            'xmlns:ogc="http://www.opengis.net/ogc">'
+            '<ogc:ServiceExceptionReport '
+            'xmlns:ogc="http://www.opengis.net/ogc" version="1.3.0">'
             '<ogc:ServiceException code="LayerNotDefined" locator="LAYERS">'
             'unknown layer'
             '</ogc:ServiceException>'

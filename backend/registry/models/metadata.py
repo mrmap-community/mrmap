@@ -97,6 +97,8 @@ class TimeExtent(models.Model):
     )
     resolution = models.DurationField(
         blank=True,
+        # do not allow Null. Otherwise the unique together constraint will not work as needed.
+        # None != None from db pov
         default=timedelta(0),
         verbose_name=_("resolution"),
         help_text=_(

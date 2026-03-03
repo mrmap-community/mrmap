@@ -45,31 +45,31 @@ def load_initial_data(apps, schema_editor):
             }
         )
 
-        CatalogueServiceOperationUrl.objects.create(
+        CatalogueServiceOperationUrl.objects.get_or_create(
             method=HttpMethodEnum.GET.value,
             operation=OGCOperationEnum.GET_CAPABILITIES.value,
             url="/csw",
             service=csw
         )
-        CatalogueServiceOperationUrl.objects.create(
+        CatalogueServiceOperationUrl.objects.get_or_create(
             method=HttpMethodEnum.GET.value,
             operation=OGCOperationEnum.GET_RECORDS.value,
             url="/csw",
             service=csw
         )
-        CatalogueServiceOperationUrl.objects.create(
+        CatalogueServiceOperationUrl.objects.get_or_create(
             method=HttpMethodEnum.POST.value,
             operation=OGCOperationEnum.GET_RECORDS.value,
             url="/csw",
             service=csw
         )
-        CatalogueServiceOperationUrl.objects.create(
+        CatalogueServiceOperationUrl.objects.get_or_create(
             method=HttpMethodEnum.GET.value,
             operation=OGCOperationEnum.GET_RECORD_BY_ID.value,
             url="/csw",
             service=csw
         )
-        CatalogueServiceOperationUrl.objects.create(
+        CatalogueServiceOperationUrl.objects.get_or_create(
             method=HttpMethodEnum.POST.value,
             operation=OGCOperationEnum.GET_RECORD_BY_ID.value,
             url="/csw",

@@ -754,7 +754,8 @@ class TemporaryMdMetadataFile(models.Model):
                 raise e
 
     def update_relations(self, exists, update, db_metadata, duration):
-        # TODO: is this relation still needed? Or is it enough to collect the harvested through by the harvested_metadata_relations?
+        # TODO: is this relation still needed?
+        # Or is it enough to collect the harvested through by the harvested_metadata_relations?
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 

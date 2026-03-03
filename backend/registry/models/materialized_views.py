@@ -69,6 +69,7 @@ class MaterializedDatasetMetadataRecordStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = DatasetMetadataRecord
 
     class Meta:
+        managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
 
 
@@ -76,6 +77,7 @@ class MaterializedServiceMetadataRecordStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = ServiceMetadataRecord
 
     class Meta:
+        managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
 
 
@@ -83,6 +85,7 @@ class MaterializedWebMapServiceStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = WebMapService
 
     class Meta:
+        managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
 
 
@@ -90,6 +93,7 @@ class MaterializedLayerStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = Layer
 
     class Meta:
+        managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
 
 
@@ -97,6 +101,7 @@ class MaterializedWebFeatureServiceStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = WebFeatureService
 
     class Meta:
+        managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
 
 
@@ -104,6 +109,7 @@ class MaterializedFeatureTypeStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = FeatureType
 
     class Meta:
+        managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
 
 
@@ -111,6 +117,7 @@ class MaterializedCatalogueServiceStatsPerDay(ResourceHistroyStatsPerDay):
     base_model = CatalogueService
 
     class Meta:
+        managed = False
         indexes = ResourceHistroyStatsPerDay.Meta.indexes
 
 
@@ -174,7 +181,8 @@ class SearchableMetadataRecordAbstract(AbstractMetadata, DynamicMaterializedView
                 "keywords__keyword",
                 distinct=True,
                 # non empty lexeme inside keywords_list
-                filter=~Q(keywords__keyword__isnull=True),
+                filter=Q(keywords__keyword__isnull=False) & ~Q(
+                    keywords__keyword__regex=r'^\s*$'),
                 default=[]
 
             )

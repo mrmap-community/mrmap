@@ -138,13 +138,8 @@ XPATH_MAP = {
                             "compiler": "registry.mappers.identifiers.category_identifier",
                         },
                     },
-                    "fields": {
-                        "value": {
-                            "_inputs": ("./text()",),
-                            "_parser": "registry.mappers.parsers.value.topic_category_to_enum",
-                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_topic_category",
-                        }
-                    }
+                    "_parser": "registry.mappers.parsers.iso.parse_topic_category",
+                    "_reverse_parser": "registry.mappers.parsers.iso.serialize_topic_category",
                 },
                 "time_extents": {
                     "_model": "registry.TimeExtent",

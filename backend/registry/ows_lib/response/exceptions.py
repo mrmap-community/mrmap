@@ -48,7 +48,7 @@ class OGCServiceException(HttpResponse):
     @property
     def exception_xml(self) -> _Element:
         builder = XSDSkeletonBuilder(
-            (self.service_type, "Exception", self.service_version)
+            (self.service_type.lower(), "Exception", self.service_version)
         )
 
         report_attributes = {

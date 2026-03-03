@@ -6,7 +6,8 @@ from dateutil.parser import isoparse
 from django.conf import settings
 from django.utils import timezone
 from lxml import etree
-from registry.models.metadata import ReferenceSystem, TimeExtent
+from registry.enums.iso import CategoryChoices
+from registry.models.metadata import IsoCategory, ReferenceSystem, TimeExtent
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -29,6 +30,18 @@ def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeRes
 
 def serialize_reference_system(mapper, instance: ReferenceSystem):
     return f"http://www.opengis.net/def/crs/EPSG/0/{instance.code}"
+
+
+def parse_topic_category(mapper, el: etree._Element | etree._ElementUnicodeResult):
+    category_str = el.text.strip() if isinstance(
+        el, etree._Element) else el.strip()
+    value = CategoryChoices(category_str)
+    if value:
+        return IsoCategory(value=value)
+
+
+def serialize_topic_category(mapper, instance: IsoCategory):
+    return CategoryChoices(instance.value).label
 
 
 def parse_timeextent(mapper, time_extent_element):

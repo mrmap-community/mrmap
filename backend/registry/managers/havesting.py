@@ -24,6 +24,7 @@ class HarvestedMetadataRelationQuerySet(models.QuerySet):
                 collecting_state=CollectingStatenEnum.UPDATED.value)),
             existed=Count("pk", filter=Q(
                 collecting_state=CollectingStatenEnum.EXISTING.value)),
+            service=F("harvesting_job__service")
         )
 
 

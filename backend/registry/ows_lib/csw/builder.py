@@ -75,7 +75,7 @@ class CSWBuilder(XSDSkeletonBuilder):
             },
         )
 
-        self.add_child_element(
+        self.add_foreign_child(
             root,
             "Id",
             text=",".join(ids),
@@ -107,7 +107,11 @@ class CSWBuilder(XSDSkeletonBuilder):
         self._build_element_set_name(query, element_set)
 
         if sort_by:
-            sort = self.add_child_element(query, "SortBy")
+            sort = self.add_foreign_child(
+                query,
+                NAMESPACE_LOOKUP["csw_2_0_2"],
+                "SortBy"
+            )
             self._build_sort(sort, sort_by)
 
         if constraint and constraint_language == "CQL_TEXT":
@@ -144,9 +148,7 @@ class CSWBuilder(XSDSkeletonBuilder):
                     "elementSetName": element_set,
                     "resultSetId": result_set_id,
                     "expires": expires.isoformat() if expires else None,
-                },
-                "Record": csw_records or [],
-                "{http://www.isotc211.org/2005/gmd}MD_Metadata": gmd_records or []
+                }
             }
         }
 
@@ -159,6 +161,16 @@ class CSWBuilder(XSDSkeletonBuilder):
             },
             children_attributes=children_attrs
         )
+        if csw_records:
+            search_results_el = root.find(".//{*}SearchResults")
+            for md in csw_records:
+                search_results_el.append(md)
+        # Append pre-built MD_Metadata elements directly
+        if gmd_records:
+            search_results_el = root.find(".//{*}SearchResults")
+            for md in gmd_records:
+                search_results_el.append(md)
+
         return root
 
     def build_get_records_by_id_response(
@@ -179,16 +191,18 @@ class CSWBuilder(XSDSkeletonBuilder):
         return root
 
     def _build_element_set_name(self, parent, value="summary"):
-        esn = self.add_child_element(
+        esn = self.add_foreign_child(
             parent,
+            NAMESPACE_LOOKUP["csw_2_0_2"],
             "ElementSetName",
             text=value
         )
         return esn
 
     def _build_query(self, root, type_names):
-        query_el = self.add_child_element(
+        query_el = self.add_foreign_child(
             root,
+            NAMESPACE_LOOKUP["csw_2_0_2"],
             "Query",
             attributes={
                 "typeNames": " ".join(type_names),
@@ -197,66 +211,75 @@ class CSWBuilder(XSDSkeletonBuilder):
         return query_el
 
     def _build_cql_filter(self, query_el, cql_text):
-        constraint = self.add_child_element(
+        constraint = self.add_foreign_child(
             query_el,
+            NAMESPACE_LOOKUP["csw_2_0_2"],
             "Constraint",
             attributes={"version": "1.1.0"},
         )
 
         self.add_foreign_child(
             constraint,
-            etree.QName(NAMESPACE_LOOKUP["csw_2_0_2"], "CqlText"),
+            NAMESPACE_LOOKUP["csw_2_0_2"],
+            "CqlText",
             text=cql_text,
         )
 
     def _build_fes_filter(self, query_el, filter_xml):
-        constraint = self.add_child_element(
+        constraint = self.add_foreign_child(
             query_el,
+            NAMESPACE_LOOKUP["csw_2_0_2"],
             "Constraint",
             attributes={"version": "1.1.0"},
         )
 
         self.add_foreign_child(
             constraint,
-            etree.QName(NAMESPACE_LOOKUP["ogc"], "Filter"),
+            NAMESPACE_LOOKUP["ogc"],
+            "Filter",
             text=filter_xml,
         )
 
     def add_bbox_constraint(self, query, bbox):
         minx, miny, maxx, maxy = bbox.split(",")
 
-        constraint = self.add_child_element(
+        constraint = self.add_foreign_child(
             query,
+            NAMESPACE_LOOKUP["csw_2_0_2"],
             "Constraint",
             attributes={"version": "1.1.0"},
         )
 
         filt = self.add_foreign_child(
             constraint,
-            etree.QName(NAMESPACE_LOOKUP["ogc"], "Filter"),
+            NAMESPACE_LOOKUP["ogc"],
+            "Filter",
         )
 
         bbox_el = self.add_foreign_child(
             filt,
-            etree.QName(NAMESPACE_LOOKUP["ogc"], "BBOX"),
+            NAMESPACE_LOOKUP["ogc"],
+            "BBOX",
         )
 
         self.add_foreign_child(
             bbox_el,
-            etree.QName(NAMESPACE_LOOKUP["ogc"], "PropertyName"),
+            NAMESPACE_LOOKUP["ogc"],
+            "PropertyName",
             text="ows:BoundingBox",
         )
 
         env = self.add_foreign_child(
             bbox_el,
-            etree.QName(NAMESPACE_LOOKUP["gml_3_1_1"], "Envelope"),
+            NAMESPACE_LOOKUP["gml_3_1_1"],
+            "Envelope",
             attributes={"srsName": "EPSG:4326"},
         )
 
-        self.add_foreign_child(env, etree.QName(
-            NAMESPACE_LOOKUP["gml_3_1_1"], "lowerCorner"), f"{minx} {miny}")
-        self.add_foreign_child(env, etree.QName(
-            NAMESPACE_LOOKUP["gml_3_1_1"], "upperCorner"), f"{maxx} {maxy}")
+        self.add_foreign_child(
+            env, NAMESPACE_LOOKUP["gml_3_1_1"], "lowerCorner", text=f"{minx} {miny}")
+        self.add_foreign_child(
+            env, NAMESPACE_LOOKUP["gml_3_1_1"], "upperCorner", text=f"{maxx} {maxy}")
 
     def _build_sort(self, sort_el, sort_by):
         """
@@ -268,16 +291,19 @@ class CSWBuilder(XSDSkeletonBuilder):
         for prop, order in sort_by:
             sp = self.add_foreign_child(
                 sort_el,
-                etree.QName(NAMESPACE_LOOKUP["ogc"], "SortProperty"),
+                NAMESPACE_LOOKUP["ogc"],
+                "SortProperty",
             )
             self.add_foreign_child(
                 sp,
-                etree.QName(NAMESPACE_LOOKUP["ogc"], "PropertyName"),
+                NAMESPACE_LOOKUP["ogc"],
+                "PropertyName",
                 text=prop,
             )
             self.add_foreign_child(
                 sp,
-                etree.QName(NAMESPACE_LOOKUP["ogc"], "SortOrder"),
+                NAMESPACE_LOOKUP["ogc"],
+                "SortOrder",
                 text=order,
             )
 
@@ -290,15 +316,17 @@ class CSWBuilder(XSDSkeletonBuilder):
         )
 
         if request_id:
-            self.add_child_element(
+            self.add_foreign_child(
                 root,
+                NAMESPACE_LOOKUP["csw_2_0_2"],
                 "RequestId",
                 text=request_id,
             )
 
         if echoed_request:
-            echo_el = self.add_child_element(
+            echo_el = self.add_foreign_child(
                 root,
+                NAMESPACE_LOOKUP["csw_2_0_2"],
                 "EchoedRequest",
             )
             echo_el.append(echoed_request)

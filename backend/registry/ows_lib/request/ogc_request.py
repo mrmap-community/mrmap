@@ -304,7 +304,7 @@ class OGCRequest(Request):
 
         return self._ogc_query_params
 
-    def parse_sortby_param(value: str) -> list[tuple[str, str]]:
+    def parse_sortby_param(self, value: str) -> list[tuple[str, str]]:
         """
         Parse OGC SortBy KVP into internal representation.
 

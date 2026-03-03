@@ -46,8 +46,9 @@ class WFSBuilder(XSDSkeletonBuilder):
 
         # ---- Query elements ----
         for type_name in type_names:
-            query = self.add_child_element(
+            query = self.add_foreign_child(
                 root,
+                NAMESPACE_LOOKUP["wfs_2_0"],
                 "Query",
                 attributes={
                     "typeNames": type_name,

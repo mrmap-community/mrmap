@@ -8,11 +8,12 @@ XS = f"{{{XS_NS}}}"
 
 
 class XSDSkeletonBuilder:
+
     def __init__(self, schema_key: tuple[str, str, str]):
         self._loaded_schemas = set()
-        self.elements = {}           # (tns, name) -> element
-        self.types = {}              # (tns, name) -> complexType
-        self.attribute_groups = {}   # (tns, name) -> attributeGroup
+        self.elements = {}
+        self.types = {}
+        self.attribute_groups = {}
 
         try:
             xsd_filename = XSD_LOOKUP[schema_key]
@@ -30,24 +31,8 @@ class XSDSkeletonBuilder:
         self._index_schema(self.root)
 
     # ============================================================
-    # Schema utilities
+    # Schema loading
     # ============================================================
-
-    def iter(self, root, local_name=None, namespace=None):
-        """
-        Iterate over elements optionally filtered by local_name and/or namespace.
-        """
-
-        for el in root.iter():
-            qname = etree.QName(el)
-
-            if local_name and qname.localname != local_name:
-                continue
-
-            if namespace and qname.namespace != namespace:
-                continue
-
-            yield el
 
     def _schema_id(self, root, source=None):
         return (root.get("targetNamespace"), source)
@@ -77,10 +62,6 @@ class XSDSkeletonBuilder:
                 self._resolve_external_schemas(external_root)
                 self._index_schema(external_root)
 
-    # ============================================================
-    # Indexing
-    # ============================================================
-
     def _index_schema(self, root):
         tns = root.get("targetNamespace")
 
@@ -104,32 +85,23 @@ class XSDSkeletonBuilder:
         if ":" in qname_str:
             prefix, local = qname_str.split(":")
             ns = context_node.getroottree().getroot().nsmap.get(prefix)
-            if ns is None:
-                raise ValueError(f"Unknown namespace prefix '{prefix}'")
         else:
             ns = self.root.get("targetNamespace")
             local = qname_str
-
         return ns, local
 
     # ============================================================
     # Public builder API
     # ============================================================
 
-    def build_element(
-            self,
-            element_name,
-            nsmap=None,
-            attributes=None,
-            children_attributes=None):
+    def build_element(self, element_name, nsmap=None,
+                      attributes=None, children_attributes=None):
 
         tns = self.root.get("targetNamespace")
 
         if nsmap is None:
-            nsmap = {
-                k: v for k, v in (self.root.nsmap or {}).items()
-                if v != XS_NS
-            }
+            nsmap = {k: v for k, v in (self.root.nsmap or {}).items()
+                     if v != XS_NS}
 
         el = etree.Element(etree.QName(tns, element_name), nsmap=nsmap)
 
@@ -154,21 +126,14 @@ class XSDSkeletonBuilder:
             return
 
         type_attr = el.get("type")
-        if not type_attr:
-            # check for inline complexType
-            ct = el.find(f"{XS}complexType")
-            if ct is not None:
-                self._apply_complex_type(
-                    xml_el,
-                    ct,
-                    attributes=attributes,
-                    children_attributes=children_attributes,
-                )
-            return
 
-        ns, local = self._resolve_qname(type_attr, el)
-        ct = self.types.get((ns, local))
-        if ct:
+        if type_attr:
+            ns, local = self._resolve_qname(type_attr, el)
+            ct = self.types.get((ns, local))
+        else:
+            ct = el.find(f"{XS}complexType")
+
+        if ct is not None:
             self._apply_complex_type(
                 xml_el,
                 ct,
@@ -178,34 +143,7 @@ class XSDSkeletonBuilder:
 
     def _apply_complex_type(self, xml_el, ct,
                             attributes=None, children_attributes=None):
-        # handle simpleContent
-        simple = ct.find(f"{XS}simpleContent/{XS}extension")
-        if simple is not None:
-            # apply attributes
-            for attr in simple.findall(f"{XS}attribute"):
-                name = attr.get("name")
-                if not name or name in xml_el.attrib:
-                    continue
 
-                fixed = attr.get("fixed")
-                default = attr.get("default")
-
-                if fixed is not None:
-                    xml_el.set(name, fixed)
-                elif default is not None:
-                    xml_el.set(name, default)
-                # else: do nothing (optional attribute)
-
-            # apply provided attributes and text
-            if attributes:
-                for k, v in attributes.items():
-                    if k == "_text":
-                        xml_el.text = v
-                    else:
-                        xml_el.set(k, v)
-
-            return
-        # ---- handle extension inheritance first ----
         ext = ct.find(f"{XS}complexContent/{XS}extension")
         if ext is not None:
             base = ext.get("base")
@@ -213,43 +151,26 @@ class XSDSkeletonBuilder:
                 ns, local = self._resolve_qname(base, ext)
                 base_ct = self.types.get((ns, local))
                 if base_ct:
-                    # structure only from base
-                    self._apply_complex_type(
-                        xml_el,
-                        base_ct,
-                        attributes=None,
-                        children_attributes=None,
-                    )
+                    self._apply_complex_type(xml_el, base_ct)
 
-            # now apply extension content
-            self._apply_particles_and_attrs(
-                xml_el,
-                ext,
-                children_attributes,
-            )
-
+            node = ext
         else:
-            # no inheritance
-            self._apply_particles_and_attrs(
-                xml_el,
-                ct,
-                children_attributes,
-            )
+            node = ct
 
-        # ---- apply attributes/text at this level ----
+        self._apply_particles_and_attrs(xml_el, node, children_attributes)
+
         if attributes:
             for k, v in attributes.items():
-                if k == "_text":
-                    xml_el.text = v
-                else:
-                    xml_el.set(k, v)
+                if v is not None:
+                    xml_el.set(k, str(v))
 
     # ============================================================
-    # Particle handling
+    # Core engine
     # ============================================================
 
     def _apply_particles_and_attrs(self, xml_el, node, children_map=None):
 
+        # --- sequence elements ---
         for seq in node.findall(f"{XS}sequence"):
             for child in seq.findall(f"{XS}element"):
 
@@ -259,30 +180,47 @@ class XSDSkeletonBuilder:
 
                 ns, local = self._resolve_qname(raw_name, child)
 
-                child_attrs = None
+                child_data = None
                 if children_map:
-                    child_attrs = children_map.get(local)
+                    child_data = children_map.get(local)
 
                 mino = int(child.get("minOccurs", "1"))
-                if mino == 0 and not child_attrs:
+                if mino == 0 and not child_data:
                     continue
 
-                occurrences = 1
-                if isinstance(child_attrs, list):
-                    occurrences = len(child_attrs)
+                occurrences = (
+                    len(child_data)
+                    if isinstance(child_data, list)
+                    else 1
+                )
 
                 for i in range(occurrences):
 
-                    sub_attrs = (
-                        child_attrs[i]
-                        if isinstance(child_attrs, list)
-                        else child_attrs
-                    )
+                    data = (
+                        child_data[i]
+                        if isinstance(child_data, list)
+                        else child_data
+                    ) or {}
+
+                    attributes = data.get("_attributes", {})
+                    text = data.get("_text")
+
+                    nested_children = {
+                        k: v for k, v in data.items()
+                        if k not in ("_attributes", "_text")
+                    }
 
                     sub_el = etree.SubElement(
                         xml_el,
                         etree.QName(ns, local)
                     )
+
+                    if text is not None:
+                        sub_el.text = str(text)
+
+                    for k, v in attributes.items():
+                        if v is not None:
+                            sub_el.set(k, str(v))
 
                     type_attr = child.get("type")
                     if type_attr:
@@ -292,11 +230,11 @@ class XSDSkeletonBuilder:
                             self._apply_complex_type(
                                 sub_el,
                                 ct,
-                                attributes=sub_attrs,
-                                children_attributes=sub_attrs,
+                                attributes=None,
+                                children_attributes=nested_children,
                             )
 
-        # default attributes from schema
+        # --- attributes defined directly ---
         for attr in node.findall(f"{XS}attribute"):
             name = attr.get("name")
             if not name or name in xml_el.attrib:
@@ -309,7 +247,42 @@ class XSDSkeletonBuilder:
                 xml_el.set(name, fixed)
             elif default is not None:
                 xml_el.set(name, default)
-            # else: do nothing (optional attribute)
+
+        # --- attributeGroups ---
+        for ag in node.findall(f"{XS}attributeGroup"):
+            ref = ag.get("ref")
+            if not ref:
+                continue
+
+            ns, local = self._resolve_qname(ref, ag)
+            group = self.attribute_groups.get((ns, local))
+            if group:
+                self._apply_attribute_group(xml_el, group)
+
+    def _apply_attribute_group(self, xml_el, group_node):
+
+        for attr in group_node.findall(f"{XS}attribute"):
+            name = attr.get("name")
+            if not name or name in xml_el.attrib:
+                continue
+
+            fixed = attr.get("fixed")
+            default = attr.get("default")
+
+            if fixed is not None:
+                xml_el.set(name, fixed)
+            elif default is not None:
+                xml_el.set(name, default)
+
+        for nested in group_node.findall(f"{XS}attributeGroup"):
+            ref = nested.get("ref")
+            if not ref:
+                continue
+
+            ns, local = self._resolve_qname(ref, nested)
+            nested_group = self.attribute_groups.get((ns, local))
+            if nested_group:
+                self._apply_attribute_group(xml_el, nested_group)
 
     def add_foreign_child(self, parent, ns, name, text=None, nsmap=None, **attrs):
         qname = etree.QName(ns, name)

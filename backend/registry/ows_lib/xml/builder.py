@@ -302,6 +302,22 @@ class XSDSkeletonBuilder:
 
         return el
 
+    def iter(self, root, local_name=None, namespace=None):
+        """
+        Iterate over elements optionally filtered by local_name and/or namespace.
+        """
+
+        for el in root.iter():
+            qname = etree.QName(el)
+
+            if local_name and qname.localname != local_name:
+                continue
+
+            if namespace and qname.namespace != namespace:
+                continue
+
+            yield el
+
 
 class XMLBuilder:
 

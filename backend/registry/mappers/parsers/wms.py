@@ -71,7 +71,7 @@ def _parse_duration(mapper, duration_str):
     Gibt ein timedelta zurück (nicht isodate.Duration).
     """
     if not duration_str:
-        return None
+        return timedelta(0)
 
     try:
         dur = isodate.parse_duration(duration_str)
@@ -90,7 +90,7 @@ def _parse_duration(mapper, duration_str):
             )
         return dur
     except Exception:
-        return None
+        return timedelta(0)
 
 
 def parse_operation_urls(mapper, el):

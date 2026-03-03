@@ -70,7 +70,7 @@ const DatasetMetadataRecordTabbedShowLayout = () => {
 const ShowDatasetMetadataRecord = () => { 
     return (
       <Show 
-        queryOptions={{meta: {jsonApiParams:{include: 'selfPointingLayers.service,selfPointingFeatureTypes.service,harvestedThrough'}}}}
+        queryOptions={{meta: {jsonApiParams:{include: 'selfPointingLayers,selfPointingFeatureTypes,harvestedThrough'}}}}
       >
         <DatasetMetadataRecordTabbedShowLayout />       
       </Show>

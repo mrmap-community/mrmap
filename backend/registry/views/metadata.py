@@ -505,23 +505,6 @@ class ServiceMetadataViewSetMixin(
                 "reference_systems", queryset=ReferenceSystem.objects.only("id")
             )
         ],
-        "self_pointing_layers": [
-            Prefetch(
-                "self_pointing_layers",
-                queryset=Layer.objects.only(
-                    "id",
-                    "service_id",
-                    "mptt_tree_id",
-                    "mptt_lft",
-                ),
-            )
-        ],
-        "self_pointing_feature_types": [
-            Prefetch(
-                "self_pointing_feature_types",
-                queryset=FeatureType.objects.only("id", "service_id"),
-            )
-        ],
         "self_pointing_wms": [
             Prefetch(
                 "self_pointing_wms",

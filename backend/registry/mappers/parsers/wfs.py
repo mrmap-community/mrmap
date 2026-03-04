@@ -1,7 +1,19 @@
+from lxml import etree
 from registry.mappers.parsers.value import \
     bbox_to_polygon as bbox_value_to_polygon
 from registry.mappers.parsers.value import srs_to_code, srs_to_prefix
 from registry.models.metadata import ReferenceSystem
+from registry.ows_lib.wfs.xml_builder import WFSBuilder
+
+
+def parse_reference_system(mapper, el):
+    if el.text:
+        code = srs_to_code(mapper, el.text)
+        prefix = srs_to_prefix(mapper, el.text)
+        return ReferenceSystem(
+            code=code,
+            prefix=prefix
+        )
 
 
 def parse_reference_systems(mapper, el):
@@ -12,28 +24,9 @@ def parse_reference_systems(mapper, el):
     instances = []
     nsmap = mapper.mapping.get("_namespaces", None)
 
-    # Iteriere über alle Operationen im Request-Block
-    for crs_el in el.xpath("./wfs:OtherCRS", namespaces=nsmap):
-        crs_el.text
-        if crs_el.text:
-            code = srs_to_code(mapper, crs_el.text)
-            prefix = srs_to_prefix(mapper, crs_el.text)
-            instances.append(
-                ReferenceSystem(
-                    code=code,
-                    prefix=prefix
-                )
-            )
-    default_crs_el = el.xpath("./wfs:DefaultCRS", namespaces=nsmap)
-    if default_crs_el and len(default_crs_el) > 0 and default_crs_el[0].text:
-        code = srs_to_code(mapper, default_crs_el[0].text)
-        prefix = srs_to_prefix(mapper, default_crs_el[0].text)
-        # TODO: the crosstable should have an tag to signal that this is the default one.
+    for crs_el in el.xpath("./.", namespaces=nsmap):
         instances.append(
-            ReferenceSystem(
-                code=code,
-                prefix=prefix
-            )
+            parse_reference_system(mapper, crs_el)
         )
 
     return instances
@@ -50,3 +43,8 @@ def bbox_to_polygon(mapper, lower_corner, upper_corner):
     maxx = upper_corner.split(" ")[0]
     maxy = upper_corner.split(" ")[1]
     return bbox_value_to_polygon(mapper, minx, miny, maxx, maxy)
+
+
+def polygon_to_bbox(mapper, polygon) -> etree._Element:
+    builder = WFSBuilder()
+    builder.set_bbox(polygon, mapper.current_element)

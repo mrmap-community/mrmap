@@ -1,0 +1,18 @@
+[
+  {
+    "model": "registry.referencesystem",
+    "pk": "1",
+    "fields": {
+      "code": "4326",
+      "prefix": "EPSG"
+    }
+  },
+  {
+    "model": "registry.referencesystem",
+    "pk": "2",
+    "fields": {
+      "code": "4258",
+      "prefix": "EPSG"
+    }
+  }
+]

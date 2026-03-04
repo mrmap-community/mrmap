@@ -1,23 +1,18 @@
-
 from accounts.models.users import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
-from django.test import Client, TestCase
-from epsg_cache.utils import adjust_axis_order
-from eulxml.xmlmap import load_xmlobject_from_string
+from django.test import Client
+from epsg_cache.utils import adjust_axis_order, get_epsg_srid
+from lxml import etree
 from MrMap.settings import BASE_DIR
-from ows_lib.xml_mapper.xml_requests.wfs.get_feature import (GetFeatureRequest,
-                                                             Query)
-from ows_lib.xml_mapper.xml_responses.wfs.feature_collection import \
-    FeatureCollection
 from registry.models.security import AllowedWebFeatureServiceOperation
 from registry.models.service import WebFeatureService
+from tests.django.contrib import XpathTestCase
 
 
-# TODO: #527
-class WebMapServiceProxyTest(TestCase):
+class WebMapServiceProxyTest(XpathTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -26,7 +21,9 @@ class WebMapServiceProxyTest(TestCase):
         # Otherwise the objects are not present in the database if the mapserver instance is connecting.
         call_command("loaddata", "test_users.json", verbosity=0)
         call_command("loaddata", "test_keywords.json", verbosity=0)
+        call_command("loaddata", "test_crs.json", verbosity=0)
         call_command("loaddata", "test_wfs_proxy.json", verbosity=0)
+
         call_command(
             "loaddata", "test_allowed_wfs_operation.json", verbosity=0)
 
@@ -60,33 +57,51 @@ class WebMapServiceProxyTest(TestCase):
     def test_matching_secured_get_feature_response_for_wfs_200(self):
         self.client.login(username="User1", password="User1")
 
-        query = Query()
-        query.type_names = ["ms:Countries"]
-
-        get_feature_request: GetFeatureRequest = GetFeatureRequest()
-        get_feature_request.output_format = "application/gml+xml; version=3.2"
-        get_feature_request.version = "2.0.0"
-        get_feature_request.service_type = "wfs"
-        get_feature_request.queries.append(query)
+        get_feature_request = """
+            <?xml version='1.0' encoding='UTF-8'?>
+            <wfs:GetFeature 
+                xmlns:wfs="http://www.opengis.net/wfs/2.0" 
+                outputFormat="application/gml+xml; version=3.2" 
+                version="2.0.0" 
+                service="wfs">
+                <wfs:Query typeNames="ms:Countries"/>
+            </wfs:GetFeature>
+        """
 
         response = self.client.post(
             self.wfs_url,
-            data=get_feature_request.serializeDocument().decode("UTF-8"),
+            data=get_feature_request.strip(),
             content_type="application/gml+xml; version=3.2"
         )
 
-        feature_collection: FeatureCollection = load_xmlobject_from_string(
-            string=response.content, xmlclass=FeatureCollection)
+        response_xml = etree.fromstring(response.content)
 
-        bounded_by: GEOSGeometry = feature_collection.bounded_by.to_geometry
+        gml = self._get_by_xpath(
+            response_xml, "/wfs:FeatureCollection/wfs:boundedBy/gml:*")
+        gml_str = etree.tostring(
+            gml[0],
+            encoding="UTF-8"
+        )
+
+        srs = gml[0].get("srsName")
+        if srs:
+            _, srid = get_epsg_srid(srs)
+        else:
+            srid = 4326  # default srs
+        bounded_by_geometry = GEOSGeometry(
+            geo_input=GEOSGeometry.from_gml(gml_str).wkt, srid=srid)
         # cause we are testing for wfs 2.0.0, we need to adjust the axis order to get an correct initialized python geometry object.
-        bounded_by = adjust_axis_order(bounded_by)
+        bounded_by_geometry = adjust_axis_order(bounded_by_geometry)
 
         allowed_area: GEOSGeometry = AllowedWebFeatureServiceOperation.objects.get(
             pk="1235").allowed_area
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(feature_collection.number_matched, 4)
-        self.assertEqual(feature_collection.number_returned, 4)
-        self.assertTrue(allowed_area.overlaps(
-            bounded_by), msg="configured allowed area does not overlaps the responsed bounding box")
+        self.assertXpathValue(
+            response_xml, "/wfs:FeatureCollection/@numberMatched", "4")
+        self.assertXpathValue(
+            response_xml, "/wfs:FeatureCollection/@numberReturned", "4")
+        self.assertTrue(
+            allowed_area.overlaps(bounded_by_geometry),
+            msg="configured allowed area does not overlaps the responsed bounding box"
+        )

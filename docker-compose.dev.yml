@@ -26,9 +26,21 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
 
+
   mapserver:
+    image: camptocamp/mapserver:7.6
+    hostname: "mrmap-mapserver"
+    volumes:
+      - type: bind
+        source: ./docker/mapserver/mapfiles
+        target: /etc/mapserver/mapfiles
+      - type: bind
+        source: ./docker/mapserver/shapefiles
+        target: /etc/mapserver/shapefiles
     ports:
       - "8090:80"
+    networks:
+      - mrmap-internal
 
   pre-commit-check:
     build:
@@ -124,6 +136,15 @@ services:
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
+      # explicitly override passed in environment variables.
+      # hierachy: image defaults --> docker client defaults from config.json -> env_file -> environment definition on compose level
+      #HTTP_PROXY: ""
+      #HTTPS_PROXY: ""
+      #http_proxy: ""
+      #https_proxy: ""
+      NO_PROXY: "127.0.0.1,localhost,mrmap-mapserver"
+      no_proxy: "127.0.0.1,localhost,mrmap-mapserver"
+
     depends_on:
       - postgis
       - redis

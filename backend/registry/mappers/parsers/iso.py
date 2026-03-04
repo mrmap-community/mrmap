@@ -1,25 +1,22 @@
-from lxml import etree
-
-from registry.models.metadata import TimeExtent
-from dateutil.parser import isoparse
-from datetime import timedelta, UTC
-from django.utils import timezone
+from datetime import UTC, timedelta
 from logging import Logger
+
+import isodate
+from dateutil.parser import isoparse
 from django.conf import settings
+from django.utils import timezone
+from lxml import etree
+from registry.enums.iso import CategoryChoices
+from registry.models.metadata import IsoCategory, ReferenceSystem, TimeExtent
 
 logger: Logger = settings.ROOT_LOGGER
 
-import isodate
 
+def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeResult):
 
-def parse_reference_systems(mapper, crs_str):
-    """
-    Parst alle DefaultCRS und OtherCRS des aktuellen FeatureType.
+    crs_str = el.text.strip() if isinstance(
+        el, etree._Element) else el.strip()
 
-    """
-    if isinstance(crs_str, etree._Element):
-        raise ValueError("Expected string, got Element")
-    
     code = ""
     prefix = ""
     if "http://www.opengis.net/def/crs/EPSG" in crs_str:
@@ -28,26 +25,23 @@ def parse_reference_systems(mapper, crs_str):
     else:
         code = crs_str.split(":")[-1]
         prefix = "EPSG"
-    return prefix, code
+    return ReferenceSystem(prefix=prefix, code=code)
 
-def parse_code(mapper, crs_str):
-    """
-    Parst den Code aus einem CRS String.
-    """
-    if not isinstance(crs_str, str):
-        raise ValueError(f"Expected string, got {type(crs_str)}")
-    _, code = parse_reference_systems(mapper, crs_str)
-    return code
 
-def parse_prefix(mapper, crs_str):
-    """
-    Parst den Code aus einem CRS String.
-    """
-    if not isinstance(crs_str, str):
-        raise ValueError(f"Expected string, got {type(crs_str)}")
-    prefix, _ = parse_reference_systems(mapper, crs_str)
-    return prefix
+def serialize_reference_system(mapper, instance: ReferenceSystem):
+    return f"http://www.opengis.net/def/crs/EPSG/0/{instance.code}"
 
+
+def parse_topic_category(mapper, el: etree._Element | etree._ElementUnicodeResult):
+    category_str = el.text.strip() if isinstance(
+        el, etree._Element) else el.strip()
+    value = CategoryChoices(category_str)
+    if value:
+        return IsoCategory(value=value)
+
+
+def serialize_topic_category(mapper, instance: IsoCategory):
+    return CategoryChoices(instance.value).label
 
 
 def parse_timeextent(mapper, time_extent_element):
@@ -57,14 +51,19 @@ def parse_timeextent(mapper, time_extent_element):
     Erwartet eine Liste von lxml Elementen.
     """
     nsmap = mapper.mapping.get("_namespaces", None)
-    begin_position = time_extent_element.findtext("./gml:TimePeriod/gml:beginPosition", namespaces=nsmap)
-    end_position = time_extent_element.findtext("./gml:TimePeriod/gml:endPosition", namespaces=nsmap)
+    begin_position = time_extent_element.findtext(
+        "./gml:TimePeriod/gml:beginPosition", namespaces=nsmap)
+    end_position = time_extent_element.findtext(
+        "./gml:TimePeriod/gml:endPosition", namespaces=nsmap)
     # ISO 8601 Duration
-    duration_str = time_extent_element.findtext("./gml:TimePeriod/gml:duration", namespaces=nsmap)
-    
-    interval_value = time_extent_element.xpath("./gml:TimePeriod/gml:timeInterval/text()", namespaces=nsmap)
-    interval_unit = time_extent_element.xpath("./gml:TimePeriod/gml:timeInterval/@unit", namespaces=nsmap)
-    resolution = None
+    duration_str = time_extent_element.findtext(
+        "./gml:TimePeriod/gml:duration", namespaces=nsmap)
+
+    interval_value = time_extent_element.xpath(
+        "./gml:TimePeriod/gml:timeInterval/text()", namespaces=nsmap)
+    interval_unit = time_extent_element.xpath(
+        "./gml:TimePeriod/gml:timeInterval/@unit", namespaces=nsmap)
+    resolution = timedelta(0)
     if duration_str:
         duration = isodate.parse_duration(duration_str)
 
@@ -88,7 +87,7 @@ def parse_timeextent(mapper, time_extent_element):
             resolution = timedelta(seconds=float(interval_value))
         else:
             raise ValueError(f"Unsupported unit: {interval_value}")
-        
+
     if begin_position and end_position:
         dt_start = isoparse(begin_position)
         dt_end = isoparse(end_position)
@@ -111,7 +110,7 @@ def parse_timeextent(mapper, time_extent_element):
                 begin=dt,
                 end=dt,
                 resolution=resolution
-            )   
+            )
     if not begin_position and not end_position and resolution:
         # rolling window
         return TimeExtent(
@@ -119,7 +118,7 @@ def parse_timeextent(mapper, time_extent_element):
             end=None,
             resolution=resolution,
             is_relative=True
-        )   
+        )
 
-
-    logger.warning(f"Unable to parse TimeExtent from values: {begin_position} {end_position} {duration_str} {interval_value} {interval_unit}")
+    logger.warning(
+        f"Unable to parse TimeExtent from values: {begin_position} {end_position} {duration_str} {interval_value} {interval_unit}")

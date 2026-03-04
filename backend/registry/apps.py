@@ -1,5 +1,6 @@
 
 import logging
+
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
@@ -7,8 +8,8 @@ from django.utils.translation import gettext_lazy as _
 
 def create_choice_model_entries(sender, **kwargs):
     """Automatisch alle ChoiceModel-Subklassen erkennen und nur fehlende CHOICES eintragen."""
-    from registry.models import ChoiceModel  # Baseclass
     from django.apps import apps
+    from registry.models import ChoiceModel  # Baseclass
 
     logger = logging.getLogger(__name__)
 
@@ -22,15 +23,18 @@ def create_choice_model_entries(sender, **kwargs):
                 continue
 
             # Existierende Werte abrufen
-            existing_values = set(model.objects.values_list('value', flat=True))
+            existing_values = set(
+                model.objects.values_list('value', flat=True))
 
             # Nur die Werte eintragen, die noch fehlen
-            missing_values = [value for value, _ in choices if value not in existing_values]
+            missing_values = [value for value,
+                              _ in choices if value not in existing_values]
 
             if missing_values:
                 objs = [model(value=value) for value in missing_values]
                 model.objects.bulk_create(objs)
-                logger.info(f"Inserted {len(objs)} new entries for {model.__name__}")
+                logger.info(
+                    f"Inserted {len(objs)} new entries for {model.__name__}")
             else:
                 logger.info(f"No new entries needed for {model.__name__}")
 
@@ -69,7 +73,16 @@ class RegistryConfig(AppConfig):
 
     def ready(self):
         # Implicitly connect signal handlers decorated with @receiver.
-        post_migrate.connect(create_choice_model_entries, sender=self)
+        post_migrate.connect(
+            create_choice_model_entries,
+            sender=self
+        )
 
-        post_migrate.connect(create_file_system_import_task, sender=self)
-        post_migrate.connect(find_orphan_metadata_objects, sender=self)
+        post_migrate.connect(
+            create_file_system_import_task,
+            sender=self
+        )
+        post_migrate.connect(
+            find_orphan_metadata_objects,
+            sender=self
+        )

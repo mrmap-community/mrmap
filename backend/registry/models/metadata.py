@@ -1,28 +1,33 @@
+import logging
+from datetime import timedelta
 from uuid import uuid4
 
 from django.contrib.gis.db.models import MultiPolygonField
 from django.contrib.gis.gdal.error import GDALException
 from django.contrib.postgres.indexes import BTreeIndex
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models.expressions import CombinedExpression, F
 from django.db.models.fields.generated import GeneratedField
+from django.db.transaction import atomic
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
-from registry.mappers.persistence.handler import PersistenceHandler
-from registry.mappers.factory import MDMetadataXmlMapper
 from extras.managers import (DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
 from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
-from registry.enums.metadata import (DatasetFormatEnum, 
-                                     MetadataOriginEnum,
-                                     ReferenceSystemPrefixChoices, TimeExtentKind,
-                                     )
+from registry.enums.iso import (CategoryChoices, LanguageChoices,
+                                MetadataCharsetChoices, UpdateFrequencyChoices)
+from registry.enums.metadata import (DatasetFormatEnum, MetadataOriginEnum,
+                                     ReferenceSystemPrefixChoices,
+                                     TimeExtentKind)
 from registry.exceptions.service import NoContent
 from registry.managers.metadata import (DatasetMetadataRecordManager,
                                         KeywordManager,
-                                        ServiceMetadataRecordManager, TimeExtentManager)
+                                        ServiceMetadataRecordManager,
+                                        TimeExtentManager)
+from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from requests import Request, Session
@@ -30,10 +35,6 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
-from registry.enums.iso import (LanguageChoices, CategoryChoices, MetadataCharsetChoices, UpdateFrequencyChoices)
-from django.db.transaction import atomic
-from django.db.models import F, Q
-import logging
 
 CRS_Registry = Registry()
 
@@ -41,7 +42,7 @@ CRS_Registry = Registry()
 IS_SINGLE_VALUE = Q(
     Q(begin=F("end"))
 )
-IS_INTERVAL = Q( 
+IS_INTERVAL = Q(
     Q(end__gte=F("begin")) &
     Q(is_relative=False)
 )
@@ -49,8 +50,8 @@ IS_INTERVAL = Q(
 IS_ROLLING = Q(
     begin__isnull=True,
     end__isnull=True,
-    resolution__isnull=False,
-    is_relative=True
+    is_relative=True,
+    resolution__gt=timedelta(0),
 )
 
 
@@ -59,10 +60,10 @@ class TimeExtent(models.Model):
 
     - Singlevalue: begin == end
     - Interval: begin < end
-    
+
     Meta information:
     - Resolution: optional, None/0 = unendlich fein
-    
+
 
     Rolling (window) temporal extent example:
     <gmd:EX_Extent id="timeperiodExtent"> 
@@ -80,7 +81,7 @@ class TimeExtent(models.Model):
     </gmd:EX_Extent>
 
     Note: The valid values for indeterminatePosition are “unknown”, “after”, “before”, and “now”
-    
+
     """
     begin = models.DateTimeField(
         null=True,
@@ -95,13 +96,15 @@ class TimeExtent(models.Model):
         help_text=_("the end of the time period")
     )
     resolution = models.DurationField(
-        null=True, 
         blank=True,
+        # do not allow Null. Otherwise the unique together constraint will not work as needed.
+        # None != None from db pov
+        default=timedelta(0),
         verbose_name=_("resolution"),
-        help_text=_("The resolution of the time extent. Null or 0 means infinite fine resolution.")
+        help_text=_(
+            "The resolution of the time extent. Null or 0 means infinite fine resolution.")
     )
     is_relative = models.BooleanField(default=False)
-
 
     objects = TimeExtentManager()
 
@@ -120,9 +123,16 @@ class TimeExtent(models.Model):
             models.UniqueConstraint(fields=['begin', 'end', 'resolution', 'is_relative'],
                                     name='%(app_label)s_%(class)s_unique_timerange_resolution')
         ]
-    
-    def __eq__(self, __value: object) -> bool:
-        return self.begin == __value.begin and self.end == __value.end and self.resolution == __value.resolution and self.is_relative == __value.is_relative
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TimeExtent):
+            return NotImplemented
+        return (
+            self.begin == other.begin
+            and self.end == other.end
+            and self.resolution == other.resolution
+            and self.is_relative == other.is_relative
+        )
 
     @property
     def kind(self):
@@ -130,17 +140,26 @@ class TimeExtent(models.Model):
             return TimeExtentKind.SINGLE_VALUE
         elif self.begin and self.end and self.begin < self.end:
             return TimeExtentKind.INTERVAL
-        elif self.is_relative and not self.begin and not self.end and self.resolution:
+        elif (
+            self.is_relative
+            and self.begin is None
+            and self.end is None
+            and not self.has_infinite_resolution
+        ):
             return TimeExtentKind.ROLLING
         return None
 
     @property
     def is_single_value(self):
         return self.kind == TimeExtentKind.SINGLE_VALUE
-    
+
     @property
     def is_rolling(self):
         return self.kind == TimeExtentKind.ROLLING
+
+    @property
+    def has_infinite_resolution(self) -> bool:
+        return self.resolution == timedelta(0)
 
     def __str__(self):
         if self.is_single_value:
@@ -149,7 +168,53 @@ class TimeExtent(models.Model):
             current = now()
             return f"{current-self.resolution};{current};0"
         else:
-            return f"{self.begin};{self.end};{self.resolution or 0}"
+            res = self.resolution if self.resolution.total_seconds() != 0 else 0
+            return f"{self.begin};{self.end};{res}"
+
+    def iso_resolution(self) -> str:
+        """
+        Convert a timedelta to ISO 8601 duration (P[n]DT[n]H[n]M[n]S).
+        Only supports days, hours, minutes, seconds.
+        """
+        if self.has_infinite_resolution:
+            return "P0D"
+
+        days = self.resolution.days
+        seconds = self.resolution.seconds
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        duration = "P"
+        if days:
+            duration += f"{days}D"
+        if hours or minutes or seconds:
+            duration += "T"
+            if hours:
+                duration += f"{hours}H"
+            if minutes:
+                duration += f"{minutes}M"
+            if seconds:
+                duration += f"{seconds}S"
+        return duration
+
+    def xml_value(self):
+        """
+        Serialize a single TimeExtent instance to string.
+        - Single value: ISO timestamp
+        - Interval: 'begin/end/resolution' (resolution as ISO 8601 duration)
+        - Rolling: 'now - resolution;now;0' (dynamic)
+        """
+        if self.is_single_value:
+            return self.begin.isoformat()
+
+        elif self.is_rolling:
+            current = now()
+            start = current - self.resolution
+            return f"{start.isoformat()};{current.isoformat()};0"
+
+        else:  # Interval
+            resolution_str = self.iso_resolution()
+            return f"{self.begin.isoformat()}/{self.end.isoformat()}/{resolution_str}"
 
 
 class MimeType(models.Model):
@@ -443,12 +508,12 @@ class RemoteMetadata(models.Model):
 
     def create_metadata_instance(self, **kwargs):
         """ Return the created metadata record, based on the content_type of the described element. """
-        
+
         mappers = MDMetadataXmlMapper.from_xml(self.remote_content.encode())
         data = mappers[0].xml_to_django()
         parsed_instance = data[0]
         handler = PersistenceHandler(
-            mapper=mappers[0], 
+            mapper=mappers[0],
             defaults={
                 "dataset": {
                     "origin": MetadataOriginEnum.CAPABILITIES.value,
@@ -465,14 +530,14 @@ class RemoteMetadata(models.Model):
             ),
             None
         )
-        
+
         if not created_instance:
-            i=0
-            logging.warning(f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
+            logging.warning(
+                f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
             return
-        
+
         created_instance.add_metadata_relation(
-                    related_object=self.describes)
+            related_object=self.describes)
         return created_instance
 
 
@@ -592,10 +657,10 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                  help_text=_("the url of the document where the information of this metadata record "
                                              "comes from"))
     title = models.CharField(max_length=1000,
-                                  verbose_name=_("title"),
-                                  help_text=_(
-                                      "a short descriptive title for this metadata"),
-                                  default="")
+                             verbose_name=_("title"),
+                             help_text=_(
+                                 "a short descriptive title for this metadata"),
+                             default="")
     abstract = models.TextField(verbose_name=_("abstract"),
                                 help_text=_(
                                     "brief summary of the content of this metadata."),
@@ -627,7 +692,7 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                       related_query_name="%(class)s_metadata",
                                       verbose_name=_("keywords"),
                                       help_text=_("all keywords which are related to the content of this metadata."))
-    
+
     languages = models.ManyToManyField(to=Language,
                                        blank=True,
                                        related_name="%(class)s_metadata",
@@ -862,7 +927,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                                choices=MetadataCharsetChoices.choices,
                                                verbose_name=_("charset"),
                                                help_text=_("full name of the character coding standard used for the metadata set"))
-    
+
     time_extents = models.ManyToManyField(
         to=TimeExtent,
         blank=True,
@@ -870,7 +935,8 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         related_name="%(app_label)s_%(class)s",
         related_query_name="%(app_label)s_%(class)s",
         verbose_name=_("time extent"),
-        help_text=_("all time extents which are available for this metadata record."),
+        help_text=_(
+            "all time extents which are available for this metadata record."),
     )
 
     resource_identifier = GeneratedField(
@@ -910,7 +976,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         kwargs = {}
         if related_object and related_object.__class__.__name__ == "Layer":
             kwargs.update({"layer": related_object,
-                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value,})
+                           "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value, })
         elif related_object and related_object.__class__.__name__ == "FeatureType":
             kwargs.update({"feature_type": related_object,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
@@ -923,12 +989,12 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         elif related_object and related_object.__class__.__name__ == "CatalogueService":
             kwargs.update({"csw": related_object,
                            "origin": origin if origin else MetadataOriginEnum.CAPABILITIES.value})
-        
+
         if self.__class__.__name__ == "DatasetMetadataRecord":
             kwargs.update({"dataset_metadata": self})
         elif self.__class__.__name__ == "ServiceMetadataRecord":
             kwargs.update({"service_metadata": self})
-        
+
         with atomic():
             relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
                 is_internal=is_internal,
@@ -950,7 +1016,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
             kwargs.update({"csw": related_object})
         else:
             return
-        
+
         if self.__class__.__name__ == "DatasetMetadataRecord":
             kwargs.update({"dataset_metadata": self})
         elif self.__class__.__name__ == "ServiceMetadataRecord":
@@ -960,7 +1026,6 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
             origin=origin,
             **kwargs
         ).delete()
-
 
 
 class DatasetMetadataRecord(MetadataRecord):
@@ -1084,5 +1149,3 @@ class ServiceMetadataRecord(MetadataRecord):
         constraints = [
 
         ] + MetadataRecord.Meta.constraints
-
-

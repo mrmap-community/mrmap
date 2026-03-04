@@ -16,7 +16,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                           'extreme Orkanböen',
                                                           'extreme Unwetterwarnung'],
                                           'output_formats': [],
-                                          'reference_systems': ['4326'],
+                                          'default_reference_system': '4326',
+                                          'reference_systems': ['4324', '4325'],
                                           'title': 'Autowarn_Analyse'},
                  'dwd:Autowarn_Vorhersage': {'abstract': 'Autowarn-Polygone für '
                                              'signifikante '
@@ -39,7 +40,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                           'extreme Orkanböen',
                                                           'extreme Unwetterwarnung'],
                                              'output_formats': [],
-                                             'reference_systems': ['4326'],
+                                             'default_reference_system': '4326',
+                                             'reference_systems': [],
                                              'title': 'Autowarn_Vorhersage'},
                  'dwd:BRD_Orte': {'abstract': 'ausgewählte Orte Deutschlands',
                                   'bbox_lat_lon': 'POLYGON ((6.80680000000001 13.7687, '
@@ -48,7 +50,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                   '6.80680000000001 13.7687))',
                                   'keywords': ['Geographischer Ort'],
                                   'output_formats': [],
-                                  'reference_systems': ['4326'],
+                                  'default_reference_system': '4326',
+                                  'reference_systems': [],
                                   'title': 'BRD Orte'},
                  'dwd:Biowettergebiete': {'abstract': 'Übersicht der '
                                           'Wetterfühligkeitsgebiete für das '
@@ -68,7 +71,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                        'Gefahrenindizes für '
                                                        'Wetterfühlige'],
                                           'output_formats': [],
-                                          'reference_systems': ['4326'],
+                                          'default_reference_system': '4326',
+                                          'reference_systems': [],
                                           'title': 'Gefahrenindizes für Wetterfühlige'},
                  'dwd:Biowettervorhersage': {'abstract': 'Vorhersage des Gefahrenindizes '
                                              'für Wetterfühlige für das '
@@ -101,7 +105,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                           'Gefahrenindizes für '
                                                           'Wetterfühlige'],
                                              'output_formats': [],
-                                             'reference_systems': ['4326'],
+                                             'default_reference_system': '4326',
+                                             'reference_systems': [],
                                              'title': 'Gefahrenindizes für Wetterfühlige '
                                              'Vorhersage'},
                  'dwd:CLIMAT_AVAILABILITY_1': {'abstract': 'DWD und JMA (Japan '
@@ -133,7 +138,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                             'Monatlich',
                                                             'Vorläufige Angaben'],
                                                'output_formats': [],
-                                               'reference_systems': ['4326'],
+                                               'default_reference_system': '4326',
+                                               'reference_systems': [],
                                                'title': 'Monitoringprodukt des GCOS '
                                                'Surface Monitoring Centres '
                                                '(GSNMC) - CLIMAT-Verfügbarkeit '
@@ -171,7 +177,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                              'Monatlich',
                                                              'Vorläufige Angaben'],
                                                 'output_formats': [],
-                                                'reference_systems': ['4326'],
+                                                'default_reference_system': '4326',
+                                                'reference_systems': [],
                                                 'title': 'Monitoringprodukt des GCOS '
                                                 'Surface Monitoring Centres '
                                                 '(GSNMC) - CLIMAT-Verfügbarkeit '
@@ -207,7 +214,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                              'Monatlich',
                                                              'Vorläufige Angaben'],
                                                 'output_formats': [],
-                                                'reference_systems': ['4326'],
+                                                'default_reference_system': '4326',
+                                                'reference_systems': [],
                                                 'title': 'Monitoringprodukte des GCOS '
                                                 'Surface Monitoring Centres '
                                                 '(GSNMC) - Empfang von '
@@ -219,7 +227,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                     'keywords': ['Atmosphärische Zusammensetzung',
                                                  'Gesamtbedeckungsgrad'],
                                     'output_formats': [],
-                                    'reference_systems': ['4326'],
+                                    'default_reference_system': '4326',
+                                    'reference_systems': [],
                                     'title': 'Alle ceilometer und Lidars'},
                  'dwd:E-PROFILE': {'abstract': 'All ceilometers from E-PROFILE members.',
                                    'bbox_lat_lon': 'POLYGON ((-180 180, -180 90, -90 90, '
@@ -227,7 +236,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                    'keywords': ['Atmosphärische Zusammensetzung',
                                                 'Gesamtbedeckungsgrad'],
                                    'output_formats': [],
-                                   'reference_systems': ['4326'],
+                                   'default_reference_system': '4326',
+                                   'reference_systems': [],
                                    'title': 'E-PROFILE ceilometer'},
                  'dwd:EEVIEW_EERLINE': {'abstract': 'Der Deutsche Wetterdienst (DWD) '
                                         'leitet im Rahmen der Aktivitäten '
@@ -268,7 +278,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                      'Windgeschwindigkeit',
                                                      'Windrichtung'],
                                         'output_formats': [],
-                                        'reference_systems': ['4326'],
+                                        'default_reference_system': '4326',
+                                        'reference_systems': [],
                                         'title': 'RCC CA Region VI Extreme Events, '
                                         'Lines'},
                  'dwd:EEVIEW_EERPOINT': {'abstract': 'Der Deutsche Wetterdienst (DWD) '
@@ -303,7 +314,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                       'Wettererscheinung',
                                                       'Windgeschwindigkeit'],
                                          'output_formats': [],
-                                         'reference_systems': ['4326'],
+                                         'default_reference_system': '4326',
+                                         'reference_systems': [],
                                          'title': 'RCC CA Region VI Extreme Events, '
                                          'Point'},
                  'dwd:EEVIEW_EERPOL': {'abstract': 'Der Deutsche Wetterdienst (DWD) '
@@ -334,7 +346,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                     'Täglich',
                                                     'Zeitreihe'],
                                        'output_formats': [],
-                                       'reference_systems': ['4326'],
+                                       'default_reference_system': '4326',
+                                       'reference_systems': [],
                                        'title': 'RCC CA Region VI Extreme Events, '
                                        'Polygon'},
                  'dwd:EUCOS_RS_heights': {'abstract': 'This layer displays the '
@@ -347,7 +360,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                           '-90 90, -90 180, -180 180))',
                                           'keywords': ['Aerologie', 'Monatlich', 'TEMP'],
                                           'output_formats': [],
-                                          'reference_systems': ['4326'],
+                                          'default_reference_system': '4326',
+                                          'reference_systems': [],
                                           'title': 'EUCOS Radiosonde stations gph '
                                           'heights'},
                  'dwd:EUCOS_RS_stations': {'abstract': 'This layer displays the '
@@ -361,7 +375,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                         'Seemeteorologie',
                                                         'TEMP'],
                                            'output_formats': [],
-                                           'reference_systems': ['4326'],
+                                           'default_reference_system': '4326',
+                                           'reference_systems': [],
                                            'title': 'EUCOS Radiosonde stations'},
                  'dwd:EUCOS_surface_GBON': {'abstract': 'Anzahl Meldungen pro Monat pro '
                                             'Parameter zur GBON '
@@ -371,7 +386,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                             '180))',
                                             'keywords': ['Monatssumme'],
                                             'output_formats': [],
-                                            'reference_systems': ['4326'],
+                                            'default_reference_system': '4326',
+                                            'reference_systems': [],
                                             'title': 'Anzahl EUCOS Bodenstationen'},
                  'dwd:EUCOS_surface_stations': {'abstract': 'EUCOS Bodenstationen für '
                                                 'GBON Zielerreichung im '
@@ -381,7 +397,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                 '180, -180 180))',
                                                 'keywords': ['Stationseintragungskarte'],
                                                 'output_formats': [],
-                                                'reference_systems': ['4326'],
+                                                'default_reference_system': '4326',
+                                                'reference_systems': [],
                                                 'title': 'EUCOS Bodenstationen'},
                  'dwd:Einzugsgebiete_DE': {'abstract': 'Der Layer enthält die '
                                            'Flusseinzugsgebiete von '
@@ -410,7 +427,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                            'keywords': ['Geobasisdaten',
                                                         'Geographisches Gebiet'],
                                            'output_formats': [],
-                                           'reference_systems': ['4326'],
+                                           'default_reference_system': '4326',
+                                           'reference_systems': [],
                                            'title': 'Einzugsgebiete_DE'},
                  'dwd:Gewaesser': {'abstract': 'Vereinigung einer Auswahl von '
                                    'Gewässerpolygonen aus vmap0:inwatera und '
@@ -445,7 +463,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                    '163.119827270508))',
                                    'keywords': ['Geobasisdaten'],
                                    'output_formats': [],
-                                   'reference_systems': ['4326'],
+                                   'default_reference_system': '4326',
+                                   'reference_systems': [],
                                    'title': 'Gewaesser'},
                  'dwd:ICON-EPS_meteograms': {'abstract': 'Dieses Produkt wird in Ninjo '
                                              'Batch erzeugt. Daten von ICON '
@@ -471,7 +490,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                           'Wettervorhersagen',
                                                           'Windgeschwindigkeit'],
                                              'output_formats': [],
-                                             'reference_systems': ['4326'],
+                                             'default_reference_system': '4326',
+                                             'reference_systems': [],
                                              'title': 'ICON EPS Meteogramme für '
                                              'ausgewählte Orte. Dieses Produkt '
                                              'wurde für das Projekt WMC World '
@@ -498,7 +518,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                      'Vorläufige Angaben',
                                                      'Wettermeldungen'],
                                         'output_formats': [],
-                                        'reference_systems': ['4326'],
+                                        'default_reference_system': '4326',
+                                        'reference_systems': [],
                                         'title': 'Monitoringprodukt des GCOS Surface '
                                         'Monitoring Centres (GSNMC) - Formate '
                                         'der CLIMAT-Meldungen im Monat'},
@@ -524,7 +545,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                       'Vorläufige Angaben',
                                                       'Wettermeldungen'],
                                          'output_formats': [],
-                                         'reference_systems': ['4326'],
+                                         'default_reference_system': '4326',
+                                         'reference_systems': [],
                                          'title': 'Monitoringprodukt des GCOS Surface '
                                          'Monitoring Centres (GSNMC) - Formate '
                                          'der CLIMAT-Meldungen in den letzten '
@@ -558,7 +580,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                            'Vorläufige Angaben',
                                                            'Wettermeldungen'],
                                               'output_formats': [],
-                                              'reference_systems': ['4326'],
+                                              'default_reference_system': '4326',
+                                              'reference_systems': [],
                                               'title': 'Monitoringprodukt des GCOS '
                                               'Surface Monitoring Centres '
                                               '(GSNMC) - Formate der '
@@ -572,7 +595,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                            '62.53125))',
                                            'keywords': ['Geobasisdaten', 'Meteorologie'],
                                            'output_formats': [],
-                                           'reference_systems': ['4326'],
+                                           'default_reference_system': '4326',
+                                           'reference_systems': [],
                                            'title': 'Grenze ICON-EU Modellgebiet'},
                  'dwd:Laender': {'abstract': 'Länderpolygone aus vmap0:polbnda\r\n'
                                  '\r\n'
@@ -600,7 +624,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                  '-90 180, -180 180))',
                                  'keywords': ['Geobasisdaten'],
                                  'output_formats': [],
-                                 'reference_systems': ['4326'],
+                                 'default_reference_system': '4326',
+                                 'reference_systems': [],
                                  'title': 'Laender'},
                  'dwd:MONTH_YEAR_GROUP': {'abstract': 'DWD und JMA (Japan Meteorological '
                                           'Agency) überwachen im Auftrag der '
@@ -625,7 +650,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                        'Vorläufige Angaben',
                                                        'Wettermeldungen'],
                                           'output_formats': [],
-                                          'reference_systems': ['4326'],
+                                          'default_reference_system': '4326',
+                                          'reference_systems': [],
                                           'title': 'Monitoringprodukt des GCOS Surface '
                                           'Monitoring Centres (GSNMC) - '
                                           'Monat-Jahr-Gruppe der '
@@ -639,7 +665,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                  '81.4, 35.3 43.2, -11.5 43.2))',
                                  'keywords': ['Gewitter'],
                                  'output_formats': [],
-                                 'reference_systems': ['4326'],
+                                 'default_reference_system': '4326',
+                                 'reference_systems': [],
                                  'title': 'NowCastELEC-WarnWetterApp (NCEW)'},
                  'dwd:PERCENTAGE_CLIMAT_REGION': {'abstract': 'DWD und JMA (Japan '
                                                   'Meteorological Agency) '
@@ -669,7 +696,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                                'Monatlich',
                                                                'Vorläufige Angaben'],
                                                   'output_formats': [],
-                                                  'reference_systems': ['4326'],
+                                                  'default_reference_system': '4326',
+                                                  'reference_systems': [],
                                                   'title': 'Monitoringprodukt des GCOS '
                                                   'Surface Monitoring Centres '
                                                   '(GSNMC) - Empfangene CLIMATs '
@@ -701,7 +729,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                             'Monatlich',
                                                             'Vorläufige Angaben'],
                                                'output_formats': [],
-                                               'reference_systems': ['4326'],
+                                               'default_reference_system': '4326',
+                                               'reference_systems': [],
                                                'title': 'Monitoringprodukt des GCOS '
                                                'Surface Monitoring Centres '
                                                '(GSNMC) - Performanz '
@@ -743,7 +772,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                                   'Vorläufige Angaben',
                                                                   'features'],
                                                      'output_formats': [],
-                                                     'reference_systems': ['4326'],
+                                                     'default_reference_system': '4326',
+                                                     'reference_systems': [],
                                                      'title': 'Monitoringprodukt des '
                                                      'GCOS Surface Monitoring '
                                                      'Centres (GSNMC) - '
@@ -765,7 +795,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                  'Windgeschwindigkeit',
                                                  'Windrichtung'],
                                     'output_formats': [],
-                                    'reference_systems': ['4326'],
+                                    'default_reference_system': '4326',
+                                    'reference_systems': [],
                                     'title': 'Wetterbeobachtungen und -messwerte von der '
                                     'Polarstern'},
                  'dwd:Pollenflug': {'abstract': 'Vorhersage des '
@@ -793,7 +824,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                  'Täglich',
                                                  'Vorhersage'],
                                     'output_formats': [],
-                                    'reference_systems': ['4326'],
+                                    'default_reference_system': '4326',
+                                    'reference_systems': [],
                                     'title': 'Pollenflug-Gefahrenindex'},
                  'dwd:Pollenfluggebiete': {'abstract': 'Übersicht der Pollenfluggebiete '
                                            'für das Bundesgebiet, aufgeteilt '
@@ -804,7 +836,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                         'Wetterfühlige',
                                                         'Staatsgebiet'],
                                            'output_formats': [],
-                                           'reference_systems': ['4326'],
+                                           'default_reference_system': '4326',
+                                           'reference_systems': [],
                                            'title': 'Pollenflug-Gefahrenindex'},
                  'dwd:Prob_sunny_days': {'abstract': 'Figures of probability of sunny '
                                          'days/periods at selected locations '
@@ -822,7 +855,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                       'Qualitätsgeprüfte Angaben',
                                                       'Sonnenscheindauer'],
                                          'output_formats': [],
-                                         'reference_systems': ['4326'],
+                                         'default_reference_system': '4326',
+                                         'reference_systems': [],
                                          'title': 'Probability of sunny days/periods'},
                  'dwd:RBSN_FF': {'abstract': 'Messwerte der Windgeschwindigkeit an den '
                                  'DWD Stationen im Regional Basic Synoptic '
@@ -839,7 +873,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                               'SYNOP',
                                               'Windgeschwindigkeit'],
                                  'output_formats': [],
-                                 'reference_systems': ['4326'],
+                                 'default_reference_system': '4326',
+                                 'reference_systems': [],
                                  'title': 'Windgeschwindigkeit an RBSN Stationen',
                                  'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_FF']},
                  'dwd:RBSN_RH': {'abstract': 'Messwerte der relativen Feuchte an den DWD '
@@ -856,7 +891,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                               'Meteorologie',
                                               'Relative Feuchte'],
                                  'output_formats': [],
-                                 'reference_systems': ['4326'],
+                                 'default_reference_system': '4326',
+                                 'reference_systems': [],
                                  'title': 'Relative Feuchte an RBSN Stationen',
                                  'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RH']},
                  'dwd:RBSN_RR': {'abstract': 'Messwerte des Niederschlags an den DWD '
@@ -874,7 +910,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                               'Niederschlag',
                                               'SYNOP'],
                                  'output_formats': [],
-                                 'reference_systems': ['4326'],
+                                 'default_reference_system': '4326',
+                                 'reference_systems': [],
                                  'title': 'Niederschlag an RBSN Stationen',
                                  'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_RR']},
                  'dwd:RBSN_T2m': {'abstract': 'Messwerte der 2m Temperatur an den DWD '
@@ -892,7 +929,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                'Meteorologie',
                                                'SYNOP'],
                                   'output_formats': [],
-                                  'reference_systems': ['4258'],
+                                  'default_reference_system': '4326',
+                                  'reference_systems': [],
                                   'title': '2m Temperatur an RBSN Stationen',
                                   'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_T2m']
                                   },
@@ -909,7 +947,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                 'Niederschlagsdefizit',
                                                 'Verdunstung'],
                                    'output_formats': [],
-                                   'reference_systems': ['4326'],
+                                   'default_reference_system': '4326',
+                                   'reference_systems': [],
                                    'title': 'potentielle Verdunstung an RBSN Stationen',
                                    'remote_metadata': ['https://registry.gdi-de.org/id/de.bund.dwd/de.dwd.geoserver.fach.RBSN_VPGB']},
                  'dwd:Trajectories': {'abstract': 'Vorwärts- und Rückwärtstrajektorien '
@@ -919,7 +958,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                       '90, -90 180, -180 180))',
                                       'keywords': ['Atmosphärische Bedingungen'],
                                       'output_formats': [],
-                                      'reference_systems': ['4326'],
+                                      'default_reference_system': '4326',
+                                      'reference_systems': [],
                                       'title': 'FEHP Trajektorien'},
                  'dwd:Uv_Stationen': {'abstract': 'Stationen weltwelt für '
                                       'UVI-Vorhersagen',
@@ -928,7 +968,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                       '178.43, -166.13 178.43))',
                                       'keywords': ['Geobasisdaten', 'Geographischer Ort'],
                                       'output_formats': [],
-                                      'reference_systems': ['4326'],
+                                      'default_reference_system': '4326',
+                                      'reference_systems': [],
                                       'title': 'UVI Stationen'},
                  'dwd:VG250_Gemeinden': {'abstract': 'Copyright GeoBasis-DE / BKG '
                                          '(http://www.bkg.bund.de) 2019 '
@@ -945,7 +986,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                          '15.0418156516178))',
                                          'keywords': ['Geographisches Gebiet'],
                                          'output_formats': [],
-                                         'reference_systems': ['4326'],
+                                         'default_reference_system': '4326',
+                                         'reference_systems': [],
                                          'title': 'VG250_Gemeinden'},
                  'dwd:WMO_REGIONS': {'abstract': 'Die Weltorganisation für Meteorologie '
                                      '(WMO) hat die ihr angehörenden Staaten '
@@ -965,7 +1007,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                      '90, -90 180, -180 180))',
                                      'keywords': ['Geobasisdaten'],
                                      'output_formats': [],
-                                     'reference_systems': ['4326'],
+                                     'default_reference_system': '4326',
+                                     'reference_systems': [],
                                      'title': 'WMO Regionen 1 bis 7 und Welt'},
                  'dwd:Warngebiete_Binnenseen': {'abstract': 'Warngebiete des DWD für '
                                                 'Binnenseen.\r\n'
@@ -1039,7 +1082,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                              'starkes Tauewtter',
                                                              'strenger Frost'],
                                                 'output_formats': [],
-                                                'reference_systems': ['4326'],
+                                                'default_reference_system': '4326',
+                                                'reference_systems': [],
                                                 'title': 'Warngebiete des DWD für '
                                                 'Binnenseen'},
                  'dwd:Warngebiete_Bundeslaender': {'abstract': 'Copyright GeoBasis-DE / '
@@ -1067,7 +1111,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                                 'Gebiet',
                                                                 'Luftfahrt'],
                                                    'output_formats': [],
-                                                   'reference_systems': ['4326'],
+                                                   'default_reference_system': '4326',
+                                                   'reference_systems': [],
                                                    'title': 'Warngebiete_Bundeslaender'},
                  'dwd:Warngebiete_Gemeinden': {'abstract': 'Warngebiete des DWD, '
                                                'basierend auf den Geodaten '
@@ -1137,7 +1182,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                             'starkes Tauewtter',
                                                             'strenger Frost'],
                                                'output_formats': [],
-                                               'reference_systems': ['4326'],
+                                               'default_reference_system': '4326',
+                                               'reference_systems': [],
                                                'title': 'Warngebiete des DWD auf '
                                                'Gemeindebasis'},
                  'dwd:Warngebiete_Kreise': {'abstract': 'Warngebiete des DWD, basierend '
@@ -1210,7 +1256,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                          'starkes Tauewtter',
                                                          'strenger Frost'],
                                             'output_formats': [],
-                                            'reference_systems': ['4326'],
+                                            'default_reference_system': '4326',
+                                            'reference_systems': [],
                                             'title': 'Warngebiete des DWD auf '
                                             'Kreisbasis'},
                  'dwd:Warngebiete_Kueste': {'abstract': 'Warngebiete des DWD für Küsten. '
@@ -1278,7 +1325,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                          'starkes Tauwetter',
                                                          'strenger Frost'],
                                             'output_formats': [],
-                                            'reference_systems': ['4326'],
+                                            'default_reference_system': '4326',
+                                            'reference_systems': [],
                                             'title': 'Warngebiete des DWD für Küsten'},
                  'dwd:Warngebiete_See': {'abstract': 'Warngebiete des DWD auf See. '
                                          'Copyright GeoBasis-DE / BKG '
@@ -1345,7 +1393,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                       'starkes Tauewtter',
                                                       'strenger Frost'],
                                          'output_formats': [],
-                                         'reference_systems': ['4326'],
+                                         'default_reference_system': '4326',
+                                         'reference_systems': [],
                                          'title': 'Warngebiete des DWD auf See'},
                  'dwd:Warnungen_Binnenseen': {'abstract': 'aktuelle amtliche '
                                               'Wetterwarnungen des DWD für '
@@ -1414,7 +1463,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                            'starkes Tauewtter',
                                                            'strenger Frost'],
                                               'output_formats': [],
-                                              'reference_systems': ['4326'],
+                                              'default_reference_system': '4326',
+                                              'reference_systems': [],
                                               'title': 'Wetterwarnungen für Binnenseen'},
                  'dwd:Warnungen_Gemeinden': {'abstract': 'aktuelle amtliche '
                                              'Wetterwarnungen und '
@@ -1491,7 +1541,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                           'starkes Tauwetter',
                                                           'strenger Frost'],
                                              'output_formats': [],
-                                             'reference_systems': ['4326'],
+                                             'default_reference_system': '4326',
+                                             'reference_systems': [],
                                              'title': 'Wetterwarnungen und '
                                              'Vorabinformationen auf '
                                              'Gemeindeebene'},
@@ -1586,7 +1637,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                                     'Tauwetter',
                                                                     'strenger Frost'],
                                                        'output_formats': [],
-                                                       'reference_systems': ['4326'],
+                                                       'default_reference_system': '4326',
+                                                       'reference_systems': [],
                                                        'title': 'Wetterwarnungen und '
                                                        'Vorabinformationen auf '
                                                        'Gemeindeebene '
@@ -1653,7 +1705,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                        'starkes Tauwetter',
                                                        'strenger Frost'],
                                           'output_formats': [],
-                                          'reference_systems': ['4326'],
+                                          'default_reference_system': '4326',
+                                          'reference_systems': [],
                                           'title': 'Wetterwarnungen für Küstengebiete'},
                  'dwd:Warnungen_Landkreise': {'abstract': 'aktuelle amtliche '
                                               'Wetterwarnungen und '
@@ -1713,7 +1766,8 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                            'starkes Tauewtter',
                                                            'strenger Frost'],
                                               'output_formats': [],
-                                              'reference_systems': ['4326'],
+                                              'default_reference_system': '4326',
+                                              'reference_systems': [],
                                               'title': 'Wetterwarnungen und '
                                               'Vorabinformationen auf '
                                               'Landkreisebene'},
@@ -1763,5 +1817,6 @@ EXPECTED_DATA = {'dwd:Autowarn_Analyse': {'abstract': 'Autowarn-Polygone für '
                                                     'starkes Tauewtter',
                                                     'strenger Frost'],
                                        'output_formats': [],
-                                       'reference_systems': ['4326'],
+                                       'default_reference_system': '4326',
+                                       'reference_systems': [],
                                        'title': 'Warnhinweise für Seegebiete'}}

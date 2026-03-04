@@ -5,19 +5,20 @@ from uuid import uuid4
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import ForeignKey, Manager, Model
+from django.db.models import ForeignKey
 from lxml import etree
-
 from registry import models
 from registry.mappers.cache import GlobalXmlCache
-from registry.mappers.configs import XPATH_MAP
-from registry.mappers.utils import get_fk_field_name_from_reverse_relation, load_file, load_function
-
-from .xpath import util
-from .xpath.core import parse
+from registry.mappers.utils import (build_concrete_xpath,
+                                    ensure_element_for_instance,
+                                    get_fk_field_name_from_reverse_relation,
+                                    is_many_relation, load_file, load_function,
+                                    remove_element_or_attribute,
+                                    set_text_or_attribute)
 
 
 class XmlMapper:
+    db_instance = None
 
     def __init__(
         self,
@@ -75,7 +76,6 @@ class XmlMapper:
             encoding=encoding
         )
 
-
     def store_to_cache(self, key, value):
         unique_key = f"{self.uuid}:{key}"
         self.cache.set(unique_key, value)
@@ -84,9 +84,26 @@ class XmlMapper:
     def read_from_cache(self, key):
         return self.cache.get(f"{self.uuid}:{key}")
 
+    def get_all_keys(self):
+        return self.cache.get(self.uuid, [])
+
     def read_all_from_cache(self):
-        all_keys = self.cache.get(self.uuid, [])
+        all_keys = self.get_all_keys()
         return self.cache.get_many(all_keys)
+
+    def get_all_xpaths(self) -> list[str]:
+        """
+        Returns all cached XPaths (keys) stored in this mapper instance.
+
+        Each key corresponds to an XPath that was used in store_to_cache.
+        """
+        all_keys = self.get_all_keys()  # e.g., ['uuid:key1', 'uuid:key2', ...]
+        prefix = f"{self.uuid}:"
+
+        # Strip the uuid prefix to get the original XPath keys
+        xpaths = [key[len(prefix):]
+                  for key in all_keys if key.startswith(prefix)]
+        return xpaths
 
     def get_element_path(self, element):
         if isinstance(element, etree._ElementUnicodeResult):
@@ -103,12 +120,12 @@ class XmlMapper:
         self,
         element,
         xpath_or_spec,
-        namespaces
+        namespaces,
+        is_many: bool = False
     ):
         """Parst ein einzelnes Feld oder Sub-Spec."""
         # Prüfen, ob das xpath_or_spec ein Sub-Spec (dict) ist
         if isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
-            sub_many = xpath_or_spec.get("_many", False)
             parser = self.__class__(
                 xml=element,
                 mapping=xpath_or_spec | {
@@ -118,7 +135,7 @@ class XmlMapper:
             parsed = parser.traverse_spec(
                 xpath_or_spec,
                 namespaces,
-                many=sub_many
+                is_many=is_many
             )
             return parsed
         elif isinstance(xpath_or_spec, dict) and "_inputs" in xpath_or_spec and "_parser" in xpath_or_spec:
@@ -131,7 +148,8 @@ class XmlMapper:
                         f"Error parsing field with xpath '{xpath_expr}': {e}"
                     )
                 if not res:
-                    logging.debug(f"No result by xpath '{xpath_expr}'. Fallback _default is used.")
+                    logging.debug(
+                        f"No result by xpath '{xpath_expr}'. Fallback _default is used.")
                     values.append(xpath_or_spec.get("_default", None))
                 else:
                     # Ob Attribut oder Elementtext
@@ -141,7 +159,8 @@ class XmlMapper:
             try:
                 parsed = parser_func(self, *values)
                 if parsed is None:
-                    logging.debug(f"{xpath_or_spec["_parser"]} does return None with args: {values}")
+                    logging.debug(
+                        f"{xpath_or_spec["_parser"]} does return None with args: {values}")
             except Exception as e:
                 logging.error(
                     f"Error parsing field with function {xpath_or_spec['_parser']} with args: {values}: {e}")
@@ -175,14 +194,17 @@ class XmlMapper:
     def handle_reverse_relations(self, instance, xml_element, spec, namespaces):
         model_cls = self._get_model_class(spec)
         for rev_name, rev_spec in self._get_reverse_fields(spec).items():
-            parsed = self.parse_field(xml_element, rev_spec, namespaces)
-            if not parsed:
-                # no elements parsed. continue with next reverse field
-                continue
-
             # Standard: FK-Feld aus Reverse-Relation bestimmen
             child_parent_field = get_fk_field_name_from_reverse_relation(
                 model_cls, rev_name)
+
+            is_many = is_many_relation(model_cls, rev_name)
+
+            parsed = self.parse_field(
+                xml_element, rev_spec, namespaces, is_many)
+            if not parsed:
+                # no elements parsed. continue with next reverse field
+                continue
 
             # to simplify following code and reduce code duplications
             if not isinstance(parsed, list):
@@ -220,7 +242,8 @@ class XmlMapper:
 
     def handle_m2m_relations(self, instance, xml_element, spec, namespaces):
         for m2m_name, m2m_spec in self._get_m2m_fields(spec).items():
-            parsed = self.parse_field(xml_element, m2m_spec, namespaces)
+            parsed = self.parse_field(
+                xml_element, m2m_spec, namespaces, is_many=True)
             if not parsed:
                 # no instances created... continue with the next m2m field
                 continue
@@ -280,11 +303,11 @@ class XmlMapper:
         self,
         spec,
         namespaces=None,
-        many=False,
+        is_many: bool = False
     ):
         """Traversiert ein Mapping-Spec, inkl. Baumstruktur und Reverse-Relations."""
-        many = spec.get("_many", many)
-        instances = [] if many else None
+
+        instances = [] if is_many else None
         elements = self._get_elements(spec, namespaces)
         if "_parser" in spec:
             parser = load_function(spec.get("_parser"))
@@ -296,8 +319,11 @@ class XmlMapper:
                     instances.extend(instance)
                     for idx, inst in enumerate(instance):
                         self.store_to_cache(f"{path}_{idx}", inst)
-                else:
-                    instances = instance
+                elif instance is not None:
+                    if is_many:
+                        instances.append(instance)
+                    else:
+                        instances = instance
                     self.store_to_cache(path, instance)
 
             return instances
@@ -314,7 +340,7 @@ class XmlMapper:
                 self.handle_reverse_relations(instance, el, spec, namespaces)
                 self.handle_m2m_relations(instance, el, spec, namespaces)
 
-                if many:
+                if is_many:
                     instances.append(instance)
                 else:
                     instances = instance
@@ -334,133 +360,188 @@ class XmlMapper:
 
         return self.data
 
-    def django_to_xml(self, instance: "models.DocumentModelMixin") -> etree.ElementTree:
-        namespaces = self.mapping.get("_namespaces", {})
+    ####################################
+    #       Django -> XML stuff        #
+    ####################################
 
-        for key, value in self.mapping.items():
+    def django_to_xml(self, db_instance: "models.DocumentModelMixin") -> etree.ElementTree:
+        # The original capabilitites file for example shall stored in self.xml_root
+
+        # This will parse the original xml and feed the cache with original parsed information.
+        # Thats the savest way to get all original deterministic xpaths.
+        # self.xml_to_django()
+
+        # all deterministic xpaths are available under self.get_all_xpaths()
+        # parsed instances are available under self.read_from_cache()
+        # or read all instances by using self.read_all_from_cache()
+        self.db_instance = db_instance
+        for key, xpath_or_spec in self.mapping.items():
             if key.startswith("_"):
                 continue
-            if isinstance(value, dict) and "_model" in value and isinstance(instance, self._get_model_class(value)):
-                for element in self._get_elements(value, namespaces):
-                    mapper = self.__class__(element, value | {"_namespaces": namespaces})
-                    mapper._update_element(instance)
 
-        return self.current_element.getroottree()
+            if isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec and isinstance(db_instance, self._get_model_class(xpath_or_spec)):
+                # currenct instance matches the current spec branch
+                self.sync_spec_to_xml(
+                    self.current_element,
+                    xpath_or_spec,
+                    db_instance
+                )
 
-    def _update_element(self, obj: Model):
-        namespaces = self.mapping.get("_namespaces", {})
+        return self.xml_root.getroottree()
 
-        for fieldname, field in self.mapping.get("fields", {}).items():
-            if fieldname.startswith("mptt_"):  # TODO: are there other fields that need to be ignored?
-                continue
-            if isinstance(field, str):
-                self._set_value(field, getattr(obj, fieldname))
-            elif isinstance(field, dict) and "_inputs" in field and "_reverse_parser" in field:
-                reverse_parser_func = load_function(field["_reverse_parser"])
-                values = reverse_parser_func(self, getattr(obj, fieldname))
-                if not isinstance(values, (list, tuple)):
-                    values = (values,)
-                for xpath, value in zip(field["_inputs"], values):
-                    self._set_value(xpath, value)
-            elif isinstance(field, dict) and "_model" in field:
-                if not field.get("_many", False):
-                    element = self._get_element(field.get("_base_xpath", "."), create=True)
-                    mapper = self.__class__(element, field | {"_namespaces": namespaces})
-                    related_obj = getattr(obj, fieldname)
+    def sync_xml_with_instance(self, xml_element, xpath_or_spec, instance):
+        nsmap = self.mapping.get("_namespaces", {})
+        base_xpath = xpath_or_spec.get("_base_xpath", ".")
+        from registry.models import FeatureType
+        if isinstance(instance, FeatureType):
+            i = 0
+        concrete_xpath = build_concrete_xpath(
+            self,
+            xpath_or_spec,
+            instance,
+        )
+        try:
+            child_xml_element = xml_element.xpath(
+                concrete_xpath,
+                namespaces=nsmap
+            )
+        except etree.XPathEvalError:
+            raise RuntimeError(
+                f"Invalid expression compiled for model {instance.__class__.__name__}: {concrete_xpath}")
 
-                    # metadata url is linked via ForeignKey from RemoteMetadata to Service/Layer/FeatureType
-                    if isinstance(related_obj, Manager):
-                        try:
-                            related_obj = related_obj.get()
-                        except related_obj.model.DoesNotExist:
-                            # TODO: should the corresponding xml element be deleted or left untouched?
-                            continue
+        match(len(child_xml_element)):
+            case 1:
+                child_xml_element = child_xml_element[0]
+            case 0:
+                child_xml_element = None
+            case _:
+                logging.warning(
+                    f"multiple elements found with xpath: {base_xpath}")
+                # TODO: should we simply remove all xml_elements first and then simply create it from db?
+                child_xml_element = child_xml_element[0]
+        if not instance and not child_xml_element:
+            # nothing to do. xml has no element and db has no instance. thats fine.
+            pass
 
-                    mapper._update_element(related_obj)
-                elif "_parser" in field:
-                    if "_reverse_parser" not in field:
-                        continue
-                    old_element = self._get_element(field["_base_xpath"])
-                    reverse_parser_func = load_function(field["_reverse_parser"])
-                    new_element = reverse_parser_func(self, getattr(obj, fieldname))
-                    old_element.getparent().replace(old_element, new_element)
-                else:  # field["_many"] == True
-                    elements = self._get_elements(field, namespaces)
-                    # obj.fieldname should be a Manager
-                    related_objs = getattr(obj, fieldname).all()
+        elif child_xml_element is None and instance:
+            # there is no xml element but a db instance. Create this one on XML
+            child_xml_element = ensure_element_for_instance(
+                self,
+                xml_element,
+                xpath_or_spec,
+                instance,
+                nsmap
+            )
+            self.sync_spec_to_xml(
+                child_xml_element,
+                xpath_or_spec,
+                instance
+            )
+        elif child_xml_element is not None and instance:
+            # existing element found. Sync it with db data.
+            self.sync_spec_to_xml(
+                child_xml_element,
+                xpath_or_spec,
+                instance
+            )
+        return child_xml_element
 
-                    while len(related_objs) != len(elements):
-                        # TODO: create or delete elements as needed
-                        if len(related_objs) > len(elements):
-                            self._create_element(field["_base_xpath"])
-                        else:  # len(related_objs) < len(elements)
-                            if "//" in field["_base_xpath"]:
-                                # we do not support deleting elements in a nested structure yet
-                                break
-                            to_be_removed = elements.pop()
-                            to_be_removed.getparent().remove(to_be_removed)
-                        elements = self._get_elements(field, namespaces)
-                        related_objs = getattr(obj, fieldname).all()
-                    else:  # if we break out of the loop, the following block is skipped
-                        # TODO: ordering might be an issue here
-                        for element, related_obj in zip(elements, related_objs):
-                            mapper = self.__class__(element, field | {"_namespaces": namespaces})
-                            mapper._update_element(related_obj)
+    def sync_spec_to_xml(self, xml_element: etree._Element, spec, db_instance):
+        if not isinstance(xml_element, etree._Element):
+            raise ValueError(
+                f"can not sync for element of type {type(xml_element)}")
 
-    def _set_value(self, xpath: str, value: str | int | None):
-        if xpath.split("/")[-1].startswith("@"):
-            # this is an attribute
-            self._set_attribute(xpath, value)
-        else:
-            self._set_text(xpath, value)
-
-    def _set_text(self, xpath: str, value: str | int | None):
-        if value is None or value == "":
-            self._delete_element(xpath)
+        if isinstance(spec, dict) and "_reverse_parser" in spec:
+            # Use _reverse_parser if defined
+            reverse_parser_path = spec.get(
+                "_reverse_parser") if isinstance(spec, dict) else None
+            if reverse_parser_path:
+                parser_func = load_function(reverse_parser_path)
+                # parser function shall creates / update / delete the xml node
+                parser_func(self, xml_element, db_instance)
             return
 
-        element = self._get_element(xpath, create=True)
-        element.text = str(value)
+        ignore_fields = spec.get("_reverse", {}).get(
+            "_ignore_fields", []) if isinstance(spec, dict) else []
 
-    def _set_attribute(self, xpath: str, value: str | int | None):
-        namespaces = self.mapping.get("_namespaces", {})
-        nsprefix, _, step = xpath.split("/")[-1].lstrip("@").rpartition(":")
-        ns = namespaces.get(nsprefix, "")
-
-        element = self._get_element(xpath)
-        if element is None:
-            if value is None or value == "":
-                return
-            else:
-                element = self._create_element(xpath)
-        value = str(value) if value is not None else ""
-        element.set(f"{{{ns}}}{step}", value)
-
-    def _get_element(self, xpath: str, create: bool = False) -> etree.Element | None:
-        namespaces = self.mapping.get("_namespaces", {})
-        elements = self.current_element.xpath(xpath, namespaces=namespaces)
-        if isinstance(elements, list):
-            if len(elements) > 1:
-                raise  # TODO: meaningful exception
-            if not elements and not create:
-                return
-            element = elements[0] if elements else self._create_element(xpath)
-        else:
-            element = elements
-        if isinstance(element, etree._ElementUnicodeResult):
-            element = element.getparent()
-        if not isinstance(element, etree.Element):
-            raise  # TODO: meaningful exception
-        return element
-
-    def _create_element(self, xpath: str) -> etree.Element:
-        namespaces = self.mapping.get("_namespaces", {})
-        return util.create_xml_node(parse(xpath), self.current_element, {"namespaces": namespaces})
-
-    def _delete_element(self, xpath: str | None = None):
-        namespaces = self.mapping.get("_namespaces", {})
-        elements = self.current_element.xpath(xpath, namespaces=namespaces) if xpath else [self.current_element]
-        for element in elements:
-            if (parent := element.getparent()) is None:
+        for field_name, xpath_or_spec in spec.get("fields", {}).items():
+            if field_name in ignore_fields:
                 continue
-            parent.remove(element)
+            if isinstance(xpath_or_spec, str) or isinstance(xpath_or_spec, dict) and "_model" not in xpath_or_spec:
+                # simple concrete field
+                self.sync_field_to_xml(
+                    xml_element,
+                    field_name,
+                    xpath_or_spec,
+                    db_instance
+                )
+            elif isinstance(xpath_or_spec, dict) and "_model" in xpath_or_spec:
+                # related model
+                nsmap = self.mapping.get("_namespaces", {})
+                field = getattr(db_instance, field_name, None)
+                is_many = is_many_relation(db_instance.__class__, field_name)
+                base_xpath = xpath_or_spec.get("_base_xpath", ".")
+
+                try:
+                    delete_able_elements = {
+                        e.getroottree().getpath(e): e
+                        for e in xml_element.xpath(base_xpath, namespaces=nsmap)
+                    }
+                except etree.XPathEvalError as e:
+                    msg = f"Error evaluating base_xpath '{base_xpath}' for field '{field_name}': {e}"
+                    logging.error(msg)
+                    raise ValueError(msg)
+                if is_many:
+
+                    for related_obj in field.all():
+                        synced = self.sync_xml_with_instance(
+                            xml_element,
+                            xpath_or_spec,
+                            related_obj)
+
+                        delete_able_elements.pop(
+                            synced.getroottree().getpath(synced), None)
+
+                    for elem in delete_able_elements.values():
+                        remove_element_or_attribute(elem, ".", nsmap)
+                else:
+                    if not field:
+                        # happens if a one to one kind relation is None.
+                        # TODO: find all child elements based on xpath and remove them
+                        # xpath = xpath_or_spec.get("fields", {}).get(field_name)
+                        # remove_element_or_attribute(
+                        #    xml_element,
+                        #    xpath,
+                        #    nsmap
+                        # )
+                        continue
+                    self.sync_xml_with_instance(
+                        xml_element,
+                        xpath_or_spec,
+                        field)
+
+    def sync_field_to_xml(self, xml_element, field_name, xpath_or_spec, instance):
+        value = getattr(instance, field_name, None)
+
+        # Use _reverse_parser if defined
+        reverse_parser_path = xpath_or_spec.get(
+            "_reverse_parser") if isinstance(xpath_or_spec, dict) else None
+        if reverse_parser_path:
+            parser_func = load_function(reverse_parser_path)
+            # parser function shall creates / update / delete the xml node
+            parser_func(self, value)
+        elif isinstance(xpath_or_spec, str):
+            self.set_xml_value(xml_element, xpath_or_spec, value)
+
+    def set_xml_value(self, xml_element, xpath: str, value):
+        """
+        Sets a value in an XML element based on XPath or spec.
+        Supports element text or attributes (e.g., ./@attr or ./@prefix:attr)
+        """
+        namespaces = self.mapping.get("_namespaces", {})
+        if not value:
+            pass
+            # remove_element_or_attribute(xml_element, xpath, namespaces)
+        else:
+            # set value normally
+            set_text_or_attribute(xml_element, xpath, namespaces, value)

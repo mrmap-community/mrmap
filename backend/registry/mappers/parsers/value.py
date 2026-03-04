@@ -6,11 +6,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from epsg_cache.utils import get_epsg_srid
 from lxml import etree
-from registry.mappers.parsers.utils import get_tag
-from registry.enums.iso import (CategoryChoices, LanguageChoices, MetadataCharsetChoices,
-                                     UpdateFrequencyChoices)
+from registry.enums.iso import (CategoryChoices, LanguageChoices,
+                                MetadataCharsetChoices, UpdateFrequencyChoices)
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
+from registry.mappers.parsers.utils import get_tag
 
 
 def int_to_bool(mapper, value: int = 0) -> bool:
@@ -27,11 +27,16 @@ def boolean_to_int(mapper, value: bool = False) -> int:
 
 def str_to_bool(mapper, value: str = "0") -> bool:
     """Wandelt den String '0' in False und '1' in True um. Andere Werte werfen einen ValueError."""
-    if value == "0":
+    if value == "0" or value == "false":
         return False
-    if value == "1":
+    if value == "1" or value == "true":
         return True
     raise ValueError(f"Ungültiger Wert {value!r}, nur '0' oder '1' erlaubt.")
+
+
+def str_to_int(mapper, value: str = "0") -> int:
+    """Wandelt den String '0' in 0 und '1' in 1 um. Andere Werte werfen einen ValueError."""
+    return int(value)
 
 
 def srs_to_prefix(mapper, value: str):
@@ -109,8 +114,16 @@ def method_to_enum(mapper, url_element):
         return HttpMethodEnum(tag)
 
 
+def serialize_method(mapper, value):
+    return HttpMethodEnum(value).label
+
+
 def operation_to_enum(mapper, operation_str):
     return OGCOperationEnum(operation_str)
+
+
+def serialize_operation(mapper, value):
+    return OGCOperationEnum(value).label
 
 
 def charset_to_enum(mapper, charset_str):
@@ -121,11 +134,20 @@ def language_to_enum(mapper, language_str):
     return LanguageChoices(language_str)
 
 
+def int_to_language(mapper, value):
+    return LanguageChoices(value).label
+
+
 def update_frequency_code_to_enum(mapper, update_frequence_code_str):
     return UpdateFrequencyChoices(update_frequence_code_str)
 
+
 def topic_category_to_enum(mapper, topic_category_str):
     return CategoryChoices(topic_category_str)
+
+
+def enum_to_topic_category(mapper, value):
+    return CategoryChoices(value).label
 
 
 def string_to_datetime(mapper, value: str):

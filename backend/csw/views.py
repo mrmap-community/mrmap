@@ -1,10 +1,10 @@
-import os
 from itertools import chain
 
 from csw.exceptions import InvalidQuery, NotSupported
 from django.conf import settings
 from django.core.exceptions import FieldError
-from django.db import transaction
+from django.core.management import call_command
+from django.db import connection, transaction
 from django.db.models import BigIntegerField, F, OuterRef, Subquery, Value
 from django.db.models.aggregates import Count
 from django.db.models.functions import Coalesce, datetime
@@ -14,24 +14,19 @@ from django.template.response import TemplateResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from eulxml.xmlmap import load_xmlobject_from_file
-from lxml.etree import XMLSyntaxError
-from ows_lib.models.ogc_request import OGCRequest
-from ows_lib.xml_mapper.capabilities.csw.csw202 import (CatalogueService,
-                                                        ServiceMetadataContact)
-from ows_lib.xml_mapper.capabilities.mixins import OperationUrl
-from ows_lib.xml_mapper.exceptions import OGCServiceException
-from ows_lib.xml_mapper.xml_responses.csw.achnowledgment import Acknowledgement
-from ows_lib.xml_mapper.xml_responses.csw.get_record_by_id import \
-    GetRecordsResponse as GetRecordByIdResponse
-from ows_lib.xml_mapper.xml_responses.csw.get_records import GetRecordsResponse
+from lxml import etree
 from registry.models.materialized_views import (
     SearchableDatasetMetadataRecord, SearchableServiceMetadataRecord)
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
-from registry.proxy.ogc_exceptions import (MissingRequestParameterException,
-                                           MissingServiceParameterException,
-                                           OperationNotSupportedException)
+from registry.models.service import CatalogueService
+from registry.ows_lib.csw.builder import CSWBuilder, CSWCapabilities
+from registry.ows_lib.request.ogc_request import OGCRequest
+from registry.ows_lib.response.exceptions import (
+    MissingRequestParameterException, MissingServiceParameterException,
+    OGCServiceException, OperationNotSupportedException)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
+from registry.settings import MRMAP_CSW_PK
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -63,12 +58,16 @@ class CswServiceView(View):
 
         elif self.ogc_request.ogc_query_params.get("outputSchema", "http://www.isotc211.org/2005/gmd") != "http://www.isotc211.org/2005/gmd":
             return NotSupported(
-                ogc_request=self.ogc_request,
+                # ogc_request=self.ogc_request,
+                service_type=self.ogc_request.service_type,
+                service_version=self.ogc_request.service_version,
                 locator="outputSchema",
                 message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
         elif self.ogc_request.ogc_query_params.get("typeNames", "gmd:MD_Metadata") != "gmd:MD_Metadata":
             return NotSupported(
-                ogc_request=self.ogc_request,
+                # ogc_request=self.ogc_request,
+                service_type=self.ogc_request.service_type,
+                service_version=self.ogc_request.service_version,
                 locator="typeNames",
                 message="Only 'http://www.isotc211.org/2005/gmd' as outputschema is supported.")
 
@@ -140,42 +139,140 @@ class CswServiceView(View):
             flat=True
         )[:10]
 
-        cap_file = os.path.dirname(
-            os.path.abspath(__file__)) + "/capabilitites.xml"
+        csw = CatalogueService.objects.get(pk=MRMAP_CSW_PK)
 
-        # TODO: #527: C4 requirement is needed to replace the following lines.
-        capabilitites_doc: CatalogueService = load_xmlobject_from_file(
-            cap_file, xmlclass=CatalogueService)
+        builder = CSWCapabilities(
+            csw,
+            extra_keywords=list(keywords),
+            base_url=request.build_absolute_uri("/csw"),
+            operation_parameters={
+                "GetRecords": {
+                    "CONSTRAINTLANGUAGE": ["FILTER", "CQL_TEXT"],
+                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],
+                    "outputFormat": ["application/xml"],
+                    "ElementSetName": ["full"],
+                    "resultType": ["results", "hits", "validate"],
+                    "typeNames": ["gmd:MD_Metadata"],
+                },
+                "GetRecordById": {
+                    "outputSchema": ["http://www.isotc211.org/2005/gmd"],
+                    "outputFormat": ["application/xml"],
+                    "ElementSetName": ["full"],
+                    "typeNames": ["gmd:MD_Metadata"],
+                },
+            },
+            filter_capabilities={
+                "Spatial_Capabilities": {
+                    "GeometryOperands": [
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:Point"
+                        },
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:LineString"
+                        },
+                        {
+                            "name": "GeometryOperand",
+                            "text": "gml:Polygon"
+                        }
+                    ],
+                    "SpatialOperators": [
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "BBOX"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Contains"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Crosses"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Disjoint"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Equals"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Intersects"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Overlaps"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Touches"
+                        },
+                        {
+                            "name": "SpatialOperator",
+                            "_name": "Within"
+                        }
+                    ],
+                },
+                "Scalar_Capabilities": {
+                    "LogicalOperators": [
+                        {
+                            "name": "LogicalOperator",
+                            "text": "AND"
+                        },
+                        {
+                            "name": "LogicalOperator",
+                            "text": "OR"
+                        },
+                        {
+                            "name": "LogicalOperator",
+                            "text": "NOT"
+                        }
+                    ],
 
-        capabilitites_doc.keywords = keywords
-
-        capabilitites_doc.title = "Mr. Map CSW"
-        capabilitites_doc.service_contact = ServiceMetadataContact(name="test")
-        # TODO: 527
-        capabilitites_doc.operation_urls.extend(
-            [
-                OperationUrl(method="Get", operation="GetCapabilities",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Get", operation="GetRecords",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Post", operation="GetRecords",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Get", operation="GetRecordById",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"]),
-                OperationUrl(method="Post", operation="GetRecordById",
-                             url=request.build_absolute_uri('csw'), mime_types=["application/xml"])
-            ]
+                    "ComparisonOperators": [
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "EqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "NotEqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "LessThan"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "GreaterThan"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "LessThanEqualTo"
+                        },
+                        {
+                            "name": "ComparisonOperator",
+                            "text": "GreaterThanEqualTo"
+                        }
+                    ]
+                }
+            }
         )
+
+        capabilitites_doc = builder.to_xml_string()
+
         if (settings.DEBUG):
-            return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc.serializeDocument(pretty=True)})
+            return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc})
         return HttpResponse(
             status=200,
-            content=capabilitites_doc.serializeDocument(pretty=True),
+            content=capabilitites_doc,
             content_type="application/xml"
         )
 
     def get_records(self, request):
-
         field_mapping = self.get_field_map()
 
         q = self.get_filter_constraint()
@@ -187,25 +284,6 @@ class CswServiceView(View):
         dataset_metadata_records = SearchableDatasetMetadataRecord.objects.all()
 
         service_metadata_records = SearchableServiceMetadataRecord.objects.all()
-        # TODO:This are the prepared queries for autogenerated
-        # layer_records = Layer.objects.annotate(
-        #     hierachy_level=Value("dataset"),
-        #     resource_identifier=Concat(
-        #          # TODO: should be the hostname of the instance
-        #         Value("http://mrmap/"),
-        #         F("pk"),
-        #         output_field=CharField()
-        #     ),
-        # )
-        # feature_type_records = FeatureType.objects.annotate(
-        #     hierachy_level=Value("dataset"),
-        #     resource_identifier=Concat(
-        #          # TODO: should be the hostname of the instance
-        #         Value("http://mrmap/"),
-        #         F("pk"),
-        #         output_field=CharField()
-        #     ),
-        # )
 
         try:
             # FIXME: replace wildcards from anytext lookups
@@ -224,22 +302,22 @@ class CswServiceView(View):
                 locator="Constraint" if self.ogc_request.is_get else "csw:Query",
                 message=f"The field '{requested_field}' is not provided as a queryable. Queryable fields are: {', '.join(available_fields)}"  # nopep8
             )
-
-        # contact_stats = MetadataContact.objects.filter(
-        #     datasetmetadatarecord_metadata_contact__in=dataset_metadata_records_result
-        # ).annotate(
-        #     frequency=Count("pk")
-        # ).order_by("-frequency").values_list("name", "frequency")
-
-        # print(contact_stats)
-
         total_records = dataset_metadata_records_result.count(
         ) + service_metadata_records_result.count()
 
         start_position = int(
-            self.ogc_request.xml_request.start_position or 1) - 1
+            (self.ogc_request.xml_request.xpath(
+                "/csw:GetRecords/@startPosition",
+                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
+            ) or ["1"])[0]
+        ) - 1
         max_records = int(
-            self.ogc_request.xml_request.max_records or 10)
+            (self.ogc_request.xml_request.xpath(
+                "/csw:GetRecords/@maxRecords",
+                namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
+            ) or ["10"])[0]
+        )
+
         max_records = max_records if max_records <= 1000 else 1000
 
         heap_count = start_position + max_records
@@ -258,39 +336,49 @@ class CswServiceView(View):
 
         records_returned = len(result)
 
-        result_type = self.ogc_request.xml_request.result_type or "hits"
+        result_type = (self.ogc_request.xml_request.xpath(
+            "/csw:GetRecords/@resultType",
+            namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]}
+        ) or ["hits"])[0]
+
+        builder = CSWBuilder()
 
         if result_type == "hits":
-            xml = GetRecordsResponse(
+            xml = builder.build_get_records_response(
                 total_records=total_records,
                 records_returned=records_returned,
                 version="2.0.2",
                 time_stamp=self.start_time,
-                next_record=0 if next_record == total_records else next_record
+                next_record=0 if next_record == total_records else next_record,
             )
         elif result_type == "validate":
             # no errors while here. So the request was acknowledget as successfully
-            xml = Acknowledgement(
+            xml = builder.build_acknowledgement(
                 time_stamp=self.start_time,
-                echoed_get_records_request=self.ogc_request.xml_request
-            )
+                echoed_get_records_request=self.ogc_request.xml_request)
         else:
-            xml = GetRecordsResponse(
+            gmd_records = [
+                etree.fromstring(record.xml_backup)
+                for record in result
+            ]
+            xml = builder.build_get_records_response(
                 total_records=total_records,
                 records_returned=records_returned,
                 version="2.0.2",
                 time_stamp=self.start_time,
-                next_record=0 if next_record == total_records else next_record
+                next_record=0 if next_record == total_records else next_record,
+                gmd_records=gmd_records
             )
-            for record in result:
-                try:
-                    # TODO: #527
-                    xml.gmd_records.append(
-                        record.xml_backup)
-                except XMLSyntaxError:
-                    continue
 
-        return HttpResponse(status=200, content=xml.serialize(pretty=True), content_type="application/xhtml+xml")
+        content = etree.tostring(
+            xml,
+            pretty_print=True,
+            encoding="utf-8",
+            xml_declaration=True
+        )
+        if (settings.DEBUG):
+            return TemplateResponse(request, "csw/debug.html", {"content": content})
+        return HttpResponse(status=200, content=content, content_type="application/xhtml+xml")
 
     def get_record_by_id(self, request):
         requested_entities = self.ogc_request.requested_entities
@@ -307,15 +395,17 @@ class CswServiceView(View):
             service_metadata_records = ServiceMetadataRecord.objects.filter(
                 file_identifier__in=requested_entities)
         records = chain(dataset_metadata_records, service_metadata_records)
-        xml = GetRecordByIdResponse(
-            version="2.0.2",
-            time_stamp=self.start_time,
-        )
-        for record in records:
-            # TODO: #527
-            xml.gmd_records.append(record.xml_backup)
+
+        gmd_records = [
+            etree.fromstring(record.xml_backup)
+            for record in records
+        ]
+
+        builder = CSWBuilder()
+        xml = builder.build_get_records_by_id_response(gmd_records=gmd_records)
+
         return HttpResponse(
-            status=200, content=xml.serialize(pretty=True),
+            status=200, content=etree.tostring(xml, pretty_print=True, encoding="utf-8", xml_declaration=True),
             content_type="application/xml")
 
     def get_and_post(self, request, *args, **kwargs):

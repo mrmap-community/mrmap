@@ -1,41 +1,42 @@
 import json
-import os
 
 from accounts.models.users import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import RequestFactory, TestCase
-from eulxml.xmlmap import load_xmlobject_from_file
-from ows_lib.models.ogc_request import OGCRequest
-from ows_lib.xml_mapper.xml_requests.wfs.get_feature import GetFeatureRequest
 from registry.models.service import WebFeatureService
-from tests.django.settings import DJANGO_TEST_ROOT_DIR
+from registry.ows_lib.request.ogc_request import OGCRequest
 
 
-# TODO: #527
 class WebFeatureServiceSecurityManagerTest(TestCase):
 
-    fixtures = ["test_keywords.json", "test_users.json", "test_wfs.json", "test_wfs_proxy.json",
+    fixtures = ["test_keywords.json", "test_crs.json", "test_users.json", "test_wfs.json", "test_wfs_proxy.json",
                 "test_allowed_wfs_operation.json"]
 
     def test_get_with_security_info(self):
-        path = os.path.join(DJANGO_TEST_ROOT_DIR,
-                            "./test_data/xml_requests/get_feature_2.0.0.xml")
+        get_feature_request = """<?xml version="1.0" encoding="UTF-8"?>
+            <GetFeature version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2"
+                xmlns="http://www.opengis.net/wfs/2.0"
+                xmlns:fes="http://www.opengis.net/fes/2.0"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:ms="http://www.someserver.example.com/ms"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/wfs/2.0
+                                http://schemas.opengis.net/wfs/2.0/wfs.xsd
+                                http://www.opengis.net/gml/3.2
+                                http://schemas.opengis.net/gml/3.2.1/gml.xsd
+                                http://www.someserver.example.com/ms">
 
-        get_feature_request: GetFeatureRequest = load_xmlobject_from_file(
-            filename=path, xmlclass=GetFeatureRequest)
-
-        # we add a random additional requested ft, to be clear, that the manager collects the correct geometry_property_names
-        get_feature_request.queries[0].type_names = [
-            "ms:Countries", "ms:Rivers"]
+                <Query typeNames="ms:Countries, ms:Rivers">
+                </Query>
+            </GetFeature>
+        """
 
         factory = RequestFactory()
 
         user = User.objects.get(username="User1")
 
         request = factory.post(path='/mrmap-proxy/wfs/73cf78c9-6605-47fd-ac4f-1be59265df65/',
-                               data=get_feature_request.serializeDocument().decode("UTF-8"), content_type="application/gml+xml; version=3.2")
+                               data=get_feature_request, content_type="application/gml+xml; version=3.2")
         request.user = user
-
         ogc_request = OGCRequest.from_django_request(request)
 
         wfs = WebFeatureService.security.get_with_security_info(
@@ -55,5 +56,4 @@ class WebFeatureServiceSecurityManagerTest(TestCase):
                 allowed_area_union_given, tolerance=0.000000001))
 
         except AttributeError as e:
-            self.fail(msg=f"wfs object shall has the attribute '{e.name}'")
             self.fail(msg=f"wfs object shall has the attribute '{e.name}'")

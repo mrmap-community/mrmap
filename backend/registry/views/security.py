@@ -46,10 +46,10 @@ class NestedWebMapServiceAuthenticationViewSet(
 class WebMapServiceOperationViewSetMixin():
     queryset = WebMapServiceOperation.objects.all()
     serializer_class = WebMapServiceOperationSerializer
-    search_fields = ('operation', )
-    ordering_fields = ["operation"]
+    search_fields = ('value', )
+    ordering_fields = ["value"]
     filterset_fields = {
-        'operation': ['exact', 'icontains', 'contains', 'in'],
+        'value': ['exact', 'icontains', 'contains', 'in'],
     }
 
 
@@ -70,10 +70,10 @@ class NestedWebMapServiceOperationViewSet(
 class WebFeatureServiceOperationViewSetMixin():
     queryset = WebFeatureServiceOperation.objects.all()
     serializer_class = WebFeatureServiceOperationSerializer
-    search_fields = ('operation', )
-    ordering_fields = ["operation"]
+    search_fields = ('value', )
+    ordering_fields = ["value"]
     filterset_fields = {
-        'operation': ['exact', 'icontains', 'contains', 'in'],
+        'value': ['exact', 'icontains', 'contains', 'in'],
     }
 
 
@@ -161,7 +161,7 @@ class AllowedWebMapServiceOperationViewSetMixin():
                 Prefetch(
                     "operations",
                     queryset=WebMapServiceOperation.objects.only(
-                        "operation",
+                        "value",
                     ),
                 )
             )

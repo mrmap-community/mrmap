@@ -69,7 +69,8 @@
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "ms:Countries",
             "origin": 1,
-            "title": "Countries"
+            "title": "Countries",
+            "default_reference_system": "2"
         }
     },
     {
@@ -80,7 +81,8 @@
             "date_stamp": "2013-03-16T17:41:28+00:00",
             "identifier": "ms:Rivers",
             "origin": 1,
-            "title": "Rivers"
+            "title": "Rivers",
+            "default_reference_system": "2"
         }
     },
     {

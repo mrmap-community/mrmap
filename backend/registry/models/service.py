@@ -11,18 +11,13 @@ from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from eulxml import xmlmap
+from extras.decorators import warn_on_queries
 from extras.managers import DefaultHistoryManager
 from extras.models import (AdditionalTimeFieldsHistoricalModel,
                            HistoricalRecordMixin)
 from extras.utils import update_url_base, update_url_query_params
+from lxml import etree
 from mptt2.models import Node
-from ows_lib.client.csw.mixins import \
-    CatalogueServiceMixin as CatalogueServiceClient
-from ows_lib.client.utils import get_client
-from ows_lib.client.wfs.mixins import \
-    WebFeatureServiceMixin as WebFeatureServiceClient
-from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
 from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
                                     OGCServiceVersionEnum)
 from registry.exceptions.service import (LayerNotQueryable,
@@ -32,12 +27,17 @@ from registry.managers.security import (WebFeatureServiceSecurityManager,
 from registry.managers.service import (CatalogueServiceManager, LayerManager,
                                        WebFeatureServiceQuerySet,
                                        WebMapServiceQuerySet)
+from registry.mappers.configs import XPATH_MAP
+from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.xml_mapper import XmlMapper
 from registry.models.document import CapabilitiesDocumentModelMixin
 from registry.models.metadata import (AbstractMetadata, FeatureTypeMetadata,
                                       LayerMetadata, MimeType, ServiceMetadata,
-                                      Style, TimeExtent)
-from registry.xmlmapper.ogc.wfs_describe_feature_type import \
-    DescribedFeatureType as XmlDescribedFeatureType
+                                      Style)
+from registry.ows_lib.client.core import OgcClient
+from registry.ows_lib.csw.csw import CatalogueServiceClient
+from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
+from registry.ows_lib.wms.wms import WebMapServiceClient
 from requests import Session
 from simple_history.models import HistoricalRecords
 
@@ -134,9 +134,8 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 return None
 
     @property
-    def client(self):
+    def capabilities(self) -> str | bytes:
         try:
-            # TODO: #527
             cap = self.xml_backup
         except FileNotFoundError:
             # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
@@ -155,7 +154,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 }
             )
 
-            logger.error(
+            logger.warning(
                 msg=f"{self.__str__()} has no capabilities file stored. Trying fallback by url.",
                 extra={
                     "structured_data": {
@@ -164,11 +163,12 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                         }
                     }
                 })
+        finally:
+            return cap
 
-        return get_client(
-            capabilities=cap,
-            session=self.get_session_for_request()
-        )
+    @property
+    def client(self) -> OgcClient:
+        raise NotImplementedError
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
@@ -190,11 +190,73 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     @cached_property
     def root_layer(self):
+        """
+        Use prefetched layers if available to avoid an extra DB hit
+        and to preserve annotations. Fall back to a DB query otherwise.
+        """
+        if (
+            hasattr(self, "_prefetched_objects_cache")
+            and "layers" in self._prefetched_objects_cache
+        ):
+            for layer in self._prefetched_objects_cache["layers"]:
+                if layer.mptt_parent_id is None:
+                    return layer
+
+        # Not prefetched → let the DB do the work
         return self.layers.get(mptt_parent=None)
 
     @property
     def client(self) -> WebMapServiceClient:
-        return super().client
+        return WebMapServiceClient(
+            capabilities=self.capabilities,
+            session=self.get_session_for_request()
+        )
+
+    @warn_on_queries
+    def xml_secured(self, request) -> str:
+        new_url = self.get_secured_url(
+            request=request, url_name="wms-operation")
+
+        # Hint: this can only work performant if all related objects are retreived with select_related and prefetch_related
+        # therefore we have the @warn_on_queries decorator here to warn us if this is not the case.
+        # We simply iterate over all related objects and update the urls.
+        for operation_url in self.operation_urls.all():
+            operation_url.url = new_url
+        if self.service_url:
+            self.service_url = new_url
+        for layer in self.layers.all():
+            for style in layer.styles.all():
+                style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+
+        # TODO: only support xml Exception format --> remove all others
+        # TODO: camouflage metadata urls also
+
+        capabilities_xml = self.get_updated_capabilitites()
+
+        return etree.tostring(
+            capabilities_xml.getroottree().getroot(),
+            pretty_print=True,
+            xml_declaration=True,
+            encoding="UTF-8"
+        )
+
+    def get_updated_capabilitites(self) -> etree.ElementTree:
+        """ 
+        FIXME: check if self is well prefetched. 
+        If not call self.objects.prefetch_whole_service(
+            ...    with_sibling_index=True,
+            ...    prefetch_spec={
+            ...         "prefetch": {
+            ...             "layers": {
+            ...                 "select": ["mptt_parent"],
+            ...             }
+            ...         }
+            ...     }
+            ...  )
+        Otherwise this will fail caulse layer index calculation for xpath compiling will fail
+
+        """
+        return super().get_updated_capabilitites()
 
 
 class WebFeatureService(HistoricalRecordMixin, OgcService):
@@ -216,7 +278,10 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
     @property
     def client(self) -> WebFeatureServiceClient:
-        return super().client
+        return WebFeatureServiceClient(
+            capabilities=self.capabilities,
+            session=self.get_session_for_request()
+        )
 
 
 class CatalogueService(HistoricalRecordMixin, OgcService):
@@ -243,7 +308,10 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
 
     @property
     def client(self) -> CatalogueServiceClient:
-        return super().client
+        return CatalogueServiceClient(
+            capabilities=self.capabilities,
+            session=self.get_session_for_request()
+        )
 
 
 class OperationUrl(models.Model):
@@ -681,6 +749,15 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             "the fetched content of the download describe feature" " type document."
         ),
     )
+    # TODO: this srs needs to be added to reference_systems per annotation or otherwise for search purpose
+    default_reference_system = models.ForeignKey(
+        to="ReferenceSystem",  # to avoid circular import error
+        on_delete=models.PROTECT,
+        related_name="as_default_featuretype",
+        related_query_name="as_default_featuretypes",
+        verbose_name=_("default reference system"),
+        help_text=_("the default reference system for this feature type"),
+    )
 
     change_log = HistoricalRecords(
         related_name="change_logs",
@@ -718,11 +795,11 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def fetch_describe_feature_type_document(self, save=True):
         """Return the fetched described feature type document and update the content if save is True"""
-        # TODO: #527
-        client = get_client(capabilities=self.service.xml_backup,
-                            session=self.service.get_session_for_request())
-        response = client.send_request(
-            client.prepare_describe_feature_type_request(type_names=self.identifier))
+        response = self.service.client.send_request(
+            request=self.service.client.describe_feature_type_request(
+                type_names=[self.identifier])
+        )
+
         if response.status_code <= 202 and "xml" in response.headers["content-type"]:
             self.describe_feature_type_document = response.content
             if save:
@@ -741,12 +818,10 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
             ValueError: if self.remote_content is null
         """
         if self.describe_feature_type_document:
-            # TODO: #527
-            parsed_feature_type_elements = xmlmap.load_xmlobject_from_string(
-                string=self.describe_feature_type_document,
-                xmlclass=XmlDescribedFeatureType,
-            )
-            return parsed_feature_type_elements
+            mapper = XmlMapper(xml=self.describe_feature_type_document,
+                               mapping=XPATH_MAP[("DescribeFeatureType", "2.0.0")])
+            mapper.xml_to_django()
+            return mapper
         else:
             raise ValueError(
                 "there is no fetched content. You need to call fetch_describe_feature_type_document() "
@@ -755,9 +830,16 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
 
     def create_element_instances(self):
         """Return the created FeatureTypeElement record(s)"""
-        return FeatureTypeProperty.xml_objects.create_from_parsed_xml(
-            parsed_xml=self.parse(), related_object=self
+        mapper = self.parse()
+        handler = PersistenceHandler(
+            mapper=mapper,
+            defaults={
+                "feature_type_element": {
+                    "feature_type": self,
+                }
+            }
         )
+        return handler.persist_all()
 
 
 class FeatureTypeProperty(models.Model):

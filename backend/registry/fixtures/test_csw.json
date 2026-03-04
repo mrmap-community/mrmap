@@ -12,8 +12,8 @@
             "abstract": "abstract1",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
             "history_type": "+",
@@ -36,8 +36,8 @@
             "abstract": "abstract2",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
             "history_type": "+",
@@ -60,8 +60,8 @@
             "abstract": "abstract3",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "history_date": "2022-02-01T13:54:12.013Z",
             "history_change_reason": null,
             "history_type": "+",
@@ -73,12 +73,24 @@
     },
     {
         "model": "registry.metadatacontact",
-        "pk": "1",
-        "fields": {}
+        "pk": "1234",
+        "fields": {
+            "name": "Deutscher Wetterdienst",
+            "person_name": "",
+            "email": "info@dwd.de",
+            "phone": "",
+            "facsimile": "",
+            "city": "Offenbach",
+            "postal_code": "63067",
+            "address_type": "",
+            "address": "Frankfurter Strasse 135",
+            "state_or_province": "Hessen",
+            "country": "Germany"
+        }
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 1,
+        "pk": 1234,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -88,7 +100,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 2,
+        "pk": 1235,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -98,7 +110,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 3,
+        "pk": 1236,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -108,7 +120,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 4,
+        "pk": 1237,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -118,7 +130,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 5,
+        "pk": 1238,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -128,7 +140,7 @@
     },
     {
         "model": "registry.CatalogueServiceOperationUrl",
-        "pk": 6,
+        "pk": 1239,
         "fields": {
             "method": 1,
             "url": "http://example.com/wms?",
@@ -148,8 +160,13 @@
             "abstract": "abstract1",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1"
+            "service_contact": "1234",
+            "metadata_contact": "1234",
+            "keywords": [
+                [
+                    "meteorology"
+                ]
+            ]
         }
     },
     {
@@ -163,8 +180,8 @@
             "title": "CSW2",
             "abstract": "abstract2",
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "version": 202
         }
     },
@@ -180,8 +197,8 @@
             "abstract": "abstract3",
             "version": 202,
             "service_url": "",
-            "service_contact": "1",
-            "metadata_contact": "1",
+            "service_contact": "1234",
+            "metadata_contact": "1234",
             "keywords": [
                 [
                     "meteorology"

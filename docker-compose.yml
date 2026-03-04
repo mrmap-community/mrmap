@@ -35,19 +35,6 @@ services:
     environment:
       - loglevel=error
 
-  mapserver:
-    image: camptocamp/mapserver:7.6
-    hostname: "mrmap-mapserver"
-    volumes:
-      - type: bind
-        source: ./docker/mapserver/mapfiles
-        target: /etc/mapserver/mapfiles
-      - type: bind
-        source: ./docker/mapserver/shapefiles
-        target: /etc/mapserver/shapefiles
-    networks:
-      - mrmap-internal
-
   backend:
     build:
       context: ./backend

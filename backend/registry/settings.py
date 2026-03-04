@@ -1,6 +1,8 @@
 from django.utils.translation import gettext_lazy as _
 from registry.enums.service import OGCOperationEnum
 
+MRMAP_CSW_PK = "650d436a-5837-4cc3-9cb5-6a0a5488ff09"
+
 SECURE_ABLE_WMS_OPERATIONS = [OGCOperationEnum.GET_MAP,
                               OGCOperationEnum.GET_FEATURE_INFO]
 SECURE_ABLE_WFS_OPERATIONS = [OGCOperationEnum.GET_FEATURE,

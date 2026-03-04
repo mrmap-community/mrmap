@@ -1,13 +1,13 @@
-from registry.mappers.namespaces import (CSW_2_0_2_NAMESPACE, OWS_NAMESPACE,
-                                         XLINK_NAMESPACE)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
     # (Service-Klasse, Version) -> Mapping Feldname -> XPath
     ("CSW", "2.0.2"): {
         "_namespaces": {
-            "xlink": XLINK_NAMESPACE,
-            "csw": CSW_2_0_2_NAMESPACE,
-            "ows": OWS_NAMESPACE,
+            "xlink": NAMESPACE_LOOKUP["xlink"],
+            "csw": NAMESPACE_LOOKUP["csw_2_0_2"],
+            "ows": NAMESPACE_LOOKUP["ows"],
+            "inspire_common": NAMESPACE_LOOKUP["inspire_common"],
         },
         "_schema": "http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd",
         "_pre_save": [
@@ -26,10 +26,27 @@ XPATH_MAP = {
                 "abstract": "./ows:ServiceIdentification/ows:Abstract",
                 "fees": "./ows:ServiceIdentification/ows:Fees",
                 "access_constraints": "./ows:ServiceIdentification/ows:AccessConstraints",
+                "remote_metadata": {
+                    "_model": "registry.CatalogueServiceRemoteMetadata",
+                    "_base_xpath": "./ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                        },
+                    },
+                    "fields": {
+                        "link": "./."
+                    }
+                },
                 "service_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/csw:Capabilities/ows:ServiceProvider",
+                    "_base_xpath": "./ows:ServiceProvider",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:ServiceProvider",
+                        },
+                    },
                     "fields": {
                         "name": "./ows:ProviderName",
                         "person_name": "./ows:ServiceContact/ows:IndividualName",
@@ -45,8 +62,13 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/csw:Capabilities/ows:ServiceProvider",
+                    "_base_xpath": "./ows:ServiceProvider",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:ServiceProvider",
+                        },
+                    },
                     "fields": {
                         "name": "./ows:ProviderName",
                         "person_name": "./ows:ServiceContact/ows:IndividualName",
@@ -64,24 +86,27 @@ XPATH_MAP = {
                     "_model": "registry.CatalogueServiceOperationUrl",
                     "_base_xpath": "/csw:Capabilities/ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP//*[self::ows:Post or self::ows:Get]",
                     "_create_mode": "get_or_create",
-                    "_many": True,
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.wfs_operation_url_identifier"
+                        },
+                    },
                     "fields": {
                         "method": {
                             "_inputs": (".",),
                             "_parser": "registry.mappers.parsers.value.method_to_enum",
-                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_method",
+                            "_reverse_parser": "registry.mappers.parsers.value.serialize_method",
                         },
                         "operation": {
                             "_inputs": ("../../../@name",),
                             "_parser": "registry.mappers.parsers.value.operation_to_enum",
-                            "_reverse_parser": "registry.mappers.parsers.value.enum_to_operation"
+                            "_reverse_parser": "registry.mappers.parsers.value.serialize_operation"
                         },
                         "url": "./@xlink:href",
                         "mime_types": {
                             "_model": "registry.MimeType",
                             "_base_xpath": '../../../ows:Parameter[@name="outputFormat"]/ows:Value',
                             "_create_mode": "get_or_create",
-                            "_many": True,
                             "fields": {
                                 "mime_type": "."
                             }
@@ -90,23 +115,17 @@ XPATH_MAP = {
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
-                    "_base_xpath": "/csw:Capabilities/ows:ServiceIdentification/ows:Keywords/ows:Keyword",
+                    "_base_xpath": "./ows:ServiceIdentification/ows:Keywords/ows:Keyword",
                     "_create_mode": "get_or_create",
-                    "_many": True,
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./ows:ServiceIdentification/ows:Keywords/ows:Keyword[text()='{keyword}']",
+                        },
+                    },
                     "fields": {
                         "keyword": "./."
                     }
                 },
-
-                # TODO: model has no fk to the layer/service objects.
-                # Use _parser or redesign model
-                # "remote_metadata": {
-                #     "_model": "registry.RemoteMetadata",
-                #     "_base_xpath": "./wms:MetadataURL/wms:OnlineResource",
-                #     "fields": {
-                #         "link": "./@xlink:href"
-                #     }
-                # },
             }
         }
     },

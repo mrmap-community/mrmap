@@ -9,8 +9,8 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
 from registry.models.service import CatalogueService
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (ChoiceField, DateTimeField,
-                                                 DurationField, FloatField,
+from rest_framework_json_api.serializers import (ChoiceField, DurationField,
+                                                 FloatField,
                                                  HyperlinkedIdentityField,
                                                  HyperlinkedModelSerializer,
                                                  IntegerField, ModelSerializer,

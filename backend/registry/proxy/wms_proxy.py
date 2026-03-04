@@ -1,21 +1,26 @@
 import copy
 import io
+import logging
+import platform
+from pathlib import Path
 from queue import Queue
 from threading import Thread
 
 from django.conf import settings
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from eulxml import xmlmap
+from epsg_cache.utils import adjust_axis_order
 from extras.utils import execute_threads
-from ows_lib.client.wms.mixins import WebMapServiceMixin as WebMapServiceClient
+from lxml import etree
 from PIL import Image, ImageDraw, ImageFont
 from registry.models.service import WebMapService
+from registry.ows_lib.response.exceptions import (ForbiddenException,
+                                                  LayerNotDefined)
+from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.proxy.mixins import OgcServiceProxyView
-from registry.proxy.ogc_exceptions import ForbiddenException, LayerNotDefined
-from registry.xmlmapper.ogc.feature_collection import FeatureCollection
-from requests import Request, Session
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -74,68 +79,101 @@ class WebMapServiceProxy(OgcServiceProxyView):
         """
 
         if self.service.is_unknown_layer:
-            return LayerNotDefined(ogc_request=self.ogc_request)
+            return LayerNotDefined(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
         else:
             return super().get_and_post(request, *args, **kwargs)
 
     def _create_secured_service_mask(self):
-        """Creates call to local mapserver and returns the response
-        Gets a mask image, which can be used to remove restricted areas from another image
-        Returns:
-             secured_image (Image)
-        # TODO: calculate the security mask without mapserver as depending subsystem
         """
-        crs_qp = "CRS" if "CRS" in self.ogc_request.ogc_query_params else "SRS"
-        width = int(self.ogc_request.ogc_query_params.get("WIDTH"))
-        height = int(self.ogc_request.ogc_query_params.get("HEIGHT"))
+        Create a security mask for WMS GetMap using PIL.
+        White (255) = masked/restricted
+        Black (0) = allowed
+        Assumes self.service.allowed_area_union is always a Polygon.
+        Uses ogc_request.bbox as the clipping polygon (correct axis order).
+        """
+
+        width = int(self.ogc_request.ogc_query_params["WIDTH"])
+        height = int(self.ogc_request.ogc_query_params["HEIGHT"])
+
+        # Get the requested bbox polygon (already a GEOSGeometry)
+        request_bbox: GEOSGeometry = self.ogc_request.bbox
+
+        if request_bbox.empty:
+            # fallback to fully masked if bbox is missing
+            return Image.new("RGB", (width, height), (255, 255, 255))
+
+        # Get bounds for world->pixel conversion
+        # (xmin, ymin, xmax, ymax)
+        minx, miny, maxx, maxy = request_bbox.extent
+
+        # Fully masked by default
+        mask = Image.new("L", (width, height), 255)
+        draw = ImageDraw.Draw(mask)
+
         try:
-            from django.db import connection
-            db_name = connection.settings_dict["NAME"]
-            query_parameters = {
-                "VERSION": self.ogc_request.ogc_query_params.get("VERSION"),
-                "REQUEST": "GetMap",
-                "SERVICE": "WMS",
-                "FORMAT": "image/png",
-                "LAYERS": "mask",
-                crs_qp: self.ogc_request.ogc_query_params.get(crs_qp),
-                "BBOX": self.ogc_request.ogc_query_params.get("BBOX"),
-                "WIDTH": width,
-                "HEIGHT": height,
-                "TRANSPARENT": "TRUE",
-                "table": settings.MAPSERVER_SECURITY_MASK_TABLE,
-                "key_column": settings.MAPSERVER_SECURITY_MASK_KEY_COLUMN,
-                "geom_column": settings.MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
-                "map": f"/etc/mapserver/mapfiles/security_mask{'_test_db' if 'test' in db_name else ''}.map",
-                "keys": ",".join(str(pk) for pk in self.service.allowed_area_pks)
-            }
+            geom: Polygon = self.service.allowed_area_union
+            if geom is None or geom.empty:
+                return mask.convert("RGB")
 
-            request = Request(
-                method="GET", url=settings.MAPSERVER_URL, params=query_parameters
-            )
-            session = Session()
-            response = session.send(request.prepare())
+            # Transform geometry to bbox SRID if needed
+            if geom.srid != request_bbox.srid:
+                geom = geom.transform(request_bbox.srid, clone=True)
 
-            mask = Image.open(io.BytesIO(response.content))
+            # Clip allowed area to request bbox
+            geom = geom.intersection(request_bbox)
+            if geom.empty:
+                return mask.convert("RGB")
 
-            # Put combined mask on white background
-            background = Image.new("RGB", (width, height), (255, 255, 255))
-            background.paste(mask, mask=mask)
+            # Convert world coordinates to pixel coordinates
+            def world_to_pixel(x, y):
+                px = (x - minx) / (maxx - minx) * width
+                py = height - (y - miny) / (maxy - miny) * height  # flip Y
+                return (px, py)
+
+            # Draw exterior (allowed area = black)
+            exterior_coords = [world_to_pixel(x, y) for x, y in geom[0].coords]
+            draw.polygon(exterior_coords, fill=0)
+
+            # Draw interiors (holes) as white
+            for interior_ring in geom[1:]:
+                hole_coords = [world_to_pixel(x, y)
+                               for x, y in interior_ring.coords]
+                draw.polygon(hole_coords, fill=255)
+
         except Exception as e:
-            settings.ROOT_LOGGER.exception(e)
-            # If anything occurs during the mask creation, we have to make sure the response won't contain any
-            # information at all.
-            # So create an error mask
-            background = Image.new(
-                "RGB",
-                (width, height),
-                (
-                    settings.ERROR_MASK_VAL,
-                    settings.ERROR_MASK_VAL,
-                    settings.ERROR_MASK_VAL,
-                ),
-            )
+            logging.exception("Error creating secured mask: %s", e)
+            mask = Image.new("L", (width, height), 255)
 
-        return background
+        return mask.convert("RGB")
+
+    def _get_default_ttf(self, font_size: int) -> ImageFont.FreeTypeFont:
+        system = platform.system()
+
+        candidates = []
+
+        if system == "Linux":
+            candidates = [
+                # Alpine
+                Path("/usr/share/fonts/dejavu/DejaVuSans.ttf"),
+                # Debian / Ubuntu
+                Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            ]
+        elif system == "Darwin":  # macOS
+            candidates = [
+                Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+                Path("/Library/Fonts/Arial.ttf"),
+            ]
+        elif system == "Windows":
+            candidates = [
+                Path(r"C:\Windows\Fonts\arial.ttf"),
+            ]
+
+        for path in candidates:
+            if path.exists():
+                return ImageFont.truetype(str(path), font_size)
+
+        # Absolute last-resort fallback
+        return ImageFont.load_default(font_size)
 
     def _create_image_with_text(self, w: int, h: int, txt: str):
         """Renders text on an empty image
@@ -150,10 +188,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         text_img = Image.new("RGBA", (width, int(h)), (255, 255, 255, 0))
         draw = ImageDraw.Draw(text_img)
         font_size = int(h * settings.FONT_IMG_RATIO)
-
-        font = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size
-        )
+        font = self._get_default_ttf(font_size)
         draw.text((0, 0), txt, (0, 0, 0), font=font)
 
         return text_img
@@ -280,6 +315,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         # we fetch the map image as it is and mask it, using our secured operations geometry.
         # To improve the performance here, we use a multithreaded approach, where the original map image and the
         # mask are generated at the same time. This speed up the process by ~30%!
+        # TODO: secured_service_mask is now generated with PIL. Check if multithreading is still needed.
         thread_list = []
         results = Queue()
         # to differ the results we return a dict for the remote response
@@ -399,22 +435,25 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 else:
                     xml_response = self.get_remote_response(request=request)
                     requested_response = xml_response
-                    # TODO: #527
-                feature_collection = xmlmap.load_xmlobject_from_string(
-                    xml_response.content, xmlclass=FeatureCollection
+
+                xml = etree.fromstring(xml_response.content)
+                gml = xml.xpath(
+                    "//gml:boundedBy/gml:*",
+                    namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
                 )
+                geometry = GEOSGeometry.from_gml(etree.tostring(gml[0]))
                 # FIXME: depends on xml wms version not on the registered service version
                 axis_order_correction = (
                     True if self.service.major_service_version >= 2 else False
                 )
-                polygon = feature_collection.bounded_by.get_geometry(
-                    axis_order_correction
-                )
-                if self.service.allowed_area_union.contains(polygon.convex_hull):
+                if axis_order_correction:
+                    geometry = adjust_axis_order(geometry)
+
+                if self.service.allowed_area_union.contains(geometry.convex_hull):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
-        return ForbiddenException(ogc_request=self.ogc_request)
+        return ForbiddenException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
 
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.

@@ -2,8 +2,8 @@ from lxml import etree
 
 from registry import models
 from registry.mappers.configs import XPATH_MAP
-from registry.mappers.xml_mapper import XmlMapper
 from registry.mappers.utils import load_file
+from registry.mappers.xml_mapper import XmlMapper
 
 
 class OGCServiceXmlMapper(XmlMapper):

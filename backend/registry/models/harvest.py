@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from uuid import uuid4
-from lxml import etree
+
 from celery import chord
 from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models
@@ -16,10 +16,8 @@ from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
-from registry.mappers.namespaces import CSW_2_0_2_NAMESPACE
-from registry.mappers.factory import MDMetadataXmlMapper
-from registry.mappers.persistence.handler import PersistenceHandler
 from extras.models import AdditionalTimeFieldsHistoricalModel
+from lxml import etree
 from lxml.etree import XML, XMLParser
 from MrMap.celery import app
 from registry.enums.harvesting import (CollectingStatenEnum,
@@ -30,9 +28,12 @@ from registry.exceptions.harvesting import InternalServerError
 from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
                                          HarvestingJobManager,
                                          TemporaryMdMetadataFileManager)
+from registry.mappers.factory import MDMetadataXmlMapper
+from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.tasks.harvest import call_chord_md_metadata_file_to_db
 from requests import Response
 from simple_history.models import HistoricalRecords
@@ -435,7 +436,7 @@ class HarvestingJob(ProcessingData):
 
     def get_total_records(self, response):
         ns = {
-            "csw": CSW_2_0_2_NAMESPACE
+            "csw": NAMESPACE_LOOKUP["csw_2_0_2"]
         }
         tree = etree.fromstring(response.content)
         search_results = tree.find(
@@ -540,8 +541,7 @@ class HarvestingJob(ProcessingData):
         if self._check_xml_response(response):
             self._log_response_error(response=response)
             return
-        
-        
+
         # XML einlesen
         tree = etree.fromstring(response.content)
 
@@ -695,16 +695,21 @@ class TemporaryMdMetadataFile(models.Model):
                 result = []
                 for instance in instances:
                     handler = PersistenceHandler(
-                        mapper=mappers[0], 
+                        mapper=mappers[0],
                         defaults={
                             "dataset": {
+                                "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                                'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
+                            },
+                            "service": {
                                 "origin": MetadataOriginEnum.CATALOGUE.value if self.job.service_id else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
                                 'origin_url': self.job.service.client.get_record_by_id_request(id=instance.file_identifier).url if self.job.service_id else "http://localhost"
                             }
                         }
                     )
                     created_instances = handler.persist_all()
-                    created_instance = created_instances.get(instance.__class__, {}).get((instance.file_identifier,), None)
+                    created_instance = created_instances.get(
+                        instance.__class__, {}).get((instance.file_identifier,), None)
                     # after persit handler has created the instances on db side, the objects are no longer identical
 
                     if created_instance:
@@ -737,7 +742,7 @@ class TemporaryMdMetadataFile(models.Model):
                                     'fileimport'if self.job.service is None else f'csw:{self.job.service}'
                                 )
                         result.append((created_instance, update, not created))
-                self.delete()
+                        self.delete()
                 return result
             except Exception as e:
                 import traceback
@@ -749,7 +754,8 @@ class TemporaryMdMetadataFile(models.Model):
                 raise e
 
     def update_relations(self, exists, update, db_metadata, duration):
-        # TODO: is this relation still needed? Or is it enough to collect the harvested through by the harvested_metadata_relations?
+        # TODO: is this relation still needed?
+        # Or is it enough to collect the harvested through by the harvested_metadata_relations?
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 
@@ -847,5 +853,7 @@ class PeriodicHarvestingJob(PeriodicTask):
             })
 
     class Meta:
+        verbose_name = _('Periodic Harvesting Job')
+        verbose_name_plural = _('Periodic Harvesting Jobs')
         verbose_name = _('Periodic Harvesting Job')
         verbose_name_plural = _('Periodic Harvesting Jobs')

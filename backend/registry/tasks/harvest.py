@@ -9,11 +9,10 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 from django.utils.timezone import now
-from eulxml import xmlmap
 from extras.tasks import SingletonTask
+from lxml import etree
 from lxml.etree import Error
 from MrMap.settings import FILE_IMPORT_DIR
-from ows_lib.xml_mapper.iso_metadata.iso_metadata import WrappedIsoMetadata
 from registry.enums.harvesting import HarvestingPhaseEnum, LogLevelEnum
 
 logger = get_task_logger(__name__)
@@ -144,9 +143,9 @@ def call_md_metadata_file_to_db(*args, **kwargs):
             'job__service__auth',
         ).get(pk=md_metadata_file_id)
 
-        db_metadata, update, exists = temporary_md_metadata_file.md_metadata_file_to_db()
+        results = temporary_md_metadata_file.md_metadata_file_to_db()
 
-        return str(db_metadata.pk), update, exists
+        return [(str(result[0].pk), result[1], result[2]) for result in results if result is not None]
     except Exception:
         TemporaryMdMetadataFile.objects.select_for_update().filter(pk=md_metadata_file_id).update(
             has_import_error=True,
@@ -175,24 +174,27 @@ def check_for_files_to_import(self, *args, **kwargs):
                 for file in files:
                     filename = os.path.join(dirpath, file)
                     try:
-                        # TODO: #527
-                        metadata_xml: WrappedIsoMetadata = xmlmap.load_xmlobject_from_file(
-                            filename=filename,
-                            xmlclass=WrappedIsoMetadata)
-
-                        for iso_metadata in metadata_xml.iso_metadata:
+                        xml = etree.parse(filename)
+                        md_metadatas = xml.xpath(
+                            "//*[local-name()='MD_Metadata']")
+                        for md_metadata in md_metadatas:
+                            md_xml = etree.tostring(
+                                md_metadata,
+                                pretty_print=True,
+                                xml_declaration=True,
+                                encoding="utf-8")
                             db_md_metadata_file: TemporaryMdMetadataFile = TemporaryMdMetadataFile()
                             # save the file without saving the instance in db...
                             # this will be done with bulk_create
                             db_md_metadata_file.md_metadata_file.save(
                                 name=f"file_import_{dt}_{idx}",
                                 content=ContentFile(
-                                    content=iso_metadata.serialize()),
+                                    content=md_xml),
                                 save=False)
                             db_md_metadata_file_list.append(
                                 db_md_metadata_file)
-                            os.remove(filename)
                             idx += 1
+
                     except Error as e:
                         new_filename = f"ignore_{dt}_{file}"
                         os.rename(filename, os.path.join(

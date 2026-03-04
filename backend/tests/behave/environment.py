@@ -39,7 +39,8 @@ def before_feature(context, feature):
         or 'WebFeatureService' in feature.name
         or 'Featuretype' in feature.name
     ):
-        fixtures.extend(['test_wfs.json', 'test_keywords.json'])
+        fixtures.extend(
+            ['test_crs.json', 'test_wfs.json', 'test_keywords.json'])
     elif (
         'HarvestingJob' in feature.name
         or 'CatalogueService' in feature.name

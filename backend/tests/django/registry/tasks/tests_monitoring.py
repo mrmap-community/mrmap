@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, TransactionTestCase
+from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django_celery_beat.models import IntervalSchedule
 from MrMap.settings import BASE_DIR
@@ -13,6 +13,7 @@ from registry.models.monitoring import (GetCapabilitiesProbe,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import WebMapService
+from registry.ows_lib.client.core import OgcClient
 from rest_framework import status
 from tests.django.utils import MockResponse
 
@@ -44,6 +45,8 @@ def side_effect(request, timeout):
             content=Path(Path.joinpath(Path(__file__).parent.resolve(),
 
                                        '../../test_data/wms/feature_info.xml')))
+    else:
+        print(request.url)
 
 
 def setup_capabilitites_file(service_exception_url=False):
@@ -81,7 +84,11 @@ class WmsGetCapabilitiesMonitoringTaskTest(TransactionTestCase):
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
-    @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect
+    )
     def test_run_wms_monitoring(self, mocked_send_request,  mocked_on_commit):
         setup_capabilitites_file()
         cap_probe = GetCapabilitiesProbe.objects.create(
@@ -144,7 +151,11 @@ class WmsGetCapabilitiesMonitoringTaskTest(TransactionTestCase):
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch("django.db.transaction.on_commit", side_effect=lambda f: f())
-    @patch("ows_lib.client.mixins.OgcClient.send_request", side_effect=side_effect)
+    @patch.object(
+        target=OgcClient,
+        attribute="send_request",
+        side_effect=side_effect
+    )
     def test_run_wms_monitoring_with_service_exceptions(self, mocked_send_request,  mocked_on_commit):
         setup_capabilitites_file(service_exception_url=True)
         cap_probe = GetCapabilitiesProbe.objects.create(

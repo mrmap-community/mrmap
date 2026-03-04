@@ -9,7 +9,7 @@ Feature: CatalogueService List Endpoint
     Scenario: Can retrieve list as anonymous user
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "3"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "4"
 
     Scenario: Can search by title
         Given I set a queryparam "filter[search]" with value "CSW1"
@@ -27,7 +27,7 @@ Feature: CatalogueService List Endpoint
         Given I set a queryparam "filter[search]" with value "meteorology"
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "meta.pagination.count" with value "1"
+        Then I expect that response json has an attribute "meta.pagination.count" with value "2"
 
     Scenario: Can filter by title
         Given I set a queryparam "filter[title.icontains]" with value "CSW1"

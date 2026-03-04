@@ -1,24 +1,19 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
 from MrMap.settings import BASE_DIR
-from ows_lib.xml_mapper.capabilities.csw.csw202 import \
-    CatalogueService as XmlCatalogueService
-from ows_lib.xml_mapper.capabilities.wfs.wfs200 import \
-    WebFeatureService as XmlWebFeatureService
-from ows_lib.xml_mapper.capabilities.wms.wms130 import \
-    WebMapService as XmlWebMapService
 from registry.models.metadata import Keyword
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
+from tests.django.contrib import XpathTestCase
 
 
-class CapabilitiesDocumentModelMixinTest(TestCase):
+class CapabilitiesDocumentModelMixinTest(XpathTestCase):
 
-    fixtures = ['test_users.json', "test_keywords.json", "test_wms.json",
+    fixtures = ['test_users.json', "test_keywords.json", "test_crs.json", "test_wms.json",
                 "test_wfs.json", "test_csw.json"]
 
     def setUpWms(self):
-        self.wms: WebMapService = WebMapService.objects.get(
+        self.wms: WebMapService = WebMapService.objects.prefetch_whole_service(
+        ).get(
             pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
         cap_file = open(
             f"{BASE_DIR}/tests/django/test_data/capabilities/wms/fixture_1.3.0.xml", mode="rb")
@@ -37,14 +32,23 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         self.wms.root_layer.title = "hihi"
         self.wms.root_layer.save()
         self.wms.root_layer.keywords.set(
-            Keyword.objects.filter(keyword__contains="ergiebiger Dauerregen"))
+            Keyword.objects.filter(
+                # this also contains extrem ergiebiger Dauerregen
+                keyword__contains="ergiebiger Dauerregen"))
 
         # change a layer metadata in deep
         some_layer: Layer = self.wms.layers.get(identifier="node1.1.1")
         some_layer.title = "hoho"
         some_layer.keywords.set(
-            Keyword.objects.filter(keyword__contains="ergiebiger Dauerregen"))
+            Keyword.objects.filter(
+                # this also contains extrem ergiebiger Dauerregen
+                keyword__contains="ergiebiger Dauerregen"))
         some_layer.save()
+
+        # refetching again with all annotations..
+        self.wms: WebMapService = WebMapService.objects.prefetch_whole_service(
+        ).get(
+            pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3")
 
     def setUpWfs(self):
         self.wfs: WebFeatureService = WebFeatureService.objects.get(
@@ -67,8 +71,10 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         some_feature_type: FeatureType = FeatureType.objects.get(
             identifier="node2")
         some_feature_type.title = "hoho"
-        some_feature_type.keywords.set(Keyword.objects.filter(
-            keyword__contains="ergiebiger Dauerregen"))
+        some_feature_type.keywords.set(
+            Keyword.objects.filter(
+                # this also contains extrem ergiebiger Dauerregen
+                keyword__contains="ergiebiger Dauerregen"))
         some_feature_type.save()
 
     def setUpCsw(self):
@@ -93,62 +99,97 @@ class CapabilitiesDocumentModelMixinTest(TestCase):
         self.setUpCsw()
 
     def test_current_capabilities_of_wms(self):
-        capabilities: XmlWebMapService = self.wms.updated_capabilitites
-
-        # check service operation urls
-        self.assertEqual(3, len(capabilities.operation_urls))
-        self.assertEqual("http://example.com/wms?",
-                         capabilities.get_operation_url_by_name_and_method("GetMap", "Get").url)
+        capabilities = self.wms.get_updated_capabilitites()
 
         # check service metadata
-        self.assertEqual("huhu", capabilities.title)
+        self.assertXpathValue(
+            capabilities,
+            "/d:WMS_Capabilities/d:Service/d:Title/text()",
+            "huhu")
+
+        self.assertXpathValues(capabilities,
+                               "/d:WMS_Capabilities/d:Service/d:KeywordList/d:Keyword",
+                               [
+                                   "meteorology",
+                                   # shall be removed: "climatology"
+                               ])
+
+        self.assertXpathCount(
+            capabilities, "/d:WMS_Capabilities/d:Capability/d:Request/*", 6)
 
         # check root layer metadata
-        self.assertEqual("hihi",
-                         capabilities.root_layer.title)
-        self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(capabilities.root_layer.keywords)))
+        self.assertXpathValue(
+            capabilities,
+            "/d:WMS_Capabilities/d:Capability/d:Layer/d:Title/text()",
+            "hihi")
+        self.assertXpathValue(
+            capabilities,
+            "/d:WMS_Capabilities/d:Capability/d:Layer/text()",
+            "",
+            strip_result=True)
+        self.assertXpathValues(capabilities,
+                               "/d:WMS_Capabilities/d:Capability/d:Layer/d:KeywordList/d:Keyword",
+                               ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
 
         # check a layer metadata in deep
-        some_layer = capabilities.get_layer_by_identifier(
-            identifier="node1.1.1")
-        self.assertEqual("hoho", some_layer.title)
-        self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(some_layer.keywords)))
-
-        self.assertEqual(7, len(capabilities._layers),
-                         msg="only 7 layers are active.")
-        self.assertIsNone(
-            capabilities.get_layer_by_identifier(identifier="node1.1.2"))
+        self.assertXpathValue(
+            capabilities,
+            "/d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.1']/d:Title/text()",
+            "hoho")
+        self.assertXpathValues(capabilities,
+                               "/d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.1']/d:KeywordList/d:Keyword",
+                               ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
+        self.assertXpathCount(
+            capabilities,
+            "/d:WMS_Capabilities/d:Capability/d:Layer/d:Layer",
+            3)
+        self.assertXpathCount(
+            capabilities,
+            "/d:WMS_Capabilities/d:Capability//d:Layer[d:Name='node1.1.2']",
+            1)
 
     def test_current_capabilitites_of_wfs(self):
-        capabilities: XmlWebFeatureService = self.wfs.updated_capabilitites
+        capabilities = self.wfs.get_updated_capabilitites()
 
         # check service operation urls
-        self.assertEqual(1, len(capabilities.operation_urls))
-        self.assertEqual("http://example.com/wfs?",
-                         capabilities.get_operation_url_by_name_and_method("GetFeature", "Get").url)
+        self.assertXpathCount(
+            capabilities,
+            "/wfs:WFS_Capabilities/ows:OperationsMetadata//ows:Operation",
+            11)
 
         # check service metadata
-        self.assertEqual("huhu", capabilities.title)
+        self.assertXpathValue(
+            capabilities,
+            "/wfs:WFS_Capabilities/ows:ServiceIdentification/ows:Title/text()",
+            "huhu")
 
         # check a feature type metadata
-        some_feature_type = capabilities.get_feature_type_by_identifier(
-            identifier="node2")
-        self.assertEqual("hoho", some_feature_type.title)
-        self.assertListEqual(
-            list(set(["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])), list(set(some_feature_type.keywords)))
+        self.assertXpathValue(
+            capabilities,
+            "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='node2']/wfs:Title/text()",
+            "hoho")
 
-        self.assertEqual(3, len(capabilities.feature_types),
-                         msg="only 3 feature types are active.")
+        self.assertXpathValues(capabilities,
+                               "/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType[wfs:Name='node2']/ows:Keywords/ows:Keyword",
+                               ["ergiebiger Dauerregen", "extrem ergiebiger Dauerregen"])
+
+        self.assertXpathCount(
+            capabilities,
+            "/wfs:WFS_Capabilities/wfs:FeatureTypeList//wfs:FeatureType",
+            4)
 
     def test_current_capabilitites_of_csw(self):
-        capabilities: XmlCatalogueService = self.csw.updated_capabilitites
+        capabilities = self.csw.get_updated_capabilitites()
 
         # check service operation urls
-        self.assertEqual(2, len(capabilities.operation_urls))
-        self.assertEqual("http://example.com/wms?",
-                         capabilities.get_operation_url_by_name_and_method("GetCapabilities", "Get").url)
+        self.assertXpathCount(
+            capabilities,
+            "/csw:Capabilities/ows:OperationsMetadata//ows:Operation",
+            6)
 
         # check service metadata
-        self.assertEqual("huhu", capabilities.title)
+        self.assertXpathValue(
+            capabilities,
+            "/csw:Capabilities/ows:ServiceIdentification/ows:Title/text()",
+            "huhu")
+        # TODO: check other metadata too (keywords, etc..)

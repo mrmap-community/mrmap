@@ -19,8 +19,6 @@ django-cors-headers==4.9.0
 psycopg==3.2.12
 psycopg[binary]==3.2.12
 psycopg[pool]==3.2.12
-# adds class based xml mappers
-eulxml==1.1.3
 # library to process xml
 lxml==6.0.2
 # ISO 8601 date/time parser
@@ -61,13 +59,12 @@ channels==4.3.1
 channels[daphne]==4.3.1
 # adds redis cache backend implementation for channels package
 channels-redis==4.3.0
-# Object mapper lib
-odin==2.10
 django-cte==2.0.0
 drf-spectacular-jsonapi==0.5.2
 django-ows-lib==0.17.1
 camel-converter==5.0.0
 django-rest-knox==5.0.2
-django-pgviews-redux==0.12.0
+django-pgviews-redux==1.1.0
 autobahn>=22.4.2,<25.10.0
+pygeofilter==0.3.3
 ply

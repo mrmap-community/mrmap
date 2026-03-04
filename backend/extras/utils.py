@@ -1,7 +1,10 @@
 import re
 import urllib.parse as urlparse
 from collections import defaultdict
+from copy import deepcopy
 
+from django.apps import apps
+from django.db.models import Prefetch
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework_json_api.utils import \
     get_included_resources as get_included_resources_json_api
@@ -88,7 +91,4 @@ class BrowsableAPIRendererWithoutForms(BrowsableAPIRenderer):
         """Why render _any_ forms at all. This method should return
         rendered HTML, so let's simply return an empty string.
         """
-        return ""
-        return ""
-        return ""
         return ""

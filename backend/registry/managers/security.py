@@ -3,7 +3,6 @@ from typing import Any, List, Tuple
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
-from django.contrib.postgres.aggregates import ArrayAgg
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db import models
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
@@ -13,10 +12,23 @@ from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
-from ows_lib.models.ogc_request import OGCRequest
-from ows_lib.xml_mapper.xml_responses.consts import GEOMETRY_DATA_TYPES
 from registry.enums.service import OGCOperationEnum
+from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
+
+GEOMETRY_DATA_TYPES = [
+    "gml:MultiPolygonPropertyType",
+    "gml:MultiSurfacePropertyType",
+    "gml:PolygonPropertyType",
+    "gml:SurfacePropertyType",
+    "gml:MultiLineStringPropertyType",
+    "gml:MultiCurvePropertyType",
+    "gml:LineStringPropertyType",
+    "gml:GeometryPropertyType",
+    "gml:CurvePropertyType",
+    "gml:PointPropertyType",
+    "gml:MultiPointPropertyType"
+]
 
 
 class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
@@ -25,9 +37,9 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
-        """Collects only the AllowedWebMapServiceOperation objects where all requested_entities are part of."""
+        """Collects only the AllowedWebServiceOperation objects where all requested_entities are part of."""
         lookup, identifiers = self.get_entity_identifiers(request=request)
-        query = None
+        query = Q()
         for identifier in identifiers:
             _query = Q(**{lookup: identifier})
             if query:
@@ -125,7 +137,7 @@ class AllowedWebFeatureServiceOperationQuerySet(AllowedOgcServiceOperationQueryS
         return "secured_feature_types__identifier__iexact", request.requested_entities
 
 
-class WebMapServiceSecurityManager(models.Manager):
+class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapServiceOperationQuerySet)):
 
     def is_unknown_layer(self, service_pk, request: HttpRequest) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, layer__identifier__in=request.requested_entities))
@@ -180,12 +192,7 @@ class WebMapServiceSecurityManager(models.Manager):
                     ),
                     allowed_area_union=self.get_allowed_operation_qs().get_allowed_areas(
                         service_pk=OuterRef("pk"), request=request
-                    ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom'),
-                    allowed_area_pks=self.get_allowed_operation_qs().get_allowed_areas(
-                        service_pk=OuterRef("pk"), request=request
-                    ).values('secured_service__pk').annotate(pks=ArrayAgg('pk')).values('pks'),
-
-
+                    ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom')
                 )
             )
 
@@ -193,19 +200,7 @@ class WebMapServiceSecurityManager(models.Manager):
         return self.prepare_with_security_info(request=request).get(*args, **kwargs)
 
 
-class WebFeatureServiceSecurityManager(models.Manager):
-
-    def filter_by_requested_entity(self, request):
-        """Collects only the AllowedWebMapServiceOperation objects where all requested_entities are part of."""
-        lookup, identifiers = self.get_entity_identifiers(request=request)
-        query = None
-        for identifier in identifiers:
-            _query = Q(**{lookup: identifier})
-            if query:
-                query &= _query
-            else:
-                query = _query
-        return self.filter(query)
+class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFeatureServiceOperationQuerySet)):
 
     def is_unknown_feature_type(self, service_pk, feature_types: List[str]) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
@@ -220,6 +215,84 @@ class WebFeatureServiceSecurityManager(models.Manager):
         )
 
     def prepare_with_security_info(self, request: OGCRequest):
+        """
+        Prepare a queryset annotated with security and proxy metadata for a
+        Web Feature Service (WFS) OGC request.
+
+        The method returns a Django QuerySet of WFS services. Depending on the
+        request type and operation, the queryset is annotated with different
+        security-related fields used during request evaluation and response
+        filtering.
+
+        Annotation behavior by request type
+        -----------------------------------
+        1. GetCapabilities requests
+        The queryset is annotated with:
+        - camouflage (bool):
+            Whether the service response should be camouflaged.
+            Derived from proxy_setting.camouflage, defaults to False.
+
+        2. Non-secureable operations
+        (request.operation.lower() not in SECURE_ABLE_OPERATIONS_LOWER)
+        The queryset is annotated with:
+        - log_response (bool):
+            Whether the service response should be logged.
+            Derived from proxy_setting.log_response, defaults to False.
+
+        3. GetFeature requests (secureable)
+        The queryset is fully annotated with service-level and
+        feature-type-level security information.
+
+        Service-level annotations:
+        - camouflage (bool)
+        - log_response (bool)
+        - is_unknown_feature_type (bool):
+            True if at least one requested feature type is not known
+            for the service.
+        - is_secured (bool):
+            True if the service has any security configuration.
+        - is_user_principle_entitled (bool):
+            True if the requesting user is entitled to access the service
+            (superusers are always entitled).
+        - is_spatial_secured (bool):
+            True if spatial restrictions apply for the requested feature types
+            and no unrestricted (empty) allowed areas exist.
+
+        Feature-type-level annotation:
+        - security_info_per_feature_type (List[dict]):
+            An array of JSON objects, one per requested feature type, with the
+            following structure:
+
+            {
+                "type_name": str,
+                "geometry_property_name": str,
+                "allowed_area_union": Geometry | None
+            }
+
+            where:
+            - type_name:
+                Identifier of the feature type.
+            - geometry_property_name:
+                Name of the geometry property of the feature type. If no
+                geometry property is defined, defaults to "THE_GEOM".
+            - allowed_area_union:
+                A spatial union of all allowed areas applicable to the feature
+                type for the requested operation, or None if no spatial
+                restriction applies.
+
+        Parameters
+        ----------
+        request : OGCRequest
+            Parsed WFS OGC request containing operation, requested feature types,
+            user information, and request parameters.
+
+        Returns
+        -------
+        QuerySet
+            A queryset of WFS services annotated with proxy and security metadata.
+            For GetFeature requests, the queryset includes per-feature-type
+            security information encoded as JSON.
+        """
         if request.is_get_capabilities_request:
             return self.get_queryset().annotate(
                 camouflage=Coalesce(F("proxy_setting__camouflage"), V(False))

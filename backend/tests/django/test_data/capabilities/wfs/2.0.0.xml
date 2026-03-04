@@ -426,6 +426,9 @@
                 <ows:Keyword>Schweres Gewitter</ows:Keyword>
             </ows:Keywords>
             <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
+            <OtherCRS>urn:ogc:def:crs:EPSG::4325</OtherCRS>
+            <OtherCRS>urn:ogc:def:crs:EPSG::4324</OtherCRS>
+
             <ows:WGS84BoundingBox>
                 <ows:LowerCorner>5.0 47.0</ows:LowerCorner>
                 <ows:UpperCorner>16.0 55.3</ows:UpperCorner>

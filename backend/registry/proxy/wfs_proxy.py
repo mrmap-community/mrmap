@@ -6,13 +6,13 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from epsg_cache.utils import adjust_axis_order
-from ows_lib.client.wfs.mixins import \
-    WebFeatureServiceMixin as WebFeatureServiceClient
 from registry.models.service import WebFeatureService
-from registry.proxy.mixins import OgcServiceProxyView
-from registry.proxy.ogc_exceptions import ForbiddenException
-from registry.proxy.ogc_exceptions import \
+from registry.ows_lib.response.exceptions import ForbiddenException
+from registry.ows_lib.response.exceptions import \
     NotImplementedError as MrMapNotImplementedError
+from registry.ows_lib.wfs.wfs import \
+    WebFeatureServiceClient as WebFeatureServiceClient
+from registry.proxy.mixins import OgcServiceProxyView
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -80,15 +80,22 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
     def handle_secured_get_feature(self):
         try:
             if self.ogc_request.service_version.split(".")[0] != "2":
-                return MrMapNotImplementedError(ogc_request=self.ogc_request, message="MrMap currently can only handle wfs 2.x.x GetFeature requests")
-            self.ogc_request.xml_request.secure_spatial(
-                feature_types=self.service.security_info_per_feature_type)
+                return MrMapNotImplementedError(
+                    service_type=self.ogc_request.service_type.lower(),
+                    service_version=self.ogc_request.service_version,
+                    message="MrMap currently can only handle wfs 2.x.x GetFeature requests")
+
+            self.ogc_request.secure_get_feature_request(
+                self.service.security_info_per_feature_type
+            )
+
         except NotImplementedError:
             return ForbiddenException(
-                ogc_request=self.ogc_request,
+                service_type=self.ogc_request.service_type.lower(),
+                service_version=self.ogc_request.service_version,
                 message="MrMap can't secure the given request. Maybe you request multiple typenames in a single query.")
         response = self.remote_service.send_request(
-            self.remote_service.get_feature_request(get_feature_request=self.ogc_request.xml_request))
+            self.remote_service.get_feature_request(get_feature_request=self.ogc_request.content))
         return self.return_http_response(response=response)
 
     def handle_secured_transaction(self):

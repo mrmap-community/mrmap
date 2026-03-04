@@ -1,13 +1,12 @@
-from registry.mappers.namespaces import (INSPIRE_COMMON, INSPIRE_VS,
-                                         XLINK_NAMESPACE)
+from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
 XPATH_MAP = {
     # (Service-Klasse, Version) -> Mapping Feldname -> XPath
     ("WMS", "1.1.1"): {
         "_namespaces": {
-            "xlink": XLINK_NAMESPACE,
-            "inspire_common": INSPIRE_COMMON,
-            "inspire_vs": INSPIRE_VS
+            "xlink": NAMESPACE_LOOKUP["xlink"],
+            "inspire_common": NAMESPACE_LOOKUP["inspire_common"],
+            "inspire_vs": NAMESPACE_LOOKUP["inspire_vs"]
         },
         "_schema": "http://schemas.opengis.net/wms/1.1.1/WMS_MS_Capabilities.dtd",
         "_pre_save": [
@@ -27,18 +26,28 @@ XPATH_MAP = {
                 "abstract": "./Service/Abstract",
                 "fees": "./Service/Fees",
                 "access_constraints": "./Service/AccessConstraints",
+                "service_url": "./Service/OnlineResource/@xlink:href",
                 "remote_metadata": {
                     "_model": "registry.WebMapServiceRemoteMetadata",
-                    "_base_xpath": "/WMT_MS_Capabilities/Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "_base_xpath": "./Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                        },
+                    },
                     "fields": {
                         "link": "./."
                     }
                 },
-                "service_url": "./Service/OnlineResource/@xlink:href",
                 "service_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/WMT_MS_Capabilities/Service/ContactInformation",
+                    "_base_xpath": "./Service/ContactInformation",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./Service/ContactInformation",
+                        },
+                    },
                     "fields": {
                         "name": "./ContactPersonPrimary/ContactOrganization",
                         "person_name": "./ContactPersonPrimary/ContactPerson",
@@ -54,8 +63,13 @@ XPATH_MAP = {
                 },
                 "metadata_contact": {
                     "_model": "registry.MetadataContact",
-                    "_base_xpath": "/WMT_MS_Capabilities/Service/ContactInformation",
+                    "_base_xpath": "./Service/ContactInformation",
                     "_create_mode": "get_or_create",
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./Service/ContactInformation",
+                        },
+                    },
                     "fields": {
                         "name": "./ContactPersonPrimary/ContactOrganization",
                         "person_name": "./ContactPersonPrimary/ContactPerson",
@@ -71,17 +85,25 @@ XPATH_MAP = {
                 },
                 "operation_urls": {
                     "_model": "registry.WebMapServiceOperationUrl",
-                    "_base_xpath": "./Capability/Request",
+                    "_base_xpath": "./Capability/Request/*/DCPType/HTTP/*",
                     "_create_mode": "get_or_create",
-                    "_many": True,
                     "_parser": "registry.mappers.parsers.wms.parse_operation_urls",
                     "_reverse_parser": "registry.mappers.parsers.wms.reverse_parse_operation_urls",
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.wms_operation_url_identifier"
+                        },
+                    },
                 },
                 "keywords": {
                     "_model": "registry.Keyword",
-                    "_base_xpath": "/WMT_MS_Capabilities/Service/KeywordList/Keyword",
+                    "_base_xpath": "./Service/KeywordList/Keyword",
                     "_create_mode": "get_or_create",
-                    "_many": True,
+                    "_reverse": {
+                        "_identifier": {
+                            "xpath": "./Service/KeywordList/Keyword[text()='{keyword}']",
+                        },
+                    },
                     "fields": {
                         "keyword": "./."
                     }
@@ -90,7 +112,12 @@ XPATH_MAP = {
                     "_model": "registry.Layer",
                     "_base_xpath": "/WMT_MS_Capabilities/Capability//Layer",
                     "_create_mode": "bulk",
-                    "_many": True,
+                    "_reverse": {
+                        "_identifier": {
+                            "compiler": "registry.mappers.identifiers.layer_identifier",
+                        },
+                        "_ignore_fields": ["mptt_parent"]
+                    },
                     "fields": {
                         "mptt_parent": "..",
                         "title": "./Title",
@@ -125,7 +152,11 @@ XPATH_MAP = {
                             "_model": "registry.Keyword",
                             "_base_xpath": "./KeywordList/Keyword",
                             "_create_mode": "get_or_create",
-                            "_many": True,
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./KeywordList/Keyword[text()='{keyword}']",
+                                },
+                            },
                             "fields": {
                                 "keyword": "./."
                             }
@@ -134,7 +165,11 @@ XPATH_MAP = {
                             "_model": "registry.ReferenceSystem",
                             "_base_xpath": "./SRS",
                             "_create_mode": "get_or_create",
-                            "_many": True,
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./SRS[text()='{prefix}:{code}']",
+                                },
+                            },
                             "fields": {
                                 "code": {
                                     "_inputs": ("./text()",),
@@ -150,7 +185,11 @@ XPATH_MAP = {
                             "_model": "registry.Style",
                             "_base_xpath": "./Style",
                             "_create_mode": "bulk",
-                            "_many": True,
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./Style/Name[text()='{name}']",
+                                },
+                            },
                             "fields": {
                                 "name": "./Name",
                                 "title": "./Title",
@@ -158,6 +197,11 @@ XPATH_MAP = {
                                     "_model": "registry.LegendUrl",
                                     "_base_xpath": "./LegendURL",
                                     "_create_mode": "bulk",
+                                    "_reverse": {
+                                        "_identifier": {
+                                            "xpath": "./OnlineResource/[@xlink:href='{legend_url}']",
+                                        },
+                                    },
                                     "fields": {
                                         "height": "./@height",
                                         "width": "./@width",
@@ -178,6 +222,11 @@ XPATH_MAP = {
                             "_model": "registry.LayerRemoteMetadata",
                             "_base_xpath": "./MetadataURL/OnlineResource",
                             "_create_mode": "bulk",
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./MetadataURL/OnlineResource[@xlink:href='{link}']",
+                                },
+                            },
                             "fields": {
                                 "link": "./@xlink:href"
                             }
@@ -186,7 +235,12 @@ XPATH_MAP = {
                             "_model": "registry.TimeExtent",
                             "_base_xpath": "./Extent[@name='time']",
                             "_create_mode": "get_or_create",
-                            "_many": True,
+                            "_reverse": {
+                                "_identifier": {
+                                    "xpath": "./Extent[@name='time'][text()='{value}']",
+                                    "parser": "registry.mappers.parsers.wms.timeextent_to_value"
+                                },
+                            },
                             "_parser": "registry.mappers.parsers.wms.parse_timeextent",
                         },
                     }

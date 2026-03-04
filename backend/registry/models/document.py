@@ -1,16 +1,11 @@
 from abc import abstractmethod
-from warnings import warn
 
-from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from eulxml import xmlmap
-from eulxml.xmlmap import XmlObject
-from ows_lib.xml_mapper.capabilities.mixins import OGCServiceMixin
-from ows_lib.xml_mapper.utils import get_parsed_service
-from registry.mappers.capabilities.utils import get_mapper_for_service
+from lxml import etree
+from registry.mappers.factory import OGCServiceXmlMapper
 
 
 def xml_backup_file_path(instance, filename):
@@ -23,7 +18,6 @@ class DocumentModelMixin(models.Model):
 
     :attr xml_backup: the original xml as backup to restore the xml fields.
     """
-    xml_mapper_cls = None
     xml_backup_file = models.FileField(verbose_name=_("xml backup"),
                                        help_text=_(
                                            "the original xml as backup to restore the xml field."),
@@ -34,15 +28,19 @@ class DocumentModelMixin(models.Model):
     class Meta:
         abstract = True
 
-    def get_xml_mapper_cls(self):
-        """Return the configured xml_mapper_cls attribute.
+    @property
+    def xml_backup(self) -> bytes:
+        """Return the backup xml as XmlObject.
 
-        :raises ImproperlyConfigured: if the concrete model does not configure the xml_mapper_cls attribute.
+        :return xml_object: the xml mapper object
+        :rtype: :class:`xmlmap.XmlObject`
         """
-        warn("get_xml_mapper_cls is deprecated. use utility functions of ows_lib package in stead.")
-        if self.xml_mapper_cls:
-            return self.xml_mapper_cls
-        raise ImproperlyConfigured("xml_mapper_cls attribute is needed.")
+        try:
+            with open(self.xml_backup_file.path, "rb") as file:
+                string = file.read()
+            return string
+        except ValueError:
+            return b""
 
     @property
     def xml_backup_string(self) -> str:
@@ -51,26 +49,10 @@ class DocumentModelMixin(models.Model):
         :return xml_backup: the xml_backup_file as string or empty string if FileNotFound
         :rtype: str
         """
-        try:
-            with open(self.xml_backup_file.path, "r") as file:
-                string = file.read()
-            return string if isinstance(string, str) else string.decode("UTF-8")
-        except ValueError:
-            return ""
-
-    @property
-    def xml_backup(self) -> XmlObject:
-        """Return the backup xml as XmlObject.
-
-        :return xml_object: the xml mapper object
-        :rtype: :class:`xmlmap.XmlObject`
-        """
-        # TODO: #527
-        return xmlmap.load_xmlobject_from_string(string=self.xml_backup_string.encode("UTF-8"),
-                                                 xmlclass=self.get_xml_mapper_cls())
+        return self.xml_backup.decode("UTF-8")
 
     @abstractmethod
-    def xml_secured(self, request: HttpRequest) -> XmlObject:
+    def xml_secured(self, request: HttpRequest):
         """Camouflage all urls which are founded in current xml from the xml property on-the-fly with the hostname
         from the given request.
 
@@ -86,39 +68,27 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
     class Meta:
         abstract = True
 
-    @property
-    def xml_backup(self) -> OGCServiceMixin:
-        # TODO: #527
-        return get_parsed_service(self.xml_backup_string.encode("UTF-8"))
-
-    @property
-    def updated_capabilitites(self) -> XmlObject:
+    def get_updated_capabilitites(self, instance=None) -> etree.ElementTree:
         """Returns the current version of the capabilities document.
 
             The values from the database overwrites the values inside the xml document.
         """
-        # TODO: #527: C4
-        mapper_cls = get_mapper_for_service(self)
-        mapper = mapper_cls(source_obj=self)
-        xml_object = mapper.update(destination_obj=self.xml_backup)
-        return xml_object
+        return OGCServiceXmlMapper.to_xml(instance or self)
 
-    def xml_secured(self, request: HttpRequest) -> str:
-        path = reverse("wms-operation", args=[self.pk])
-        new_url = f"{request.scheme}://{request.get_host()}{path}?"
+    def get_secured_url(self, request: HttpRequest, url_name: str, kwargs: dict) -> str:
+        """Generate a secured url for the given url name and kwargs.
 
-        capabilities_xml = self.updated_capabilitites
-        # TODO: camouflage metadata urls also
-        for operation_url in capabilities_xml.operation_urls:
-            operation_url.url = new_url
-        if capabilities_xml.service_url:
-            capabilities_xml.service_url = new_url
-
-        for layer in capabilities_xml.layers:
-            for style in layer.styles:
-                style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
-        # TODO: only support xml Exception format --> remove all others
-        return capabilities_xml.serializeDocument()
+        :param request: the http request
+        :type request: HttpRequest
+        :param url_name: the name of the url
+        :type url_name: str
+        :param kwargs: the kwargs for the url
+        :type kwargs: dict
+        :return: the secured url
+        :rtype: str
+        """
+        path = reverse(url_name, args=[self.pk])
+        return f"{request.scheme}://{request.get_host()}{path}?"
 
     def get_capabilitites_for_request(self, request: HttpRequest) -> str:
         """Returns the current version of the capabilities document.
@@ -128,7 +98,12 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         if self.camouflage:
             return self.xml_secured(request=request)
         else:
-            return self.updated_capabilitites.serializeDocument()
+            return etree.tostring(
+                self.get_updated_capabilitites().getroottree().getroot(),
+                pretty_print=True,
+                xml_declaration=True,
+                encoding="UTF-8"
+            )
 
 
 class MetadataDocumentModelMixin(DocumentModelMixin):
@@ -144,6 +119,6 @@ class MetadataDocumentModelMixin(DocumentModelMixin):
         # todo: restore_dict = self.xml().get_field_dict()
         raise NotImplementedError
 
-    def xml_secured(self, request: HttpRequest) -> XmlObject:
-        # todo
-        return self.xml
+    def xml_secured(self, request: HttpRequest):
+        # TODO: implement camouflage for metadata xml
+        return self.xml_backup_string

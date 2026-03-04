@@ -128,10 +128,6 @@ def parse_operation_urls(mapper, el):
         url=url.strip(),
     )
 
-    # Cache-Handling
-    path = online_resource.getroottree().getpath(online_resource)
-    mapper.store_to_cache(path, op_inst)
-
     # MimeTypes vorbereiten (noch nicht speichern)
     op_inst._mime_types_parsed = []
     for fmt in format_values:
@@ -140,7 +136,7 @@ def parse_operation_urls(mapper, el):
         mapper.store_to_cache(format_path, mime_inst)
         op_inst._mime_types_parsed.append(mime_inst)
 
-    return [op_inst]
+    return op_inst
 
 
 def reverse_parse_operation_urls(

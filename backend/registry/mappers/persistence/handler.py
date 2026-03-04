@@ -152,7 +152,7 @@ class PersistenceHandler:
                     inst, f.name) for f in model_cls._meta.fields if f.name not in key_fields}
             )
             db_instances.append(obj)
-        return self.build_final_key_map(db_instances)
+        return self.build_final_key_map(instances)
 
     def build_final_key_map(self, instances, key_fields=None):
         model_cls = instances[0].__class__
@@ -187,41 +187,6 @@ class PersistenceHandler:
                 for attr, value in original_obj.__dict__.items():
                     if (attr.endswith("_parsed") or attr.endswith('_custom_state')) and not hasattr(final_obj, attr):
                         setattr(final_obj, attr, value)
-
-    # ------------------------
-    # Redirect M2M _parsed fields
-    # ------------------------
-    @staticmethod
-    def _redirect_m2m_references(instances_by_model, final_instances_map):
-        for model_cls, instances in instances_by_model.items():
-            unique_sets = get_unique_fields(
-                model_cls)
-            key_fields = unique_sets[0] if unique_sets else None
-            for inst in instances:
-                for attr_name in dir(inst):
-                    if attr_name.startswith("_") and attr_name.endswith("_parsed"):
-                        parsed = getattr(inst, attr_name)
-                        if parsed is None:
-                            continue
-                        if isinstance(parsed, list):
-                            new_list = []
-                            for ref in parsed:
-                                ref_map = final_instances_map.get(
-                                    ref.__class__, {})
-                                ref_key = tuple(
-                                    getattr(ref, f) for f in key_fields) if key_fields else tuple()
-                                final_obj = ref_map.get(ref_key)
-                                if final_obj:
-                                    new_list.append(final_obj)
-                            setattr(inst, attr_name, new_list)
-                        else:
-                            ref_map = final_instances_map.get(
-                                parsed.__class__, {})
-                            ref_key = tuple(getattr(parsed, f)
-                                            for f in key_fields) if key_fields else tuple()
-                            final_obj = ref_map.get(ref_key)
-                            if final_obj:
-                                setattr(inst, attr_name, final_obj)
 
     # ------------------------
     # Build instances_by_model from XmlMapper

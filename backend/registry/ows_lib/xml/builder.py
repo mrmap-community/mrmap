@@ -226,7 +226,7 @@ class XSDSkeletonBuilder:
                     if type_attr:
                         tns, tlocal = self._resolve_qname(type_attr, child)
                         ct = self.types.get((tns, tlocal))
-                        if ct:
+                        if ct is not None:
                             self._apply_complex_type(
                                 sub_el,
                                 ct,

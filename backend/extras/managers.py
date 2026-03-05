@@ -1,11 +1,10 @@
-from typing import Any, MutableMapping, Optional, Tuple, TypeVar
+from collections.abc import Mapping
+from typing import Any, Optional, Tuple
 
 from django.db import models
 from django.db.models import Case, CharField, Count, F, Q, Value, When
 from django.db.models.constraints import UniqueConstraint
 from django.db.models.query import Prefetch
-
-T = TypeVar('T')
 
 
 class UniqueConstraintDefaultValueManager(models.Manager):
@@ -15,7 +14,7 @@ class UniqueConstraintDefaultValueManager(models.Manager):
     to correctly use get_or_create
     """
 
-    def get_or_create(self, defaults: Optional[MutableMapping[str, Any]] = None, **kwargs: Any) -> Tuple[T, bool]:
+    def get_or_create(self, defaults: Optional[Mapping[str, Any]] = None, **kwargs: Any) -> Tuple[models.Model, bool]:
         for constraint in list(filter(lambda constraint: isinstance(constraint, UniqueConstraint), self.model._meta.constraints)):
             for field in constraint.fields:
                 kwargs.update({

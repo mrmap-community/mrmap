@@ -1,7 +1,6 @@
 import hashlib
 import uuid
 
-import six
 from accounts.managers.users import CustomUserManager
 from accounts.settings import USER_ACTIVATION_TIME_WINDOW
 from django.contrib.auth.hashers import get_hasher
@@ -96,5 +95,4 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
         super().save(force_insert, force_update, using, update_fields)
 
     def _make_hash_value(self, user, timestamp):
-        return (six.text_type(user.pk) + six.text_type(timestamp) +
-                six.text_type(user.email))
+        return f"{user.pk}{timestamp}{user.email}"  # type: ignore

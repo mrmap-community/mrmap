@@ -125,10 +125,11 @@ dataset_metadata_routes.register(r'layers', service_views.NestedLayerViewSet, ba
                                  parents_query_lookups=['dataset_metadata_relation__dataset_metadata'])
 dataset_metadata_routes.register(r'featuretypes', service_views.NestedFeatureTypeViewSet,
                                  basename='datasetmetadata-featuretypes', parents_query_lookups=['dataset_metadata_relation__dataset_metadata'])
+
 service_metadata_routes = router.register(
     r'service-metadata', metadata_views.ServiceMetadataViewSet, basename='servicemetadata')
 service_metadata_routes.register(r'csws', service_views.NestedCatalogueServiceViewSet,
-                                 basename='servicemetadata-csws', parents_query_lookups=['service_metadata_relation__service_metadata']),
+                                 basename='servicemetadata-csws', parents_query_lookups=['service_metadata_relation__service_metadata'])
 
 
 wms_monitoring_routes = router.register(r'monitoring/wms-monitoring-settings',
@@ -147,108 +148,79 @@ wms_monitoring_runs_routes.register(r'get-cap-probe-results',
 wms_monitoring_runs_routes.register(r'get-map-probe-results',
                                     monitoring_views.NestedGetMapProbeResultViewSet,
                                     basename='webmapservicemonitoringsetting-getmap-probe-results',
-                                    parents_query_lookups=['run']),
+                                    parents_query_lookups=['run'])
 
-(
-    # web map service
-    wms_routes,
-    wms_op_urls_routes,
-    layers_routes,
-
-    # web feature service
-    wfs_routes,
-    feature_types_routes,
-
-    # catalogue service
-    csw_routes,
-    csw_op_urls_routes,
-
-    # harvesting
-    harvesting_jobs_routes,
-
-    router.register(r'harvesting/temporary-md-metadata-file',
-                    harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile'),
-    router.register(r'harvesting/harvested-metadata-records',
-                    harvesting_views.HarvestedMetadataRelationViewSet, basename='harvestedmetadatarelation'),
-    router.register(r'harvesting/periodic-harvesting-jobs',
-                    harvesting_views.PeriodicHarvestingJobViewSet, basename='periodicharvestingjob'),
-    router.register(r'harvesting/harvesting-logs',
-                    harvesting_views.HarvestingLogViewSet, basename='harvestinglog'),
+router.register(r'harvesting/temporary-md-metadata-file',
+                harvesting_views.TemporaryMdMetadataFileViewSet, basename='temporarymdmetadatafile')
+router.register(r'harvesting/harvested-metadata-records',
+                harvesting_views.HarvestedMetadataRelationViewSet, basename='harvestedmetadatarelation')
+router.register(r'harvesting/periodic-harvesting-jobs',
+                harvesting_views.PeriodicHarvestingJobViewSet, basename='periodicharvestingjob')
+router.register(r'harvesting/harvesting-logs',
+                harvesting_views.HarvestingLogViewSet, basename='harvestinglog')
 
 
-    # map context
-    map_context_routes,
-    router.register(r'mapcontextlayers',
-                    mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer'),
+# map context
+router.register(r'mapcontextlayers',
+                mapcontext_views.MapContextLayerViewSet, basename='mapcontextlayer')
 
-    # metadata
-    router.register(r'keywords', metadata_views.KeywordViewSet,
-                    basename='keyword'),
-    router.register(r'mime-types', metadata_views.MimeTypeViewSet,
-                    basename='mime-type'),
-    router.register(r'licences', metadata_views.LicenceViewSet,
-                    basename='licence'),
-    router.register(r'referencesystems',
-                    metadata_views.ReferenceSystemViewSet, basename='referencesystem'),
-    router.register(r'styles', metadata_views.StyleViewSet, basename='style'),
-    router.register(r'metadata-contacts',
-                    metadata_views.MetadataContactViewSet, basename='metadatacontact'),
+# metadata
+router.register(r'keywords', metadata_views.KeywordViewSet,
+                basename='keyword')
+router.register(r'mime-types', metadata_views.MimeTypeViewSet,
+                basename='mime-type')
+router.register(r'licences', metadata_views.LicenceViewSet,
+                basename='licence')
+router.register(r'referencesystems',
+                metadata_views.ReferenceSystemViewSet, basename='referencesystem')
+router.register(r'styles', metadata_views.StyleViewSet, basename='style')
+router.register(r'metadata-contacts',
+                metadata_views.MetadataContactViewSet, basename='metadatacontact')
 
-    # dataset metadata records
-    dataset_metadata_routes,
+# security
+router.register(r'security/wms-authentication',
+                security_views.WebMapServiceAuthenticationViewSet, basename='wmsauth')
+router.register(r'security/wms-operations',
+                security_views.WebMapServiceOperationViewSet, basename='wmsoperation')
+router.register(r'security/wfs-authentication',
+                security_views.WebFeatureServiceAuthenticationViewSet, basename='wfsauth')
+router.register(r'security/wfs-operations',
+                security_views.WebFeatureServiceOperationViewSet, basename='wfsoperation')
 
-    # service metadata records
-    service_metadata_routes,
+router.register(r'security/allowed-wms-operations',
+                security_views.AllowedWebMapServiceOperationViewSet, basename='allowedwmsoperation')
+router.register(r'security/allowed-wfs-operations',
+                security_views.AllowedWebFeatureServiceOperationViewSet, basename='allowedwfsoperation')
 
-    # security
-    router.register(r'security/wms-authentication',
-                    security_views.WebMapServiceAuthenticationViewSet, basename='wmsauth'),
-    router.register(r'security/wms-operations',
-                    security_views.WebMapServiceOperationViewSet, basename='wmsoperation'),
-    router.register(r'security/wfs-authentication',
-                    security_views.WebFeatureServiceAuthenticationViewSet, basename='wfsauth'),
-    router.register(r'security/wfs-operations',
-                    security_views.WebFeatureServiceOperationViewSet, basename='wfsoperation'),
+router.register(r'security/wms-proxy-settings',
+                security_views.WebMapServiceProxySettingViewSet, basename='webmapserviceproxysetting')
+router.register(r'security/wfs-proxy-settings',
+                security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting')
 
-    router.register(r'security/allowed-wms-operations',
-                    security_views.AllowedWebMapServiceOperationViewSet, basename='allowedwmsoperation'),
-    router.register(r'security/allowed-wfs-operations',
-                    security_views.AllowedWebFeatureServiceOperationViewSet, basename='allowedwfsoperation'),
-
-    router.register(r'security/wms-proxy-settings',
-                    security_views.WebMapServiceProxySettingViewSet, basename='webmapserviceproxysetting'),
-    router.register(r'security/wfs-proxy-settings',
-                    security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting'),
-
-    # monitoring
-    wms_monitoring_routes,
-
-    router.register(r'monitoring/wms-monitoring-get-capabilities-probes',
-                    monitoring_views.GetCapabilitiesProbeViewSet, basename='webmapservicemonitoring-getcapabilities-probe'),
-    router.register(r'monitoring/wms-monitoring-get-map-probes',
-                    monitoring_views.GetMapProbeViewSet, basename='webmapservicemonitoring-getmap-probe'),
-    wms_monitoring_runs_routes,
-    router.register(r'monitoring/wms-monitoring-get-capabilitites-probe-results',
-                    monitoring_views.GetCapabilitiesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilities-probe-result'),
-    router.register(r'monitoring/wms-monitoring-get-map-probe-results',
-                    monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result'),
+# monitoring
+router.register(r'monitoring/wms-monitoring-get-capabilities-probes',
+                monitoring_views.GetCapabilitiesProbeViewSet, basename='webmapservicemonitoring-getcapabilities-probe')
+router.register(r'monitoring/wms-monitoring-get-map-probes',
+                monitoring_views.GetMapProbeViewSet, basename='webmapservicemonitoring-getmap-probe')
+router.register(r'monitoring/wms-monitoring-get-capabilitites-probe-results',
+                monitoring_views.GetCapabilitiesProbeResultViewSet, basename='webmapservicemonitoring-getcapabilities-probe-result')
+router.register(r'monitoring/wms-monitoring-get-map-probe-results',
+                monitoring_views.GetMapProbeResultViewSet, basename='webmapservicemonitoring-getmap-probe-result')
 
 
-    # historical
-    router.register(r'historical-wms',
-                    historical_views.WebMapServiceHistoricalViewSet, basename='wms-historical'),
-    router.register(r'historical-layers',
-                    historical_views.LayerHistoricalViewSet, basename='layer-historical'),
-    router.register(r'historical-wfs',
-                    historical_views.WebFeatureServiceHistoricalViewSet, basename='wfs-historical'),
-    router.register(r'historical-featuretypes',
-                    historical_views.FeatureTypeHistoricalViewSet, basename='featuretype-historical'),
-    router.register(r'historical-csw',
-                    historical_views.CatalogueServiceHistoricalViewSet, basename='csw-historical'),
-)
+# historical
+router.register(r'historical-wms',
+                historical_views.WebMapServiceHistoricalViewSet, basename='wms-historical')
+router.register(r'historical-layers',
+                historical_views.LayerHistoricalViewSet, basename='layer-historical')
+router.register(r'historical-wfs',
+                historical_views.WebFeatureServiceHistoricalViewSet, basename='wfs-historical')
+router.register(r'historical-featuretypes',
+                historical_views.FeatureTypeHistoricalViewSet, basename='featuretype-historical')
+router.register(r'historical-csw',
+                historical_views.CatalogueServiceHistoricalViewSet, basename='csw-historical')
 
 urlpatterns = router.urls + [
-
     path(
         route=r'statistical/webmapservices',
         view=stats_views.StatisticalWebMapServiceListView.as_view(),
@@ -289,7 +261,6 @@ urlpatterns = router.urls + [
         view=stats_views.StatisticalHarvestedMetadataRelationListView.as_view(),
         name='statistical-harvested-metadata-relations'
     ),
-
 ]
 # + [
 #    path(

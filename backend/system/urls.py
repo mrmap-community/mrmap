@@ -5,21 +5,15 @@ from system import views
 app_name = 'system'
 
 router = ExtendedSimpleRouter(trailing_slash=False)
-(
-    router.register(r'crontabs', views.CrontabScheduleViewSet,
-                    basename='crontab'),
-    router.register(r'periodic-tasks', views.PeriodicTaskViewSet,
-                    basename='periodictask')
-
-)
+router.register(r'crontabs', views.CrontabScheduleViewSet,
+                basename='crontab')
+router.register(r'periodic-tasks', views.PeriodicTaskViewSet,
+                basename='periodictask')
 
 urlpatterns = router.urls + [
-
     path(
         route=r'info',
         view=views.SystemView.as_view(),
         name='system-info'
     ),
-
-
 ]

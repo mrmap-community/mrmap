@@ -1,7 +1,8 @@
+import datetime
+
 import pytz
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db.models.functions import datetime
 from django.urls import resolve
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -79,10 +80,10 @@ class HistoryInformationSerializer(ModelSerializer):
     class Meta:
         abstract = True
 
-    def get_created_at(self, instance) -> datetime:
+    def get_created_at(self, instance) -> datetime.datetime:
         return instance.first_history[0].history_date if hasattr(instance, 'first_history') and instance.first_history and len(instance.first_history) == 1 else None
 
-    def get_last_modified_at(self, instance) -> datetime:
+    def get_last_modified_at(self, instance) -> datetime.datetime:
         return instance.last_history[0].history_date if hasattr(instance, 'last_history') and instance.last_history and len(instance.last_history) == 1 else None
 
     def get_created_by(self, instance):

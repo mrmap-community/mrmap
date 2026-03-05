@@ -1,8 +1,8 @@
+import datetime
 from typing import Any
 from urllib import parse
 
 from django.contrib.postgres.search import SearchQuery
-from django.db.models.functions import datetime
 from django.forms import ValidationError
 from django.http import HttpResponse, JsonResponse
 from django.http.request import HttpRequest as HttpRequest

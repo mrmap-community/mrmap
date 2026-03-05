@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import uuid
 
@@ -69,7 +70,7 @@ class User(AbstractUser):
         user_activation = UserActivation()
         user_activation.user = self
         user_activation.activation_until = timezone.now(
-        ) + timezone.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
+        ) + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
         hasher = get_hasher('default')
         user_activation.activation_hash = hashlib.sha256(
             self.username + hasher.salt() + str(user_activation.activation_until))
@@ -90,7 +91,7 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
         if self._state.adding:
             if not self.activation_until:
                 self.activation_until = timezone.now(
-                ) + timezone.timedelta(days=USER_ACTIVATION_TIME_WINDOW)
+                ) + datetime.timedelta(days=USER_ACTIVATION_TIME_WINDOW)
             self.activation_hash = self.make_token(self.user)
         super().save(force_insert, force_update, using, update_fields)
 

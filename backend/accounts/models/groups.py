@@ -1,3 +1,5 @@
+import datetime
+
 from accounts.settings import DEFAULT_REQUEST_ACIVATION_TIME
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
@@ -148,7 +150,7 @@ class BaseInternalRequest(models.Model):
     def save(self, *args, **kwargs):
         if self._state.adding:
             if not self.activation_until:
-                self.activation_until = timezone.now() + timezone.timedelta(
+                self.activation_until = timezone.now() + datetime.timedelta(
                     days=DEFAULT_REQUEST_ACIVATION_TIME
                 )
         else:

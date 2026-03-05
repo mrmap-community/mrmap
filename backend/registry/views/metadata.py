@@ -20,7 +20,7 @@ from registry.serializers.metadata import (DatasetMetadataRecordSerializer,
 from rest_framework_json_api.views import ModelViewSet
 
 
-class MimeTypeSetMixin():
+class MimeTypeSetMixin:
     queryset = MimeType.objects.all()
     serializer_class = MimeTypeSerializer
     filterset_fields = {
@@ -44,7 +44,7 @@ class NestedMimeTypeViewSet(
     pass
 
 
-class KeywordViewSetMixin():
+class KeywordViewSetMixin:
     queryset = Keyword.objects.all()
     serializer_class = KeywordSerializer
     filterset_fields = {
@@ -68,7 +68,7 @@ class NestedKeywordViewSet(
     pass
 
 
-class LicenceViewSetMixin():
+class LicenceViewSetMixin:
     queryset = Licence.objects.all()
     serializer_class = LicenceSerializer
     filterset_fields = {
@@ -120,7 +120,7 @@ class NestedReferenceSystemViewSet(
     pass
 
 
-class StyleViewSetMixin():
+class StyleViewSetMixin:
     queryset = Style.objects.all().select_related("layer")
     serializer_class = StyleSerializer
     filterset_fields = {
@@ -329,7 +329,7 @@ class NestedDatasetMetadataViewSet(
     pass
 
 
-class MetadataContactViewSetMixin():
+class MetadataContactViewSetMixin:
     queryset = MetadataContact.objects.all()
     serializer_class = MetadataContactSerializer
     filterset_fields = {

@@ -7,7 +7,7 @@ from notify.serializers import (BackgroundProcessLogSerializer,
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
-class TaskResultViewSetMixin():
+class TaskResultViewSetMixin:
     queryset = TaskResult.objects.all()
     serializer_class = TaskResultSerializer
     filterset_fields = {

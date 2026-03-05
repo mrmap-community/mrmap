@@ -57,7 +57,7 @@ class NestedWebMapServiceMonitoringSettingViewSet(
     pass
 
 
-class WebMapServiceMonitoringRunViewSetMixin():
+class WebMapServiceMonitoringRunViewSetMixin:
     """ Endpoints for resource `WebMapServiceMonitoringRun`
 
         create:
@@ -117,7 +117,7 @@ class NestedWebMapServiceMonitoringRunViewSet(
     pass
 
 
-class GetCapabilitiesProbeResultViewSetMixin():
+class GetCapabilitiesProbeResultViewSetMixin:
     """ Endpoints for resource `GetCapabilitiesProbeResult`
 
         create:
@@ -174,7 +174,7 @@ class NestedGetCapabilitiesProbeResultViewSet(
     pass
 
 
-class GetMapProbeResultViewSetMixin():
+class GetMapProbeResultViewSetMixin:
     """ Endpoints for resource `GetMapProbeResult`
 
         create:
@@ -229,7 +229,7 @@ class NestedGetMapProbeResultViewSet(
     pass
 
 
-class GetCapabilitiesProbeViewSetMixin():
+class GetCapabilitiesProbeViewSetMixin:
     """ Endpoints for resource `GetCapabilitiesProbe`
 
         create:
@@ -282,7 +282,7 @@ class NestedGetCapabilitiesProbeViewSet(
     pass
 
 
-class GetMapProbeViewSetMixin():
+class GetMapProbeViewSetMixin:
     """ Endpoints for resource `GetMapProbe`
 
         create:

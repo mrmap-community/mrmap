@@ -6,7 +6,7 @@ from extras.viewsets import NestedModelViewSet
 from rest_framework_json_api.views import ModelViewSet
 
 
-class GroupViewSetMixin():
+class GroupViewSetMixin:
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
     filterset_fields = {
@@ -36,7 +36,7 @@ class NestedGroupViewSet(
     pass
 
 
-class OrganizationViewSetMixin():
+class OrganizationViewSetMixin:
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     filterset_class = OrganizationFilterSet

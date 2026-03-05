@@ -161,9 +161,8 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
         constraints = [
             models.CheckConstraint(
                 name="dm_record_or_sm_record",
-                condition=(
-                    Q(dataset_metadata_record__isnull=True, service_metadata_record__isnull=False) |
-                    Q(dataset_metadata_record__isnull=False, service_metadata_record__isnull=True)),
+                condition=(Q(dataset_metadata_record__isnull=True)
+                           ^ Q(service_metadata_record__isnull=True)),
                 violation_error_message="wrong relation type. dataset_metadata_record or service_metadata_record, not both is required."
             ),
             models.UniqueConstraint(

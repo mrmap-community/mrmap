@@ -73,7 +73,6 @@ services:
     depends_on:
       - postgis
       - redis
-      - mapserver
 
   celery-worker:
     build:

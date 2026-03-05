@@ -1,7 +1,7 @@
-from django.db.models.enums import ChoicesMeta, IntegerChoices
+from django.db.models.enums import ChoicesType, IntegerChoices
 
 
-class SmartIntegerChoicesMeta(ChoicesMeta):
+class SmartIntegerChoicesMeta(ChoicesType):
     """Erweitert Django’s IntegerChoices-Meta, um Label-Lookup zu erlauben."""
 
     def __call__(cls, value, *args, **kwargs):

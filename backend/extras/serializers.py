@@ -19,7 +19,7 @@ class StringRepresentationSerializer(ModelSerializer):
         abstract = True
 
     def get_string_representation(self, obj) -> str:
-        return obj.__str__()
+        return str(obj)
 
 
 # TODO: Split this into two classes one which implements the get_perm_checker function and one which implements the is_accessible field

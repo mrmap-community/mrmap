@@ -196,9 +196,9 @@ class PublishRequest(BaseInternalRequest):
             user_or_group=self.from_organization)
         if perm_checker.has_perm(perm='accounts.can_publish_for', obj=self.to_organization):
             errors.append(
-                self.from_organization.__str__()
-                + _(" can already publish for ").__str__()
-                + self.to_organization.__str__()
+                str(self.from_organization)
+                + _(" can already publish for ")
+                + str(self.to_organization)
             )
 
         if self.from_organization == self.to_organization:

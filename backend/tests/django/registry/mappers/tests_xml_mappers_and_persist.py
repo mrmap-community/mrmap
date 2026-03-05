@@ -196,7 +196,7 @@ class XmlMapperTest(TestCase):
         self.assertEqual(md.abstract, expeced["abstract"])
         self.assertEqual(str(md.date_stamp), expeced["date_stamp"])
         self.assertEqual(md.file_identifier, expeced["file_identifier"])
-        
+
         db_languages = list(md.languages.values_list('value', flat=True))
         self.assertCountEqual(
             db_languages, expeced["languages"], f"MetadataRecord hat falsche languages")
@@ -209,7 +209,7 @@ class XmlMapperTest(TestCase):
         self.assertCountEqual(
             db_categories, expeced.get("categories", []), f"MetadataRecord hat falsche Categories")
 
-        db_time_extents = list(extent.__str__() for extent in md.time_extents.all())
+        db_time_extents = list(str(extent) for extent in md.time_extents.all())
         self.assertCountEqual(
             db_time_extents, expeced["time_extents"], f"MetadataRecord hat falsche time extents")
 
@@ -218,7 +218,6 @@ class XmlMapperTest(TestCase):
             md.reference_systems.values_list('code', flat=True))
         self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expeced["reference_systems"]],
                               f"MetadataRecord {md.file_identifier} hat falsche ReferenceSystems")
-        
 
 
     def _test_wms_success(self, expected):

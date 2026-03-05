@@ -155,7 +155,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
             )
 
             logger.warning(
-                msg=f"{self.__str__()} has no capabilities file stored. Trying fallback by url.",
+                msg=f"{self} has no capabilities file stored. Trying fallback by url.",
                 extra={
                     "structured_data": {
                         "metaSDIS@django": {
@@ -241,8 +241,8 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         )
 
     def get_updated_capabilitites(self) -> etree.ElementTree:
-        """ 
-        FIXME: check if self is well prefetched. 
+        """
+        FIXME: check if self is well prefetched.
         If not call self.objects.prefetch_whole_service(
             ...    with_sibling_index=True,
             ...    prefetch_spec={

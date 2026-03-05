@@ -32,7 +32,7 @@ def build_action_payload(request, instance, resource_type, serializer_cls, actio
 
     renderer = JSONRenderer()
 
-    class DummyView(object):
+    class DummyView:
         resource_name = resource_type
 
     rendered_data = renderer.render(

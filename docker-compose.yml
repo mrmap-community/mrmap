@@ -187,7 +187,7 @@ services:
         source: frontend-static
         target: /var/www/mrmap/frontend
     ports:
-      - "8008:80"
+      - "${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}:80"
     depends_on:
       - backend
     networks:

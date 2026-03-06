@@ -13,6 +13,7 @@ from django.db.models.expressions import F, Func
 from django.db.models.fields import BooleanField
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from extras.managers import ChoiceManager
 from extras.models import ChoiceModel
 from extras.validators import geometry_is_empty
 from PIL import Image
@@ -196,7 +197,8 @@ class WebMapServiceOperation(ChoiceModel):
         verbose_name=_("operation"),
         help_text=_("the operation which is allowed for this wms")
     )
-   
+
+    objects = ChoiceManager()
 
 
 class WebFeatureServiceOperation(ChoiceModel):
@@ -207,6 +209,8 @@ class WebFeatureServiceOperation(ChoiceModel):
         verbose_name=_("operation"),
         help_text=_("the operation which is allowed for this wfs")
     )
+
+    objects = ChoiceManager()
 
 
 class AllowedOperation(models.Model):

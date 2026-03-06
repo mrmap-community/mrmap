@@ -13,7 +13,7 @@ from django.db.transaction import atomic
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
-from extras.managers import (DefaultHistoryManager,
+from extras.managers import (ChoiceManager, DefaultHistoryManager,
                              UniqueConstraintDefaultValueManager)
 from extras.models import AdditionalTimeFieldsHistoricalModel, ChoiceModel
 from registry.enums.iso import (CategoryChoices, LanguageChoices,
@@ -235,6 +235,7 @@ class IsoCategory(ChoiceModel):
         choices=CHOICES,
         verbose_name=_("category"),
         help_text=_("the topic category of the dataset"))
+    objects = ChoiceManager()
 
 
 class Language(ChoiceModel):
@@ -245,6 +246,7 @@ class Language(ChoiceModel):
         verbose_name=_("language"),
         help_text=_("the language code as per ISO 639-2")
     )
+    objects = ChoiceManager()
 
 
 class Style(models.Model):

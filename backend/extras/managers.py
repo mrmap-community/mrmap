@@ -1,7 +1,7 @@
 from typing import Any, MutableMapping, Optional, Tuple, TypeVar
 
 from django.db import models
-from django.db.models import Count, F, Q
+from django.db.models import Case, CharField, Count, F, Q, Value, When
 from django.db.models.constraints import UniqueConstraint
 from django.db.models.query import Prefetch
 
@@ -72,4 +72,15 @@ class DefaultHistoryManager(models.Manager):
             new=Count("pk", filter=created_filter),
             deleted=Count("pk", filter=final_deleted_filter),
             updated=Count("pk", filter=final_updated_filter)
+        )
+
+
+class ChoiceManager(models.Manager):
+    def with_label(self):
+        cases = [
+            When(value=value, then=Value(str(label)))
+            for value, label in self.model.CHOICES
+        ]
+        return self.get_queryset().annotate(
+            label=Case(*cases, output_field=CharField())
         )

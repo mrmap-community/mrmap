@@ -49,8 +49,6 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "CatalogueService", icon: PlagiarismIcon, show: ShowCatalogueService, list: CatalogueServiceList},
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
 
-  
-  
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob},
   {name: "TemporaryMdMetadataFile"},
   {name: "HarvestingLog"},
@@ -85,8 +83,12 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "BackgroundProcess", list: ListBackgroundProcess, show: ShowBackgroundProcess},
   {name: "BackgroundProcessLog", },
 
+
+  // security proxy
   {name: "AllowedWebMapServiceOperation", icon: VpnLockIcon, create: CreateAllowedWebMapServiceOperation, edit: EditAllowedWebMapServiceOperation},
+  {name: "WebMapServiceOperation",},
   {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon},
+  {name: "WebFeatureServiceOperation",},
 
   {name: "User", icon: CustomerIcon},
   {name: "Organization", icon: CorporateFareIcon },

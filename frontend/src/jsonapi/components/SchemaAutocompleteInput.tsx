@@ -31,9 +31,8 @@ const SchemaAutocompleteInput = (
   const { data, isPending, isFetching } = useGetList(reference, {filter: filter, sort: {field: '', order: 'DESC'}, ...params});
 
   const optionText = useSchemaRecordRepresentation({resource: reference})
-
+  
   // TODO: check if the resource has create endpoint; if so, we add an create component here
-
   if (multiple){
     return (
         <AutocompleteArrayInput 

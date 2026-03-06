@@ -2,7 +2,7 @@
 services:
 
   postgis:
-    image: postgis/postgis:17-3.5-alpine
+    image: postgis/postgis:17-3.6-alpine
     volumes:
       - type: volume
         source: db-data-17
@@ -25,7 +25,7 @@ services:
   # Done
 
   redis:
-    image: library/redis:8.2.1-alpine3.22
+    image: library/redis:8.6.1-alpine3.23
     volumes:
       - type: volume
         source: mem-db-data
@@ -212,7 +212,7 @@ services:
       - mrmap-internal
 
   pgadmin:
-    image: dpage/pgadmin4:9.7
+    image: dpage/pgadmin4:9.13.0
     restart: unless-stopped
     hostname: "pgadmin"
     environment:

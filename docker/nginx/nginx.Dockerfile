@@ -3,8 +3,9 @@
 ##############################################################
 FROM node:25-alpine3.23 AS frontend-compile-image
 
-# cause env variables are always not present
-# in the docker build context, we need to set them explicitly.
+ARG VITE_API_BASE_URL
+ARG VITE_API_PORT
+ARG VITE_API_SCHEMA
 
 WORKDIR /app
 

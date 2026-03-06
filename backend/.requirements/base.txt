@@ -1,12 +1,12 @@
-Django==5.2.8
+Django==5.2.12
 # adds runserver_plus
 django-extensions==4.1
 # adds history models
-django-simple-history==3.10.1
+django-simple-history==3.11.0
 # adds filtersets for use in views
 django-filter==25.2
 # adds object permissions
-django-guardian==3.2.0
+django-guardian==3.3.0
 # adds mptt tree model
 django-mptt2==0.2.1
 # adds redis cache backend for django
@@ -16,55 +16,48 @@ argon2-cffi==25.1.0
 # adds cors header middleware for django to configure wildcard cors
 django-cors-headers==4.9.0
 # postgres sql adapter
-psycopg==3.2.12
-psycopg[binary]==3.2.12
-psycopg[pool]==3.2.12
+psycopg==3.3.3
+psycopg[binary]==3.3.3
+psycopg[pool]==3.3.3
 # library to process xml
 lxml==6.0.2
 # ISO 8601 date/time parser
 isodate==0.7.2
 # Python Imaging Library to create security images for example
-Pillow==12.0.0
+Pillow==12.1.1
 # http client lib
 requests==2.32.5
-# adds possiblity to export csv, excle, ods...
-tablib==3.9.0
-# YAML 1.1 parser
-PyYAML==6.0.3
 # wsgi application server
-gunicorn==23.0.0
+gunicorn==25.1.0
 # asgi application server
-uvicorn==0.38.0
+uvicorn==0.41.0
 # adds rest based views
 djangorestframework==3.16.1
 # adds geojson filters
 djangorestframework-gis==1.2.0
 # adds jsonapi implementation on top of django rest framework
 djangorestframework-jsonapi==8.1.0
-#djangorestframework-jsonapi[django-filter]==8.1.0
 # adds nested rest views registration
 drf-extensions==0.8.0
-# needed for openapi schema generation
-uritemplate==4.2.0
 # adds redis cache backed
-redis==7.1.0
+redis==7.2.1
 # adds background task processing 
-celery==5.5.3
-django-celery-beat==2.8.1
+celery==5.6.2
+django-celery-beat==2.9.0
 # adds database results for celery tasks
 django-celery-results==2.6.0
 # adds websockets
-websockets==15.0.1
-channels==4.3.1
-channels[daphne]==4.3.1
+websockets==16.0
+channels==4.3.2
+channels[daphne]==4.3.2
 # adds redis cache backend implementation for channels package
 channels-redis==4.3.0
-django-cte==2.0.0
+django-cte==3.0.0
 drf-spectacular-jsonapi==0.5.2
-django-ows-lib==0.17.1
-camel-converter==5.0.0
+camel-converter==5.1.0
 django-rest-knox==5.0.2
 django-pgviews-redux==1.1.0
 autobahn>=22.4.2,<25.10.0
 pygeofilter==0.3.3
-ply
+pygml==0.3.2
+django-epsg-cache==0.2.1

@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import sys
@@ -821,6 +822,22 @@ class PeriodicHarvestingJob(PeriodicTask):
         related_query_name="periodic_harvesting_job",
         verbose_name=_("catalogue service"),
         help_text=_("this is the service which shall be harvested"))
+    def parse_kwargs(self):
+        if not self.kwargs:
+            return {}
+
+        if isinstance(self.kwargs, dict):
+            return self.kwargs
+
+        try:
+            return json.loads(self.kwargs)
+        except json.JSONDecodeError:
+            pass
+        # fallback: python dict string
+        try:
+            return ast.literal_eval(self.kwargs)
+        except Exception:
+            return {}
 
     def __init__(self, *args, **kwargs) -> None:
         # TODO: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
@@ -845,11 +862,11 @@ class PeriodicHarvestingJob(PeriodicTask):
             "data": {},
             "user_pk": system_user.pk
         }
-        if isinstance(self.kwargs, str):
-            self.kwargs = json.loads(self.kwargs)
-            self.kwargs.update({
-                "http_request": http_request,
-            })
+        
+        self.kwargs = self.parse_kwargs()
+        self.kwargs.update({
+            "http_request": http_request,
+        })
 
     class Meta:
         verbose_name = _('Periodic Harvesting Job')

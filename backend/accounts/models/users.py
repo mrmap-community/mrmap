@@ -1,7 +1,7 @@
+import datetime
 import hashlib
 import uuid
 
-import six
 from accounts.managers.users import CustomUserManager
 from accounts.settings import USER_ACTIVATION_TIME_WINDOW
 from django.contrib.auth.hashers import get_hasher
@@ -70,7 +70,7 @@ class User(AbstractUser):
         user_activation = UserActivation()
         user_activation.user = self
         user_activation.activation_until = timezone.now(
-        ) + timezone.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
+        ) + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
         hasher = get_hasher('default')
         user_activation.activation_hash = hashlib.sha256(
             self.username + hasher.salt() + str(user_activation.activation_until))
@@ -91,10 +91,9 @@ class UserActivation(models.Model, PasswordResetTokenGenerator):
         if self._state.adding:
             if not self.activation_until:
                 self.activation_until = timezone.now(
-                ) + timezone.timedelta(days=USER_ACTIVATION_TIME_WINDOW)
+                ) + datetime.timedelta(days=USER_ACTIVATION_TIME_WINDOW)
             self.activation_hash = self.make_token(self.user)
         super().save(force_insert, force_update, using, update_fields)
 
     def _make_hash_value(self, user, timestamp):
-        return (six.text_type(user.pk) + six.text_type(timestamp) +
-                six.text_type(user.email))
+        return f"{user.pk}{timestamp}{user.email}"  # type: ignore

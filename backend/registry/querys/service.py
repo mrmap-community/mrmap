@@ -1,10 +1,8 @@
-from django.contrib.gis.db.models.fields import PolygonField
+from django.contrib.gis.db.models import PolygonField
 from django.contrib.gis.geos.polygon import Polygon
 from django.contrib.postgres.aggregates import JSONBAgg
-from django.db.models.expressions import F, OuterRef, Subquery, Value
-from django.db.models.fields import BooleanField, FloatField
+from django.db.models import BooleanField, F, FloatField, OuterRef, Prefetch, Q, QuerySet, Subquery, Value
 from django.db.models.functions import Coalesce, JSONObject
-from django.db.models.query import Prefetch, Q, QuerySet
 from django_cte import with_cte
 from extras.utils import get_included_resources, get_sparse_fields
 from registry.expressions.layer_ctes import (AncestorsHeritageAggregatedCTE,

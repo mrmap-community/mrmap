@@ -330,8 +330,10 @@ class ReferenceSystem(models.Model):
     def __str__(self):
         return f"{self.prefix}:{self.code}" if self.prefix else self.code
 
-    def __eq__(self, __value: object) -> bool:
-        return self.code == __value.code and self.prefix == __value.prefix
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ReferenceSystem):
+            return self.code == other.code and self.prefix == other.prefix
+        return NotImplemented
 
     @property
     def crs(self):

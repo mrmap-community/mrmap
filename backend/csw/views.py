@@ -1,3 +1,4 @@
+import datetime
 from itertools import chain
 
 from csw.exceptions import InvalidQuery, NotSupported
@@ -7,7 +8,7 @@ from django.core.management import call_command
 from django.db import connection, transaction
 from django.db.models import BigIntegerField, F, OuterRef, Subquery, Value
 from django.db.models.aggregates import Count
-from django.db.models.functions import Coalesce, datetime
+from django.db.models.functions import Coalesce
 from django.db.models.query_utils import Q
 from django.http import HttpResponse
 from django.template.response import TemplateResponse

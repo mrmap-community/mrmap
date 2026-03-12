@@ -1,5 +1,6 @@
 from django.apps import apps
 from django.contrib import admin
+from django.contrib.admin.exceptions import AlreadyRegistered
 from mptt2.admin import MPTTModelAdmin
 from registry.admin.harvest import TemporaryMdMetadataFileAdmin
 from registry.models.mapcontext import MapContextLayer
@@ -14,7 +15,7 @@ for model in models:
             admin.site.register(model, TemporaryMdMetadataFileAdmin)
         if model.__name__ not in ['MapContextLayer', 'Layer']:
             admin.site.register(model)
-    except admin.sites.AlreadyRegistered:
+    except AlreadyRegistered:
         pass
 
 admin.site.register(MapContextLayer, MPTTModelAdmin)

@@ -1,9 +1,5 @@
-from django.db.models import Exists, F, Prefetch, QuerySet
-from django.db.models import Value as V
-from django.db.models import Window
-from django.db.models.expressions import F, OuterRef
+from django.db.models import Exists, F, Manager, OuterRef, Prefetch, QuerySet, Value, Window
 from django.db.models.functions import Coalesce, RowNumber
-from django.db.models.manager import Manager
 from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager
 from registry import models
@@ -15,7 +11,7 @@ SIBLING_INDEX = Coalesce(
         partition_by=[F("mptt_parent")],
         order_by=F("mptt_lft").asc(),
     ) - 1,
-    V(0),
+    Value(0),
 )
 
 
@@ -59,9 +55,9 @@ class WebMapServiceQuerySet(QuerySet):
     def with_security_information(self) -> "WebMapServiceQuerySet":
         return self.annotate(
             camouflage=Coalesce(
-                F("proxy_setting__camouflage"), V(False)),
+                F("proxy_setting__camouflage"), Value(False)),
             log_response=Coalesce(
-                F("proxy_setting__log_response"), V(False)),
+                F("proxy_setting__log_response"), Value(False)),
             is_secured=Exists(
                 models.AllowedWebMapServiceOperation.objects.filter(
                     secured_service__id__exact=OuterRef("pk"),
@@ -90,9 +86,9 @@ class WebFeatureServiceQuerySet(QuerySet):
     def with_security_information(self) -> "WebFeatureServiceQuerySet":
         return self.annotate(
             camouflage=Coalesce(
-                F("proxy_setting__camouflage"), V(False)),
+                F("proxy_setting__camouflage"), Value(False)),
             log_response=Coalesce(
-                F("proxy_setting__log_response"), V(False)),
+                F("proxy_setting__log_response"), Value(False)),
             is_secured=Exists(
                 models.AllowedWebFeatureServiceOperation.objects.filter(
                     secured_service__id__exact=OuterRef("pk"),

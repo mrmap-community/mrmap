@@ -1,6 +1,6 @@
 from django.contrib import admin
+from django.db.models import Q
 from django.db.models.enums import TextChoices
-from django.db.models.query import Q
 from django.utils.translation import gettext_lazy as _
 
 

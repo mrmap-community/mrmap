@@ -1,9 +1,8 @@
-
+import datetime
 import platform
 
 from django import __version__ as DJANGO_VERSION
 from django.db import ProgrammingError, connection
-from django.db.models.functions import datetime
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django_redis import get_redis_connection
 from MrMap import VERSION

@@ -14,17 +14,13 @@ users_routes.register(r'groups', group_views.NestedGroupViewSet,
                       basename='user-groups', parents_query_lookups=['user'])
 users_routes.register(r'organizations', group_views.NestedOrganizationViewSet,
                       basename='user-organizations', parents_query_lookups=['user'])
-(
-    users_routes,
 
-    router.register(r'groups', group_views.GroupViewSet,
-                    basename='group'),
-    router.register(r'organizations',
-                    group_views.OrganizationViewSet, basename='organization'),
-    router.register(r'permissions', auth_views.PermissionViewSet,
-                    basename='permission'),
-
-)
+router.register(r'groups', group_views.GroupViewSet,
+                basename='group')
+router.register(r'organizations',
+                group_views.OrganizationViewSet, basename='organization')
+router.register(r'permissions', auth_views.PermissionViewSet,
+                basename='permission')
 
 urlpatterns = router.urls
 urlpatterns.extend([

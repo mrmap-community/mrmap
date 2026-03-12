@@ -36,8 +36,10 @@ class OGCServiceException(HttpResponse):
                          **kwargs
                          )
 
-    def __eq__(self, __value: object) -> bool:
-        return self.status_code == __value.status_code and self.message == __value.message and self.locator == __value.locator
+    def __eq__(self, other) -> bool:
+        if isinstance(other, OGCServiceException):
+            return self.status_code == other.status_code and self.message == other.message and self.locator == other.locator
+        return NotImplemented
 
     def get_locator(self):
         return self.locator

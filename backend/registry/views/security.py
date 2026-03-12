@@ -25,7 +25,7 @@ from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
-class WebMapServiceAuthenticationViewSetMixin():
+class WebMapServiceAuthenticationViewSetMixin:
     queryset = WebMapServiceAuthentication.objects.all()
     serializer_class = WebMapServiceAuthenticationSerializer
     search_fields = ('username', 'service__title', 'service__id')
@@ -45,7 +45,7 @@ class NestedWebMapServiceAuthenticationViewSet(
     pass
 
 
-class WebMapServiceOperationViewSetMixin():
+class WebMapServiceOperationViewSetMixin:
     queryset = WebMapServiceOperation.objects.with_label()
     serializer_class = WebMapServiceOperationSerializer
     search_fields = ('value', 'label')
@@ -69,7 +69,7 @@ class NestedWebMapServiceOperationViewSet(
     pass
 
 
-class WebFeatureServiceOperationViewSetMixin():
+class WebFeatureServiceOperationViewSetMixin:
     queryset = WebFeatureServiceOperation.objects.all()
     serializer_class = WebFeatureServiceOperationSerializer
     search_fields = ('value', )
@@ -79,7 +79,7 @@ class WebFeatureServiceOperationViewSetMixin():
     }
 
 
-class WebFeatureServiceAuthenticationViewSetMixin():
+class WebFeatureServiceAuthenticationViewSetMixin:
     queryset = WebFeatureServiceAuthentication.objects.all()
     serializer_class = WebFeatureServiceAuthenticationSerializer
     search_fields = ('username', 'service__title', 'service__id')
@@ -113,7 +113,7 @@ class NestedWebFeatureServiceOperationViewSet(
     pass
 
 
-class AllowedWebMapServiceOperationViewSetMixin():
+class AllowedWebMapServiceOperationViewSetMixin:
     queryset = AllowedWebMapServiceOperation.objects.all()
     serializer_class = AllowedWebMapServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]
@@ -200,7 +200,7 @@ class NestedAllowedWebMapServiceOperationViewSet(
     """
 
 
-class AllowedWebFeatureServiceOperationViewSetMixin():
+class AllowedWebFeatureServiceOperationViewSetMixin:
     queryset = AllowedWebFeatureServiceOperation.objects.all()
     serializer_class = AllowedWebFeatureServiceOperationSerializer
     permission_classes = [DjangoObjectPermissions]
@@ -235,7 +235,7 @@ class NestedAllowedWebFeatureServiceOperationViewSet(
     """
 
 
-class WebMapServiceProxySettingViewSetMixin():
+class WebMapServiceProxySettingViewSetMixin:
     queryset = WebMapServiceProxySetting.objects.all()
     serializer_class = WebMapServiceProxySettingSerializer
     permission_classes = [DjangoObjectPermissions]
@@ -295,7 +295,7 @@ class NestedWebMapServiceProxySettingViewSet(
     """
 
 
-class WebFeatureServiceProxySettingViewSetMixin():
+class WebFeatureServiceProxySettingViewSetMixin:
     queryset = WebFeatureServiceProxySetting.objects.all()
     serializer_class = WebFeatureServiceProxySettingSerializer
     permission_classes = [DjangoObjectPermissions]

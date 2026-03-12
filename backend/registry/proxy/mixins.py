@@ -1,3 +1,4 @@
+import datetime
 import re
 from io import BytesIO
 
@@ -5,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models.functions import datetime
 from django.http import HttpResponse, StreamingHttpResponse
 from django.http.response import Http404
 from django.template.loader import render_to_string

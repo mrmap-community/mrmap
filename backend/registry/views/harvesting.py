@@ -461,7 +461,7 @@ class NestedPeriodicHarvestingJobViewSet(
     pass
 
 
-class TemporaryMdMetadataFileViewSetMixin():
+class TemporaryMdMetadataFileViewSetMixin:
     queryset = TemporaryMdMetadataFile.objects.all()
     serializer_class = TemporaryMdMetadataFileSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]

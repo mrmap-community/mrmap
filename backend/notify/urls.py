@@ -10,17 +10,13 @@ background_process_routes.register(r'logs', views.NestedBackgroundProcessLogView
                                    basename='backgroundprocess-logs', parents_query_lookups=['background_process'])
 background_process_routes.register(r'threads', views.NestedTaskResultReadOnlyViewSet,
                                    basename='backgroundprocess-threads', parents_query_lookups=['process'])
-(
-    # jobs
-    router.register(r'task-results',
-                    views.TaskResultReadOnlyViewSet, basename='taskresult'),
 
-    # background prcesses
-    background_process_routes,
+# jobs
+router.register(r'task-results',
+                views.TaskResultReadOnlyViewSet, basename='taskresult')
 
-    router.register(r'background-processes-log',
-                    views.BackgroundProcessLogViewSet, basename='backgroundprocesslog'),
-
-)
+# background prcesses
+router.register(r'background-processes-log',
+                views.BackgroundProcessLogViewSet, basename='backgroundprocesslog')
 
 urlpatterns = router.urls

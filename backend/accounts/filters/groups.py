@@ -1,5 +1,5 @@
 from accounts.models.groups import Organization
-from django_filters.filterset import Filter, FilterSet
+from django_filters import Filter, FilterSet
 from guardian.shortcuts import get_objects_for_user
 
 

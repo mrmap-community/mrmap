@@ -38,7 +38,7 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.ows_lib.wms.wms import WebMapServiceClient
-from requests import Session
+from requests import Request, Response, Session
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
@@ -134,25 +134,37 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 return None
 
     @property
+    def get_capabilities_url(self) -> str | bytes:
+        cap_url = self.operation_urls.filter(
+            method=HttpMethodEnum.GET.value,
+            operation=OGCOperationEnum.GET_CAPABILITIES.value,
+        ).values_list("url", flat=True).first()
+
+        cap_url = update_url_query_params(
+            cap_url,
+            {
+                "SERVICE": self.get_service_type(),
+                "VERSION": OGCServiceVersionEnum(self.version).label,
+                "REQUEST": "GetCapabilities",
+            }
+        )
+
+    @property
+    def remote_capabilities(self) -> bytes | None:
+        request = Request(method="GET", url=self.get_capabilities_url)
+        session = self.get_session_for_request()
+        response = session.send(request=request.prepare())
+        if response.status_code <= 202 and "xml" in response.headers["content-type"]:
+            return response.content
+
+    @property
     def capabilities(self) -> str | bytes:
         try:
             cap = self.xml_backup
         except FileNotFoundError:
             # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
 
-            cap = self.operation_urls.filter(
-                method=HttpMethodEnum.GET.value,
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-            ).values_list("url", flat=True).first()
-
-            cap = update_url_query_params(
-                cap,
-                {
-                    "SERVICE": self.get_service_type(),
-                    "VERSION": OGCServiceVersionEnum(self.version).label,
-                    "REQUEST": "GetCapabilities",
-                }
-            )
+            cap = self.get_capabilities_url
 
             logger.warning(
                 msg=f"{self} has no capabilities file stored. Trying fallback by url.",
@@ -169,6 +181,16 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     @property
     def client(self) -> OgcClient:
         raise NotImplementedError
+
+    def metadata_equal(self, other: "OgcService") -> bool:
+        if not isinstance(other, OgcService):
+            raise NotImplementedError
+
+        return (
+            self.title == other.title and
+            self.abstract == other.abstract
+
+        )
 
 
 class WebMapService(HistoricalRecordMixin, OgcService):
@@ -710,6 +732,50 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         }
         url = update_url_base(url=self.get_map_url(*args, **kwargs), base=url)
         return update_url_query_params(url=url, params=query_params)
+
+    def same_identity(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        return self.identifier == other.identifier
+
+    def metadata_equal(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        return (
+            self.title == other.title and
+            self.abstract == other.abstract and
+            self.is_queryable == other.is_queryable and
+            self.is_opaque == other.is_opaque and
+            self.scale_min == other.scale_min and
+            self.scale_max == other.scale_max
+        )
+
+    def structure_equal(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        return (
+            self.mptt_lft == other.mptt_lft and
+            self.mptt_rgt == other.mptt_rgt and
+            self.mptt_depth == other.mptt_depth
+        )
+
+    def equals_remote_layer(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        if not self.same_identity(other):
+            return False
+
+        if not self.metadata_equal(other):
+            return False
+
+        if not self.structure_equal(other):
+            return False
+
+        return True
 
 
 class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):

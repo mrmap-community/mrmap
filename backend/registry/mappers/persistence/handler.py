@@ -351,15 +351,17 @@ class PersistenceHandler:
         instance.xml_backup_file.save(
             "backup.xml", content=ContentFile(content))
 
+    def prepare_for_persist(self):
+        self._run_pre_save_hook()
+        self.instances_by_model = self._build_instances_by_model()
+
     # ------------------------
     # Persist all
     # ------------------------
     @transaction.atomic
     def persist_all(self):
         # 1️⃣ Pre-save Hook
-        self._run_pre_save_hook()
-
-        self.instances_by_model = self._build_instances_by_model()
+        self.prepare_for_persist()
 
         # 2️⃣ Alle Models nach Abhängigkeiten sortieren
         sorted_models = self._sort_models_by_dependencies()

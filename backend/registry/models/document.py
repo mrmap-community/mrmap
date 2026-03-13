@@ -1,3 +1,4 @@
+import hashlib
 from abc import abstractmethod
 
 from django.db import models
@@ -61,6 +62,13 @@ class DocumentModelMixin(models.Model):
         :raises NotImplementedError: if the concrete model does not implement the method.
         """
         raise NotImplementedError
+
+    def document_equals(self, other: bytes) -> bool:
+        if not other:
+            return False
+        stored_file_hash = hashlib.sha256(self.xml_backup).hexdigest
+        other_file_hash = hashlib.sha256(other).hexdigest
+        return stored_file_hash == other_file_hash
 
 
 class CapabilitiesDocumentModelMixin(DocumentModelMixin):

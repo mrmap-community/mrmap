@@ -79,11 +79,26 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         verbose_name=_("url"),
         help_text=_("the base url of the service"),
     )
+    update_candidate = models.OneToOneField(
+        to="self",
+        on_delete=models.CASCADE,
+        related_name="is_update_candidate_of",
+        related_query_name="is_update_candidate_of",
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("update candidate"),
+        help_text=_("this is the update candidate of this service.")
+    )
 
     objects = DefaultHistoryManager()
 
     class Meta:
         abstract = True
+
+        indexes = [
+            models.Index(fields=["update_candidate",]),
+        ]
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -208,7 +223,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         verbose_name = _("web map service")
         verbose_name_plural = _("web map services")
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
+        ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 
     @cached_property
     def root_layer(self):
@@ -296,7 +311,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
         verbose_name = _("web feature service")
         verbose_name_plural = _("web feature services")
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
+        ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> WebFeatureServiceClient:
@@ -326,7 +341,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         verbose_name = _("catalogue service")
         verbose_name_plural = _("catalogue services")
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
+        ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> CatalogueServiceClient:

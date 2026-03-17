@@ -176,6 +176,9 @@ services:
         - VITE_API_PORT=${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}
         - VITE_API_SCHEMA=${EXTERNAL_SCHEME:?Please configure EXTERNAL_SCHEME in the .env file}
     hostname: "nginx"
+    environment:
+      - no_proxy=${no_proxy:-localhost},backend,flower,pgadmin
+      - NO_PROXY=${NO_PROXY:-localhost},backend,flower,pgadmin
     volumes:
       - type: bind
         source: ./docker/nginx/mrmap.conf

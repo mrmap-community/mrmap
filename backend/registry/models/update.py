@@ -211,6 +211,9 @@ class WebMapServiceUpdateJob(models.Model):
         self.create_initial_mappings()
 
         if self.are_all_layers_updateable():
+            old_by_identifier = {
+                layer.identifier: layer for layer in self.old_service.layers.all()}
+
             updateable_layers = []
             for mapping in self.mappings.all():
                 updateable_layer = mapping.old_layer
@@ -221,7 +224,10 @@ class WebMapServiceUpdateJob(models.Model):
                     self.update_field(
                         field_name, updateable_layer, mapping.new_layer
                     )
-                # TODO: adjust parent link
+                # adjust parent
+                updateable_layer.parent = old_by_identifier.get(
+                    mapping.new_layer.parent.identifier)
+
                 updateable_layers.append(updateable_layer)
 
                 for field_name in self.get_layer_refered_fields():
@@ -232,6 +238,11 @@ class WebMapServiceUpdateJob(models.Model):
                 updateable_layers,
                 fields
             )
+
+            self.deleteable_layers().delete()
+            WebMapService.objects.filter(
+                is_update_candidate_of=self.service).delete()
+
         else:
             self.interrupt()
             # skip, do nothing. User needs to review this

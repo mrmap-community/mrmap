@@ -176,6 +176,9 @@ services:
         - VITE_API_PORT=${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}
         - VITE_API_SCHEMA=${EXTERNAL_SCHEME:?Please configure EXTERNAL_SCHEME in the .env file}
     hostname: "nginx"
+    environment:
+      - no_proxy=${no_proxy:-localhost},backend,flower,pgadmin
+      - NO_PROXY=${NO_PROXY:-localhost},backend,flower,pgadmin
     volumes:
       - type: bind
         source: ./docker/nginx/mrmap.conf
@@ -227,7 +230,7 @@ services:
       - mrmap-internal    
   flower:
     image: mher/flower:2.0
-    command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555"]
+    command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555", "--url_prefix=flower"]
     networks:
       - mrmap-internal
 

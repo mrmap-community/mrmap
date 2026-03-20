@@ -82,8 +82,8 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     update_candidate = models.OneToOneField(
         to="self",
         on_delete=models.CASCADE,
-        related_name="is_update_candidate_of",
-        related_query_name="is_update_candidate_of",
+        related_name="%(class)s_is_update_candidate_of",
+        related_query_name="%(class)s_is_update_candidate_of",
         null=True,
         blank=True,
         editable=False,

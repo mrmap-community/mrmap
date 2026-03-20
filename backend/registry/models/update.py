@@ -3,6 +3,7 @@ import logging
 from django.db import models
 from django.db.models import UniqueConstraint
 from django.db.models.query_utils import Q
+from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
@@ -11,34 +12,7 @@ from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.service import Layer, WebMapService
-
-
-class LayerMapping(models.Model):
-    job = models.ForeignKey(
-        to="WebMapServiceUpdateJob",
-        on_delete=models.CASCADE,
-        related_name="mappings",
-        related_query_name="mapping"
-    )
-    new_layer = models.OneToOneField(
-        to=Layer,
-        on_delete=models.CASCADE,
-        related_name="mapping",
-        related_query_name="mapping"
-    )
-    old_layer = models.OneToOneField(
-        to=Layer,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="reverse_mapping",
-        related_query_name="reverse_mapping"
-    )
-    created = models.DateTimeField(default=now)
-
-    is_confirmed = models.BooleanField(default=False)
-
-    objects = LayerMappingManager()
+from simple_history.utils import bulk_update_with_history
 
 
 class WebMapServiceUpdateJob(models.Model):
@@ -52,7 +26,8 @@ class WebMapServiceUpdateJob(models.Model):
         related_name="update_jobs",
         related_query_name="update_job"
     )
-    created = models.DateTimeField(default=now, blank=True, editable=False)
+    date_created = models.DateTimeField(
+        default=now, blank=True, editable=False)
     done_at = models.DateTimeField(null=True, blank=True, editable=False)
     status = models.PositiveSmallIntegerField(
         choices=UpdateJobStatusEnum.choices,
@@ -75,7 +50,7 @@ class WebMapServiceUpdateJob(models.Model):
             UniqueConstraint(
                 fields=["service"],
                 condition=Q(done_at__isnull=True),
-                name="only_one_unfinished_job_per_service",
+                name="only_one_unfinished_update_per_service",
                 violation_error_message=_(
                     "There is an existing noncompleted job for this service.")
             )
@@ -215,29 +190,32 @@ class WebMapServiceUpdateJob(models.Model):
                 layer.identifier: layer for layer in self.old_service.layers.all()}
 
             updateable_layers = []
+
+            fields = self.get_layer_structure_fields()
+            fields += self.get_layer_metadata_fields() if not self.keep_customized_metadata else []
+
             for mapping in self.mappings.all():
                 updateable_layer = mapping.old_layer
-                fields = self.get_layer_structure_fields()
-                fields += self.get_layer_metadata_fields() if not self.keep_customized_metadata else []
-
-                for field_name in fields:
-                    self.update_field(
-                        field_name, updateable_layer, mapping.new_layer
-                    )
-                # adjust parent
-                updateable_layer.parent = old_by_identifier.get(
-                    mapping.new_layer.parent.identifier)
+                new_layer = mapping.new_layer
 
                 updateable_layers.append(updateable_layer)
 
-                for field_name in self.get_layer_refered_fields():
-                    # TODO: handle reverse / m2m relations
-                    pass
+                # adjust parent
+                updateable_layer.parent = old_by_identifier.get(
+                    new_layer.parent.identifier)
 
-            Layer.objects.bulk_update(
-                updateable_layers,
-                fields
-            )
+                for field_name in fields:
+                    self.update_field(
+                        field_name, updateable_layer, new_layer
+                    )
+
+                for field_name in self.get_layer_refered_fields():
+                    old_m2m_field = getattr(updateable_layer, field_name)
+                    new_m2m_field = getattr(new_layer, field_name)
+                    old_m2m_field.set(new_m2m_field.all())
+
+            bulk_update_with_history(
+                updateable_layer, Layer, fields, batch_size=500)
 
             self.deleteable_layers().delete()
             WebMapService.objects.filter(
@@ -262,6 +240,7 @@ class WebMapServiceUpdateJob(models.Model):
 
         # TODO: check service_contact and metadata_contact if there need to be updated
 
+    @atomic
     def update(self):
         remote_capabilities = self.old_service.remote_capabilities
 
@@ -273,3 +252,31 @@ class WebMapServiceUpdateJob(models.Model):
         self.create_new_service(remote_capabilities)
         self.update_service()
         self.update_layers()
+
+
+class LayerMapping(models.Model):
+    job = models.ForeignKey(
+        to=WebMapServiceUpdateJob,
+        on_delete=models.CASCADE,
+        related_name="mappings",
+        related_query_name="mapping"
+    )
+    new_layer = models.OneToOneField(
+        to=Layer,
+        on_delete=models.CASCADE,
+        related_name="mapping",
+        related_query_name="mapping"
+    )
+    old_layer = models.OneToOneField(
+        to=Layer,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reverse_mapping",
+        related_query_name="reverse_mapping"
+    )
+    created = models.DateTimeField(default=now)
+
+    is_confirmed = models.BooleanField(default=False)
+
+    objects = LayerMappingManager()

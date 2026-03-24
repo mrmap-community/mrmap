@@ -22,6 +22,7 @@ class PersistenceHandler:
         mapper: XmlMapper-Instanz
         """
         self.mapper = mapper
+        # FIXME: self.defaults is never accessed. Implement default handling
         self.defaults = defaults
         self.final_instances_map = {}
 
@@ -270,10 +271,21 @@ class PersistenceHandler:
 
         return sorted_models
 
+    def _inject_defaults(self, instances_by_model):
+        for model_cls, instances in instances_by_model.items():
+            defaults = self.defaults.get(model_cls.__name__, {})
+            if not defaults:
+                continue
+
+            for inst in instances:
+                for field_name, value in defaults.items():
+                    current_value = getattr(inst, field_name)
+                    if not current_value:
+                        setattr(inst, field_name, value)
+
     # ------------------------
     # Redirect FK and M2M _parsed fields
     # ------------------------
-
     def _apply_foreign_keys(self, instances_by_model):
         """
         Setzt alle ForeignKey- und ManyToMany-Felder auf die final gespeicherten Objekte,
@@ -373,6 +385,9 @@ class PersistenceHandler:
                 continue
             # FK fields aktualisieren mit bereits gespeicherten instanzen
             self._apply_foreign_keys(
+                {model_cls: instances})
+
+            self._inject_defaults(
                 {model_cls: instances})
 
             create_mode = getattr(model_cls, "_create_mode", "save")

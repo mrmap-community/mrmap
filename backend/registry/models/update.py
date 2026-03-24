@@ -56,7 +56,7 @@ class WebMapServiceUpdateJob(models.Model):
             )
         ]
 
-    def finish(self, status: UpdateJobStatusEnum = UpdateJobStatusEnum.OK):
+    def finish(self, status: UpdateJobStatusEnum = UpdateJobStatusEnum.NO_UPDATE_NEEDED):
         self.done_at = now()
         self.status = status.value
         self.save()
@@ -83,7 +83,7 @@ class WebMapServiceUpdateJob(models.Model):
     def service_metadata_equal(self, other: WebMapService) -> bool:
         # return True if every check was True, otherwise if any is False it returns False
         return all(
-            self.check_field(field_name, self, other)
+            self.check_field(field_name, self.service, other)
             for field_name in self.get_service_metadata_fields()
         )
 
@@ -143,7 +143,7 @@ class WebMapServiceUpdateJob(models.Model):
 
     def create_new_service(self, capabilitites):
         """This will create the service from remote capabilities
-           with update_candidate FK set to self.service to identify the service as a temporary dummy
+           with update_candidate_of FK set to self.service to identify the service as a temporary dummy
         """
         new_mapping = OGCServiceXmlMapper.from_xml(capabilitites)
         new_mapping.xml_to_django()
@@ -151,12 +151,13 @@ class WebMapServiceUpdateJob(models.Model):
         handler = PersistenceHandler(
             mapper=new_mapping,
             defaults={
-                "service": {
-                    "update_candidate": self.service,
+                "WebMapService": {
+                    "update_candidate_of": self.service,
                 },
             }
         )
         handler.persist_all()
+        i = 0
 
     @cached_property
     def old_service(self):
@@ -164,7 +165,7 @@ class WebMapServiceUpdateJob(models.Model):
 
     @cached_property
     def new_service(self):
-        return WebMapService.objects.prefetch_whole_service().get(update_candidate=self.service)
+        return WebMapService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
 
     def are_all_layers_updateable(self) -> bool:
         return LayerMapping.objects.is_autoupdate_able(service=self.service)
@@ -201,8 +202,8 @@ class WebMapServiceUpdateJob(models.Model):
                 updateable_layers.append(updateable_layer)
 
                 # adjust parent
-                updateable_layer.parent = old_by_identifier.get(
-                    new_layer.parent.identifier)
+                updateable_layer.mptt_parent = old_by_identifier.get(
+                    new_layer.mptt_parent.identifier if new_layer.mptt_parent else "")
 
                 for field_name in fields:
                     self.update_field(
@@ -215,11 +216,11 @@ class WebMapServiceUpdateJob(models.Model):
                     old_m2m_field.set(new_m2m_field.all())
 
             bulk_update_with_history(
-                updateable_layer, Layer, fields, batch_size=500)
+                updateable_layers, Layer, fields, batch_size=500)
 
             self.deleteable_layers().delete()
             WebMapService.objects.filter(
-                is_update_candidate_of=self.service).delete()
+                update_candidate_of=self.service).delete()
 
         else:
             self.interrupt()
@@ -252,6 +253,7 @@ class WebMapServiceUpdateJob(models.Model):
         self.create_new_service(remote_capabilities)
         self.update_service()
         self.update_layers()
+        self.finish(UpdateJobStatusEnum.UPDATED)
 
 
 class LayerMapping(models.Model):

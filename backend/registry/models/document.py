@@ -66,8 +66,8 @@ class DocumentModelMixin(models.Model):
     def document_equals(self, other: bytes) -> bool:
         if not other:
             return False
-        stored_file_hash = hashlib.sha256(self.xml_backup).hexdigest
-        other_file_hash = hashlib.sha256(other).hexdigest
+        stored_file_hash = hashlib.sha256(self.xml_backup).hexdigest()
+        other_file_hash = hashlib.sha256(other).hexdigest()
         return stored_file_hash == other_file_hash
 
 

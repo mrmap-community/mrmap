@@ -5,8 +5,8 @@ from celery import chord, shared_task, states
 from django.conf import settings
 from notify.tasks import BackgroundProcessBased, finish_background_process
 from registry.exceptions.metadata import UnknownMetadataKind
-from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.factory import OGCServiceXmlMapper
+from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models import CatalogueService, WebFeatureService, WebMapService
 from registry.models.metadata import (DatasetMetadataRecord,
                                       FeatureTypeRemoteMetadata,
@@ -83,23 +83,22 @@ def build_ogc_service(
         data = mapper.xml_to_django()
         db_service = data[0]
         handler = PersistenceHandler(mapper)
-        created_instances = handler.persist_all()
-        created_instance = next(iter(created_instances.get(db_service.__class__, {}).values()))
-
+        handler.persist_all()
+        db_service.refresh_from_db()
 
         # create all needed database objects and rollback if any error occours to avoid from database inconsistence
-        if isinstance(created_instance, WebMapService):
+        if isinstance(db_service, WebMapService):
             self_url = reverse(
-                viewname='registry:wms-detail', args=[created_instance.pk])
-        elif isinstance(created_instance, WebFeatureService):
+                viewname='registry:wms-detail', args=[db_service.pk])
+        elif isinstance(db_service, WebFeatureService):
             self_url = reverse(
-                viewname='registry:wfs-detail', args=[created_instance.pk])
-        elif isinstance(created_instance, CatalogueService):
+                viewname='registry:wfs-detail', args=[db_service.pk])
+        elif isinstance(db_service, CatalogueService):
             self_url = reverse(
-                viewname='registry:csw-detail', args=[created_instance.pk])
+                viewname='registry:csw-detail', args=[db_service.pk])
 
         if auth:
-            auth.service = created_instance
+            auth.service = db_service
             auth.save()
 
         self.update_state(
@@ -110,8 +109,8 @@ def build_ogc_service(
         # TODO: use correct Serializer and render the json:api as result
         return_dict = {
             "data": {
-                "type": created_instance.__class__.__name__,
-                "id": str(created_instance.pk),
+                "type": db_service.__class__.__name__,
+                "id": str(db_service.pk),
                 "links": {
                     "self": self_url
                 }

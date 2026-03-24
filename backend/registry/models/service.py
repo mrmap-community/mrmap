@@ -79,11 +79,11 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         verbose_name=_("url"),
         help_text=_("the base url of the service"),
     )
-    update_candidate = models.OneToOneField(
+    update_candidate_of = models.OneToOneField(
         to="self",
         on_delete=models.CASCADE,
-        related_name="%(class)s_is_update_candidate_of",
-        related_query_name="%(class)s_is_update_candidate_of",
+        related_name="%(class)s_update_candidate",
+        related_query_name="%(class)s_update_candidate",
         null=True,
         blank=True,
         editable=False,
@@ -97,7 +97,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         abstract = True
 
         indexes = [
-            models.Index(fields=["update_candidate",]),
+            models.Index(fields=["update_candidate_of",]),
         ]
 
     def save(self, *args, **kwargs):
@@ -163,13 +163,14 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 "REQUEST": "GetCapabilities",
             }
         )
+        return cap_url
 
     @property
     def remote_capabilities(self) -> bytes | None:
         request = Request(method="GET", url=self.get_capabilities_url)
         session = self.get_session_for_request()
         response = session.send(request=request.prepare())
-        if response.status_code <= 202 and "xml" in response.headers["content-type"]:
+        if response.status_code <= 202:
             return response.content
 
     @property

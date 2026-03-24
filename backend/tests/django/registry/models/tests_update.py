@@ -9,13 +9,15 @@ from MrMap.settings import BASE_DIR
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.service import WebMapService
 from registry.models.update import WebMapServiceUpdateJob
+from requests.sessions import Session
 from rest_framework import status
 from tests.django.utils import MockResponse
 
+REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
+    Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/fixture_1.3.0.xml')))
 
-def side_effect(request, *args, **kwargs):
-    if 'http://example.com/wms?' in request.url:
-        return MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/fixture_1.3.0.xml')))
+SIMPLE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
+    Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/simple_update_fixture_1.3.0.xml')))
 
 
 class AllowedWebMapServiceOperationModelTest(TestCase):
@@ -47,7 +49,27 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
                 WebMapServiceUpdateJob.objects.create(
                     service=self.wms)
 
-    @patch("registry.tasks.service.Session.send", side_effect=side_effect)
+    @patch.object(
+        target=Session,
+        attribute="send",
+        side_effect=[REMOTE_RESPONSE],
+    )
     def test_finish_if_document_equals(self, mock):
         self.update_job.update()
-        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.OK.value)
+        self.assertEqual(self.update_job.status,
+                         UpdateJobStatusEnum.NO_UPDATE_NEEDED.value)
+
+    @patch.object(
+        target=Session,
+        attribute="send",
+        side_effect=[SIMPLE_UPDATE_REMOTE_RESPONSE],
+    )
+    def test_finish_if_document_equals(self, mock):
+        self.update_job.update()
+        self.assertEqual(self.update_job.status,
+                         UpdateJobStatusEnum.UPDATED.value)
+        self.assertListEqual(
+            list(self.update_job.service.keywords.values_list(
+                "keyword", flat=True)),
+            ["meteorology", "climatology", "new keyword"]
+        )

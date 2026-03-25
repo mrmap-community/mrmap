@@ -68,7 +68,7 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         self.update_job.update()
         self.assertEqual(self.update_job.status,
                          UpdateJobStatusEnum.UPDATED.value)
-        self.assertListEqual(
+        self.assertCountEqual(
             list(self.update_job.service.keywords.values_list(
                 "keyword", flat=True)),
             ["meteorology", "climatology", "new keyword"]

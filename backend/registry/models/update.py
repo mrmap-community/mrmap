@@ -33,6 +33,9 @@ class WebMapServiceUpdateJob(models.Model):
         choices=UpdateJobStatusEnum.choices,
         default=UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value
     )
+
+    # TODO: deprecated -> new plan: create new Model to store WebMapServiceUpdateSettings.
+    # With this model the user can define which fields shall be updated or not.
     keep_customized_metadata = models.BooleanField(
         default=True
     )
@@ -65,61 +68,49 @@ class WebMapServiceUpdateJob(models.Model):
         self.status = UpdateJobStatusEnum.REVIEW_REQUIRED.value
         self.save()
 
-    def check_field(self, name, instance_a, instance_b):
-        value_a = getattr(instance_a, name)
-        value_b = getattr(instance_b, name)
-        result = value_a == value_b
-        if not result:
-            logging.debug(
-                f"field {name} of {type(instance_a)} differs. {value_a} ≠ {value_b}")
-        return result
+    def update_field(self, field_name, instance_a, instance_b):
+        field = instance_a._meta.get_field(field_name)
 
-    def update_field(self, name, instance_a, instance_b):
-        setattr(instance_a, name, getattr(instance_b, name))
+        if field.many_to_many:
+            instance_a_m2m_field = getattr(instance_a, field_name)
+            instance_b_m2m_field = getattr(instance_b, field_name)
+            instance_a_m2m_field.set(instance_b_m2m_field.all())
 
-    def get_service_metadata_fields(self):
-        return ["title", "abstract"]
+        else:  # flat field:
+            setattr(instance_a, field_name, getattr(instance_b, field_name))
 
-    def service_metadata_equal(self, other: WebMapService) -> bool:
-        # return True if every check was True, otherwise if any is False it returns False
-        return all(
-            self.check_field(field_name, self.service, other)
-            for field_name in self.get_service_metadata_fields()
-        )
+    @property
+    def update_config(self):
+        return {
+            "WebMapService": {
+                "fields": ["title", "abstract", "keywords"]
+                # TODO: check service_contact and metadata_contact if there need to be updated
 
-    def get_layer_metadata_fields(self):
-        return [
-            "title",
-            "abstract",
-            "is_queryable",
-            "is_opaque",
-            "is_cascaded",
-            "scale_min",
-            "scale_max",
-            "bbox_lat_lon",
-        ]
+            },
+            "Layer": {
+                "fields": [
+                    "title",
+                    "abstract",
+                    "is_queryable",
+                    "is_opaque",
+                    "is_cascaded",
+                    "scale_min",
+                    "scale_max",
+                    "bbox_lat_lon",
+                    "mptt_lft",
+                    "mptt_rgt",
+                    "mptt_depth",
+                    "keywords",
+                    "reference_systems",
+                    "time_extents"
+                ]
+            }
+        }
 
-    def get_layer_structure_fields(self):
-        return [
-            "mptt_lft",
-            "mptt_rgt",
-            "mptt_depth"
-        ]
+    def get_fields_by_model(self, model_cls: models.Model):
+        return self.update_config.get(model_cls.__name__, {"fields": []}).get("fields", [])
 
-    def get_layer_refered_fields(self):
-        return [
-            "keywords",
-            "reference_systems",
-            "time_extents"
-        ]
-
-    def layer_metadata_equal(self, instance_a, instance_b: Layer) -> bool:
-        return all(
-            self.check_field(field_name, instance_a, instance_b)
-            for field_name in self.get_layer_metadata_fields()
-        )
-
-    def create_initial_mappings(self):
+    def create_initial_layer_mappings(self):
         old_layers = list(self.old_service.layers.all())
         new_layers = list(self.new_service.layers.all())
 
@@ -157,7 +148,6 @@ class WebMapServiceUpdateJob(models.Model):
             }
         )
         handler.persist_all()
-        i = 0
 
     @cached_property
     def old_service(self):
@@ -184,7 +174,7 @@ class WebMapServiceUpdateJob(models.Model):
         )
 
     def update_layers(self,):
-        self.create_initial_mappings()
+        self.create_initial_layer_mappings()
 
         if self.are_all_layers_updateable():
             old_by_identifier = {
@@ -192,8 +182,7 @@ class WebMapServiceUpdateJob(models.Model):
 
             updateable_layers = []
 
-            fields = self.get_layer_structure_fields()
-            fields += self.get_layer_metadata_fields() if not self.keep_customized_metadata else []
+            fields = self.get_fields_by_model(Layer)
 
             for mapping in self.mappings.all():
                 updateable_layer = mapping.old_layer
@@ -210,13 +199,8 @@ class WebMapServiceUpdateJob(models.Model):
                         field_name, updateable_layer, new_layer
                     )
 
-                for field_name in self.get_layer_refered_fields():
-                    old_m2m_field = getattr(updateable_layer, field_name)
-                    new_m2m_field = getattr(new_layer, field_name)
-                    old_m2m_field.set(new_m2m_field.all())
-
             bulk_update_with_history(
-                updateable_layers, Layer, fields, batch_size=500)
+                updateable_layers, Layer, [field.name for field in Layer._meta.concrete_fields if field.name in fields], batch_size=500)
 
             self.deleteable_layers().delete()
             WebMapService.objects.filter(
@@ -231,15 +215,10 @@ class WebMapServiceUpdateJob(models.Model):
         """Updates Service metadata if keep customized metadata is not configured.
            Otherwise the user needs to review the processing.
         """
-        if not self.service_metadata_equal(self.new_service):
-            if not self.keep_customized_metadata:
-                # update of service metadata is needed
-                for field_name in self.get_service_metadata_fields():
-                    self.update_field(
-                        field_name, self.service, self.new_service)
-                self.service.save()
-
-        # TODO: check service_contact and metadata_contact if there need to be updated
+        for field_name in self.get_fields_by_model(WebMapService):
+            self.update_field(
+                field_name, self.service, self.new_service)
+        self.service.save()
 
     @atomic
     def update(self):

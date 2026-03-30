@@ -1,6 +1,6 @@
 import datetime
+import zoneinfo
 
-import pytz
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import resolve
@@ -109,7 +109,7 @@ class TimeUntilNextRunMixin:
         now_local = timezone.localtime(timezone.now())
 
         # Zeitzone aus Crontab (oder fallback UTC)
-        tz = obj.crontab.timezone or pytz.UTC
+        tz = obj.crontab.timezone or zoneinfo.ZoneInfo("UTC")
 
         # Jetzt in Crontab-Zeitzone konvertieren
         now_tz = now_local.astimezone(tz)
@@ -131,5 +131,4 @@ class TimeUntilNextRunMixin:
             parts.append(f"{minutes}min")
         parts.append(f"{seconds}s")
 
-        return " ".join(parts)
         return " ".join(parts)

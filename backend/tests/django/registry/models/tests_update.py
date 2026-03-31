@@ -7,7 +7,6 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from MrMap.settings import BASE_DIR
 from registry.enums.update import UpdateJobStatusEnum
-from registry.models.metadata import ReferenceSystem, Style
 from registry.models.service import WebMapService
 from registry.models.update import WebMapServiceUpdateJob
 from requests.sessions import Session
@@ -20,8 +19,11 @@ REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path
 SIMPLE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
     Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/simple_update_fixture_1.3.0.xml')))
 
-STRUCTURE_CHANGE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
-    Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/structure_change_update_fixture_1.3.0.xml')))
+ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
+    Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/one_new_layer_update_fixture_1.3.0.xml')))
+
+ONE_REMOVED_LAYER_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
+    Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/one_removed_layer_update_fixture_1.3.0.xml')))
 
 
 class AllowedWebMapServiceOperationModelTest(TestCase):
@@ -157,14 +159,11 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
     @patch.object(
         target=Session,
         attribute="send",
-        side_effect=[STRUCTURE_CHANGE_UPDATE_REMOTE_RESPONSE],
+        side_effect=[ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE],
     )
-    def test_interupt_if_document_not_equals_structure_change(self, mock):
+    def test_interupt_if_one_layer_where_added(self, mock):
         self.update_job.update()
         self.update_job.refresh_from_db()
-
-        node1 = self.update_job.service.layers.prefetch_related(
-            'keywords', 'styles', 'reference_systems', 'time_extents').get(identifier="node1")
 
         self.assertEqual(self.update_job.status,
                          UpdateJobStatusEnum.REVIEW_REQUIRED.value,
@@ -172,3 +171,37 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
 
         self.assertTrue(WebMapService.objects.filter(update_candidate_of=self.wms).exists(),
                         "Update candidate should exist after update")
+
+        self.assertEqual(
+            self.update_job.new_service.layers.count(),
+            9,
+            "There should be 9 layers in the new service")
+        self.assertEqual(
+            self.update_job.mappings.count(),
+            9,
+            "There should be 9 mappings")
+
+    @patch.object(
+        target=Session,
+        attribute="send",
+        side_effect=[ONE_REMOVED_LAYER_UPDATE_REMOTE_RESPONSE],
+    )
+    def test_interupt_if_one_layer_where_removed(self, mock):
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status,
+                         UpdateJobStatusEnum.REVIEW_REQUIRED.value,
+                         "Job should be interrupted with status review required")
+
+        self.assertTrue(WebMapService.objects.filter(update_candidate_of=self.wms).exists(),
+                        "Update candidate should exist after update")
+
+        self.assertEqual(
+            self.update_job.new_service.layers.count(),
+            7,
+            "There should be 7 layers in the new service")
+        self.assertEqual(
+            self.update_job.mappings.count(),
+            7,
+            "There should be 7 mappings")

@@ -163,7 +163,7 @@ class WebMapServiceUpdateJob(models.Model):
 
     def are_all_layers_updateable(self) -> bool:
         # if there are new layers without old layer match, then not all layers are updateable
-        return not self.mappings.filter(old_layer__isnull=True).exists()
+        return not self.mappings.filter(old_layer__isnull=True, is_confirmed=False).exists()
 
     def deleteable_layers(self) -> models.QuerySet:
         return Layer.objects.filter(
@@ -190,6 +190,10 @@ class WebMapServiceUpdateJob(models.Model):
             fields = self.get_fields_by_model(Layer)
 
             for mapping in self.mappings.all():
+                if mapping.old_layer is None:
+                    # This is a new layer without old match.
+                    # TODO: link this layer to the old service.
+                    continue
                 updateable_layer = mapping.old_layer
                 new_layer = mapping.new_layer
 

@@ -69,13 +69,19 @@ class WebMapServiceUpdateJob(models.Model):
         self.save()
 
     def update_field(self, field_name, instance_a, instance_b):
-        field = instance_a._meta.get_field(field_name)
+        m2m_fields = [m2m.name for m2m in instance_a._meta.local_many_to_many]
+        reverse_fields = [rel.get_accessor_name()
+                          for rel in instance_a._meta.related_objects]
 
-        if field.many_to_many:
+        if field_name in m2m_fields:
             instance_a_m2m_field = getattr(instance_a, field_name)
             instance_b_m2m_field = getattr(instance_b, field_name)
             instance_a_m2m_field.set(instance_b_m2m_field.all())
-
+        elif field_name in reverse_fields:
+            instance_a_reverse_field = getattr(instance_a, field_name)
+            instance_b_reverse_field = getattr(instance_b, field_name)
+            instance_a_reverse_field.all().delete()
+            instance_a_reverse_field.set(instance_b_reverse_field.all())
         else:  # flat field:
             setattr(instance_a, field_name, getattr(instance_b, field_name))
 
@@ -100,6 +106,7 @@ class WebMapServiceUpdateJob(models.Model):
                     "mptt_lft",
                     "mptt_rgt",
                     "mptt_depth",
+                    "styles",
                     "keywords",
                     "reference_systems",
                     "time_extents"

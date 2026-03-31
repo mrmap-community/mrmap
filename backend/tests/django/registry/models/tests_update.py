@@ -20,6 +20,9 @@ REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path
 SIMPLE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
     Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/simple_update_fixture_1.3.0.xml')))
 
+STRUCTURE_CHANGE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
+    Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/structure_change_update_fixture_1.3.0.xml')))
+
 
 class AllowedWebMapServiceOperationModelTest(TestCase):
 
@@ -65,7 +68,7 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         attribute="send",
         side_effect=[SIMPLE_UPDATE_REMOTE_RESPONSE],
     )
-    def test_finish_if_document_equals(self, mock):
+    def test_finish_if_document_not_equals_but_simple_changes(self, mock):
         self.update_job.update()
         self.update_job.refresh_from_db()
 
@@ -150,3 +153,22 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             node1.is_cascaded,
             "Layer should not be cascaded"
         )
+
+    @patch.object(
+        target=Session,
+        attribute="send",
+        side_effect=[STRUCTURE_CHANGE_UPDATE_REMOTE_RESPONSE],
+    )
+    def test_interupt_if_document_not_equals_structure_change(self, mock):
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        node1 = self.update_job.service.layers.prefetch_related(
+            'keywords', 'styles', 'reference_systems', 'time_extents').get(identifier="node1")
+
+        self.assertEqual(self.update_job.status,
+                         UpdateJobStatusEnum.REVIEW_REQUIRED.value,
+                         "Job should be interrupted with status review required")
+
+        self.assertTrue(WebMapService.objects.filter(update_candidate_of=self.wms).exists(),
+                        "Update candidate should exist after update")

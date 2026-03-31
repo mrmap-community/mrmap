@@ -1,5 +1,3 @@
-import logging
-
 from django.db import models
 from django.db.models import UniqueConstraint
 from django.db.models.query_utils import Q
@@ -16,7 +14,6 @@ from simple_history.utils import bulk_update_with_history
 
 
 class WebMapServiceUpdateJob(models.Model):
-    SIMILARITY_THRESHOLD = 0.8
     service: WebMapService = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,
@@ -165,7 +162,8 @@ class WebMapServiceUpdateJob(models.Model):
         return WebMapService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
 
     def are_all_layers_updateable(self) -> bool:
-        return LayerMapping.objects.is_autoupdate_able(service=self.service)
+        # if there are new layers without old layer match, then not all layers are updateable
+        return not self.mappings.filter(old_layer__isnull=True).exists()
 
     def deleteable_layers(self) -> models.QuerySet:
         return Layer.objects.filter(
@@ -199,7 +197,7 @@ class WebMapServiceUpdateJob(models.Model):
 
                 # adjust parent
                 updateable_layer.mptt_parent = old_by_identifier.get(
-                    new_layer.mptt_parent.identifier if new_layer.mptt_parent else "")
+                    new_layer.mptt_parent.identifier if new_layer and new_layer.mptt_parent else "")
 
                 for field_name in fields:
                     self.update_field(
@@ -229,6 +227,8 @@ class WebMapServiceUpdateJob(models.Model):
 
     @atomic
     def update(self):
+        self.status = UpdateJobStatusEnum.UPDATING.value
+        self.save()
         remote_capabilities = self.old_service.remote_capabilities
 
         if self.old_service.document_equals(remote_capabilities):
@@ -239,7 +239,9 @@ class WebMapServiceUpdateJob(models.Model):
         self.create_new_service(remote_capabilities)
         self.update_service()
         self.update_layers()
-        self.finish(UpdateJobStatusEnum.UPDATED)
+
+        if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
+            self.finish(UpdateJobStatusEnum.UPDATED)
 
 
 class LayerMapping(models.Model):

@@ -10,7 +10,8 @@ class LayerMappingQuerySet(models.QuerySet):
         return self.filter(is_confirmed=False, old_layer__isnull=False)
 
     def is_autoupdate_able(self, service):
-        return not self.filter(old_layer__service=service).auto_matched_but_unconfirmed().exists()
+        qs = self.filter(old_layer__service=service)
+        return not qs.filter(old_layer__isnull=True).exists()
 
 
 class LayerMappingManager(models.Manager.from_queryset(LayerMappingQuerySet)):

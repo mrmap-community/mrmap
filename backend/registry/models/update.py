@@ -163,19 +163,20 @@ class WebMapServiceUpdateJob(models.Model):
 
     def are_all_layers_updateable(self) -> bool:
         # if there are new layers without old layer match, then not all layers are updateable
-        return not self.mappings.filter(old_layer__isnull=True, is_confirmed=False).exists()
+        all_new_layers_updateable = not self.mappings.filter(
+            old_layer__isnull=True, is_confirmed=False).exists()
+
+        old_layers_without_match = not Layer.objects.filter(
+            service=self.old_service,
+            reverse_mapping__isnull=True
+        ).exists()
+
+        return all_new_layers_updateable and old_layers_without_match
 
     def deleteable_layers(self) -> models.QuerySet:
         return Layer.objects.filter(
             service=self.service,
             reverse_mapping__isnull=True
-        )
-
-    def updateable_layers(self) -> models.QuerySet:
-        return Layer.objects.filter(
-            service=self.service,
-            mapping__isnull=False,
-            reverse_mapping__isnull=False
         )
 
     def update_layers(self,):
@@ -274,3 +275,10 @@ class LayerMapping(models.Model):
     is_confirmed = models.BooleanField(default=False)
 
     objects = LayerMappingManager()
+
+    def save(self, *args, **kwargs):
+        saved = super().save(*args, **kwargs)
+
+        # TODO: check if the job is now ready for update (e.g. all new layers have old layer matches and are confirmed) and if so trigger the update process of the job.
+
+        return saved

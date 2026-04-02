@@ -235,7 +235,37 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             "There should be 7 layers in the new service")
         self.assertEqual(
             self.update_job.mappings.count(),
-            7,
-            "There should be 7 mappings")
+            8,
+            "There should be 8 mappings")
 
-        # TODO: add correct mappings with confirmed flag and run update again
+        self.update_job.mappings.update(is_confirmed=True)
+
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status,
+                         UpdateJobStatusEnum.UPDATED.value,
+                         "Job should be finished with status updated after confirming all layer mappings")
+
+        self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists(),
+                         "Update candidate should not exist after update")
+
+        self.assertEqual(
+            self.update_job.mappings.count(),
+            0,
+            "There should be 0 mappings after update")
+
+        self.assertListEqual(
+            list(self.update_job.service.layers.values_list(
+                "identifier", "mptt_lft", "mptt_rgt", "mptt_depth", "mptt_tree_id")),
+            [
+                ('node1', 1, 14, 0, 1),
+                ('node1.1', 2, 9, 1, 1),
+                ('node1.1.1', 3, 4, 2, 1),
+                ('node1.1.2', 5, 6, 2, 1),
+                ('node1.1.3', 7, 8, 2, 1),
+                ('node1.2', 10, 11, 1, 1),
+                ('node1.3', 12, 13, 1, 1),
+            ],
+            "MPTT Tree structure should be correct after update"
+        )

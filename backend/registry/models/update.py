@@ -135,6 +135,19 @@ class WebMapServiceUpdateJob(models.Model):
                 )
             )
 
+        # create also mappings for old layers without match to new layer, to be able to identify deleteable layers
+        new_identifiers = {layer.identifier for layer in new_layers}
+        for old_layer in old_layers:
+            if old_layer.identifier not in new_identifiers:
+                mappings.append(
+                    LayerMapping(
+                        job=self,
+                        new_layer=None,
+                        old_layer=old_layer,
+                        is_confirmed=False
+                    )
+                )
+
         LayerMapping.objects.bulk_create(mappings)
 
     def create_new_service(self, capabilitites):
@@ -163,22 +176,34 @@ class WebMapServiceUpdateJob(models.Model):
         return WebMapService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
 
     def are_all_layers_updateable(self) -> bool:
-        # if there are new layers without old layer match, then not all layers are updateable
-        all_new_layers_updateable = not self.mappings.filter(
-            old_layer__isnull=True, is_confirmed=False).exists()
+        """checks if ther are no update conflicts
 
-        old_layers_without_match = not Layer.objects.filter(
-            service=self.old_service,
-            reverse_mapping__isnull=True
-        ).exists()
+        “Is there any new layer without mapping?” → must be False
+        “Is there any old layer without mapping?” → must be False
 
-        return all_new_layers_updateable and old_layers_without_match
+        Returns:
+            bool: _description_
+        """
+        new_layers = self.new_service.layers.all()
+        old_layers = self.old_service.layers.all()
+
+        mapped_new_layers = self.mappings.filter(
+            is_confirmed=True,
+            new_layer__isnull=False
+        ).values_list("new_layer", flat=True)
+
+        mapped_old_layers = self.mappings.filter(
+            is_confirmed=True,
+            old_layer__isnull=False
+        ).values_list("old_layer", flat=True)
+
+        missing_new = new_layers.exclude(id__in=mapped_new_layers).exists()
+        missing_old = old_layers.exclude(id__in=mapped_old_layers).exists()
+
+        return not missing_new and not missing_old
 
     def deleteable_layers(self) -> models.QuerySet:
-        return Layer.objects.filter(
-            service=self.service,
-            reverse_mapping__isnull=True
-        ).exclude(mapping__isnull=False, mapping__is_confirmed=True)
+        return Layer.objects.filter(reverse_mapping__in=self.mappings.filter(new_layer__isnull=True, old_layer__isnull=False, is_confirmed=True))
 
     def update_layers(self,):
         if self.are_all_layers_updateable():
@@ -189,7 +214,7 @@ class WebMapServiceUpdateJob(models.Model):
 
             fields = self.get_fields_by_model(Layer)
 
-            for mapping in self.mappings.all():
+            for mapping in self.mappings.exclude(new_layer__isnull=True).all():
                 if mapping.old_layer is None:
                     # This is a new layer without old match. Inject it by changing the service and adjust parent.
                     mapping.new_layer.service = self.service
@@ -299,6 +324,8 @@ class LayerMapping(models.Model):
     )
     new_layer = models.OneToOneField(
         to=Layer,
+        null=True,
+        blank=True,
         on_delete=models.CASCADE,
         related_name="mapping",
         related_query_name="mapping"
@@ -307,7 +334,7 @@ class LayerMapping(models.Model):
         to=Layer,
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name="reverse_mapping",
         related_query_name="reverse_mapping"
     )
@@ -316,6 +343,21 @@ class LayerMapping(models.Model):
     is_confirmed = models.BooleanField(default=False)
 
     objects = LayerMappingManager()
+
+    class Meta:
+        verbose_name = _("Layer Mapping")
+        verbose_name_plural = _("Layer Mappings")
+        ordering = ["created"]
+        indexes = [
+            models.Index(fields=["created"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~(Q(new_layer__isnull=True) &
+                            Q(old_layer__isnull=True)),
+                name="prevent_both_layers_null",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         adding = self._state.adding

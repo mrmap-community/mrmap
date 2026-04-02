@@ -619,6 +619,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
+        ordering = [] + Node.Meta.ordering
         indexes = [
         ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
         constraints = [

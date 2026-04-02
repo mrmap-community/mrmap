@@ -197,7 +197,7 @@ class WebMapServiceUpdateJob(models.Model):
                     # adjust parent if exists, because the parent might also be a new layer without old match and therefore the parent needs to be set to the new created parent layer (which has the same identifier as the old parent layer)
                     parent = mapping.new_layer.mptt_parent.mapping.old_layer if mapping.new_layer.mptt_parent else None
                     mapping.new_layer.mptt_parent = parent
-
+                    mapping.new_layer.mptt_tree = self.service.root_layer.mptt_tree
                     mapping.new_layer.save()
                     continue
 

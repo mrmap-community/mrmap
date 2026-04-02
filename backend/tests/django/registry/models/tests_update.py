@@ -196,10 +196,22 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             0,
             "There should be 0 mappings after update")
 
-        self.assertEqual(
-            self.update_job.service.layers.count(),
-            9,
-            "There should be 9 layers in the old service after update completed")
+        self.assertListEqual(
+            list(self.update_job.service.layers.values_list(
+                "identifier", "mptt_lft", "mptt_rgt", "mptt_depth", "mptt_tree_id")),
+            [
+                ('node1', 1, 18, 0, 1),
+                ('node1.1', 2, 9, 1, 1),
+                ('node1.1.1', 3, 4, 2, 1),
+                ('node1.1.2', 5, 6, 2, 1),
+                ('node1.1.3', 7, 8, 2, 1),
+                ('node1.2', 10, 11, 1, 1),
+                ('node1.3', 12, 15, 1, 1),
+                ('node1.3.1', 13, 14, 2, 1),
+                ('node1.4', 16, 17, 1, 1)
+            ],
+            "MPTT Tree structure should be correct after update"
+        )
 
     @patch.object(
         target=Session,

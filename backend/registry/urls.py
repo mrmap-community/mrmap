@@ -7,6 +7,7 @@ from registry.views import monitoring as monitoring_views
 from registry.views import security as security_views
 from registry.views import service as service_views
 from registry.views import statistical as stats_views
+from registry.views import update as update_views
 from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'registry'
@@ -196,6 +197,12 @@ router.register(r'security/wms-proxy-settings',
                 security_views.WebMapServiceProxySettingViewSet, basename='webmapserviceproxysetting')
 router.register(r'security/wfs-proxy-settings',
                 security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting')
+
+# updating
+router.register(r'update/webmapservice-update-jobs',
+                update_views.WebMapServiceUpdateJobViewSet, basename='webmapserviceupdatejob')
+router.register(r'update/layer-mappings',
+                update_views.LayerMappingViewSet, basename='layermapping')
 
 # monitoring
 router.register(r'monitoring/wms-monitoring-get-capabilities-probes',

@@ -392,9 +392,7 @@ class XmlMapper:
     def sync_xml_with_instance(self, xml_element, xpath_or_spec, instance):
         nsmap = self.mapping.get("_namespaces", {})
         base_xpath = xpath_or_spec.get("_base_xpath", ".")
-        from registry.models import FeatureType
-        if isinstance(instance, FeatureType):
-            i = 0
+
         concrete_xpath = build_concrete_xpath(
             self,
             xpath_or_spec,

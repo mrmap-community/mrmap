@@ -103,4 +103,3 @@ class CatalogueServiceHistorySerializer(HistorySerializerMixin):
     class Meta:
         model = CatalogueService.change_log.model
         exclude = HistorySerializerMixin.Meta.exclude
-        exclude = HistorySerializerMixin.Meta.exclude

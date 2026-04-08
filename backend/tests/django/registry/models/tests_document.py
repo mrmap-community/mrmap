@@ -27,6 +27,9 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
         # change service metadata
         self.wms.title = "huhu"
         self.wms.save()
+        self.wms.keywords.set(
+            Keyword.objects.filter(
+                keyword="meteorology"))
 
         # change root layer metadata
         self.wms.root_layer.title = "hihi"
@@ -39,11 +42,11 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
         # change a layer metadata in deep
         some_layer: Layer = self.wms.layers.get(identifier="node1.1.1")
         some_layer.title = "hoho"
+        some_layer.save()
         some_layer.keywords.set(
             Keyword.objects.filter(
                 # this also contains extrem ergiebiger Dauerregen
                 keyword__contains="ergiebiger Dauerregen"))
-        some_layer.save()
 
         # refetching again with all annotations..
         self.wms: WebMapService = WebMapService.objects.prefetch_whole_service(
@@ -100,7 +103,7 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
 
     def test_current_capabilities_of_wms(self):
         capabilities = self.wms.get_updated_capabilitites()
-
+        capabilities.write("output.xml")
         # check service metadata
         self.assertXpathValue(
             capabilities,

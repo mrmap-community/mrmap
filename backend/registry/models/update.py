@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import F, UniqueConstraint
+from django.db.models import UniqueConstraint
 from django.db.models.query_utils import Q
 from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
@@ -12,6 +12,49 @@ from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.service import Layer, WebMapService
 from registry.tasks.update import run_wms_update
 from simple_history.utils import bulk_update_with_history
+
+
+def default_update_config():
+    return {
+        "WebMapService": {
+            "title": "overwrite",
+            "abstract": "overwrite",
+            "keywords": "overwrite",
+        },
+        "Layer": {
+            "title": "overwrite",
+            "abstract": "overwrite",
+            "identifier": "overwrite",
+            "is_queryable": "overwrite",
+            "is_opaque": "overwrite",
+            "is_cascaded": "overwrite",
+            "scale_min": "overwrite",
+            "scale_max": "overwrite",
+            "bbox_lat_lon": "overwrite",
+            "mptt_lft": "overwrite",
+            "mptt_rgt": "overwrite",
+            "mptt_depth": "overwrite",
+            "styles": "overwrite",
+            "keywords": "overwrite",
+            "reference_systems": "overwrite",
+            "time_extents": "overwrite",
+        }
+    }
+
+
+class WebMapServiceUpdateConfig(models.Model):
+    service = models.OneToOneField(
+        to=WebMapService,
+        on_delete=models.CASCADE,
+        related_name="update_config",
+        verbose_name=_("service"),
+    )
+
+    config = models.JSONField(default=default_update_config, blank=True)
+
+    class Meta:
+        verbose_name = _("Web Map Service Update Config")
+        verbose_name_plural = _("Web Map Service Update Configs")
 
 
 class WebMapServiceUpdateJob(models.Model):
@@ -30,12 +73,6 @@ class WebMapServiceUpdateJob(models.Model):
     status = models.PositiveSmallIntegerField(
         choices=UpdateJobStatusEnum.choices,
         default=UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value
-    )
-
-    # TODO: deprecated -> new plan: create new Model to store WebMapServiceUpdateSettings.
-    # With this model the user can define which fields shall be updated or not.
-    keep_customized_metadata = models.BooleanField(
-        default=True
     )
 
     class Meta:
@@ -67,54 +104,67 @@ class WebMapServiceUpdateJob(models.Model):
         self.save()
 
     def update_field(self, field_name, instance_a, instance_b):
+        mode = self.get_field_mode(instance_a.__class__, field_name)
+        if mode == "ignore":
+            return
+
         m2m_fields = [m2m.name for m2m in instance_a._meta.local_many_to_many]
         reverse_fields = [rel.get_accessor_name()
                           for rel in instance_a._meta.related_objects]
 
+        # -------------------------
+        # MANY-TO-MANY
+        # -------------------------
         if field_name in m2m_fields:
             instance_a_m2m_field = getattr(instance_a, field_name)
             instance_b_m2m_field = getattr(instance_b, field_name)
-            instance_a_m2m_field.set(instance_b_m2m_field.all())
+            match mode:
+                case "overwrite":
+                    instance_a_m2m_field.set(instance_b_m2m_field.all())
+                case "merge":
+                    instance_a_m2m_field.add(*instance_b_m2m_field.all())
+                case _:
+                    pass
+            return
+
+        # -------------------------
+        # REVERSE RELATIONS
+        # -------------------------
         elif field_name in reverse_fields:
             instance_a_reverse_field = getattr(instance_a, field_name)
             instance_b_reverse_field = getattr(instance_b, field_name)
-            instance_a_reverse_field.all().delete()
-            instance_a_reverse_field.set(instance_b_reverse_field.all())
-        else:  # flat field:
+            match mode:
+                case "overwrite":
+                    instance_a_reverse_field.all().delete()
+                    instance_a_reverse_field.set(
+                        instance_b_reverse_field.all())
+                case "merge":
+                    pass
+                case _:
+                    pass
+            return
+        # -------------------------
+        # SCALAR FIELDS (default)
+        # -------------------------
+        if mode == "overwrite":
             setattr(instance_a, field_name, getattr(instance_b, field_name))
 
-    @property
+    @cached_property
     def update_config(self):
-        return {
-            "WebMapService": {
-                "fields": ["title", "abstract", "keywords"]
-                # TODO: check service_contact and metadata_contact if there need to be updated
+        try:
+            return self.service.update_config.config
+        except WebMapServiceUpdateConfig.DoesNotExist:
+            return default_update_config()
 
-            },
-            "Layer": {
-                "fields": [
-                    "title",
-                    "abstract",
-                    "identifier",
-                    "is_queryable",
-                    "is_opaque",
-                    "is_cascaded",
-                    "scale_min",
-                    "scale_max",
-                    "bbox_lat_lon",
-                    "mptt_lft",
-                    "mptt_rgt",
-                    "mptt_depth",
-                    "styles",
-                    "keywords",
-                    "reference_systems",
-                    "time_extents"
-                ]
-            }
-        }
+    def get_field_mode(self, model_cls, field_name: str) -> str:
+        return (
+            self.update_config
+            .get(model_cls.__name__, {})
+            .get(field_name, "overwrite")
+        )
 
-    def get_fields_by_model(self, model_cls: models.Model):
-        return self.update_config.get(model_cls.__name__, {"fields": []}).get("fields", [])
+    def get_fields_by_model(self, model_cls):
+        return self.update_config.get(model_cls.__name__, {})
 
     def create_initial_layer_mappings(self):
         old_layers = list(self.old_service.layers.all())
@@ -204,7 +254,7 @@ class WebMapServiceUpdateJob(models.Model):
 
             updateable_layers = []
 
-            fields = self.get_fields_by_model(Layer)
+            fields = self.get_fields_by_model(Layer).keys()
 
             for mapping in self.mappings.exclude(new_layer__isnull=True).all():
                 if mapping.old_layer is None:
@@ -252,7 +302,7 @@ class WebMapServiceUpdateJob(models.Model):
         """Updates Service metadata if keep customized metadata is not configured.
            Otherwise the user needs to review the processing.
         """
-        for field_name in self.get_fields_by_model(WebMapService):
+        for field_name in self.get_fields_by_model(WebMapService).keys():
             self.update_field(
                 field_name, self.service, self.new_service)
         self.service.save()
@@ -316,8 +366,6 @@ class LayerMapping(models.Model):
     )
     new_layer = models.OneToOneField(
         to=Layer,
-        null=True,
-        blank=True,
         on_delete=models.CASCADE,
         related_name="mapping",
         related_query_name="mapping"
@@ -344,6 +392,12 @@ class LayerMapping(models.Model):
             models.Index(fields=["created"]),
         ]
         constraints = [
+            models.UniqueConstraint(
+                fields=["job", "new_layer"],
+                name="unique_new_layer_per_job_in_mapping",
+                violation_error_message=_(
+                    "A new layer can only be mapped once. Please adjust the layer mappings accordingly.")
+            ),
             models.CheckConstraint(
                 condition=~(Q(new_layer__isnull=True) &
                             Q(old_layer__isnull=True)),

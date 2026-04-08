@@ -7,7 +7,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from MrMap.settings import BASE_DIR
 from registry.enums.update import UpdateJobStatusEnum
-from registry.models.service import WebMapService
+from registry.models.service import Layer, WebMapService
 from registry.models.update import WebMapServiceUpdateJob
 from requests.sessions import Session
 from rest_framework import status
@@ -24,6 +24,9 @@ ONE_NEW_LAYER_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_
 
 ONE_REMOVED_LAYER_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
     Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/one_removed_layer_update_fixture_1.3.0.xml')))
+
+ONE_NEW_STRUCTURE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
+    Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/one_new_structure_update_fixture_1.3.0.xml')))
 
 
 class AllowedWebMapServiceOperationModelTest(TestCase):
@@ -223,6 +226,42 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         self.update_job.refresh_from_db()
 
         self.assertEqual(self.update_job.status,
+                         UpdateJobStatusEnum.UPDATED.value,
+                         "Job should be finished with status updated after confirming all layer mappings")
+
+        self.assertFalse(WebMapService.objects.filter(update_candidate_of=self.wms).exists(),
+                         "Update candidate should not exist after update")
+
+        self.assertEqual(
+            self.update_job.mappings.count(),
+            0,
+            "There should be 0 mappings after update")
+
+        self.assertListEqual(
+            list(self.update_job.service.layers.values_list(
+                "identifier", "mptt_lft", "mptt_rgt", "mptt_depth", "mptt_tree_id")),
+            [
+                ('node1', 1, 14, 0, 1),
+                ('node1.1', 2, 9, 1, 1),
+                ('node1.1.1', 3, 4, 2, 1),
+                ('node1.1.2', 5, 6, 2, 1),
+                ('node1.1.3', 7, 8, 2, 1),
+                ('node1.2', 10, 11, 1, 1),
+                ('node1.3', 12, 13, 1, 1),
+            ],
+            "MPTT Tree structure should be correct after update"
+        )
+
+    @patch.object(
+        target=Session,
+        attribute="send",
+        side_effect=[ONE_NEW_STRUCTURE_UPDATE_REMOTE_RESPONSE],
+    )
+    def test_new_structure_update_processing(self, mock):
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(self.update_job.status,
                          UpdateJobStatusEnum.REVIEW_REQUIRED.value,
                          "Job should be interrupted with status review required")
 
@@ -233,10 +272,25 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
             self.update_job.new_service.layers.count(),
             7,
             "There should be 7 layers in the new service")
+
+        """
+        node1       -> node1    
+        node1.1     ->
+                    -> node1.1_new 
+        node1.1.1   -> node1.1.1
+        node1.1.2   -> 
+        node1.1.3   -> 
+        node1.2     -> node1.2
+        node1.3     -> node1.3
+        node1.3.1   -> node1.3.1
+                    -> node1.3.1.1
+        """
         self.assertEqual(
             self.update_job.mappings.count(),
-            8,
-            "There should be 8 mappings")
+            7,
+            "There should be 7 mappings")
+        self.update_job.mappings.filter(new_layer__identifier="node1.1_new").update(
+            old_layer=Layer.objects.get(service=self.update_job.service, identifier="node1.1"))
 
         self.update_job.mappings.update(is_confirmed=True)
 
@@ -260,12 +314,12 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
                 "identifier", "mptt_lft", "mptt_rgt", "mptt_depth", "mptt_tree_id")),
             [
                 ('node1', 1, 14, 0, 1),
-                ('node1.1', 2, 9, 1, 1),
+                ('node1.1_new', 2, 5, 1, 1),
                 ('node1.1.1', 3, 4, 2, 1),
-                ('node1.1.2', 5, 6, 2, 1),
-                ('node1.1.3', 7, 8, 2, 1),
-                ('node1.2', 10, 11, 1, 1),
-                ('node1.3', 12, 13, 1, 1),
+                ('node1.2', 6, 7, 1, 1),
+                ('node1.3', 8, 13, 1, 1),
+                ('node1.3.1', 9, 12, 2, 1),
+                ('node1.3.1.1', 10, 11, 3, 1)
             ],
             "MPTT Tree structure should be correct after update"
         )

@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import UniqueConstraint
+from django.db.models import F, UniqueConstraint
 from django.db.models.query_utils import Q
 from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
@@ -95,6 +95,7 @@ class WebMapServiceUpdateJob(models.Model):
                 "fields": [
                     "title",
                     "abstract",
+                    "identifier",
                     "is_queryable",
                     "is_opaque",
                     "is_cascaded",
@@ -135,19 +136,6 @@ class WebMapServiceUpdateJob(models.Model):
                 )
             )
 
-        # create also mappings for old layers without match to new layer, to be able to identify deleteable layers
-        new_identifiers = {layer.identifier for layer in new_layers}
-        for old_layer in old_layers:
-            if old_layer.identifier not in new_identifiers:
-                mappings.append(
-                    LayerMapping(
-                        job=self,
-                        new_layer=None,
-                        old_layer=old_layer,
-                        is_confirmed=False
-                    )
-                )
-
         LayerMapping.objects.bulk_create(mappings)
 
     def create_new_service(self, capabilitites):
@@ -179,34 +167,38 @@ class WebMapServiceUpdateJob(models.Model):
         """checks if ther are no update conflicts
 
         “Is there any new layer without mapping?” → must be False
-        “Is there any old layer without mapping?” → must be False
 
         Returns:
             bool: _description_
         """
         new_layers = self.new_service.layers.all()
-        old_layers = self.old_service.layers.all()
 
         mapped_new_layers = self.mappings.filter(
             is_confirmed=True,
             new_layer__isnull=False
         ).values_list("new_layer", flat=True)
 
-        mapped_old_layers = self.mappings.filter(
-            is_confirmed=True,
-            old_layer__isnull=False
-        ).values_list("old_layer", flat=True)
-
         missing_new = new_layers.exclude(id__in=mapped_new_layers).exists()
-        missing_old = old_layers.exclude(id__in=mapped_old_layers).exists()
 
-        return not missing_new and not missing_old
+        return not missing_new
 
     def deleteable_layers(self) -> models.QuerySet:
-        return Layer.objects.filter(reverse_mapping__in=self.mappings.filter(new_layer__isnull=True, old_layer__isnull=False, is_confirmed=True))
+        """All layers of the old service without confirmed mapping"""
+        mapped_old_layer_ids = self.mappings.filter(
+            old_layer__isnull=False,
+            is_confirmed=True
+        ).values_list("old_layer_id", flat=True)
+
+        return self.old_service.layers.exclude(pk__in=mapped_old_layer_ids)
 
     def update_layers(self,):
+
         if self.are_all_layers_updateable():
+            # store deleteable layers, cause after Layer moving to old service,
+            # the deleteable layers query would change and we would loose the information which layers we wanted to delete
+            deleteable_layers = list(
+                self.deleteable_layers().values_list("id", flat=True))
+
             old_by_identifier = {
                 layer.identifier: layer for layer in self.old_service.layers.all()}
 
@@ -245,7 +237,7 @@ class WebMapServiceUpdateJob(models.Model):
                 updateable_layers, Layer, [field.name for field in Layer._meta.concrete_fields if field.name in fields], batch_size=500)
 
             # clean up everthing we do not longer need
-            self.deleteable_layers().delete()
+            Layer.objects.filter(id__in=deleteable_layers).delete()
 
             WebMapService.objects.filter(
                 update_candidate_of=self.service).delete()

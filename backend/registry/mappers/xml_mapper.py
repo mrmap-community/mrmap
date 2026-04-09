@@ -482,7 +482,7 @@ class XmlMapper:
 
                 try:
                     delete_able_elements = {
-                        e.getroottree().getpath(e): e
+                        id(e): e
                         for e in xml_element.xpath(base_xpath, namespaces=nsmap)
                     }
                 except etree.XPathEvalError as e:
@@ -498,7 +498,7 @@ class XmlMapper:
                             related_obj)
 
                         delete_able_elements.pop(
-                            synced.getroottree().getpath(synced), None)
+                            id(synced), None)
 
                     for elem in delete_able_elements.values():
                         remove_element_or_attribute(elem, ".", nsmap)

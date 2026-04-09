@@ -103,7 +103,7 @@ class CapabilitiesDocumentModelMixinTest(XpathTestCase):
 
     def test_current_capabilities_of_wms(self):
         capabilities = self.wms.get_updated_capabilitites()
-        capabilities.write("output.xml")
+
         # check service metadata
         self.assertXpathValue(
             capabilities,

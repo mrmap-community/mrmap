@@ -1,3 +1,4 @@
+import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import {
   ResourceProps
 } from 'react-admin';
@@ -60,6 +61,10 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "ServiceMetadataRecord", icon: DatasetIcon},
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
 
+
+  // update
+  {name: "WebMapServiceUpdateJob", icon: UpdateIcon},
+  {name: "LayerMapping", icon: SyncAltIcon},
 
   // monitoring
   {

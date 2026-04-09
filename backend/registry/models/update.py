@@ -341,7 +341,7 @@ class WebMapServiceUpdateJob(models.Model):
                 _("Cannot resume the job, because not all layers are updateable. Please review the layer mappings first."))
         on_commit(
             lambda: run_wms_update.apply_async(
-                update_job_id=(self.pk,)
+                kwargs={"update_job_id": self.pk}
             )
         )
 
@@ -351,7 +351,7 @@ class WebMapServiceUpdateJob(models.Model):
         if adding:
             on_commit(
                 lambda: run_wms_update.apply_async(
-                    update_job_id=(self.pk,)
+                    kwargs={"update_job_id": self.pk}
                 )
             )
         return ret

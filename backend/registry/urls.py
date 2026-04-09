@@ -29,6 +29,8 @@ wms_routes.register(r'allowed-wms-operations', security_views.NestedAllowedWebMa
                     basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service'])
 wms_routes.register(r'operation-urls', service_views.NestedWebMapServiceOperationUrlViewSet,
                     basename='wms-operationurls', parents_query_lookups=['service'])
+wms_routes.register(r'update-jobs', update_views.NestedWebMapServiceUpdateJobViewSet,
+                    basename='wms-update-jobs', parents_query_lookups=['service'])
 
 wms_op_urls_routes = router.register(
     r'wms-operation-urls', service_views.WebMapServiceOperationUrlViewSet, basename='wms-operationurl')

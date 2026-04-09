@@ -73,4 +73,5 @@ class LayerMappingSerializer(ModelSerializer):
 
     class Meta:
         model = LayerMapping
-        fields = ("url", "old_layer", "new_layer", "is_confirmed")
+        fields = ("url", "job", "old_layer",
+                  "new_layer", "created", "is_confirmed")

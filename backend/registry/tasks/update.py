@@ -1,4 +1,8 @@
+import logging
+
 from celery import shared_task
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(
@@ -18,8 +22,12 @@ def create_wms_update_job(*args, **kwargs):
 )
 def run_wms_update(*args, **kwargs):
     from registry.models.update import WebMapServiceUpdateJob
+    update_job_id = kwargs.get("update_job_id", None)
+    try:
+        update_job: WebMapServiceUpdateJob = WebMapServiceUpdateJob.objects.get(
+            pk=update_job_id)
 
-    update_job: WebMapServiceUpdateJob = WebMapServiceUpdateJob.objects.get(
-        pk=kwargs.get("update_job_id"))
-
-    update_job.update()
+        update_job.update()
+    except WebMapServiceUpdateJob.DoesNotExist:
+        logger.error(
+            f"Update job with ID {update_job_id} does not exist. Task startet with args: {args} and kwargs: {kwargs}")

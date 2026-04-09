@@ -9,3 +9,4 @@ class UpdateJobStatusEnum(SmartIntegerChoices):
     ERROR = 3, _("Error")
     WAITING_FOR_PROCESSING = 4, _("Waiting for processing")
     UPDATED = 5, _("Updated")
+    RESUME = 6, _("Resume")

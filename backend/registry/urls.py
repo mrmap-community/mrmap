@@ -201,8 +201,10 @@ router.register(r'security/wfs-proxy-settings',
                 security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting')
 
 # updating
-router.register(r'update/webmapservice-update-jobs',
-                update_views.WebMapServiceUpdateJobViewSet, basename='webmapserviceupdatejob')
+wms_updating_routes = router.register(r'update/webmapservice-update-jobs',
+                                      update_views.WebMapServiceUpdateJobViewSet, basename='webmapserviceupdatejob')
+wms_updating_routes.register(r'layer-mappings', update_views.NestedLayerMappingViewSet,
+                             basename='wms-update-jobs-layer-mappings', parents_query_lookups=['job'])
 router.register(r'update/layer-mappings',
                 update_views.LayerMappingViewSet, basename='layermapping')
 

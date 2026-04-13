@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
 from registry.models.update import LayerMapping, WebMapServiceUpdateJob
@@ -12,6 +13,30 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     filterset_fields = ("service", "status", "date_created", "done_at")
     ordering_fields = ("id", "date_created", "done_at", "status")
+    prefetch_for_includes = {
+        "mappings": [
+            Prefetch(
+                "mappings",
+                queryset=LayerMapping.objects.select_related(
+                    "job", "new_layer", "old_layer")
+            )
+
+        ],
+
+    }
+    prefetch_for_not_includes = {
+        "mappings": [
+            Prefetch(
+                "mappings",
+                queryset=LayerMapping.objects.only(
+                    "id",
+                    "job_id",
+                    "new_layer_id",
+                    "old_layer_id",
+                ),
+            )
+        ],
+    }
 
 
 class WebMapServiceUpdateJobViewSet(

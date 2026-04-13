@@ -7,38 +7,6 @@ from rest_framework_json_api.serializers import (BooleanField, DateTimeField,
                                                  IntegerField, ModelSerializer)
 
 
-class WebMapServiceUpdateJobSerializer(ModelSerializer):
-    url = HyperlinkedIdentityField(
-        view_name="registry:webmapserviceupdatejob-detail",
-        read_only=True
-    )
-    service = ResourceRelatedField(
-        label=_("Web Map Service"),
-        help_text=_("The web map service this update job belongs to."),
-        queryset=WebMapService.objects
-    )
-    date_created = DateTimeField(
-        label=_("Created"),
-        help_text=_("The date and time when this update job was created."),
-        read_only=True
-    )
-    done_at = DateTimeField(
-        label=_("Done"),
-        help_text=_("The date and time when this update job was completed."),
-        read_only=True
-    )
-    status = IntegerField(
-        label=_("Status"),
-        help_text=_("The current status of the update job."),
-        read_only=True
-    )
-
-    class Meta:
-        model = WebMapServiceUpdateJob
-        fields = ("url", "service",
-                  "date_created", "done_at", "status")
-
-
 class LayerMappingSerializer(ModelSerializer):
     url = HyperlinkedIdentityField(
         view_name="registry:layermapping-detail",
@@ -75,3 +43,54 @@ class LayerMappingSerializer(ModelSerializer):
         model = LayerMapping
         fields = ("url", "job", "old_layer",
                   "new_layer", "created", "is_confirmed")
+
+
+class WebMapServiceUpdateJobSerializer(ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name="registry:webmapserviceupdatejob-detail",
+        read_only=True
+    )
+    service = ResourceRelatedField(
+        label=_("Web Map Service"),
+        help_text=_("The web map service this update job belongs to."),
+        queryset=WebMapService.objects
+    )
+    update_candidate = ResourceRelatedField(
+        source="service.webmapservice_update_candidate",
+        label=_("Update Candidate"),
+        help_text=_(
+            "The web map service this update job is a candidate for updating."),
+        queryset=WebMapService.objects
+    )
+    date_created = DateTimeField(
+        label=_("Created"),
+        help_text=_("The date and time when this update job was created."),
+        read_only=True
+    )
+    done_at = DateTimeField(
+        label=_("Done"),
+        help_text=_("The date and time when this update job was completed."),
+        read_only=True
+    )
+    status = IntegerField(
+        label=_("Status"),
+        help_text=_("The current status of the update job."),
+        read_only=True
+    )
+    mappings = ResourceRelatedField(
+        queryset=LayerMapping.objects,
+        many=True,  # necessary for M2M fields & reverse FK fields
+        # related_link_view_name="registry:wms-layers-list",
+        # related_link_url_kwarg="parent_lookup_service",
+        # read_only=True,
+    )
+
+    included_serializers = {
+        "mappings": LayerMappingSerializer,
+
+    }
+
+    class Meta:
+        model = WebMapServiceUpdateJob
+        fields = ("url", "service",
+                  "date_created", "done_at", "status", "update_candidate", "mappings")

@@ -9,10 +9,16 @@ import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+import { TreeItemProps } from '@mui/x-tree-view/TreeItem';
 import SimpleUpdateButton from '../../../jsonapi/components/SimpleUpdateButton';
 import { getAnchestors } from '../../MapViewer/utils';
 import { getSubTree } from '../../utils';
 import useSelectedLayer from './useSelectedLayer';
+
+export interface WmsTreeViewProps extends Omit<SimpleTreeViewProps, 'children'> {
+  getLayerProps?: (record: RaRecord) => TreeItemProps;
+  record?: RaRecord
+}
 
 
 interface LayerLabelProps {
@@ -66,14 +72,25 @@ const LayerLabel = ({
 };
 
 
+
 const WmsTreeView = ({
+  getLayerProps = (record: RaRecord) => ({itemId: record.id.toString(), label: <LayerLabel record={record}/>}),
+  record: wmsRecord,
   ...props
-}: SimpleTreeViewProps) => {
+}: WmsTreeViewProps) => {
   // this is the wms service record with all includes layers which are fetched in the parent component.
-  const record = useRecordContext();
-  const tree = useMemo(()=> record?.layers && getSubTree(record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft), undefined, (r) => ({label: <LayerLabel record={r}/>})) || [],[record?.layers])
+  const contextRecord = useRecordContext();
+  const record = wmsRecord ?? contextRecord;
+
+  const sortedLayers = useMemo(() => record?.layers?.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft) || [],[record?.layers])
+  const tree = useMemo(() => record?.layers && getSubTree(
+    sortedLayers, 
+    undefined, 
+    getLayerProps
+  ) || [],
+  [record?.layers, getLayerProps])
   
-  const [selectedLayer, setSelectedLayer] = useSelectedLayer(record?.layers[0].id);
+  const [selectedLayer, setSelectedLayer] = useSelectedLayer(record?.layers?.[0]?.id);
   
   const defaultExpandedItems = useMemo<string[]>(()=>{
     if (selectedLayer !== undefined && selectedLayer !== null) {

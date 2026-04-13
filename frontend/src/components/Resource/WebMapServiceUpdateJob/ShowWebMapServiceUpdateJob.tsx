@@ -1,6 +1,9 @@
-import { DateField, EditButton, NumberField, Show, SimpleShowLayout, SimpleShowLayoutProps, TextField, TopToolbar, useGetList, useRecordContext } from 'react-admin';
+import { DateField, EditButton, NumberField, RaRecord, RecordRepresentation, Show, SimpleShowLayout, SimpleShowLayoutProps, TextField, TopToolbar, useGetOne, useRecordContext } from 'react-admin';
 
+import { useCallback, useMemo } from 'react';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
+import WmsTreeView from '../WebMapService/WmsTreeView';
+
 
 const WmsShowActions = () => (
     <TopToolbar>
@@ -10,27 +13,53 @@ const WmsShowActions = () => (
 
 
 const LayerMappingsForm = () => {
-const  record  = useRecordContext();
-  const { total, data } = useGetList(
-    "LayerMapping",
-    {
-        pagination: { page: 1, perPage:1 },
-        meta: {
-          relatedResource:{
-            resource: 'WebMapServiceUpdateJob',
-            id: record?.id,
-          },
-        }
-        
-    }
-  );
-  console.log('total layer mappings', total)
+    const  contextRecord  = useRecordContext();
 
-  return (<>total: {total}</>)
+    const updateCandidateId = contextRecord?.updateCandidate?.id;
+    const { data: updateCandidate, isPending } = useGetOne(
+        'WebMapService',
+        { id: updateCandidateId , meta: { jsonApiParams: { include: 'layers' } } },
+    );
+    const mappings = useMemo(() => contextRecord?.mappings || [], [contextRecord?.mappings])
+    
+    console.log('mappings', mappings)
+
+    const getLayerProps = useCallback((record: RaRecord) => {
+        console.log('called',
+            record?.mappings?.some(
+            (mapping: any) =>
+                mapping?.newLayer?.id === record.id)
+        )
+        const isConfirmed = record?.mappings?.some(
+            (mapping: any) =>
+                mapping?.newLayer?.id === record.id &&
+                mapping?.isConfirmed === true
+        );
+
+        return {
+            itemId: record.id.toString(),
+            label: (
+                <span style={{ color: isConfirmed ? 'green' : 'red' }}>
+                    <RecordRepresentation record={record}/>
+                </span>
+            )
+        };
+    }, [mappings])
+    
+    if (isPending) return <div>Loading...</div>
+    //FIXME: cause updateCandidate.layers does not changing, 
+    // the component does not rerender and the layer label color does not update. 
+    // This is a problem of the jsonapi package which does not update the record in the cache after a successful update.
+    return (
+        <WmsTreeView 
+            record={updateCandidate}
+            getLayerProps={getLayerProps}
+        />
+    )
 }
 
 export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
-  
+    
 /*
    // const { name: layerName, icon: layerIcon } = useResourceDefinition({resource: 'Layer'})
     //const { name: wmsName, icon: wmsIcon } = useResourceDefinition({resource: 'WebMapService'})
@@ -54,13 +83,15 @@ export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
         return _meta
     },[])
 */
+    const meta = useMemo(()=>(
+         {jsonApiParams: {include: 'mappings'}} 
+    ),[])
+
     return (
         <Show 
-            //queryOptions={{meta: meta}}
+            queryOptions={{meta: meta}}
             actions={<WmsShowActions/>}
-            aside={<div><LayerMappingsForm/></div>}
-            
-             
+            aside={<div><LayerMappingsForm/></div>}             
         >
         <SimpleShowLayout>
             <TextField source="id" />

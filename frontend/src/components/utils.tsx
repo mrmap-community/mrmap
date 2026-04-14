@@ -20,7 +20,7 @@ export const getSubTree = (nodes: RaRecord[], currentNode?: RaRecord, getTreeIte
             label={child.title}
             {...(getTreeItemProps && getTreeItemProps(child))}
         >
-            {getSubTree(nodes, child)}
+            {getSubTree(nodes, child, getTreeItemProps)}
         </ TreeItem>
     )) || []
   
@@ -32,7 +32,7 @@ export const getSubTree = (nodes: RaRecord[], currentNode?: RaRecord, getTreeIte
                 label={node.title} 
                 {...(getTreeItemProps && getTreeItemProps(node))}
             >
-                {...subtree}
+                {subtree}
             </ TreeItem>
         )
     } else {

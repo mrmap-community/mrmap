@@ -16,22 +16,15 @@ const LayerMappingsForm = () => {
     const  contextRecord  = useRecordContext();
 
     const updateCandidateId = contextRecord?.updateCandidate?.id;
-    const { data: updateCandidate, isPending } = useGetOne(
+    const { data: updateCandidate, isPending,  } = useGetOne(
         'WebMapService',
         { id: updateCandidateId , meta: { jsonApiParams: { include: 'layers' } } },
     );
     const mappings = useMemo(() => contextRecord?.mappings || [], [contextRecord?.mappings])
     
-    console.log('mappings', mappings)
-
     const getLayerProps = useCallback((record: RaRecord) => {
-        console.log('called',
-            record?.mappings?.some(
-            (mapping: any) =>
-                mapping?.newLayer?.id === record.id)
-        )
-        const isConfirmed = record?.mappings?.some(
-            (mapping: any) =>
+        const isConfirmed = mappings?.some(
+            (mapping: RaRecord) =>
                 mapping?.newLayer?.id === record.id &&
                 mapping?.isConfirmed === true
         );
@@ -41,17 +34,16 @@ const LayerMappingsForm = () => {
             label: (
                 <span style={{ color: isConfirmed ? 'green' : 'red' }}>
                     <RecordRepresentation record={record}/>
+                    {record.id}
                 </span>
             )
         };
     }, [mappings])
     
     if (isPending) return <div>Loading...</div>
-    //FIXME: cause updateCandidate.layers does not changing, 
-    // the component does not rerender and the layer label color does not update. 
-    // This is a problem of the jsonapi package which does not update the record in the cache after a successful update.
+    
     return (
-        <WmsTreeView 
+        <WmsTreeView
             record={updateCandidate}
             getLayerProps={getLayerProps}
         />

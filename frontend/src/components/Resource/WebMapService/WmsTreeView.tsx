@@ -82,7 +82,12 @@ const WmsTreeView = ({
   const contextRecord = useRecordContext();
   const record = wmsRecord ?? contextRecord;
 
-  const sortedLayers = useMemo(() => record?.layers?.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft) || [],[record?.layers])
+  const sortedLayers = useMemo(
+    () => [...(record?.layers || [])].sort(
+      (a: RaRecord, b: RaRecord) => a.mpttLft - b.mpttLft
+    ),
+    [record?.layers]
+  );
   const tree = useMemo(() => record?.layers && getSubTree(
     sortedLayers, 
     undefined, 

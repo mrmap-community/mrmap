@@ -11,7 +11,7 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
     queryset = WebMapServiceUpdateJob.objects.all()
     serializer_class = WebMapServiceUpdateJobSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    filterset_fields = ("service", "status", "date_created", "done_at")
+    filterset_fields = ("id", "service", "status", "date_created", "done_at")
     ordering_fields = ("id", "date_created", "done_at", "status")
     prefetch_for_includes = {
         "mappings": [
@@ -55,7 +55,7 @@ class LayerMappingViewSetMixin(PreloadNotIncludesMixin):
     queryset = LayerMapping.objects.all()
     serializer_class = LayerMappingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    filterset_fields = ("job", "new_layer", "old_layer",
+    filterset_fields = ("id", "job", "new_layer", "old_layer",
                         "created", "is_confirmed")
     ordering_fields = ("id", "job", "new_layer", "old_layer",
                        "created", "is_confirmed")

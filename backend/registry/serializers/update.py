@@ -60,7 +60,8 @@ class WebMapServiceUpdateJobSerializer(ModelSerializer):
         label=_("Update Candidate"),
         help_text=_(
             "The web map service this update job is a candidate for updating."),
-        queryset=WebMapService.objects
+        model=WebMapService,
+        read_only=True
     )
     date_created = DateTimeField(
         label=_("Created"),
@@ -78,11 +79,11 @@ class WebMapServiceUpdateJobSerializer(ModelSerializer):
         read_only=True
     )
     mappings = ResourceRelatedField(
-        queryset=LayerMapping.objects,
+        model=LayerMapping,
         many=True,  # necessary for M2M fields & reverse FK fields
         # related_link_view_name="registry:wms-layers-list",
         # related_link_url_kwarg="parent_lookup_service",
-        # read_only=True,
+        read_only=True,
     )
 
     included_serializers = {

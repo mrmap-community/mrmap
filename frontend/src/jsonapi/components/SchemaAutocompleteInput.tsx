@@ -28,7 +28,22 @@ const SchemaAutocompleteInput = (
 ): ReactElement => {
   const [ filter, setFilter] = useState<any>();
   
-  const { data, isPending, isFetching } = useGetList(reference, {filter: filter, sort: {field: '', order: 'DESC'}, ...params});
+  const defaultParms: any = {
+    filter: filter, 
+    sort: {field: '', order: 'DESC'}, 
+    meta: {
+      jsonApiParams: {}
+    },
+    ...params
+  }
+  defaultParms.meta.jsonApiParams[`fields[${reference}]`] = 'id,string_representation';
+  const { data, isPending, isFetching } = useGetList(
+    reference, 
+    {
+      ...defaultParms
+    },
+    {enabled: !!filter} // only fetch when filter is set, which means the input is focused
+  );
 
   const optionText = useSchemaRecordRepresentation({resource: reference})
   

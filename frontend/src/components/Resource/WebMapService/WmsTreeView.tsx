@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RaRecord, RecordRepresentation, useRecordContext, useShowContext } from 'react-admin';
 
 import { Tooltip } from '@mui/material';
@@ -18,6 +18,7 @@ import useSelectedLayer from './useSelectedLayer';
 export interface WmsTreeViewProps extends Omit<SimpleTreeViewProps, 'children'> {
   getLayerProps?: (record: RaRecord) => TreeItemProps;
   record?: RaRecord
+  focusSelectedLayer?: boolean
 }
 
 
@@ -72,12 +73,14 @@ const LayerLabel = ({
 };
 
 
-
 const WmsTreeView = ({
   getLayerProps = (record: RaRecord) => ({itemId: record.id.toString(), label: <LayerLabel record={record}/>}),
   record: wmsRecord,
+  focusSelectedLayer = false,
   ...props
 }: WmsTreeViewProps) => {
+
+  const containerRef = useRef(null);
   // this is the wms service record with all includes layers which are fetched in the parent component.
   const contextRecord = useRecordContext();
   const record = wmsRecord ?? contextRecord;
@@ -108,16 +111,13 @@ const WmsTreeView = ({
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems);
 
   const onItemExpansionToggle =  useCallback((event: React.SyntheticEvent, itemIds: string[]) => {
-  
       if (event.target.closest('.MuiTreeItem-iconContainer')) {
           setExpandedItems(itemIds)
 
       } else {
           event.stopPropagation();
       }
-      
   }, [])
-
 
   const onSelectedItemsChange = useCallback( (event: React.SyntheticEvent, itemids: string | null) =>{
     if (event.target.closest('.MuiTreeItem-iconContainer')) {
@@ -126,22 +126,40 @@ const WmsTreeView = ({
     itemids !== null && setSelectedLayer(itemids);
   }, [setSelectedLayer])
 
+  useEffect(() => {
+    if (!focusSelectedLayer || !selectedLayer) return;
+
+    let attempts = 0;
+
+    const tryScroll = () => {
+      const el = containerRef.current?.querySelector(
+        `[id$="${selectedLayer}"]`
+      );
+
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (attempts < 10) {
+        attempts++;
+        requestAnimationFrame(tryScroll);
+      }
+    };
+
+    tryScroll();
+  }, [selectedLayer, focusSelectedLayer, expandedItems]);
 
   return (
-      <SimpleTreeView
-                      
-        selectedItems={selectedLayer ?? null}
-
-        onSelectedItemsChange={onSelectedItemsChange}
-        onExpandedItemsChange={onItemExpansionToggle}
-
-        expandedItems={expandedItems}
-        {...props}
-      >
+    <SimpleTreeView
+      ref={containerRef}
+      selectedItems={selectedLayer ?? null}
+      
+      onSelectedItemsChange={onSelectedItemsChange}
+      onExpandedItemsChange={onItemExpansionToggle}
+      expandedItems={focusSelectedLayer ? defaultExpandedItems : expandedItems}
+      {...props}
+    >
       {tree}
     </SimpleTreeView>
   )
 }
-
 
 export default WmsTreeView

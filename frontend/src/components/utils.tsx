@@ -2,6 +2,7 @@ import { RaRecord } from 'react-admin';
 
 import { TreeItem, TreeItemProps } from '@mui/x-tree-view/TreeItem';
 
+import { useSearchParams } from 'react-router-dom';
 
 
 import { ReactNode } from 'react';
@@ -39,3 +40,24 @@ export const getSubTree = (nodes: RaRecord[], currentNode?: RaRecord, getTreeIte
         return subtree
     }
 };
+
+
+export const useQueryParam = (key:string, defaultValue?: string| undefined):[string | undefined, (newValue: string| null) => void] => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const value = searchParams.get(key) ?? defaultValue;
+
+  const setValue = (newValue: string | null) => {
+    const newParams = new URLSearchParams(searchParams);
+
+    if (newValue === null || newValue === undefined) {
+      newParams.delete(key);
+    } else {
+      newParams.set(key, newValue);
+    }
+
+    setSearchParams(newParams);
+  };
+
+  return [value, setValue];
+}

@@ -1,11 +1,15 @@
 import { DateField, EditButton, Identifier, NumberField, RaRecord, RecordRepresentation, Show, SimpleShowLayout, SimpleShowLayoutProps, TextField, TopToolbar, useGetOne, useRecordContext } from 'react-admin';
 
 import { Card, Stack } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { useCallback, useMemo } from 'react';
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
 import WmsTreeView from '../WebMapService/WmsTreeView';
 import useSelectedLayer from '../WebMapService/useSelectedLayer';
+
+import ListGuesser, { ListGuesserProps } from '../../../jsonapi/components/ListGuesser';
+import { useQueryParam } from '../../utils';
 
 const WmsShowActions = () => (
     <TopToolbar>
@@ -19,13 +23,30 @@ const LayerMappingsForm = () => {
     const  contextRecord  = useRecordContext();
     const [selectedLayer] = useSelectedLayer();
 
+    const queryOptionsMeta = useMemo(() => {
+        const meta: any ={  
+            jsonApiParams: { 
+                include: 'layers',
+            } 
+        }
+        meta.jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,identifier'
+        meta.jsonApiParams['fields[WebMapService]'] = 'title,layers'
+        return meta;
+    }, [])
+
     const { data: updateCandidate, isPending: updateCandidatePending,  } = useGetOne(
         'WebMapService',
-        { id: contextRecord?.updateCandidate?.id, meta: { jsonApiParams: { include: 'layers' } } },
+        { 
+            id: contextRecord?.updateCandidate?.id,
+            meta: queryOptionsMeta
+        },
     );
     const { data: currentServiceState, isPending: currentServiceStatePending,  } = useGetOne(
         'WebMapService',
-        { id: contextRecord?.service?.id , meta: { jsonApiParams: { include: 'layers' } } },
+        { 
+            id: contextRecord?.service?.id , 
+            meta: queryOptionsMeta 
+        },
     );
 
     const newLayers = useMemo(() => updateCandidate?.layers || [], [updateCandidate?.layers])
@@ -138,64 +159,71 @@ const LayerMappingsForm = () => {
                 <WmsTreeView
                     record={updateCandidate}
                     getLayerProps={getLayerProps}
+                    focusSelectedLayer={true}
                 />
             </Card>
             <Card  >
                <EditGuesser
                     resource="LayerMapping"
-                    id={selectedMapping?.id}
+                    //id={selectedMapping?.id}
                     redirect={false}
-               >
-
-               </EditGuesser>
+                    record={selectedMapping}
+               />
             </Card>
         </Stack>
     )
 }
 
+
+const LayerMappingList = (
+    props: ListGuesserProps
+) => {
+    const  contextRecord  = useRecordContext();
+
+    return (
+        <ListGuesser
+            title="Layer Mappings"
+            resource="LayerMapping"
+            relatedResource="WebMapServiceUpdateJob"
+            relatedResourceId={contextRecord?.id}
+            filter={{'isConfirmed': false}}
+            disableSyncWithLocation
+            defaultSelectedColumns={['id', 'oldLayer', 'newLayer', 'isConfirmed']}
+            {...props}
+        />
+    )
+}
+
 export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
     
-/*
-   // const { name: layerName, icon: layerIcon } = useResourceDefinition({resource: 'Layer'})
-    //const { name: wmsName, icon: wmsIcon } = useResourceDefinition({resource: 'WebMapService'})
-    //const { name: operationUrlName, icon: operationUrlIcon } = useResourceDefinition({resource: 'WebMapServiceOperationUrl'})
-
-    //const fieldDefinitions = useFieldsForOperation('partial_update_WebMapService', false, true);
-
-    //const fields = useMemo(()=>(
-    //    fieldDefinitions.filter(fieldDef => ['title', 'abstract'].includes(fieldDef.props.source)).map(fieldDef => createElement(fieldDef.component, fieldDef.props))
-    //),[fieldDefinitions])
-
-
-    //const meta = useMemo(()=>{
-    /    const jsonApiParams: any = {
-                include: 'layers,operationUrls',
-            }
-        const _meta = {
-            jsonApiParams: jsonApiParams
-        }
-        jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation'
-        return _meta
-    },[])
-*/
     const meta = useMemo(()=>(
          {jsonApiParams: {include: 'mappings'}} 
     ),[])
 
+    const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer');
+
     return (
         <Show 
             queryOptions={{meta: meta}}
-            actions={<WmsShowActions/>}
-            aside={<div><LayerMappingsForm/></div>}             
+            actions={<></>}        
         >
-        <SimpleShowLayout>
-            <TextField source="id" />
-            <JsonApiReferenceField source="service" reference="WebMapService" label="Service" />
-            <DateField source="dateCreated" />
-            <DateField source="doneAt" />
-            <NumberField source="status" />
-        </SimpleShowLayout>
-           
+            <Grid container spacing={2}>
+                <Grid size={12}>
+                    <SimpleShowLayout>
+                        <TextField source="id" />
+                        <JsonApiReferenceField source="service" reference="WebMapService" label="Service" />
+                        <DateField source="dateCreated" />
+                        <DateField source="doneAt" />
+                        <NumberField source="status" />
+                    </SimpleShowLayout>
+                </Grid>
+                <Grid size={12}>
+                    <LayerMappingList
+                        aside={<LayerMappingsForm/>}
+                        onRowClick={(record) => setSelectedLayer(record?.newLayer?.id?.toString())}
+                    />
+                </Grid>
+            </Grid>
         </Show>
     )
 };

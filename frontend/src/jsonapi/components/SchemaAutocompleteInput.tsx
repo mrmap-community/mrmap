@@ -42,7 +42,7 @@ const SchemaAutocompleteInput = (
     {
       ...defaultParms
     },
-    {enabled: !!filter} // only fetch when filter is set, which means the input is focused
+    //{enabled: !!filter} // only fetch when filter is set, which means the input is focused
   );
 
   const optionText = useSchemaRecordRepresentation({resource: reference})

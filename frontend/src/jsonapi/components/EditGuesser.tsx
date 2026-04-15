@@ -11,17 +11,15 @@ export interface EditGuesserProps<RecordType extends RaRecord = any>
   referenceInputs?: ReactElement[]
 }
 
-const EditGuesser = (
-{
+const EditFormGuesser = ({
   toolbar,
   updateFieldDefinitions,
   referenceInputs,
   ...props
 }: EditGuesserProps): ReactElement => {
-  const { name, options } = useResourceDefinition(props)
+  const { name } = useResourceDefinition(props)
 
   const record = useRecordContext(props)
-
   const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
   const fields = useMemo(
     () => 
@@ -43,6 +41,31 @@ const EditGuesser = (
     ,[fieldDefinitions, record]
   )
 
+
+  console.log('record in EditGuesser', record)
+
+
+  return (
+    <SimpleForm
+        toolbar={toolbar}
+        sanitizeEmptyValues
+      >
+        {fields}
+        {referenceInputs}
+      </SimpleForm>
+  )
+
+}
+
+const EditGuesser = (
+{
+  toolbar,
+  updateFieldDefinitions,
+  referenceInputs,
+  ...props
+}: EditGuesserProps): ReactElement => {
+  const { options } = useResourceDefinition(props)
+
   return (
     <Edit
       queryOptions={{
@@ -52,13 +75,12 @@ const EditGuesser = (
       mutationMode='pessimistic'
       {...props}
     >
-      <SimpleForm
+      <EditFormGuesser
         toolbar={toolbar}
-        sanitizeEmptyValues
-      >
-        {fields}
-        {referenceInputs}
-      </SimpleForm>
+        updateFieldDefinitions={updateFieldDefinitions}
+        referenceInputs ={referenceInputs}
+        {...props}
+      />
     </Edit>
   )
 }

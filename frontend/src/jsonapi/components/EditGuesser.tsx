@@ -42,9 +42,6 @@ const EditFormGuesser = ({
   )
 
 
-  console.log('record in EditGuesser', record)
-
-
   return (
     <SimpleForm
         toolbar={toolbar}

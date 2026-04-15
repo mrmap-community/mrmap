@@ -25,7 +25,6 @@ const ChangeLogList = (
   if (!hasHistoricalEndpoint){
     return <></>
   }
-  console.log(expanded)
   return (
       <>
         <Divider />

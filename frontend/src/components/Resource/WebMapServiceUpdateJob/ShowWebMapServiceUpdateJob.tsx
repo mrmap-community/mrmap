@@ -63,8 +63,6 @@ const LayerMappingsForm = () => {
     ? oldLayers.find((l: RaRecord) => l.id === selectedMapping.oldLayer.id)
     : null;
 
-    console.log('Selected Mapping:', selectedMapping);
-
     const diffMap = useMemo(() => {
         const map = new Map<Identifier, DiffStatus>();
 

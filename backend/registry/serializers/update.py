@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from registry.models.service import Layer, WebMapService
 from registry.models.update import LayerMapping, WebMapServiceUpdateJob
+from registry.serializers.service import WebMapServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, DateTimeField,
                                                  HyperlinkedIdentityField,
@@ -38,6 +39,10 @@ class LayerMappingSerializer(ModelSerializer):
         help_text=_("Whether this layer mapping is confirmed or not."),
         default=False
     )
+
+    included_serializers = {
+        "job": "registry.serializers.update.WebMapServiceUpdateJobSerializer",
+    }
 
     class Meta:
         model = LayerMapping
@@ -88,7 +93,6 @@ class WebMapServiceUpdateJobSerializer(ModelSerializer):
 
     included_serializers = {
         "mappings": LayerMappingSerializer,
-
     }
 
     class Meta:

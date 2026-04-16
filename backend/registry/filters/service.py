@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as _
+from django_filters import BooleanFilter
 from django_filters.filterset import FilterSet
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)
@@ -51,6 +52,21 @@ class LayerFilterSet(GeoFilterSet):
         field_name='bbox_lat_lon_inherited',
         lookup_expr='intersects')
 
+    has_mapping = BooleanFilter(
+        label=_('has mapping'),
+        help_text=_('returns layers that are not mapped to any layer mapping'),
+        field_name='mapping',
+        lookup_expr='isnull',
+        exclude=True
+    )
+    has_reverse_mapping = BooleanFilter(
+        label=_('has reverse mapping'),
+        help_text=_('returns layers that are mapped to a layer mapping'),
+        field_name='reverse_mapping',
+        lookup_expr='isnull',
+        exclude=True
+    )
+
     class Meta:
         model = Layer
         fields = {
@@ -69,7 +85,9 @@ class LayerFilterSet(GeoFilterSet):
             'mptt_rgt': ['exact', 'gt', 'gte', 'lt', 'lte'],
             'mptt_tree': ['exact'],
             'mptt_depth': ['exact', 'gt', 'gte', 'lt', 'lte'],
-            'service': ['exact']
+            'service': ['exact'],
+            # 'no_mapping': ['exact']
+            # TODO: mapping is a reverse field on Layer. How can we filter for layers without mapping?
         }
 
 

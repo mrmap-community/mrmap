@@ -38,6 +38,7 @@ def default_update_config():
             "keywords": "overwrite",
             "reference_systems": "overwrite",
             "time_extents": "overwrite",
+            # TODO: datasetmetadata overwrite
         }
     }
 

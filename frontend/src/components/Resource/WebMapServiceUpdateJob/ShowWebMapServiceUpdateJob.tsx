@@ -3,13 +3,13 @@ import { DateField, EditButton, Identifier, NumberField, RaRecord, RecordReprese
 import { Card, Stack } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { useCallback, useMemo } from 'react';
-import EditGuesser from '../../../jsonapi/components/EditGuesser';
 import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
 import WmsTreeView from '../WebMapService/WmsTreeView';
 import useSelectedLayer from '../WebMapService/useSelectedLayer';
 
 import ListGuesser, { ListGuesserProps } from '../../../jsonapi/components/ListGuesser';
 import { useQueryParam } from '../../utils';
+import { EditLayerMapping } from './EditLayerMapping';
 
 const WmsShowActions = () => (
     <TopToolbar>
@@ -53,7 +53,7 @@ const LayerMappingsForm = () => {
     const oldLayers = useMemo(() => currentServiceState?.layers || [], [currentServiceState?.layers])
     const mappings = useMemo(() => contextRecord?.mappings || [], [contextRecord?.mappings])
 
-    const selectedMapping = useMemo(() => 
+    const selectedMapping = useMemo<RaRecord | undefined>(() => 
         mappings.find((m: RaRecord) => m.newLayer?.id === selectedLayer),
         [mappings, selectedLayer]
     );
@@ -161,12 +161,9 @@ const LayerMappingsForm = () => {
                 />
             </Card>
             <Card  >
-               <EditGuesser
-                    resource="LayerMapping"
-                    //id={selectedMapping?.id}
-                    redirect={false}
-                    record={selectedMapping}
-               />
+               <EditLayerMapping
+                    selectedMapping={selectedMapping}
+                />
             </Card>
         </Stack>
     )

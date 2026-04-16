@@ -1,11 +1,17 @@
-import { type ReactElement, useMemo, useState } from 'react';
+import { type ReactElement, useCallback, useMemo, useState } from 'react';
 import { AutocompleteArrayInput, AutocompleteArrayInputProps, AutocompleteInput, GetListParams, Identifier, type RaRecord, useGetList, useRecordContext } from 'react-admin';
 
+import { RelatedResource } from '../../providers/dataProvider';
 import useSchemaRecordRepresentation from '../hooks/useSchemaRecordRepresentation';
+
+
 export interface SchemaAutocompleteInputProps extends AutocompleteArrayInputProps {
   reference: string
+  relatedResource?: RelatedResource
   source: string
   params?: GetListParams
+  getListParams?: GetListParams
+  initialFilter?: any
 }
 
 /**
@@ -19,22 +25,26 @@ export interface SchemaAutocompleteInputProps extends AutocompleteArrayInputProp
 const SchemaAutocompleteInput = (
   {
     reference,
+    relatedResource,
     source,
     multiple,
     params,
     defaultValue,
+    getListParams,
+    initialFilter,
     ...rest
   }: SchemaAutocompleteInputProps
 ): ReactElement => {
-  const [ filter, setFilter] = useState<any>();
+  const [ filter, setFilter] = useState<any>(initialFilter || {});
   const contextRecord = useRecordContext(rest)
   const currentValues = useMemo(() => (contextRecord?.[source]), [contextRecord, source])
 
-  const defaultParms = useMemo(()=>{
+  const defaultParms = useMemo<GetListParams>(()=>{
     const _defaultParms: any = {
       filter: filter, 
       sort: {field: '', order: 'DESC'}, 
       meta: {
+        relatedResource: relatedResource,
         jsonApiParams: {}
       },
       ...params
@@ -46,11 +56,12 @@ const SchemaAutocompleteInput = (
   const { data, isFetching } = useGetList(
     reference, 
     {
-      ...defaultParms
+      ...defaultParms,
+      ...getListParams
     },
     {
-      enabled: !!filter, // only fetch when filter is set, which means the input is focused
-      //initialData: {data: currentValues ? (Array.isArray(currentValues) ? currentValues : [currentValues]): []}, // set initial data to current values to avoid losing selected value when input is focused
+      // FIXME: only fetch if the user types >1 characters
+      enabled: filter?.search !== undefined, // only fetch when filter is set, which means the input is focused
     } 
   );
 
@@ -68,14 +79,18 @@ const SchemaAutocompleteInput = (
     return merged;
   }, [data, currentValues]);
  
+  const search = useCallback((searchText: string) => {
+    setFilter((prev: any) => ({ ...prev, search: searchText }));
+  }, [])
 
   const optionText = useSchemaRecordRepresentation({resource: reference})
-
+  console.log(rest)
   // TODO: check if the resource has create endpoint; if so, we add an create component here
   if (multiple){
     return (
         <AutocompleteArrayInput 
-          setFilter={(searchText: string) => setFilter({ search: searchText})}
+          setFilter={(searchText: string) => search(searchText)}
+          onOpen={() => search(filter.search || '')}
           source={source}
           choices={mergedData}
           isFetching={isFetching}
@@ -89,7 +104,8 @@ const SchemaAutocompleteInput = (
   } else {
     return (
       <AutocompleteInput 
-        setFilter={(searchText: string) => setFilter({ search: searchText})}
+        setFilter={(searchText: string) => search(searchText)}
+        onOpen={() => search(filter.search || '')}
         source={source}
         choices={mergedData}
         isFetching={isFetching}

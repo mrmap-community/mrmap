@@ -20,6 +20,7 @@ const EditFormGuesser = ({
   const { name } = useResourceDefinition(props)
 
   const record = useRecordContext(props)
+  
   const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
   const fields = useMemo(
     () => 
@@ -27,7 +28,6 @@ const EditFormGuesser = ({
         fieldDefinition => {
 
           const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
-        
           return createElement(
             update?.component || fieldDefinition.component, 
             {
@@ -62,7 +62,7 @@ const EditGuesser = (
   ...props
 }: EditGuesserProps): ReactElement => {
   const { options } = useResourceDefinition(props)
-
+  
   return (
     <Edit
       queryOptions={{

@@ -1,6 +1,7 @@
 from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
+from registry.filters.update import LayerMappingFilterSet
 from registry.models.update import LayerMapping, WebMapServiceUpdateJob
 from registry.serializers.update import (LayerMappingSerializer,
                                          WebMapServiceUpdateJobSerializer)
@@ -55,8 +56,7 @@ class LayerMappingViewSetMixin(PreloadNotIncludesMixin):
     queryset = LayerMapping.objects.all()
     serializer_class = LayerMappingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    filterset_fields = ("id", "job", "new_layer", "old_layer",
-                        "created", "is_confirmed")
+    filterset_class = LayerMappingFilterSet
     ordering_fields = ("id", "job", "new_layer", "old_layer",
                        "created", "is_confirmed")
 

@@ -6,6 +6,7 @@ from django.db.models.query import Prefetch, QuerySet
 from django.http import JsonResponse
 from django.views.generic.detail import BaseDetailView
 from django_celery_results.models import TaskResult
+from extras.utils import get_sparse_fields
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import TaskResultSerializer
 from rest_framework import mixins, status
@@ -55,24 +56,49 @@ class HistoryInformationViewSetMixin:
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
+        # TODO: only needed if sparsefields contains created_by, created_at, updated_by or updated_at. We need to check this to prevent unnecessary prefetching.
         try:
-            django_model = apps.get_model(
-                self.queryset.model._meta.app_label, f"Historical{self.queryset.model.__name__}")
+            sparse_fields = get_sparse_fields(self.request)
+            resource_based_sparse_fields = sparse_fields.get(
+                self.queryset.model.__name__, [])
 
-            qs = qs.prefetch_related(
-                Prefetch(
-                    'change_logs',
-                    queryset=django_model.objects.filter(
-                        history_type='+').select_related("history_user").only('history_relation', 'history_user__id', 'history_date')[:1],
-                    to_attr='first_history'
-                ),
-                Prefetch(
-                    'change_logs',
-                    queryset=django_model.objects.select_related(
-                        "history_user").order_by('-history_date').only('history_relation', 'history_user__id', 'history_date')[:1],
-                    to_attr='last_history'
-                )
-            )
+            fields_to_check = {"created_at", "last_modified_at",
+                               "created_by", "last_modified_by"}
+            if not resource_based_sparse_fields or any(field in fields_to_check for field in resource_based_sparse_fields):
+                django_model = apps.get_model(
+                    self.queryset.model._meta.app_label, f"Historical{self.queryset.model.__name__}")
+
+                prefetches = []
+                if any(field in ["created_at", "created_by"] for field in resource_based_sparse_fields):
+                    only = ['history_relation']
+                    if "created_at" in resource_based_sparse_fields:
+                        only.append("history_date")
+                    if "created_by" in resource_based_sparse_fields:
+                        only.append("history_user__id")
+                    prefetches.append(
+                        Prefetch(
+                            'change_logs',
+                            queryset=django_model.objects.filter(
+                                history_type='+').select_related("history_user").only(*only)[:1],
+                            to_attr='first_history'
+                        )
+                    )
+                if any(field in ["last_modified_at", "last_modified_by"] for field in resource_based_sparse_fields):
+                    if "last_modified_at" in resource_based_sparse_fields:
+                        only.append("history_date")
+                    if "last_modified_by" in resource_based_sparse_fields:
+                        only.append("history_user__id")
+                    prefetches.append(
+                        Prefetch(
+                            'change_logs',
+                            queryset=django_model.objects.select_related(
+                                "history_user").order_by('-history_date').only(*only)[:1],
+                            to_attr='last_history'
+                        )
+                    )
+                if prefetches:
+                    qs = qs.prefetch_related(*prefetches)
+
         except LookupError:
             pass
         return qs

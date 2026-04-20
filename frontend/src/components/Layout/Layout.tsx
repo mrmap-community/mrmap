@@ -1,12 +1,8 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Layout, type Identifier, type LayoutProps } from 'react-admin';
+import { useMemo, type ReactNode } from 'react';
+import { Layout, useTheme, type Identifier, type LayoutProps } from 'react-admin';
 import { ReadyState } from 'react-use-websocket';
 
-import CircleIcon from '@mui/icons-material/Circle';
-import GitHubIcon from '@mui/icons-material/GitHub';
-import { Box, Grid, IconButton, Tooltip, Typography } from '@mui/material';
-import Card from '@mui/material/Card';
-import useResizeObserver from '@react-hook/resize-observer';
+import { Box } from '@mui/material';
 import { SnackbarProvider } from 'notistack';
 
 import { useHttpClientContext } from '../../context/HttpClientContext';
@@ -29,9 +25,6 @@ declare module 'notistack' {
   }
 }
 
-
-
-
 // Dirty hack to append SnackbarObserver
 const MyLayout = (
   {
@@ -40,11 +33,8 @@ const MyLayout = (
   }: LayoutProps
 ): ReactNode => {
   const { api, realtimeIsReady } = useHttpClientContext();
-  const footerRef = useRef(null);
-  const [footerHeight, setFooterHeight] = useState<number>();
   const systemTime = useSystemTime();
-  
-  useResizeObserver(footerRef ?? null, (entry) => setFooterHeight(entry.contentRect.height))
+  const theme = useTheme();
 
   const readyStateColor = useMemo(()=>{
     switch(realtimeIsReady){
@@ -66,11 +56,9 @@ const MyLayout = (
     <SnackbarProvider
       maxSnack={10}
       // action={SnackbarCloseButton}
-      Components={
-        {
+      Components={{
           taskProgress: SnackbarContentBackgroundProcess
-        }
-      }
+      }}
     >
       <RealtimeBus/> 
       <I18Observer/>
@@ -78,59 +66,42 @@ const MyLayout = (
         appBar={MrMapAppBar}
         menu={Menu}
         sx={{
-           marginTop: '0', 
-           '& .RaLayout-appFrame': { marginTop: '0 !important' },
-           '& .RaLayout-content': { width: '200px'}, // this width is needed, otherwise the container will not resize dynimcly
+          height: '100vh',
+          maxHeight: '100vh',
+          
+          display: 'flex',
+          flexDirection: 'column',
+          '& .RaLayout-appFrame': {
+            marginTop: '0 !important',
+            marginBottom: '50px',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            minHeight: 0
+          },
+
+          '& .RaLayout-content': {
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden', // prevent double scrollbars
+            minHeight: 0,
+            marginBottom: '50px',
+          },
         }}
         {...rest}
       >
-        <Box 
-          style={{ 
-            margin: "10px", 
-            marginBottom: footerHeight,
+        {/* MAIN SCROLLABLE CONTENT */}
+        <Box sx={{ 
+            flex: 1, 
+            minHeight: 0, // allow shrinking to fit the viewport
+            overflow: 'auto',
+            m: 1
           }}
         >
           {children}
           {<SnackbarObserver />}
-        </Box>
-        <Card style={{
-          position: 'fixed', 
-          right: 0, 
-          bottom: 0, 
-          left: 0, 
-          zIndex: 100,
-          textAlign: 'center',
-        }}>
-          <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} ref={footerRef}>
-          
-            <Grid >
-              <Typography padding={1}> v.{api?.document.info.version}</Typography>
-            </Grid>
-
-            <Grid  >
-              <IconButton href="https://github.com/mrmap-community" target="_blank">
-                <GitHubIcon />
-              </IconButton>
-            </Grid>
-
-            <Grid container alignItems="center"  justifyContent='space-between'>
-              <Grid>
-                <Typography>{systemTime ?? ''}</Typography>
-              </Grid>
-              <Grid>
-                <Tooltip title={realtimeIsReady === ReadyState.OPEN ? 'Backend is connected': 'Connection to backend lost'}>
-                  <IconButton padding={1} >
-                    <CircleIcon
-                      color={readyStateColor}
-                    />
-                  </IconButton>
-                </Tooltip>
-              </Grid>
-            </Grid>
-          
-          </Grid>
-        </Card>
-       
+        </Box>       
       </Layout>
     </SnackbarProvider>
 

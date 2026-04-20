@@ -47,7 +47,7 @@ const PrimaryText = ({ record, related, selectedRecord }: PrimaryTextProps): Rea
       }
     } else if (record.historyType === 'deleted') {
        
-      return `${record.title} (${record.historyRelation.id})`
+      return `${record.title} (${record?.historyRelation?.id})`
     } else {
       return <RecordRepresentation record={record.historyRelation} resource={related} />
     }
@@ -72,7 +72,7 @@ const HistoryList = ({
     // params[`fields[${related ?? ''}]`] = 'title'
     params['fields[User]'] = 'username,string_representation'
     params['fields[HistoricalLayer]'] = 'history_type,history_date,history_user'
-    if (selectedRecord !== undefined) {
+    if (selectedRecord !== undefined && selectedRecord.id !== undefined) {
       params['filter[historyRelation]'] = selectedRecord.id
     }
     return params

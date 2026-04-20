@@ -23,7 +23,7 @@ const style = {
   position: 'relative',
   //  display: 'flex',
   width: '100%',
-  height: 'calc(100vh - 50px)'
+  height: '100%'
   // maxHeight: 'calc(100vh - 50px !important)'
 }
 

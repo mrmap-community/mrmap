@@ -4,8 +4,8 @@ import { RaRecord, useNotify, useShowContext } from 'react-admin';
 import { Container, Grid } from '@mui/material';
 
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
+import { useQueryParam } from '../../utils';
 import WmsTreeView from './WmsTreeView';
-import useSelectedLayer from './useSelectedLayer';
 
 
 export const WmsLayers = () => {
@@ -13,7 +13,7 @@ export const WmsLayers = () => {
   const { refetch } = useShowContext();
   const notify = useNotify(); 
 
-  const [selectedLayer] = useSelectedLayer();
+  const [selectedLayer] = useQueryParam('selectedLayer');
 
 
   const onSuccess = useCallback((record: RaRecord)=>{

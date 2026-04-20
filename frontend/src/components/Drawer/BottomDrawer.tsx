@@ -43,7 +43,7 @@ const BottomDrawer = ({
     if (bottomDrawer.isOpen !== bottomDrawerIsOpenRef.current) {
       bottomDrawerIsOpenRef.current = bottomDrawer.isOpen
       if (bottomDrawer.isOpen) {
-        setRightDrawer({ ...rightDrawer, height: `calc(100vh - 50px - ${bottomDrawer.height})` })
+        setRightDrawer({ ...rightDrawer, height: `100%` })
       } else {
         setRightDrawer({ ...rightDrawer, height: lastRightDrawerState?.current?.height })
       }
@@ -68,8 +68,8 @@ const BottomDrawer = ({
           position: 'absolute',
           left: '50%',
           zIndex: 1000,
-          padding: 0,
-          bottom: `${bottomDrawer.isOpen ? bottomDrawer.height : '0px'}`,
+          //padding: 0,
+          bottom: `${bottomDrawer.isOpen ? bottomDrawer.height : '40px'}`,
           transition: 'all 225 cubic-bezier(0.4, 0, 0.6, 1) 0ms !important',
           border: 'unset',
           borderRadius: '5px 5px 0 0',

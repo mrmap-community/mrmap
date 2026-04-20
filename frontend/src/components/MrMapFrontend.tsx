@@ -6,12 +6,14 @@ import {
   Loading,
   localStorageStore,
   Resource,
+  useTheme,
   type RaThemeOptions
 } from 'react-admin';
 import { BrowserRouter, Route } from 'react-router-dom';
 
 import { type Operation as AxiosOperation, type OpenAPIV3 } from 'openapi-client-axios';
 
+import { Card, Grid, IconButton, Tooltip, Typography } from '@mui/material';
 import { useHttpClientContext } from '../context/HttpClientContext';
 import CreateGuesser from '../jsonapi/components/CreateGuesser';
 import EditGuesser from '../jsonapi/components/EditGuesser';
@@ -28,6 +30,11 @@ import CatalogueServiceClient from './Resource/CatalogueService/CatalogueService
 import defaultRecordRepresentation from './Resource/defaultRecordRepresentation';
 import RESOURCES from './Resource/Definition';
 
+import CircleIcon from '@mui/icons-material/Circle';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import { ReadyState } from 'react-use-websocket';
+import { useSystemTime } from '../jsonapi/hooks/useSystemTime';
+
 const STORE_VERSION = '1'
 const store = localStorageStore(STORE_VERSION)
 const lightTheme = defaultTheme
@@ -35,8 +42,9 @@ const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
 const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
 
 const MrMapFrontend = (): ReactElement => {
-  const { api, isPending } = useHttpClientContext()
-  
+  const { api, isPending, realtimeIsReady } = useHttpClientContext()
+      const systemTime = useSystemTime();
+    const theme = useTheme();
   const dataProvider = useMemo(() => {
     return api && jsonApiDataProvider({
       httpClient: api, 
@@ -53,10 +61,12 @@ const MrMapFrontend = (): ReactElement => {
       const createOperationName = `create_${resource.name}`
       const editOperationName = `partial_update_${resource.name}`
       const listOperationName =`list_${resource.name}`
+      const deleteOperationName =`destroy_${resource.name}`
 
       const createOperation = api?.getOperation(createOperationName)
       const editOperation = api?.getOperation(editOperationName)
       const listOperation = api?.getOperation(listOperationName)
+      const deleteOperation = api?.getOperation(deleteOperationName)
 
       const related_list_operations = api?.getOperations().filter((operation) => operation.operationId?.includes(`_of_${resource.name}`)) as AxiosOperation[]
       const related_list_resources = related_list_operations?.map((schema) => {
@@ -78,11 +88,14 @@ const MrMapFrontend = (): ReactElement => {
           children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={resource.name}> </ListGuesser>}></Route>)
         }) as ReactElement[],
         ...(resource.recordRepresentation ? {recordRepresentation: resource.recordRepresentation}: {recordRepresentation: defaultRecordRepresentation}),
-        ...({options: {...resource.options, 
+        ...({options: {
+              ...resource.options, 
               showOperationName: showOperationName,
               createOperationName: createOperationName,
               editOperationName: editOperationName,
-              listOperationName: listOperationName
+              listOperationName: listOperationName,
+              hasDelete: !!deleteOperation,
+              label: resource.name,
             }}),
         ...resource,
         
@@ -96,6 +109,24 @@ const MrMapFrontend = (): ReactElement => {
         ))
   ),[resourceDefinitions])
 
+
+  
+    const readyStateColor = useMemo(()=>{
+      switch(realtimeIsReady){
+        case ReadyState.CONNECTING:
+          return 'warning'
+        case ReadyState.OPEN:
+          return 'success'
+        case ReadyState.CLOSING:
+        case ReadyState.CLOSED:
+          return 'error'
+        case ReadyState.UNINSTANTIATED:
+        default:
+          return 'info'
+  
+      }
+    },[realtimeIsReady])
+  
   
   if (isPending || dataProvider === undefined || resources.length === 0) {
     return (
@@ -128,6 +159,53 @@ const MrMapFrontend = (): ReactElement => {
           </CustomRoutes>
             
         </Admin>
+         <Card style={{
+              position: 'fixed',
+              right: 0, 
+              bottom: 0, 
+              left: 0, 
+              zIndex: 100,
+        }}>
+          <Grid container spacing={2} sx={{ justifyContent: 'space-between' }}>
+          
+            <Grid >
+              <Typography padding={1}> 
+                v.{api?.document.info.version}
+              </Typography>
+            </Grid>
+
+            <Grid  >
+              <IconButton 
+                href="https://github.com/mrmap-community" 
+                target="_blank"
+              >
+                <GitHubIcon />
+              </IconButton>
+            </Grid>
+
+            <Grid 
+              container 
+              alignItems="center"  
+              justifyContent='space-between'>
+              <Grid>
+                <Typography>{systemTime ?? ''}</Typography>
+              </Grid>
+              <Grid>
+                <Tooltip title={
+                  realtimeIsReady === ReadyState.OPEN 
+                  ? 'Backend is connected'
+                  : 'Connection to backend lost'
+                  }
+                >
+                  <IconButton>
+                    <CircleIcon color={readyStateColor}/>
+                  </IconButton>
+                </Tooltip>
+              </Grid>
+            </Grid>
+          
+          </Grid>
+        </Card>
       </BrowserRouter>
     )
   }

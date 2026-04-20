@@ -1,27 +1,28 @@
 import { RaRecord, useRecordContext } from 'react-admin';
 
 import { useMemo } from 'react';
-import EditGuesser from '../../../jsonapi/components/EditGuesser';
+import EditGuesser, { EditGuesserProps } from '../../../jsonapi/components/EditGuesser';
 import { useFieldsForOperation } from '../../../jsonapi/hooks/useFieldsForOperation';
+import { useQueryParam } from '../../utils';
 
-
-
-export interface EditLayerMappingProps {
-    selectedMapping: RaRecord | undefined;
-}
 
 export const EditLayerMapping = (
   {
-    selectedMapping
-  }: EditLayerMappingProps
+    ...rest
+  }: EditGuesserProps
 ) => {
+  const [selectedLayer] = useQueryParam('selectedLayer');
 
   const contextRecord = useRecordContext()
   
-  console.log(contextRecord, 'contextRecord in EditLayerMapping')
   const fieldDefinitions = useFieldsForOperation(`partial_update_LayerMapping`)
   
+  const mappings = useMemo(() => contextRecord?.mappings || [], [contextRecord?.mappings])
 
+  const selectedMapping = useMemo<RaRecord | undefined>(() => 
+      mappings.find((m: RaRecord) => m.newLayer?.id === selectedLayer),
+      [mappings, selectedLayer]
+  );
   const updateFieldDefinitions = useMemo(()=>{
     const _updateFieldDefinitions: any[] = [...fieldDefinitions]
     
@@ -54,6 +55,7 @@ export const EditLayerMapping = (
         id={selectedMapping?.id}
         redirect={false}
         updateFieldDefinitions={updateFieldDefinitions}
+        {...rest}
     />
   )
 }

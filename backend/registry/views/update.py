@@ -63,6 +63,7 @@ class LayerMappingViewSetMixin(PreloadNotIncludesMixin):
     select_for_includes = {
         "job": ["job"],
     }
+    http_method_names = ["get", "patch"]  # disable PUT
 
 
 class LayerMappingViewSet(

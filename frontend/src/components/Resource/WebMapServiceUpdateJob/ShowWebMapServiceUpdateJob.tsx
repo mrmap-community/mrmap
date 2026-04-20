@@ -1,27 +1,17 @@
-import { DateField, EditButton, Identifier, NumberField, RaRecord, RecordRepresentation, Show, SimpleShowLayout, SimpleShowLayoutProps, TextField, TopToolbar, useGetOne, useRecordContext } from 'react-admin';
+import { EditButton, Identifier, RaRecord, RecordRepresentation, Show, SimpleShowLayoutProps, useGetOne, useRecordContext, WrapperField } from 'react-admin';
 
-import { Card, Stack } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import { useCallback, useMemo } from 'react';
-import JsonApiReferenceField from '../../../jsonapi/components/ReferenceField';
 import WmsTreeView from '../WebMapService/WmsTreeView';
-import useSelectedLayer from '../WebMapService/useSelectedLayer';
 
+import { Box, Drawer, Stack } from '@mui/material';
 import ListGuesser, { ListGuesserProps } from '../../../jsonapi/components/ListGuesser';
 import { useQueryParam } from '../../utils';
 import { EditLayerMapping } from './EditLayerMapping';
 
-const WmsShowActions = () => (
-    <TopToolbar>
-        <EditButton/>
-    </TopToolbar>
-);
-
 type DiffStatus = 'added' | 'removed' | 'unchanged' | 'modified';
 
-const LayerMappingsForm = () => {
+const DiffWmsLayerTree = () => {
     const  contextRecord  = useRecordContext();
-    const [selectedLayer] = useSelectedLayer();
 
     const queryOptionsMeta = useMemo(() => {
         const meta: any ={  
@@ -51,17 +41,7 @@ const LayerMappingsForm = () => {
 
     const newLayers = useMemo(() => updateCandidate?.layers || [], [updateCandidate?.layers])
     const oldLayers = useMemo(() => currentServiceState?.layers || [], [currentServiceState?.layers])
-    const mappings = useMemo(() => contextRecord?.mappings || [], [contextRecord?.mappings])
 
-    const selectedMapping = useMemo<RaRecord | undefined>(() => 
-        mappings.find((m: RaRecord) => m.newLayer?.id === selectedLayer),
-        [mappings, selectedLayer]
-    );
-
-    const newLayer = newLayers.find((l: RaRecord) => l.id === selectedLayer);
-    const oldLayer = selectedMapping?.oldLayer
-    ? oldLayers.find((l: RaRecord) => l.id === selectedMapping.oldLayer.id)
-    : null;
 
     const diffMap = useMemo(() => {
         const map = new Map<Identifier, DiffStatus>();
@@ -138,34 +118,11 @@ const LayerMappingsForm = () => {
     if (updateCandidatePending || currentServiceStatePending) return <div>Loading...</div>
     
     return (
-        <Stack
-            sx={{
-                marginLeft: '5px', 
-                maxHeight: '80vh', 
-                
-                justifyContent: "space-between",
-                alignItems: "stretch",
-            }} 
-            spacing={2}
-        >
-            <Card 
-                sx={{
-                    overflow: 'auto',
-                    maxHeight: '30vh',
-                }}
-            > 
-                <WmsTreeView
-                    record={updateCandidate}
-                    getLayerProps={getLayerProps}
-                    focusSelectedLayer={true}
-                />
-            </Card>
-            <Card  >
-               <EditLayerMapping
-                    selectedMapping={selectedMapping}
-                />
-            </Card>
-        </Stack>
+        <WmsTreeView
+            record={updateCandidate}
+            getLayerProps={getLayerProps}
+            focusSelectedLayer={true}
+        />
     )
 }
 
@@ -174,16 +131,23 @@ const LayerMappingList = (
     props: ListGuesserProps
 ) => {
     const  contextRecord  = useRecordContext();
-
+        const rowActions = useMemo(() => {
+        return (
+            <WrapperField label="Actions" >
+                <EditButton onClick={null} />
+            </WrapperField >
+        )
+    },[])
     return (
         <ListGuesser
             title="Layer Mappings"
             resource="LayerMapping"
             relatedResource="WebMapServiceUpdateJob"
             relatedResourceId={contextRecord?.id}
-            filter={{'isConfirmed': false}}
+            filterDefaultValues={{'isConfirmed': false}}
             disableSyncWithLocation
             defaultSelectedColumns={['id', 'oldLayer', 'newLayer', 'isConfirmed']}
+            rowActions={rowActions}
             {...props}
         />
     )
@@ -194,31 +158,42 @@ export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
     const meta = useMemo(()=>(
          {jsonApiParams: {include: 'mappings'}} 
     ),[])
-
     const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer');
 
     return (
         <Show 
             queryOptions={{meta: meta}}
-            actions={<></>}        
+            actions={<></>}
         >
-            <Grid container spacing={2}>
-                <Grid size={12}>
-                    <SimpleShowLayout>
-                        <TextField source="id" />
-                        <JsonApiReferenceField source="service" reference="WebMapService" label="Service" />
-                        <DateField source="dateCreated" />
-                        <DateField source="doneAt" />
-                        <NumberField source="status" />
-                    </SimpleShowLayout>
-                </Grid>
-                <Grid size={12}>
+            <Stack direction="row" >
+
+                {/* LEFT: TREE */}
+                <Box sx={{ width: 320, borderRight: '1px solid #ddd', }}>
+                    <DiffWmsLayerTree />
+                </Box>
+
+                {/* RIGHT: TABLE */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
                     <LayerMappingList
-                        aside={<LayerMappingsForm/>}
-                        onRowClick={(record) => setSelectedLayer(record?.newLayer?.id?.toString())}
+                        onRowClick={(record) => {
+                            setSelectedLayer(record?.newLayer?.id?.toString());
+                        }}
                     />
-                </Grid>
-            </Grid>
+                </Box>
+
+                {/* DETAIL PANEL */}
+                <Drawer
+                    anchor="right"
+                    open={!!selectedLayer}
+                    onClose={() => setSelectedLayer(null)}
+                    //PaperProps={{ sx: { width: 420 } }}
+                    title='huhu'
+                >
+                    <EditLayerMapping />
+                </Drawer>
+
+            </Stack>
+
         </Show>
     )
 };

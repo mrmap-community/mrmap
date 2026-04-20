@@ -27,7 +27,8 @@ class LayerMappingSerializer(ModelSerializer):
     old_layer = ResourceRelatedField(
         label=_("Old Layer"),
         help_text=_("The old layer this mapping points to."),
-        queryset=Layer.objects
+        queryset=Layer.objects,
+        required=False
     )
     created = DateTimeField(
         label=_("Created"),

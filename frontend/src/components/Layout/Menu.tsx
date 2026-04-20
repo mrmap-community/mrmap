@@ -66,7 +66,7 @@ const Menu = ({ dense = false }: MenuProps) => {
             sx={{
                 width: open ? 200 : 50,
                 marginTop: 1,
-                marginBottom: 1,
+                marginBottom: '40px',
                 transition: theme =>
                     theme.transitions.create('width', {
                         easing: theme.transitions.easing.sharp,

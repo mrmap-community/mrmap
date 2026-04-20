@@ -12,8 +12,7 @@ import VpnLockIcon from '@mui/icons-material/VpnLock';
 import { TreeItemProps } from '@mui/x-tree-view/TreeItem';
 import SimpleUpdateButton from '../../../jsonapi/components/SimpleUpdateButton';
 import { getAnchestors } from '../../MapViewer/utils';
-import { getSubTree } from '../../utils';
-import useSelectedLayer from './useSelectedLayer';
+import { getSubTree, useQueryParam } from '../../utils';
 
 export interface WmsTreeViewProps extends Omit<SimpleTreeViewProps, 'children'> {
   getLayerProps?: (record: RaRecord) => TreeItemProps;
@@ -98,8 +97,8 @@ const WmsTreeView = ({
   ) || [],
   [record?.layers, getLayerProps])
   
-  const [selectedLayer, setSelectedLayer] = useSelectedLayer(record?.layers?.[0]?.id);
-  
+  const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer', record?.layers?.[0]?.id.toString());
+
   const defaultExpandedItems = useMemo<string[]>(()=>{
     if (selectedLayer !== undefined && selectedLayer !== null) {
         const anchestors = getAnchestors(record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft), record?.layers.find((layer: RaRecord) => layer.id === selectedLayer))
@@ -126,6 +125,13 @@ const WmsTreeView = ({
     itemids !== null && setSelectedLayer(itemids);
   }, [setSelectedLayer])
 
+  useEffect(()=>{
+    if(focusSelectedLayer && defaultExpandedItems?.length > 0){
+      setExpandedItems(defaultExpandedItems);
+    }
+  },[defaultExpandedItems])
+
+
   useEffect(() => {
     if (!focusSelectedLayer || !selectedLayer) return;
 
@@ -145,7 +151,7 @@ const WmsTreeView = ({
     };
 
     tryScroll();
-  }, [selectedLayer, focusSelectedLayer, expandedItems]);
+  }, [selectedLayer, focusSelectedLayer]);
 
   return (
     <SimpleTreeView
@@ -154,7 +160,7 @@ const WmsTreeView = ({
       
       onSelectedItemsChange={onSelectedItemsChange}
       onExpandedItemsChange={onItemExpansionToggle}
-      expandedItems={focusSelectedLayer ? defaultExpandedItems : expandedItems}
+      expandedItems={expandedItems}
       {...props}
     >
       {tree}

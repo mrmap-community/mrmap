@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, useMemo } from 'react';
-import { Edit, type EditProps, RaRecord, SimpleForm, useRecordContext, useResourceDefinition } from 'react-admin';
+import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, Toolbar, ToolbarClasses, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import { FieldDefinition } from '../utils';
 
@@ -17,7 +17,7 @@ const EditFormGuesser = ({
   referenceInputs,
   ...props
 }: EditGuesserProps): ReactElement => {
-  const { name } = useResourceDefinition(props)
+  const { name, options } = useResourceDefinition(props)
 
   const record = useRecordContext(props)
   
@@ -41,11 +41,23 @@ const EditFormGuesser = ({
     ,[fieldDefinitions, record]
   )
 
+  const defaultToolbar = useMemo(() => {
+    return (
+      <Toolbar>
+        <div className={ToolbarClasses.defaultToolbar}>
+          <SaveButton />
+          {/* conditionally include DeleteButton */}
+          {options.hasDelete && <DeleteButton resource={name} />}
+        </div>
+      </Toolbar>
+    )
+  }, [name, options.hasDelete])
 
   return (
     <SimpleForm
-        toolbar={toolbar}
+        toolbar={defaultToolbar || toolbar}
         sanitizeEmptyValues
+        
       >
         {fields}
         {referenceInputs}
@@ -70,6 +82,7 @@ const EditGuesser = (
       }}
       mutationOptions={{ meta: { type: options?.type }}}
       mutationMode='pessimistic'
+      
       {...props}
     >
       <EditFormGuesser

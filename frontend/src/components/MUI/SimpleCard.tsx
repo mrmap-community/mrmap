@@ -16,7 +16,7 @@ const SimpleCard = ({
 
   return (
     <Card
-      sx={{boxShadow: 4, marginBottom: '1em'}}
+      sx={{boxShadow: 4, height: '100%'}}
     >
         <CardHeader 
           title={title} 

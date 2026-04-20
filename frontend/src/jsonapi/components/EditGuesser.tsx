@@ -57,7 +57,6 @@ const EditFormGuesser = ({
     <SimpleForm
         toolbar={defaultToolbar || toolbar}
         sanitizeEmptyValues
-        
       >
         {fields}
         {referenceInputs}

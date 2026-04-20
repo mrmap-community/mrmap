@@ -93,6 +93,8 @@ class WebMapServiceUpdateJobSerializer(ModelSerializer):
     )
 
     included_serializers = {
+        "service": WebMapServiceSerializer,
+        "update_candidate": WebMapServiceSerializer,
         "mappings": LayerMappingSerializer,
     }
 

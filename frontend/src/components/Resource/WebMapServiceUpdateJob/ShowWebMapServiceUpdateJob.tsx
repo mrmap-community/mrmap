@@ -5,6 +5,7 @@ import WmsTreeView from '../WebMapService/WmsTreeView';
 
 import { Box, Drawer, Stack } from '@mui/material';
 import ListGuesser, { ListGuesserProps } from '../../../jsonapi/components/ListGuesser';
+import SimpleCard from '../../MUI/SimpleCard';
 import { useQueryParam } from '../../utils';
 import { EditLayerMapping } from './EditLayerMapping';
 
@@ -153,17 +154,18 @@ const LayerMappingList = (
     )
 }
 
-export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
-    
-    const meta = useMemo(()=>(
-         {jsonApiParams: {include: 'mappings'}} 
-    ),[])
+const WebMapServiceUpdateJobCard = ()=>{
     const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer');
+    const contextRecord = useRecordContext();
 
-    return (
-        <Show 
-            queryOptions={{meta: meta}}
-            actions={<></>}
+    const title = useMemo(() => {
+        const serviceTitle = contextRecord?.service?.stringRepresentation || 'unknown service';
+        return `Update Job (${contextRecord?.id}) for ${serviceTitle}`
+    }, [contextRecord?.service])
+
+    return(
+         <SimpleCard
+            title={title}
         >
             <Stack direction="row" >
 
@@ -186,13 +188,37 @@ export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
                     anchor="right"
                     open={!!selectedLayer}
                     onClose={() => setSelectedLayer(null)}
-                    //PaperProps={{ sx: { width: 420 } }}
-                    title='huhu'
+
                 >
-                    <EditLayerMapping />
+                    <SimpleCard
+                        title={`Edit Layer Mapping for ${selectedLayer || 'unknown layer'}`}
+                    >
+                        <EditLayerMapping />
+                    </SimpleCard>
                 </Drawer>
 
             </Stack>
+        </SimpleCard>
+    )
+}
+
+export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
+    
+    const meta = useMemo(()=>(
+         {
+            jsonApiParams: {
+                include: 'service,mappings'
+            }
+        } 
+    ),[])
+
+    return (
+        <Show 
+            queryOptions={{meta: meta}}
+            actions={<></>}
+            
+        >
+           <WebMapServiceUpdateJobCard/>
 
         </Show>
     )

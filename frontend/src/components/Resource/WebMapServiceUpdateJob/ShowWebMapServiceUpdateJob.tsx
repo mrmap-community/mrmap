@@ -166,21 +166,38 @@ const WebMapServiceUpdateJobCard = ()=>{
     return(
          <SimpleCard
             title={title}
+            subheader={'the updateprocess will automatically continue once all issues are resolved.'}
         >
             <Stack direction="row" >
 
                 {/* LEFT: TREE */}
                 <Box sx={{ width: 320, borderRight: '1px solid #ddd', }}>
-                    <DiffWmsLayerTree />
+                    <SimpleCard
+                        title={`New Web Map Service Layer Structure`}
+                        subheader={'click on a layer to see details and edit the mapping in the right panel'}
+                        cardProps={{
+                            sx: {boxShadow: 0, height: '100%', border: 'none', marginRight: 2}
+                        }}
+                    >
+                        <DiffWmsLayerTree />
+                    </SimpleCard>
                 </Box>
 
                 {/* RIGHT: TABLE */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <SimpleCard
+                        title={`List of issues to be resolved`}
+                        subheader={`Click on the edit button to confirm or reject a layer mapping change.`}
+                        cardProps={{
+                            sx: {boxShadow: 0, height: '100%', border: 'none', marginRight: 2}
+                        }}
+                    >
                     <LayerMappingList
                         onRowClick={(record) => {
                             setSelectedLayer(record?.newLayer?.id?.toString());
                         }}
                     />
+                    </SimpleCard>
                 </Box>
 
                 {/* DETAIL PANEL */}

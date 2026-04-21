@@ -1,6 +1,6 @@
 import { EditButton, Identifier, RaRecord, RecordRepresentation, Show, SimpleShowLayoutProps, useGetOne, useRecordContext, WrapperField } from 'react-admin';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import WmsTreeView from '../WebMapService/WmsTreeView';
 
 import { Box, Drawer, Stack } from '@mui/material';
@@ -10,6 +10,8 @@ import { useQueryParam } from '../../utils';
 import { EditLayerMapping } from './EditLayerMapping';
 
 type DiffStatus = 'added' | 'removed' | 'unchanged' | 'modified';
+
+
 
 const DiffWmsLayerTree = () => {
     const  contextRecord  = useRecordContext();
@@ -40,8 +42,18 @@ const DiffWmsLayerTree = () => {
         },
     );
 
+    /**
+     * updateCandidate.layers is a list of RaRecords which have mpttLft mpttRgt mpttLevel mpttTree values
+     * currentServiceState.layers is a list of RaRecords which have mpttLft mpttRgt mpttLevel mpttTree values
+     * TODO: how to merge both tree's to one, so we can show also deleted layers
+     */
+
     const newLayers = useMemo(() => updateCandidate?.layers || [], [updateCandidate?.layers])
     const oldLayers = useMemo(() => currentServiceState?.layers || [], [currentServiceState?.layers])
+    const deleted = useMemo(()=>(oldLayers.filter(
+        (old: RaRecord) => !newLayers.some((node: RaRecord) => node.identifier === old.identifier)
+    )),[newLayers, oldLayers])
+
 
 
     const diffMap = useMemo(() => {
@@ -132,13 +144,7 @@ const LayerMappingList = (
     props: ListGuesserProps
 ) => {
     const  contextRecord  = useRecordContext();
-        const rowActions = useMemo(() => {
-        return (
-            <WrapperField label="Actions" >
-                <EditButton onClick={null} />
-            </WrapperField >
-        )
-    },[])
+
     return (
         <ListGuesser
             title="Layer Mappings"
@@ -148,7 +154,6 @@ const LayerMappingList = (
             filterDefaultValues={{'isConfirmed': false}}
             disableSyncWithLocation
             defaultSelectedColumns={['id', 'oldLayer', 'newLayer', 'isConfirmed']}
-            rowActions={rowActions}
             {...props}
         />
     )
@@ -159,9 +164,18 @@ const WebMapServiceUpdateJobCard = ()=>{
     const contextRecord = useRecordContext();
 
     const title = useMemo(() => {
-        const serviceTitle = contextRecord?.service?.stringRepresentation || 'unknown service';
+    const serviceTitle = contextRecord?.service?.stringRepresentation || 'unknown service';
         return `Update Job (${contextRecord?.id}) for ${serviceTitle}`
     }, [contextRecord?.service])
+
+    const [isOpen, setIsOpen] = useState(false);
+    const rowActions = useMemo(() => {
+        return (
+            <WrapperField label="Actions" >
+                <EditButton onClick={() => setIsOpen(true)} />
+            </WrapperField >
+        )
+    },[])
 
     return(
          <SimpleCard
@@ -196,6 +210,7 @@ const WebMapServiceUpdateJobCard = ()=>{
                         onRowClick={(record) => {
                             setSelectedLayer(record?.newLayer?.id?.toString());
                         }}
+                        rowActions={rowActions}
                     />
                     </SimpleCard>
                 </Box>
@@ -203,8 +218,8 @@ const WebMapServiceUpdateJobCard = ()=>{
                 {/* DETAIL PANEL */}
                 <Drawer
                     anchor="right"
-                    open={!!selectedLayer}
-                    onClose={() => setSelectedLayer(null)}
+                    open={isOpen}
+                    onClose={() => setIsOpen(false)}
 
                 >
                     <SimpleCard

@@ -37,15 +37,25 @@ class PersistenceHandler:
         return getattr(mod, func_name)
 
     def _normalize_key_value(self, field, value):
-        """
-        Wandelt Feldwerte in eine stabile, vergleichbare Repräsentation um.
-        """
         if value is None:
             return None
 
-        # -----------------------------
+        # LIST → tuple
+        if isinstance(value, list):
+            return tuple(self._normalize_key_value(field, v) for v in value)
+
+        # DICT → sorted tuple
+        if isinstance(value, dict):
+            return tuple(
+                sorted((k, self._normalize_key_value(field, v))
+                       for k, v in value.items())
+            )
+
+        # SET → sorted tuple
+        if isinstance(value, set):
+            return tuple(sorted(value))
+
         # DateTimeRangeField
-        # -----------------------------
         if isinstance(field, DateTimeRangeField):
             if not isinstance(value, Range):
                 return value
@@ -63,17 +73,12 @@ class PersistenceHandler:
                 value.bounds,
             )
 
-        # -----------------------------
         # datetime
-        # -----------------------------
         if isinstance(value, datetime):
             if is_naive(value):
                 value = make_aware(value, get_default_timezone())
             return value.astimezone(get_default_timezone())
 
-        # -----------------------------
-        # Fallback
-        # -----------------------------
         return value
 
     def make_instance_key(self, instance, key_fields):
@@ -114,7 +119,7 @@ class PersistenceHandler:
         seen_keys = set()
         deduped_instances = []
         for inst in instances:
-            key = tuple(getattr(inst, f) for f in key_fields)
+            key = self.make_instance_key(inst, key_fields)
             if key not in seen_keys:
                 seen_keys.add(key)
                 deduped_instances.append(inst)
@@ -124,13 +129,15 @@ class PersistenceHandler:
         for key in seen_keys:
             filters |= models.Q(**dict(zip(key_fields, key)))
         existing_objs = list(model_cls.objects.filter(filters))
-        existing_keys = {tuple(getattr(e, f)
-                               for f in key_fields): e for e in existing_objs}
+        existing_keys = {
+            self.make_instance_key(e, key_fields): e
+            for e in existing_objs
+        }
 
         # 4️⃣ Objekte, die noch erstellt werden müssen
         to_create = [
             inst for inst in deduped_instances
-            if tuple(getattr(inst, f) for f in key_fields) not in existing_keys
+            if self.make_instance_key(inst, key_fields) not in existing_keys
         ]
         if to_create:
             objs = model_cls.objects.bulk_create(objs=to_create)
@@ -153,7 +160,7 @@ class PersistenceHandler:
                     inst, f.name) for f in model_cls._meta.fields if f.name not in key_fields}
             )
             db_instances.append(obj)
-        return self.build_final_key_map(instances)
+        return instances
 
     def build_final_key_map(self, instances, key_fields=None):
         model_cls = instances[0].__class__
@@ -161,12 +168,13 @@ class PersistenceHandler:
             key_fields = self._get_key_fields(model_cls)
         # 5️⃣ Lade alle relevanten Objekte aus der DB
         # wir nutzen die unique-Felder, nicht PK
-        final_objs = list(
-            model_cls.objects.filter(
-                models.Q(
-                    **{f"{key_fields[0]}__in": [getattr(inst, key_fields[0]) for inst in instances]})
-            )
-        )
+        filters = models.Q()
+        for inst in instances:
+            filters |= models.Q(**{
+                k: getattr(inst, k) for k in key_fields
+            })
+
+        final_objs = model_cls.objects.filter(filters)
 
         final_key_map = {
             self.make_instance_key(o, key_fields): o for o in final_objs
@@ -312,8 +320,8 @@ class PersistenceHandler:
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
                             try:
-                                ref_key = tuple(getattr(fk_obj, kf)
-                                                for kf in key_fields)
+                                ref_key = self.make_instance_key(
+                                    fk_obj, key_fields)
                             except AttributeError:
                                 continue  # Feld nicht gesetzt
                             final_obj = ref_map.get(ref_key)
@@ -325,7 +333,19 @@ class PersistenceHandler:
         # ManyToMany (_parsed)
         # -----------------------
         for model_cls, instances in self.instances_by_model.items():
+            # Get the mapping of original instances to final persisted instances
+            final_instance_map = self.final_instances_map.get(model_cls, {})
+            key_fields = self._get_key_fields(model_cls)
+
             for inst in instances:
+                # Look up the final persisted instance
+                inst_key = self.make_instance_key(inst, key_fields)
+                final_inst = final_instance_map.get(inst_key)
+
+                if not final_inst:
+                    # Fallback: if not found by key, skip M2M for this instance
+                    continue
+
                 for field in model_cls._meta.local_many_to_many:
                     parsed_instances_attr = f"_{field.name}_parsed"
                     parsed = getattr(inst, parsed_instances_attr) if hasattr(
@@ -338,18 +358,19 @@ class PersistenceHandler:
                         ref_map = self.final_instances_map.get(type(ref), {})
                         unique_sets = [s for s in get_unique_fields(
                             type(ref)) if s != ('id',)]
-                        key_fields = unique_sets[0] if unique_sets else None
-                        if key_fields:
+                        key_fields_ref = unique_sets[0] if unique_sets else None
+                        if key_fields_ref:
                             try:
                                 ref_key = self.make_instance_key(
-                                    ref, key_fields)
+                                    ref, key_fields_ref)
                             except AttributeError:
                                 continue
                             final_obj = ref_map.get(ref_key)
                             if final_obj:
                                 final_list.append(final_obj)
 
-                    getattr(inst, field.name).set(final_list)
+                    # Use the final_inst (which is persisted in DB) to set M2M relationships
+                    getattr(final_inst, field.name).set(final_list)
 
     def _save_xml_backup_file(self, instance: models.Model):
         if not isinstance(instance, DocumentModelMixin):
@@ -397,14 +418,11 @@ class PersistenceHandler:
                 create_func = self._load_function(create_mode)
                 kwargs = {"handler": self}
                 final_key_map = create_func(instances, **kwargs)
-                self.instances_by_model[model_cls] = list(
-                    final_key_map.values())
                 self.final_instances_map[model_cls] = final_key_map
             elif create_mode == "get_or_create":
-                final_key_map = self._persist_get_or_create(
+                objs = self._persist_get_or_create(
                     instances, **kwargs)
-                self.instances_by_model[model_cls] = list(
-                    final_key_map.values())
+                final_key_map = self.build_final_key_map(objs)
                 self.final_instances_map[model_cls] = final_key_map
             elif create_mode == "bulk":
                 objs = model_cls.objects.bulk_create(instances)

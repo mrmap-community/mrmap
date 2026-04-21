@@ -78,8 +78,11 @@ const EditGuesser = (
     <Edit
       queryOptions={{
         refetchOnReconnect: true,
+        meta: { type: options?.type}
       }}
-      mutationOptions={{ meta: { type: options?.type }}}
+      mutationOptions={{
+        meta: { type: options?.type }
+      }}
       mutationMode='pessimistic'
       
       {...props}

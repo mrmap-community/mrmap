@@ -48,9 +48,8 @@ def get_or_create_metadatarecord(instances, handler):
             db_obj.xml_backup_file.save(name='md_metadata.xml',
                                         content=ContentFile(str(handler.mapper.serialize_document(), "UTF-8")))
 
-    final_key_map = handler.build_final_key_map(db_objs, ("file_identifier",))
-    original_key_map = handler.build_final_key_map(
-        instances, ("file_identifier",))
+    final_key_map = handler.build_final_key_map(db_objs)
+    original_key_map = handler.build_final_key_map(instances)
     handler.inject_private_attributes(final_key_map, original_key_map)
 
     return final_key_map

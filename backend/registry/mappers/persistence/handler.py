@@ -160,7 +160,7 @@ class PersistenceHandler:
                     inst, f.name) for f in model_cls._meta.fields if f.name not in key_fields}
             )
             db_instances.append(obj)
-        return instances
+        return db_instances
 
     def build_final_key_map(self, instances, key_fields=None):
         model_cls = instances[0].__class__

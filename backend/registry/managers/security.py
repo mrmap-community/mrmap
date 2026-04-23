@@ -13,7 +13,8 @@ from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
 from registry.enums.service import OGCOperationEnum
-from registry.managers.service import WebMapServiceQuerySet
+from registry.managers.service import (WebFeatureServiceQuerySet,
+                                       WebMapServiceQuerySet)
 from registry.ows_lib.request.ogc_request import OGCRequest
 from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 
@@ -133,7 +134,7 @@ class AllowedWebMapServiceOperationQuerySet(WebMapServiceQuerySet, AllowedOgcSer
         )
 
 
-class AllowedWebFeatureServiceOperationQuerySet(AllowedOgcServiceOperationQuerySet):
+class AllowedWebFeatureServiceOperationQuerySet(WebFeatureServiceQuerySet, AllowedOgcServiceOperationQuerySet):
     def get_entity_identifiers(self, request):
         return "secured_feature_types__identifier__iexact", request.requested_entities
 
@@ -215,7 +216,7 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
             using=self._db,
         )
 
-    def prepare_with_security_info(self, request: OGCRequest):
+    def prepare_with_security_info(self, request: OGCRequest, qs=None):
         """
         Prepare a queryset annotated with security and proxy metadata for a
         Web Feature Service (WFS) OGC request.
@@ -294,15 +295,16 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
             For GetFeature requests, the queryset includes per-feature-type
             security information encoded as JSON.
         """
+        qs = qs if qs is not None else self.get_queryset()
         if request.is_get_capabilities_request:
-            return self.get_queryset().annotate(
+            return qs.annotate(
                 camouflage=Coalesce(F("proxy_setting__camouflage"), V(False))
             )
         elif (
             request.operation.lower()
             not in SECURE_ABLE_OPERATIONS_LOWER
         ):
-            return self.get_queryset().annotate(
+            return qs.annotate(
                 log_response=Coalesce(
                     F("proxy_setting__log_response"), V(False))
             )
@@ -325,7 +327,7 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
             )
 
             return (
-                self.get_queryset()
+                qs
                 .select_related("auth")
                 .annotate(
                     camouflage=Coalesce(

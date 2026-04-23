@@ -61,43 +61,63 @@ class HistoryInformationViewSetMixin:
             sparse_fields = get_sparse_fields(self.request)
             resource_based_sparse_fields = sparse_fields.get(
                 self.queryset.model.__name__, [])
+            include_resources_param = get_included_resources(
+                self.request, self.get_serializer_class())
 
-            fields_to_check = {"created_at", "last_modified_at",
-                               "created_by", "last_modified_by"}
-            if not resource_based_sparse_fields or any(field in fields_to_check for field in resource_based_sparse_fields):
-                django_model = apps.get_model(
-                    self.queryset.model._meta.app_label, f"Historical{self.queryset.model.__name__}")
+            django_model = apps.get_model(
+                self.queryset.model._meta.app_label,
+                f"Historical{self.queryset.model.__name__}"
+            )
+            prefetches = []
+            select_related = [
+                "history_user"] if "created_by" in include_resources_param or "last_modified_by" in include_resources_param else []
 
-                prefetches = []
-                if any(field in ["created_at", "created_by"] for field in resource_based_sparse_fields):
-                    only = ['history_relation']
-                    if "created_at" in resource_based_sparse_fields:
-                        only.append("history_date")
-                    if "created_by" in resource_based_sparse_fields:
-                        only.append("history_user__id")
-                    prefetches.append(
-                        Prefetch(
-                            'change_logs',
-                            queryset=django_model.objects.filter(
-                                history_type='+').select_related("history_user").only(*only)[:1],
-                            to_attr='first_history'
-                        )
+            if not resource_based_sparse_fields \
+                    or any(field in ["created_at", "created_by"] for field in resource_based_sparse_fields)\
+                    or "created_by" in include_resources_param:
+                only_for_created_prefetch = ['history_relation']
+
+                if "created_at" in resource_based_sparse_fields:
+                    only_for_created_prefetch.append("history_date")
+                if (not resource_based_sparse_fields or "created_by" in resource_based_sparse_fields) and "created_by" not in include_resources_param:
+                    only_for_created_prefetch.append("history_user__id")
+                qs = django_model.objects.filter(history_type='+')
+                if select_related:
+                    qs = qs.select_related(*select_related)
+                if only_for_created_prefetch and not select_related:
+                    qs = qs.only(*only_for_created_prefetch)
+                prefetches.append(
+                    Prefetch(
+                        'change_logs',
+                        queryset=qs[:1],
+                        to_attr='first_history'
                     )
-                if any(field in ["last_modified_at", "last_modified_by"] for field in resource_based_sparse_fields):
-                    if "last_modified_at" in resource_based_sparse_fields:
-                        only.append("history_date")
-                    if "last_modified_by" in resource_based_sparse_fields:
-                        only.append("history_user__id")
-                    prefetches.append(
-                        Prefetch(
-                            'change_logs',
-                            queryset=django_model.objects.select_related(
-                                "history_user").order_by('-history_date').only(*only)[:1],
-                            to_attr='last_history'
-                        )
+                )
+            if not resource_based_sparse_fields \
+                    or any(field in ["last_modified_at", "last_modified_by"] for field in resource_based_sparse_fields)\
+                    or "last_modified_by" in include_resources_param:
+
+                only_for_last_modified_prefetch = ['history_relation']
+
+                if "last_modified_at" in resource_based_sparse_fields:
+                    only_for_last_modified_prefetch.append("history_date")
+                if (not resource_based_sparse_fields or "last_modified_by" in resource_based_sparse_fields) and "last_modified_by" not in include_resources_param:
+                    only_for_last_modified_prefetch.append("history_user__id")
+                qs = django_model.objects.all()
+                if select_related:
+                    qs = qs.select_related(*select_related)
+                if only_for_created_prefetch and not select_related:
+                    qs = qs.only(*only_for_created_prefetch)
+                prefetches.append(
+                    Prefetch(
+                        'change_logs',
+                        queryset=qs[:1],
+                        to_attr='last_history'
                     )
-                if prefetches:
-                    qs = qs.prefetch_related(*prefetches)
+                )
+
+            if prefetches:
+                qs = qs.prefetch_related(*prefetches)
 
         except LookupError:
             pass

@@ -331,6 +331,12 @@ def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
     if identifier_xpath:
         return identifier_xpath
 
+    # Fallback to _base_xpath if no identifier was found
+    base_xpath = spec.get("_base_xpath", ".")
+    if base_xpath.startswith("./"):
+        return base_xpath[2:]
+    return base_xpath
+
 
 def split_parent_and_leaf(xpath: str):
     parts = xpath.strip("/").split("/")
@@ -391,9 +397,12 @@ def ensure_element_for_instance(
     Ensure that the XML element for a Django instance exists
     and return it.
     """
-    concrete_xpath = build_concrete_xpath(mapper, spec, instance)
+    # Use base_xpath for element creation instead of identifier xpath
+    # The identifier may contain complex predicates with special characters
+    # (e.g., URLs with / and &) that break path splitting logic
+    xpath_for_creation = spec.get("_base_xpath", spec.get("xpath", "."))
 
-    parent_parts, leaf_part = split_parent_and_leaf(concrete_xpath)
+    parent_parts, leaf_part = split_parent_and_leaf(xpath_for_creation)
     leaf_tag = extract_tag_name(leaf_part)
 
     # Ensure the parent path exists

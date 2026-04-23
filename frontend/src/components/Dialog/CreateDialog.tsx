@@ -16,7 +16,7 @@ export interface CreateDialogProps extends Partial<CreateProps>{
   onCreate?: (data: any) => void
   onCancel?: () => void
   updateFieldDefinitions?: FieldDefinition[];
-
+  createComponent?: React.ComponentType<CreateProps>
 }
 
 const CreateDialog = (
@@ -28,6 +28,7 @@ const CreateDialog = (
   onCancel,
   updateFieldDefinitions,
   defaultValue,
+  createComponent,
   ...rest
  }: CreateDialogProps
 ) => {
@@ -70,11 +71,28 @@ const CreateDialog = (
     setIsOpen && setIsOpen(false)
   },[resource])
 
+  if (createComponent) {
+    const CreateComponent = createComponent
+    return <CreateComponent 
+      resource={resource}
+        redirect={false}
+        mutationOptions={{onSuccess: onCreateSuccess}}
+        sx={{
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        
+        {...rest}
+    />
+  }
+
   /* Create and Form component needed to be outside the Dialog component. 
   Otherwise the scroll feature is broken.
   See: https://github.com/mui/material-ui/issues/13253 
   */
   return (
+      
       <Create
         resource={resource}
         redirect={false}

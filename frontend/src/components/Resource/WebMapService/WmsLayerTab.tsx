@@ -10,7 +10,7 @@ import WmsTreeView from './WmsTreeView';
 
 export const WmsLayers = () => {
 
-  const { refetch } = useShowContext();
+  const {  refetch } = useShowContext();
   const notify = useNotify(); 
 
   const [selectedLayer] = useQueryParam('selectedLayer');
@@ -30,8 +30,9 @@ export const WmsLayers = () => {
   },[notify, refetch])
 
   const rightContent = useMemo(()=> {
-      if (selectedLayer !== null) {
-          return <EditGuesser
+      if (selectedLayer !== null && selectedLayer !== undefined) {
+          
+            return <EditGuesser
               id={selectedLayer}
               resource='Layer'
               redirect={false}

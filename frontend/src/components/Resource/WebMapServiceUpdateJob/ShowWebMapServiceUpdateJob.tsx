@@ -11,36 +11,19 @@ import { EditLayerMapping } from './EditLayerMapping';
 
 type DiffStatus = 'added' | 'removed' | 'unchanged' | 'modified';
 
+interface DiffWmsLayer {
+    updateCandidate: RaRecord
+    currentServiceState: RaRecord
+    isPending?: boolean
+}
 
-
-const DiffWmsLayerTree = () => {
-    const  contextRecord  = useRecordContext();
-
-    const queryOptionsMeta = useMemo(() => {
-        const meta: any ={  
-            jsonApiParams: { 
-                include: 'layers',
-            } 
-        }
-        meta.jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,identifier'
-        meta.jsonApiParams['fields[WebMapService]'] = 'title,layers'
-        return meta;
-    }, [])
-
-    const { data: updateCandidate, isPending: updateCandidatePending,  } = useGetOne(
-        'WebMapService',
-        { 
-            id: contextRecord?.updateCandidate?.id,
-            meta: queryOptionsMeta
-        },
-    );
-    const { data: currentServiceState, isPending: currentServiceStatePending,  } = useGetOne(
-        'WebMapService',
-        { 
-            id: contextRecord?.service?.id , 
-            meta: queryOptionsMeta 
-        },
-    );
+const DiffWmsLayerTree = (
+{
+    updateCandidate,
+    currentServiceState,
+    isPending
+}:DiffWmsLayer
+) => {   
 
     /**
      * updateCandidate.layers is a list of RaRecords which have mpttLft mpttRgt mpttLevel mpttTree values
@@ -53,8 +36,6 @@ const DiffWmsLayerTree = () => {
     const deleted = useMemo(()=>(oldLayers.filter(
         (old: RaRecord) => !newLayers.some((node: RaRecord) => node.identifier === old.identifier)
     )),[newLayers, oldLayers])
-
-
 
     const diffMap = useMemo(() => {
         const map = new Map<Identifier, DiffStatus>();
@@ -128,7 +109,7 @@ const DiffWmsLayerTree = () => {
         };
     }, [diffMap])
     
-    if (updateCandidatePending || currentServiceStatePending) return <div>Loading...</div>
+    if (isPending) return <div>Loading...</div>
     
     return (
         <WmsTreeView
@@ -138,6 +119,33 @@ const DiffWmsLayerTree = () => {
         />
     )
 }
+
+const LayerDiffPanel = (
+    {
+        updateCandidate,
+        currentServiceState
+    }: DiffWmsLayer
+) =>{
+    const contextRecord  = useRecordContext();
+    const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer');
+    const selectedMapping = useMemo(() => (
+        contextRecord?.mappings?.find((mapping: RaRecord)=> mapping?.newLayer?.id === selectedLayer)
+    ),[contextRecord, selectedLayer])
+
+    const newLayer = useMemo(() => (updateCandidate?.layers.find((layer: RaRecord) => layer.id === selectedMapping?.newLayer?.id)),[updateCandidate, selectedMapping])
+    const oldLayer = useMemo(() => (currentServiceState?.layers.find((layer: RaRecord) => layer.id === selectedMapping?.oldLayer?.id)),[currentServiceState, selectedMapping])
+
+    return (
+        <SimpleCard
+            title={newLayer?.stringRepresentation}
+        >       
+            <Stack direction="row" >
+
+            </Stack>
+        </SimpleCard>
+    )
+}
+
 
 
 const LayerMappingList = (
@@ -162,6 +170,32 @@ const LayerMappingList = (
 const WebMapServiceUpdateJobCard = ()=>{
     const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer');
     const contextRecord = useRecordContext();
+
+    const queryOptionsMeta = useMemo(() => {
+        const meta: any ={  
+            jsonApiParams: { 
+                include: 'layers',
+            } 
+        }
+        meta.jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,identifier'
+        meta.jsonApiParams['fields[WebMapService]'] = 'title,layers'
+        return meta;
+    }, [])
+
+    const { data: updateCandidate, isPending: updateCandidatePending,  } = useGetOne(
+        'WebMapService',
+        { 
+            id: contextRecord?.updateCandidate?.id,
+            meta: queryOptionsMeta
+        },
+    );
+    const { data: currentServiceState, isPending: currentServiceStatePending,  } = useGetOne(
+        'WebMapService',
+        { 
+            id: contextRecord?.service?.id , 
+            meta: queryOptionsMeta 
+        },
+    );
 
     const title = useMemo(() => {
     const serviceTitle = contextRecord?.service?.stringRepresentation || 'unknown service';
@@ -193,27 +227,38 @@ const WebMapServiceUpdateJobCard = ()=>{
                             sx: {boxShadow: 0, height: '100%', border: 'none', marginRight: 2}
                         }}
                     >
-                        <DiffWmsLayerTree />
+                        <DiffWmsLayerTree 
+                            updateCandidate={updateCandidate}
+                            currentServiceState={currentServiceState}
+                            isPending={updateCandidatePending || currentServiceStatePending}
+                        />
                     </SimpleCard>
                 </Box>
 
                 {/* RIGHT: TABLE */}
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <SimpleCard
-                        title={`List of issues to be resolved`}
-                        subheader={`Click on the edit button to confirm or reject a layer mapping change.`}
-                        cardProps={{
-                            sx: {boxShadow: 0, height: '100%', border: 'none', marginRight: 2}
-                        }}
-                    >
-                    <LayerMappingList
-                        onRowClick={(record) => {
-                            setSelectedLayer(record?.newLayer?.id?.toString());
-                        }}
-                        rowActions={rowActions}
-                    />
-                    </SimpleCard>
-                </Box>
+                <Stack>
+
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <SimpleCard
+                            title={`List of issues to be resolved`}
+                            subheader={`Click on the edit button to confirm or reject a layer mapping change.`}
+                            cardProps={{
+                                sx: {boxShadow: 0, height: '100%', border: 'none', marginRight: 2}
+                            }}
+                        >
+                        <LayerMappingList
+                            onRowClick={(record) => {
+                                setSelectedLayer(record?.newLayer?.id?.toString());
+                            }}
+                            rowActions={rowActions}
+                        />
+                        </SimpleCard>
+                    </Box>
+
+                    <Box sx={{ flex: 1, minWidth:0}}>
+                       
+                    </Box>
+                </Stack>
 
                 {/* DETAIL PANEL */}
                 <Drawer

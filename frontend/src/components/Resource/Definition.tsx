@@ -91,7 +91,12 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   // security proxy
-  {name: "AllowedWebMapServiceOperation", icon: VpnLockIcon, create: CreateAllowedWebMapServiceOperation, edit: EditAllowedWebMapServiceOperation},
+  {
+    name: "AllowedWebMapServiceOperation", 
+    icon: VpnLockIcon, 
+    create: CreateAllowedWebMapServiceOperation, 
+    edit: EditAllowedWebMapServiceOperation
+  },
   {name: "WebMapServiceOperation",},
   {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon},
   {name: "WebFeatureServiceOperation",},

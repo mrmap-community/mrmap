@@ -83,7 +83,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         """
         return OGCServiceXmlMapper.to_xml(instance or self)
 
-    def get_secured_url(self, request: HttpRequest, url_name: str, kwargs: dict) -> str:
+    def get_secured_url(self, request: HttpRequest, url_name: str) -> str:
         """Generate a secured url for the given url name and kwargs.
 
         :param request: the http request

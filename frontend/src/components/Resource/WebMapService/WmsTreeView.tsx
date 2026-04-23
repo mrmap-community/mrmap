@@ -28,7 +28,7 @@ interface LayerLabelProps {
 const LayerLabel = ({
   record
 }: LayerLabelProps) => {
-  
+  console.log('layer', record)
   const { refetch } = useShowContext();
 
   const toggleIsActive = useMemo(()=>(
@@ -82,6 +82,7 @@ const WmsTreeView = ({
   const containerRef = useRef(null);
   // this is the wms service record with all includes layers which are fetched in the parent component.
   const contextRecord = useRecordContext();
+  console.log(contextRecord)
   const record = wmsRecord ?? contextRecord;
 
   const sortedLayers = useMemo(

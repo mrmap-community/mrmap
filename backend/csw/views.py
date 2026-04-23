@@ -265,8 +265,8 @@ class CswServiceView(View):
 
         capabilitites_doc = builder.to_xml_string()
 
-        if (settings.DEBUG):
-            return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc})
+        # if (settings.DEBUG):
+        # return TemplateResponse(request, "csw/debug.html", {"content": capabilitites_doc})
         return HttpResponse(
             status=200,
             content=capabilitites_doc,
@@ -377,8 +377,8 @@ class CswServiceView(View):
             encoding="utf-8",
             xml_declaration=True
         )
-        if (settings.DEBUG):
-            return TemplateResponse(request, "csw/debug.html", {"content": content})
+        # if (settings.DEBUG):
+        #    return TemplateResponse(request, "csw/debug.html", {"content": content})
         return HttpResponse(status=200, content=content, content_type="application/xhtml+xml")
 
     def get_record_by_id(self, request):

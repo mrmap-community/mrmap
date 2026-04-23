@@ -13,13 +13,14 @@ const AllowedWebMapServiceOperationFields = () => {
   const resource = useResourceContext()
   const securedServiceValue = useWatch({name: 'securedService'})
   const fieldDefinitions = useFieldsForOperation(id === undefined ? `create_${resource}` : `partial_update_${resource}` )
-
+  console.log('huhu')
   // Dynamic change depending fields
   const customFieldDefinitions = useMemo(()=>(
     fieldDefinitions
     .filter(def => def.props.disabled === false)
     .map(def => {
       if (def.props.source === 'securedLayers') {
+        console.log('securedServiceValue', securedServiceValue)
         const newDef = {...def}
         const wmsId = securedServiceValue?.id || undefined
         

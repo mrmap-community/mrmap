@@ -264,7 +264,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
             self.service_url = new_url
         for layer in self.layers.all():
             for style in layer.styles.all():
-                style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+                style.legend_url.legend_url = f"{new_url}{style.legend_url.legend_url.split('?', 1)[-1]}"
 
         # TODO: only support xml Exception format --> remove all others
         # TODO: camouflage metadata urls also
@@ -272,7 +272,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         capabilities_xml = self.get_updated_capabilitites()
 
         return etree.tostring(
-            capabilities_xml.getroottree().getroot(),
+            capabilities_xml.getroot(),
             pretty_print=True,
             xml_declaration=True,
             encoding="UTF-8"

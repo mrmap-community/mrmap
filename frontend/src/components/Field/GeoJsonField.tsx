@@ -1,7 +1,7 @@
 
 import { type ReactNode } from 'react';
 import { sanitizeFieldRestProps, useFieldValue, useRecordContext, useTranslate, type TextFieldProps } from 'react-admin';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, } from 'react-leaflet';
 
 import { Box, Typography } from '@mui/material';
 
@@ -23,7 +23,7 @@ const GeoJsonField = ({
 
   const value = useFieldValue(props);
   const { className, emptyText, ...rest } = props;
-
+  console.log(value)
   return (
     <div style={{width: '100%'}}>
       <Typography
@@ -37,7 +37,7 @@ const GeoJsonField = ({
                 ? JSON.stringify(value)
                 : value ||
                 (emptyText ? translate(emptyText, { _: emptyText }) : null)}
-  
+      
       </Typography>
       <Box sx={{ ...style }}>
         <MapContainer
@@ -58,6 +58,7 @@ const GeoJsonField = ({
             geoJson={value}
             editable={false}
           />
+ 
         </MapContainer>
       </Box>
     </div>

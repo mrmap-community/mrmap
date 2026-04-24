@@ -2,12 +2,12 @@ import type { GeoJSON as GeoJSONType, MultiPolygon } from 'geojson';
 
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
-import { type ReactNode, useCallback, useEffect } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 
 
 
-import { useLeafletContext } from '@react-leaflet/core';
 import L from 'leaflet';
+import { useMap } from 'react-leaflet';
 import { GeomanControl } from '../GeomanControl';
 import Events from '../GeomanControl/Events';
 
@@ -17,20 +17,23 @@ export interface GeoEditorProps {
   editable?: boolean
 }
 
+
+
 const FeatureGroupEditor = ({
   geoJson,
   geoJsonCallback,
   editable = true,
 }: GeoEditorProps): ReactNode => {
-  const context = useLeafletContext()
-
+  const map = useMap()
+  const initializeRef = useRef(false)
+  
   const updateGeoJson = useCallback((event: any) => {
     const multiPolygon: MultiPolygon = {
       type: 'MultiPolygon',
       coordinates: []
     }
 
-    context.map.eachLayer((layer) => {
+    map.eachLayer((layer) => {
       if (layer instanceof L.Polygon) {
         const geometry = layer.toGeoJSON().geometry
         if (geometry.type === 'MultiPolygon'){
@@ -41,21 +44,24 @@ const FeatureGroupEditor = ({
       }
     })
     geoJsonCallback && geoJsonCallback(multiPolygon)
-  }, [])
+  }, [map])
 
   useEffect(() => {
-    if (geoJson !== null && geoJson !== undefined) {
+    if (geoJson && !initializeRef.current) {
+      initializeRef.current = true
+      
       try {
-        const bounds = L.geoJSON(geoJson).getBounds()
+        const geoJSONLayer = L.geoJSON(geoJson)
+        map.addLayer(geoJSONLayer)
+        const bounds = geoJSONLayer.getBounds()
         if (Object.keys(bounds).length > 1) {
-          context.map.flyToBounds(bounds, { duration: 0.3 })
+          map.flyToBounds(bounds, { duration: 0.3 })
         }
-      } catch (error){
-
+      } catch (error) {
+        console.error('Error adding GeoJSON layer:', error)
       }    
-
     }
-  }, [])
+  }, [map, geoJson])
 
   return (
     <>
@@ -78,6 +84,7 @@ const FeatureGroupEditor = ({
         onUpdate={updateGeoJson}
         onRemove={updateGeoJson}
       />: null}
+      
     </>
     
   )

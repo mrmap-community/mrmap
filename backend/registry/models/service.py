@@ -137,16 +137,9 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
 
         return session
 
-    def get_service_type(self):
-        match(self.__class__.__name__):
-            case "WebMapService":
-                return "WMS"
-            case "WebFeatureService":
-                return "WFS"
-            case "CatalogueService":
-                return "CSW"
-            case _:
-                return None
+    @property
+    def service_type(self) -> str:
+        raise NotImplementedError
 
     @property
     def get_capabilities_url(self) -> str | bytes:
@@ -158,7 +151,7 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         cap_url = update_url_query_params(
             cap_url,
             {
-                "SERVICE": self.get_service_type(),
+                "SERVICE": self.service_type,
                 "VERSION": OGCServiceVersionEnum(self.version).label,
                 "REQUEST": "GetCapabilities",
             }
@@ -244,6 +237,10 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         return self.layers.get(mptt_parent=None)
 
     @property
+    def service_type(self) -> str:
+        return "WMS"
+
+    @property
     def client(self) -> WebMapServiceClient:
         return WebMapServiceClient(
             capabilities=self.capabilities,
@@ -315,6 +312,10 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
         ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 
     @property
+    def service_type(self) -> str:
+        return "WFS"
+
+    @property
     def client(self) -> WebFeatureServiceClient:
         return WebFeatureServiceClient(
             capabilities=self.capabilities,
@@ -343,6 +344,10 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         verbose_name_plural = _("catalogue services")
         indexes = [
         ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
+
+    @property
+    def service_type(self) -> str:
+        return "CSW"
 
     @property
     def client(self) -> CatalogueServiceClient:

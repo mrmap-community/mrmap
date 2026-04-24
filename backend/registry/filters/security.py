@@ -1,7 +1,42 @@
 from django.utils.translation import gettext_lazy as _
-from registry.models.security import AllowedWebMapServiceOperation
+from django_filters import BaseInFilter, FilterSet, NumberFilter
+from registry.models.security import (AllowedWebMapServiceOperation,
+                                      WebMapServiceOperation)
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_gis.filterset import GeoFilterSet
+
+
+class NumberInFilter(BaseInFilter, NumberFilter):
+    pass
+
+
+class WebMapServiceOperationFilterSet(FilterSet):
+    id__in = NumberInFilter(
+        label=_("primary key in"),
+        field_name="pk",
+        lookup_expr="in"
+    )
+    id__exact = NumberInFilter(
+        label=_("primary key exact"),
+        field_name="pk",
+        lookup_expr="exact"
+    )
+    id__icontains = NumberInFilter(
+        label=_("primary key icontains"),
+        field_name="pk",
+        lookup_expr="icontains"
+    )
+    id__contains = NumberInFilter(
+        label=_("primary key contains"),
+        field_name="pk",
+        lookup_expr="contains"
+    )
+
+    class Meta:
+        model = WebMapServiceOperation
+        fields = {
+            'value': ['exact', 'icontains', 'contains', 'in'],
+        }
 
 
 class AllowedWebMapServiceOperationFilterSet(GeoFilterSet):

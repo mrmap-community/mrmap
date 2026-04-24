@@ -146,11 +146,12 @@ def call_md_metadata_file_to_db(*args, **kwargs):
         results = temporary_md_metadata_file.md_metadata_file_to_db()
 
         return [(str(result[0].pk), result[1], result[2]) for result in results if result is not None]
-    except Exception:
+    except Exception as e:
         TemporaryMdMetadataFile.objects.select_for_update().filter(pk=md_metadata_file_id).update(
             has_import_error=True,
             import_error=traceback.format_exc()
         )
+        logger.error(msg=e)
 
 
 @shared_task(

@@ -1,16 +1,13 @@
 from collections import defaultdict
-from datetime import datetime
 from importlib import import_module
 from logging import Logger
 
 from django.conf import settings
-from django.contrib.postgres.fields import DateTimeRangeField
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.utils.timezone import get_default_timezone, is_naive, make_aware
 from lxml import etree
-from psycopg.types.range import Range
-from registry.mappers.utils import find_spec_for_instance, get_unique_fields
+from registry.mappers.utils import (find_spec_for_instance, get_key_fields,
+                                    get_unique_fields, make_instance_key)
 from registry.models.document import DocumentModelMixin
 
 logger: Logger = settings.ROOT_LOGGER
@@ -36,74 +33,6 @@ class PersistenceHandler:
         mod = import_module(mod_name)
         return getattr(mod, func_name)
 
-    def _normalize_key_value(self, field, value):
-        if value is None:
-            return None
-
-        # LIST → tuple
-        if isinstance(value, list):
-            return tuple(self._normalize_key_value(field, v) for v in value)
-
-        # DICT → sorted tuple
-        if isinstance(value, dict):
-            return tuple(
-                sorted((k, self._normalize_key_value(field, v))
-                       for k, v in value.items())
-            )
-
-        # SET → sorted tuple
-        if isinstance(value, set):
-            return tuple(sorted(value))
-
-        # DateTimeRangeField
-        if isinstance(field, DateTimeRangeField):
-            if not isinstance(value, Range):
-                return value
-
-            def normalize_dt(dt):
-                if dt is None:
-                    return None
-                if is_naive(dt):
-                    dt = make_aware(dt, get_default_timezone())
-                return dt.astimezone(get_default_timezone())
-
-            return (
-                normalize_dt(value.lower),
-                normalize_dt(value.upper),
-                value.bounds,
-            )
-
-        # datetime
-        if isinstance(value, datetime):
-            if is_naive(value):
-                value = make_aware(value, get_default_timezone())
-            return value.astimezone(get_default_timezone())
-
-        return value
-
-    def make_instance_key(self, instance, key_fields):
-        model = type(instance)
-        return tuple(
-            self._normalize_key_value(
-                model._meta.get_field(f),
-                getattr(instance, f)
-            )
-            for f in key_fields
-        )
-
-    def _get_key_fields(self, model_cls):
-        unique_sets = get_unique_fields(model_cls)
-        key_fields = None
-        for fields in unique_sets:
-            if fields != ('id',):
-                key_fields = fields
-                break
-
-        # fallback, falls kein anderes eindeutiges Feld existiert
-        if key_fields is None:
-            key_fields = ('id',)
-        return key_fields
-
     # ------------------------
     # Deduplicate & Bulk + Reload
     # ------------------------
@@ -113,13 +42,13 @@ class PersistenceHandler:
             return {}
         model_cls = instances[0].__class__
         # 1️⃣ Bestimme die relevanten Unique-Felder (ignoriere 'id')
-        key_fields = self._get_key_fields(model_cls)
+        key_fields = get_key_fields(model_cls)
 
         # 2️⃣ Deduplicate nach key_fields
         seen_keys = set()
         deduped_instances = []
         for inst in instances:
-            key = self.make_instance_key(inst, key_fields)
+            key = make_instance_key(inst, key_fields)
             if key not in seen_keys:
                 seen_keys.add(key)
                 deduped_instances.append(inst)
@@ -130,14 +59,14 @@ class PersistenceHandler:
             filters |= models.Q(**dict(zip(key_fields, key)))
         existing_objs = list(model_cls.objects.filter(filters))
         existing_keys = {
-            self.make_instance_key(e, key_fields): e
+            make_instance_key(e, key_fields): e
             for e in existing_objs
         }
 
         # 4️⃣ Objekte, die noch erstellt werden müssen
         to_create = [
             inst for inst in deduped_instances
-            if self.make_instance_key(inst, key_fields) not in existing_keys
+            if make_instance_key(inst, key_fields) not in existing_keys
         ]
         if to_create:
             objs = model_cls.objects.bulk_create(objs=to_create)
@@ -151,7 +80,7 @@ class PersistenceHandler:
 
     def _persist_get_or_create(self, instances):
         model_cls = instances[0].__class__
-        key_fields = self._get_key_fields(model_cls)
+        key_fields = get_key_fields(model_cls)
         db_instances = []
         for inst in instances:
             obj, created = model_cls.objects.get_or_create(
@@ -165,7 +94,7 @@ class PersistenceHandler:
     def build_final_key_map(self, instances, key_fields=None):
         model_cls = instances[0].__class__
         if not key_fields:
-            key_fields = self._get_key_fields(model_cls)
+            key_fields = get_key_fields(model_cls)
         # 5️⃣ Lade alle relevanten Objekte aus der DB
         # wir nutzen die unique-Felder, nicht PK
         filters = models.Q()
@@ -177,11 +106,11 @@ class PersistenceHandler:
         final_objs = model_cls.objects.filter(filters)
 
         final_key_map = {
-            self.make_instance_key(o, key_fields): o for o in final_objs
+            make_instance_key(o, key_fields): o for o in final_objs
         }
 
         original_map = {
-            self.make_instance_key(inst, key_fields): inst for inst in instances
+            make_instance_key(inst, key_fields): inst for inst in instances
         }
 
         self.inject_private_attributes(final_key_map, original_map)
@@ -320,7 +249,7 @@ class PersistenceHandler:
                         key_fields = unique_sets[0] if unique_sets else None
                         if key_fields:
                             try:
-                                ref_key = self.make_instance_key(
+                                ref_key = make_instance_key(
                                     fk_obj, key_fields)
                             except AttributeError:
                                 continue  # Feld nicht gesetzt
@@ -335,11 +264,11 @@ class PersistenceHandler:
         for model_cls, instances in self.instances_by_model.items():
             # Get the mapping of original instances to final persisted instances
             final_instance_map = self.final_instances_map.get(model_cls, {})
-            key_fields = self._get_key_fields(model_cls)
+            key_fields = get_key_fields(model_cls)
 
             for inst in instances:
                 # Look up the final persisted instance
-                inst_key = self.make_instance_key(inst, key_fields)
+                inst_key = make_instance_key(inst, key_fields)
                 final_inst = final_instance_map.get(inst_key)
 
                 if not final_inst:
@@ -361,7 +290,7 @@ class PersistenceHandler:
                         key_fields_ref = unique_sets[0] if unique_sets else None
                         if key_fields_ref:
                             try:
-                                ref_key = self.make_instance_key(
+                                ref_key = make_instance_key(
                                     ref, key_fields_ref)
                             except AttributeError:
                                 continue

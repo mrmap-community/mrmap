@@ -418,13 +418,16 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 pass
         return ForbiddenException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
 
+    def get_and_post(self, request, *args, **kwargs):
+        if self.ogc_request.is_get_map_request and self.service.is_unknown_layer:
+            return LayerNotDefined(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
+        return super().get_and_post(request, *args, **kwargs)
+
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.
         :return: the correct handler function for the given request param.
         :rtype: function
         """
-        if self.service.is_unknown_layer:
-            return LayerNotDefined(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
         if self.ogc_request.is_get_map_request:
             return self.handle_secured_get_map()
         elif self.ogc_request.is_get_feature_info_request:

@@ -161,16 +161,13 @@ def reverse_parse_operation_urls(
     Returns:
         etree.Element: The updated XML element.
     """
-    nsmap = mapper.mapping.get("_namespaces", {
-        "wms", "http://www.opengis.net/wms",
-        "xlink", "http://www.w3.org/1999/xlink"
-    })
-
+    nsmap = mapper.mapping.get("_namespaces", None)
     # 1️⃣ Ensure OnlineResource exists
     online_resource = xml_element.xpath(
-        ".//wms:OnlineResource", namespaces=nsmap)
+        f".//{"wms:" if "wms" in nsmap else ""}OnlineResource", namespaces=nsmap)
     if online_resource is None:
         # Typically OnlineResource is under wms:HTTP (Get/Post)
+        xpath = f"{{{nsmap["wms"]}}}OnlineResource" if nsmap and "wms" in nsmap else "OnlineResource"
         online_resource = etree.SubElement(
             xml_element, f"{{{nsmap["wms"]}}}OnlineResource")
     else:
@@ -181,14 +178,15 @@ def reverse_parse_operation_urls(
     # 2️⃣ Remove all existing <Format> elements
     # TODO: Format is placed under wms:HTTP
     # TODO: remove existing formats from xml
-    for fmt_el in xml_element.findall(".//wms:Format", namespaces=nsmap):
+    for fmt_el in xml_element.findall(f".//{"wms:" if "wms" in nsmap else ""}Format", namespaces=nsmap):
         parent = fmt_el.getparent()
         if parent is not None:
             parent.remove(fmt_el)
 
     # 3️⃣ Append <Format> elements from instance.mime_types.all()
     for mime_type in instance.mime_types.all():
-        fmt_el = etree.SubElement(xml_element, f"{{{nsmap["wms"]}}}Format")
+        xpath = f"{{{nsmap["wms"]}}}Format" if nsmap and "wms" in nsmap else "Format"
+        fmt_el = etree.SubElement(xml_element, xpath)
         fmt_el.text = str(mime_type)
 
     return xml_element

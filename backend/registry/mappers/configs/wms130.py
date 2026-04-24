@@ -203,7 +203,7 @@ XPATH_MAP = {
                                     "_create_mode": "bulk",
                                     "_reverse": {
                                         "_identifier": {
-                                            "xpath": "./OnlineResource/[@xlink:href='{legend_url}']",
+                                            "xpath": "./OnlineResource[@xlink:href='{legend_url}']",
                                         },
                                     },
                                     "fields": {

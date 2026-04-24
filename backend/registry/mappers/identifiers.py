@@ -23,6 +23,9 @@ def layer_identifier(mapper: XmlMapper, instance: Layer) -> str:
         # we assume that db_instance was fetched by WebMapService.objects.prefetch_whole_service()
         # In that case any layer has sibling_index annotation
         # And any layer has a prefetch parent with sibling_index annotation too
+        ns_prefix = ""
+        if mapper.mapping.get("_namespaces", {}).get("wms", None):
+            ns_prefix = "wms:"
         layers_map = {
             layer.id: layer for layer in mapper.db_instance.layers.all()}
 
@@ -36,11 +39,11 @@ def layer_identifier(mapper: XmlMapper, instance: Layer) -> str:
 
         chain.reverse()  # root → self
 
-        xpath_parts = ["./wms:Capability"]
+        xpath_parts = [f"./{ns_prefix}Capability"]
 
         # 2️⃣ Compute index at each level using ONLY mptt math
         for node in chain:
-            xpath_parts.append(f"wms:Layer[{node.sibling_index + 1}]")
+            xpath_parts.append(f"{ns_prefix}Layer[{node.sibling_index + 1}]")
 
         xpath = "/".join(xpath_parts)
         return xpath

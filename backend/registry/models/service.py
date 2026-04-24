@@ -38,7 +38,7 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.ows_lib.wms.wms import WebMapServiceClient
-from requests import Session
+from requests import Request, Response, Session
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
@@ -79,11 +79,26 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         verbose_name=_("url"),
         help_text=_("the base url of the service"),
     )
+    update_candidate_of = models.OneToOneField(
+        to="self",
+        on_delete=models.CASCADE,
+        related_name="%(class)s_update_candidate",
+        related_query_name="%(class)s_update_candidate",
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("update candidate"),
+        help_text=_("this is the update candidate of this service.")
+    )
 
     objects = DefaultHistoryManager()
 
     class Meta:
         abstract = True
+
+        indexes = [
+            models.Index(fields=["update_candidate_of",]),
+        ]
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -134,25 +149,38 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
                 return None
 
     @property
+    def get_capabilities_url(self) -> str | bytes:
+        cap_url = self.operation_urls.filter(
+            method=HttpMethodEnum.GET.value,
+            operation=OGCOperationEnum.GET_CAPABILITIES.value,
+        ).values_list("url", flat=True).first()
+
+        cap_url = update_url_query_params(
+            cap_url,
+            {
+                "SERVICE": self.get_service_type(),
+                "VERSION": OGCServiceVersionEnum(self.version).label,
+                "REQUEST": "GetCapabilities",
+            }
+        )
+        return cap_url
+
+    @property
+    def remote_capabilities(self) -> bytes | None:
+        request = Request(method="GET", url=self.get_capabilities_url)
+        session = self.get_session_for_request()
+        response = session.send(request=request.prepare())
+        if response.status_code <= 202:
+            return response.content
+
+    @property
     def capabilities(self) -> str | bytes:
         try:
             cap = self.xml_backup
         except FileNotFoundError:
             # Corrupted service.. no capability file stored in file system. We fallback by trying the GetCapabilities url.
 
-            cap = self.operation_urls.filter(
-                method=HttpMethodEnum.GET.value,
-                operation=OGCOperationEnum.GET_CAPABILITIES.value,
-            ).values_list("url", flat=True).first()
-
-            cap = update_url_query_params(
-                cap,
-                {
-                    "SERVICE": self.get_service_type(),
-                    "VERSION": OGCServiceVersionEnum(self.version).label,
-                    "REQUEST": "GetCapabilities",
-                }
-            )
+            cap = self.get_capabilities_url
 
             logger.warning(
                 msg=f"{self} has no capabilities file stored. Trying fallback by url.",
@@ -170,6 +198,16 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     def client(self) -> OgcClient:
         raise NotImplementedError
 
+    def metadata_equal(self, other: "OgcService") -> bool:
+        if not isinstance(other, OgcService):
+            raise NotImplementedError
+
+        return (
+            self.title == other.title and
+            self.abstract == other.abstract
+
+        )
+
 
 class WebMapService(HistoricalRecordMixin, OgcService):
     change_log = HistoricalRecords(
@@ -186,7 +224,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         verbose_name = _("web map service")
         verbose_name_plural = _("web map services")
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
+        ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 
     @cached_property
     def root_layer(self):
@@ -226,7 +264,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
             self.service_url = new_url
         for layer in self.layers.all():
             for style in layer.styles.all():
-                style.legend_url.legend_url.url = f"{new_url}{style.legend_url.legend_url.url.split('?', 1)[-1]}"
+                style.legend_url.legend_url = f"{new_url}{style.legend_url.legend_url.split('?', 1)[-1]}"
 
         # TODO: only support xml Exception format --> remove all others
         # TODO: camouflage metadata urls also
@@ -234,7 +272,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         capabilities_xml = self.get_updated_capabilitites()
 
         return etree.tostring(
-            capabilities_xml.getroottree().getroot(),
+            capabilities_xml.getroot(),
             pretty_print=True,
             xml_declaration=True,
             encoding="UTF-8"
@@ -274,7 +312,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
         verbose_name = _("web feature service")
         verbose_name_plural = _("web feature services")
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
+        ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> WebFeatureServiceClient:
@@ -304,7 +342,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         verbose_name = _("catalogue service")
         verbose_name_plural = _("catalogue services")
         indexes = [
-        ] + AbstractMetadata.Meta.indexes
+        ] + OgcService.Meta.indexes + AbstractMetadata.Meta.indexes
 
     @property
     def client(self) -> CatalogueServiceClient:
@@ -581,6 +619,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     class Meta:
         verbose_name = _("layer")
         verbose_name_plural = _("layers")
+        ordering = [] + Node.Meta.ordering
         indexes = [
         ] + Node.Meta.indexes + AbstractMetadata.Meta.indexes + ServiceElement.Meta.indexes
         constraints = [
@@ -710,6 +749,50 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         }
         url = update_url_base(url=self.get_map_url(*args, **kwargs), base=url)
         return update_url_query_params(url=url, params=query_params)
+
+    def same_identity(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        return self.identifier == other.identifier
+
+    def metadata_equal(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        return (
+            self.title == other.title and
+            self.abstract == other.abstract and
+            self.is_queryable == other.is_queryable and
+            self.is_opaque == other.is_opaque and
+            self.scale_min == other.scale_min and
+            self.scale_max == other.scale_max
+        )
+
+    def structure_equal(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        return (
+            self.mptt_lft == other.mptt_lft and
+            self.mptt_rgt == other.mptt_rgt and
+            self.mptt_depth == other.mptt_depth
+        )
+
+    def equals_remote_layer(self, other: "Layer") -> bool:
+        if not isinstance(other, Layer):
+            raise NotImplementedError
+
+        if not self.same_identity(other):
+            return False
+
+        if not self.metadata_equal(other):
+            return False
+
+        if not self.structure_equal(other):
+            return False
+
+        return True
 
 
 class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):

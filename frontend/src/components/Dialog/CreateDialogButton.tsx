@@ -6,6 +6,7 @@ import CreateDialog, { CreateDialogProps } from "./CreateDialog";
 
 export interface CreateDialogButtonProps extends CreateDialogProps {
   buttonProps?: ButtonOwnProps
+  createComponent?: React.ComponentType<CreateDialogProps>
 }
 
 const CreateDialogButton = ({

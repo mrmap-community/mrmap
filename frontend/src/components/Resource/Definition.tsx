@@ -1,3 +1,4 @@
+import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import {
   ResourceProps
 } from 'react-admin';
@@ -30,6 +31,7 @@ import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
 import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
 
 const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapService", icon: MapIcon, list: WmsList, show: WmsShow},
@@ -61,6 +63,10 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
 
 
+  // update
+  {name: "WebMapServiceUpdateJob", icon: UpdateIcon, show: ShowWebMapServiceUpdate},
+  {name: "LayerMapping", icon: SyncAltIcon},
+
   // monitoring
   {
     name: "WebMapServiceMonitoringSetting", 
@@ -85,7 +91,12 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   // security proxy
-  {name: "AllowedWebMapServiceOperation", icon: VpnLockIcon, create: CreateAllowedWebMapServiceOperation, edit: EditAllowedWebMapServiceOperation},
+  {
+    name: "AllowedWebMapServiceOperation", 
+    icon: VpnLockIcon, 
+    create: CreateAllowedWebMapServiceOperation, 
+    edit: EditAllowedWebMapServiceOperation
+  },
   {name: "WebMapServiceOperation",},
   {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon},
   {name: "WebFeatureServiceOperation",},

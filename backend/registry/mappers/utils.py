@@ -1,13 +1,17 @@
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import IO, Union
 
 from django.apps import apps
+from django.contrib.postgres.fields import DateTimeRangeField
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models
 from django.db.models import ManyToManyField
 from django.db.models.fields.related import ForeignObjectRel
+from django.utils.timezone import get_default_timezone, is_naive, make_aware
 from lxml import etree
+from psycopg.types.range import Range
 
 
 def load_function(path: str):
@@ -331,6 +335,12 @@ def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
     if identifier_xpath:
         return identifier_xpath
 
+    # Fallback to _base_xpath if no identifier was found
+    base_xpath = spec.get("_base_xpath", ".")
+    if base_xpath.startswith("./"):
+        return base_xpath[2:]
+    return base_xpath
+
 
 def split_parent_and_leaf(xpath: str):
     parts = xpath.strip("/").split("/")
@@ -391,9 +401,12 @@ def ensure_element_for_instance(
     Ensure that the XML element for a Django instance exists
     and return it.
     """
-    concrete_xpath = build_concrete_xpath(mapper, spec, instance)
+    # Use base_xpath for element creation instead of identifier xpath
+    # The identifier may contain complex predicates with special characters
+    # (e.g., URLs with / and &) that break path splitting logic
+    xpath_for_creation = spec.get("_base_xpath", spec.get("xpath", "."))
 
-    parent_parts, leaf_part = split_parent_and_leaf(concrete_xpath)
+    parent_parts, leaf_part = split_parent_and_leaf(xpath_for_creation)
     leaf_tag = extract_tag_name(leaf_part)
 
     # Ensure the parent path exists
@@ -410,3 +423,76 @@ def ensure_element_for_instance(
 
     # ALWAYS create a new leaf element
     return etree.SubElement(parent_elem, tag)
+
+
+def normalize_key_value(field, value):
+    if value is None:
+        return None
+
+    # LIST → tuple
+    if isinstance(value, list):
+        return tuple(normalize_key_value(field, v) for v in value)
+
+    # DICT → sorted tuple
+    if isinstance(value, dict):
+        return tuple(
+            sorted((k, normalize_key_value(field, v))
+                   for k, v in value.items())
+        )
+
+    # SET → sorted tuple
+    if isinstance(value, set):
+        return tuple(sorted(value))
+
+    # DateTimeRangeField
+    if isinstance(field, DateTimeRangeField):
+        if not isinstance(value, Range):
+            return value
+
+        def normalize_dt(dt):
+            if dt is None:
+                return None
+            if is_naive(dt):
+                dt = make_aware(dt, get_default_timezone())
+            return dt.astimezone(get_default_timezone())
+
+        return (
+            normalize_dt(value.lower),
+            normalize_dt(value.upper),
+            value.bounds,
+        )
+
+    # datetime
+    if isinstance(value, datetime):
+        if is_naive(value):
+            value = make_aware(value, get_default_timezone())
+        return value.astimezone(get_default_timezone())
+
+    return value
+
+
+def get_key_fields(model_cls):
+    unique_sets = get_unique_fields(model_cls)
+    key_fields = None
+    for fields in unique_sets:
+        if fields != ('id',):
+            key_fields = fields
+            break
+
+    # fallback, falls kein anderes eindeutiges Feld existiert
+    if key_fields is None:
+        key_fields = ('id',)
+    return key_fields
+
+
+def make_instance_key(instance, key_fields=None):
+    model = type(instance)
+    if not key_fields:
+        key_fields = get_key_fields(model)
+    return tuple(
+        normalize_key_value(
+            model._meta.get_field(f),
+            getattr(instance, f)
+        )
+        for f in key_fields
+    )

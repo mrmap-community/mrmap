@@ -1,3 +1,4 @@
+import hashlib
 from abc import abstractmethod
 
 from django.db import models
@@ -62,6 +63,13 @@ class DocumentModelMixin(models.Model):
         """
         raise NotImplementedError
 
+    def document_equals(self, other: bytes) -> bool:
+        if not other:
+            return False
+        stored_file_hash = hashlib.sha256(self.xml_backup).hexdigest()
+        other_file_hash = hashlib.sha256(other).hexdigest()
+        return stored_file_hash == other_file_hash
+
 
 class CapabilitiesDocumentModelMixin(DocumentModelMixin):
 
@@ -75,7 +83,7 @@ class CapabilitiesDocumentModelMixin(DocumentModelMixin):
         """
         return OGCServiceXmlMapper.to_xml(instance or self)
 
-    def get_secured_url(self, request: HttpRequest, url_name: str, kwargs: dict) -> str:
+    def get_secured_url(self, request: HttpRequest, url_name: str) -> str:
         """Generate a secured url for the given url name and kwargs.
 
         :param request: the http request

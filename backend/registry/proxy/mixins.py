@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import OgcService
 from registry.ows_lib.client.core import OgcClient
@@ -53,8 +54,9 @@ class OgcServiceProxyView(View):
     def service(self) -> OgcService:
         if not self._service:
             try:
-                self._service = self.service_cls.security.get_with_security_info(
-                    pk=self.kwargs.get("pk"), request=self.ogc_request
+                qs = self.service_cls.security.prefetch_whole_service()
+                self._service = self.service_cls.security.prepare_with_security_info(self.ogc_request, qs=qs).get(
+                    pk=self.kwargs.get("pk")
                 )
             except ObjectDoesNotExist:
                 raise Http404
@@ -182,8 +184,21 @@ class OgcServiceProxyView(View):
                 error occurs.
         """
         if not request:
-            request = self.remote_service.bypass_request(
-                request=self.ogc_request
+            # Build a new request with the remote service URL instead of the proxy URL
+            # while preserving all request parameters, method, headers, and data
+
+            operation_url: dict = self.service.operation_urls.values('id', 'url').get(
+                operation=OGCOperationEnum.GET_MAP.value,
+                method=HttpMethodEnum.GET.value
+            )
+            url: str = operation_url["url"]
+            request = Request(
+                method=self.ogc_request.method,
+                url=url,
+                params=self.ogc_request.params if self.ogc_request.method == "GET" else None,
+                data=self.ogc_request.data if self.ogc_request.method == "POST" else None,
+                headers=self.ogc_request.headers,
+                cookies=self.ogc_request.cookies,
             )
 
         r = {}

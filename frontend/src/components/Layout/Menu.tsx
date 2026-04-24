@@ -38,6 +38,7 @@ const Menu = ({ dense = false }: MenuProps) => {
     const { name: layerName, icon: layerIcon } = useResourceDefinition({ resource: "Layer" })
     const { name: allowedWmsOpName, icon: allowedWmsOpIcon } = useResourceDefinition({ resource: "AllowedWebMapServiceOperation" })
     const { name: wmsProxySettingName, icon: wmsProxySettingIcon } = useResourceDefinition({ resource: "WebMapServiceProxySetting" })
+    const { name: wmsUpdateJobName, icon: wmsUpdateJobIcon } = useResourceDefinition({ resource: "WebMapServiceUpdateJob" })
 
 
     const { name: wfsName, icon: wfsIcon } = useResourceDefinition({ resource: "WebFeatureService" })
@@ -65,7 +66,7 @@ const Menu = ({ dense = false }: MenuProps) => {
             sx={{
                 width: open ? 200 : 50,
                 marginTop: 1,
-                marginBottom: 1,
+                marginBottom: '40px',
                 transition: theme =>
                     theme.transitions.create('width', {
                         easing: theme.transitions.easing.sharp,
@@ -107,6 +108,13 @@ const Menu = ({ dense = false }: MenuProps) => {
                     state={{ _scrollToTop: true }}
                     primaryText={`Proxy settings`}
                     leftIcon={createElementIfDefined(wmsProxySettingIcon)}
+                    dense={dense}
+                />
+                <MenuItemLink
+                    to={`/${wmsUpdateJobName}`}
+                    state={{ _scrollToTop: true }}
+                    primaryText={`Update Jobs`}
+                    leftIcon={createElementIfDefined(wmsUpdateJobIcon)}
                     dense={dense}
                 />
             </SubMenu>

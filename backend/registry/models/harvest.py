@@ -31,6 +31,7 @@ from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
                                          TemporaryMdMetadataFileManager)
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
+from registry.mappers.utils import make_instance_key
 from registry.models.metadata import (DatasetMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
@@ -708,8 +709,10 @@ class TemporaryMdMetadataFile(models.Model):
                         }
                     )
                     created_instances = handler.persist_all()
+                    key = make_instance_key(instance)
+
                     created_instance = created_instances.get(
-                        instance.__class__, {}).get((instance.file_identifier,), None)
+                        instance.__class__, {}).get(key, None)
                     # after persit handler has created the instances on db side, the objects are no longer identical
 
                     if created_instance:
@@ -822,6 +825,7 @@ class PeriodicHarvestingJob(PeriodicTask):
         related_query_name="periodic_harvesting_job",
         verbose_name=_("catalogue service"),
         help_text=_("this is the service which shall be harvested"))
+
     def parse_kwargs(self):
         if not self.kwargs:
             return {}
@@ -862,7 +866,7 @@ class PeriodicHarvestingJob(PeriodicTask):
             "data": {},
             "user_pk": system_user.pk
         }
-        
+
         self.kwargs = self.parse_kwargs()
         self.kwargs.update({
             "http_request": http_request,

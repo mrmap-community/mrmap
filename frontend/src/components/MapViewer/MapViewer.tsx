@@ -20,11 +20,11 @@ import MapSettingsEditor from './MapSettings'
 import { MapViewerBase } from './MapViewerBase'
 import { OwsContextActionButtons } from './OwsContextGuiActions/OwsContextActionButtons'
 const style = {
-  position: 'relative',
-  //  display: 'flex',
+  display: 'flex',
+  flexDirection: 'column',
   width: '100%',
-  height: 'calc(100vh - 50px)'
-  // maxHeight: 'calc(100vh - 50px !important)'
+  height: '100%',
+  flex: 1
 }
 
 export interface WMSLayerTreeProps extends Partial<SimpleShowLayoutProps> {

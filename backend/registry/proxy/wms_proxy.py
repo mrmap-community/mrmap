@@ -46,43 +46,6 @@ class WebMapServiceProxy(OgcServiceProxyView):
     def remote_service(self) -> WebMapServiceClient:
         return super().remote_service
 
-    def get_and_post(self, request, *args, **kwargs):
-        """Http get/post method with security case decisioning.
-
-        **Principle constraints**:
-            * service is found by the given primary key. If not return ``404 - Service not found.``
-            * service is active. If not return ``423 - Service is disabled.``
-            * request query parameter is provided. If not return ``400 - Request param is missing``
-
-        **Service is not secured condition**:
-            * service.is_secured == False ``OR``
-            * service.is_spatial_secured == False and service.is_user_principle_entitled == True ``OR``
-            * request query parameter not in ['GetMap', 'GetFeatureType', 'GetFeature']
-
-            If one condition matches, return the response from the remote service.
-
-        **Service is secured condition**:
-            * service.is_spatial_secured ==True and service.is_user_principle_entitled == True
-
-            If the condition matches, return the result from
-            :meth:`~GenericOwsServiceOperationFacade.get_secured_response`
-
-        **Default behavior**:
-            return ``403 (Forbidden) - User has no permissions to request this service.``
-
-        .. note::
-            all error messages will be send as an owsExceptionReport. See
-            :meth:`~GenericOwsServiceOperationFacade.return_http_response` for details.
-
-        :return: the computed response based on some principle decisions.
-        :rtype: dict or :class:`requests.models.Request`
-        """
-
-        if self.service.is_unknown_layer:
-            return LayerNotDefined(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
-        else:
-            return super().get_and_post(request, *args, **kwargs)
-
     def _create_secured_service_mask(self):
         """
         Create a security mask for WMS GetMap using PIL.
@@ -368,7 +331,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
     def handle_get_feature_info_with_multithreading(self):
         """We use multithreading to send two requests at the same time to speed up the response time."""
-        request = self.remote_service.bypass_request(request=self.ogc_request)
+        request = self.remote_service.send_request(request=self.ogc_request)
         thread_list = []
         results = Queue()
         xml_request = copy.deepcopy(request)
@@ -425,7 +388,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
             return self.return_http_response(response=self.get_remote_response())
         else:
             try:
-                request = self.remote_service.bypass_request(
+                request = self.remote_service.send_request(
                     request=self.ogc_request)
                 if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
                     (
@@ -454,6 +417,11 @@ class WebMapServiceProxy(OgcServiceProxyView):
             except Exception:
                 pass
         return ForbiddenException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
+
+    def get_and_post(self, request, *args, **kwargs):
+        if self.ogc_request.is_get_map_request and self.service.is_unknown_layer:
+            return LayerNotDefined(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
+        return super().get_and_post(request, *args, **kwargs)
 
     def secure_request(self):
         """Handler to decide which subroutine for the given request param shall run.

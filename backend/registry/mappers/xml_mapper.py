@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import ForeignKey
+from django.db.models import CharField, ForeignKey
 from lxml import etree
 from registry import models
 from registry.mappers.cache import GlobalXmlCache
@@ -184,7 +184,18 @@ class XmlMapper:
         parsed_value = self.parse_field(
             xml_element, xpath_or_spec, namespaces)
         if parsed_value is not None:
-            setattr(instance, field_name, parsed_value)
+            # If XPath returns multiple values but the field is a CharField,
+            # use only the first match
+            if isinstance(parsed_value, list):
+                try:
+                    field = instance._meta.get_field(field_name)
+                    if isinstance(field, CharField):
+                        parsed_value = parsed_value[0] if parsed_value else None
+                except Exception:
+                    pass  # Field doesn't exist or other error, keep list as-is
+            
+            if parsed_value is not None:
+                setattr(instance, field_name, parsed_value)
 
     def handle_flat_fields(self, instance, xml_element, spec, namespaces):
         for field_name, xpath_or_spec in self._get_flat_fields(spec).items():
@@ -392,9 +403,7 @@ class XmlMapper:
     def sync_xml_with_instance(self, xml_element, xpath_or_spec, instance):
         nsmap = self.mapping.get("_namespaces", {})
         base_xpath = xpath_or_spec.get("_base_xpath", ".")
-        from registry.models import FeatureType
-        if isinstance(instance, FeatureType):
-            i = 0
+
         concrete_xpath = build_concrete_xpath(
             self,
             xpath_or_spec,
@@ -484,7 +493,7 @@ class XmlMapper:
 
                 try:
                     delete_able_elements = {
-                        e.getroottree().getpath(e): e
+                        id(e): e
                         for e in xml_element.xpath(base_xpath, namespaces=nsmap)
                     }
                 except etree.XPathEvalError as e:
@@ -500,7 +509,7 @@ class XmlMapper:
                             related_obj)
 
                         delete_able_elements.pop(
-                            synced.getroottree().getpath(synced), None)
+                            id(synced), None)
 
                     for elem in delete_able_elements.values():
                         remove_element_or_attribute(elem, ".", nsmap)

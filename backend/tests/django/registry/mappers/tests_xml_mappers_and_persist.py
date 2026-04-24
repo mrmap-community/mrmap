@@ -3,9 +3,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from django.test import TestCase
+from registry.mappers.factory import MDMetadataXmlMapper, OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.mappers.factory import (MDMetadataXmlMapper,
-                                         OGCServiceXmlMapper)
 from tests.django.test_data.capabilities.csw.expected_service_data import \
     EXPECTED_DATA as EXPECTED_CSW_SERVICE_DATA_2_0_2
 from tests.django.test_data.capabilities.wfs.expected_featuretype_data import \
@@ -160,16 +159,16 @@ class XmlMapperTest(TestCase):
         handler = PersistenceHandler(mappers[0])
         handler.persist_all()
 
-    def _test_service_success(self, expeced):
+    def _test_service_success(self, expected):
         service = self.data[0]
 
-        self.assertEqual(service.title, expeced["title"])
+        self.assertEqual(service.title, expected["title"])
         self.assertEqual(
-            service.abstract, expeced["abstract"])
+            service.abstract, expected["abstract"])
 
         db_keywords = list(service.keywords.values_list('keyword', flat=True))
         self.assertCountEqual(
-            db_keywords, expeced["keywords"], f"SERVICE hat falsche Keywords")
+            db_keywords, expected["keywords"], f"SERVICE hat falsche Keywords")
 
         raw_ops = service.operation_urls.values_list(
             "method", "operation", "url", "mime_types__mime_type"
@@ -181,44 +180,44 @@ class XmlMapperTest(TestCase):
             accumulate_fields=["mime_types__mime_type"],
         )
 
-        self.assertCountEqual([(op[0], op[1], op[2], op[3]) for op in operation_urls], [(op[0], op[1], op[2], op[3]) for op in expeced["operation_urls"]],
+        self.assertCountEqual([(op[0], op[1], op[2], op[3]) for op in operation_urls], [(op[0], op[1], op[2], op[3]) for op in expected["operation_urls"]],
                               f"SERVICE hat falsche OperationUrls")
 
         db_metadata_url = list(
             service.remote_metadata.values_list('link', flat=True))
-        self.assertCountEqual([str(c) for c in db_metadata_url], [str(c) for c in expeced.get("remote_metadata", [])],
+        self.assertCountEqual([str(c) for c in db_metadata_url], [str(c) for c in expected.get("remote_metadata", [])],
                               f"Service hat falsche RemoteMetadata")
 
-    def _test_md_success(self, expeced):
+    def _test_md_success(self, expected):
         md = self.data[0]
 
-        self.assertEqual(md.title, expeced["title"])
-        self.assertEqual(md.abstract, expeced["abstract"])
-        self.assertEqual(str(md.date_stamp), expeced["date_stamp"])
-        self.assertEqual(md.file_identifier, expeced["file_identifier"])
+        self.assertEqual(md.title, expected["title"])
+        self.assertEqual(md.abstract, expected["abstract"])
+        self.assertEqual(str(md.date_stamp), expected["date_stamp"])
+        self.assertEqual(md.file_identifier, expected["file_identifier"])
 
         db_languages = list(md.languages.values_list('value', flat=True))
         self.assertCountEqual(
-            db_languages, expeced["languages"], f"MetadataRecord hat falsche languages")
+            db_languages, expected["languages"], f"MetadataRecord hat falsche languages")
 
         db_keywords = list(md.keywords.values_list('keyword', flat=True))
         self.assertCountEqual(
-            db_keywords, expeced["keywords"], f"MetadataRecord hat falsche Keywords")
+            db_keywords, expected["keywords"], f"MetadataRecord hat falsche Keywords")
 
-        db_categories = list(md.categories.values_list('value', flat=True) if hasattr(md, 'categories') else [])
+        db_categories = list(md.categories.values_list(
+            'value', flat=True) if hasattr(md, 'categories') else [])
         self.assertCountEqual(
-            db_categories, expeced.get("categories", []), f"MetadataRecord hat falsche Categories")
+            db_categories, expected.get("categories", []), f"MetadataRecord hat falsche Categories")
 
         db_time_extents = list(str(extent) for extent in md.time_extents.all())
         self.assertCountEqual(
-            db_time_extents, expeced["time_extents"], f"MetadataRecord hat falsche time extents")
+            db_time_extents, expected["time_extents"], f"MetadataRecord hat falsche time extents")
 
         # ReferenceSystems prüfen
         db_crs = list(
             md.reference_systems.values_list('code', flat=True))
-        self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expeced["reference_systems"]],
+        self.assertCountEqual([str(c) for c in db_crs], [str(c) for c in expected["reference_systems"]],
                               f"MetadataRecord {md.file_identifier} hat falsche ReferenceSystems")
-
 
     def _test_wms_success(self, expected):
         wms = self.data[0]
@@ -308,7 +307,7 @@ class XmlMapperTest(TestCase):
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wms/1.1.1.xml'))
         self._call_service_mapper_and_persistence_handler()
-        self._test_service_success(expeced=EXPECTED_WMS_SERVICE_DATA_1_1_1)
+        self._test_service_success(expected=EXPECTED_WMS_SERVICE_DATA_1_1_1)
         self._test_wms_success(expected=LAYER_DATA_1_1_1)
 
     def test_wms_1_3_0(self):
@@ -316,7 +315,7 @@ class XmlMapperTest(TestCase):
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/wms/1.3.0.xml'))
         self._call_service_mapper_and_persistence_handler()
-        self._test_service_success(expeced=EXPECTED_WMS_SERVICE_DATA_1_3_0)
+        self._test_service_success(expected=EXPECTED_WMS_SERVICE_DATA_1_3_0)
         self._test_wms_success(expected=LAYER_DATA_1_3_0)
 
     def test_wfs_2_0_0(self):
@@ -325,7 +324,7 @@ class XmlMapperTest(TestCase):
             '../../test_data/capabilities/wfs/2.0.0.xml'))
         self._call_service_mapper_and_persistence_handler()
         # self.__export_parsed_wfs_data(self.data[0].featuretypes.all())
-        self._test_service_success(expeced=EXPECTED_WFS_SERVICE_DATA_2_0_0)
+        self._test_service_success(expected=EXPECTED_WFS_SERVICE_DATA_2_0_0)
         self._test_wfs_success()
 
     def test_csw_2_0_2(self):
@@ -333,18 +332,18 @@ class XmlMapperTest(TestCase):
             Path(__file__).parent.resolve(),
             '../../test_data/capabilities/csw/2.0.2.xml'))
         self._call_service_mapper_and_persistence_handler()
-        self._test_service_success(expeced=EXPECTED_CSW_SERVICE_DATA_2_0_2)
+        self._test_service_success(expected=EXPECTED_CSW_SERVICE_DATA_2_0_2)
 
     def test_iso_dataset(self):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/iso_metadata/dataset.xml'))
         self._call_iso_mapper_and_persistence_handler()
-        self._test_md_success(expeced=EXPECTED_DATASET_DATA)
+        self._test_md_success(expected=EXPECTED_DATASET_DATA)
 
     def test_iso_service(self):
         self.xml = Path(Path.joinpath(
             Path(__file__).parent.resolve(),
             '../../test_data/iso_metadata/service.xml'))
         self._call_iso_mapper_and_persistence_handler()
-        self._test_md_success(expeced=EXPECTED_SERVICE_DATA)
+        self._test_md_success(expected=EXPECTED_SERVICE_DATA)

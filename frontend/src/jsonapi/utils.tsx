@@ -84,40 +84,44 @@ export const findIncludedData = (resourceIdentifierObject: ResourceIdentifierObj
   return returnVal
 }
 
-export const encapsulateJsonApiRelationship = (relationships: Record<string, ResourceLinkage>, allRecords: any, currentRecordId: string, preventCircular: boolean = false) => {
-  for (const [relationName, resourceLinkage] of Object.entries(relationships || {})) {
-    if (resourceLinkage.data === null) continue
-    if (Array.isArray(resourceLinkage.data)) {
-      const relatedObjects: any[] = []
-      resourceLinkage.data.forEach(resourceIdentifierObject => {
-        const linkedObjectId = `${resourceIdentifierObject.type}:${resourceIdentifierObject.id}`
-        if (preventCircular) {
-          relatedObjects.push({
-            id: resourceIdentifierObject.id
-          })
-        } else {
-          allRecords[linkedObjectId] = {
-            id: resourceIdentifierObject.id,
-            ...(linkedObjectId in allRecords && allRecords[linkedObjectId])
-          }
-          relatedObjects.push(allRecords[linkedObjectId])
-        }
-      })
-      allRecords[currentRecordId][`${relationName}`] = relatedObjects
-    } else {
-      if (preventCircular){
-        allRecords[currentRecordId][`${relationName}`] = {id: resourceLinkage.data.id}
-      } else {
-        const linkedObjectId = `${resourceLinkage.data.type}:${resourceLinkage.data.id}`
-        allRecords[linkedObjectId] = {
-          id: resourceLinkage.data.id,
-          ...(linkedObjectId in allRecords && allRecords[linkedObjectId])
-        }
-        allRecords[currentRecordId][`${relationName}`] = allRecords[linkedObjectId]
-      }
+export const encapsulateJsonApiRelationship = (
+  relationships: Record<string, ResourceLinkage>,
+  allRecords: any,
+  currentRecordId: string,
+  preventCircular = false
+) => {
+  const linkId = (type: string, id: string) => `${type}:${id}`
+
+  const buildRef = (id: string) => ({ id })
+
+  const mergeRecord = (id: string, type: string) => {
+    const key = linkId(type, id)
+    allRecords[key] = {
+      id,
+      ...(allRecords[key] || {})
     }
+    return allRecords[key]
   }
 
+  const handleItem = (item: any, relationName: string) => {
+    if (preventCircular) return buildRef(item.id)
+    return mergeRecord(item.id, item.type)
+  }
+
+  for (const [relationName, resourceLinkage] of Object.entries(relationships || {})) {
+    const data = resourceLinkage.data
+    if (!data) continue
+
+    const target = allRecords[currentRecordId]
+
+    if (Array.isArray(data)) {
+      target[relationName] = data.map(item =>
+        handleItem(item, relationName)
+      )
+    } else {
+      target[relationName] = handleItem(data, relationName)
+    }
+  }
 }
 
 export const encapsulateJsonApiPrimaryData = (document: JsonApiDocument, data: JsonApiPrimaryData): RaRecord => {
@@ -154,9 +158,8 @@ export const jsonApiToRaAdmin = (document: JsonApiDocument): RaRecord => {
     includedMap[`${item.type}:${item.id}`] = item
   })
 
-  const encapsulatedIncluded = {}
 
-  return encapsulateJsonApiPrimaryData(document, document.data as JsonApiPrimaryData, encapsulatedIncluded) 
+  return encapsulateJsonApiPrimaryData(document, document.data as JsonApiPrimaryData) 
 }
 
 export const getIncludeOptions = (operation: Operation): string[] => {

@@ -1,4 +1,5 @@
-from django.db.models import Exists, F, Manager, OuterRef, Prefetch, QuerySet, Value, Window
+from django.db.models import (Exists, F, Manager, OuterRef, Prefetch, QuerySet,
+                              Value, Window)
 from django.db.models.functions import Coalesce, RowNumber
 from extras.managers import DefaultHistoryManager
 from mptt2.managers import TreeManager

@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, useMemo } from 'react';
-import { Edit, type EditProps, RaRecord, SimpleForm, useRecordContext, useResourceDefinition } from 'react-admin';
+import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, Toolbar, ToolbarClasses, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import { FieldDefinition } from '../utils';
 
@@ -11,8 +11,7 @@ export interface EditGuesserProps<RecordType extends RaRecord = any>
   referenceInputs?: ReactElement[]
 }
 
-const EditGuesser = (
-{
+const EditFormGuesser = ({
   toolbar,
   updateFieldDefinitions,
   referenceInputs,
@@ -21,7 +20,7 @@ const EditGuesser = (
   const { name, options } = useResourceDefinition(props)
 
   const record = useRecordContext(props)
-
+  
   const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
   const fields = useMemo(
     () => 
@@ -29,7 +28,6 @@ const EditGuesser = (
         fieldDefinition => {
 
           const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
-        
           return createElement(
             update?.component || fieldDefinition.component, 
             {
@@ -43,22 +41,58 @@ const EditGuesser = (
     ,[fieldDefinitions, record]
   )
 
+  const defaultToolbar = useMemo(() => {
+    return (
+      <Toolbar>
+        <div className={ToolbarClasses.defaultToolbar}>
+          <SaveButton />
+          {/* conditionally include DeleteButton */}
+          {options.hasDelete && <DeleteButton resource={name} />}
+        </div>
+      </Toolbar>
+    )
+  }, [name, options.hasDelete])
+
   return (
-    <Edit
-      queryOptions={{
-        refetchOnReconnect: true,
-      }}
-      mutationOptions={{ meta: { type: options?.type }}}
-      mutationMode='pessimistic'
-      {...props}
-    >
-      <SimpleForm
-        toolbar={toolbar}
+    <SimpleForm
+        toolbar={defaultToolbar || toolbar}
         sanitizeEmptyValues
       >
         {fields}
         {referenceInputs}
       </SimpleForm>
+  )
+
+}
+
+const EditGuesser = (
+{
+  toolbar,
+  updateFieldDefinitions,
+  referenceInputs,
+  ...props
+}: EditGuesserProps): ReactElement => {
+  const { options } = useResourceDefinition(props)
+  
+  return (
+    <Edit
+      queryOptions={{
+        refetchOnReconnect: true,
+        meta: { type: options?.type}
+      }}
+      mutationOptions={{
+        meta: { type: options?.type }
+      }}
+      mutationMode='pessimistic'
+      
+      {...props}
+    >
+      <EditFormGuesser
+        toolbar={toolbar}
+        updateFieldDefinitions={updateFieldDefinitions}
+        referenceInputs ={referenceInputs}
+        {...props}
+      />
     </Edit>
   )
 }

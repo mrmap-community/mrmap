@@ -64,7 +64,7 @@ class HistoryInformationViewSetMixin:
             include_resources_param = get_included_resources(
                 self.request, self.get_serializer_class())
 
-            django_model = apps.get_model(
+            HistoryModel = apps.get_model(
                 self.queryset.model._meta.app_label,
                 f"Historical{self.queryset.model.__name__}"
             )
@@ -81,15 +81,15 @@ class HistoryInformationViewSetMixin:
                     only_for_created_prefetch.append("history_date")
                 if (not resource_based_sparse_fields or "created_by" in resource_based_sparse_fields) and "created_by" not in include_resources_param:
                     only_for_created_prefetch.append("history_user__id")
-                qs = django_model.objects.filter(history_type='+')
+                prefetch_qs = HistoryModel.objects.filter(history_type='+')
                 if select_related:
-                    qs = qs.select_related(*select_related)
+                    prefetch_qs = prefetch_qs.select_related(*select_related)
                 if only_for_created_prefetch and not select_related:
-                    qs = qs.only(*only_for_created_prefetch)
+                    prefetch_qs = prefetch_qs.only(*only_for_created_prefetch)
                 prefetches.append(
                     Prefetch(
                         'change_logs',
-                        queryset=qs[:1],
+                        queryset=prefetch_qs[:1],
                         to_attr='first_history'
                     )
                 )
@@ -103,15 +103,15 @@ class HistoryInformationViewSetMixin:
                     only_for_last_modified_prefetch.append("history_date")
                 if (not resource_based_sparse_fields or "last_modified_by" in resource_based_sparse_fields) and "last_modified_by" not in include_resources_param:
                     only_for_last_modified_prefetch.append("history_user__id")
-                qs = django_model.objects.all()
+                prefetch_qs = HistoryModel.objects.all()
                 if select_related:
-                    qs = qs.select_related(*select_related)
+                    prefetch_qs = prefetch_qs.select_related(*select_related)
                 if only_for_created_prefetch and not select_related:
-                    qs = qs.only(*only_for_created_prefetch)
+                    prefetch_qs = prefetch_qs.only(*only_for_created_prefetch)
                 prefetches.append(
                     Prefetch(
                         'change_logs',
-                        queryset=qs[:1],
+                        queryset=prefetch_qs[:1],
                         to_attr='last_history'
                     )
                 )

@@ -47,7 +47,8 @@ const AllowedWebMapServiceOperationOverview = () => {
     <>
       <ListGuesser 
         resource='AllowedWebMapServiceOperation'
-        defaultSelectedColumns={["allowedArea"]}
+        relatedResource='WebMapService'
+        defaultSelectedColumns={["allowedArea", "description", "allowedGroups", "operations"]}
         rowActions={<></>}
         onRowClick={(record) => setClickedRow(record)}
       />

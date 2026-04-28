@@ -112,11 +112,10 @@ const buildQueryParams = (params: GetListParams | GetManyParams | GetManyReferen
 
   const hasFilter = "filter" in params // GetListParams && GetManyReferenceParams specific
   const hasIds = "ids" in params // GetManyParams specific
-  const hasId = "id" in params  // GetManyReferenceParams specific
 
   hasPagination && params.pagination !== undefined && parameters.push({ name: 'page[number]', value: params.pagination.page })
   hasPagination && params.pagination !== undefined && parameters.push({ name: 'page[size]', value: params.pagination.perPage })
-  hasSort && params.sort !== undefined && parameters.push(   { name: 'sort', value: `${params.sort.order === 'ASC' ? '' : '-'}${params.sort.field}` })
+  hasSort && params.sort !== undefined && parameters.push({ name: 'sort', value: `${params.sort.order === 'ASC' ? '' : '-'}${params.sort.field}` })
 
   hasFilter && params.filter !== undefined && Object.entries(params.filter ?? {}).forEach(([filterName, filterValue]) => {
     const _filterName = filterName.includes('_filter_lookup_') ? filterName.replace('_filter_lookup_', '.') : filterName
@@ -140,10 +139,6 @@ const buildQueryParams = (params: GetListParams | GetManyParams | GetManyReferen
     const ids = params.ids.map(value => typeof value === 'object' ? value.id : value)
     parameters.push({ name: 'filter[id.in]', value: ids.join(',') })
   } 
-
-  if (hasId) { 
-    typeof params.id === 'object' ? parameters.push({name: 'filter[id.in]', value: params.id.id}): parameters.push({name: 'filter[id.in]', value: params.id})
-  }
 
   return parameters
 }
@@ -320,7 +315,7 @@ const dataProvider = ({
       if (relatedResource !== undefined && relatedResource.id === undefined){
         // possible if the getList is called inside a CreateGuesser with a ReferenceManyInput as child component. 
         // Therewhile the parent object isnt created and the getList is called with an undefined id. This results in 404 requests.
-        return 
+        return { data: [], total: 0}
       }
       const operationId = relatedResource === undefined ? `list_${resource}` : `list_related_${resource}_of_${relatedResource.resource}`
 
@@ -366,7 +361,13 @@ const dataProvider = ({
     },
 
     getMany: async (resource: string, params: GetManyParams) => {
-      const operationId = `list_${resource}`
+      const relatedResource = params.meta?.relatedResource
+      if (relatedResource !== undefined && relatedResource.id === undefined){
+        // possible if the getList is called inside a CreateGuesser with a ReferenceManyInput as child component. 
+        // Therewhile the parent object isnt created and the getList is called with an undefined id. This results in 404 requests.
+        return { data: [], total: 0}
+      }
+      const operationId = relatedResource === undefined ? `list_${resource}` : `list_related_${resource}_of_${relatedResource.resource}`
       checkOperationExists(httpClient, operationId)
 
       const parameters = buildQueryParams(params)
@@ -376,11 +377,27 @@ const dataProvider = ({
     },
 
     getManyReference: async (resource: string, params: GetManyReferenceParams) => {
-      const operationId = `list_${resource}`
+      const relatedObjects = params.meta?.relatedObjects
+      if (Array.isArray(relatedObjects) && relatedObjects.length === 0) { 
+        return { data: [], total: 0}
+      }
+      const relatedResource = params.meta?.relatedResource
+      if (relatedResource !== undefined && relatedResource.id === undefined){
+        // possible if the getList is called inside a CreateGuesser with a ReferenceManyInput as child component. 
+        // Therewhile the parent object isnt created and the getList is called with an undefined id. This results in 404 requests.
+        return { data: [], total: 0}
+      }
+      const operationId = relatedResource === undefined ? `list_${resource}` : `list_related_${resource}_of_${relatedResource.resource}`
       checkOperationExists(httpClient, operationId)
-
-      const parameters = buildQueryParams(params)
-      const conf = httpClient.getAxiosConfigForOperation(`list_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
+      const _params = {
+        ...params,
+        ...(relatedResource === undefined && Array.isArray(relatedObjects) && relatedObjects.length > 0 && {
+          ids: relatedObjects
+        })
+      }
+      console.log(_params)
+      const parameters = buildQueryParams(_params)
+      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
 
       return await handleListRequest(httpClient.client, conf, total, systemTime)
     },

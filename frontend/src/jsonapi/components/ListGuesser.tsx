@@ -1,12 +1,12 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, ExportButton, FilterButton, Identifier, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, Identifier, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 import { snakeCase } from 'lodash'
 
-import CreateDialogButton from '../../components/Dialog/CreateDialogButton'
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
+import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'
 import EmptyList from '../../components/Lists/Empty'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
@@ -22,10 +22,6 @@ interface FieldWrapperProps {
   label: string
 }
 
-interface ListActionsProps {
-  filters: ReactNode[]
-  preferenceKey?: string
-}
 
 export interface ListGuesserProps extends Partial<ListProps> {
   realtime?: boolean
@@ -37,29 +33,13 @@ export interface ListGuesserProps extends Partial<ListProps> {
   updateFieldDefinitions?: FieldDefinition[];
   refetchInterval?: number | false
   defaultSelectedColumns? : string[]
-  sparseFieldsets?: SparseFieldsets[]
+  sparseFieldsets?: SparseFieldsets[],
+  ActionsComponent?: React.ComponentType<CustomListActionsProps>
 }
 
 
 const FieldWrapper = ({ children }: FieldWrapperProps): ReactNode => children
 
-
-const ListActions = (
-  { 
-    filters,
-    preferenceKey,
-  }: ListActionsProps
-): ReactNode => {
-  const { hasCreate} = useResourceDefinition()
-  return (
-    <TopToolbar>
-      <SelectColumnsButton preferenceKey={preferenceKey}/>
-      <FilterButton filters={filters}/>
-      {hasCreate && <CreateDialogButton />}
-      <ExportButton />
-    </TopToolbar>
-  )
-}
 
 const ListGuesser = ({
   realtime=false,
@@ -72,6 +52,7 @@ const ListGuesser = ({
   refetchInterval=false,
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
   sparseFieldsets= undefined,
+  ActionsComponent=ListActions,
   ...props
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
@@ -190,7 +171,10 @@ const ListGuesser = ({
     <ListComponent
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
-      actions={<ListActions filters={filters} preferenceKey={preferenceKey}/>}
+      actions={<ActionsComponent
+        filters={filters} 
+        preferenceKey={preferenceKey}/>
+      }
       empty={props.empty || <EmptyList />}
       queryOptions={{
         refetchInterval,

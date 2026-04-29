@@ -4,7 +4,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import { createElement, useCallback, useMemo } from 'react';
+import { createElement, ReactNode, useCallback, useMemo } from 'react';
 import { Create, CreateProps, Form, RaRecord, SaveButton, useNotify, useResourceContext, useTranslate } from 'react-admin';
 import { useFieldsForOperation } from '../../jsonapi/hooks/useFieldsForOperation';
 import { FieldDefinition } from '../../jsonapi/utils';
@@ -15,8 +15,8 @@ export interface CreateDialogProps extends Partial<CreateProps>{
   onClose?: () => void
   onCreate?: (data: any) => void
   onCancel?: () => void
+  fieldComponent?: ReactNode
   updateFieldDefinitions?: FieldDefinition[];
-  createComponent?: React.ComponentType<CreateProps>
 }
 
 const CreateDialog = (
@@ -26,9 +26,9 @@ const CreateDialog = (
   onClose,
   onCreate,
   onCancel,
+  fieldComponent,
   updateFieldDefinitions,
   defaultValue,
-  createComponent,
   ...rest
  }: CreateDialogProps
 ) => {
@@ -37,9 +37,8 @@ const CreateDialog = (
   const resource = useResourceContext({resource: rest?.resource})
 
   const fieldDefinitions = useFieldsForOperation(`create_${resource}`)
-  const fields = useMemo(
-    ()=> 
-      fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
+  const fields = useMemo(() => 
+      fieldComponent ?? fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
         (fieldDefinition, index) => {
 
           const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
@@ -53,7 +52,7 @@ const CreateDialog = (
             }
           )
         })
-    ,[fieldDefinitions]
+    , [fieldComponent, updateFieldDefinitions, fieldDefinitions]
   )
 
   const onCreateSuccess = useCallback((data: RaRecord)=>{
@@ -71,28 +70,11 @@ const CreateDialog = (
     setIsOpen && setIsOpen(false)
   },[resource])
 
-  if (createComponent) {
-    const CreateComponent = createComponent
-    return <CreateComponent 
-      resource={resource}
-        redirect={false}
-        mutationOptions={{onSuccess: onCreateSuccess}}
-        sx={{
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        
-        {...rest}
-    />
-  }
-
   /* Create and Form component needed to be outside the Dialog component. 
   Otherwise the scroll feature is broken.
   See: https://github.com/mui/material-ui/issues/13253 
   */
   return (
-      
       <Create
         resource={resource}
         redirect={false}
@@ -102,12 +84,10 @@ const CreateDialog = (
           display: 'flex',
           flexDirection: 'column',
         }}
-        
         {...rest}
       >
         <Form
           defaultValues={defaultValue as any}
-            
         >
           <Dialog 
             open={isOpen}

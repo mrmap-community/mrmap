@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Button } from "react-admin";
 import CreateDialog, { CreateDialogProps } from "./CreateDialog";
 
-export interface CreateDialogButtonProps extends CreateDialogProps {
+export interface CreateDialogButtonProps {
   buttonProps?: ButtonOwnProps
-  createComponent?: React.ComponentType<CreateDialogProps>
+  createDialogProps?: CreateDialogProps
 }
 
 const CreateDialogButton = ({
   buttonProps,
-  ...props
+  createDialogProps
 }: CreateDialogButtonProps) => {
 
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
@@ -21,7 +21,7 @@ const CreateDialogButton = ({
       <Button label="Create" onClick={()=>setDialogOpen(true)} {...buttonProps}>
         <AddIcon />
       </Button>
-      <CreateDialog isOpen={dialogOpen} setIsOpen={setDialogOpen} {...props} />
+      <CreateDialog isOpen={dialogOpen} setIsOpen={setDialogOpen} {...createDialogProps} />
     </>
   )
 }

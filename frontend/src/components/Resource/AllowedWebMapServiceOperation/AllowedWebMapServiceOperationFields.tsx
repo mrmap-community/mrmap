@@ -1,18 +1,16 @@
 import { createElement, useMemo } from 'react';
-import { useResourceContext } from 'react-admin';
+import { useRecordContext, useResourceContext } from 'react-admin';
 import { useWatch } from "react-hook-form";
-import { useParams } from 'react-router-dom';
 import { useFieldsForOperation } from '../../../jsonapi/hooks/useFieldsForOperation';
 import TreeSelectInput from '../../Input/TreeSelectInput';
 
 
 
 const AllowedWebMapServiceOperationFields = () => {
-  const { id } = useParams()
-
+  const record = useRecordContext();
   const resource = useResourceContext()
   const securedServiceValue = useWatch({name: 'securedService'})
-  const fieldDefinitions = useFieldsForOperation(id === undefined ? `create_${resource}` : `partial_update_${resource}` )
+  const fieldDefinitions = useFieldsForOperation(record === undefined ? `create_${resource}` : `partial_update_${resource}` )
 
   // Dynamic change depending fields
   const customFieldDefinitions = useMemo(()=>(

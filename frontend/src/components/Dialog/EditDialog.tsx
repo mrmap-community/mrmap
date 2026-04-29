@@ -4,13 +4,16 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import { createElement, useCallback, useMemo } from 'react';
+import { createElement, ReactNode, useCallback, useMemo } from 'react';
 import { DeleteButton, Edit, EditProps, Form, RecordRepresentation, SaveButton, useNotify, useTranslate } from 'react-admin';
 import { useFieldsForOperation } from '../../jsonapi/hooks/useFieldsForOperation';
+import { FieldDefinition } from '../../jsonapi/utils';
 
-export interface EditDialogProps extends EditProps{
+export interface EditDialogProps extends Partial<EditProps>{
   isOpen?: boolean
   onClose?: () => void
+  fieldComponent?: ReactNode
+  updateFieldDefinitions?: FieldDefinition[];
 }
 
 const EditDialog = (
@@ -19,15 +22,33 @@ const EditDialog = (
   resource,
   isOpen=false,
   onClose,
+  fieldComponent,
+  updateFieldDefinitions,
   ...rest
  }: EditDialogProps
 ) => {
-  
+
   const translate = useTranslate();
   const notify = useNotify();
 
   const fieldDefinitions = useFieldsForOperation(`partial_update_${resource}`)
-  const fields = useMemo(()=> fieldDefinitions.map(def => createElement(def.component, def.props)),[fieldDefinitions])
+  const fields = useMemo(() => 
+      fieldComponent ?? fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
+        (fieldDefinition, index) => {
+
+          const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
+        
+          return createElement(
+            update?.component || fieldDefinition.component, 
+            {
+              ...fieldDefinition.props, 
+              key:`create-${resource}-${index}`,
+              ...update?.props
+            }
+          )
+        })
+    , [fieldComponent, updateFieldDefinitions, fieldDefinitions]
+  )
 
   const onEditSuccess = useCallback(()=>{
     notify(`resources.${resource}.notifications.updated`, {

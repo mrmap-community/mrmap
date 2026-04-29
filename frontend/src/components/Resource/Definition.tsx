@@ -23,6 +23,7 @@ import { WmsShow } from './WebMapService/WmsShow';
 import HttpIcon from '@mui/icons-material/Http';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import UpdateIcon from '@mui/icons-material/Update';
+import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
@@ -95,7 +96,9 @@ const RESOURCES: Array<ResourceProps> = [
     name: "AllowedWebMapServiceOperation", 
     icon: VpnLockIcon, 
     create: CreateAllowedWebMapServiceOperation, 
-    edit: EditAllowedWebMapServiceOperation
+    edit: EditAllowedWebMapServiceOperation,
+    list: ListAllowedWebMapServiceOperation
+    
   },
   {name: "WebMapServiceOperation",},
   {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon},

@@ -395,7 +395,6 @@ const dataProvider = ({
           ids: relatedObjects
         })
       }
-      console.log(_params)
       const parameters = buildQueryParams(_params)
       const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
 

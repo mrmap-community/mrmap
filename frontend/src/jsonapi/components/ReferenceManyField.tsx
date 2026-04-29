@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { RaRecord, ReferenceManyField, ReferenceManyFieldProps, SingleFieldList, SortPayload, useRecordContext } from "react-admin";
+import { RaRecord, ReferenceManyField, ReferenceManyFieldProps, SortPayload, useRecordContext } from "react-admin";
 import useOnError from "../hooks/useOnError";
 import useOperation from "../hooks/useOperation";
 import useResourceSchema from "../hooks/useResourceSchema";
+import { PaginatedSingleFieldList } from "./PaginatedSingleFieldList";
 
 const JsonApiReferenceManyField = <
     RecordType extends RaRecord,
@@ -40,12 +41,12 @@ const JsonApiReferenceManyField = <
       return _sparseFieldsParam
     },[reference])
 
-    console.log('reference:',reference, 'target:',target)
     return (
       <ReferenceManyField 
         {...props} 
         sort={sort}
         source={'id'}
+        perPage={5}
         queryOptions={{
           onError,
           meta: {
@@ -64,7 +65,7 @@ const JsonApiReferenceManyField = <
         empty="empty"
         emptyText="No Values"
       >
-        <SingleFieldList />
+        <PaginatedSingleFieldList visibleCount={3} />
       </ReferenceManyField>
     )
     

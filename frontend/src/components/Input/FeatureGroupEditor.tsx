@@ -25,8 +25,8 @@ const FeatureGroupEditor = ({
   editable = true,
 }: GeoEditorProps): ReactNode => {
   const map = useMap()
-  const initializeRef = useRef(false)
-  
+  const geoJsonLayerRef = useRef<L.GeoJSON | null>(null)
+
   const updateGeoJson = useCallback((event: any) => {
     const multiPolygon: MultiPolygon = {
       type: 'MultiPolygon',
@@ -47,11 +47,10 @@ const FeatureGroupEditor = ({
   }, [map])
 
   useEffect(() => {
-    if (geoJson && !initializeRef.current) {
-      initializeRef.current = true
-      
+    if (geoJson !== undefined) {
       try {
         const geoJSONLayer = L.geoJSON(geoJson)
+        geoJsonLayerRef.current = geoJSONLayer
         map.addLayer(geoJSONLayer)
         const bounds = geoJSONLayer.getBounds()
         if (Object.keys(bounds).length > 1) {
@@ -61,7 +60,17 @@ const FeatureGroupEditor = ({
         console.error('Error adding GeoJSON layer:', error)
       }    
     }
+
+    // ✅ Cleanup on unmount
+    return () => {
+      if (geoJsonLayerRef.current) {
+        map.removeLayer(geoJsonLayerRef.current)
+        geoJsonLayerRef.current = null
+      }
+    }
   }, [map, geoJson])
+
+  // TODO: on unmount, the geoJson shall be removed from the map.
 
   return (
     <>

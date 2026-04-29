@@ -10,7 +10,6 @@ import AutoResizeMapContainer from '../MapContainer/ResizeAbleMapContainer';
 
 
 const style = {
-  width: '100wh',
   height: '200px',
 }
 
@@ -23,15 +22,13 @@ const GeoJsonField = ({
 
   const value = useFieldValue(props);
   const { className, emptyText, ...rest } = props;
-  console.log(value)
   return (
     <div style={{width: '100%'}}>
       <Typography
-            component="span"
-            variant="body2"
-            className={className}
-            {...sanitizeFieldRestProps(rest)}
-        
+        component="span"
+        variant="body2"
+        className={className}
+        {...sanitizeFieldRestProps(rest)}
       >
         {value != null
                 ? JSON.stringify(value)
@@ -54,7 +51,7 @@ const GeoJsonField = ({
           />
           <FeatureGroupEditor
             // forces rerendering on every value change for example.
-            key={(Math.random() + 1).toString(36).substring(7)}
+            //key={(Math.random() + 1).toString(36).substring(7)}
             geoJson={value}
             editable={false}
           />

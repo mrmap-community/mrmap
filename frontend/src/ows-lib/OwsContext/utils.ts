@@ -38,7 +38,7 @@ export const prepareGetCapabilititesUrl = (href: string, serviceType: string, ve
     const url = new URL(href)
     const params = url.searchParams
     updateOrAppendSearchParam(params, 'SERVICE', serviceType)
-    updateOrAppendSearchParam(params, 'REQUEST', 'GetCapabilitites')
+    updateOrAppendSearchParam(params, 'REQUEST', 'GetCapabilities')
     version && updateOrAppendSearchParam(params, 'VERSION', version)
     return url
 }

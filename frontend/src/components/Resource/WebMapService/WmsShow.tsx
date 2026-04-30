@@ -1,14 +1,16 @@
-import { DeleteButton, EditButton, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useResourceDefinition } from 'react-admin';
+import { DeleteButton, EditButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useResourceDefinition, WithRecord } from 'react-admin';
 
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
-import { createElement, useMemo } from 'react';
+import { createElement, useCallback, useMemo } from 'react';
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
 import { useFieldsForOperation } from '../../../jsonapi/hooks/useFieldsForOperation';
+import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
 import { createElementIfDefined } from '../../../utils';
 import ProxySettingsTab from './ProxySettings';
 import SpatialSecureTab from './SpatialSecureTab';
 import WebMapServiceOperationUrlsTab from './WebMapServiceOperationUrlsTab';
 import WmsLayers from './WmsLayerTab';
+const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
 
 const WmsShowActions = () => (
     <TopToolbar>
@@ -41,6 +43,10 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
         return _meta
     },[])
 
+    const getCapabilititesUrl = useCallback((wms: RaRecord)=>(
+        wms.operationUrls.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1))
+    ),[])
+
     return (
         <Show 
             queryOptions={{meta: meta}}
@@ -64,7 +70,32 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 />
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>}>
-                <UrlField source="xmlBackupFile" content='show capabilitites'/>
+                <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
+                <WithRecord 
+                    label="show remote capabilities" 
+                    render={(record: RaRecord) => {
+                        const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
+                        url.url = prepareGetCapabilititesUrl(
+                                url.url,
+                                "WMS",
+                                record.version.toString().split('').join('.')
+                            ).href
+                        return url ? <UrlField record={url} source="url"/> : null; 
+                    }}/>
+                <WithRecord 
+                    label="show securited capabilities" 
+                    render={(record: RaRecord) => {                      
+                        const url = {
+                            url: prepareGetCapabilititesUrl(
+                                `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/mrmap-proxy/wms/${record.id}`,
+                                "WMS",
+                                record.version.toString().split('').join('.')
+                            ).href
+                        }
+                        return <UrlField record={url} source="url"/>
+                    }} />
+           
+           
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={operationUrlName} icon={createElementIfDefined(operationUrlIcon)} path='operation-urls'>
                 <WebMapServiceOperationUrlsTab/>

@@ -1,5 +1,4 @@
 import urllib.parse
-from typing import Dict, List, Union
 
 from django.contrib.gis.gdal import SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Polygon
@@ -11,7 +10,7 @@ from registry.ows_lib.client.exceptions import (MissingBboxParam,
                                                 MissingServiceParam)
 
 
-def update_queryparams(url: str, params: Dict):
+def update_queryparams(url: str, params: dict):
     """Helper function to update query paramase inside an existing url with trailing query params"""
     url_parts = urllib.parse.urlparse(url)
     query = dict(urllib.parse.parse_qsl(url_parts.query))
@@ -169,20 +168,18 @@ def construct_polygon_from_bbox_query_param(get_dict) -> GEOSGeometry:
         return _construct_polygon_from_bbox_query_param_for_wfs(get_dict=get_dict)
 
 
-def get_requested_layers(params: Dict) -> List[str]:
+def get_requested_layers(params: dict) -> list[str]:
     """Filters the given params by requested layers
 
     :param params: all query parameters
-    :type params: Dict
+    :type params: dict
     :return: the requested layers from the query params
-    :rtype: List[str]
+    :rtype: list[str]
     """
     return list(filter(None, params.get("LAYERS", params.get("layers", "")).split(",")))
 
 
-def get_requested_feature_types(
-    params: Union[Dict[str, str], etree._Element]
-) -> List[str]:
+def get_requested_feature_types(params: dict[str, str] | etree._Element) -> list[str]:
     """
     Extract requested feature types from query parameters or an XML element.
 
@@ -200,7 +197,7 @@ def get_requested_feature_types(
 
     # --- Case 2: XML element ---
     if isinstance(params, etree._Element):
-        feature_types: List[str] = []
+        feature_types: list[str] = []
 
         # map default namespace to 'wfs' if None
         nsmap = {k if k is not None else "wfs": v for k,
@@ -217,13 +214,10 @@ def get_requested_feature_types(
 
         return feature_types
 
-    raise TypeError(
-        "params must be either Dict[str, str] or lxml.etree._Element")
+    raise TypeError("params must be either dict[str, str] or lxml.etree._Element")
 
 
-def get_requested_records(
-    params: Union[Dict[str, str], etree._Element]
-) -> List[str]:
+def get_requested_records(params: dict[str, str] | etree._Element) -> list[str]:
     """
     Extract requested record IDs from query parameters or a CSW XML element.
 
@@ -241,7 +235,7 @@ def get_requested_records(
 
     # --- Case 2: XML element ---
     if isinstance(params, etree._Element):
-        record_ids: List[str] = []
+        record_ids: list[str] = []
 
         # auto-detect namespaces
         nsmap = {k if k is not None else "default": v for k,
@@ -255,5 +249,4 @@ def get_requested_records(
 
         return record_ids
 
-    raise TypeError(
-        "params must be either Dict[str, str] or lxml.etree._Element")
+    raise TypeError("params must be either dict[str, str] or lxml.etree._Element")

@@ -1,6 +1,5 @@
 from datetime import timedelta
 from io import BytesIO
-from typing import List
 
 from django.conf import settings
 from django.contrib.gis.db import models
@@ -305,9 +304,7 @@ class GetCapabilitiesProbe(WebMapServiceProbe):
 
 
 class GetMapProbe(WebMapServiceProbe):
-    layers: List[Layer] = models.ManyToManyField(
-        to=Layer
-    )
+    layers = models.ManyToManyField(to=Layer)
     format = models.ForeignKey(
         to=MimeType,
         on_delete=models.SET_NULL,

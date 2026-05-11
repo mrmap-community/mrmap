@@ -12,6 +12,7 @@ from django.db.models.fields.related import ForeignObjectRel
 from django.utils.timezone import get_default_timezone, is_naive, make_aware
 from lxml import etree
 from psycopg.types.range import Range
+from xml.sax.saxutils import escape as xml_escape
 
 
 def load_function(path: str):
@@ -317,8 +318,8 @@ def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
                 value = resolve_field(instance, name)
                 if value is None:
                     raise KeyError(
-                        f"Instance missing field for xpath template: {name}")
-                field_values[name] = value
+                        f"Instance missing field for xpath template '{identifier_cfg}': {name}")
+                field_values[name] = xml_escape(str(value))
 
             identifier_xpath = xpath_spec.format(**field_values)
 

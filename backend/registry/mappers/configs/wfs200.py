@@ -33,7 +33,7 @@ XPATH_MAP = {
                     "_base_xpath": "./ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                            "xpath": "./ows:OperationsMetadata/ows:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL[text()='{link}']",
                         },
                     },
                     "fields": {

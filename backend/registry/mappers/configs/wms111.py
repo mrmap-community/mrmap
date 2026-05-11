@@ -32,7 +32,7 @@ XPATH_MAP = {
                     "_base_xpath": "./Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                            "xpath": "./Capability/VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL[text()='{link}']",
                         },
                     },
                     "fields": {
@@ -237,7 +237,7 @@ XPATH_MAP = {
                             "_create_mode": "get_or_create",
                             "_reverse": {
                                 "_identifier": {
-                                    "xpath": "./Extent[@name='time'][text()='{value}']",
+                                    "xpath": "./Extent[@name='time'][text()='{xml_value}']",
                                     "parser": "registry.mappers.parsers.wms.timeextent_to_value"
                                 },
                             },

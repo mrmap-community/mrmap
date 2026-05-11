@@ -32,7 +32,7 @@ XPATH_MAP = {
                     "_base_xpath": "./wms:Capability/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL",
                     "_reverse": {
                         "_identifier": {
-                            "xpath": "./wms:Capability/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL/[text()='{link}']",
+                            "xpath": "./wms:Capability/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL[text()='{link}']",
                         },
                     },
                     "fields": {
@@ -243,7 +243,7 @@ XPATH_MAP = {
                             "_reverse_parser": "registry.mappers.parsers.wms.timeextent_to_value",
                             "_reverse": {
                                 "_identifier": {
-                                    "xpath": "./wms:Dimension[@name='time'][text()='{value}']",
+                                    "xpath": "./wms:Dimension[@name='time'][text()='{xml_value}']",
                                     "parser": "registry.mappers.parsers.wms.timeextent_to_value"
                                 },
                             },

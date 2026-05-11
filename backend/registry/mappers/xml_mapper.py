@@ -193,7 +193,7 @@ class XmlMapper:
                         parsed_value = parsed_value[0] if parsed_value else None
                 except Exception:
                     pass  # Field doesn't exist or other error, keep list as-is
-            
+
             if parsed_value is not None:
                 setattr(instance, field_name, parsed_value)
 

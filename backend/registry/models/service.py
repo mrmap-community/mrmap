@@ -158,6 +158,24 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         )
         return cap_url
 
+    def get_secured_capabilities_url(self, request) -> str:
+        url_name = "wms-operation" if self.service_type == "WMS" else "wfs-operation" if self.service_type == "WFS" else "csw-operation"
+
+        proxy_url = self.get_secured_url(
+            request=request,
+            url_name=url_name,
+        )
+
+        cap_url = update_url_query_params(
+            proxy_url,
+            {
+                "SERVICE": self.service_type,
+                "VERSION": OGCServiceVersionEnum(self.version).label,
+                "REQUEST": "GetCapabilities",
+            }
+        )
+        return cap_url
+
     @property
     def remote_capabilities(self) -> bytes | None:
         request = Request(method="GET", url=self.get_capabilities_url)

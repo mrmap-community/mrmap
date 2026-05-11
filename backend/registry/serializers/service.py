@@ -26,7 +26,7 @@ from registry.serializers.metadata import (KeywordSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import BooleanField, IntegerField, URLField
+from rest_framework.fields import BooleanField, IntegerField, SerializerMethodField, URLField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
@@ -281,6 +281,12 @@ class WebMapServiceListSerializer(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
     )
+    xml_backup_file_secured = SerializerMethodField(
+        label=_("secured xml backup file"),
+        help_text=_(
+            "the original xml backup file as secured url to restore the xml field."),
+        read_only=True,
+    )
 
     included_serializers = {
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
@@ -298,6 +304,10 @@ class WebMapServiceListSerializer(
     class Meta:
         model = WebMapService
         fields = "__all__"
+
+    def get_xml_backup_file_secured(self, instance):
+        request = self.context.get("request")
+        return instance.get_secured_capabilities_url(request=request)
 
 
 class WebMapServiceSerializer(

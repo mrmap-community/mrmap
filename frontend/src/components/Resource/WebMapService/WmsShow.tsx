@@ -52,9 +52,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
             queryOptions={{meta: meta}}
             actions={<WmsShowActions/>}
         >
-        <TabbedShowLayout
-            
-        >
+        <TabbedShowLayout>
             <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)}>
                 <EditGuesser 
                     resource='WebMapService'
@@ -65,8 +63,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                             <SaveButton alwaysEnable/>
                             <DeleteButton/>
                         </Toolbar>
-                    }
-                    
+                    } 
                 />
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>}>
@@ -81,21 +78,9 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                                 record.version.toString().split('').join('.')
                             ).href
                         return url ? <UrlField record={url} source="url"/> : null; 
-                    }}/>
-                <WithRecord 
-                    label="show securited capabilities" 
-                    render={(record: RaRecord) => {                      
-                        const url = {
-                            url: prepareGetCapabilititesUrl(
-                                `${VITE_API_SCHEMA}://${VITE_API_BASE_URL}/mrmap-proxy/wms/${record.id}`,
-                                "WMS",
-                                record.version.toString().split('').join('.')
-                            ).href
-                        }
-                        return <UrlField record={url} source="url"/>
-                    }} />
-           
-           
+                    }}
+                />
+                <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={operationUrlName} icon={createElementIfDefined(operationUrlIcon)} path='operation-urls'>
                 <WebMapServiceOperationUrlsTab/>

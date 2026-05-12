@@ -33,7 +33,7 @@ const OwsContextControl = () => {
           if (getCapabilitiesUrl !== undefined){
             const url = new URL(getCapabilitiesUrl)
             const params = url.searchParams
-            updateOrAppendSearchParam(params, 'SERVICE', 'wms')
+            updateOrAppendSearchParam(params, 'SERVICE', 'WMS')
             updateOrAppendSearchParam(params, 'VERSION', wms.version)
             updateOrAppendSearchParam(params, 'REQUEST', 'GetCapabilities')
            

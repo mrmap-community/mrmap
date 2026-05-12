@@ -1,10 +1,12 @@
+import base64
 import datetime
 import re
 from functools import cached_property
 from io import BytesIO
+from registry.ows_lib.request.utils import update_queryparams
 
-from django.contrib.auth import get_user_model
-from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
+from django.contrib.auth import authenticate, get_user_model
+from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist, PermissionDenied
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import HttpResponse, StreamingHttpResponse
@@ -40,6 +42,7 @@ class OgcServiceProxyView(View):
     """
     bbox = None
     start_time = None
+    test_context = None
 
     @property
     def is_get_request(self) -> bool:
@@ -72,9 +75,31 @@ class OgcServiceProxyView(View):
         """hook method to do adittional stuff in child classes"""
         pass
 
+    def basic_auth(self):
+        """hook method to do basic auth in child classes"""
+        authorization = self.request.headers.get("authorization", "")
+        if not authorization.startswith("Basic "):
+            return
+        try:
+            credentials = base64.b64decode(
+                authorization.replace("Basic ", "", 1)).decode("utf-8")
+            username, password = credentials.split(":", 1)
+            user = authenticate(username=username, password=password)
+            self.request.user = user
+        except (ValueError, UnicodeDecodeError) as e:
+            i = 0
+
     def dispatch(self, request, *args, **kwargs):
         self.start_time = datetime.datetime.now()
+        self.basic_auth()
         self.ogc_request = OGCRequest.from_django_request(request)
+        # Apply test-as-user context if provided
+        try:
+            self.test_context = self._apply_test_as_user_context(request)
+        except (Http404, PermissionDenied) as e:
+            return ForbiddenException(service_type=self.ogc_request.service_type.lower(),
+                                      service_version=self.ogc_request.service_version,
+                                      message=str(e))
 
         exception = self.check_request()
         if exception:
@@ -90,6 +115,68 @@ class OgcServiceProxyView(View):
         elif not self.ogc_request.service_version:
             return MissingVersionParameterException(service_type=self.ogc_request.service_type.lower(),
                                                     service_version=self.service.version)
+
+    def _extract_test_user_param(self) -> str | None:
+        """Extract test user parameter from request (multiple sources)."""
+        # Priority: Header > POST > GET
+        test_user = self.request.META.get('HTTP_X_TEST_AS_USER')
+        if test_user:
+            return test_user
+
+        test_user = self.request.POST.get('_test_as_user')
+        if test_user:
+            return test_user
+
+        return self.request.GET.get('_test_as_user')
+
+    def _can_test_as_user(self) -> bool:
+        """Check if requesting user is authorized to test as other users."""
+        user = self.request.user
+        # Require staff/superuser status
+        # TODO: check if user is "service admin"
+        if not user.is_staff and not user.is_superuser:
+            return False
+        return True
+
+    def _apply_test_as_user_context(self, request) -> dict | None:
+        """
+        Swap user context for testing if authorized.
+        Returns dict with test context info or None if not testing.
+        Raises Http404 or PermissionDenied if test user is invalid.
+        """
+        test_user_identifier = self._extract_test_user_param()
+
+        if not test_user_identifier:
+            return None
+
+        # Step 1: Verify requesting user is admin/has permission to test
+        if not self._can_test_as_user():
+            raise ForbiddenException(service_type=self.ogc_request.service_type.lower(),
+                                     service_version=self.ogc_request.service_version,
+                                     message="You don't have permission to test as other users. Contact an administrator."
+                                     )
+
+        # Step 2: Retrieve the test user
+        User = get_user_model()
+        try:
+            test_user = User.objects.get(username=test_user_identifier)
+        except User.DoesNotExist:
+            raise Http404(f"User '{test_user_identifier}' not found")
+
+        if not test_user.is_active:
+            raise ForbiddenException(service_type=self.ogc_request.service_type.lower(),
+                                     service_version=self.ogc_request.service_version,
+                                     message=f"User '{test_user_identifier}' is inactive")
+
+        # Step 3: Swap user context and record original
+        original_user = request.user
+        request.user = test_user
+
+        return {
+            'original_user': original_user,
+            'test_user': test_user,
+            'test_user_identifier': test_user_identifier,
+        }
 
     def post(self, request, *args, **kwargs):
         return self.get_and_post(request=request, *args, **kwargs)
@@ -144,10 +231,14 @@ class OgcServiceProxyView(View):
             try:
                 return self.secure_request()
             except NotImplementedError:
-                return MrMapNotImplementedError(service_type=self.ogc_request.service_type.lower(),
-                                                service_version=self.ogc_request.service_version)
+                return MrMapNotImplementedError(
+                    service_type=self.ogc_request.service_type.lower(),
+                    service_version=self.ogc_request.service_version)
         else:
-            return ForbiddenException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
+            return ForbiddenException(
+                service_type=self.ogc_request.service_type.lower(),
+                service_version=self.ogc_request.service_version
+            )
 
     def get_capabilities(self):
         """Return the camouflaged capabilities document of the founded service.
@@ -187,10 +278,14 @@ class OgcServiceProxyView(View):
                 method=HttpMethodEnum.GET.value
             )
             url: str = operation_url["url"]
+            url = update_queryparams(
+                url=url,
+                params=self.ogc_request.ogc_query_params
+            )
             request = Request(
                 method=self.ogc_request.method,
                 url=url,
-                params=self.ogc_request.params if self.ogc_request.method == "GET" else None,
+                # params=self.ogc_request.params if self.ogc_request.method == "GET" else None,
                 data=self.ogc_request.data if self.ogc_request.method == "POST" else None,
                 headers=self.ogc_request.headers,
                 cookies=self.ogc_request.cookies,
@@ -242,6 +337,17 @@ class OgcServiceProxyView(View):
                     for (header, value) in self.request.META.items()
                     if header.startswith("HTTP_")
                 )
+
+                # Determine the original user and test user for logging
+                is_test_request = self.test_context is not None
+                if is_test_request:
+                    # Log the original user who requested the test
+                    logged_user = self.test_context['original_user']
+                    test_user = self.test_context['test_user']
+                else:
+                    logged_user = user
+                    test_user = None
+
                 request_log = HttpRequestLog(
                     timestamp=self.start_time,
                     elapsed=datetime.datetime.now() - self.start_time,
@@ -249,7 +355,9 @@ class OgcServiceProxyView(View):
                     url=self.request.get_full_path(),
                     headers=headers,
                     service=self.service,
-                    user=user,
+                    user=logged_user,
+                    is_test_request=is_test_request,
+                    test_user=test_user,
                 )
                 if self.request.body:
                     content_type = self.request.content_type
@@ -310,6 +418,13 @@ class OgcServiceProxyView(View):
                 :class:`django.http.response.HttpResponse`
         """
         headers = {}
+
+        # Add test context headers if testing
+        if self.test_context:
+            headers['X-Test-Request'] = 'true'
+            headers['X-Test-As-User'] = self.test_context['test_user'].username
+            headers['X-Original-User'] = self.test_context['original_user'].username
+
         if isinstance(response, dict):
             content = response.get("content", "unknown")
             status_code = response.get("status_code", 200)

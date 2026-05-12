@@ -14,8 +14,8 @@ export interface OwsContextBaseType {
   //selectedCrs: MrMapCRS
   //setSelectedCrs: (crs: MrMapCRS) => void
   owsContext: OWSContext
-  addWMSByUrl: (url: string) => void
-  initialFromOwsContext: (url: string) => void
+  addWMSByUrl: (url: string, headers?: Headers) => void
+  initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: TreeifiedOWSResource[]
   activeFeatures: OWSResource[]
   setFeatureActive: (feature: OWSResource, active: boolean) => void
@@ -57,21 +57,23 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   }, [owsContext])
 
 
-  const addWMSByUrl = useCallback((url: string) => {
+  const addWMSByUrl = useCallback((url: string, headers?: Headers) => {
     const request = new Request(url, {
       method: 'GET',
+      headers
     })
     fetch(request).then(response => response.text()).then(xmlString => {
       const newContext = copyOWSContext(owsContext)
-      newContext.appendWms(url, xmlString)
+      newContext.appendWms(url, xmlString, headers)
       setOwsContext(newContext)
     }
     )
   }, [owsContext])
 
-  const initialFromOwsContext = useCallback((url: string) => {
+  const initialFromOwsContext = useCallback((url: string, headers?: Headers) => {
     const request = new Request(url, {
       method: 'GET',
+      headers
     })
     fetch(request).then(response => response.json()).then(async (json: OWSContext) => {
       // todo: check type before setting features.

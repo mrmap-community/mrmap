@@ -1,11 +1,12 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
-import { ImageOverlay, useMap } from 'react-leaflet'
+import { useMap } from 'react-leaflet'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 
 import proj4 from 'proj4'
 
 import { getOptimizedGetMapUrls, updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
+import { AuthImageOverlay } from './AuthImageOverlay'
 
 
 export interface Tile {
@@ -17,7 +18,9 @@ export interface Tile {
 
 const WebMapServiceControl = () => {
 
-  const { trees } = useOwsContextBase()
+  const { trees, owsContext } = useOwsContextBase()
+  
+  // TODO: atomicGetMapUrls depends also on authorization.
   
   const atomicGetMapUrls = useMemo(()=>{
     return getOptimizedGetMapUrls(trees)
@@ -29,6 +32,31 @@ const WebMapServiceControl = () => {
   const [size, setSize] = useState(map?.getSize())
 
   const { selectedCrs } = useMapViewerBase()
+
+  // Helper function to get auth headers for a GetMap URL
+  const getAuthForGetMapUrl = (getMapUrl: string) => {
+    const getMapUrlObj = new URL(getMapUrl)
+    const getMapBase = `${getMapUrlObj.origin}${getMapUrlObj.pathname}`
+
+    // Find the feature that contains this GetMap URL
+    const feature = owsContext.features.find(f => {
+      const wmsMeta = f.getWmsGetMapOperation()
+      if (wmsMeta?.href) {
+        const wmsUrlObj = new URL(wmsMeta.href)
+        const wmsBase = `${wmsUrlObj.origin}${wmsUrlObj.pathname}`
+        return wmsBase === getMapBase
+      }
+      return false
+    })
+
+    if (feature) {
+      const getCapOp = feature.getWmsGetCapabilitiesOperation()
+      if (getCapOp?.href && owsContext.capabilititesMap[getCapOp.href]?.headers) {
+        return owsContext.capabilititesMap[getCapOp.href].headers
+      }
+    }
+    return undefined
+  }
 
   const tiles = useMemo(() => {
     const _tiles: Tile[] = []
@@ -72,11 +100,12 @@ const WebMapServiceControl = () => {
       updateOrAppendSearchParam(params, 'STYLES', '') // todo: shall be configureable
       _tiles.push(
         {
-          leafletTile: <ImageOverlay
+          leafletTile: <AuthImageOverlay
             key={(Math.random() + 1).toString(36).substring(7)}
             bounds={bounds}
             interactive={true}
             url={atomicGetMapUrl.href}
+            auth={getAuthForGetMapUrl(atomicGetMapUrl.href)}
           />,
           getMapUrl: atomicGetMapUrl,
           getFeatureinfoUrl: undefined
@@ -85,7 +114,7 @@ const WebMapServiceControl = () => {
     })
     
     return _tiles
-  }, [map?.getBounds(), map?.getSize(), atomicGetMapUrls, selectedCrs])
+  }, [map?.getBounds(), map?.getSize(), atomicGetMapUrls, selectedCrs, owsContext])
   
 
 

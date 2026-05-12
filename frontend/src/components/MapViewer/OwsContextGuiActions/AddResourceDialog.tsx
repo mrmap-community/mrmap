@@ -31,13 +31,23 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             const formData = new FormData(event.currentTarget);
             const formJson = Object.fromEntries((formData as any).entries());
             const getCapabilitiesUrl = formJson.getCapabilitiesUrl;
+            const username = formJson.username;
+            const password = formJson.password;
 
-            addWMSByUrl(getCapabilitiesUrl)
+            let headers: Headers | undefined = undefined;
+
+            if (username && password) {
+              headers = new Headers();
+              const basicAuth = btoa(`${username}:${password}`);
+              headers.set('Authorization', `Basic ${basicAuth}`);
+            }
+
+            addWMSByUrl(getCapabilitiesUrl, headers)
             setOpen(false)
           },
         }}
       >
-        <DialogTitle>Subscribe</DialogTitle>
+        <DialogTitle>Append Web Map Service</DialogTitle>
         <DialogContent>
           <DialogContentText>
             To add a Web Map Service to the current OWS Context, please enter a valid GetCapabilitiesUrl.
@@ -50,6 +60,23 @@ const AddResourceDialog = ({open, setOpen}: AddResourceDialogProps): ReactNode =
             name="getCapabilitiesUrl"
             label="Get Capabilities Url"
             type="url"
+            fullWidth
+            variant="standard"
+          />
+          <TextField
+            margin="dense"
+            id="username"
+            name="username"
+            label="Username (optional)"
+            fullWidth
+            variant="standard"
+          />
+          <TextField
+            margin="dense"
+            id="password"
+            name="password"
+            label="Password (optional)"
+            type="password"
             fullWidth
             variant="standard"
           />

@@ -102,7 +102,7 @@ export class OWSContext implements IOWSContext {
   features: OWSResource[];
   type: 'FeatureCollection';
 
-  capabilititesMap: { [url: string]: { capabilitites: Capabilites, features: OWSResource[] } }; // map to store all capabilities which are part of this ows context
+  capabilititesMap: { [url: string]: { capabilitites: Capabilites, features: OWSResource[], headers?: Headers } }; // map to store all capabilities which are part of this ows context
   crsIntersection: string[]; // extension to calculate the reference systems which all active features supports
 
   constructor(
@@ -132,7 +132,7 @@ export class OWSContext implements IOWSContext {
 
   }
 
-  appendWms(href: string, capabilitites: string): this {
+  appendWms(href: string, capabilitites: string, headers?: Headers): this {
     const parsedWms = parseWms(capabilitites)
 
     const url = prepareGetCapabilititesUrl(href, 'WMS')
@@ -142,8 +142,11 @@ export class OWSContext implements IOWSContext {
 
     if (url.href in this.capabilititesMap) {
       this.capabilititesMap[url.href].features = [...this.capabilititesMap[url.href].features, ...additionalFeatures]
+      if (headers) {
+        this.capabilititesMap[url.href].headers = headers
+      }
     } else {
-      this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures }
+      this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures, headers }
     }
 
     return this
@@ -564,7 +567,10 @@ export class OWSContext implements IOWSContext {
       return result;
     }, [])
 
-    await Promise.all(capabilitityFeatureMap.map(capRequests => fetch(capRequests.href))).then(
+    await Promise.all(capabilitityFeatureMap.map(capRequests => {
+      const headers = this.capabilititesMap[capRequests.href]?.headers
+      return fetch(capRequests.href, { headers })
+    })).then(
       responses => {
         responses.forEach((response, index) => {
           response.text().then(
@@ -576,7 +582,8 @@ export class OWSContext implements IOWSContext {
 
                 this.capabilititesMap[capabilitityFeatureMap[index].href] = {
                   capabilitites: parseWms(rawCapabilitites),
-                  features: capabilitityFeatureMap[index].features
+                  features: capabilitityFeatureMap[index].features,
+                  headers: this.capabilititesMap[capabilitityFeatureMap[index].href]?.headers
                 }
               }
             }

@@ -316,7 +316,13 @@ class WebMapServiceProxy(OgcServiceProxyView):
             secured_image = self._create_masked_image(
                 remote_response.content, mask)
         except OSError:
-            return RuntimeError()
+            return self.return_http_response(
+                response={
+                    "status_code": 500,
+                    "code": "ImageProcessingError",
+                    "content": "Failed to process image mask.",
+                }
+            )
         return self.return_http_response(
             response={
                 "status_code": 200,

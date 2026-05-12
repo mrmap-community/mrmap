@@ -49,7 +49,7 @@ export const prepareGetMapUrl = (
 ): URL => {
     const url = new URL(capabilities.operationUrls.getMap.get)
     const params = url.searchParams
-    updateOrAppendSearchParam(params, 'SERVICE', 'wms')
+    updateOrAppendSearchParam(params, 'SERVICE', 'WMS')
     updateOrAppendSearchParam(params, 'VERSION', capabilities.version)
     updateOrAppendSearchParam(params, 'REQUEST', 'GetMap') // TODO: version dependend
     updateOrAppendSearchParam(params, 'FORMAT', 'image/png') // TODO: should be configureable

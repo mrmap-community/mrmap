@@ -39,15 +39,15 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
-        """Collects only the AllowedWebServiceOperation objects where all requested_entities are part of."""
+        """Filter only AllowedWebServiceOperation objects where all requested_entities are present."""
         lookup, identifiers = self.get_entity_identifiers(request=request)
-        query = Q()
+        if not identifiers:
+            return self.none()
+        # Build Q objects for each identifier (supports case-insensitive lookups like __iexact)
+        query = None
         for identifier in identifiers:
-            _query = Q(**{lookup: identifier})
-            if query:
-                query &= _query
-            else:
-                query = _query
+            q = Q(**{lookup: identifier})
+            query = q if query is None else (query & q)
         return self.filter(query)
 
     def for_user(self, service_pk, request: OGCRequest):
@@ -58,10 +58,10 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         ).filter_by_requested_entity(request=request) | self.filter(
             secured_service__pk=service_pk,
             allowed_groups__pk__in=Group.objects.filter(
-                user__username="AnonymouseUser"
+                user__username="AnonymousUser"
             ).values_list("pk", flat=True)
-            if request._djano_request.user.is_anonymous
-            else request._djano_request.user.groups.values_list("pk", flat=True),
+            if request._django_request.user.is_anonymous
+            else request._django_request.user.groups.values_list("pk", flat=True),
             operations__value=OGCOperationEnum(request.operation),
         ).filter_by_requested_entity(request=request)
 
@@ -104,8 +104,19 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         )
 
     def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
-        """checks if the user of the request is member of any AllowedOperation object"""
-        if request._djano_request.user.is_superuser:
+        """Check if the user of the request is entitled to access this service.
+
+        Superusers are always entitled. Other users must be members of an
+        AllowedOperation object matching their groups or anonymous access.
+
+        Args:
+            service_pk: Primary key of the service to check
+            request: OGCRequest object containing user information
+
+        Returns:
+            Exists or Value expression indicating user entitlement
+        """
+        if request._django_request.user.is_superuser:
             return Value(True)
         return Exists(self.for_user(service_pk=service_pk, request=request))
 
@@ -145,6 +156,11 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
         return ~Exists(self.filter(pk=service_pk, layer__identifier__in=request.requested_entities))
 
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
+        """Get a fresh QuerySet instance for allowed WMS operations.
+
+        Returns:
+            AllowedWebMapServiceOperationQuerySet: Fresh QuerySet instance
+        """
         from registry.models.security import \
             AllowedWebMapServiceOperation  # to avoid circular import
 
@@ -208,6 +224,11 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
 
     def get_allowed_operation_qs(self) -> AllowedWebFeatureServiceOperationQuerySet:
+        """Get a fresh QuerySet instance for allowed WFS operations.
+
+        Returns:
+            AllowedWebFeatureServiceOperationQuerySet: Fresh QuerySet instance
+        """
         from registry.models.security import \
             AllowedWebFeatureServiceOperation  # to avoid circular import
 

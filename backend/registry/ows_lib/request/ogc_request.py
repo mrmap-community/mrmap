@@ -31,7 +31,7 @@ class OGCRequest(Request):
 
     def __init__(self, django_request: DjangoRequest = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._djano_request = django_request
+        self._django_request = django_request
         self._ogc_query_params: Dict = {}
         self._bbox: GEOSGeometry = None
         self._requested_entities: List[str] = []

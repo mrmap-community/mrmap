@@ -3,7 +3,7 @@ import json
 from accounts.models.users import User
 from django.contrib.gis.geos import GEOSGeometry
 from django.test import RequestFactory, TestCase
-from registry.models.service import WebFeatureService
+from registry.models.service import WebFeatureService, WebMapService
 from registry.ows_lib.request.ogc_request import OGCRequest
 
 
@@ -57,3 +57,73 @@ class WebFeatureServiceSecurityManagerTest(TestCase):
 
         except AttributeError as e:
             self.fail(msg=f"wfs object shall has the attribute '{e.name}'")
+
+
+class WebMapServiceSecurityManagerTest(TestCase):
+
+    fixtures = ["test_keywords.json", "test_crs.json", "test_users.json", "test_wms.json",
+                "test_allowed_wms_operation.json"]
+
+    def test_get_with_security_info_for_user_1(self):
+        factory = RequestFactory()
+
+        user = User.objects.get(username="User1")
+
+        request = factory.get(
+            path='/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/',
+            data={
+                "request": "GetMap",
+                "service": "WMS",
+                "version": "1.3.0",
+                "layers": "node1",
+                "styles": "",
+                "crs": "EPSG:4326",
+                "bbox": "-14.725670173410293, 54.832216088439935, -5.435135881276892, 49.1554694663281",
+                "width": "800",
+                "height": "600",
+                "format": "image/png"
+            }
+        )
+        request.user = user
+        ogc_request = OGCRequest.from_django_request(request)
+
+        wms = WebMapService.security.get_with_security_info(
+            pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3", request=ogc_request)
+
+        allowed_area_union_expected = GEOSGeometry(
+            'SRID=4326;POLYGON ((7.604598999023437 50.358275670499495, 7.596702575683594 50.3505540678909, 7.578248977661132 50.34721312721887, 7.5626277923583975 50.35641383867465, 7.568635940551757 50.36418924017004, 7.576103210449219 50.36709100023668, 7.58528709411621 50.363313202264315, 7.590723701840718 50.36270117831575, 7.588376998901368 50.365284264812935, 7.584686279296875 50.36895241327558, 7.590694427490234 50.3750288710761, 7.594985961914062 50.37497413168687, 7.602624893188476 50.372346566727884, 7.609319686889648 50.364134488274665, 7.6065731048583975 50.36172534234488, 7.605592026242317 50.36163593146097, 7.604598999023437 50.358275670499495))'
+        )
+        allowed_area_union_given = wms.allowed_area_union
+        # don't know why, but equals does not match for true... so i used equals_exact with tolerance here...
+        self.assertTrue(allowed_area_union_expected.equals_exact(
+            allowed_area_union_given, tolerance=0.000000001))
+
+    def test_get_with_security_info_for_user_2(self):
+        factory = RequestFactory()
+
+        user = User.objects.get(username="User2")
+
+        request = factory.get(
+            path='/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3/',
+            data={
+                "request": "GetMap",
+                "service": "WMS",
+                "version": "1.3.0",
+                "layers": "node1",
+                "styles": "",
+                "crs": "EPSG:4326",
+                "bbox": "-14.725670173410293, 54.832216088439935, -5.435135881276892, 49.1554694663281",
+                "width": "800",
+                "height": "600",
+                "format": "image/png"
+            }
+        )
+        request.user = user
+        ogc_request = OGCRequest.from_django_request(request)
+
+        wms = WebMapService.security.get_with_security_info(
+            pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3", request=ogc_request)
+
+        allowed_area_union_given = wms.allowed_area_union
+        # don't know why, but equals does not match for true... so i used equals_exact with tolerance here...
+        self.assertIsNone(allowed_area_union_given)

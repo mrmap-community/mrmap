@@ -5,7 +5,7 @@ from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-from registry.enums.update import UpdateJobStatusEnum
+from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
@@ -14,30 +14,30 @@ from registry.tasks.update import run_wms_update
 from simple_history.utils import bulk_update_with_history
 
 
-def default_update_config():
+def default_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
     return {
         "WebMapService": {
-            "title": "overwrite",
-            "abstract": "overwrite",
-            "keywords": "overwrite",
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
         },
         "Layer": {
-            "title": "overwrite",
-            "abstract": "overwrite",
-            "identifier": "overwrite",
-            "is_queryable": "overwrite",
-            "is_opaque": "overwrite",
-            "is_cascaded": "overwrite",
-            "scale_min": "overwrite",
-            "scale_max": "overwrite",
-            "bbox_lat_lon": "overwrite",
-            "mptt_lft": "overwrite",
-            "mptt_rgt": "overwrite",
-            "mptt_depth": "overwrite",
-            "styles": "overwrite",
-            "keywords": "overwrite",
-            "reference_systems": "overwrite",
-            "time_extents": "overwrite",
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "identifier": UpdateModeEnum.OVERWRITE,
+            "is_queryable": UpdateModeEnum.OVERWRITE,
+            "is_opaque": UpdateModeEnum.OVERWRITE,
+            "is_cascaded": UpdateModeEnum.OVERWRITE,
+            "scale_min": UpdateModeEnum.OVERWRITE,
+            "scale_max": UpdateModeEnum.OVERWRITE,
+            "bbox_lat_lon": UpdateModeEnum.OVERWRITE,
+            "mptt_lft": UpdateModeEnum.OVERWRITE,
+            "mptt_rgt": UpdateModeEnum.OVERWRITE,
+            "mptt_depth": UpdateModeEnum.OVERWRITE,
+            "styles": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+            "reference_systems": UpdateModeEnum.OVERWRITE,
+            "time_extents": UpdateModeEnum.OVERWRITE,
             # TODO: datasetmetadata overwrite
         }
     }
@@ -106,7 +106,7 @@ class WebMapServiceUpdateJob(models.Model):
 
     def update_field(self, field_name, instance_a, instance_b):
         mode = self.get_field_mode(instance_a.__class__, field_name)
-        if mode == "ignore":
+        if mode == UpdateModeEnum.IGNORE:
             return
 
         m2m_fields = [m2m.name for m2m in instance_a._meta.local_many_to_many]
@@ -120,9 +120,9 @@ class WebMapServiceUpdateJob(models.Model):
             instance_a_m2m_field = getattr(instance_a, field_name)
             instance_b_m2m_field = getattr(instance_b, field_name)
             match mode:
-                case "overwrite":
+                case UpdateModeEnum.OVERWRITE:
                     instance_a_m2m_field.set(instance_b_m2m_field.all())
-                case "merge":
+                case UpdateModeEnum.MERGE:
                     instance_a_m2m_field.add(*instance_b_m2m_field.all())
                 case _:
                     pass
@@ -135,11 +135,10 @@ class WebMapServiceUpdateJob(models.Model):
             instance_a_reverse_field = getattr(instance_a, field_name)
             instance_b_reverse_field = getattr(instance_b, field_name)
             match mode:
-                case "overwrite":
+                case UpdateModeEnum.OVERWRITE:
                     instance_a_reverse_field.all().delete()
-                    instance_a_reverse_field.set(
-                        instance_b_reverse_field.all())
-                case "merge":
+                    instance_a_reverse_field.set(instance_b_reverse_field.all())
+                case UpdateModeEnum.MERGE:
                     pass
                 case _:
                     pass
@@ -147,7 +146,7 @@ class WebMapServiceUpdateJob(models.Model):
         # -------------------------
         # SCALAR FIELDS (default)
         # -------------------------
-        if mode == "overwrite":
+        if mode == UpdateModeEnum.OVERWRITE:
             setattr(instance_a, field_name, getattr(instance_b, field_name))
 
     @cached_property
@@ -157,11 +156,11 @@ class WebMapServiceUpdateJob(models.Model):
         except WebMapServiceUpdateConfig.DoesNotExist:
             return default_update_config()
 
-    def get_field_mode(self, model_cls, field_name: str) -> str:
+    def get_field_mode(self, model_cls, field_name: str) -> UpdateModeEnum:
         return (
             self.update_config
             .get(model_cls.__name__, {})
-            .get(field_name, "overwrite")
+            .get(field_name, UpdateModeEnum.OVERWRITE)
         )
 
     def get_fields_by_model(self, model_cls):

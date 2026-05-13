@@ -1,3 +1,5 @@
+import enum
+
 from django.utils.translation import gettext_lazy as _
 from extras.enums import SmartIntegerChoices
 
@@ -10,3 +12,9 @@ class UpdateJobStatusEnum(SmartIntegerChoices):
     WAITING_FOR_PROCESSING = 4, _("Waiting for processing")
     UPDATED = 5, _("Updated")
     RESUME = 6, _("Resume")
+
+
+class UpdateModeEnum(enum.StrEnum):
+    OVERWRITE = "overwrite"
+    MERGE = "merge"
+    IGNORE = "ignore"

@@ -1,4 +1,6 @@
 from abc import ABC
+from functools import reduce
+from operator import and_
 from typing import Any, List, Tuple
 
 from django.contrib.auth.models import Group
@@ -44,26 +46,35 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         if not identifiers:
             return self.none()
         # Build Q objects for each identifier (supports case-insensitive lookups like __iexact)
-        query = None
-        for identifier in identifiers:
-            q = Q(**{lookup: identifier})
-            query = q if query is None else (query & q)
+        query = reduce(and_, [Q(**{lookup: identifier})
+                       for identifier in identifiers])
         return self.filter(query)
 
     def for_user(self, service_pk, request: OGCRequest):
-        return self.filter(
-            secured_service__pk=service_pk,
-            allowed_groups=None,
-            operations__value=OGCOperationEnum(request.operation),
-        ).filter_by_requested_entity(request=request) | self.filter(
-            secured_service__pk=service_pk,
-            allowed_groups__pk__in=Group.objects.filter(
-                user__username="AnonymousUser"
-            ).values_list("pk", flat=True)
+        """Filter operations allowed for the authenticated user and service.
+
+        Args:
+            service_pk: Primary key of the service
+            request: OGCRequest object containing user and operation info
+
+        Returns:
+            QuerySet filtered for user permissions and requested entities
+        """
+        group_pks = (
+            Group.objects.filter(
+                user__username="AnonymousUser").values_list("pk", flat=True)
             if request._django_request.user.is_anonymous
-            else request._django_request.user.groups.values_list("pk", flat=True),
-            operations__value=OGCOperationEnum(request.operation),
-        ).filter_by_requested_entity(request=request)
+            else request._django_request.user.groups.values_list("pk", flat=True)
+        )
+
+        return (
+            self.filter(
+                secured_service__pk=service_pk,
+                operations__value=OGCOperationEnum(request.operation),
+            )
+            .filter(Q(allowed_groups=None) | Q(allowed_groups__pk__in=group_pks))
+            .filter_by_requested_entity(request=request)
+        )
 
     def get_allowed_areas(self, service_pk, request: HttpRequest):
         """Collect all allowed areas that are configured for all requested entities together.
@@ -71,17 +82,13 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             Returns: The subset of allowed operations that for given user and requested entities.
         """
         return (
-            self.filter(secured_service__pk=service_pk,
-                        allowed_area__isnull=False)
-            .filter_by_requested_entity(request=request)
+            self.filter(allowed_area__isnull=False)
             .for_user(service_pk=service_pk, request=request)
         )
 
     def get_empty_allowed_areas(self, service_pk, request: HttpRequest):
         return (
-            self.filter(secured_service__pk=service_pk,
-                        allowed_area__isnull=True)
-            .filter_by_requested_entity(request=request)
+            self.filter(allowed_area__isnull=True)
             .for_user(service_pk=service_pk, request=request)
         )
 
@@ -90,16 +97,9 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
 
     def is_spatial_secured(self, service_pk, request: HttpRequest) -> ExpressionWrapper:
         return ExpressionWrapper(
-            Exists(
-                self.get_allowed_areas(
-                    service_pk=service_pk, request=request
-                )
-            )
-            and ~Exists(
-                self.get_empty_allowed_areas(
-                    service_pk=service_pk, request=request
-                )
-            ),
+            Exists(self.get_allowed_areas(
+                service_pk=service_pk, request=request))
+            and ~Exists(self.get_empty_allowed_areas(service_pk=service_pk, request=request)),
             output_field=BooleanField(),
         )
 

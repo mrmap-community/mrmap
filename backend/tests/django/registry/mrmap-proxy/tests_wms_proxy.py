@@ -2,6 +2,7 @@ from importlib import resources
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
+from urllib import response
 
 from accounts.models.users import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -168,6 +169,23 @@ class WebMapServiceProxyTest(TestCase):
         )
         self.client.login(username="User1", password="User1")
         self.query_params.update({"LAYERS": "node1"})
+        # wms 1.3.0
+        response = self.client.get(
+            self.wms_url,
+            self.query_params
+        )
+
+        self.assertEqual(200, response.status_code)
+
+        received_image = Image.open(BytesIO(response.content))
+        expected_image = Image.open(fp=expected_png_path)
+
+        self.assertTrue(self.are_images_equal(received_image, expected_image))
+
+        # wms 1.1.1
+        self.query_params.pop("CRS")
+        self.query_params.update(
+            {"VERSION": "1.1.1", "SRS": "EPSG:25832", "BBOX": "5574710,393340,5581190,405660", })
         response = self.client.get(
             self.wms_url,
             self.query_params

@@ -180,7 +180,7 @@ class XmlMapperTest(TestCase):
             accumulate_fields=["mime_types__mime_type"],
         )
 
-        self.assertCountEqual([(op[0], op[1], op[2], op[3]) for op in operation_urls], [(op[0], op[1], op[2], op[3]) for op in expected["operation_urls"]],
+        self.assertCountEqual([(op[0], op[1], op[2], op[3].sort()) for op in operation_urls], [(op[0], op[1], op[2], op[3].sort()) for op in expected["operation_urls"]],
                               f"SERVICE hat falsche OperationUrls")
 
         db_metadata_url = list(

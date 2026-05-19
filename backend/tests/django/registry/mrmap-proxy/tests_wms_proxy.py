@@ -185,7 +185,7 @@ class WebMapServiceProxyTest(TestCase):
         # wms 1.1.1
         self.query_params.pop("CRS")
         self.query_params.update(
-            {"VERSION": "1.1.1", "SRS": "EPSG:25832", "BBOX": "5574710,393340,5581190,405660", })
+            {"VERSION": "1.1.1", "SRS": "EPSG:25832", "BBOX": "393340,5574710,405660,5581190", })
         response = self.client.get(
             self.wms_url,
             self.query_params

@@ -59,10 +59,10 @@ services:
       - "0.0.0.0:3010:5678"
 
   django-tests:
-    #command: >
-    #  /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests/django/ --noinput"
     command: >
-      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests.django.registry.managers.tests_security.WebMapServiceSecurityManagerTest --noinput"
+      /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests/django/ --noinput"
+    #command: >
+    #  /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 /opt/mrmap/manage.py test -v 3 --debug-mode tests.django.registry.mappers.tests_xml_mappers_and_persist.XmlMapperTest.test_wms_1_1_1 --noinput"
     # command: >
     #   /bin/sh -c "python -u -m debugpy --listen 0.0.0.0:5678 -m coverage
     #   run --branch --source='/opt/mrmap' /opt/mrmap/manage.py test

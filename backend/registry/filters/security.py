@@ -72,4 +72,5 @@ class AllowedWebMapServiceOperationFilterSet(GeoFilterSet):
             "secured_service__id": ["exact", "icontains", "contains"],
             "secured_layers__id": ["exact", "icontains", "contains"],
             "operations__value": ["exact", "icontains", "contains"],
+            "allowed_groups__user": ["in"],
         }

@@ -46,6 +46,9 @@ class User(AbstractUser):
         verbose_name = _('User')
         verbose_name_plural = _('Users')
 
+    def __str__(self):
+        return f"{self.username} ({self.first_name}, {self.last_name})"
+
     def natural_key(self):
         return (self.username,)
 

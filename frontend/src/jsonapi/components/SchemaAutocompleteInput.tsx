@@ -84,7 +84,7 @@ const SchemaAutocompleteInput = (
   }, [])
 
   const optionText = useSchemaRecordRepresentation({resource: reference})
-
+  console.log(optionText)
   // TODO: check if the resource has create endpoint; if so, we add an create component here
   if (multiple){
     return (
@@ -97,7 +97,6 @@ const SchemaAutocompleteInput = (
           optionText={optionText}
           parse={(value: Identifier[]) => { return value?.map(identifier => ({id: identifier})) }} // form input value (string) ---> parse ---> form state value
           format={(value: RaRecord[]) => value?.map(record => (record.id))}
-          
           {...rest}
         />
       )
@@ -113,7 +112,6 @@ const SchemaAutocompleteInput = (
         parse={(value: Identifier) => { return { id: value } }} // form input value (string) ---> parse ---> form state value
         format={(value: RaRecord) => value?.id}
         {...rest}
-
       />
     )
   }

@@ -9,12 +9,12 @@ from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.models.service import Layer, WebMapService
+from registry.models.service import CatalogueService, Layer, WebFeatureService, WebMapService
 from registry.tasks.update import run_wms_update
 from simple_history.utils import bulk_update_with_history
 
 
-def default_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
+def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
     return {
         "WebMapService": {
             "title": UpdateModeEnum.OVERWRITE,
@@ -39,7 +39,38 @@ def default_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
             "reference_systems": UpdateModeEnum.OVERWRITE,
             "time_extents": UpdateModeEnum.OVERWRITE,
             # TODO: datasetmetadata overwrite
-        }
+        },
+    }
+
+
+def default_wfs_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
+    return {
+        "WebFeatureService": {
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+        },
+        "FeatureType": {
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "identifier": UpdateModeEnum.OVERWRITE,
+            "bbox_lat_lon": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+            "default_reference_system": UpdateModeEnum.OVERWRITE,
+            "reference_systems": UpdateModeEnum.OVERWRITE,
+        },
+    }
+
+
+def default_csw_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
+    return {
+        "CatalogueService": {
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+            "max_step_size": UpdateModeEnum.OVERWRITE,
+            "output_formats": UpdateModeEnum.OVERWRITE,
+        },
     }
 
 
@@ -51,11 +82,41 @@ class WebMapServiceUpdateConfig(models.Model):
         verbose_name=_("service"),
     )
 
-    config = models.JSONField(default=default_update_config, blank=True)
+    config = models.JSONField(default=default_wms_update_config, blank=True)
 
     class Meta:
         verbose_name = _("Web Map Service Update Config")
         verbose_name_plural = _("Web Map Service Update Configs")
+
+
+class WebFeatureServiceUpdateConfig(models.Model):
+    service = models.OneToOneField(
+        to=WebFeatureService,
+        on_delete=models.CASCADE,
+        related_name="update_config",
+        verbose_name=_("service"),
+    )
+
+    config = models.JSONField(default=default_wfs_update_config, blank=True)
+
+    class Meta:
+        verbose_name = _("Web Feature Service Update Config")
+        verbose_name_plural = _("Web Feature Service Update Configs")
+
+
+class CatalogueServiceUpdateConfig(models.Model):
+    service = models.OneToOneField(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        related_name="update_config",
+        verbose_name=_("service"),
+    )
+
+    config = models.JSONField(default=default_csw_update_config, blank=True)
+
+    class Meta:
+        verbose_name = _("Web Catalogue Service Update Config")
+        verbose_name_plural = _("Web Catalogue Service Update Configs")
 
 
 class WebMapServiceUpdateJob(models.Model):
@@ -154,7 +215,7 @@ class WebMapServiceUpdateJob(models.Model):
         try:
             return self.service.update_config.config
         except WebMapServiceUpdateConfig.DoesNotExist:
-            return default_update_config()
+            return default_wms_update_config()
 
     def get_field_mode(self, model_cls, field_name: str) -> UpdateModeEnum:
         return (

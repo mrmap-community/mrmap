@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, List, Tuple
+from typing import Any
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
@@ -34,8 +34,7 @@ GEOMETRY_DATA_TYPES = [
 
 
 class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
-
-    def get_entity_identifiers(self, request) -> Tuple[str, List[str]]:
+    def get_entity_identifiers(self, request) -> tuple[str, list[str]]:
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
@@ -204,7 +203,7 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
 
 class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFeatureServiceOperationQuerySet)):
 
-    def is_unknown_feature_type(self, service_pk, feature_types: List[str]) -> QuerySet:
+    def is_unknown_feature_type(self, service_pk, feature_types: list[str]) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
 
     def get_allowed_operation_qs(self) -> AllowedWebFeatureServiceOperationQuerySet:

@@ -1,5 +1,3 @@
-from typing import List
-
 from lxml.etree import _Element
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
@@ -28,8 +26,8 @@ class WebFeatureServiceClient(OgcClient):
 
     def describe_feature_type_request(
             self,
-            type_names: List[str],
-            output_format: List[str]) -> Request:
+            type_names: list[str],
+            output_format: list[str]) -> Request:
 
         params = {
             "VERSION": self.service_version,

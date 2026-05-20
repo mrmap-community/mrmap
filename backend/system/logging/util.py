@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict
+from typing import Any
 
 import sqlparse
 
@@ -20,12 +20,12 @@ def interpolate_sql(sql, params):
         return f"{sql} -- [Interpolation failed: {e}]"
 
 
-def parse_rfc5424_message(msg: str) -> Dict[str, Any]:
+def parse_rfc5424_message(msg: str) -> dict[str, Any]:
     """
     Zerlegt eine durch RFC5424Formatter erzeugte Logzeile zurück in ihre Einzelteile.
     Gibt Dict mit header-Feldern, structured_data und message zurück.
     """
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
 
     # Regex grob: "1 TIMESTAMP HOST APP PROCID - [SD...] MESSAGE"
     # Structured Data kann mehrfach vorkommen → separate Extraktion
@@ -89,7 +89,7 @@ def parse_rfc5424_message(msg: str) -> Dict[str, Any]:
     return result
 
 
-def format_structured_data(structured_data: Dict):
+def format_structured_data(structured_data: dict):
     extra_sd_elements = []
     for sdid, key_value_pairs in structured_data.items():
         sd = f"[{sdid}"

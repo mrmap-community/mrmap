@@ -1,5 +1,3 @@
-from typing import Dict, List, Tuple
-
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.utils import update_queryparams
@@ -23,29 +21,29 @@ class WebMapServiceClient(OgcClient):
 
     def get_map_request(
             self,
-            layers: List[str],
-            styles: List[str],
+            layers: list[str],
+            styles: list[str],
             crs: str,
-            bbox: Tuple[float, float, float, float],
+            bbox: tuple[float, float, float, float],
             width: int,
             height: int,
             format: str,
             transparent: bool = None,
             bgcolor: int = 0xFFFFFF,
             exceptions: str = "xml",
-            time: List[str] = None,
+            time: list[str] = None,
             elevation: float = None) -> Request:
         """Constructs a GetMap request to use for requesting
 
         :param layers: The name of layers which shall be requested
-        :type layers: List[str]
+        :type layers: list[str]
         :param styles: The styles of the layers which shall be requested
-        :type styles: List[str]
+        :type styles: list[str]
         :param crs: the reference system which shall be used
         :type crs: str
-        :param bbox: the bounding box 
-        :type bbox: Tuple[float, float, float, float]
-        :param width: the pixel width 
+        :param bbox: the bounding box
+        :type bbox: tuple[float, float, float, float]
+        :param width: the pixel width
         :type width: int
         :param height: the pixel height
         :type height: int
@@ -58,7 +56,7 @@ class WebMapServiceClient(OgcClient):
         :param exceptions: the exception format which shall be used by the server, defaults to "xml"
         :type exceptions: str, optional
         :param time: the time value or range for map data, defaults to None
-        :type time: List[str], optional
+        :type time: list[str], optional
         :param elevation: _description_, defaults to None
         :type elevation: float, optional
         :return: the constructed get map request object
@@ -103,7 +101,7 @@ class WebMapServiceClient(OgcClient):
     def get_feature_info_request(
             self,
             get_map_request: Request,
-            query_layers: List[str],
+            query_layers: list[str],
             info_format: str,
             i: int,
             j: int,
@@ -114,7 +112,7 @@ class WebMapServiceClient(OgcClient):
         :param get_map_request: The GetMap request where this request shall based on
         :type get_map_request: requests.Request
         :param query_layers: The list of layers for that the feature info shall be requested
-        :type query_layers: List[str]
+        :type query_layers: list[str]
         :param info_format: The concrete format of the response
         :type info_format: str
         :param i: the x value of the x/y point tuple
@@ -129,7 +127,7 @@ class WebMapServiceClient(OgcClient):
         :rtype: requests.Request
         """
 
-        params: Dict = get_map_request.params
+        params: dict = get_map_request.params
 
         get_feature_info_params = {
             "VERSION": self.service_version,

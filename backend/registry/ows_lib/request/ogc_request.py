@@ -1,4 +1,3 @@
-from typing import Dict, List
 from xml.sax.saxutils import unescape
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon
@@ -32,9 +31,9 @@ class OGCRequest(Request):
     def __init__(self, django_request: DjangoRequest = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._djano_request = django_request
-        self._ogc_query_params: Dict = {}
+        self._ogc_query_params: dict = {}
         self._bbox: GEOSGeometry = None
-        self._requested_entities: List[str] = []
+        self._requested_entities: list[str] = []
         self._xml_request = None
         self.operation = "unknown"
         self.service_version = "unknown"
@@ -66,13 +65,13 @@ class OGCRequest(Request):
         return ogc_request
 
     @property
-    def requested_entities(self) -> List[str]:
+    def requested_entities(self) -> list[str]:
         """Returns the list of requested entities
 
         This function analyzes the request and find out which layers or featuretypes, or records are requested.
 
         :return: list of requested layers | list of request featuretypes
-        :rtype: List[str]
+        :rtype: list[str]
         """
         if not self._requested_entities:
             if self.is_wms:
@@ -273,11 +272,11 @@ class OGCRequest(Request):
         return self._bbox
 
     @property
-    def ogc_query_params(self) -> Dict:
+    def ogc_query_params(self) -> dict:
         """ Parses the GET parameters into all member variables, which can be found in a ogc request.
 
         :return: all ogc query parameters
-        :rtype: Dict
+        :rtype: dict
         """
         if not self._ogc_query_params:
             query_keys = ["SERVICE", "REQUEST", "LAYERS", "BBOX", "VERSION", "FORMAT",
@@ -410,12 +409,12 @@ class OGCRequest(Request):
             encoding="UTF-8"
         )
 
-    def secure_get_feature_request(self, security_info_per_feature_type: List[dict]):
+    def secure_get_feature_request(self, security_info_per_feature_type: list[dict]):
         """
 
         Parameters
         ----------
-        security_info_per_feature_type: List[dict]
+        security_info_per_feature_type: list[dict]
             An array of JSON objects, one per requested feature type, with the
             following structure:
 

@@ -429,11 +429,13 @@ class ProxySetting(models.Model):
             raise ValidationError(
                 {
                     "camouflage": format_html(
-                        _(
-                            "There are configured allowed operation objects. Camouflage can not"
-                            " be disabled. See all allowed operations <a href=%(url)s>here</a>"
-                        )
-                        % {"url": url}
+                        str(
+                            _(
+                                "There are configured allowed operation objects. Camouflage cannot"
+                                " be disabled. See all allowed operations <a href={url}>here</a>."
+                            )
+                        ),
+                        url=url,
                     )
                 }
             )

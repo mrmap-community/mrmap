@@ -1,6 +1,5 @@
-
-
 import json
+from functools import cached_property
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.utils.decorators import method_decorator
@@ -29,39 +28,38 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
 
     service_cls = WebFeatureService
 
-    @property
+    @cached_property
     def service(self) -> WebFeatureService:
-        if not self._service:
-            self._service = super().service
+        service = super().service
 
-            # The security manager of server model does provide security_info_per_feature_type attribute as json encoded object.
-            # To use the information in common django/python way, we convert the given json object to dict/geos objects.
-            _security_info_per_feature_type = []
+        # The security manager of server model does provide security_info_per_feature_type attribute as json encoded object.
+        # To use the information in common django/python way, we convert the given json object to dict/geos objects.
+        security_info_per_feature_type = []
 
-            for security_info in self._service.security_info_per_feature_type:
-                polygon_dict = security_info.get("allowed_area_union")
-                geometry = GEOSGeometry(json.dumps(polygon_dict))
-                # The given geometry object has always the x/y representation for there coordinates
-                # from geoserver docs: https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html
-                # WFS 1.0.0: Provides geographic coordinates in east/north and may not be trusted to respect the EPSG definition axis order.
-                # So for WFS 1.0.0 we don't need anything to do. It is interpreted as x/y
-                if self.ogc_request.service_version != "1.0.0":
-                    # All other versions of wfs uses the epsg definition of axis ordering.
-                    # WFS 1.1.0: Respects the axis order defined by the EPSG definition.
-                    # WFS 2.0.0: Respects the axis order defined by the EPSG definition.
-                    # So we need to request the epsg registry and adjust the axis order if needed.
-                    geometry = adjust_axis_order(geometry)
-                _security_info_per_feature_type.append(
-                    {
-                        "type_name": security_info.get("type_name"),
-                        "geometry_property_name": security_info.get("geometry_property_name"),
-                        "allowed_area_union": geometry
-                    }
-                )
+        for security_info in service.security_info_per_feature_type:
+            polygon_dict = security_info.get("allowed_area_union")
+            geometry = GEOSGeometry(json.dumps(polygon_dict))
+            # The given geometry object has always the x/y representation for there coordinates
+            # from geoserver docs: https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html
+            # WFS 1.0.0: Provides geographic coordinates in east/north and may not be trusted to respect the EPSG definition axis order.
+            # So for WFS 1.0.0 we don't need anything to do. It is interpreted as x/y
+            if self.ogc_request.service_version != "1.0.0":
+                # All other versions of wfs uses the epsg definition of axis ordering.
+                # WFS 1.1.0: Respects the axis order defined by the EPSG definition.
+                # WFS 2.0.0: Respects the axis order defined by the EPSG definition.
+                # So we need to request the epsg registry and adjust the axis order if needed.
+                geometry = adjust_axis_order(geometry)
+            security_info_per_feature_type.append(
+                {
+                    "type_name": security_info.get("type_name"),
+                    "geometry_property_name": security_info.get("geometry_property_name"),
+                    "allowed_area_union": geometry,
+                }
+            )
 
-            self._service.security_info_per_feature_type = _security_info_per_feature_type
+        service.security_info_per_feature_type = security_info_per_feature_type
 
-        return self._service
+        return service
 
     @property
     def remote_service(self) -> WebFeatureServiceClient:

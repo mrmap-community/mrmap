@@ -1,5 +1,6 @@
 import datetime
 import re
+from functools import cached_property
 from io import BytesIO
 
 from django.contrib.auth import get_user_model
@@ -39,8 +40,6 @@ class OgcServiceProxyView(View):
     """
     bbox = None
     start_time = None
-    _service = None
-    _remote_service = None
 
     @property
     def is_get_request(self) -> bool:
@@ -50,28 +49,24 @@ class OgcServiceProxyView(View):
     def is_post_request(self) -> bool:
         return self.request.method == "POST"
 
-    @property
+    @cached_property
     def service(self) -> OgcService:
-        if not self._service:
-            try:
-                qs = self.service_cls.security.prefetch_whole_service()
-                self._service = self.service_cls.security.prepare_with_security_info(self.ogc_request, qs=qs).get(
-                    pk=self.kwargs.get("pk")
-                )
-            except ObjectDoesNotExist:
-                raise Http404
-        return self._service
+        try:
+            qs = self.service_cls.security.prefetch_whole_service()
+            return self.service_cls.security.prepare_with_security_info(self.ogc_request, qs=qs).get(
+                pk=self.kwargs.get("pk")
+            )
+        except ObjectDoesNotExist:
+            raise Http404
 
     @property
     def service_cls(self):
         raise ImproperlyConfigured(
             "you need to setup the proxy class with the corretc 'service_cls' property.")
 
-    @property
+    @cached_property
     def remote_service(self) -> OgcClient:
-        if not self._remote_service:
-            self._remote_service = self.service.client
-        return self._remote_service
+        return self.service.client
 
     def analyze_request(self):
         """hook method to do adittional stuff in child classes"""

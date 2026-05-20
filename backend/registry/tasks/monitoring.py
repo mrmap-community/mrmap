@@ -1,5 +1,3 @@
-from typing import List
-
 from celery import chain, group, shared_task
 from django.utils import timezone
 from registry.models.monitoring import (GetCapabilitiesProbe, GetMapProbe,
@@ -36,9 +34,9 @@ def finish_run(self, _group_result, run_pk, *args, **kwargs):
 def run_wms_monitoring(self, run_pk=None, *args, **kwargs):
     run = WebMapServiceMonitoringRun.objects.select_related(
         "setting").get(pk=run_pk)
-    get_capabilitites_probes: List[GetCapabilitiesProbe] = run.setting.registry_getcapabilitiesprobes.all(
+    get_capabilitites_probes: list[GetCapabilitiesProbe] = run.setting.registry_getcapabilitiesprobes.all(
     )
-    get_map_probes: List[GetMapProbe] = run.setting.registry_getcapabilitiesprobes.all(
+    get_map_probes: list[GetMapProbe] = run.setting.registry_getcapabilitiesprobes.all(
     )
 
     tasks = []

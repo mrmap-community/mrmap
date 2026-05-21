@@ -417,18 +417,40 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
 
 
-class LayerMapping(models.Model):
+class ServiceElementMapping(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    is_confirmed = models.BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+        ordering = ["created"]
+        indexes = [
+            models.Index(fields=["created"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if not adding:
+            # try to resume the job if all elements are updateable and the job is currently interrupted
+            try:
+                self.job.resume()
+            except ValueError:
+                pass  # just ignore if the job cannot be resumed, because not all elements are updateable or the job is not in the correct status
+
+
+class LayerMapping(ServiceElementMapping):
     job = models.ForeignKey(
         to=WebMapServiceUpdateJob,
         on_delete=models.CASCADE,
         related_name="mappings",
-        related_query_name="mapping"
+        related_query_name="mapping",
     )
     new_layer = models.OneToOneField(
         to=Layer,
         on_delete=models.CASCADE,
         related_name="mapping",
-        related_query_name="mapping"
+        related_query_name="mapping",
     )
     old_layer = models.OneToOneField(
         to=Layer,
@@ -436,42 +458,25 @@ class LayerMapping(models.Model):
         blank=True,
         on_delete=models.CASCADE,
         related_name="reverse_mapping",
-        related_query_name="reverse_mapping"
+        related_query_name="reverse_mapping",
     )
-    created = models.DateTimeField(default=now)
-
-    is_confirmed = models.BooleanField(default=False)
 
     objects = LayerMappingManager()
 
-    class Meta:
+    class Meta(ServiceElementMapping.Meta):
         verbose_name = _("Layer Mapping")
         verbose_name_plural = _("Layer Mappings")
-        ordering = ["created"]
-        indexes = [
-            models.Index(fields=["created"]),
-        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["job", "new_layer"],
                 name="unique_new_layer_per_job_in_mapping",
                 violation_error_message=_(
-                    "A new layer can only be mapped once. Please adjust the layer mappings accordingly.")
+                    "A new layer can only be mapped once. Please adjust the layer mappings accordingly."
+                ),
             ),
             models.CheckConstraint(
-                condition=~(Q(new_layer__isnull=True) &
-                            Q(old_layer__isnull=True)),
+                condition=~(Q(new_layer__isnull=True) & Q(old_layer__isnull=True)),
                 name="prevent_both_layers_null",
             ),
         ]
 
-    def save(self, *args, **kwargs):
-        adding = self._state.adding
-        saved = super().save(*args, **kwargs)
-        if not adding:
-            # try to resume the job if all layers are updateable and the job is currently interrupted
-            try:
-                self.job.resume()
-            except ValueError:
-                pass  # just ignore if the job cannot be resumed, because not all layers are updateable or the job is not in the correct status
-        return saved

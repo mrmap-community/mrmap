@@ -4,13 +4,14 @@ from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
+from simple_history.utils import bulk_update_with_history
+
 from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.models.service import CatalogueService, Layer, WebFeatureService, WebMapService
-from registry.tasks.update import run_wms_update
-from simple_history.utils import bulk_update_with_history
+from registry.models.service import CatalogueService, FeatureType, Layer, WebFeatureService, WebMapService
+from registry.tasks.update import run_wfs_update, run_wms_update
 
 
 def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
@@ -417,6 +418,193 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
 
 
+class WebFeatureServiceUpdateJob(ServiceUpdateJob):
+    service = models.ForeignKey(
+        to=WebFeatureService,
+        on_delete=models.CASCADE,
+        verbose_name=_("service"),
+        help_text=_("the WFS this job is running for"),
+        related_name="update_jobs",
+        related_query_name="update_job",
+    )
+
+    class Meta(ServiceUpdateJob.Meta):
+        verbose_name = _("Web Feature Service Update Job")
+        verbose_name_plural = _("Web Feature Service Update Jobs")
+
+    @cached_property
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
+        try:
+            return self.service.update_config.config
+        except WebFeatureServiceUpdateConfig.DoesNotExist:
+            return default_wfs_update_config()
+
+    def create_initial_featuretype_mappings(self):
+        old_featuretypes = list(self.old_service.featuretypes.all())
+        new_featuretypes = list(self.new_service.featuretypes.all())
+
+        old_by_identifier = {featuretype.identifier: featuretype for featuretype in old_featuretypes}
+
+        mappings = []
+
+        for new_featuretype in new_featuretypes:
+            old_featuretype = old_by_identifier.get(new_featuretype.identifier)
+
+            mappings.append(
+                FeatureTypeMapping(
+                    job=self,
+                    new_featuretype=new_featuretype,
+                    old_featuretype=old_featuretype,
+                    is_confirmed=old_featuretype is not None,  # optional
+                )
+            )
+
+        FeatureTypeMapping.objects.bulk_create(mappings)
+
+    def create_new_service(self, capabilitites):
+        """This will create the service from remote capabilities
+        with update_candidate_of FK set to self.service to identify the service as a temporary dummy
+        """
+        new_mapping = OGCServiceXmlMapper.from_xml(capabilitites)
+        new_mapping.xml_to_django()
+
+        handler = PersistenceHandler(
+            mapper=new_mapping,
+            defaults={
+                "WebFeatureService": {
+                    "update_candidate_of": self.service,
+                },
+            },
+        )
+        handler.persist_all()
+
+    @cached_property
+    def old_service(self):
+        return WebFeatureService.objects.prefetch_whole_service().get(pk=self.service.pk)
+
+    @cached_property
+    def new_service(self):
+        return WebFeatureService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+
+    def are_all_featuretypes_updateable(self) -> bool:
+        """checks if ther are no update conflicts
+
+        “Is there any new featuretype without mapping?” → must be False
+
+        Returns:
+            bool: _description_
+        """
+        new_featuretypes = self.new_service.featuretypes.all()
+
+        mapped_new_featuretypes = self.mappings.filter(is_confirmed=True, new_featuretype__isnull=False).values_list(
+            "new_featuretype", flat=True
+        )
+
+        missing_new = new_featuretypes.exclude(id__in=mapped_new_featuretypes).exists()
+
+        return not missing_new
+
+    def deleteable_featuretypes(self) -> models.QuerySet:
+        """All featuretypes of the old service without confirmed mapping"""
+        mapped_old_featuretypes_ids = self.mappings.filter(old_featuretype__isnull=False, is_confirmed=True).values_list(
+            "old_featuretype_id", flat=True
+        )
+
+        return self.old_service.featuretypes.exclude(pk__in=mapped_old_featuretypes_ids)
+
+    def update_featuretypes(self) -> UpdateJobStatusEnum:
+        if not self.are_all_featuretypes_updateable():
+            return UpdateJobStatusEnum.REVIEW_REQUIRED
+
+        # store deleteable featuretypes, cause after FeatureType moving to old service,
+        # the deleteable featuretypes query would change and we would loose the information which featuretypes we wanted to delete
+        deleteable_featuretypes = list(self.deleteable_featuretypes().values_list("id", flat=True))
+
+        updateable_featuretypes = []
+
+        fields = self.get_fields_by_model(FeatureType).keys()
+
+        for mapping in self.mappings.exclude(new_featuretype__isnull=True).all():
+            if mapping.old_featuretype is None:
+                # This is a new featuretype without old match. Inject it by changing the service.
+                mapping.new_featuretype.service = self.service
+                continue
+
+            # regular updating processing of an existing featuretype with old match. Update the existing featuretype by updating the fields.
+            updateable_featuretype = mapping.old_featuretype
+            new_featuretype = mapping.new_featuretype
+
+            updateable_featuretypes.append(updateable_featuretype)
+
+            for field_name in fields:
+                self.update_field(field_name, updateable_featuretype, new_featuretype)
+
+        bulk_update_with_history(
+            updateable_featuretypes,
+            FeatureType,
+            [field.name for field in FeatureType._meta.concrete_fields if field.name in fields],
+            batch_size=500,
+        )
+
+        # clean up everthing we do not longer need
+        FeatureType.objects.filter(id__in=deleteable_featuretypes).delete()
+
+        WebFeatureService.objects.filter(update_candidate_of=self.service).delete()
+
+        self.mappings.all().delete()
+
+        return UpdateJobStatusEnum.UPDATED
+
+    def update_service(self):
+        """Updates Service metadata if keep customized metadata is not configured.
+        Otherwise the user needs to review the processing.
+        """
+        for field_name in self.get_fields_by_model(WebFeatureService).keys():
+            self.update_field(field_name, self.service, self.new_service)
+        self.service.save()
+        return UpdateJobStatusEnum.UPDATED
+
+    @atomic
+    def update(self):
+        if self.status not in [
+            UpdateJobStatusEnum.REVIEW_REQUIRED.value,
+            UpdateJobStatusEnum.UPDATED.value,
+        ]:
+            self.status = UpdateJobStatusEnum.UPDATING.value
+            self.save()
+            remote_capabilities = self.old_service.remote_capabilities
+
+            if self.old_service.document_equals(remote_capabilities):
+                # no update needed, cause both capability files are equal
+                self.finish()
+                return
+
+            self.create_new_service(remote_capabilities)
+            self.create_initial_featuretype_mappings()
+
+        self.update_service()
+        status = self.update_featuretypes()
+
+        self.finish(status)
+
+    def resume(self):
+        if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
+            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
+        if not self.are_all_featuretypes_updateable():
+            raise ValueError(
+                _(
+                    "Cannot resume the job, because not all featuretypes are updateable. Please review the featuretype mappings first."
+                )
+            )
+        on_commit(lambda: run_wfs_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            on_commit(lambda: run_wfs_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+
 class ServiceElementMapping(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     is_confirmed = models.BooleanField(default=False)
@@ -480,3 +668,42 @@ class LayerMapping(ServiceElementMapping):
             ),
         ]
 
+
+class FeatureTypeMapping(ServiceElementMapping):
+    job = models.ForeignKey(
+        to=WebFeatureServiceUpdateJob,
+        on_delete=models.CASCADE,
+        related_name="mappings",
+        related_query_name="mapping",
+    )
+    new_featuretype = models.OneToOneField(
+        to="registry.FeatureType",
+        on_delete=models.CASCADE,
+        related_name="mapping",
+        related_query_name="mapping",
+    )
+    old_featuretype = models.OneToOneField(
+        to="registry.FeatureType",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="reverse_mapping",
+        related_query_name="reverse_mapping",
+    )
+
+    class Meta(ServiceElementMapping.Meta):
+        verbose_name = _("Feature Type Mapping")
+        verbose_name_plural = _("Feature Type Mappings")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job", "new_featuretype"],
+                name="unique_new_featuretype_per_job_in_mapping",
+                violation_error_message=_(
+                    "A new feature type can only be mapped once. Please adjust the feature type mappings accordingly."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=~(Q(new_featuretype__isnull=True) & Q(old_featuretype__isnull=True)),
+                name="prevent_both_featuretypes_null",
+            ),
+        ]

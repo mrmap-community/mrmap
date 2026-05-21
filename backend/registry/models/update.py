@@ -1,6 +1,5 @@
 from django.db import models
-from django.db.models import UniqueConstraint
-from django.db.models.query_utils import Q
+from django.db.models import Q
 from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
 from django.utils.timezone import now
@@ -119,27 +118,16 @@ class CatalogueServiceUpdateConfig(models.Model):
         verbose_name_plural = _("Web Catalogue Service Update Configs")
 
 
-class WebMapServiceUpdateJob(models.Model):
-    service: WebMapService = models.ForeignKey(
-        to=WebMapService,
-        on_delete=models.CASCADE,
-        null=False,
-        verbose_name=_("service"),
-        help_text=_("the wms for that this job is running"),
-        related_name="update_jobs",
-        related_query_name="update_job"
-    )
-    date_created = models.DateTimeField(
-        default=now, blank=True, editable=False)
-    done_at = models.DateTimeField(null=True, blank=True, editable=False)
+class ServiceUpdateJob(models.Model):
+    date_created = models.DateTimeField(auto_now_add=True, editable=False)
+    done_at = models.DateTimeField(null=True, editable=False)
     status = models.PositiveSmallIntegerField(
         choices=UpdateJobStatusEnum.choices,
-        default=UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value
+        default=UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value,
     )
 
     class Meta:
-        verbose_name = _("Web Map Service Update Job")
-        verbose_name_plural = _("Web Map Service Update Jobs")
+        abstract = True
         ordering = ["-date_created"]
         get_latest_by = "-date_created"
         indexes = [
@@ -147,14 +135,20 @@ class WebMapServiceUpdateJob(models.Model):
             models.Index(fields=["done_at"]),
         ]
         constraints = [
-            UniqueConstraint(
+            models.UniqueConstraint(
                 fields=["service"],
                 condition=Q(done_at__isnull=True),
-                name="only_one_unfinished_update_per_service",
-                violation_error_message=_(
-                    "There is an existing noncompleted job for this service.")
+                name="%(app_label)s_%(class)s_only_one_unfinished_update_per_service",
+                violation_error_message=_("There is an existing noncompleted job for this service."),
             )
         ]
+
+    @atomic
+    def update(self):
+        raise NotImplementedError
+
+    def resume(self):
+        raise NotImplementedError
 
     def finish(self, status: UpdateJobStatusEnum = UpdateJobStatusEnum.NO_UPDATE_NEEDED):
         self.done_at = now()
@@ -171,8 +165,7 @@ class WebMapServiceUpdateJob(models.Model):
             return
 
         m2m_fields = [m2m.name for m2m in instance_a._meta.local_many_to_many]
-        reverse_fields = [rel.get_accessor_name()
-                          for rel in instance_a._meta.related_objects]
+        reverse_fields = [rel.get_accessor_name() for rel in instance_a._meta.related_objects]
 
         # -------------------------
         # MANY-TO-MANY
@@ -211,21 +204,37 @@ class WebMapServiceUpdateJob(models.Model):
             setattr(instance_a, field_name, getattr(instance_b, field_name))
 
     @cached_property
-    def update_config(self):
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
+        raise NotImplementedError
+
+    def get_field_mode(self, model_cls, field_name: str) -> UpdateModeEnum:
+        return self.update_config.get(model_cls.__name__, {}).get(field_name, UpdateModeEnum.OVERWRITE)
+
+    def get_fields_by_model(self, model_cls):
+        return self.update_config.get(model_cls.__name__, {})
+
+
+class WebMapServiceUpdateJob(ServiceUpdateJob):
+    service = models.ForeignKey(
+        to=WebMapService,
+        on_delete=models.CASCADE,
+        null=False,
+        verbose_name=_("service"),
+        help_text=_("the wms this job is running for"),
+        related_name="update_jobs",
+        related_query_name="update_job",
+    )
+
+    class Meta(ServiceUpdateJob.Meta):
+        verbose_name = _("Web Map Service Update Job")
+        verbose_name_plural = _("Web Map Service Update Jobs")
+
+    @cached_property
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
         try:
             return self.service.update_config.config
         except WebMapServiceUpdateConfig.DoesNotExist:
             return default_wms_update_config()
-
-    def get_field_mode(self, model_cls, field_name: str) -> UpdateModeEnum:
-        return (
-            self.update_config
-            .get(model_cls.__name__, {})
-            .get(field_name, UpdateModeEnum.OVERWRITE)
-        )
-
-    def get_fields_by_model(self, model_cls):
-        return self.update_config.get(model_cls.__name__, {})
 
     def create_initial_layer_mappings(self):
         old_layers = list(self.old_service.layers.all())
@@ -243,7 +252,7 @@ class WebMapServiceUpdateJob(models.Model):
                     job=self,
                     new_layer=new_layer,
                     old_layer=old_layer,
-                    is_confirmed=old_layer is not None  # optional
+                    is_confirmed=old_layer is not None,  # optional
                 )
             )
 
@@ -262,7 +271,7 @@ class WebMapServiceUpdateJob(models.Model):
                 "WebMapService": {
                     "update_candidate_of": self.service,
                 },
-            }
+            },
         )
         handler.persist_all()
 
@@ -284,10 +293,9 @@ class WebMapServiceUpdateJob(models.Model):
         """
         new_layers = self.new_service.layers.all()
 
-        mapped_new_layers = self.mappings.filter(
-            is_confirmed=True,
-            new_layer__isnull=False
-        ).values_list("new_layer", flat=True)
+        mapped_new_layers = self.mappings.filter(is_confirmed=True, new_layer__isnull=False).values_list(
+            "new_layer", flat=True
+        )
 
         missing_new = new_layers.exclude(id__in=mapped_new_layers).exists()
 
@@ -295,23 +303,20 @@ class WebMapServiceUpdateJob(models.Model):
 
     def deleteable_layers(self) -> models.QuerySet:
         """All layers of the old service without confirmed mapping"""
-        mapped_old_layer_ids = self.mappings.filter(
-            old_layer__isnull=False,
-            is_confirmed=True
-        ).values_list("old_layer_id", flat=True)
+        mapped_old_layer_ids = self.mappings.filter(old_layer__isnull=False, is_confirmed=True).values_list(
+            "old_layer_id", flat=True
+        )
 
         return self.old_service.layers.exclude(pk__in=mapped_old_layer_ids)
 
-    def update_layers(self,):
+    def update_layers(self):
 
         if self.are_all_layers_updateable():
             # store deleteable layers, cause after Layer moving to old service,
             # the deleteable layers query would change and we would loose the information which layers we wanted to delete
-            deleteable_layers = list(
-                self.deleteable_layers().values_list("id", flat=True))
+            deleteable_layers = list(self.deleteable_layers().values_list("id", flat=True))
 
-            old_by_identifier = {
-                layer.identifier: layer for layer in self.old_service.layers.all()}
+            old_by_identifier = {layer.identifier: layer for layer in self.old_service.layers.all()}
 
             updateable_layers = []
 
@@ -337,21 +342,23 @@ class WebMapServiceUpdateJob(models.Model):
 
                 # adjust parent
                 updateable_layer.mptt_parent = old_by_identifier.get(
-                    new_layer.mptt_parent.identifier if new_layer and new_layer.mptt_parent else "")
+                    new_layer.mptt_parent.identifier if new_layer and new_layer.mptt_parent else ""
+                )
 
                 for field_name in fields:
-                    self.update_field(
-                        field_name, updateable_layer, new_layer
-                    )
+                    self.update_field(field_name, updateable_layer, new_layer)
 
             bulk_update_with_history(
-                updateable_layers, Layer, [field.name for field in Layer._meta.concrete_fields if field.name in fields], batch_size=500)
+                updateable_layers,
+                Layer,
+                [field.name for field in Layer._meta.concrete_fields if field.name in fields],
+                batch_size=500,
+            )
 
             # clean up everthing we do not longer need
             Layer.objects.filter(id__in=deleteable_layers).delete()
 
-            WebMapService.objects.filter(
-                update_candidate_of=self.service).delete()
+            WebMapService.objects.filter(update_candidate_of=self.service).delete()
 
             self.mappings.all().delete()
 
@@ -364,8 +371,7 @@ class WebMapServiceUpdateJob(models.Model):
            Otherwise the user needs to review the processing.
         """
         for field_name in self.get_fields_by_model(WebMapService).keys():
-            self.update_field(
-                field_name, self.service, self.new_service)
+            self.update_field(field_name, self.service, self.new_service)
         self.service.save()
         return UpdateJobStatusEnum.UPDATED
 
@@ -373,7 +379,7 @@ class WebMapServiceUpdateJob(models.Model):
     def update(self):
         if self.status not in [
             UpdateJobStatusEnum.REVIEW_REQUIRED.value,
-            UpdateJobStatusEnum.UPDATED.value
+            UpdateJobStatusEnum.UPDATED.value,
         ]:
 
             self.status = UpdateJobStatusEnum.UPDATING.value
@@ -395,27 +401,20 @@ class WebMapServiceUpdateJob(models.Model):
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
-            raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
         if not self.are_all_layers_updateable():
             raise ValueError(
-                _("Cannot resume the job, because not all layers are updateable. Please review the layer mappings first."))
-        on_commit(
-            lambda: run_wms_update.apply_async(
-                kwargs={"update_job_id": self.pk}
-            )
-        )
-
-    def save(self, *args, **kwargs) -> None:
-        adding = self._state.adding
-        ret = super().save(*args, **kwargs)
-        if adding:
-            on_commit(
-                lambda: run_wms_update.apply_async(
-                    kwargs={"update_job_id": self.pk}
+                _(
+                    "Cannot resume the job, because not all layers are updateable. Please review the layer mappings first."
                 )
             )
-        return ret
+        on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
 
 
 class LayerMapping(models.Model):

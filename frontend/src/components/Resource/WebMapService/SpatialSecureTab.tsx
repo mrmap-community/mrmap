@@ -1,7 +1,7 @@
 import ListAllowedWebMapServiceOperation from '../AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
 
 const AllowedWebMapServiceOperationOverview = () => {
-
+   
   return (
       <ListAllowedWebMapServiceOperation 
         resource='AllowedWebMapServiceOperation'
@@ -13,7 +13,9 @@ const AllowedWebMapServiceOperationOverview = () => {
 
 
 export const SpatialSecureTab = () => {
+
   return (
+    
     <AllowedWebMapServiceOperationOverview />          
   )
 }

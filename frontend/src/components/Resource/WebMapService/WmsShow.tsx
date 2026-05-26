@@ -1,16 +1,14 @@
 import { DeleteButton, EditButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useResourceDefinition, WithRecord } from 'react-admin';
 
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
-import { createElement, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
-import { useFieldsForOperation } from '../../../jsonapi/hooks/useFieldsForOperation';
 import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
 import { createElementIfDefined } from '../../../utils';
 import ProxySettingsTab from './ProxySettings';
 import SpatialSecureTab from './SpatialSecureTab';
 import WebMapServiceOperationUrlsTab from './WebMapServiceOperationUrlsTab';
 import WmsLayers from './WmsLayerTab';
-const { VITE_API_SCHEMA, VITE_API_BASE_URL } = import.meta.env;
 
 const WmsShowActions = () => (
     <TopToolbar>
@@ -19,18 +17,10 @@ const WmsShowActions = () => (
 );
 
 
-
 export const WmsShow = (props: SimpleShowLayoutProps) => {
     const { name: layerName, icon: layerIcon } = useResourceDefinition({resource: 'Layer'})
     const { name: wmsName, icon: wmsIcon } = useResourceDefinition({resource: 'WebMapService'})
     const { name: operationUrlName, icon: operationUrlIcon } = useResourceDefinition({resource: 'WebMapServiceOperationUrl'})
-
-    const fieldDefinitions = useFieldsForOperation('partial_update_WebMapService', false, true);
-
-    const fields = useMemo(()=>(
-        fieldDefinitions.filter(fieldDef => ['title', 'abstract'].includes(fieldDef.props.source)).map(fieldDef => createElement(fieldDef.component, fieldDef.props))
-    ),[fieldDefinitions])
-
 
     const meta = useMemo(()=>{
         const jsonApiParams: any = {
@@ -42,10 +32,6 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
         jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation'
         return _meta
     },[])
-
-    const getCapabilititesUrl = useCallback((wms: RaRecord)=>(
-        wms.operationUrls.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1))
-    ),[])
 
     return (
         <Show 

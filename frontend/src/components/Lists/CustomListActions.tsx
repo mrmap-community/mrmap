@@ -8,6 +8,7 @@ export interface CustomListActionsProps extends Omit<Partial<ListActionsProps>, 
   createButton?: ReactNode
   preferenceKey?: string
   filters: ReactNode[]
+  additionalActions?: ReactNode
 }
 
 
@@ -18,6 +19,7 @@ const CustomListActions = (
     createButton,
     filters,
     preferenceKey,
+    additionalActions
   }: CustomListActionsProps
 ): ReactNode => {
   const { hasCreate } = useResourceDefinition()
@@ -28,6 +30,7 @@ const CustomListActions = (
       {filters && <FilterButton filters={filters}/>}
       {createButton ?? (hasCreate && <CreateDialogButton />)}
       {isExportable && <ExportButton />}
+      {additionalActions}
     </TopToolbar>
   )
 }

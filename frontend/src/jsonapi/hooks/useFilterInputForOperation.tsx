@@ -15,26 +15,14 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
   const filterRelatedResourceField = filterExtensions['x-jsonapi-related-resource-field'] as string | undefined;
   const filterLookupExpression = filterExtensions['x-jsonapi-filter-lookup-expression'] as string | undefined;
   const filterLookupExpressionLabel = filterExtensions['x-jsonapi-filter-lookup-expression-label'] as string | undefined;
-  
+  const filterLocalResourceField = filterExtensions['x-jsonapi-local-resource-field'] as string | undefined;
+  const filterFieldParts = filterExtensions['x-jsonapi-field-parts'] as string[] | undefined;
+  const filterLabel = filterExtensions?.['x-jsonapi-filter-label'] as string | undefined;
+
   const filterSchema = schema.schema as OpenAPIV3.SchemaObject;
   const name = schema.name.replace('filter[', '').replace(']', '').replace('.', '_filter_lookup_')
   
-  var label = undefined
-
-  switch(filterLookupExpression){
-    case 'exact':
-      label = filterExtensions?.['x-jsonapi-filter-label'] as string | undefined;
-      break;
-    case 'contains':
-      label = `${filterRelatedResourceType}.${filterRelatedResourceField} ${filterLookupExpressionLabel}`
-      break;
-    case 'icontains':
-      label = `${filterRelatedResourceType}.${filterRelatedResourceField} ${filterLookupExpressionLabel}`
-      break;
-    default:
-      label = `${name} ${schema.description ? '(' + schema.description + ')': ''}`;
-      break;
-  }
+  const label = `${filterFieldParts?.join('.') ?? name} ${filterLookupExpressionLabel || '(' + schema.description + ')'}`;
 
   const commonProps = {
     source: name,

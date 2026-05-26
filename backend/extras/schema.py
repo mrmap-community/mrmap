@@ -76,33 +76,39 @@ class CustomOperationId(JsonApiAutoSchema):
         # lookup_parts is an array of parts but it is limited to only one possible lookup expression
         try:
             fk_fields = {
-                field.name: field
-                for field in model._meta.concrete_fields
-                if isinstance(field, ForeignKey)
+                concrete_field.name: concrete_field
+                for concrete_field in model._meta.concrete_fields
             }
-            many_fields = {
+            reverse_rel_fields = {
                 rel.get_accessor_name(): rel
                 for rel in model._meta.related_objects
             }
+            m2m_fields = {
+                m2m.name: m2m
+                for m2m in model._meta.local_many_to_many
+            }
 
-            fields_lookup = fk_fields | many_fields
+            fields_lookup = fk_fields | reverse_rel_fields | m2m_fields
             lookup_parts, field_parts, expression = Query(
                 model).solve_lookup_type(field.field_name)
 
             if field_parts[0] in fields_lookup:
 
                 model_field = fields_lookup[field_parts[0]]
-                related_model_cls = model_field.related_model
+                if hasattr(model_field, "related_model") and model_field.related_model:
+                    parameter["x-jsonapi-related-resource-type"] = get_resource_type_from_model(
+                        model_field.related_model)
+                    if len(field_parts) > 1:
+                        parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                            field_parts[1])
+                if hasattr(field, "lookup_expr"):
+                    parameter["x-jsonapi-filter-lookup-expression"] = field.lookup_expr
+
                 parameter["x-jsonapi-field-parts"] = [
                     format_field_name(part) for part in field_parts]
                 parameter["x-jsonapi-local-resource-field"] = format_field_name(
                     field_parts[0])
-                if len(field_parts) > 1:
-                    parameter["x-jsonapi-related-resource-field"] = format_field_name(
-                        field_parts[1])
-                parameter["x-jsonapi-related-resource-type"] = get_resource_type_from_model(
-                    related_model_cls)
-                parameter["x-jsonapi-filter-lookup-expression"] = field.lookup_expr
+
                 parameter["x-jsonapi-filter-lookup-expression-label"] = LOOKUP_LABELS.get(
                     field.lookup_expr, field.lookup_expr)
 
@@ -124,6 +130,8 @@ class CustomOperationId(JsonApiAutoSchema):
             filterset_class = getattr(self.view, "filterset_class", None)
             if filterset_class:
                 for field_name, field in filterset_class.base_filters.items():
+                    if "allowed_area" in field_name:
+                        i = 0
                     openapiparameter = next(
                         (param for param in res if param["name"] == f"filter[{field_name}]"), None)
                     if not openapiparameter:

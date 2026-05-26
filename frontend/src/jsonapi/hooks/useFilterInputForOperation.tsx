@@ -44,6 +44,19 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
       component: SchemaAutocompleteInput,
       props: props
     }
+  } else if (filterRelatedResourceType && filterRelatedResourceField && filterLookupExpression == "in"){
+    const props = {
+        ...commonProps,
+        reference: filterRelatedResourceType,
+        relatedResourceType: resource,
+        multiple: true,
+        parse: undefined, // resets the default behaviour to react-admins default
+        format: undefined, // resets the default behaviour to react-admins default
+    }
+    return {
+      component: SchemaAutocompleteInput,
+      props: props
+    }
   }
 
   // TODO: date, date-time, time, geojson

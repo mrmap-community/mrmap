@@ -63,7 +63,7 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         group_pks = (
             Group.objects.filter(
                 user__username="AnonymousUser").values_list("pk", flat=True)
-            if request._django_request.user.is_anonymous
+            if request._django_request.user.username == "AnonymousUser"
             else request._django_request.user.groups.values_list("pk", flat=True)
         )
 
@@ -106,7 +106,7 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
     def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
         """Check if the user of the request is entitled to access this service.
 
-        Superusers are always entitled. Other users must be members of an
+        Other users must be members of an
         AllowedOperation object matching their groups or anonymous access.
 
         Args:
@@ -116,8 +116,6 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         Returns:
             Exists or Value expression indicating user entitlement
         """
-        if request._django_request.user.is_superuser:
-            return Value(True)
         return Exists(self.for_user(service_pk=service_pk, request=request))
 
 

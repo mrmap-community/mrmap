@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django_filters import BaseInFilter, FilterSet, NumberFilter
 from registry.models.security import (AllowedWebMapServiceOperation,
@@ -72,5 +73,17 @@ class AllowedWebMapServiceOperationFilterSet(GeoFilterSet):
             "secured_service__id": ["exact", "icontains", "contains"],
             "secured_layers__id": ["exact", "icontains", "contains"],
             "operations__value": ["exact", "icontains", "contains"],
-            "allowed_groups__user": ["in"],
+            "allowed_groups__user": ["exact"],
         }
+
+    def filter_queryset(self, queryset):
+        """Apply user-specific filtering for allowed_groups."""
+        values = self.form.cleaned_data.get("allowed_groups__user", [])
+        anonymouse_user_filter = next(
+            (value for value in values if value.username == "AnonymousUser"), None)
+
+        if anonymouse_user_filter:
+            values.remove(anonymouse_user_filter)
+            return super().filter_queryset(queryset).filter(allowed_groups=None)
+
+        return super().filter_queryset(queryset)

@@ -60,8 +60,10 @@ wfs_routes.register(r'keywords', metadata_views.NestedKeywordViewSet,
                     basename='wfs-keywords', parents_query_lookups=['webfeatureservice_metadata'])
 wfs_routes.register(r'proxy-settings', security_views.NestedWebFeatureServiceProxySettingViewSet,
                     basename='wfs-proxy-settings', parents_query_lookups=['secured_service'])
-wfs_routes.register(r'allowed-wms-operations', security_views.NestedAllowedWebFeatureServiceOperationViewSet,
-                    basename='wfs-allowedwmsoperation', parents_query_lookups=['secured_service'])
+wfs_routes.register(r'allowed-wfs-operations', security_views.NestedAllowedWebFeatureServiceOperationViewSet,
+                    basename='wfs-allowedwfsoperation', parents_query_lookups=['secured_service'])
+wfs_routes.register(r'update-jobs', update_views.NestedWebFeatureServiceUpdateJobViewSet,
+                    basename='wfs-update-jobs', parents_query_lookups=['service'])
 
 feature_types_routes = router.register(
     r'featuretypes', service_views.FeatureTypeViewSet, basename='featuretype')
@@ -207,6 +209,16 @@ wms_updating_routes.register(r'layer-mappings', update_views.NestedLayerMappingV
                              basename='wms-update-jobs-layer-mappings', parents_query_lookups=['job'])
 router.register(r'update/layer-mappings',
                 update_views.LayerMappingViewSet, basename='layermapping')
+
+wfs_updating_routes = router.register(
+    r"update/webfeatureservice-update-jobs",
+    update_views.WebFeatureServiceUpdateJobViewSet,
+    basename="webfeatureserviceupdatejob",
+)
+wfs_updating_routes.register(r'featuretype-mappings', update_views.NestedFeatureTypeMappingViewSet,
+                             basename='wfs-update-jobs-featuretype-mappings', parents_query_lookups=['job'])
+router.register(r'update/featuretype-mappings',
+                update_views.FeatureTypeMappingViewSet, basename='featuretypemapping')
 
 # monitoring
 router.register(r'monitoring/wms-monitoring-get-capabilities-probes',

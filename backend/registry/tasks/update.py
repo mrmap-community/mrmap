@@ -37,3 +37,14 @@ def run_wfs_update(*args, **kwargs):
         logger.error(
             f"Update job with ID {update_job_id} does not exist. Task startet with args: {args} and kwargs: {kwargs}"
         )
+
+@shared_task(queue="default")
+def run_csw_update(*args, **kwargs):
+    update_job_id = kwargs.get("update_job_id", None)
+    try:
+        update_job = models.CatalogueServiceUpdateJob.objects.get(pk=update_job_id)
+        update_job.update()
+    except models.CatalogueServiceUpdateJob.DoesNotExist:
+        logger.error(
+            f"Update job with ID {update_job_id} does not exist. Task startet with args: {args} and kwargs: {kwargs}"
+        )

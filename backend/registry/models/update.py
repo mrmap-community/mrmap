@@ -11,7 +11,7 @@ from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.service import CatalogueService, FeatureType, Layer, WebFeatureService, WebMapService
-from registry.tasks.update import run_wfs_update, run_wms_update
+from registry.tasks.update import run_csw_update, run_wfs_update, run_wms_update
 
 
 def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
@@ -603,6 +603,94 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
         super().save(*args, **kwargs)
         if adding:
             on_commit(lambda: run_wfs_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+
+class CatalogueServiceUpdateJob(ServiceUpdateJob):
+    service = models.ForeignKey(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        verbose_name=_("service"),
+        help_text=_("the CSW this job is running for"),
+        related_name="update_jobs",
+        related_query_name="update_job",
+    )
+
+    class Meta(ServiceUpdateJob.Meta):
+        verbose_name = _("Web Catalogue Service Update Job")
+        verbose_name_plural = _("Web Catalogue Service Update Jobs")
+
+    @cached_property
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
+        try:
+            return self.service.update_config.config
+        except CatalogueServiceUpdateConfig.DoesNotExist:
+            return default_csw_update_config()
+
+    def create_new_service(self, capabilitites):
+        """This will create the service from remote capabilities
+        with update_candidate_of FK set to self.service to identify the service as a temporary dummy
+        """
+        new_mapping = OGCServiceXmlMapper.from_xml(capabilitites)
+        new_mapping.xml_to_django()
+
+        handler = PersistenceHandler(
+            mapper=new_mapping,
+            defaults={
+                "CatalogueService": {
+                    "update_candidate_of": self.service,
+                },
+            },
+        )
+        handler.persist_all()
+
+    @cached_property
+    def old_service(self):
+        return CatalogueService.objects.prefetch_whole_service().get(pk=self.service.pk)
+
+    @cached_property
+    def new_service(self):
+        return CatalogueService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+
+    def update_service(self):
+        """Updates Service metadata if keep customized metadata is not configured.
+        Otherwise the user needs to review the processing.
+        """
+        for field_name in self.get_fields_by_model(CatalogueService).keys():
+            self.update_field(field_name, self.service, self.new_service)
+        self.service.save()
+        return UpdateJobStatusEnum.UPDATED
+
+    @atomic
+    def update(self):
+        if self.status not in [
+            UpdateJobStatusEnum.REVIEW_REQUIRED.value,
+            UpdateJobStatusEnum.UPDATED.value,
+        ]:
+            self.status = UpdateJobStatusEnum.UPDATING.value
+            self.save()
+            remote_capabilities = self.old_service.remote_capabilities
+
+            if self.old_service.document_equals(remote_capabilities):
+                # no update needed, cause both capability files are equal
+                self.finish()
+                return
+
+            self.create_new_service(remote_capabilities)
+
+        self.update_service()
+
+        self.finish(UpdateJobStatusEnum.UPDATED)
+
+    def resume(self):
+        if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
+            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
+        on_commit(lambda: run_csw_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            on_commit(lambda: run_csw_update.apply_async(kwargs={"update_job_id": self.pk}))
 
 
 class ServiceElementMapping(models.Model):

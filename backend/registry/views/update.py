@@ -2,18 +2,21 @@ from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
 from registry.filters.update import (
+    CatalogueServiceUpdateJobFilterSet,
     FeatureTypeMappingFilterSet,
     LayerMappingFilterSet,
     WebFeatureServiceUpdateJobFilterSet,
     WebMapServiceUpdateJobFilterSet,
 )
 from registry.models import (
+    CatalogueServiceUpdateJob,
     FeatureTypeMapping,
     LayerMapping,
     WebFeatureServiceUpdateJob,
     WebMapServiceUpdateJob,
 )
 from registry.serializers.update import (
+    CatalogueServiceUpdateJobSerializer,
     FeatureTypeMappingSerializer,
     LayerMappingSerializer,
     WebFeatureServiceUpdateJobSerializer,
@@ -158,3 +161,23 @@ class FeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, ModelViewSet):
 
 class NestedFeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, NestedModelViewSet):
     """Nested list endpoint for resource `FeatureTypeMapping`"""
+
+
+class CatalogueServiceUpdateJobViewSetMixin:
+    queryset = CatalogueServiceUpdateJob.objects.all()
+    serializer_class = CatalogueServiceUpdateJobSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    filterset_class = CatalogueServiceUpdateJobFilterSet
+    ordering_fields = ("id", "date_created", "done_at", "status")
+    select_for_includes = {
+        "service": ["service"],
+        "update_candidate": ["update_candidate"],
+    }
+
+
+class CatalogueServiceUpdateJobViewSet(CatalogueServiceUpdateJobViewSetMixin, ModelViewSet):
+    """Endpoints for resource `CatalogueServiceUpdateJob`"""
+
+
+class NestedCatalogueServiceUpdateJobViewSet(CatalogueServiceUpdateJobViewSetMixin, NestedModelViewSet):
+    """Nested list endpoint for resource `CatalogueServiceUpdateJob`"""

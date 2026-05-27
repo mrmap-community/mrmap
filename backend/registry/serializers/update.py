@@ -1,12 +1,17 @@
 from django.utils.translation import gettext_lazy as _
-from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
-from registry.models.update import (
+from registry.models import (
+    CatalogueService,
+    FeatureType,
+    Layer,
+    WebFeatureService,
+    WebMapService,
+    CatalogueServiceUpdateJob,
     FeatureTypeMapping,
     LayerMapping,
     WebFeatureServiceUpdateJob,
     WebMapServiceUpdateJob,
 )
-from registry.serializers.service import WebFeatureServiceSerializer, WebMapServiceSerializer
+from registry.serializers.service import CatalogueServiceSerializer, WebFeatureServiceSerializer, WebMapServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (
     BooleanField,
@@ -181,3 +186,30 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
     class Meta:
         model = WebFeatureServiceUpdateJob
         fields = ("url", "service", "date_created", "done_at", "status", "update_candidate", "mappings")
+
+
+class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
+    url = HyperlinkedIdentityField(
+        view_name="registry:catalogueserviceupdatejob-detail",
+        read_only=True,
+    )
+    service = ResourceRelatedField(
+        label=_("Catalogue Service"),
+        help_text=_("The catalogue service this update job belongs to."),
+        queryset=CatalogueService.objects,
+    )
+    update_candidate = ResourceRelatedField(
+        source="service.catalogueservice_update_candidate",
+        label=_("Update Candidate"),
+        help_text=_("The catalogue service this update job is a candidate for updating."),
+        model=CatalogueService,
+        read_only=True,
+    )
+
+    included_serializers = {
+        "service": CatalogueServiceSerializer,
+        "update_candidate": CatalogueServiceSerializer,
+    }
+
+    class Meta:
+        model = CatalogueServiceUpdateJob

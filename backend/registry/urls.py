@@ -88,6 +88,8 @@ csw_routes.register(r'harvesting-jobs', harvesting_views.NestedHarvestingJobView
                     basename='csw-harvesting-jobs', parents_query_lookups=['service'])
 csw_routes.register(r'periodic-harvesting-jobs', harvesting_views.NestedPeriodicHarvestingJobViewSet,
                     basename='csw-periodicharvestingjobs', parents_query_lookups=['service'])
+csw_routes.register(r'update-jobs', update_views.NestedCatalogueServiceUpdateJobViewSet,
+                    basename='csw-update-jobs', parents_query_lookups=['service'])
 
 csw_op_urls_routes = router.register(
     r'csw-operation-urls', service_views.CatalogueServiceOperationUrlViewSet, basename='csw-operationurl')
@@ -219,6 +221,10 @@ wfs_updating_routes.register(r'featuretype-mappings', update_views.NestedFeature
                              basename='wfs-update-jobs-featuretype-mappings', parents_query_lookups=['job'])
 router.register(r'update/featuretype-mappings',
                 update_views.FeatureTypeMappingViewSet, basename='featuretypemapping')
+
+router.register(r'update/catalogueservice-update-jobs',
+                update_views.CatalogueServiceUpdateJobViewSet, basename='catalogueserviceupdatejob')
+
 
 # monitoring
 router.register(r'monitoring/wms-monitoring-get-capabilities-probes',

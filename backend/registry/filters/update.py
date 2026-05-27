@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from django_filters.filterset import FilterSet
 from registry.models.update import (
+    CatalogueServiceUpdateJob,
     FeatureTypeMapping,
     LayerMapping,
     WebFeatureServiceUpdateJob,
@@ -58,4 +59,16 @@ class FeatureTypeMappingFilterSet(FilterSet):
             "old_featuretype": ["exact"],
             "created": ["exact", "icontains", "contains", "in"],
             "is_confirmed": ["exact"],
+        }
+
+
+class CatalogueServiceUpdateJobFilterSet(FilterSet):
+    class Meta:
+        model = CatalogueServiceUpdateJob
+        fields = {
+            "id": ["exact", "icontains", "contains", "in"],
+            "service": ["exact"],
+            "status": ["exact", "icontains", "contains", "in"],
+            "date_created": ["exact", "icontains", "contains", "in"],
+            "done_at": ["exact", "icontains", "contains", "in"],
         }

@@ -14,6 +14,9 @@ export interface OwsContextBaseType {
   //selectedCrs: MrMapCRS
   //setSelectedCrs: (crs: MrMapCRS) => void
   owsContext: OWSContext
+  isLoading: boolean
+  currentRequest: Request | undefined
+  resetContext: () => void
   addWMSByUrl: (url: string, headers?: Headers) => void
   initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: TreeifiedOWSResource[]
@@ -39,6 +42,8 @@ const copyOWSContext = (owsContext: OWSContext) => {
 }
 
 export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBaseProps): ReactNode => {
+  const [isLoading, setIsLoading] = useState(false)
+  const [currentRequest, setCurrentRequest] = useState<Request | undefined>(undefined)
 
   // area of interest in crs 4326
   const [owsContext, setOwsContext] = useState<OWSContext>(new OWSContext(undefined, initialFeatures, undefined, {
@@ -56,18 +61,19 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     return owsContext.getActiveFeatures()
   }, [owsContext])
 
-
   const addWMSByUrl = useCallback((url: string, headers?: Headers) => {
     const request = new Request(url, {
       method: 'GET',
       headers
     })
+    setCurrentRequest(request)
+    setIsLoading(true)
     fetch(request).then(response => response.text()).then(xmlString => {
       const newContext = copyOWSContext(owsContext)
       newContext.appendWms(url, xmlString, headers)
       setOwsContext(newContext)
     }
-    )
+    ).then(() => {setIsLoading(false); setCurrentRequest(undefined)})
   }, [owsContext])
 
   const initialFromOwsContext = useCallback((url: string, headers?: Headers) => {
@@ -75,6 +81,9 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       method: 'GET',
       headers
     })
+    setCurrentRequest(request)
+    setIsLoading(true)
+    
     fetch(request).then(response => response.json()).then(async (json: OWSContext) => {
       // todo: check type before setting features.
       // todo: set also other variables
@@ -84,7 +93,11 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setOwsContext(newOwsContext)
       // TODO: initial map with current display if exists  map?.fitBounds()
     }
-    )
+    ).then(() => {setIsLoading(false); setCurrentRequest(undefined)})
+  }, [])
+
+  const resetContext = useCallback(() => {
+    setOwsContext(new OWSContext())
   }, [])
 
   const setFeatureActive = useCallback((feature: OWSResource, active: boolean) => {
@@ -98,7 +111,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     newContext.moveFeature(source, target, position)
     setOwsContext(newContext)
   }, [owsContext])
-
 
   const updateDisplay = useCallback((size: Point) => {
     const newDisplay = {
@@ -168,6 +180,9 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   const value = useMemo<OwsContextBaseType>(() => {
     return {
       owsContext,
+      isLoading,
+      currentRequest,
+      resetContext,
       addWMSByUrl,
       initialFromOwsContext,
       trees,
@@ -177,6 +192,9 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     }
   }, [
     owsContext,
+    isLoading,
+    currentRequest,
+    resetContext,
     addWMSByUrl,
     initialFromOwsContext,
     trees,

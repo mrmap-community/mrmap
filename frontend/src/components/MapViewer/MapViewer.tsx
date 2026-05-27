@@ -6,14 +6,12 @@ import { Box } from '@mui/material'
 import { CRS, type Map } from 'leaflet'
 
 import ListGuesser from '../../jsonapi/components/ListGuesser'
-import { OwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import BottomDrawer from '../Drawer/BottomDrawer'
 import { DrawerBase } from '../Drawer/DrawerContext'
 import RightDrawer from '../Drawer/RightDrawer'
 import LayerTree from '../LayerTree/LayerTree'
 import FeatureInfoControl from '../MapContainer/FeatureInfoControl'
 import WebMapServiceControl from '../MapContainer/GetMapControl'
-import OwsContextControl from '../MapContainer/OwsContextControl'
 import { TabListBase } from '../Tab/TabListContext'
 import { Tabs } from '../Tab/Tabs'
 import MapSettingsEditor from './MapSettings'
@@ -59,7 +57,6 @@ const MapViewerCore = (): ReactNode => {
                 flex: 1, height: '100%', width: '100%', position: 'relative'
               }}
             >
-              <OwsContextControl />
               <WebMapServiceControl />
               <FeatureInfoControl/>
               <ScaleControl position="topleft" />
@@ -106,13 +103,10 @@ const MapViewerCore = (): ReactNode => {
 
 const MapViewer = ({ children }: PropsWithChildren): ReactNode => {
   return (
-    <OwsContextBase>
       <MapViewerBase>
         <MapViewerCore />
         {children}
       </MapViewerBase>
-    </OwsContextBase>
-
   )
 }
 

@@ -1,5 +1,5 @@
 import PublicIcon from '@mui/icons-material/Public';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, RaRecord, useGetOne, useRecordContext } from 'react-admin';
 import { useNavigate } from "react-router-dom";
 import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
@@ -21,14 +21,14 @@ const MapViewerButton = (
   const { addWMSByUrl, resetContext } = useOwsContextBase()
   const record = useRecordContext(wmsRecord)
 
-  const [getCapabilitiesUrl, setGetCapabilitiesUrl] = useState<string | undefined>(capabilititesUrl || record?.operationUrls?.find(
+  const initialGetCapabilitiesUrl = useRef(capabilititesUrl || record?.operationUrls?.find(
     (opUrl: RaRecord) => {
       return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
     })?.url)
-
+  const [getCapaibilitesUrl, setGetCapaibilitesUrl] = useState()
   const [clicked, setClicked] = useState(false)
-  
-  const {data: wmsRecordWithUrl, isLoading} = useGetOne(
+
+  const {data: wmsRecordWithUrl, isLoading, refetch } = useGetOne(
     "WebMapService",
     {
       id: record?.id,
@@ -40,36 +40,46 @@ const MapViewerButton = (
         }
       }
     },
-    { enabled: clicked }
+    { 
+      enabled: false, // Disable automatic query on mount
+    }
   )
 
   const handleOnClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    if (getCapabilitiesUrl !== undefined){
-      const url = prepareGetCapabilititesUrl(getCapabilitiesUrl, "wms")
+    setClicked(true)
+  }, [])
+
+  useEffect(() => {
+     const url = wmsRecordWithUrl?.operationUrls?.find(
+      (opUrl: RaRecord) => {
+        return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
+      })?.url
+      if (url !== undefined){
+        setGetCapaibilitesUrl(url)
+      }
+  },[wmsRecordWithUrl])
+
+  useEffect(() => {
+    if (
+      clicked && 
+      initialGetCapabilitiesUrl.current === undefined && 
+      getCapaibilitesUrl !== undefined
+    ){
+      const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, "wms")
+      // todo: how to wait until reset is finished?
       resetContext()
       addWMSByUrl(url.href)
       navigate('/viewer')
-    } else if (getCapabilitiesUrl === undefined){
-      setClicked(true)
+      setClicked(false)
+    } else if (
+      clicked &&
+      initialGetCapabilitiesUrl.current === undefined && 
+      getCapaibilitesUrl === undefined
+    ) {
+      refetch()
     }
-        
-  }, [getCapabilitiesUrl])
-
-  useEffect(() => {
-    if (wmsRecordWithUrl?.operationUrls !== undefined){
-      const _getCapabilitiesUrl = wmsRecordWithUrl.operationUrls.find(
-        (opUrl: RaRecord) => {
-        return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
-        })?.url
-      if (_getCapabilitiesUrl !== undefined && clicked){
-        const url = prepareGetCapabilititesUrl(_getCapabilitiesUrl, "wms")
-        resetContext()
-        addWMSByUrl(url.href)
-        navigate('/viewer')
-      }
-    }
-  },[wmsRecordWithUrl])
+  },[initialGetCapabilitiesUrl, getCapaibilitesUrl, clicked])
 
   return (
     <Button

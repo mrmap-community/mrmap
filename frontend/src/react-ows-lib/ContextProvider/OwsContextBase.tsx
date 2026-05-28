@@ -15,6 +15,8 @@ export interface OwsContextBaseType {
   //setSelectedCrs: (crs: MrMapCRS) => void
   owsContext: OWSContext
   isLoading: boolean
+  loadingFeatures: OWSResource[]
+  setFeatureLoadingState: (feature: OWSResource, isLoading: boolean) => void
   currentRequest: Request | undefined
   resetContext: () => void
   addWMSByUrl: (url: string, headers?: Headers) => void
@@ -52,6 +54,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     updated: new Date().toISOString(),
     display: {}
   },))
+
+  const [loadingFeatures, setLoadingFeatures] = useState<OWSResource[]>([])
 
   const trees = useMemo(() => {
     return treeify(owsContext.features)
@@ -104,6 +108,14 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     const newContext = copyOWSContext(owsContext)
     newContext.activateFeature(feature, active)
     setOwsContext(newContext)
+  }, [owsContext])
+  
+  const setFeatureLoadingState = useCallback((feature: OWSResource, isLoading: boolean) => {
+    if (isLoading) {
+      setLoadingFeatures(prev => [...prev, feature])
+    } else {
+      setLoadingFeatures(prev => prev.filter(f => f.id !== feature.id))
+    }
   }, [owsContext])
 
   const moveFeature = useCallback((source: OWSResource, target: OWSResource, position: Position = Position.lastChild) => {
@@ -181,6 +193,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     return {
       owsContext,
       isLoading,
+      loadingFeatures,
+      setFeatureLoadingState,
       currentRequest,
       resetContext,
       addWMSByUrl,
@@ -193,6 +207,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   }, [
     owsContext,
     isLoading,
+    loadingFeatures,
+    setFeatureLoadingState,
     currentRequest,
     resetContext,
     addWMSByUrl,

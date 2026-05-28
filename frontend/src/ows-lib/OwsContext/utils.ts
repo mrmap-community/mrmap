@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
-import { OWSResource as IOWSResource, OWSContext, StyleSet, TreeifiedOWSResource } from "./types";
+import { OWSResource as IOWSResource, OWSContext, OWSResource, StyleSet, TreeifiedOWSResource } from "./types";
 
 export const OWSContextDocument = (
     id: string = uuidv4(),
@@ -205,7 +205,6 @@ export const appendLayerIdentifiers = (url1: URL, url2: URL) => {
  */
 export const getOptimizedGetMapUrls = (trees: TreeifiedOWSResource[]) => {
 
-
     const getMapUrls: URL[] = []
 
     /** 
@@ -235,6 +234,20 @@ export const getOptimizedGetMapUrls = (trees: TreeifiedOWSResource[]) => {
         })
     })
     return getMapUrls
+}
+
+export const getFeaturesByGetMapUrl = (url: URL, features: OWSResource[]) => {
+    const layers = url.searchParams.get('LAYERS')?.split(',') ?? []
+    return features.filter(feature => feature.properties.offerings?.find(offering =>
+        offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation => {
+            const operationUrl = new URL(operation.href)
+            const operationLayers = operationUrl.searchParams.get('LAYERS')?.split(',') ?? []
+            return operation.code === 'GetMap' && 
+                operation.method.toLowerCase() === 'get' && 
+                isGetMapUrlEqual(operationUrl, url) &&
+                layers.some(layer => operationLayers.includes(layer))
+        })
+    )
 }
 
 export const isDescendant = (ancestor: IOWSResource, descendant: IOWSResource) => {

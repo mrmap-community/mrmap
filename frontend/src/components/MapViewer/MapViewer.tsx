@@ -17,6 +17,8 @@ import { Tabs } from '../Tab/Tabs'
 import MapSettingsEditor from './MapSettings'
 import { MapViewerBase } from './MapViewerBase'
 import { OwsContextActionButtons } from './OwsContextGuiActions/OwsContextActionButtons'
+
+
 const style = {
   display: 'flex',
   flexDirection: 'column',

@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
-import { useMap } from 'react-leaflet'
+import { useMap, useMapEvents } from 'react-leaflet'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 
 import proj4 from 'proj4'
@@ -17,7 +17,33 @@ export interface Tile {
 
 
 const WebMapServiceControl = () => {
+  const _map = useMapEvents({
+    click: () => {
+      console.log('map clicked')
+    },
+    locationfound: (location) => {
+      console.log('location found:', location)
+    },
 
+    loading: () => {
+      console.log('map loading')
+    },
+    tileload: () => {
+      console.log('map tileload')
+    },
+    tileloadstart: () => {
+      console.log('map tileloadstart')
+    },
+    tileerror: () => {
+      console.log('map tileerror')
+    },
+    moveend: () => {
+      console.log('map moveend')
+    },
+    zoomend: () => {
+      console.log('map zoomend')
+    }
+  })
   const { trees, owsContext } = useOwsContextBase()
   
   // TODO: atomicGetMapUrls depends also on authorization.
@@ -27,6 +53,7 @@ const WebMapServiceControl = () => {
   }, [trees])
 
   const map = useMap()
+
 
   const [bounds, setBounds] = useState(map?.getBounds())
   const [size, setSize] = useState(map?.getSize())
@@ -105,7 +132,7 @@ const WebMapServiceControl = () => {
             bounds={bounds}
             interactive={true}
             url={atomicGetMapUrl.href}
-            auth={getAuthForGetMapUrl(atomicGetMapUrl.href)}
+            auth={getAuthForGetMapUrl(atomicGetMapUrl.href)}            
           />,
           getMapUrl: atomicGetMapUrl,
           getFeatureinfoUrl: undefined
@@ -116,8 +143,6 @@ const WebMapServiceControl = () => {
     return _tiles
   }, [map?.getBounds(), map?.getSize(), atomicGetMapUrls, selectedCrs, owsContext])
   
-
-
   useEffect(() => {
     if (map !== undefined && map !== null){      
       setBounds(map.getBounds())
@@ -128,8 +153,6 @@ const WebMapServiceControl = () => {
       })
     }
   }, [map])
-
-
 
   return tiles.map(tile => tile.leafletTile)
 

@@ -1,13 +1,15 @@
 import type L from 'leaflet'
 import { useEffect, useState } from 'react'
-import { ImageOverlay } from 'react-leaflet'
+import { ImageOverlay, ImageOverlayProps } from 'react-leaflet'
+import { getFeaturesByGetMapUrl } from '../../ows-lib/OwsContext/utils'
+import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 
 export interface AuthOptions {
   headers?: Record<string, string>
   credentials?: RequestCredentials
 }
 
-export interface AuthImageOverlayProps {
+export interface AuthImageOverlayProps extends ImageOverlayProps{
   bounds: L.LatLngBounds
   url: string
   interactive?: boolean
@@ -56,10 +58,12 @@ export const AuthImageOverlay = ({
   bounds,
   url,
   interactive = true,
-  auth
+  auth,
+  ...rest
 }: AuthImageOverlayProps) => {
+  const { setFeatureLoadingState, owsContext } = useOwsContextBase()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
@@ -99,7 +103,16 @@ export const AuthImageOverlay = ({
     }
   }, [url, auth])
 
-  if (loading || !imageUrl) {
+  useEffect(()=>{
+    if (imageUrl !== undefined && imageUrl !== null) {
+      const features = getFeaturesByGetMapUrl(new URL(imageUrl), owsContext.features)
+      // TODO: this is a bit hacky, we should have a better way to track loading state of features.
+      features.forEach(f => setFeatureLoadingState(f, isLoading))
+    }
+   
+  },[isLoading])
+
+  if (isLoading || !imageUrl) {
     return null
   }
 
@@ -113,6 +126,7 @@ export const AuthImageOverlay = ({
       bounds={bounds}
       url={imageUrl}
       interactive={interactive}
+      {...rest}
     />
   )
 }

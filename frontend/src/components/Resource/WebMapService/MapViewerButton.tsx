@@ -63,8 +63,7 @@ const MapViewerButton = (
   useEffect(() => {
     if (
       clicked && 
-      initialGetCapabilitiesUrl.current === undefined &&
-      getCapaibilitesUrl !== undefined
+      (initialGetCapabilitiesUrl.current !== undefined || getCapaibilitesUrl !== undefined)
     ){
       resetContext()
     } else if (
@@ -80,10 +79,10 @@ const MapViewerButton = (
     if (
       clicked && 
       owsContext.features.length === 0 && 
-      getCapaibilitesUrl !== undefined
+      (initialGetCapabilitiesUrl.current !== undefined || getCapaibilitesUrl !== undefined)
     ){
       // wait until context is reset and then add wms by url
-      const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, "wms")
+      const url = prepareGetCapabilititesUrl(initialGetCapabilitiesUrl.current || getCapaibilitesUrl, "wms")
       addWMSByUrl(url.href)
       navigate('/viewer')
       setClicked(false)

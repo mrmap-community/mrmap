@@ -18,7 +18,7 @@ const MapViewerButton = (
 ): ReactNode => {
   
   const navigate = useNavigate();
-  const { addWMSByUrl, resetContext } = useOwsContextBase()
+  const { addWMSByUrl, resetContext, owsContext } = useOwsContextBase()
   const record = useRecordContext(wmsRecord)
 
   const initialGetCapabilitiesUrl = useRef(capabilititesUrl || record?.operationUrls?.find(
@@ -63,15 +63,10 @@ const MapViewerButton = (
   useEffect(() => {
     if (
       clicked && 
-      initialGetCapabilitiesUrl.current === undefined && 
+      initialGetCapabilitiesUrl.current === undefined &&
       getCapaibilitesUrl !== undefined
     ){
-      const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, "wms")
-      // todo: how to wait until reset is finished?
       resetContext()
-      addWMSByUrl(url.href)
-      navigate('/viewer')
-      setClicked(false)
     } else if (
       clicked &&
       initialGetCapabilitiesUrl.current === undefined && 
@@ -80,6 +75,20 @@ const MapViewerButton = (
       refetch()
     }
   },[initialGetCapabilitiesUrl, getCapaibilitesUrl, clicked])
+
+  useEffect(() => {
+    if (
+      clicked && 
+      owsContext.features.length === 0 && 
+      getCapaibilitesUrl !== undefined
+    ){
+      // wait until context is reset and then add wms by url
+      const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, "wms")
+      addWMSByUrl(url.href)
+      navigate('/viewer')
+      setClicked(false)
+    }
+  }, [clicked, owsContext, getCapaibilitesUrl])
 
   return (
     <Button

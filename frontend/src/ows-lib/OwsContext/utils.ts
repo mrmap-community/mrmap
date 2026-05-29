@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
-import { OWSResource as IOWSResource, OWSContext, OWSResource, StyleSet, TreeifiedOWSResource } from "./types";
+import { OWSResource as IOWSResource, OWSContext, StyleSet, TreeifiedOWSResource } from "./types";
 
 export const OWSContextDocument = (
     id: string = uuidv4(),
@@ -236,7 +236,7 @@ export const getOptimizedGetMapUrls = (trees: TreeifiedOWSResource[]) => {
     return getMapUrls
 }
 
-export const getFeaturesByGetMapUrl = (url: URL, features: OWSResource[]) => {
+export const getFeaturesByGetMapUrl = (url: URL, features: IOWSResource[]): IOWSResource[] => {   
     const layers = url.searchParams.get('LAYERS')?.split(',') ?? []
     return features.filter(feature => feature.properties.offerings?.find(offering =>
         offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation => {

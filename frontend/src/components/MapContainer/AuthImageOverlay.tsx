@@ -1,8 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import type L from 'leaflet'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ImageOverlay, ImageOverlayProps } from 'react-leaflet'
-import { getFeaturesByGetMapUrl } from '../../ows-lib/OwsContext/utils'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
+
 
 export interface AuthOptions {
   headers?: Record<string, string>
@@ -61,58 +62,30 @@ export const AuthImageOverlay = ({
   auth,
   ...rest
 }: AuthImageOverlayProps) => {
-  const { setFeatureLoadingState, owsContext } = useOwsContextBase()
+  const {  owsContext } = useOwsContextBase()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [isLoading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+
+  const authOptions = useMemo(()=>getAuthOptions(auth),[auth])
+
+  const { data,  isFetching, error } = useQuery({
+    queryKey: ['remoteImage'],
+    queryFn: () => fetch(url, {
+      headers: authOptions.headers,
+      credentials: authOptions.credentials
+    }).then(r => r.blob()),
+  })
 
   useEffect(() => {
-    const loadImageWithAuth = async () => {
-      try {
-        setLoading(true)
-        const authOptions = getAuthOptions(auth)
-
-        const response = await fetch(url, {
-          headers: authOptions.headers,
-          credentials: authOptions.credentials
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to load image: ${response.statusText}`)
-        }
-
-        const blob = await response.blob()
-        const objectUrl = URL.createObjectURL(blob)
-        setImageUrl(objectUrl)
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Unknown error'))
-        setImageUrl(null)
-      } finally {
-        setLoading(false)
-      }
+    if (data){
+      imageUrl && URL.revokeObjectURL(imageUrl)
+      setImageUrl(URL.createObjectURL(data))
     }
-
-    loadImageWithAuth()
-
-    // Cleanup object URL on unmount
     return () => {
-      if (imageUrl) {
-        URL.revokeObjectURL(imageUrl)
-      }
+      imageUrl && URL.revokeObjectURL(imageUrl)
     }
-  }, [url, auth])
+  }, [data])
 
-  useEffect(()=>{
-    if (imageUrl !== undefined && imageUrl !== null) {
-      const features = getFeaturesByGetMapUrl(new URL(imageUrl), owsContext.features)
-      // TODO: this is a bit hacky, we should have a better way to track loading state of features.
-      features.forEach(f => setFeatureLoadingState(f, isLoading))
-    }
-   
-  },[isLoading])
-
-  if (isLoading || !imageUrl) {
+  if (isFetching || !imageUrl) {
     return null
   }
 

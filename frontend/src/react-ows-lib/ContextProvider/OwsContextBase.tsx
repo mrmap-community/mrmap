@@ -17,6 +17,7 @@ export interface OwsContextBaseType {
   isLoading: boolean
   currentRequest: Request | undefined
   resetContext: () => void
+  addWMSByRecord: (record: RaRecord) => void
   addWMSByUrl: (url: string, headers?: Headers) => void
   initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: TreeifiedOWSResource[]
@@ -61,6 +62,13 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   const activeFeatures = useMemo(() => {
     return owsContext.getActiveFeatures()
   }, [owsContext])
+
+  const addWMSByRecord = useCallback((record: RaRecord) => {
+    const url = record.operationUrls?.find(
+      (opUrl: RaRecord) => {
+        return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
+      })?.url
+    },[])
 
   const addWMSByUrl = useCallback((url: string, headers?: Headers) => {
     const request = new Request(url, {

@@ -10,6 +10,7 @@ import { Position } from '../../ows-lib/OwsContext/enums';
 import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types';
 import { getParentFolder } from '../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase';
+import { useContextMenuBase } from './ContextMenuBase';
 
 
 // TODO: typeof should be any other type
@@ -31,7 +32,13 @@ export const DragableTreeItem = ({
   }: DragableTreeItemProps): ReactNode => {
     const ref = useRef(null)
     const { owsContext, moveFeature } = useOwsContextBase()
-  
+    const {setContextMenu} = useContextMenuBase()
+    const itemId = useMemo(()=>(
+      imaginary ? 
+      "id" + Math.random().toString(16).slice(2): 
+      node.properties.folder ?? "id" + Math.random().toString(16).slice(2)
+    ), [imaginary, node.properties.folder])
+    
     const createSortable = useCallback(()=>{
       if (ref.current === null || ref.current === undefined) return
   
@@ -99,16 +106,30 @@ export const DragableTreeItem = ({
       return false
     },[owsContext, node])
 
+    const onContextMenu = useCallback((event: React.MouseEvent<HTMLLIElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      console.log("context menu on ", node)
+      setContextMenu({
+        itemId: itemId,
+        isOpen: true,
+        anchorElement: event.currentTarget,
+        mouseX: event.clientX,
+        mouseY: event.clientY
+      })
+    }, [itemId, setContextMenu])
+
     return (
       <TreeItem
         ref={ref}
-        itemId={imaginary ? "id" + Math.random().toString(16).slice(2): node.properties.folder ?? "id" + Math.random().toString(16).slice(2)}
+        itemId={itemId}
         slots={{
           expandIcon: !isLeaf ? KeyboardArrowRightIcon: ImaginaryIcon,
           collapseIcon: !isLeaf ? KeyboardArrowDownIcon: ImaginaryIcon
         }}
         {...props}
         data-owscontext-folder={imaginary ? `${node.properties.folder}/0`: node.properties.folder}
+        onContextMenu={onContextMenu}
       >
         {/* imaginary child node to create new childs */}
         {!imaginary && isLeaf ? <DragableTreeItem node={node} imaginary={true}></DragableTreeItem>: null}

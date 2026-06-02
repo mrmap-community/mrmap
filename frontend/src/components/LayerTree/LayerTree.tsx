@@ -1,12 +1,17 @@
 import { useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 
-import { SimpleTreeView } from '@mui/x-tree-view'
+import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
+import AdjustIcon from '@mui/icons-material/AdjustOutlined'
+import Box from '@mui/material/Box'
+import Stack from '@mui/material/Stack'
+import Tooltip from '@mui/material/Tooltip'
 import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
+import ContextMenu from './ContextMenu'
+import { ContextMenuBase } from './ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
 import TreeNodeCheckbox from './NodeCheckbox'
-
 
 export interface LayerTreeProps {
   initialExpanded?: string[]
@@ -39,20 +44,20 @@ const LayerTree = ({
 
   const [expanded, setExpanded] = useState<string[]>([...initialExpanded, ...defaultExpandedNodes])
 
-  const handleToggle = useCallback((event: SyntheticEvent, nodeId: string, isExpanded: boolean): void => {
+  const handleToggle = useCallback((event: SyntheticEvent<Element, Event> | null, itemId: TreeViewItemId, isExpanded: boolean): void => {
 
     const newExpanded = [...expanded, ...defaultExpandedNodes]
     if (isExpanded) {
-      if (!newExpanded.includes(nodeId)) {
-        newExpanded.push(nodeId)
+      if (!newExpanded.includes(itemId)) {
+        newExpanded.push(itemId)
       }
     } else {
-      const index = newExpanded.indexOf(nodeId)
+      const index = newExpanded.indexOf(itemId)
       if (index > -1) {
         newExpanded.splice(index, 1)
       }
     }
-    if ((event.target as HTMLElement).closest('.MuiSvgIcon-root') != null) {
+    if ((event?.target as HTMLElement).closest('.MuiSvgIcon-root') != null) {
       setExpanded(newExpanded)
     }
   }, [expanded])
@@ -65,33 +70,41 @@ const LayerTree = ({
     )
  */
     return (
-      <>
-        <TreeNodeCheckbox node={node} />
-        {/* {securityRuleButton} */}
-        {node.properties.title}
-        {/* <ContextMenu node={node} map={map}/> */}
-      </>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ width: '100%' }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TreeNodeCheckbox node={node} />
+          {node.properties.title}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {/* icons */}
+          <Tooltip title="Root node">
+            <AdjustIcon color="primary" fontSize="small" />
+          </Tooltip>
+        </Box>
+      </Stack>
     )
   }, [])
 
   const renderTree = useCallback((node?: TreeifiedOWSResource): ReactNode => {
-    if (node !== undefined) {
-      return (<DragableTreeItem
-                node={node}                    
-                key={node.properties.folder}
-                label={renderTreeItemLabel(node)}
-              >
-                {
-                  Array.isArray(node.children)
-                    ? node.children.map((node) => { return renderTree(node) })
-                    : null
-                }
-              </DragableTreeItem >)
-
-
-    }
-    return <></>
-  }, [renderTreeItemLabel])
+    return node !== undefined ? (
+        <DragableTreeItem
+          node={node}                    
+          key={node.properties.folder}
+          label={renderTreeItemLabel(node)}
+        >
+          {
+            Array.isArray(node.children)
+              ? node.children.map((node) => { return renderTree(node) })
+              : null
+          }
+        </DragableTreeItem >
+      ) : <></>
+  },[renderTreeItemLabel])
 
   const treeViews = useMemo(() => {
     return trees?.map(tree => {
@@ -109,9 +122,10 @@ const LayerTree = ({
   }, [trees, handleToggle, expanded, renderTree])
 
   return (
-    <>
+    <ContextMenuBase>
       {treeViews}
-    </>
+      <ContextMenu />
+    </ContextMenuBase>
   )
 }
 

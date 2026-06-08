@@ -1,0 +1,13 @@
+async-timeout==5.0.*
+behave==1.3.*
+behave-django==1.9.*
+coverage==7.*
+django-debug-toolbar
+
+# Type stubs:
+celery-types
+django-types
+djangorestframework-stubs
+types-channels
+types-django-filter
+types-lxml

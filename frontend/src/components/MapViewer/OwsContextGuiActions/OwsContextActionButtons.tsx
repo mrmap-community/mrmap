@@ -11,8 +11,8 @@ import Tooltip from '@mui/material/Tooltip';
 import { Loading } from 'react-admin';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import AddResourceDialog from './AddResourceDialog';
+import EditOwsContextDialog from './EditOwsContextDialog';
 import InitialFromOwsContextDialog from './InitialFromOwsContextDialog';
-
 
 export const OwsContextActionButtons = () => {
     const [openAddResourceDialog, setOpenAddResourceDialog] = useState(false)
@@ -20,7 +20,10 @@ export const OwsContextActionButtons = () => {
   
     const [openInitialDialog, setOpenInitialDialog] = useState(false)
     const handleOpenInitialDialog = () => setOpenInitialDialog(true)
-    
+
+    const [openOwsContextEditor, setOpenOwsContextEditor] = useState(false)
+    const handleOpenOwsContextEditor = () => setOpenOwsContextEditor(true)
+
     const { isLoading, currentRequest } = useOwsContextBase()
   
     return (
@@ -41,10 +44,12 @@ export const OwsContextActionButtons = () => {
             <AddResourceDialog open={openAddResourceDialog} setOpen={setOpenAddResourceDialog}/>
       
             <Tooltip title="Edit OWS Context">
-                <Fab color="secondary" aria-label="edit" size="small" disabled={isLoading}>
+                <Fab color="secondary" aria-label="edit" size="small" disabled={isLoading} onClick={handleOpenOwsContextEditor}>
                 <EditIcon />
                 </Fab>
             </Tooltip>
+            <EditOwsContextDialog open={openOwsContextEditor} setOpen={setOpenOwsContextEditor}/>
+
             {isLoading && <Loading 
                 loadingSecondary={currentRequest?.url}
             />}

@@ -107,7 +107,7 @@ export class OWSContext implements IOWSContext {
 
   constructor(
     id: string = uuidv4(),
-    features: OWSResource[] = [],
+    features: (OWSResource | IOWSResource)[] = [],
     bbox: BBox = [-180, -90, 180, 90],
     properties: OWSContextProperties = {
       lang: 'en',
@@ -118,7 +118,11 @@ export class OWSContext implements IOWSContext {
   ) {
     this.id = id;
     this.type = "FeatureCollection";
-    this.features = features;
+    this.features = features.map(feature =>
+        feature instanceof OWSResource
+            ? feature
+            : OWSResource.fromPlainObject(feature)
+    );
     this.bbox = bbox;
     this.properties = JSON.parse(JSON.stringify(properties));
 
@@ -129,8 +133,18 @@ export class OWSContext implements IOWSContext {
 
   async initialize() {
     await this.collectWmsCapabilities()
-
   }
+
+  static fromPlainObject(ctx: IOWSContext) {
+    const context = new OWSContext(
+        ctx.id,
+        ctx.features.map(OWSResource.fromPlainObject),
+        ctx.bbox,
+        ctx.properties
+    );
+
+    return context;
+}
 
   appendWms(href: string, capabilitites: string, headers?: Headers): this {
     const parsedWms = parseWms(capabilitites)

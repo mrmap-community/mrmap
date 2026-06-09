@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren, type ReactNode } from 'react'
 
-import { Point } from 'geojson'
-import _ from 'lodash'
 
+import { RaRecord } from 'react-admin'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
 import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types'
@@ -14,6 +13,8 @@ export interface OwsContextBaseType {
   //selectedCrs: MrMapCRS
   //setSelectedCrs: (crs: MrMapCRS) => void
   owsContext: OWSContext
+  setOwsContext: (owsContext: OWSContext) => void
+  updateOwsContext: (owsContext: OWSContext) => void
   isLoading: boolean
   currentRequest: Request | undefined
   resetContext: () => void
@@ -32,19 +33,11 @@ export interface OwsContextBaseProps extends PropsWithChildren {
   initialFeatures?: OWSResource[]
 }
 
-const copyOWSContext = (owsContext: OWSContext) => {
-  return new OWSContext(
-    owsContext.id,
-    owsContext.features,
-    owsContext.bbox,
-    owsContext.properties,
-    owsContext.capabilititesMap
-  )
-}
 
 export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBaseProps): ReactNode => {
   const [isLoading, setIsLoading] = useState(false)
   const [currentRequest, setCurrentRequest] = useState<Request | undefined>(undefined)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // area of interest in crs 4326
   const [owsContext, setOwsContext] = useState<OWSContext>(new OWSContext(undefined, initialFeatures, undefined, {
@@ -52,9 +45,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     title: 'mrmap ows context',
     updated: new Date().toISOString(),
     display: {}
-  },))
+  }))
   
-
   const trees = useMemo(() => {
     return treeify(owsContext.features)
   }, [owsContext])
@@ -63,135 +55,174 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     return owsContext.getActiveFeatures()
   }, [owsContext])
 
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [])
+
+  const updateOwsContext = useCallback((newContext: OWSContext) => {
+    setOwsContext(
+      new OWSContext(
+        newContext.id,
+        newContext.features,
+        newContext.bbox,
+        newContext.properties,
+        newContext.capabilititesMap
+      )
+    )
+  }, [])
+
+  // Consolidated fetch logic with error handling and abort support
+  const performFetch = useCallback(async (url: string, headers?: Headers) => {
+    // Cancel any previous request
+    abortControllerRef.current?.abort()
+    
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    try {
+      const request = new Request(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal
+      })
+      setCurrentRequest(request)
+      setIsLoading(true)
+
+      const response = await fetch(request)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      return response
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.debug('Fetch request was aborted')
+        return null
+      }
+      console.error('Fetch error:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+      setCurrentRequest(undefined)
+    }
+  }, [])
+
   const addWMSByRecord = useCallback((record: RaRecord) => {
     const url = record.operationUrls?.find(
       (opUrl: RaRecord) => {
-        return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
-      })?.url
-    },[])
+        return (opUrl.method === 1 || opUrl.method === 'Get') && (opUrl.operation === 1 || opUrl.operation === 'GetCapabilities')
+      }
+    )?.url
+
+    if (url) {
+      addWMSByUrl(url)
+    }
+  }, [])
 
   const addWMSByUrl = useCallback((url: string, headers?: Headers) => {
-    const request = new Request(url, {
-      method: 'GET',
-      headers
-    })
-    setCurrentRequest(request)
-    setIsLoading(true)
-    fetch(request).then(response => response.text()).then(xmlString => {
-      const newContext = copyOWSContext(owsContext)
-      newContext.appendWms(url, xmlString, headers)
-      setOwsContext(newContext)
-    }
-    ).then(() => {setIsLoading(false); setCurrentRequest(undefined)})
-  }, [owsContext])
+    performFetch(url, headers)
+      .then((response) => {
+        if (response === null) return
+        return response.text()
+      })
+      .then((xmlString) => {
+        if (!xmlString) return
+        setOwsContext((prev) => {
+          const newContext = new OWSContext(
+            prev.id,
+            [...prev.features],
+            prev.bbox,
+            prev.properties,
+            prev.capabilititesMap
+          )
+          newContext.appendWms(url, xmlString, headers)
+          return newContext
+        })
+      })
+      .catch((error) => {
+        console.error('Failed to add WMS:', error)
+      })
+  }, [performFetch])
 
   const initialFromOwsContext = useCallback((url: string, headers?: Headers) => {
-    const request = new Request(url, {
-      method: 'GET',
-      headers
-    })
-    setCurrentRequest(request)
-    setIsLoading(true)
-    
-    fetch(request).then(response => response.json()).then(async (json: OWSContext) => {
-      // todo: check type before setting features.
-      // todo: set also other variables
-      const newOwsContext = new OWSContext(undefined, json.features.map(feature => new OWSResource(feature.properties, feature.id, feature.bbox, feature.geometry)), json.bbox ?? undefined)
-      await newOwsContext.initialize()
+    performFetch(url, headers)
+      .then((response) => {
+        if (response === null) return
+        return response.json()
+      })
+      .then(async (json: any) => {
+        // Validate JSON structure
+        if (!json || !Array.isArray(json.features)) {
+          throw new Error('Invalid OWSContext JSON structure: features array is required')
+        }
 
-      setOwsContext(newOwsContext)
-      // TODO: initial map with current display if exists  map?.fitBounds()
-    }
-    ).then(() => {setIsLoading(false); setCurrentRequest(undefined)})
-  }, [])
+        const newOwsContext = new OWSContext(
+          json.id,
+          json.features.map(
+            (feature: any) =>
+              new OWSResource(
+                feature.properties,
+                feature.id,
+                feature.bbox,
+                feature.geometry
+              )
+          ),
+          json.bbox ?? undefined
+        )
+
+        await newOwsContext.initialize()
+        setOwsContext(newOwsContext)
+      })
+      .catch((error) => {
+        console.error('Failed to initialize from OWSContext:', error)
+      })
+  }, [performFetch])
 
   const resetContext = useCallback(() => {
     setOwsContext(new OWSContext())
   }, [])
 
   const setFeatureActive = useCallback((feature: OWSResource, active: boolean) => {
-    const newContext = copyOWSContext(owsContext)
-    newContext.activateFeature(feature, active)
-    setOwsContext(newContext)
-  }, [owsContext])
-  
+    setOwsContext((prev) => {
+      const newContext = new OWSContext(
+        prev.id,
+        [...prev.features],
+        prev.bbox,
+        prev.properties,
+        prev.capabilititesMap
+      )
+      newContext.activateFeature(feature, active)
+      return newContext
+    })
+  }, [])
+
   const moveFeature = useCallback((source: OWSResource, target: OWSResource, position: Position = Position.lastChild) => {
-    const newContext = copyOWSContext(owsContext)
-    newContext.moveFeature(source, target, position)
-    setOwsContext(newContext)
-  }, [owsContext])
-
-  const updateDisplay = useCallback((size: Point) => {
-    const newDisplay = {
-      pixelWidth: size.coordinates[0],
-      pixelHeight: size.coordinates[1]
-    }
-    const newContext = copyOWSContext(owsContext)
-    newContext.properties.display = newDisplay
-    !_.isEqual(owsContext.properties.display, newDisplay) && setOwsContext(newContext)
-  }, [owsContext])
-
-  useEffect(() => {
-    //console.log('owsContext', owsContext)
-  }, [owsContext])
-
-  // /** crs handling*/
-  // const [selectedCrs, setSelectedCrs] = useState()
-
-  // // intersection of all reference systems
-  // const crsIntersection = useMemo(() => {
-  //   // TODO: refactor this by using the crs from the ows context resources
-  //   // let referenceSystems: MrMapCRS[] = []
-  //   /* wmsTrees.map(wms => wms.rootNode?.record.referenceSystems.filter((crs: MrMapCRS) => crs.prefix === 'EPSG')).forEach((_referenceSystems: MrMapCRS[], index) => {
-  //     if (index === 0) {
-  //       referenceSystems = referenceSystems.concat(_referenceSystems)
-  //     } else {
-  //       referenceSystems = referenceSystems.filter(crsA => _referenceSystems.some(crsB => crsA.stringRepresentation === crsB.stringRepresentation))
-  //     }
-  //   }) */
-  //   // return referenceSystems
-  // }, [owsContext])
-
-  // useEffect(() => {
-
-  //   if (selectedCrs?.bbox !== undefined) {
-  //     const bbox = JSON.parse(selectedCrs?.bbox)
-  //     const bboxGeoJSON = L.geoJSON(bbox)
-  //     const newMaxBounds = bboxGeoJSON.getBounds()
-  //     setMaxBounds(newMaxBounds)
-  //   }
-  // }, [selectedCrs])
-
-  // useEffect(() => {
-  //   if (maxBounds !== undefined && map !== undefined) {
-  //     const currentCenter = map.getCenter()
-  //     map.setMaxBounds(maxBounds)
-  //     if (maxBounds.contains(currentCenter)) {
-  //       // do nothing... the current center is part of the maximum boundary of the crs system
-  //     } else {
-  //       // current center is not part of the boundary of the crs system. We need to center the map new
-  //       map?.fitBounds(maxBounds)
-  //     }
-
-  //     // map?.setMaxBounds(maxBounds)
-  //   }
-  // }, [map, maxBounds])
-
-  // useEffect(() => {
-  //   if (crsIntersection.length > 0 && selectedCrs === undefined) {
-  //     const defaultCrs = crsIntersection.find(crs => crs.stringRepresentation === 'EPSG:4326') ?? crsIntersection[0]
-  //     setSelectedCrs(defaultCrs)
-  //   }
-  // }, [crsIntersection, selectedCrs])
-
+    setOwsContext((prev) => {
+      const newContext = new OWSContext(
+        prev.id,
+        [...prev.features],
+        prev.bbox,
+        prev.properties,
+        prev.capabilititesMap
+      )
+      newContext.moveFeature(source, target, position)
+      return newContext
+    })
+  }, [])
 
 
   const value = useMemo<OwsContextBaseType>(() => {
     return {
       owsContext,
+      setOwsContext,
+      updateOwsContext,
       isLoading,
       currentRequest,
       resetContext,
+      addWMSByRecord,
       addWMSByUrl,
       initialFromOwsContext,
       trees,
@@ -201,9 +232,12 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     }
   }, [
     owsContext,
+    setOwsContext,
+    updateOwsContext,
     isLoading,
     currentRequest,
     resetContext,
+    addWMSByRecord,
     addWMSByUrl,
     initialFromOwsContext,
     trees,
@@ -213,9 +247,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   ])
 
   return (
-    <context.Provider
-      value={value}
-    >
+    <context.Provider value={value}>
       {children}
     </context.Provider>
   )

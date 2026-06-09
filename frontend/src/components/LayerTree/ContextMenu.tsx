@@ -3,9 +3,7 @@ import MenuItem from "@mui/material/MenuItem";
 import { useContextMenuBase } from "./ContextMenuBase";
 const ContextMenu = () => {
   const {isOpen, close, itemId, mouseX, mouseY} = useContextMenuBase()
-  
-  console.log("render context menu", {isOpen, itemId, mouseX, mouseY})
-  
+    
   // Only render Menu if we have valid coordinates
   if (!isOpen || mouseX === undefined || mouseY === undefined) {
     return null

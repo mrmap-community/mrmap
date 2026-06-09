@@ -39,7 +39,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   const [currentRequest, setCurrentRequest] = useState<Request | undefined>(undefined)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  // area of interest in crs 4326
   const [owsContext, setOwsContext] = useState<OWSContext>(new OWSContext(undefined, initialFeatures, undefined, {
     lang: 'en',
     title: 'mrmap ows context',
@@ -63,15 +62,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   }, [])
 
   const updateOwsContext = useCallback((newContext: OWSContext) => {
-    setOwsContext(
-      new OWSContext(
-        newContext.id,
-        newContext.features,
-        newContext.bbox,
-        newContext.properties,
-        newContext.capabilititesMap
-      )
-    )
+    setOwsContext(OWSContext.fromPlainObject(newContext))
   }, [])
 
   // Consolidated fetch logic with error handling and abort support
@@ -131,13 +122,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       .then((xmlString) => {
         if (!xmlString) return
         setOwsContext((prev) => {
-          const newContext = new OWSContext(
-            prev.id,
-            [...prev.features],
-            prev.bbox,
-            prev.properties,
-            prev.capabilititesMap
-          )
+          const newContext = OWSContext.fromPlainObject(prev)
           newContext.appendWms(url, xmlString, headers)
           return newContext
         })
@@ -158,21 +143,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
         if (!json || !Array.isArray(json.features)) {
           throw new Error('Invalid OWSContext JSON structure: features array is required')
         }
-
-        const newOwsContext = new OWSContext(
-          json.id,
-          json.features.map(
-            (feature: any) =>
-              new OWSResource(
-                feature.properties,
-                feature.id,
-                feature.bbox,
-                feature.geometry
-              )
-          ),
-          json.bbox ?? undefined
-        )
-
+        const newOwsContext = OWSContext.fromPlainObject(json)
         await newOwsContext.initialize()
         setOwsContext(newOwsContext)
       })
@@ -187,13 +158,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
   const setFeatureActive = useCallback((feature: OWSResource, active: boolean) => {
     setOwsContext((prev) => {
-      const newContext = new OWSContext(
-        prev.id,
-        [...prev.features],
-        prev.bbox,
-        prev.properties,
-        prev.capabilititesMap
-      )
+      const newContext = OWSContext.fromPlainObject(prev)
       newContext.activateFeature(feature, active)
       return newContext
     })
@@ -201,13 +166,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
   const moveFeature = useCallback((source: OWSResource, target: OWSResource, position: Position = Position.lastChild) => {
     setOwsContext((prev) => {
-      const newContext = new OWSContext(
-        prev.id,
-        [...prev.features],
-        prev.bbox,
-        prev.properties,
-        prev.capabilititesMap
-      )
+      const newContext = OWSContext.fromPlainObject(prev)
       newContext.moveFeature(source, target, position)
       return newContext
     })

@@ -3,6 +3,7 @@ import { BBox, Geometry } from 'geojson';
 import { v4 as uuidv4 } from 'uuid';
 import { parseWms } from '../XMLParser/parseCapabilities';
 import { Capabilites, WmsCapabilitites } from '../XMLParser/types';
+import { Authentication } from './contrib';
 import { Position } from './enums';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties } from './types';
 import { collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, prepareGetCapabilititesUrl, updateFolders, wmsToOWSResources } from './utils';
@@ -101,8 +102,14 @@ export class OWSContext implements IOWSContext {
   date?: string;
   features: OWSResource[];
   type: 'FeatureCollection';
-
-  capabilititesMap: { [url: string]: { capabilitites: Capabilites, features: OWSResource[], headers?: Headers } }; // map to store all capabilities which are part of this ows context
+  authentications?: Authentication[]
+  capabilititesMap: { 
+    [url: string]: { 
+      capabilitites: Capabilites,
+      features: OWSResource[], 
+      headers?: Headers 
+    } 
+  }; // map to store all capabilities which are part of this ows context
   crsIntersection: string[]; // extension to calculate the reference systems which all active features supports
 
   constructor(
@@ -114,6 +121,7 @@ export class OWSContext implements IOWSContext {
       title: 'mrmap ows context',
       updated: new Date().toISOString()
     },
+    authentications: Authentication[] = [],
     capabilititesMap = {}
   ) {
     this.id = id;
@@ -125,7 +133,7 @@ export class OWSContext implements IOWSContext {
     );
     this.bbox = bbox;
     this.properties = JSON.parse(JSON.stringify(properties));
-
+    this.authentications = authentications;
     this.capabilititesMap = capabilititesMap
     this.crsIntersection = []
   }
@@ -140,7 +148,9 @@ export class OWSContext implements IOWSContext {
         ctx.id,
         ctx.features.map(OWSResource.fromPlainObject),
         ctx.bbox,
-        ctx.properties
+        ctx.properties,
+        ctx.authentications as Authentication[] | undefined,
+        ctx.capabilititesMap as OWSContext['capabilititesMap'] | undefined
     );
 
     return context;

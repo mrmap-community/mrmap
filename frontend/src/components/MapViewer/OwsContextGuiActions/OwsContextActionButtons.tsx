@@ -8,11 +8,14 @@ import Divider from '@mui/material/Divider';
 import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
 
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import { Loading } from 'react-admin';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import AddResourceDialog from './AddResourceDialog';
+import EditAuthenticationsDialog from './EditAuthenticationsDialog';
 import EditOwsContextDialog from './EditOwsContextDialog';
 import InitialFromOwsContextDialog from './InitialFromOwsContextDialog';
+
 
 export const OwsContextActionButtons = () => {
     const [openAddResourceDialog, setOpenAddResourceDialog] = useState(false)
@@ -23,6 +26,10 @@ export const OwsContextActionButtons = () => {
 
     const [openOwsContextEditor, setOpenOwsContextEditor] = useState(false)
     const handleOpenOwsContextEditor = () => setOpenOwsContextEditor(true)
+
+    const [openAuthenticationsEditor, setOpenAuthenticationsEditor] = useState(false)
+    const handleOpenAuthenticationsEditor = () => setOpenAuthenticationsEditor(true)
+
 
     const { isLoading, currentRequest } = useOwsContextBase()
   
@@ -38,21 +45,25 @@ export const OwsContextActionButtons = () => {
       
             <Tooltip title="Add Resource">
                 <Fab color="primary" aria-label="add" size="small" onClick={handleOpenAddResourceDialog} disabled={isLoading}>
-                <AddIcon />
+                    <AddIcon />
                 </Fab>
             </Tooltip>
             <AddResourceDialog open={openAddResourceDialog} setOpen={setOpenAddResourceDialog}/>
       
             <Tooltip title="Edit OWS Context">
                 <Fab color="secondary" aria-label="edit" size="small" disabled={isLoading} onClick={handleOpenOwsContextEditor}>
-                <EditIcon />
+                    <EditIcon />
                 </Fab>
             </Tooltip>
             <EditOwsContextDialog open={openOwsContextEditor} setOpen={setOpenOwsContextEditor}/>
 
-            {isLoading && <Loading 
-                loadingSecondary={currentRequest?.url}
-            />}
+            <Tooltip title="Manage Authentications">
+                <Fab color="secondary" aria-label="authentications" size="small" disabled={isLoading} onClick={handleOpenAuthenticationsEditor}>
+                    <VpnKeyIcon />
+                </Fab>
+            </Tooltip>
+            <EditAuthenticationsDialog open={openAuthenticationsEditor} setOpen={setOpenAuthenticationsEditor}/>
+            {isLoading && <Loading loadingSecondary={currentRequest?.url} />}
             <Divider/>
         </Box>
         

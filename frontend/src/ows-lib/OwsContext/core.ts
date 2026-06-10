@@ -102,12 +102,11 @@ export class OWSContext implements IOWSContext {
   date?: string;
   features: OWSResource[];
   type: 'FeatureCollection';
-  authentications?: Authentication[]
+  authentications: Authentication[]
   capabilititesMap: { 
     [url: string]: { 
       capabilitites: Capabilites,
       features: OWSResource[], 
-      headers?: Headers 
     } 
   }; // map to store all capabilities which are part of this ows context
   crsIntersection: string[]; // extension to calculate the reference systems which all active features supports
@@ -149,28 +148,35 @@ export class OWSContext implements IOWSContext {
         ctx.features.map(OWSResource.fromPlainObject),
         ctx.bbox,
         ctx.properties,
-        ctx.authentications as Authentication[] | undefined,
+        ctx.authentications as Authentication[],
         ctx.capabilititesMap as OWSContext['capabilititesMap'] | undefined
     );
 
     return context;
 }
 
-  appendWms(href: string, capabilitites: string, headers?: Headers): this {
+  appendWms(href: string, capabilitites: string, authentication?: Authentication): this {
     const parsedWms = parseWms(capabilitites)
 
     const url = prepareGetCapabilititesUrl(href, 'WMS')
 
-    const additionalFeatures = wmsToOWSResources(url.href, parsedWms, this.getNextRootId()).map(resource => new OWSResource(resource.properties))
+    const additionalFeatures = wmsToOWSResources(url.href, parsedWms, this.getNextRootId()).map(
+      resource => new OWSResource(resource.properties)
+    ).map(resource => {
+      if (authentication !== undefined) {
+        resource.properties.authenticationId = authentication.id
+      }
+      return resource
+    })
     this.features.push(...additionalFeatures)
 
     if (url.href in this.capabilititesMap) {
       this.capabilititesMap[url.href].features = [...this.capabilititesMap[url.href].features, ...additionalFeatures]
-      if (headers) {
-        this.capabilititesMap[url.href].headers = headers
+      if (authentication !== undefined) {
+        this.authentications = [...this.authentications, authentication]
       }
     } else {
-      this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures, headers }
+      this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures }
     }
 
     return this

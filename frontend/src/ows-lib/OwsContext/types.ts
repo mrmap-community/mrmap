@@ -1,4 +1,5 @@
 import { BBox, Feature, FeatureCollection, Geometry } from 'geojson'
+import { UUIDTypes } from 'uuid/dist/types'
 
 export interface Link {
     href: string
@@ -28,6 +29,7 @@ export interface Operation {
     href: string
     request?: Content
     result?: Content
+    authenticationId?: UUIDTypes  // custom extension to link an operation to an authentication
     [name: string]: unknown // extension, any other
 }
 

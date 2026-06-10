@@ -1,11 +1,11 @@
+import { UUIDTypes } from "uuid"
+
 interface AuthenticationBase {
+    id: UUIDTypes
     type: string
     meta?: Record<string, unknown>
 }
 
-export interface NoAuthentication extends AuthenticationBase {
-    type: "none"
-}
 
 export interface BasicAuthentication extends AuthenticationBase {
     type: "basic"
@@ -61,7 +61,6 @@ export interface CustomAuthentication extends AuthenticationBase {
 }
 
 export type Authentication =
-    | NoAuthentication
     | BasicAuthentication
     | BearerAuthentication
     | JwtAuthentication
@@ -77,7 +76,7 @@ export const applyAuthentication = (
     init: RequestInit,
     auth?: Authentication
 ): RequestInit => {
-    if (!auth || auth.type === "none") {
+    if (!auth) {
         return init
     }
 

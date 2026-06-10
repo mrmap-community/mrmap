@@ -210,6 +210,10 @@ export const getOptimizedGetMapUrls = (trees: TreeifiedOWSResource[]) => {
     /** 
      * every tree is 1..* atomic wms
      */
+
+    // TODO: new authentication handling: if authenticationId is set on a feature, the GetMap request should be send with the corresponding authentication. 
+    // In that case, only features with the same authenticationId should be merged to one GetMap request. 
+    // This requires some changes in the data structure of the capabilitiesMap to link the authentication to the capabilities and not to the feature as it is now.
     trees.forEach((tree) => {
         const activeWmsFeatures = treeToList(tree).filter(feature => feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active)
         activeWmsFeatures.forEach((feature, index) => {

@@ -32,12 +32,12 @@ export const DragableTreeItem = ({
   }: DragableTreeItemProps): ReactNode => {
     const ref = useRef(null)
     const { owsContext, moveFeature } = useOwsContextBase()
-    const {setContextMenu} = useContextMenuBase()
-    const itemId = useMemo(()=>(
+    const { setContextMenu } = useContextMenuBase()
+    const itemId = useMemo(()=>( node.id ??
       imaginary ? 
       "id" + Math.random().toString(16).slice(2): 
       node.properties.folder ?? "id" + Math.random().toString(16).slice(2)
-    ), [imaginary, node.properties.folder])
+    ), [node, imaginary, node.properties.folder])
     
     const createSortable = useCallback(()=>{
       if (ref.current === null || ref.current === undefined) return
@@ -109,15 +109,16 @@ export const DragableTreeItem = ({
     const onContextMenu = useCallback((event: React.MouseEvent<HTMLLIElement>) => {
       event.preventDefault()
       event.stopPropagation()
-      console.log("context menu on ", node)
       setContextMenu({
+        node: node,
         itemId: itemId,
         isOpen: true,
         anchorElement: event.currentTarget,
         mouseX: event.clientX,
         mouseY: event.clientY
       })
-    }, [itemId, setContextMenu])
+
+    }, [node, setContextMenu])
 
     return (
       <TreeItem

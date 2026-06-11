@@ -5,7 +5,7 @@ import { RaRecord } from 'react-admin'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
 import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types'
-import { treeify } from '../../ows-lib/OwsContext/utils'
+
 
 export interface OwsContextBaseType {
   // TODO: crs handling
@@ -47,7 +47,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   }))
   
   const trees = useMemo(() => {
-    return treeify(owsContext.features)
+    return owsContext.treeify()
   }, [owsContext])
 
   const activeFeatures = useMemo(() => {

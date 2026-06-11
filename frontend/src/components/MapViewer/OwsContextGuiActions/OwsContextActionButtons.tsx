@@ -12,7 +12,6 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import { Loading } from 'react-admin';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import AddResourceDialog from './AddResourceDialog';
-import EditAuthenticationsDialog from './EditAuthenticationsDialog';
 import EditOwsContextDialog from './EditOwsContextDialog';
 import InitialFromOwsContextDialog from './InitialFromOwsContextDialog';
 
@@ -62,7 +61,7 @@ export const OwsContextActionButtons = () => {
                     <VpnKeyIcon />
                 </Fab>
             </Tooltip>
-            <EditAuthenticationsDialog open={openAuthenticationsEditor} setOpen={setOpenAuthenticationsEditor}/>
+            
             {isLoading && <Loading loadingSecondary={currentRequest?.url} />}
             <Divider/>
         </Box>

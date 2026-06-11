@@ -3,9 +3,9 @@ import { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { OWSResource } from '../../ows-lib/OwsContext/core';
+import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core';
 import { karteRpFeatures as testdata } from '../../ows-lib/OwsContext/tests/data';
-import { treeify } from '../../ows-lib/OwsContext/utils';
+
 import { OwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase';
 import NodeCheckbox from './NodeCheckbox';
 
@@ -27,8 +27,9 @@ const getKarteRpFeatures = () => {
 const karteRp = getKarteRpFeatures()
 
 const MapViewerBaseWrapper = ({ children }: { children: ReactNode }) => {
+  const context = new OWSContext(undefined, karteRp)
   return (
-    <OwsContextBase initialFeatures={karteRp}>
+    <OwsContextBase initialFeatures={context.features}>
       {children}
     </OwsContextBase>
   )
@@ -37,7 +38,8 @@ const MapViewerBaseWrapper = ({ children }: { children: ReactNode }) => {
 describe('LayerTree', () => {
   
   it('NodeCheckbox check active states on wald', () => {
-    const tree = treeify(karteRp)
+    const context = new OWSContext(undefined, karteRp)
+    const tree = context.treeify()
 
     render(<NodeCheckbox node={tree[0].children[1]}/>, {wrapper: MapViewerBaseWrapper});
 
@@ -47,7 +49,8 @@ describe('LayerTree', () => {
   });
 
   it('NodeCheckbox check active states on Landesfläche', () => {
-    const tree = treeify(karteRp)
+    const context = new OWSContext(undefined, karteRp)
+    const tree = context.treeify()
 
     render(<NodeCheckbox node={tree[0].children[0]}/>, {wrapper: MapViewerBaseWrapper});
 

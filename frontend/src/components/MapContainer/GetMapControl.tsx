@@ -4,7 +4,7 @@ import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContex
 
 import proj4 from 'proj4'
 
-import { getOptimizedGetMapUrls, updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
+import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
 
@@ -49,8 +49,8 @@ const WebMapServiceControl = () => {
   // TODO: atomicGetMapUrls depends also on authorization.
   
   const atomicGetMapUrls = useMemo(()=>{
-    return getOptimizedGetMapUrls(trees)
-  }, [trees])
+    return owsContext.getOptimizedGetMapUrls()
+  }, [owsContext])
 
   const map = useMap()
 

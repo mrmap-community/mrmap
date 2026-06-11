@@ -1,12 +1,12 @@
 import { BBox, Geometry } from 'geojson';
 
-import { v4 as uuidv4 } from 'uuid';
+import { UUIDTypes, v4 as uuidv4 } from 'uuid';
 import { parseWms } from '../XMLParser/parseCapabilities';
 import { Capabilites, WmsCapabilitites } from '../XMLParser/types';
 import { Authentication } from './contrib';
 import { Position } from './enums';
-import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties } from './types';
-import { collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, prepareGetCapabilititesUrl, updateFolders, wmsToOWSResources } from './utils';
+import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties, TreeifiedOWSResource } from './types';
+import { appendLayerIdentifiers, collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, isGetMapUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 
 const VALID_PATH = new RegExp('(\/\d*)+')
 
@@ -60,6 +60,10 @@ export class OWSResource implements IOWSResource {
   getParentFolder = () => {
     if (this.properties.folder?.split('/').length === 2) return // root node
     return this.properties.folder?.split('/').slice(0, -1).join('/')
+  }
+
+  isRootNode = () => {
+    return this.properties.folder?.split('/').length === 2
   }
 
   isParentOf(child: OWSResource) {
@@ -658,5 +662,81 @@ export class OWSContext implements IOWSContext {
     this.crsIntersection = this.getActiveFeatures().reduce<string[]>((acc, feature) => {
       return [...new Set([...acc, ...this.getInheritedCrs(feature)])]
     }, [])
+  }
+
+  getOptimizedGetMapUrls(): URL[] {
+    const trees = this.treeify()
+    const getMapUrls: URL[] = []
+
+    /** 
+     * every tree is 1..* atomic wms
+     */
+    trees.forEach((tree) => {
+      const activeWmsFeatures = treeToList(tree).filter(feature => feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active)
+      // keep a parallel array of authentication ids for pushed URLs so we only merge
+      // layers when the authentication context matches
+      const getMapAuths: (UUIDTypes | undefined)[] = []
+      activeWmsFeatures.forEach((feature, index) => {
+
+        const wmsOffering = feature.properties.offerings?.find(offering =>
+          offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation =>
+            operation.code === 'GetMap' && operation.method.toLowerCase() === 'get')
+
+        if (wmsOffering?.href === undefined) return
+
+        const getMapUrl = new URL(wmsOffering.href)
+        const lastUrl = getMapUrls.slice(-1)?.[0]
+        const lastAuth = getMapAuths.slice(-1)?.[0]
+
+        if (index === 0 || !isGetMapUrlEqual(lastUrl, getMapUrl) || lastAuth !== wmsOffering.authenticationId) {
+          // index 0 signals always a root node ==> just push it; nothing else to do here
+          // index > 0 and last url not equals current => define new atomic wms; not mergeable resources
+          getMapUrls.push(getMapUrl)
+          getMapAuths.push(wmsOffering.authenticationId)
+        }
+        else if (isGetMapUrlEqual(lastUrl, getMapUrl)) {
+          appendLayerIdentifiers(lastUrl, getMapUrl)
+        }
+      })
+    })
+    return getMapUrls
+  }
+
+  treeify(): TreeifiedOWSResource[] {
+    const trees: TreeifiedOWSResource[] = []
+
+    this.features.forEach((feature: IOWSResource) => {
+      // by default the order of the features array may be used to visualize the layer structure.
+      // if there is a folder attribute setted; this should be used and overwrites the array order
+      // feature.properties.folder && jsonpointer.set(trees, feature.properties.folder, feature)
+
+      const folders = feature.properties.folder?.split('/').splice(1)
+      const depth = folders?.length ? folders.length - 1 : 0 - 1 // -1 is signals unvalid folder definition
+
+      if (depth === 0) {
+        // root node
+        trees.push({ ...feature, id: uuidv4(), children: [] })
+      } else {
+        // find root node first
+        let node = trees.find(tree => tree.properties.folder === `/${folders?.[0]}`)
+
+        // TODO: just create a new node if it wasnt find
+        if (node === undefined) {
+          throw new Error('parsingerror... the context is not well ordered.')
+        }
+
+        for (let currentDepth = 2; currentDepth <= depth; currentDepth++) {
+          const currentSubFolder = `/${folders?.slice(0, currentDepth).join('/')}`
+          node = node.children.find(n => n.properties.folder === currentSubFolder)
+          if (node === undefined) {
+            // TODO: just create a new node if it wasnt find
+            throw new Error('parsingerror... the context is not well ordered.')
+          }
+        }
+        node.children.push({ ...feature, children: [] })
+      }
+    })
+
+    return trees
   }
 }

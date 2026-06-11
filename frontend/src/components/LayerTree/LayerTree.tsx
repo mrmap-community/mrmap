@@ -8,8 +8,10 @@ import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
+import Dialog from '../Dialog/Dialog'
+import { DialogBase } from '../Dialog/DialogContextBase'
 import ContextMenu from './ContextMenu'
-import { ContextMenuBase } from './ContextMenuBase'
+import { ContextMenuBase, useContextMenuBase } from './ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
 import TreeNodeCheckbox from './NodeCheckbox'
 
@@ -33,10 +35,11 @@ const darkStyle = {
   ...style,
 }
 
-const LayerTree = ({ 
-  initialExpanded = [] 
-}: LayerTreeProps): ReactNode => {
-  const { trees, owsContext } = useOwsContextBase()
+const TreeViews = (
+  { initialExpanded = [] }: LayerTreeProps
+) => {
+const { trees, owsContext } = useOwsContextBase()
+    const { isOpen, itemId } = useContextMenuBase()
 
   const defaultExpandedNodes = useMemo(()=> {
     return owsContext.getLeafNodes().map(feature => feature.properties.folder?? '')
@@ -106,26 +109,35 @@ const LayerTree = ({
       ) : <></>
   },[renderTreeItemLabel])
 
-  const treeViews = useMemo(() => {
-    return trees?.map(tree => {
+  return trees?.map(tree => {
       return (
         <SimpleTreeView
           key={tree.id}
           onItemExpansionToggle={handleToggle}
           defaultExpandedItems={defaultExpandedNodes}
           expandedItems={expanded}
+          selectedItems={isOpen && itemId ? itemId : null}
         >
           {renderTree(tree)}
         </SimpleTreeView>
       )
     })
-  }, [trees, handleToggle, expanded, renderTree])
+ 
+}
+
+const LayerTree = ({ 
+  initialExpanded = [] 
+}: LayerTreeProps): ReactNode => {
+  
 
   return (
-    <ContextMenuBase>
-      {treeViews}
-      <ContextMenu />
-    </ContextMenuBase>
+    <DialogBase>
+      <ContextMenuBase>
+        <TreeViews initialExpanded={initialExpanded} />
+        <ContextMenu />
+        <Dialog/>
+      </ContextMenuBase>
+    </DialogBase>
   )
 }
 

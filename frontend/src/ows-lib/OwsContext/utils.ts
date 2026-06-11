@@ -136,44 +136,6 @@ export const wmsToOWSResources = (href: string, capabilities: WmsCapabilitites, 
     )
 }
 
-export const treeify = (features: IOWSResource[]): TreeifiedOWSResource[] => {
-    const trees: TreeifiedOWSResource[] = []
-
-    JSON.parse(JSON.stringify(features)).forEach((feature: IOWSResource) => {
-        // by default the order of the features array may be used to visualize the layer structure.
-        // if there is a folder attribute setted; this should be used and overwrites the array order
-        // feature.properties.folder && jsonpointer.set(trees, feature.properties.folder, feature)
-
-        const folders = feature.properties.folder?.split('/').splice(1)
-        const depth = folders?.length ? folders.length - 1 : 0 - 1 // -1 is signals unvalid folder definition
-
-        if (depth === 0) {
-            // root node
-            trees.push({ ...feature, id: uuidv4(), children: [] })
-        } else {
-            // find root node first
-            let node = trees.find(tree => tree.properties.folder === `/${folders?.[0]}`)
-
-            // TODO: just create a new node if it wasnt find
-            if (node === undefined) {
-                throw new Error('parsingerror... the context is not well ordered.')
-            }
-
-            for (let currentDepth = 2; currentDepth <= depth; currentDepth++) {
-                const currentSubFolder = `/${folders?.slice(0, currentDepth).join('/')}`
-                node = node.children.find(n => n.properties.folder === currentSubFolder)
-                if (node === undefined) {
-                    // TODO: just create a new node if it wasnt find
-                    throw new Error('parsingerror... the context is not well ordered.')
-                }
-            }
-            node.children.push({ ...feature, children: [] })
-        }
-    })
-
-    return trees
-}
-
 export const treeToList = (node: TreeifiedOWSResource) => {
     const flatNodes = [node]
     if (node.children.length > 0) {
@@ -198,46 +160,6 @@ export const appendLayerIdentifiers = (url1: URL, url2: URL) => {
 
     url1.searchParams.has('LAYERS') && url1.searchParams.set('LAYERS', newLayersParam?.join(','))
     url1.searchParams.has('layers') && url1.searchParams.set('layers', newLayersParam?.join(','))
-}
-
-/** Calculates the groupable GetMap request
- * by comparing the basis GetMap href and the folder structure
- */
-export const getOptimizedGetMapUrls = (trees: TreeifiedOWSResource[]) => {
-
-    const getMapUrls: URL[] = []
-
-    /** 
-     * every tree is 1..* atomic wms
-     */
-
-    // TODO: new authentication handling: if authenticationId is set on a feature, the GetMap request should be send with the corresponding authentication. 
-    // In that case, only features with the same authenticationId should be merged to one GetMap request. 
-    // This requires some changes in the data structure of the capabilitiesMap to link the authentication to the capabilities and not to the feature as it is now.
-    trees.forEach((tree) => {
-        const activeWmsFeatures = treeToList(tree).filter(feature => feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active)
-        activeWmsFeatures.forEach((feature, index) => {
-
-            const wmsOffering = feature.properties.offerings?.find(offering =>
-                offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation =>
-                    operation.code === 'GetMap' && operation.method.toLowerCase() === 'get')
-
-            if (wmsOffering?.href === undefined) return
-
-            const getMapUrl = new URL(wmsOffering.href)
-            const lastUrl = getMapUrls.slice(-1)?.[0]
-
-            if (index === 0 || !isGetMapUrlEqual(lastUrl, getMapUrl)) {
-                // index 0 signals always a root node ==> just push it; nothing else to do here
-                // index > 0 and last url not equals current => define new atomic wms; not mergeable resources
-                getMapUrls.push(getMapUrl)
-            }
-            else if (isGetMapUrlEqual(lastUrl, getMapUrl)) {
-                appendLayerIdentifiers(lastUrl, getMapUrl)
-            }
-        })
-    })
-    return getMapUrls
 }
 
 export const getFeaturesByGetMapUrl = (url: URL, features: IOWSResource[]): IOWSResource[] => {   

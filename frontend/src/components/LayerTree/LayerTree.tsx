@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
@@ -11,9 +11,8 @@ import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContex
 import Dialog from '../Dialog/Dialog'
 import { DialogBase } from '../Dialog/DialogContextBase'
 import ContextMenu from './ContextMenu'
-import { ContextMenuBase, useContextMenuBase } from './ContextMenuBase'
+import { ContextMenuBase } from './ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
-import TreeNodeCheckbox from './NodeCheckbox'
 
 export interface LayerTreeProps {
   initialExpanded?: string[]
@@ -38,32 +37,45 @@ const darkStyle = {
 const TreeViews = (
   { initialExpanded = [] }: LayerTreeProps
 ) => {
-const { trees, owsContext } = useOwsContextBase()
-    const { isOpen, itemId } = useContextMenuBase()
+const { trees, owsContext, setFeatureActive } = useOwsContextBase()
 
-  const defaultExpandedNodes = useMemo(()=> {
-    return owsContext.getLeafNodes().map(feature => feature.properties.folder?? '')
-  },[owsContext])
+  const defaultExpandedNodes = useMemo(()=> owsContext.getLeafNodes().map(feature => feature.properties.folder ?? ''),[owsContext])
+  const selectedItems = useMemo(() => owsContext.getActiveFeatures().map(feature => feature.properties.folder ?? ''),[owsContext])
 
-  const [expanded, setExpanded] = useState<string[]>([...initialExpanded, ...defaultExpandedNodes])
+  const [expanded, setExpanded] = useState<string[] >([...initialExpanded, ...defaultExpandedNodes])
 
-  const handleToggle = useCallback((event: SyntheticEvent<Element, Event> | null, itemId: TreeViewItemId, isExpanded: boolean): void => {
-
-    const newExpanded = [...expanded, ...defaultExpandedNodes]
-    if (isExpanded) {
-      if (!newExpanded.includes(itemId)) {
-        newExpanded.push(itemId)
-      }
-    } else {
-      const index = newExpanded.indexOf(itemId)
-      if (index > -1) {
-        newExpanded.splice(index, 1)
-      }
+  const onItemExpansionToggle = useCallback(
+  (
+    event: SyntheticEvent<Element, Event> | null,
+    itemId: TreeViewItemId,
+    isExpanded: boolean,
+  ) => {
+    if (!(event?.target as HTMLElement)?.closest(".MuiSvgIcon-root")) {
+      return;
     }
-    if ((event?.target as HTMLElement).closest('.MuiSvgIcon-root') != null) {
-      setExpanded(newExpanded)
-    }
-  }, [expanded])
+
+    setExpanded(prev =>
+      isExpanded
+        ? [...new Set([...prev, itemId])]
+        : prev.filter(id => id !== itemId)
+    );
+  },
+  [],
+);
+
+  const onItemSelectionToggle = useCallback((
+    event: React.SyntheticEvent | null, 
+    itemId: TreeViewItemId, 
+    isSelected: boolean
+  )=>{
+    event?.preventDefault()
+    event?.stopPropagation()
+    
+    const feature = owsContext.findResourceByFolder(itemId)
+    console.log('onItemSelectionToggle', itemId, feature, isSelected)
+
+    feature && setFeatureActive(itemId, isSelected)
+  }, [owsContext])
 
   const renderTreeItemLabel = useCallback((node: TreeifiedOWSResource) => {
     /* const securityRuleButton = (
@@ -80,7 +92,7 @@ const { trees, owsContext } = useOwsContextBase()
         sx={{ width: '100%' }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TreeNodeCheckbox node={node} />
+          {/*<TreeNodeCheckbox node={node} />*/}
           {node.properties.title}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -98,6 +110,7 @@ const { trees, owsContext } = useOwsContextBase()
         <DragableTreeItem
           node={node}                    
           key={node.properties.folder}
+          itemId={node.properties.folder}
           label={renderTreeItemLabel(node)}
         >
           {
@@ -109,14 +122,25 @@ const { trees, owsContext } = useOwsContextBase()
       ) : <></>
   },[renderTreeItemLabel])
 
+  useEffect(()=>{
+    console.log('selectedItems changed', selectedItems)
+    console.log('active', owsContext.features.filter(f=>f.properties.active === true))
+  },[selectedItems])
+
+  
   return trees?.map(tree => {
       return (
         <SimpleTreeView
           key={tree.id}
-          onItemExpansionToggle={handleToggle}
+          onItemExpansionToggle={onItemExpansionToggle}
           defaultExpandedItems={defaultExpandedNodes}
           expandedItems={expanded}
-          selectedItems={isOpen && itemId ? itemId : null}
+                    
+          checkboxSelection={true}
+          multiSelect={true}
+
+          onItemSelectionToggle={onItemSelectionToggle}
+          selectedItems={selectedItems}
         >
           {renderTree(tree)}
         </SimpleTreeView>

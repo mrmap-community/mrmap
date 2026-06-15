@@ -5,6 +5,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { TreeItemProps } from '@mui/lab';
 import { TreeItem } from '@mui/x-tree-view';
 import Sortable from 'sortablejs';
+import { v4 as uuidv4 } from 'uuid';
 
 import { Position } from '../../ows-lib/OwsContext/enums';
 import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types';
@@ -32,13 +33,7 @@ export const DragableTreeItem = ({
   }: DragableTreeItemProps): ReactNode => {
     const ref = useRef(null)
     const { owsContext, moveFeature } = useOwsContextBase()
-    const { setContextMenu } = useContextMenuBase()
-    const itemId = useMemo(()=>( node.id ??
-      imaginary ? 
-      "id" + Math.random().toString(16).slice(2): 
-      node.properties.folder ?? "id" + Math.random().toString(16).slice(2)
-    ), [node, imaginary, node.properties.folder])
-    
+    const { setContextMenu } = useContextMenuBase()    
     const createSortable = useCallback(()=>{
       if (ref.current === null || ref.current === undefined) return
   
@@ -111,7 +106,7 @@ export const DragableTreeItem = ({
       event.stopPropagation()
       setContextMenu({
         node: node,
-        itemId: itemId,
+        itemId: node.properties.folder,
         isOpen: true,
         anchorElement: event.currentTarget,
         mouseX: event.clientX,
@@ -123,7 +118,7 @@ export const DragableTreeItem = ({
     return (
       <TreeItem
         ref={ref}
-        itemId={itemId}
+        itemId={node.properties.folder ?? uuidv4()}
         slots={{
           expandIcon: !isLeaf ? KeyboardArrowRightIcon: ImaginaryIcon,
           collapseIcon: !isLeaf ? KeyboardArrowDownIcon: ImaginaryIcon

@@ -190,7 +190,7 @@ export class OWSContext implements IOWSContext {
     throw new Error('Method not implemented.');
   }
 
-  findResourceByFolder(folder: string) {
+  findResourceByFolder(folder: string | undefined) {
     return this.features.find(feature => feature.properties.folder === folder)
   }
 
@@ -553,8 +553,13 @@ export class OWSContext implements IOWSContext {
     return this.features
   }
 
-  activateFeature(target: OWSResource, active: boolean = true) {
+  activateFeature(folder?: string, active: boolean = true) {
+    const target = this.findResourceByFolder(folder)
+    console.log('activateFeature', folder, target)
+    if (target === undefined) return []
+    console.log('huhu',target.properties.active)
     target.properties.active = active
+
     // activate/deactivate all descendants
     this.getDescandantsOf(target, true).forEach(descendant => descendant.properties.active = active)
 

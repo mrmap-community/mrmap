@@ -1,4 +1,4 @@
-import { MouseEvent, useCallback, useMemo, type ChangeEvent, type ReactNode } from 'react'
+import { MouseEvent, useCallback, useMemo, type ReactNode } from 'react'
 
 import { Checkbox } from '@mui/material'
 
@@ -18,12 +18,15 @@ const TreeNodeCheckbox = ({
     return owsContext.findResourceByFolder(node.properties.folder ?? '')
   },[node])
 
-  const handleChange = useCallback((event: ChangeEvent | MouseEvent, checked: boolean) => {
-    event.stopPropagation()
-    if (feature === undefined) return
-    setFeatureActive(feature, checked)
-  }, [feature, setFeatureActive])
+  const checked = useMemo(()=>(feature?.properties.active ?? false), [feature])
 
+  const onClick = useCallback((event: MouseEvent) => {
+        event.preventDefault()
+        event.stopPropagation()
+        console.log('huhu')
+        if (feature === undefined) return
+        setFeatureActive(feature.properties.folder ?? '', !!checked)
+  }, [feature, setFeatureActive])
 
   const isIndeterminate = useMemo(() => {
     if (feature === undefined) return false
@@ -34,10 +37,10 @@ const TreeNodeCheckbox = ({
     <Checkbox
       key={`checkbox-node-${feature?.properties.folder}`}
       id={`checkbox-node-${feature?.properties.folder}`}
-      checked={feature?.properties.active ?? false}
+      checked={checked}
       indeterminate={isIndeterminate}
       tabIndex={-1}
-      onChange={handleChange}
+      onClick={onClick}
     />
   )
 }

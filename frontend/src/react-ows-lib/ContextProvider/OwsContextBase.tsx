@@ -23,7 +23,7 @@ export interface OwsContextBaseType {
   initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: TreeifiedOWSResource[]
   activeFeatures: OWSResource[]
-  setFeatureActive: (feature: OWSResource, active: boolean) => void
+  setFeatureActive: (folder: string, active: boolean) => void
   moveFeature: (source: OWSResource, target: OWSResource, position: Position) => void
 }
 
@@ -156,10 +156,12 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     setOwsContext(new OWSContext())
   }, [])
 
-  const setFeatureActive = useCallback((feature: OWSResource, active: boolean) => {
+  const setFeatureActive = useCallback((folder: string, active: boolean) => {
     setOwsContext((prev) => {
+      
       const newContext = OWSContext.fromPlainObject(prev)
-      newContext.activateFeature(feature, active)
+      const features = newContext.activateFeature(folder, active)
+      console.log('setFeatureActive', features.filter(f=>f.properties.active===true))
       return newContext
     })
   }, [])

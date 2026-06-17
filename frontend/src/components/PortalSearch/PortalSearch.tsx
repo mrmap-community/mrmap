@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { FilterList, FilterListItem, FilterLiveSearch, FilterPayload, SavedQueriesList } from 'react-admin';
 
 import CategoryIcon from '@mui/icons-material/LocalOffer';
-import MailIcon from '@mui/icons-material/MailOutline';
+import MailIcon from '@mui/icons-material/MailOutlined';
 import { Card, CardContent, FormControl, FormHelperText, Grid, Input, InputLabel, TextField } from '@mui/material';
 
 import { ResourceSearchAccordion } from './ResourceSearchAccordion/ResourceSearchAccordion';

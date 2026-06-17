@@ -45,7 +45,7 @@ const HarvestingJobTimingCharts = (
     return getRecordRepresentation(record)
   },[getRecordRepresentation])
 
-  const timeFormatter = useCallback((seconds, short?: boolean = false) => {
+  const timeFormatter = useCallback((seconds: number, short: boolean = false) => {
       const hours = Math.floor(seconds / 3600); // 1 Stunde = 3600 Sekunden
       seconds = seconds % 3600; // Restsekunden nach Stunden
   

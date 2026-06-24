@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
@@ -18,17 +18,7 @@ export interface LayerTreeProps {
   initialExpanded?: string[]
 }
 
-const style = {
-  position: 'absolute' as const,
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: 400,
-  //bgcolor: 'background.paper',
-  //border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-};
+
 
 const TreeViews = (
   { initialExpanded = [] }: LayerTreeProps
@@ -49,7 +39,6 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
     if (!(event?.target as HTMLElement)?.closest(".MuiSvgIcon-root")) {
       return;
     }
-
     setExpanded(prev =>
       isExpanded
         ? [...new Set([...prev, itemId])]
@@ -66,10 +55,7 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
   )=>{
     event?.preventDefault()
     event?.stopPropagation()
-    
     const feature = owsContext.findResourceByFolder(itemId)
-    console.log('onItemSelectionToggle', itemId, feature, isSelected)
-
     feature && setFeatureActive(itemId, isSelected)
   }, [owsContext])
 
@@ -114,12 +100,6 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
         </DragableTreeItem >
       ) : <></>
   },[renderTreeItemLabel])
-
-  useEffect(()=>{
-    console.log('selectedItems changed', selectedItems)
-    console.log('active', owsContext.features.filter(f=>f.properties.active === true))
-  },[selectedItems])
-
   
   return trees?.map(tree => {
       return (
@@ -145,8 +125,6 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
 const LayerTree = ({ 
   initialExpanded = [] 
 }: LayerTreeProps): ReactNode => {
-  
-
   return (
     <DialogBase>
       <ContextMenuBase>

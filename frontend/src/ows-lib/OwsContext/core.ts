@@ -159,12 +159,12 @@ export class OWSContext implements IOWSContext {
     return context;
 }
 
-  appendWms(href: string, capabilitites: string, authentication?: Authentication): this {
+  appendWms(href: string, capabilitites: string, authentication?: Authentication): number {
     const parsedWms = parseWms(capabilitites)
 
     const url = prepareGetCapabilititesUrl(href, 'WMS')
-
-    const additionalFeatures = wmsToOWSResources(url.href, parsedWms, this.getNextRootId()).map(
+    const treeId = this.getNextRootId()
+    const additionalFeatures = wmsToOWSResources(url.href, parsedWms, treeId).map(
       resource => new OWSResource(resource.properties)
     ).map(resource => {
       if (authentication !== undefined) {
@@ -183,7 +183,7 @@ export class OWSContext implements IOWSContext {
       this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures }
     }
 
-    return this
+    return treeId
   }
 
   appendWfs(capabilities: string): this {

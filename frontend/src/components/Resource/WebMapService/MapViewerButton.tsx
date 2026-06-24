@@ -2,6 +2,7 @@ import PublicIcon from '@mui/icons-material/Public';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, RaRecord, useGetOne, useRecordContext } from 'react-admin';
 import { useNavigate } from "react-router-dom";
+import { OWSContext } from '../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 
@@ -50,6 +51,30 @@ const MapViewerButton = (
     setClicked(true)
   }, [])
 
+  const injectMrMapIds = useCallback((context: OWSContext, treeId: number)=>{
+    console.log('injection called')
+    const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
+    addedFeatures.forEach(feature => {
+      const operation = feature.getWmsGetMapOperation()
+      if (operation !== undefined) {
+        console.log("operation found", operation)
+        operation["x-mrmap-service-id"] = record?.id
+        
+        const url = new URL(operation.href)
+        const identifier = url.searchParams.get('layers')
+
+        const dbLayer = record?.layers?.find((layer: RaRecord) => layer.identifier === identifier)
+        if (dbLayer !== undefined){
+          operation["x-mrmap-layer-id"] = dbLayer?.id
+        }
+
+      }
+    })
+
+    console.log(context)
+    return context
+  }, [record])
+
   useEffect(() => {
      const url = wmsRecordWithUrl?.operationUrls?.find(
       (opUrl: RaRecord) => {
@@ -83,7 +108,7 @@ const MapViewerButton = (
     ){
       // wait until context is reset and then add wms by url
       const url = prepareGetCapabilititesUrl(initialGetCapabilitiesUrl.current || getCapaibilitesUrl, "wms")
-      addWMSByUrl(url.href)
+      addWMSByUrl(url.href, undefined, injectMrMapIds)
       navigate('/viewer')
       setClicked(false)
     }

@@ -19,7 +19,7 @@ export interface OwsContextBaseType {
   currentRequest: Request | undefined
   resetContext: () => void
   addWMSByRecord: (record: RaRecord) => void
-  addWMSByUrl: (url: string, headers?: Headers) => void
+  addWMSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
   initialFromOwsContext: (url: string, headers?: Headers) => void
   trees: TreeifiedOWSResource[]
   activeFeatures: OWSResource[]
@@ -101,19 +101,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     }
   }, [])
 
-  const addWMSByRecord = useCallback((record: RaRecord) => {
-    const url = record.operationUrls?.find(
-      (opUrl: RaRecord) => {
-        return (opUrl.method === 1 || opUrl.method === 'Get') && (opUrl.operation === 1 || opUrl.operation === 'GetCapabilities')
-      }
-    )?.url
-
-    if (url) {
-      addWMSByUrl(url)
-    }
-  }, [])
-
-  const addWMSByUrl = useCallback((url: string, headers?: Headers, record?: RaRecord) => {
+  const addWMSByUrl = useCallback((url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => {
+    console.log('add called', beforeSetHook)
     performFetch(url, headers)
       .then((response) => {
         if (response === null) return
@@ -122,10 +111,13 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       .then((xmlString) => {
         if (!xmlString) return
         setOwsContext((prev) => {
-          const newContext = OWSContext.fromPlainObject(prev)
+          let newContext = OWSContext.fromPlainObject(prev)
           // TODO: how to pass record here, so the wms id and layer id's are present inside owscontext?
           // best would be if this happens without changing the core so it depends on react admin.
-          newContext.appendWms(url, xmlString, headers)
+          const treeId = newContext.appendWms(url, xmlString)
+          if (beforeSetHook !== undefined){
+            newContext = beforeSetHook(newContext, treeId)
+          }
           return newContext
         })
       })
@@ -160,10 +152,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
   const setFeatureActive = useCallback((folder: string, active: boolean) => {
     setOwsContext((prev) => {
-      
       const newContext = OWSContext.fromPlainObject(prev)
-      const features = newContext.activateFeature(folder, active)
-      console.log('setFeatureActive', features.filter(f=>f.properties.active===true))
+      newContext.activateFeature(folder, active)
       return newContext
     })
   }, [])
@@ -185,7 +175,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       isLoading,
       currentRequest,
       resetContext,
-      addWMSByRecord,
       addWMSByUrl,
       initialFromOwsContext,
       trees,
@@ -200,7 +189,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     isLoading,
     currentRequest,
     resetContext,
-    addWMSByRecord,
     addWMSByUrl,
     initialFromOwsContext,
     trees,

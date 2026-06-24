@@ -113,7 +113,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     }
   }, [])
 
-  const addWMSByUrl = useCallback((url: string, headers?: Headers) => {
+  const addWMSByUrl = useCallback((url: string, headers?: Headers, record?: RaRecord) => {
     performFetch(url, headers)
       .then((response) => {
         if (response === null) return
@@ -123,6 +123,8 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
         if (!xmlString) return
         setOwsContext((prev) => {
           const newContext = OWSContext.fromPlainObject(prev)
+          // TODO: how to pass record here, so the wms id and layer id's are present inside owscontext?
+          // best would be if this happens without changing the core so it depends on react admin.
           newContext.appendWms(url, xmlString, headers)
           return newContext
         })

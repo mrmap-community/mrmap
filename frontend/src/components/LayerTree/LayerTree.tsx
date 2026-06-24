@@ -24,15 +24,11 @@ const style = {
   left: '50%',
   transform: 'translate(-50%, -50%)',
   width: 400,
-  bgcolor: 'background.paper',
-  border: '2px solid #000',
+  //bgcolor: 'background.paper',
+  //border: '2px solid #000',
   boxShadow: 24,
   p: 4,
 };
-
-const darkStyle = {
-  ...style,
-}
 
 const TreeViews = (
   { initialExpanded = [] }: LayerTreeProps
@@ -86,19 +82,13 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
  */
     return (
       <Stack
-        
-        sx={{ 
-          direction:"row",
-          justifyContent:"space-between",
-          alignItems:"center",
-          width: '100%' 
-        }}
+        direction={"row"}
+        justifyContent={"space-between"}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/*<TreeNodeCheckbox node={node} />*/}
+        <Box>
           {node.properties.title}
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box>
           {/* icons */}
           <Tooltip title="Root node">
             <AdjustIcon color="primary" fontSize="small" />

@@ -1,12 +1,12 @@
 import { useTheme } from '@mui/material/styles';
-import { AllSeriesType, ChartContainerProps } from '@mui/x-charts';
+import { AllSeriesType, ChartsContainerProps } from '@mui/x-charts';
 import { ChartSeriesType } from '@mui/x-charts/internals';
 import { useMemo } from 'react';
 import { useListContext, useResourceDefinition } from 'react-admin';
-import GradientChartContainer from '../../../MUI/GradientChartContainer';
+import GradientChartsContainer from '../../../MUI/GradientChartsContainer';
 import HistoryListBase from './HistoryListBase';
 
-export interface HistoryChartProps extends ChartContainerProps{
+export interface HistoryChartProps extends ChartsContainerProps{
   resource?: string
   total?: number
   filter?: any
@@ -102,7 +102,7 @@ const HistoryChartCore = (
 
   
   return (
-    <GradientChartContainer
+    <GradientChartsContainer
       series={series}
       xAxis={xAxis}
       {...props}

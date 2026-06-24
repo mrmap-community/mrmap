@@ -15,18 +15,18 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@eslint/compat": "^2.1.0",
-    "@geoman-io/leaflet-geoman-free": "^2.19.2",
+    "@geoman-io/leaflet-geoman-free": "^2.20.0",
     "@monaco-editor/react": "^4.7.0",
-    "@mui/icons-material": "^9.1.1",
-    "@mui/lab": "^9.0.0-beta.5",
-    "@mui/material": "^9.1.1",
-    "@mui/x-charts": "^9.5.0",
-    "@mui/x-data-grid": "^9.5.0",
-    "@mui/x-tree-view": "^9.4.0",
+    "@mui/icons-material": "^7.3.11",
+    "@mui/lab": "^7.0.1-beta.25",
+    "@mui/material": "^7.3.11",
+    "@mui/x-charts": "^9.6.0",
+    "@mui/x-data-grid": "^9.6.0",
+    "@mui/x-tree-view": "^9.6.0",
     "@react-hook/resize-observer": "^2.0.2",
     "@uidotdev/usehooks": "^2.4.1",
-    "@xyflow/react": "^12.11.0",
-    "fast-xml-parser": "^5.9.0",
+    "@xyflow/react": "^12.11.1",
+    "fast-xml-parser": "^5.9.3",
     "jsonpointer": "^5.0.1",
     "leaflet": "^1.9.4",
     "moment": "^2.30.1",
@@ -34,13 +34,13 @@
     "openapi-client-axios": "^7.9.0",
     "proj4": "^2.20.9",
     "react": "^19.2.7",
-    "react-admin": "^5.14.7",
+    "react-admin": "^5.14.6",
     "react-dom": "^19.2.7",
     "react-leaflet": "^5.0.0",
     "react-use-websocket": "^4.13.0",
     "react-xml-viewer": "^3.0.5",
     "sortablejs": "^1.15.7",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -67,6 +67,6 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "dompurify": "3.4.9"
+    "dompurify": "^3.4.11"
   }
 }

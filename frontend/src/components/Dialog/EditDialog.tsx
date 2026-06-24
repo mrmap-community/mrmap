@@ -103,8 +103,17 @@ const EditDialog = (
             aria-describedby="scroll-dialog-description"
           >
             <DialogTitle id="scroll-dialog-title">
-              <Box display="flex" alignItems="center">
-                <Box flexGrow={1} >
+              <Box 
+                sx={{
+                  display:"flex", 
+                  alignItems:"center"
+                }}
+              >
+                <Box 
+                  sx={{
+                    flexGrow: 1
+                  }}
+                >
                   <RecordRepresentation/>
                 </Box>
                 <Box>
@@ -123,7 +132,9 @@ const EditDialog = (
               {fields}
             </DialogContent>
 
-            <DialogActions style={{ justifyContent: "space-between" }}>
+            <DialogActions 
+              style={{ justifyContent: "space-between" }}
+              >
                   <SaveButton mutationOptions={{onSuccess: onEditSuccess}} type='button'/>
                   <DeleteButton redirect={false} mutationOptions={{onSuccess: onDeleteSuccess}}/>
             </DialogActions>

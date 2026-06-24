@@ -80,8 +80,8 @@ const WebMapServiceOperationUrlsListWithEdit = () => {
             aria-describedby="scroll-dialog-description"
           >
             <DialogTitle id="scroll-dialog-title">
-              <Box display="flex" alignItems="center">
-                <Box flexGrow={1} >
+              <Box sx={{display:"flex", alignItems:"center"}}>
+                <Box sx={{flexGrow:1 }}>
                   <RecordRepresentation record={clickedRow}/>
                 </Box>
                 <Box>

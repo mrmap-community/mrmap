@@ -86,10 +86,13 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
  */
     return (
       <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ width: '100%' }}
+        
+        sx={{ 
+          direction:"row",
+          justifyContent:"space-between",
+          alignItems:"center",
+          width: '100%' 
+        }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {/*<TreeNodeCheckbox node={node} />*/}

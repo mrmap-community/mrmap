@@ -36,7 +36,9 @@ const GeoJsonField = ({
                 (emptyText ? translate(emptyText, { _: emptyText }) : null)}
       
       </Typography>
-      <Box sx={{ ...style }}>
+      <Box 
+        sx={{ ...style }}
+      >
         <MapContainer
           id={`${record?.id}-mapcontainer`}
           center={[51.505, -0.09]}

@@ -12,9 +12,11 @@ const AsideCard = ({
   const [open] = useSidebarState()
   const ref = useRef(null)
   
+
   return (
     <Card
       ref={ref}
+      style={{marginLeft: '1em'}}
       sx={{
         marginLeft: '1em',
         height: '100%', // 174px ==> 50 appbar, 52 pagination,  1 em top padding

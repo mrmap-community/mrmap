@@ -1,12 +1,12 @@
 import { alpha, useTheme } from '@mui/material/styles';
-import { AreaPlot, ChartContainer, ChartContainerProps, ChartsAxis, ChartsLegend, ChartsTooltip, LineHighlightPlot, LinePlot } from '@mui/x-charts';
+import { AreaPlot, ChartsAxis, ChartsContainer, ChartsContainerProps, ChartsLegend, ChartsTooltip, LineHighlightPlot, LinePlot } from '@mui/x-charts';
 
 
-const GradientChartContainer = ({...props}: ChartContainerProps)=>{
+const GradientChartsContainer = ({...props}: ChartsContainerProps)=>{
   const theme = useTheme();
   
   return (
-    <ChartContainer
+    <ChartsContainer
         sx={{
           '& .MuiAreaElement-series-stats': { fill: "url('#defaultGradiant')", strokeWidth: 2, opacity: 0.8 }
         }}
@@ -24,9 +24,9 @@ const GradientChartContainer = ({...props}: ChartContainerProps)=>{
         <ChartsLegend direction="horizontal" />
         <ChartsTooltip />
         <ChartsAxis />
-    </ChartContainer >
+    </ChartsContainer >
   )
 }
 
 
-export default GradientChartContainer;
+export default GradientChartsContainer;

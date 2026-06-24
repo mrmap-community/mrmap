@@ -97,8 +97,12 @@ const CreateDialog = (
             aria-describedby="scroll-dialog-description"
           >
             <DialogTitle id="scroll-dialog-title">
-              <Box display="flex" alignItems="center">
-                <Box flexGrow={1} >
+              <Box 
+                display="flex" alignItems="center"
+              >
+                <Box 
+                  flexGrow={1} 
+                >
                   Create new {resource}
                 </Box>
                 <Box>

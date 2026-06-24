@@ -1,19 +1,19 @@
+import { Card, Grid, IconButton, Tooltip, Typography } from '@mui/material';
+
+import { deepmerge } from '@mui/utils';
+import { type Operation as AxiosOperation, type OpenAPIV3 } from 'openapi-client-axios';
 import { useMemo, type ReactElement } from 'react';
 import {
   Admin,
   CustomRoutes,
-  defaultTheme,
+  defaultDarkTheme,
+  defaultLightTheme,
   Loading,
   localStorageStore,
   Resource,
-  useTheme,
   type RaThemeOptions
 } from 'react-admin';
 import { BrowserRouter, Route } from 'react-router-dom';
-
-import { type Operation as AxiosOperation, type OpenAPIV3 } from 'openapi-client-axios';
-
-import { Card, Grid, IconButton, Tooltip, Typography } from '@mui/material';
 import { useHttpClientContext } from '../context/HttpClientContext';
 import CreateGuesser from '../jsonapi/components/CreateGuesser';
 import EditGuesser from '../jsonapi/components/EditGuesser';
@@ -22,8 +22,6 @@ import { getResourceSchema } from '../jsonapi/openapi/parser';
 import authProviderFunc from '../providers/authProvider';
 import jsonApiDataProvider from '../providers/dataProvider';
 import i18nProvider from '../providers/i18nProvider';
-import Dashboard from './Dashboard/Dashboard';
-import MyLayout from './Layout/Layout';
 import MapViewer from './MapViewer/MapViewer';
 import PortalSearch from './PortalSearch/PortalSearch';
 import CatalogueServiceClient from './Resource/CatalogueService/CatalogueServiceClient';
@@ -31,20 +29,26 @@ import defaultRecordRepresentation from './Resource/defaultRecordRepresentation'
 import RESOURCES from './Resource/Definition';
 
 import CircleIcon from '@mui/icons-material/Circle';
+
 import GitHubIcon from '@mui/icons-material/GitHub';
 import { ReadyState } from 'react-use-websocket';
 import { useSystemTime } from '../jsonapi/hooks/useSystemTime';
+import Dashboard from './Dashboard/Dashboard';
+import MyLayout from './Layout/Layout';
 
 const STORE_VERSION = '1'
 const store = localStorageStore(STORE_VERSION)
-const lightTheme = defaultTheme
-const customTheme: RaThemeOptions = { ...defaultTheme, transitions: {} }
-const darkTheme: RaThemeOptions = { ...defaultTheme, palette: { mode: 'dark' } }
+
+const lightTheme = defaultLightTheme
+const darkTheme: RaThemeOptions = deepmerge(defaultDarkTheme, {
+  palette: { 
+    mode: 'dark' 
+  } 
+})
 
 const MrMapFrontend = (): ReactElement => {
   const { api, isPending, realtimeIsReady } = useHttpClientContext()
-      const systemTime = useSystemTime();
-    const theme = useTheme();
+  const systemTime = useSystemTime();
   const dataProvider = useMemo(() => {
     return api && jsonApiDataProvider({
       httpClient: api, 
@@ -109,24 +113,21 @@ const MrMapFrontend = (): ReactElement => {
         ))
   ),[resourceDefinitions])
 
+  const readyStateColor = useMemo(()=>{
+    switch(realtimeIsReady){
+      case ReadyState.CONNECTING:
+        return 'warning'
+      case ReadyState.OPEN:
+        return 'success'
+      case ReadyState.CLOSING:
+      case ReadyState.CLOSED:
+        return 'error'
+      case ReadyState.UNINSTANTIATED:
+      default:
+        return 'info'
 
-  
-    const readyStateColor = useMemo(()=>{
-      switch(realtimeIsReady){
-        case ReadyState.CONNECTING:
-          return 'warning'
-        case ReadyState.OPEN:
-          return 'success'
-        case ReadyState.CLOSING:
-        case ReadyState.CLOSED:
-          return 'error'
-        case ReadyState.UNINSTANTIATED:
-        default:
-          return 'info'
-  
-      }
-    },[realtimeIsReady])
-  
+    }
+  },[realtimeIsReady])
   
   if (isPending || dataProvider === undefined || resources.length === 0) {
     return (
@@ -135,29 +136,30 @@ const MrMapFrontend = (): ReactElement => {
   } else {
     return (
       <BrowserRouter>
+        
         <Admin
           theme={lightTheme}
           darkTheme={darkTheme}
-          lightTheme={customTheme}
+          lightTheme={lightTheme}
           dataProvider={dataProvider}
           authProvider={authProvider}
           i18nProvider={i18nProvider}
           dashboard={Dashboard}
           layout={MyLayout}
           store={store}
-
           disableTelemetry
           requireAuth
         >
           {resources}
 
           {/* ows context based mapviewer */}
-          <CustomRoutes >
+          {
+            <CustomRoutes >
             <Route path="/csw-client" element={<CatalogueServiceClient />} />
             <Route path="/viewer" element={<MapViewer />} />
             <Route path="/search" element={<PortalSearch />} />
           </CustomRoutes>
-            
+  } 
         </Admin>
          <Card style={{
               position: 'fixed',
@@ -166,14 +168,18 @@ const MrMapFrontend = (): ReactElement => {
               left: 0, 
               zIndex: 100,
         }}>
-          <Grid container spacing={2} sx={{ justifyContent: 'space-between' }}>
-          
+          <Grid 
+            container 
+            spacing={2} 
+            //sx={{ justifyContent: 'space-between' }}
+          >
             <Grid >
-              <Typography padding={1}> 
+              <Typography 
+                //sx={{ padding: 1}}
+              > 
                 v.{api?.document.info.version}
               </Typography>
             </Grid>
-
             <Grid  >
               <IconButton 
                 href="https://github.com/mrmap-community" 
@@ -182,11 +188,9 @@ const MrMapFrontend = (): ReactElement => {
                 <GitHubIcon />
               </IconButton>
             </Grid>
-
-            <Grid 
-              container 
-              alignItems="center"  
-              justifyContent='space-between'>
+            <Grid
+              //sx={{alignItems: "center",justifyContent:"space-between"}}
+            >
               <Grid>
                 <Typography>{systemTime ?? ''}</Typography>
               </Grid>
@@ -203,13 +207,11 @@ const MrMapFrontend = (): ReactElement => {
                 </Tooltip>
               </Grid>
             </Grid>
-          
           </Grid>
         </Card>
       </BrowserRouter>
     )
   }
 }
-
 
 export default MrMapFrontend

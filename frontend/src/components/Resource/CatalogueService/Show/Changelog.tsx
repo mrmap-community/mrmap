@@ -18,7 +18,7 @@ const Overview = () => {
 
 
 return (
-  <>
+  <div>
     <SimpleCard
       title={<span>{createElementIfDefined(cswIcon)} {cswName}</span>}
     >
@@ -43,7 +43,7 @@ return (
           relatedResource='CatalogueService'
           empty={<EmptyList defaultValue={{ service: { id: id } }} />} />
       </SimpleCard>
-  </>
+  </div>
   )
 
 }

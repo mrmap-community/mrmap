@@ -21,12 +21,12 @@ const EditDialogButton = ({
     return null
   }
   return (
-    <>
+    <div>
       <Button label="Edit" onClick={()=>setDialogOpen(true)} {...buttonProps}>
         <AddIcon />
       </Button>
       <EditDialog id={record?.id} isOpen={dialogOpen} setIsOpen={setDialogOpen} onClose={()=>setDialogOpen(false)}{...editDialogProps} />
-    </>
+    </div>
   )
 }
 

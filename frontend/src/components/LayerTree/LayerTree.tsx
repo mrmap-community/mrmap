@@ -2,11 +2,12 @@ import { useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } f
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
-import AdjustIcon from '@mui/icons-material/AdjustOutlined'
+import VpnLockIcon from '@mui/icons-material/VpnLock'
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
-import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types'
+import { Loading, useGetOne } from 'react-admin'
+import { OWSResource } from '../../ows-lib/OwsContext/core'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
 import { DialogBase } from '../Dialog/DialogContextBase'
@@ -18,6 +19,35 @@ export interface LayerTreeProps {
   initialExpanded?: string[]
 }
 
+export interface NodeIconsProps {
+  node: OWSResource
+}
+
+const NodeIcons = ({node}: NodeIconsProps) => {
+  const layerId = useMemo(() =>
+    typeof node.getWmsGetMapOperation === 'function'
+      ? node.getWmsGetMapOperation()?.['x-mrmap-layer-id']
+      : undefined
+  , [node])
+  const {data: layer, isLoading} = useGetOne("Layer", {id: layerId}, {enabled: !!layerId})
+
+
+  if (isLoading){
+    return <Loading />
+  }
+
+  return (
+    <div>
+      {
+        layer?.isSpatialSecured ? 
+          <Tooltip title="Layer is spatial secured">
+            <VpnLockIcon color="warning" fontSize="small" />
+          </Tooltip>: 
+        null
+      }
+    </div>
+  )
+}
 
 
 const TreeViews = (
@@ -59,7 +89,9 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
     feature && setFeatureActive(itemId, isSelected)
   }, [owsContext])
 
-  const renderTreeItemLabel = useCallback((node: TreeifiedOWSResource) => {
+  
+
+  const renderTreeItemLabel = useCallback((node: OWSResource) => {
     /* const securityRuleButton = (
       <IconButton>
         {node.record.isSpatialSecured ? <Tooltip title="Spatial secured"><VpnLockIcon /></Tooltip> : node.record.isSecured ? <Tooltip title="Secured"><LockIcon /></Tooltip> : null}
@@ -76,15 +108,13 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
         </Box>
         <Box>
           {/* icons */}
-          <Tooltip title="Root node">
-            <AdjustIcon color="primary" fontSize="small" />
-          </Tooltip>
+          <NodeIcons node={node}/>
         </Box>
       </Stack>
     )
   }, [])
 
-  const renderTree = useCallback((node?: TreeifiedOWSResource): ReactNode => {
+  const renderTree = useCallback((node?: OWSResource): ReactNode => {
     return node !== undefined ? (
         <DragableTreeItem
           node={node}                    
@@ -98,7 +128,7 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
               : null
           }
         </DragableTreeItem >
-      ) : <></>
+      ) : <div></div>
   },[renderTreeItemLabel])
   
   return trees?.map(tree => {

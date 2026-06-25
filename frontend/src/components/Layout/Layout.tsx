@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { Layout, type Identifier, type LayoutProps } from 'react-admin';
 
-import { Box } from '@mui/material';
+import { Box, Card } from '@mui/material';
 import { SnackbarProvider } from 'notistack';
 
 import I18Observer from '../../jsonapi/components/I18Observer';
@@ -9,6 +9,7 @@ import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
 import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
+import Footer from './Footer';
 import Menu from './Menu';
 
 
@@ -79,7 +80,16 @@ const MyLayout = (
         >
           {children}
           {<SnackbarObserver />}
-        </Box>       
+        </Box>
+        <Card style={{
+              position: 'fixed',
+              right: 0, 
+              bottom: 0, 
+              left: 0, 
+              zIndex: 100,
+        }}>
+          <Footer/>
+        </Card>   
       </Layout>
     </SnackbarProvider>
 

@@ -27,7 +27,7 @@ const SnackbarObserver = (): ReactNode => {
   }, [dataProvider, handleBusEvent])
 
   return (
-    <></>
+    <div></div>
   )
 }
 

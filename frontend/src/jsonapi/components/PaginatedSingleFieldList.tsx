@@ -46,7 +46,7 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = any>({
     },[data, visibleData])
 
     return (
-        <>
+        <div>
             <Stack sx={{direction:"row", gap:1, flexWrap:"wrap"}}>
                 <SingleFieldList
                   data={visibleData}
@@ -89,6 +89,6 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = any>({
                     <Button onClick={() => setOpenModal(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
-        </>
+        </div>
     );
 };

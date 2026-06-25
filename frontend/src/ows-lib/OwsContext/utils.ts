@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { InheritableProperties, WmsCapabilitites, WmsLayer } from "../XMLParser/types";
-import { OWSResource as IOWSResource, OWSContext, StyleSet, TreeifiedOWSResource } from "./types";
+import { OWSResource } from './core';
+import { OWSResource as IOWSResource, OWSContext, StyleSet } from "./types";
 
 export const OWSContextDocument = (
     id: string = uuidv4(),
@@ -59,9 +60,8 @@ export const prepareGetMapUrl = (
     return url
 }
 
-export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCapabilitites, node: WmsLayer, folder: string): IOWSResource => {
-
-    return {
+export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCapabilitites, node: WmsLayer, folder: string): OWSResource => {
+    return OWSResource.fromPlainObject({
         type: "Feature",
         properties: {
             title: node.metadata.title,
@@ -100,18 +100,18 @@ export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCap
             }),
             folder: folder
         }
-    }
+    })
 }
 
 
 export const deflatLayerTree = (
     getCapabilitiesHref: string,
-    features: IOWSResource[],
+    features: OWSResource[],
     capabilities: WmsCapabilitites,
     parentFolder: string,
     currentIndex: number,
     node?: WmsLayer,
-): IOWSResource[] => {
+): OWSResource[] => {
 
     const _node: WmsLayer = node ?? capabilities.rootLayer
 
@@ -136,11 +136,9 @@ export const wmsToOWSResources = (href: string, capabilities: WmsCapabilitites, 
     )
 }
 
-export const treeToList = (node: TreeifiedOWSResource) => {
+export const treeToList = (node: OWSResource) => {
     const flatNodes = [node]
-    if (node.children.length > 0) {
-        node.children.forEach(child => flatNodes.push(...treeToList(child)))
-    }
+    node.children?.forEach(child => flatNodes.push(...treeToList(child)))
     return flatNodes
 }
 

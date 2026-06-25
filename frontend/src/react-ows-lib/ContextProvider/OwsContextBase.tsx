@@ -4,7 +4,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { RaRecord } from 'react-admin'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
-import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types'
 
 
 export interface OwsContextBaseType {
@@ -21,7 +20,7 @@ export interface OwsContextBaseType {
   addWMSByRecord: (record: RaRecord) => void
   addWMSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
   initialFromOwsContext: (url: string, headers?: Headers) => void
-  trees: TreeifiedOWSResource[]
+  trees: OWSResource[]
   activeFeatures: OWSResource[]
   setFeatureActive: (folder: string, active: boolean) => void
   moveFeature: (source: OWSResource, target: OWSResource, position: Position) => void

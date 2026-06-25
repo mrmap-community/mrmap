@@ -5,7 +5,7 @@ import { parseWms } from '../XMLParser/parseCapabilities';
 import { Capabilites, WmsCapabilitites } from '../XMLParser/types';
 import { Authentication } from './contrib';
 import { Position } from './enums';
-import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties, TreeifiedOWSResource } from './types';
+import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties } from './types';
 import { appendLayerIdentifiers, collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, isGetMapUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 
 const VALID_PATH = new RegExp('(\/\d*)+')
@@ -17,22 +17,26 @@ export class OWSResource implements IOWSResource {
   type: 'Feature';
   id?: string | number;
   bbox?: BBox;
+  children?: OWSResource[] | undefined;
 
   constructor(
     properties: OWSResourceProperties,
     id: string | number = uuidv4(),
     bbox: BBox | undefined = undefined,
-    geometry: Geometry | undefined = undefined
+    geometry: Geometry | undefined = undefined,
+    children: OWSResource[] | undefined = []
   ) {
     this.properties = JSON.parse(JSON.stringify(properties))
     this.id = id
     this.bbox = bbox ? JSON.parse(JSON.stringify(bbox)) : undefined
     this.type = 'Feature'
     this.geometry = geometry ? JSON.parse(JSON.stringify(geometry)) : undefined
+    this.children = children 
   }
 
-  static fromPlainObject(resource: IOWSResource) {
-    return new OWSResource(resource.properties, resource.id, resource.bbox, resource.geometry)
+  static fromPlainObject(resource: IOWSResource): OWSResource {
+    const children = resource.children?.map(child => OWSResource.fromPlainObject(child))
+    return new OWSResource(resource.properties, resource.id, resource.bbox, resource.geometry, children)
   }
 
   getWmsOffering() {
@@ -254,7 +258,7 @@ export class OWSContext implements IOWSContext {
     const currentSourceParentFolder = source.getParentFolder() ?? '/'
     const currentSourceFolders = currentSourceSubtree.map(node => node.properties.folder).filter(folder => folder !== undefined)
 
-    const futureSiblings = this.getDescandantsOf(target, false).filter(descendant => !currentSourceFolders.includes(descendant.properties.folder))
+    const futureSiblings = this.getDescandantsOf(target, false).filter(descendant => descendant.properties.folder && !currentSourceFolders.includes(descendant.properties.folder))
 
     const currentTargetRightSiblingsIncludeSelf = this.getRightSiblingsOf(target, true, true).filter(feature => !currentSourceSubtree.includes(feature))
     const currentTargetRightSiblings = this.getRightSiblingsOf(target, false, true).filter(feature => {
@@ -555,9 +559,7 @@ export class OWSContext implements IOWSContext {
 
   activateFeature(folder?: string, active: boolean = true) {
     const target = this.findResourceByFolder(folder)
-    console.log('activateFeature', folder, target)
     if (target === undefined) return []
-    console.log('huhu',target.properties.active)
     target.properties.active = active
 
     // activate/deactivate all descendants
@@ -707,8 +709,8 @@ export class OWSContext implements IOWSContext {
     return getMapUrls
   }
 
-  treeify(): TreeifiedOWSResource[] {
-    const trees: TreeifiedOWSResource[] = []
+  treeify(): OWSResource[] {
+    const trees: OWSResource[] = []
 
     this.features.forEach((feature: IOWSResource) => {
       // by default the order of the features array may be used to visualize the layer structure.
@@ -720,7 +722,7 @@ export class OWSContext implements IOWSContext {
 
       if (depth === 0) {
         // root node
-        trees.push({ ...feature, id: uuidv4(), children: [] })
+        trees.push(OWSResource.fromPlainObject({ ...feature, id: uuidv4(), children: [] }))
       } else {
         // find root node first
         let node = trees.find(tree => tree.properties.folder === `/${folders?.[0]}`)
@@ -732,13 +734,13 @@ export class OWSContext implements IOWSContext {
 
         for (let currentDepth = 2; currentDepth <= depth; currentDepth++) {
           const currentSubFolder = `/${folders?.slice(0, currentDepth).join('/')}`
-          node = node.children.find(n => n.properties.folder === currentSubFolder)
+          node = node.children?.find(n => n.properties.folder === currentSubFolder)
           if (node === undefined) {
             // TODO: just create a new node if it wasnt find
             throw new Error('parsingerror... the context is not well ordered.')
           }
         }
-        node.children.push({ ...feature, children: [] })
+        node.children?.push(OWSResource.fromPlainObject({ ...feature,  children: [] }))
       }
     })
 

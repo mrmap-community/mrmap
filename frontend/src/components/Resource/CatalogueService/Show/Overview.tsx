@@ -29,7 +29,7 @@ const Overview = ({
         source => {
           const fieldDefinition = fieldDefinitions.find(fieldDefinition => fieldDefinition.props.source === source)
           if (fieldDefinition === undefined){
-            return <></>
+            return <div></div>
           }
           return createElement(
             fieldDefinition.component, 
@@ -48,7 +48,7 @@ const Overview = ({
   }
 
   return (
-  <>
+  <div>
     <SimpleCard
       title={<span>{createElementIfDefined(cswIcon)} {cswName}</span>}
     >
@@ -67,7 +67,7 @@ const Overview = ({
     >
       <ListPeriodicHarvestingJob/>
     </SimpleCard>
-  </>
+  </div>
   )
 
 }

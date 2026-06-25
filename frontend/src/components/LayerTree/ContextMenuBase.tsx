@@ -1,11 +1,11 @@
 
 import { Dispatch, PropsWithChildren, ReactNode, SetStateAction, createContext, useContext, useMemo, useState } from "react";
-import { TreeifiedOWSResource } from "../../ows-lib/OwsContext/types";
+import { OWSResource } from "../../ows-lib/OwsContext/core";
 
 
 
 export interface ContextMenuBaseProps {
-  node: TreeifiedOWSResource;
+  node: OWSResource;
   itemId?: string;
   isOpen: boolean;
   anchorElement: HTMLElement | null;
@@ -22,7 +22,7 @@ export const context = createContext<ContextMenuBaseType | undefined>(undefined)
 
 
 export const ContextMenuBase = ({children}: PropsWithChildren): ReactNode => {
-  const [node, setNode] = useState<TreeifiedOWSResource | undefined>(undefined)
+  const [node, setNode] = useState<OWSResource | undefined>(undefined)
   const [itemId, setItemId] = useState<string | undefined>(undefined)
   const [isOpen, setIsOpen] = useState(false)
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null)

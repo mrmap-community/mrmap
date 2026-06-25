@@ -8,7 +8,7 @@ import Sortable from 'sortablejs';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Position } from '../../ows-lib/OwsContext/enums';
-import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types';
+import { OWSResource } from '../../ows-lib/OwsContext/types';
 import { getParentFolder } from '../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase';
 import { useContextMenuBase } from './ContextMenuBase';
@@ -20,7 +20,7 @@ function ImaginaryIcon(props: React.PropsWithoutRef<typeof KeyboardArrowRightIco
   return <div />;
 }
 export interface DragableTreeItemProps extends TreeItemProps{
-    node: TreeifiedOWSResource
+    node: OWSResource
     sortable?: Sortable.Options
     imaginary?: boolean
   }

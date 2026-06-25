@@ -23,10 +23,10 @@ const ChangeLogList = (
   const [expanded, setExpanded] = useState(false);
   
   if (!hasHistoricalEndpoint){
-    return <></>
+    return <div></div>
   }
   return (
-      <>
+      <div>
         <Divider />
         <Accordion 
           slotProps={{ heading: { component: 'h2' } }}
@@ -45,7 +45,7 @@ const ChangeLogList = (
             {expanded ? <HistoryList disableSyncWithLocation/>: null}
           </AccordionDetails>
         </Accordion>
-      </>
+      </div>
   );
 };
 

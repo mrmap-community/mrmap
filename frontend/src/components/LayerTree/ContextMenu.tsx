@@ -68,7 +68,7 @@ const MenuItems = () => {
   if (node === undefined || feature === undefined) return null
 
   return (
-    <>
+    <div>
       {!feature?.isRootNode() ? <MenuItem
         onClick={() => {
           console.log("move up:", node );
@@ -76,7 +76,7 @@ const MenuItems = () => {
         }}
       >
         <ArrowUpwardIcon fontSize="small"/> move up
-      </MenuItem> : <></>}
+      </MenuItem> : <div></div>}
       {node?.children.length > 0 ? <MenuItem
         onClick={() => {
           console.log("move down:", node );
@@ -84,9 +84,9 @@ const MenuItems = () => {
         }}
       >
         <ArrowDownwardIcon fontSize="small"/> move down
-      </MenuItem> : <></>}
+      </MenuItem> : <div></div>}
       <ManageAuthenticationItem/>
-    </>
+    </div>
   )
 }
 

@@ -40,7 +40,7 @@ const RightDrawer = ({
   }, [setRightDrawer, rightDrawer, callback])
 
   return (
-    <>
+    <div>
       <IconButton
         ref={buttonRef}
         color={'inherit'}
@@ -89,7 +89,7 @@ const RightDrawer = ({
         {children ?? rightDrawer.children}
       </Drawer >
 
-    </>
+    </div>
   )
 }
 

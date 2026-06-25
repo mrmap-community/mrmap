@@ -33,7 +33,7 @@ export const OwsContextActionButtons = () => {
     const { isLoading, currentRequest } = useOwsContextBase()
   
     return (
-    <>
+    <div>
         <Box  sx={{ '& > :not(style)': { m: 1 } }}>
             <Tooltip title="Initial">
                 <Fab color="primary" aria-label="add" size="small" onClick={handleOpenInitialDialog} disabled={isLoading}>
@@ -68,6 +68,6 @@ export const OwsContextActionButtons = () => {
         
        
         
-    </>
+    </div>
     )
 }

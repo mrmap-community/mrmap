@@ -17,12 +17,12 @@ const CreateDialogButton = ({
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
 
   return (
-    <>
+    <div>
       <Button label="Create" onClick={()=>setDialogOpen(true)} {...buttonProps}>
         <AddIcon />
       </Button>
       <CreateDialog isOpen={dialogOpen} setIsOpen={setDialogOpen} {...createDialogProps} />
-    </>
+    </div>
   )
 }
 

@@ -45,10 +45,10 @@ const WebMapServiceOperationUrlsListWithEdit = () => {
   },[])
 
   return (
-    <>
+    <div>
       <ListGuesser 
         resource='WebMapServiceOperationUrl'
-        rowActions={<></>}
+        rowActions={<div></div>}
         onRowClick={(record) => setClickedRow(record)}
       />
       {
@@ -109,7 +109,7 @@ const WebMapServiceOperationUrlsListWithEdit = () => {
         </Form>
       </Edit>
     : null} 
-    </>
+    </div>
   )
 }
 

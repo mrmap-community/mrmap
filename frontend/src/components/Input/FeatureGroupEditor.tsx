@@ -73,7 +73,7 @@ const FeatureGroupEditor = ({
   // TODO: on unmount, the geoJson shall be removed from the map.
 
   return (
-    <>
+    <div>
     {editable ? 
       <GeomanControl 
         position="topright" 
@@ -94,7 +94,7 @@ const FeatureGroupEditor = ({
         onRemove={updateGeoJson}
       />: null}
       
-    </>
+    </div>
     
   )
 }

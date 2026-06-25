@@ -1,4 +1,3 @@
-import { Card, Grid, IconButton, Tooltip, Typography } from '@mui/material';
 
 import { deepmerge } from '@mui/utils';
 import { type Operation as AxiosOperation, type OpenAPIV3 } from 'openapi-client-axios';
@@ -28,11 +27,7 @@ import CatalogueServiceClient from './Resource/CatalogueService/CatalogueService
 import defaultRecordRepresentation from './Resource/defaultRecordRepresentation';
 import RESOURCES from './Resource/Definition';
 
-import CircleIcon from '@mui/icons-material/Circle';
 
-import GitHubIcon from '@mui/icons-material/GitHub';
-import { ReadyState } from 'react-use-websocket';
-import { useSystemTime } from '../jsonapi/hooks/useSystemTime';
 import Dashboard from './Dashboard/Dashboard';
 import MyLayout from './Layout/Layout';
 
@@ -48,7 +43,6 @@ const darkTheme: RaThemeOptions = deepmerge(defaultDarkTheme, {
 
 const MrMapFrontend = (): ReactElement => {
   const { api, isPending, realtimeIsReady } = useHttpClientContext()
-  const systemTime = useSystemTime();
   const dataProvider = useMemo(() => {
     return api && jsonApiDataProvider({
       httpClient: api, 
@@ -113,21 +107,7 @@ const MrMapFrontend = (): ReactElement => {
         ))
   ),[resourceDefinitions])
 
-  const readyStateColor = useMemo(()=>{
-    switch(realtimeIsReady){
-      case ReadyState.CONNECTING:
-        return 'warning'
-      case ReadyState.OPEN:
-        return 'success'
-      case ReadyState.CLOSING:
-      case ReadyState.CLOSED:
-        return 'error'
-      case ReadyState.UNINSTANTIATED:
-      default:
-        return 'info'
 
-    }
-  },[realtimeIsReady])
   
   if (isPending || dataProvider === undefined || resources.length === 0) {
     return (
@@ -161,54 +141,6 @@ const MrMapFrontend = (): ReactElement => {
           </CustomRoutes>
   } 
         </Admin>
-         <Card style={{
-              position: 'fixed',
-              right: 0, 
-              bottom: 0, 
-              left: 0, 
-              zIndex: 100,
-        }}>
-          <Grid 
-            container 
-            spacing={2} 
-            //sx={{ justifyContent: 'space-between' }}
-          >
-            <Grid >
-              <Typography 
-                //sx={{ padding: 1}}
-              > 
-                v.{api?.document.info.version}
-              </Typography>
-            </Grid>
-            <Grid  >
-              <IconButton 
-                href="https://github.com/mrmap-community" 
-                target="_blank"
-              >
-                <GitHubIcon />
-              </IconButton>
-            </Grid>
-            <Grid
-              //sx={{alignItems: "center",justifyContent:"space-between"}}
-            >
-              <Grid>
-                <Typography>{systemTime ?? ''}</Typography>
-              </Grid>
-              <Grid>
-                <Tooltip title={
-                  realtimeIsReady === ReadyState.OPEN 
-                  ? 'Backend is connected'
-                  : 'Connection to backend lost'
-                  }
-                >
-                  <IconButton>
-                    <CircleIcon color={readyStateColor}/>
-                  </IconButton>
-                </Tooltip>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Card>
       </BrowserRouter>
     )
   }

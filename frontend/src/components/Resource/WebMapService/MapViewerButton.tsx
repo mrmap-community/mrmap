@@ -35,9 +35,10 @@ const MapViewerButton = (
       id: record?.id,
       meta: {
         "jsonApiParams": {
-          "include": "operationUrls",
-          "fields[WebMapService]": "operation_urls,version",
+          "include": "operationUrls,layers",
+          "fields[WebMapService]": "operation_urls,version,layers",
           "fields[WebMapServiceOperationUrl]": "url,method,operation",
+          "fields[Layer]": "identifier",
         }
       }
     },
@@ -52,28 +53,23 @@ const MapViewerButton = (
   }, [])
 
   const injectMrMapIds = useCallback((context: OWSContext, treeId: number)=>{
-    console.log('injection called')
     const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
+
     addedFeatures.forEach(feature => {
       const operation = feature.getWmsGetMapOperation()
       if (operation !== undefined) {
-        console.log("operation found", operation)
-        operation["x-mrmap-service-id"] = record?.id
+        operation["x-mrmap-service-id"] = wmsRecordWithUrl?.id
         
         const url = new URL(operation.href)
-        const identifier = url.searchParams.get('layers')
-
-        const dbLayer = record?.layers?.find((layer: RaRecord) => layer.identifier === identifier)
+        const identifier = [...url.searchParams.entries()].find(([key]) => key.toLowerCase() === 'layers')?.[1];
+        const dbLayer = wmsRecordWithUrl?.layers?.find((layer: RaRecord) => layer.identifier === identifier)
         if (dbLayer !== undefined){
           operation["x-mrmap-layer-id"] = dbLayer?.id
         }
-
       }
     })
-
-    console.log(context)
     return context
-  }, [record])
+  }, [wmsRecordWithUrl])
 
   useEffect(() => {
      const url = wmsRecordWithUrl?.operationUrls?.find(

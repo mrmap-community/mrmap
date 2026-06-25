@@ -8,7 +8,7 @@ import Logo from './Logo';
 
 const CustomAppBar = (): ReactNode => { 
   const isLargeEnough = useMediaQuery<Theme>(theme =>
-    theme.breakpoints.up('sm')
+    theme.breakpoints.up('xs')
 );
   return (
     <AppBar  
@@ -18,8 +18,6 @@ const CustomAppBar = (): ReactNode => {
       {isLargeEnough && <Logo />}
       {/** dummy div to push toolbar to the right. Searchfield will be placed here as soon as possible */}
       <div style={{width: '100%'}}/>
-      
-
     </AppBar>
   )}
 

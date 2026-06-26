@@ -41,6 +41,8 @@ const darkTheme: RaThemeOptions = deepmerge(defaultDarkTheme, {
   } 
 })
 
+console.log(darkTheme,lightTheme)
+
 const MrMapFrontend = (): ReactElement => {
   const { api, isPending, realtimeIsReady } = useHttpClientContext()
   const dataProvider = useMemo(() => {

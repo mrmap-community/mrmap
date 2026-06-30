@@ -109,6 +109,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       .then((xmlString) => {
         if (!xmlString) return
         setOwsContext((prev) => {
+          //TODO: messure time here
           let newContext = OWSContext.fromPlainObject(prev)
           // TODO: how to pass record here, so the wms id and layer id's are present inside owscontext?
           // best would be if this happens without changing the core so it depends on react admin.

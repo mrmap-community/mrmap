@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
@@ -8,7 +8,7 @@ import VpnLockIcon from '@mui/icons-material/VpnLock'
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
-import { RaRecord, useInfiniteGetList } from 'react-admin'
+import { useGetMany } from 'react-admin'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
@@ -21,39 +21,54 @@ export interface LayerTreeProps {
   initialExpanded?: string[]
 }
 
-export interface NodeIconsProps {
-  node: OWSResource
+export interface LayerProperties {
+  isActive?: boolean;
+  isSpatialSecured?: boolean;
 }
 
-const NodeIcons = ({node}: NodeIconsProps) => {
-  const layerProperties = useMemo<RaRecord|undefined>(() =>
-    typeof node.getWmsGetMapOperation === 'function'
-      ? node.getWmsGetMapOperation()?.['x-mrmap-layer-properties'] as RaRecord
-      : undefined
-  , [node])
-  console.log('layerProperties',layerProperties, node)
-  return (
+const NodeIcons = memo(
+  ({ isActive, isSpatialSecured }: LayerProperties) => (
     <div>
-      {
-        layerProperties?.isActive ?
+      {isActive ? (
         <Tooltip title="Layer is active">
-            <PowerIcon color="success" fontSize="small" />
-          </Tooltip>: 
+          <PowerIcon color="success" fontSize="small" />
+        </Tooltip>
+      ) : (
         <Tooltip title="Layer is not active">
-            <PowerOffIcon color="error" fontSize="small" />
-          </Tooltip>
-      }
-      {
-        layerProperties?.isSpatialSecured ? 
-          <Tooltip title="Layer is spatial secured">
-            <VpnLockIcon color="warning" fontSize="small" />
-          </Tooltip>: 
-        null
-      }
+          <PowerOffIcon color="error" fontSize="small" />
+        </Tooltip>
+      )}
+
+      {isSpatialSecured && (
+        <Tooltip title="Layer is spatial secured">
+          <VpnLockIcon color="warning" fontSize="small" />
+        </Tooltip>
+      )}
     </div>
   )
+);
+
+
+export interface TreeItemLabelProps {
+  title: string;
+  isActive?: boolean;
+  isSpatialSecured?: boolean;
 }
 
+const TreeItemLabel = memo(
+  ({ title, isActive, isSpatialSecured }: TreeItemLabelProps) => (
+    <Stack direction="row" justifyContent="space-between">
+      <Box>{title}</Box>
+
+      <Box>
+        <NodeIcons
+          isActive={isActive}
+          isSpatialSecured={isSpatialSecured}
+        />
+      </Box>
+    </Stack>
+  )
+);
 
 const TreeViews = (
   { initialExpanded = [] }: LayerTreeProps
@@ -93,36 +108,21 @@ const TreeViews = (
     feature && setFeatureActive(itemId, isSelected)
   }, [owsContext])
 
-  const renderTreeItemLabel = useCallback((node: OWSResource) => {
-    /* const securityRuleButton = (
-      <IconButton>
-        {node.record.isSpatialSecured ? <Tooltip title="Spatial secured"><VpnLockIcon /></Tooltip> : node.record.isSecured ? <Tooltip title="Secured"><LockIcon /></Tooltip> : null}
-      </IconButton>
-    )
- */
-    return (
-      <Stack
-        direction={"row"}
-        justifyContent={"space-between"}
-      >
-        <Box>
-          {node.properties.title}
-        </Box>
-        <Box>
-          {/* icons */}
-          <NodeIcons node={node}/>
-        </Box>
-      </Stack>
-    )
-  }, [])
-
   const renderTree = useCallback((node?: OWSResource): ReactNode => {
+    const layerProperties = node?.getWmsGetMapOperation?.()?.["x-mrmap-layer-properties"] as LayerProperties | undefined;
     return node !== undefined ? (
         <DragableTreeItem
           node={node}                    
           key={node.properties.folder}
           itemId={node.properties.folder}
-          label={renderTreeItemLabel(node)}
+          label={
+            <TreeItemLabel
+          title={node.properties.title}
+          isActive={layerProperties?.isActive}
+          isSpatialSecured={layerProperties?.isSpatialSecured}
+      />
+
+          }
         >
           {
             Array.isArray(node.children)
@@ -131,22 +131,16 @@ const TreeViews = (
           }
         </DragableTreeItem >
       ) : <div></div>
-  },[renderTreeItemLabel])
-
-
-
+  },[])
 
   return trees?.map(tree => {
       return (
         <SimpleTreeView
           key={tree.id}
           onItemExpansionToggle={onItemExpansionToggle}
-          defaultExpandedItems={defaultExpandedNodes}
-          expandedItems={expanded}
-                    
+          expandedItems={expanded}                 
           checkboxSelection={true}
           multiSelect={true}
-
           onItemSelectionToggle={onItemSelectionToggle}
           selectedItems={selectedItems}
         >
@@ -177,16 +171,12 @@ const LayerTree = ({
 
   const {
     data,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage
-  } = useInfiniteGetList(
+  } = useGetMany(
     "Layer", 
     {
+      ids: mrmapLayers,
       meta: {
-        pagination: { page: 1, perPage: 100 },
         jsonApiParams:{
-          'filter[id.in]': mrmapLayers.join(','),
           'fields[Layer]': 'identifier,is_spatial_secured,is_active'
         }
       }
@@ -195,17 +185,7 @@ const LayerTree = ({
       enabled: mrmapLayers.length > 0
     }
   )
-
-  const layers = useMemo(() => data?.pages?.flatMap(page => page.data) ?? [],[data])
-  
   useEffect(()=>{
-    if(hasNextPage){
-      fetchNextPage()
-    }
-  },[isFetchingNextPage])
-
-  useEffect(()=>{
-    if(layers.length > 0 && !hasNextPage){
       const newContext = OWSContext.fromPlainObject(owsContext)
       const offerings = newContext.features.flatMap(
         feature => feature.properties.offerings ?? []
@@ -213,7 +193,7 @@ const LayerTree = ({
         offering => offering.operations ?? []
       )
       
-      layers.forEach(layer => {
+      data?.forEach(layer => {
         const offering = offerings.find(offering => offering["x-mrmap-layer-id"] === layer.id)
         if (offering !== undefined) {
           offering["x-mrmap-layer-properties"] = {...layer}
@@ -221,8 +201,8 @@ const LayerTree = ({
       })
 
       setOwsContext(newContext)
-    }
-  },[layers, hasNextPage])
+    
+  },[data])
   
   return (
     <DialogBase>

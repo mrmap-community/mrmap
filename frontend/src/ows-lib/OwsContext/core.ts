@@ -118,6 +118,7 @@ export class OWSContext implements IOWSContext {
     } 
   }; // map to store all capabilities which are part of this ows context
   crsIntersection: string[]; // extension to calculate the reference systems which all active features supports
+  folderToResource: Map<string, OWSResource>;
 
   constructor(
     id: string = uuidv4(),
@@ -131,6 +132,7 @@ export class OWSContext implements IOWSContext {
     authentications: Authentication[] = [],
     capabilititesMap = {}
   ) {
+    this.folderToResource = new Map<string, OWSResource>();
     this.id = id;
     this.type = "FeatureCollection";
     this.features = features.map(feature =>
@@ -138,6 +140,7 @@ export class OWSContext implements IOWSContext {
             ? feature
             : OWSResource.fromPlainObject(feature)
     );
+    this.rebuildFolderLookup()
     this.bbox = bbox;
     this.properties = JSON.parse(JSON.stringify(properties));
     this.authentications = authentications;
@@ -161,7 +164,18 @@ export class OWSContext implements IOWSContext {
     );
 
     return context;
-}
+  }
+
+  private rebuildFolderLookup() {
+    this.folderToResource.clear();
+
+    for (const feature of this.features) {
+      const folder = feature.properties.folder;
+      if (folder) {
+        this.folderToResource.set(folder, feature);
+      }
+    }
+  }
 
   appendWms(href: string, capabilitites: string, authentication?: Authentication): number {
     const parsedWms = parseWms(capabilitites)
@@ -186,7 +200,7 @@ export class OWSContext implements IOWSContext {
     } else {
       this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures }
     }
-
+    this.rebuildFolderLookup()
     return treeId
   }
 
@@ -194,8 +208,10 @@ export class OWSContext implements IOWSContext {
     throw new Error('Method not implemented.');
   }
 
-  findResourceByFolder(folder: string | undefined) {
-    return this.features.find(feature => feature.properties.folder === folder)
+  findResourceByFolder(folder?: string) {
+    return folder
+        ? this.folderToResource.get(folder)
+        : undefined;
   }
 
   getNextRootId(): number {
@@ -321,6 +337,7 @@ export class OWSContext implements IOWSContext {
 
     this.sortFeaturesByFolder()
     this.validateFolderStructure()
+    this.rebuildFolderLookup()
     return this.features
   }
 
@@ -386,6 +403,7 @@ export class OWSContext implements IOWSContext {
     }
     this.sortFeaturesByFolder()
     this.validateFolderStructure()
+    this.rebuildFolderLookup()
   }
 
   sortFeaturesByFolder() {
@@ -472,10 +490,13 @@ export class OWSContext implements IOWSContext {
   }
 
   getParentOf(target: OWSResource) {
-    if (target.properties.folder === undefined) return
-    const parentFolderName = target.getParentFolder()
-    if (parentFolderName === undefined || parentFolderName === '/') return
-    return this.features.find(feature => feature.properties.folder === parentFolderName)
+      const parentFolder = target.getParentFolder();
+
+      if (!parentFolder || parentFolder === '/') {
+          return;
+      }
+
+      return this.folderToResource.get(parentFolder);
   }
 
   getAncestorsOf(target: OWSResource, include_self: boolean = false) {
@@ -553,7 +574,7 @@ export class OWSContext implements IOWSContext {
     this.features.splice(start, stop - start + 1)
 
     updateFolders(this.features)
-
+    this.rebuildFolderLookup()
     return this.features
   }
 

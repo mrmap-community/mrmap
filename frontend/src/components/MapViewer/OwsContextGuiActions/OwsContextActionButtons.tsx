@@ -36,30 +36,38 @@ export const OwsContextActionButtons = () => {
     <div>
         <Box  sx={{ '& > :not(style)': { m: 1 } }}>
             <Tooltip title="Initial">
+                <span>
                 <Fab color="primary" aria-label="add" size="small" onClick={handleOpenInitialDialog} disabled={isLoading}>
                     <AutoFixHighIcon />
                 </Fab>
+                </span>
             </Tooltip>
             <InitialFromOwsContextDialog open={openInitialDialog} setOpen={setOpenInitialDialog}/>
       
             <Tooltip title="Add Resource">
+                <span>
                 <Fab color="primary" aria-label="add" size="small" onClick={handleOpenAddResourceDialog} disabled={isLoading}>
                     <AddIcon />
                 </Fab>
+                </span>
             </Tooltip>
             <AddResourceDialog open={openAddResourceDialog} setOpen={setOpenAddResourceDialog}/>
       
             <Tooltip title="Edit OWS Context">
+                <span>
                 <Fab color="secondary" aria-label="edit" size="small" disabled={isLoading} onClick={handleOpenOwsContextEditor}>
                     <EditIcon />
                 </Fab>
+                </span>
             </Tooltip>
             <EditOwsContextDialog open={openOwsContextEditor} setOpen={setOpenOwsContextEditor}/>
 
             <Tooltip title="Manage Authentications">
+                <span>
                 <Fab color="secondary" aria-label="authentications" size="small" disabled={isLoading} onClick={handleOpenAuthenticationsEditor}>
                     <VpnKeyIcon />
                 </Fab>
+                </span>
             </Tooltip>
             
             {isLoading && <Loading loadingSecondary={currentRequest?.url} />}

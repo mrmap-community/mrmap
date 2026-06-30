@@ -31,13 +31,18 @@ export const DragableTreeItem = ({
     imaginary = false,
     ...props
   }: DragableTreeItemProps): ReactNode => {
-    const ref = useRef(null)
+    const ref = useRef<HTMLLIElement | null>(null)
+    const sortableRef = useRef<Sortable | null>(null);
+    
     const { owsContext, moveFeature } = useOwsContextBase()
-    const { setContextMenu } = useContextMenuBase()    
+    const { setContextMenu } = useContextMenuBase()  
+    
+    
     const createSortable = useCallback(()=>{
-      if (ref.current === null || ref.current === undefined) return
-  
-      Sortable.create(ref.current, {
+      if (!ref.current) return null;  
+      
+      
+      return Sortable.create(ref.current, {
         group: {name: 'general',},
         animation: 150,
         fallbackOnBody: true,
@@ -54,12 +59,13 @@ export const DragableTreeItem = ({
   
           const targetFolder = evt.to.dataset.owscontextFolder
           if (targetFolder === undefined) return
+
           const target = owsContext.findResourceByFolder(targetFolder)
 
           // get the correct source object (not a shallow coppy)
           const sourceFolder = node.properties.folder
-
           if (sourceFolder === undefined) return
+
           const source = owsContext.findResourceByFolder(sourceFolder)
           if (source == undefined) return
 
@@ -68,27 +74,34 @@ export const DragableTreeItem = ({
             // move the node as child to the fictive parent
             const parentFolder = getParentFolder(targetFolder)
             if (parentFolder === undefined) return
+
             const parent = owsContext.findResourceByFolder(parentFolder)
             if (parent === undefined) return
+
             moveFeature(source, parent, Position.firstChild)          
           } else {
             const newIndex = evt.newIndex
+
             if (newIndex === 0) {
               moveFeature(source, target, Position.left)
             } else if (newIndex === 1) {
               moveFeature(source, target, Position.right)
             }
           }
-  
         },
         ...sortable
       })
   
-    }, [owsContext, ref, moveFeature])
+    }, [moveFeature, node, owsContext, sortable])
   
-    useEffect(()=>{
-      createSortable()
-    },[])
+    useEffect(() => {
+      sortableRef.current = createSortable();
+
+      return () => {
+        sortableRef.current?.destroy();
+        sortableRef.current = null;
+      };
+    }, [createSortable]);
     
 
     const isLeaf = useMemo(() => {

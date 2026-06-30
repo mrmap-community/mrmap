@@ -365,15 +365,40 @@ const dataProvider = ({
       if (relatedResource !== undefined && relatedResource.id === undefined){
         // possible if the getList is called inside a CreateGuesser with a ReferenceManyInput as child component. 
         // Therewhile the parent object isnt created and the getList is called with an undefined id. This results in 404 requests.
-        return { data: [], total: 0}
+        return { data: []}
       }
-      const operationId = relatedResource === undefined ? `list_${resource}` : `list_related_${resource}_of_${relatedResource.resource}`
-      checkOperationExists(httpClient, operationId)
+      const operationId = 
+      relatedResource === undefined 
+      ? `list_${resource}` 
+      : `list_related_${resource}_of_${relatedResource.resource}`
 
-      const parameters = buildQueryParams(params)
-      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
+      checkOperationExists(httpClient, operationId)
       
-      return await handleListRequest(httpClient.client, conf, total, systemTime)
+
+      let page = 1
+      let hasNextPage = true
+      const pageSize = Math.max(params.ids.length, 1000)
+      const gathered = []
+
+      while(hasNextPage){
+        const parameters = buildQueryParams({
+          ...params,
+          pagination: { page: page, perPage: pageSize },
+        })
+        const conf = httpClient.getAxiosConfigForOperation(
+          operationId, 
+          [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)]
+        )
+        
+        const result = await handleListRequest(httpClient.client, conf, total, systemTime)
+        gathered.push(...result.data)
+        hasNextPage = result.pageInfo?.hasNextPage ?? false
+        page += 1
+      }
+      
+      return  {
+        data: gathered.filter(record => params.ids.includes(record.id))
+      }
     },
 
     getManyReference: async (resource: string, params: GetManyReferenceParams) => {

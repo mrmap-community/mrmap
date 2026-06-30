@@ -38,7 +38,7 @@ const MapViewerButton = (
           "include": "operationUrls,layers",
           "fields[WebMapService]": "operation_urls,version,layers",
           "fields[WebMapServiceOperationUrl]": "url,method,operation",
-          "fields[Layer]": "identifier",
+          "fields[Layer]": "identifier,is_spatial_secured",
         }
       }
     },

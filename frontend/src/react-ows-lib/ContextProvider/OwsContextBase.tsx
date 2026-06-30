@@ -101,7 +101,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   }, [])
 
   const addWMSByUrl = useCallback((url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => {
-    console.log('add called', beforeSetHook)
     performFetch(url, headers)
       .then((response) => {
         if (response === null) return

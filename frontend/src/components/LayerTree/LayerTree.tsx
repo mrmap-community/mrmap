@@ -1,13 +1,15 @@
-import { useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
+import PowerIcon from '@mui/icons-material/Power'
+import PowerOffIcon from '@mui/icons-material/PowerOff'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
-import { Loading, useGetOne } from 'react-admin'
-import { OWSResource } from '../../ows-lib/OwsContext/core'
+import { RaRecord, useInfiniteGetList } from 'react-admin'
+import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
 import { DialogBase } from '../Dialog/DialogContextBase'
@@ -24,22 +26,25 @@ export interface NodeIconsProps {
 }
 
 const NodeIcons = ({node}: NodeIconsProps) => {
-  const layerId = useMemo(() =>
+  const layerProperties = useMemo<RaRecord|undefined>(() =>
     typeof node.getWmsGetMapOperation === 'function'
-      ? node.getWmsGetMapOperation()?.['x-mrmap-layer-id']
+      ? node.getWmsGetMapOperation()?.['x-mrmap-layer-properties'] as RaRecord
       : undefined
   , [node])
-  const {data: layer, isLoading} = useGetOne("Layer", {id: layerId}, {enabled: !!layerId})
-
-
-  if (isLoading){
-    return <Loading />
-  }
-
+  console.log('layerProperties',layerProperties, node)
   return (
     <div>
       {
-        layer?.isSpatialSecured ? 
+        layerProperties?.isActive ?
+        <Tooltip title="Layer is active">
+            <PowerIcon color="success" fontSize="small" />
+          </Tooltip>: 
+        <Tooltip title="Layer is not active">
+            <PowerOffIcon color="error" fontSize="small" />
+          </Tooltip>
+      }
+      {
+        layerProperties?.isSpatialSecured ? 
           <Tooltip title="Layer is spatial secured">
             <VpnLockIcon color="warning" fontSize="small" />
           </Tooltip>: 
@@ -53,8 +58,7 @@ const NodeIcons = ({node}: NodeIconsProps) => {
 const TreeViews = (
   { initialExpanded = [] }: LayerTreeProps
 ) => {
-const { trees, owsContext, setFeatureActive } = useOwsContextBase()
-
+  const { trees, owsContext, setFeatureActive } = useOwsContextBase()
   const defaultExpandedNodes = useMemo(()=> owsContext.getLeafNodes().map(feature => feature.properties.folder ?? ''),[owsContext])
   const selectedItems = useMemo(() => owsContext.getActiveFeatures().map(feature => feature.properties.folder ?? ''),[owsContext])
 
@@ -88,8 +92,6 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
     const feature = owsContext.findResourceByFolder(itemId)
     feature && setFeatureActive(itemId, isSelected)
   }, [owsContext])
-
-  
 
   const renderTreeItemLabel = useCallback((node: OWSResource) => {
     /* const securityRuleButton = (
@@ -130,7 +132,10 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
         </DragableTreeItem >
       ) : <div></div>
   },[renderTreeItemLabel])
-  
+
+
+
+
   return trees?.map(tree => {
       return (
         <SimpleTreeView
@@ -155,6 +160,70 @@ const { trees, owsContext, setFeatureActive } = useOwsContextBase()
 const LayerTree = ({ 
   initialExpanded = [] 
 }: LayerTreeProps): ReactNode => {
+  const { owsContext, setOwsContext } = useOwsContextBase()
+  
+  const mrmapLayers = useMemo(()=>(
+    [
+      ...new Set(
+        owsContext.features
+          .map(
+            feature =>
+              feature.getWmsGetMapOperation()?.["x-mrmap-layer-id"]
+          )
+          .filter(Boolean)
+      )
+    ]
+  ),[owsContext])
+
+  const {
+    data,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage
+  } = useInfiniteGetList(
+    "Layer", 
+    {
+      meta: {
+        pagination: { page: 1, perPage: 100 },
+        jsonApiParams:{
+          'filter[id.in]': mrmapLayers.join(','),
+          'fields[Layer]': 'identifier,is_spatial_secured,is_active'
+        }
+      }
+    },
+    {
+      enabled: mrmapLayers.length > 0
+    }
+  )
+
+  const layers = useMemo(() => data?.pages?.flatMap(page => page.data) ?? [],[data])
+  
+  useEffect(()=>{
+    if(hasNextPage){
+      fetchNextPage()
+    }
+  },[isFetchingNextPage])
+
+  useEffect(()=>{
+    if(layers.length > 0 && !hasNextPage){
+      const newContext = OWSContext.fromPlainObject(owsContext)
+      const offerings = newContext.features.flatMap(
+        feature => feature.properties.offerings ?? []
+      ).flatMap(
+        offering => offering.operations ?? []
+      )
+      
+      layers.forEach(layer => {
+        const offering = offerings.find(offering => offering["x-mrmap-layer-id"] === layer.id)
+        if (offering !== undefined) {
+          offering["x-mrmap-layer-properties"] = {...layer}
+        }
+      })
+
+      setOwsContext(newContext)
+    }
+  },[layers, hasNextPage])
+  
   return (
     <DialogBase>
       <ContextMenuBase>

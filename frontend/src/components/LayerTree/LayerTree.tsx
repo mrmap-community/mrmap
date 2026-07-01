@@ -186,24 +186,29 @@ const LayerTree = ({
     }
   )
   useEffect(()=>{
-      const newContext = OWSContext.fromPlainObject(owsContext)
-      const offerings = newContext.features.flatMap(
-        feature => feature.properties.offerings ?? []
-      ).flatMap(
-        offering => offering.operations ?? []
-      )
-      
-      data?.forEach(layer => {
-        const offering = offerings.find(offering => offering["x-mrmap-layer-id"] === layer.id)
-        if (offering !== undefined) {
-          offering["x-mrmap-layer-properties"] = {...layer}
-        }
-      })
+    if (!data) return
+    const newContext = OWSContext.fromPlainObject(owsContext)
+    const offerings = newContext.features.flatMap(
+      feature => feature.properties.offerings ?? []
+    ).flatMap(
+      offering => offering.operations ?? []
+    )
+    
+    data?.forEach(layer => {
+      const offering = offerings.find(offering => offering["x-mrmap-layer-id"] === layer.id)
+      if (offering !== undefined) {
+        offering["x-mrmap-layer-properties"] = {...layer}
+      }
+    })
 
-      setOwsContext(newContext)
+    setOwsContext(newContext)
     
   },[data])
-  
+
+  useEffect(()=>{
+    console.log(owsContext)
+  },[owsContext])
+
   return (
     <DialogBase>
       <ContextMenuBase>

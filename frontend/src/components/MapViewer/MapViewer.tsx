@@ -2,7 +2,7 @@ import { useId, useState, type PropsWithChildren, type ReactNode } from 'react'
 import { type SimpleShowLayoutProps } from 'react-admin'
 import { MapContainer, ScaleControl } from 'react-leaflet'
 
-import { Box } from '@mui/material'
+import { Box, Divider, Stack } from '@mui/material'
 import { CRS, type Map } from 'leaflet'
 
 import ListGuesser from '../../jsonapi/components/ListGuesser'
@@ -17,6 +17,7 @@ import { Tabs } from '../Tab/Tabs'
 import MapSettingsEditor from './MapSettings'
 import { MapViewerBase } from './MapViewerBase'
 import { OwsContextActionButtons } from './OwsContextGuiActions/OwsContextActionButtons'
+import StatusBar from './StatusBar'
 
 
 const style = {
@@ -68,8 +69,23 @@ const MapViewerCore = (): ReactNode => {
             leftComponentId={containerId}
             callback={() => map?.invalidateSize()}
           >
-            <OwsContextActionButtons />
-            <LayerTree/>
+            <Stack
+              direction="column"
+              justifyContent="space-between"
+              sx={{ height: '100%' }}
+            >
+              <Box>
+                <OwsContextActionButtons />
+                <Divider/>
+              </Box>
+              <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <LayerTree />
+              </Box>
+              <Box>
+                <Divider />
+                <StatusBar />
+              </Box>
+            </Stack>
           </RightDrawer>
           <BottomDrawer
             aboveComponentId={containerId}

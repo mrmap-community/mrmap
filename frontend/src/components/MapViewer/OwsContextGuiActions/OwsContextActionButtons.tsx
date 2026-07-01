@@ -4,12 +4,10 @@ import AddIcon from '@mui/icons-material/Add';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import EditIcon from '@mui/icons-material/Edit';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
 import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
 
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import { Loading } from 'react-admin';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
 import AddResourceDialog from './AddResourceDialog';
 import EditOwsContextDialog from './EditOwsContextDialog';
@@ -30,11 +28,11 @@ export const OwsContextActionButtons = () => {
     const handleOpenAuthenticationsEditor = () => setOpenAuthenticationsEditor(true)
 
 
-    const { isLoading, currentRequest } = useOwsContextBase()
+    const { isLoading, loadingStatus, currentRequest, loadingMessage } = useOwsContextBase()
   
     return (
     <div>
-        <Box  sx={{ '& > :not(style)': { m: 1 } }}>
+        <Box margin={1} sx={{ '& > :not(style)': { m: 1 } }}>
             <Tooltip title="Initial">
                 <span>
                 <Fab color="primary" aria-label="add" size="small" onClick={handleOpenInitialDialog} disabled={isLoading}>
@@ -69,9 +67,6 @@ export const OwsContextActionButtons = () => {
                 </Fab>
                 </span>
             </Tooltip>
-            
-            {isLoading && <Loading loadingSecondary={currentRequest?.url} />}
-            <Divider/>
         </Box>
         
        

@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import { TreeItemProps } from '@mui/lab';
-import { TreeItem } from '@mui/x-tree-view';
+import { TreeItem, TreeItemProps } from '@mui/x-tree-view';
 import Sortable from 'sortablejs';
 import { v4 as uuidv4 } from 'uuid';
 
+import { OWSResource } from '../../ows-lib/OwsContext/core';
 import { Position } from '../../ows-lib/OwsContext/enums';
-import { OWSResource } from '../../ows-lib/OwsContext/types';
 import { getParentFolder } from '../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase';
 import { useContextMenuBase } from './ContextMenuBase';
@@ -131,7 +130,6 @@ export const DragableTreeItem = ({
     return (
       <TreeItem
         ref={ref}
-        itemId={node.properties.folder ?? uuidv4()}
         slots={{
           expandIcon: !isLeaf ? KeyboardArrowRightIcon: ImaginaryIcon,
           collapseIcon: !isLeaf ? KeyboardArrowDownIcon: ImaginaryIcon
@@ -141,7 +139,7 @@ export const DragableTreeItem = ({
         onContextMenu={onContextMenu}
       >
         {/* imaginary child node to create new childs */}
-        {!imaginary && isLeaf ? <DragableTreeItem node={node} imaginary={true}></DragableTreeItem>: null}
+        {!imaginary && isLeaf ? <DragableTreeItem key={node.properties.folder} itemId={node.properties.folder ?? uuidv4()}node={node} imaginary={true}></DragableTreeItem>: null}
         {/* append all origin children too */}
         {props.children}
       </TreeItem>

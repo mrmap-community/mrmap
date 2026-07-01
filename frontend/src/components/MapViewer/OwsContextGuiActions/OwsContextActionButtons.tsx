@@ -28,7 +28,7 @@ export const OwsContextActionButtons = () => {
     const handleOpenAuthenticationsEditor = () => setOpenAuthenticationsEditor(true)
 
 
-    const { isLoading, loadingStatus, currentRequest, loadingMessage } = useOwsContextBase()
+    const { isLoading } = useOwsContextBase()
   
     return (
     <div>

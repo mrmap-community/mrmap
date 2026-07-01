@@ -60,7 +60,30 @@ export const prepareGetMapUrl = (
     return url
 }
 
+export const prepareGetFeatureInfoUrl = (
+    capabilities: WmsCapabilitites,
+    node: WmsLayer
+): URL | undefined => {
+    const operation = capabilities.operationUrls.getFeatureInfo
+    if (operation === undefined) return undefined
+
+    const url = new URL(operation.get)
+    const params = url.searchParams
+    updateOrAppendSearchParam(params, 'SERVICE', 'WMS')
+    updateOrAppendSearchParam(params, 'VERSION', capabilities.version)
+    updateOrAppendSearchParam(params, 'REQUEST', 'GetFeatureInfo')
+    // include the layer identifiers so callers only need to add pixel coords and INFO_FORMAT
+    updateOrAppendSearchParam(params, 'LAYERS', node.metadata.name)
+    updateOrAppendSearchParam(params, 'QUERY_LAYERS', node.metadata.name)
+    // default info format can be overridden by the caller
+    updateOrAppendSearchParam(params, 'INFO_FORMAT', 'text/html')
+
+    return url
+}
+
 export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCapabilitites, node: WmsLayer, folder: string): OWSResource => {
+    const getFeatureInfoUrl = prepareGetFeatureInfoUrl(capabilities, node)
+
     return OWSResource.fromPlainObject({
         type: "Feature",
         properties: {
@@ -82,7 +105,12 @@ export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCap
                             method: "GET",
                             type: "image/png"
                         },
-                        // todo: add GetFeatureInfo url
+                        ...(getFeatureInfoUrl && node.isQueryable ? [{
+                            code: "GetFeatureInfo",
+                            href: getFeatureInfoUrl.toString(),
+                            method: "GET",
+                            type: "text/html"
+                        }] : []),
                     ],
                     ...(node.styles && {
                         styles: node.styles?.map((style): StyleSet => {

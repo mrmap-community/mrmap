@@ -178,48 +178,27 @@ export class OWSContext implements IOWSContext {
   }
 
   appendWms(href: string, capabilitites: string, authentication?: Authentication): number {
-    const timings = {
-      parseWms: 0,
-      prepareUrl: 0,
-      toResources: 0,
-      authAssign: 0,
-      featurePush: 0,
-      capMapUpdate: 0,
-      rebuildLookup: 0,
-      total: 0
-    }
 
-    const totalStart = performance.now()
 
-    const parseStart = performance.now()
+
     const parsedWms = parseWms(capabilitites)
-    timings.parseWms = performance.now() - parseStart
 
-    const urlStart = performance.now()
     const url = prepareGetCapabilititesUrl(href, 'WMS')
-    timings.prepareUrl = performance.now() - urlStart
 
     const treeId = this.getNextRootId()
 
-    const toResourcesStart = performance.now()
     const additionalFeatures = wmsToOWSResources(url.href, parsedWms, treeId).map(
       resource => new OWSResource(resource.properties)
     )
-    timings.toResources = performance.now() - toResourcesStart
 
-    const authAssignStart = performance.now()
     additionalFeatures.forEach(resource => {
       if (authentication !== undefined) {
         resource.properties.authenticationId = authentication.id
       }
     })
-    timings.authAssign = performance.now() - authAssignStart
 
-    const featurePushStart = performance.now()
     this.features.push(...additionalFeatures)
-    timings.featurePush = performance.now() - featurePushStart
 
-    const capMapStart = performance.now()
     if (url.href in this.capabilititesMap) {
       this.capabilititesMap[url.href].features = [...this.capabilititesMap[url.href].features, ...additionalFeatures]
       if (authentication !== undefined) {
@@ -228,14 +207,9 @@ export class OWSContext implements IOWSContext {
     } else {
       this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures }
     }
-    timings.capMapUpdate = performance.now() - capMapStart
 
-    const rebuildStart = performance.now()
     this.rebuildFolderLookup()
-    timings.rebuildLookup = performance.now() - rebuildStart
 
-    timings.total = performance.now() - totalStart
-    console.debug('OWSContext.appendWms timings', timings)
 
     return treeId
   }

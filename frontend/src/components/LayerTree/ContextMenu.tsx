@@ -21,8 +21,8 @@ const ManageAuthenticationItem = () => {
     return owsContext.features.find(feature => feature.id === node.id)
   },[node, owsContext])
 
-  feature?.getWmsGetCapabilitiesOperation()?.authenticationId
-  feature?.getWmsGetMapOperation()?.authenticationId
+  feature?.getWmsOperationByCode("GetCapabilities")?.authenticationId
+  feature?.getWmsOperationByCode("GetMap")?.authenticationId
 
   const content = useMemo(()=>{
     return (

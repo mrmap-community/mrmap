@@ -56,7 +56,7 @@ const MapViewerButton = (
     const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
 
     addedFeatures.forEach(feature => {
-      const operation = feature.getWmsGetMapOperation()
+      const operation = feature.getWmsOperationByCode("GetMap")
       if (operation !== undefined) {
         operation["x-mrmap-service-id"] = wmsRecordWithUrl?.id
         

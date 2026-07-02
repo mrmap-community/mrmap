@@ -43,17 +43,10 @@ export class OWSResource implements IOWSResource {
     return this.properties.offerings?.find(offering => offering.code === "http://www.opengis.net/spec/owc/1.0/req/wms")
   }
 
-  getWmsGetMapOperation() {
+  getWmsOperationByCode(code: string) {
     const wmsOffering = this.getWmsOffering()
     if (wmsOffering !== undefined) {
-      return wmsOffering.operations?.find(operation => operation.code === "GetMap")
-    }
-  }
-
-  getWmsGetCapabilitiesOperation() {
-    const wmsOffering = this.getWmsOffering()
-    if (wmsOffering !== undefined) {
-      return wmsOffering.operations?.find(operation => operation.code === "GetCapabilities")
+      return wmsOffering.operations?.find(operation => operation.code === code)
     }
   }
 
@@ -178,8 +171,6 @@ export class OWSContext implements IOWSContext {
   }
 
   appendWms(href: string, capabilitites: string, authentication?: Authentication): number {
-
-
 
     const parsedWms = parseWms(capabilitites)
 
@@ -511,7 +502,7 @@ export class OWSContext implements IOWSContext {
 
   getAncestorsOf(target: OWSResource, include_self: boolean = false) {
     const ancestors = this.features.filter(feature => target.isDescendantOf(feature))
-    if (include_self) return [...ancestors, this]
+    if (include_self) return [...ancestors, target]
     return ancestors
   }
 
@@ -624,7 +615,7 @@ export class OWSContext implements IOWSContext {
     }
 
     const capabilitityFeatureMap = this.features.map((feature) => {
-      const getCapabilitiesOp = feature.getWmsGetCapabilitiesOperation()
+      const getCapabilitiesOp = feature.getWmsOperationByCode("GetCapabilities")
       return {
         features: [feature],
         href: getCapabilitiesOp?.href ?? ''
@@ -668,8 +659,8 @@ export class OWSContext implements IOWSContext {
   }
 
   getInheritedCrs(target: OWSResource) {
-    const wmsGetMapOp = target.getWmsGetMapOperation()
-    const getCapabilitiesOp = target.getWmsGetCapabilitiesOperation()
+    const wmsGetMapOp = target.getWmsOperationByCode("GetMap")
+    const getCapabilitiesOp = target.getWmsOperationByCode("GetCapabilities")
     const referenceSystems: string[] = []
 
     if (getCapabilitiesOp !== undefined &&
@@ -702,7 +693,13 @@ export class OWSContext implements IOWSContext {
     }, [])
   }
 
-  getOptimizedGetMapUrls(): URL[] {
+  /**
+   * Build optimized GetMap URLs for WMS features.
+   * @param featureFilter Optional predicate to select features. If omitted,
+   * the default behavior is to include features that have a WMS offering and
+   * are marked active (`feature.properties.active === true`).
+   */
+  getOptimizedGetMapUrls(featureFilter?: (feature: OWSResource) => boolean): URL[] {
     const trees = this.treeify()
     const getMapUrls: URL[] = []
 
@@ -710,7 +707,10 @@ export class OWSContext implements IOWSContext {
      * every tree is 1..* atomic wms
      */
     trees.forEach((tree) => {
-      const activeWmsFeatures = treeToList(tree).filter(feature => feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active)
+      const activeWmsFeatures = treeToList(tree).filter(feature => {
+        if (typeof featureFilter === 'function') return featureFilter(feature)
+        return feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active
+      })
       // keep a parallel array of authentication ids for pushed URLs so we only merge
       // layers when the authentication context matches
       const getMapAuths: (UUIDTypes | undefined)[] = []

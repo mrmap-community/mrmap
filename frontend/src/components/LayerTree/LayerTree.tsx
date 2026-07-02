@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useMemo, useState, type ReactNode, type S
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
-import FolderIcon from '@mui/icons-material/Folder'
 import PowerIcon from '@mui/icons-material/Power'
 import PowerOffIcon from '@mui/icons-material/PowerOff'
 import VpnLockIcon from '@mui/icons-material/VpnLock'
@@ -57,44 +56,108 @@ const NodeIcons = memo(
 
 
 export interface TreeItemLabelProps {
-  title: string;
-  isActive?: boolean;
-  isSpatialSecured?: boolean;
-  icon?: ReactNode;
-  hasGetFeatureOffering: boolean;
-  checkedA?: boolean;
-  checkedB?: boolean;
-  onToggleA?: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onToggleB?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  node: OWSResource;
 }
 
 const TreeItemLabel = memo(
   ({
-    title,
-    isActive,
-    isSpatialSecured,
-    icon,
-    hasGetFeatureOffering,
-    checkedA = false,
-    checkedB = false,
-    onToggleA,
-    onToggleB,
-  }: TreeItemLabelProps) => (
-    <Stack direction="row" justifyContent="space-between" alignItems="center">
-      <Box display="flex" alignItems="center" >
-       <Tooltip title="Toggle the visibility of this service">
-        <Checkbox
-          size="small"
-          disableRipple
+    node
+  }: TreeItemLabelProps) => {
+    const layerProperties = node?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-properties"] as LayerProperties | undefined;
+    const {  owsContext, setOwsContext } = useOwsContextBase()
+
+    const indeterminateVisibility = useMemo(() => {
+      const mapOperations = owsContext
+        .getDescandantsOf(node, true)
+        .map(descendant => descendant.getWmsOperationByCode('GetMap'))
+        .filter((operation) => operation !== undefined)
+
+      if (mapOperations.length === 0) {
+        return false
+      }
+
+      const hasActive = mapOperations.some(operation => operation.active === true)
+      const hasInactive = mapOperations.some(operation => operation.active !== true)
+
+      return hasActive && hasInactive
+    }, [owsContext, node])
+
+    const indeterminateQueryability = useMemo(() => {
+      const mapOperations = owsContext
+        .getDescandantsOf(node, true)
+        .map(descendant => descendant.getWmsOperationByCode('GetFeatureInfo'))
+        .filter((operation) => operation !== undefined)
+
+      if (mapOperations.length === 0) {
+        return false
+      }
+
+      const hasActive = mapOperations.some(operation => operation.active === true)
+      const hasInactive = mapOperations.some(operation => operation.active !== true)
+
+      return hasActive && hasInactive
+    }, [owsContext, node])
+
+    const toggle = useCallback(
+      (operationCode: 'GetMap' | 'GetFeatureInfo') =>
+        (event: React.ChangeEvent<HTMLInputElement, Element>, checked: boolean) => {
+          event.preventDefault()
+          event.stopPropagation()
+          
+
+          const newContext = OWSContext.fromPlainObject(owsContext)
+          const target = newContext.findResourceByFolder(node.properties.folder)
+          if (target === undefined) return
+
+          const updateOperationState = (resource: OWSResource | undefined) => {
+            const operation = resource?.getWmsOperationByCode(operationCode)
+            if (operation) {
+              operation['active'] = checked
+            }
+          }
+
+          updateOperationState(target)
+
+          // activate/deactivate all descendants
+          newContext.getDescandantsOf(target, true).forEach(descendant => {
+            updateOperationState(descendant)
+          })
+
+          // set parent also active if all siblings of target are active
+          if (checked === true && newContext.getSiblingsOf(target).every(feature => feature.getWmsOperationByCode(operationCode)?.active === true)) {
+            const parent = newContext.getParentOf(target)
+            updateOperationState(parent)
+          }
+          // deactivate parent to prevent from parent layer using for getmap calls etc.
+          else if (checked === false) {
+            newContext.getAncestorsOf(target).forEach(ancestor => {
+              updateOperationState(ancestor)
+            })
+          }
+
+          newContext.calculateCrsIntersection()
+          setOwsContext(newContext)
+        },
+      [node.properties.folder, owsContext, setOwsContext],
+    )
+
+
+    return (
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Box display="flex" alignItems="center" >
+         <Tooltip title="Toggle the visibility of this service">
+          <Checkbox
+            size="small"
+            disableRipple
           sx={{
             p: 0.25,
             mr: 0.25,
             
           }}
-          checked={checkedA}
-          onClick={(event) => event.stopPropagation()}
-          onChange={onToggleA}
-          
+          onClick={(event)  => event.stopPropagation()}
+          checked={node?.getWmsOperationByCode("GetMap")?.active as boolean ?? false}
+          indeterminate={indeterminateVisibility}
+          onChange={toggle('GetMap')}
         />
         </Tooltip>
                <Tooltip title="Toggle the queryability of this service">
@@ -107,26 +170,28 @@ const TreeItemLabel = memo(
             mr: 0.25,
             
           }}
-          checked={checkedB}
-          onClick={(event) => event.stopPropagation()}
-          onChange={onToggleB}
-          disabled={!hasGetFeatureOffering}
+          onClick={(event)  => event.stopPropagation()}
+          checked={node?.getWmsOperationByCode("GetFeatureInfo")?.active as boolean ?? false}
+          indeterminate={indeterminateQueryability}
+          onChange={toggle('GetFeatureInfo')}
+          disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
         />
         </Tooltip>
         <Box display="flex" alignItems="center" >
-          {icon}
-          <Typography variant="body2">{title}</Typography>
+ 
+          <Typography variant="body2">{node.properties.title}</Typography>
         </Box>
       </Box>
 
       <Box>
         <NodeIcons
-          isActive={isActive}
-          isSpatialSecured={isSpatialSecured}
+          isActive={layerProperties?.isActive}
+          isSpatialSecured={layerProperties?.isSpatialSecured}
         />
       </Box>
     </Stack>
-  )
+    )
+  }
 );
 
 const TreeViews = (
@@ -137,25 +202,6 @@ const TreeViews = (
   const selectedItems = useMemo(() => owsContext.getActiveFeatures().map(feature => feature.properties.folder ?? ''),[owsContext])
 
   const [expanded, setExpanded] = useState<string[] >([...initialExpanded, ...defaultExpandedNodes])
-  const [itemCheckboxState, setItemCheckboxState] = useState<Record<string, { checkedA: boolean; checkedB: boolean }>>({})
-
-  const toggleItemCheckbox = useCallback(
-    (itemId: string, field: 'checkedA' | 'checkedB') =>
-      (event: React.ChangeEvent<HTMLInputElement>) => {
-        event.stopPropagation();
-        setItemCheckboxState((prev) => {
-          const current = prev[itemId] ?? { checkedA: false, checkedB: false }
-          return {
-            ...prev,
-            [itemId]: {
-              ...current,
-              [field]: !current[field],
-            },
-          }
-        })
-      },
-    [],
-  )
 
   const onItemExpansionToggle = useCallback(
   (
@@ -187,10 +233,7 @@ const TreeViews = (
   }, [owsContext])
 
   const renderTree = useCallback((node?: OWSResource): ReactNode => {
-    const layerProperties = node?.getWmsGetMapOperation?.()?.["x-mrmap-layer-properties"] as LayerProperties | undefined;
     const itemId = node?.properties.folder ?? uuidv4();
-    const itemState = itemCheckboxState[itemId] ?? { checkedA: false, checkedB: false };
-
     // In OWSContext a node has properties.offerings.
     // Offerings have operations like GetMap, GetFeatureInfo, etc.
     // We differentiate between offerings like GetMap which are raster based and GetFeatureInfo which responses with vector data.
@@ -209,15 +252,7 @@ const TreeViews = (
           itemId={itemId}
           label={
             <TreeItemLabel
-              icon={<FolderIcon />}
-              title={node.properties.title}
-              isActive={layerProperties?.isActive}
-              isSpatialSecured={layerProperties?.isSpatialSecured}
-              hasGetFeatureOffering={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') !== undefined}
-              checkedA={itemState.checkedA}
-              checkedB={itemState.checkedB}
-              onToggleA={toggleItemCheckbox(itemId, 'checkedA')}
-              onToggleB={toggleItemCheckbox(itemId, 'checkedB')}
+              node={node}
             />
           }
         >
@@ -228,7 +263,7 @@ const TreeViews = (
           }
         </DragableTreeItem >
       ) : <div></div>
-  },[itemCheckboxState, toggleItemCheckbox])
+  },[])
 
   return trees?.map(tree => {
       return (
@@ -256,7 +291,7 @@ const LayerTree = ({
         owsContext.features
           .map(
             feature =>
-              feature.getWmsGetMapOperation()?.["x-mrmap-layer-id"]
+              feature.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-id"]
           )
           .filter(Boolean)
       )

@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
-import { useMap, useMapEvents } from 'react-leaflet'
+import { useMap } from 'react-leaflet'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 
 import proj4 from 'proj4'
@@ -17,39 +17,17 @@ export interface Tile {
 
 
 const WebMapServiceControl = () => {
-  const _map = useMapEvents({
-    click: () => {
-      console.log('map clicked')
-    },
-    locationfound: (location) => {
-      console.log('location found:', location)
-    },
-
-    loading: () => {
-      console.log('map loading')
-    },
-    tileload: () => {
-      console.log('map tileload')
-    },
-    tileloadstart: () => {
-      console.log('map tileloadstart')
-    },
-    tileerror: () => {
-      console.log('map tileerror')
-    },
-    moveend: () => {
-      console.log('map moveend')
-    },
-    zoomend: () => {
-      console.log('map zoomend')
-    }
-  })
-  const { trees, owsContext } = useOwsContextBase()
+  
+  const { owsContext } = useOwsContextBase()
   
   // TODO: atomicGetMapUrls depends also on authorization.
   
   const atomicGetMapUrls = useMemo(()=>{
-    return owsContext.getOptimizedGetMapUrls()
+    return owsContext.getOptimizedGetMapUrls(
+      (feature)=>(
+        feature.getWmsOperationByCode("GetMap")?.active === true
+      )
+    )
   }, [owsContext])
 
   const map = useMap()
@@ -67,7 +45,7 @@ const WebMapServiceControl = () => {
 
     // Find the feature that contains this GetMap URL
     const feature = owsContext.features.find(f => {
-      const wmsMeta = f.getWmsGetMapOperation()
+      const wmsMeta = f.getWmsOperationByCode("GetMap")
       if (wmsMeta?.href) {
         const wmsUrlObj = new URL(wmsMeta.href)
         const wmsBase = `${wmsUrlObj.origin}${wmsUrlObj.pathname}`
@@ -77,7 +55,7 @@ const WebMapServiceControl = () => {
     })
 
     if (feature) {
-      const getCapOp = feature.getWmsGetCapabilitiesOperation()
+      const getCapOp = feature.getWmsOperationByCode("GetCapabilities")
       if (getCapOp?.href && owsContext.capabilititesMap[getCapOp.href]?.headers) {
         return owsContext.capabilititesMap[getCapOp.href].headers
       }

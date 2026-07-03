@@ -6,7 +6,7 @@ import { Capabilites, WmsCapabilitites } from '../XMLParser/types';
 import { Authentication } from './contrib';
 import { Position } from './enums';
 import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties } from './types';
-import { appendLayerIdentifiers, collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, isGetMapUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
+import { appendQueryParam, collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 
 const VALID_PATH = new RegExp('(\/\d*)+')
 
@@ -699,9 +699,10 @@ export class OWSContext implements IOWSContext {
    * the default behavior is to include features that have a WMS offering and
    * are marked active (`feature.properties.active === true`).
    */
-  getOptimizedGetMapUrls(featureFilter?: (feature: OWSResource) => boolean): URL[] {
+  getOptimizedUrlsByCode(code: string, featureFilter?: (feature: OWSResource) => boolean): URL[] {
     const trees = this.treeify()
-    const getMapUrls: URL[] = []
+    const urls: URL[] = []
+    const queryParam = code === 'GetMap' ? 'LAYERS' : 'QUERY_LAYERS'
 
     /** 
      * every tree is 1..* atomic wms
@@ -713,31 +714,31 @@ export class OWSContext implements IOWSContext {
       })
       // keep a parallel array of authentication ids for pushed URLs so we only merge
       // layers when the authentication context matches
-      const getMapAuths: (UUIDTypes | undefined)[] = []
+      const auths: (UUIDTypes | undefined)[] = []
       activeWmsFeatures.forEach((feature, index) => {
 
-        const wmsOffering = feature.properties.offerings?.find(offering =>
+        const offering = feature.properties.offerings?.find(offering =>
           offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation =>
-            operation.code === 'GetMap' && operation.method.toLowerCase() === 'get')
+            operation.code === code && operation.method.toLowerCase() === 'get')
 
-        if (wmsOffering?.href === undefined) return
+        if (offering?.href === undefined) return
 
-        const getMapUrl = new URL(wmsOffering.href)
-        const lastUrl = getMapUrls.slice(-1)?.[0]
-        const lastAuth = getMapAuths.slice(-1)?.[0]
+        const operationUrl = new URL(offering.href)
+        const lastUrl = urls.slice(-1)?.[0]
+        const lastAuth = auths.slice(-1)?.[0]
 
-        if (index === 0 || !isGetMapUrlEqual(lastUrl, getMapUrl) || lastAuth !== wmsOffering.authenticationId) {
+        if (index === 0 || !isOperationUrlEqual(lastUrl, operationUrl) || lastAuth !== offering.authenticationId) {
           // index 0 signals always a root node ==> just push it; nothing else to do here
           // index > 0 and last url not equals current => define new atomic wms; not mergeable resources
-          getMapUrls.push(getMapUrl)
-          getMapAuths.push(wmsOffering.authenticationId)
+          urls.push(operationUrl)
+          auths.push(offering.authenticationId)
         }
-        else if (isGetMapUrlEqual(lastUrl, getMapUrl)) {
-          appendLayerIdentifiers(lastUrl, getMapUrl)
+        else if (isOperationUrlEqual(lastUrl, operationUrl)) {
+          appendQueryParam(queryParam, lastUrl, operationUrl)
         }
       })
     })
-    return getMapUrls
+    return urls
   }
 
   treeify(): OWSResource[] {

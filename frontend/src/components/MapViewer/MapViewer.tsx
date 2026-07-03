@@ -10,7 +10,7 @@ import BottomDrawer from '../Drawer/BottomDrawer'
 import { DrawerBase } from '../Drawer/DrawerContext'
 import RightDrawer from '../Drawer/RightDrawer'
 import LayerTree from '../LayerTree/LayerTree'
-import FeatureInfoControl from '../MapContainer/FeatureInfoControl'
+import FeatureInfo from '../MapContainer/FeatureInfo'
 import WebMapServiceControl from '../MapContainer/GetMapControl'
 import { TabListBase } from '../Tab/TabListContext'
 import { Tabs } from '../Tab/Tabs'
@@ -41,7 +41,7 @@ export interface Tile {
 const MapViewerCore = (): ReactNode => {
   const containerId = useId()
   const [map, setMap] = useState<Map>()
- 
+  
   return (
       <DrawerBase>
         <TabListBase>
@@ -59,9 +59,11 @@ const MapViewerCore = (): ReactNode => {
               style={{
                 flex: 1, height: '100%', width: '100%', position: 'relative'
               }}
+              
             >
+              
               <WebMapServiceControl />
-              <FeatureInfoControl/>
+              <FeatureInfo/>
               <ScaleControl position="topleft" />
             </MapContainer>
           </Box>

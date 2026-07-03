@@ -1,9 +1,10 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
-import { useMap } from 'react-leaflet'
+import { Marker, useMap, useMapEvent } from 'react-leaflet'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 
 import proj4 from 'proj4'
 
+import type { LatLng } from 'leaflet'
 import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
@@ -19,13 +20,25 @@ export interface Tile {
 const WebMapServiceControl = () => {
   
   const { owsContext } = useOwsContextBase()
+  const [position, setPosition] = useState<LatLng | null>(null)
+  const [layerPoint, setLayerPoint] = useState<{x: number, y: number} | null>(null) 
   
   // TODO: atomicGetMapUrls depends also on authorization.
   
   const atomicGetMapUrls = useMemo(()=>{
-    return owsContext.getOptimizedGetMapUrls(
+    return owsContext.getOptimizedUrlsByCode(
+      "GetMap",
       (feature)=>(
         feature.getWmsOperationByCode("GetMap")?.active === true
+      )
+    )
+  }, [owsContext])
+
+  const atomicGetFeatureInfoUrls = useMemo(()=>{
+    return owsContext.getOptimizedUrlsByCode(
+      "GetFeatureInfo",
+      (feature)=>(
+        feature.getWmsOperationByCode("GetFeatureInfo")?.active === true
       )
     )
   }, [owsContext])
@@ -119,8 +132,35 @@ const WebMapServiceControl = () => {
     })
     
     return _tiles
-  }, [map?.getBounds(), map?.getSize(), atomicGetMapUrls, selectedCrs, owsContext])
+  }, [map?.getBounds(), map?.getSize(), atomicGetMapUrls, selectedCrs])
   
+  useMapEvent('contextmenu', (event) => {
+    setPosition(event.latlng)
+    setLayerPoint(event.layerPoint)
+  })
+  
+  useEffect(() => {
+    if (layerPoint && position && atomicGetFeatureInfoUrls.length > 0) {
+      const getFeatureInfoUrls = [...atomicGetFeatureInfoUrls].reverse()
+      getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl, index) => {
+        const params = atomicGetFeatureInfoUrl.searchParams
+        updateOrAppendSearchParam(params, 'I', layerPoint.x.toString())
+        updateOrAppendSearchParam(params, 'J', layerPoint.y.toString())
+        updateOrAppendSearchParam(params, 'X', layerPoint.x.toString())
+        updateOrAppendSearchParam(params, 'Y', layerPoint.y.toString())
+        updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
+        updateOrAppendSearchParam(params, 'HEIGHT', size.y.toString())
+        updateOrAppendSearchParam(params, 'QUERY_LAYERS', params.get('LAYERS') ?? params.get('layers') ?? '')
+        updateOrAppendSearchParam(params, 'INFO_FORMAT', params.get('INFO_FORMAT') ?? params.get('info_format') ?? 'application/json')
+        updateOrAppendSearchParam(params, 'FEATURE_COUNT', params.get('FEATURE_COUNT') ?? params.get('feature_count') ?? '10')
+        updateOrAppendSearchParam(params, 'STYLES', '') // todo: shall be configureable
+        updateOrAppendSearchParam(params, 'BBOX', `${bounds?.getSouthWest().lng},${bounds?.getSouthWest().lat},${bounds?.getNorthEast().lng},${bounds?.getNorthEast().lat}`)
+      })
+      
+    }
+  },[])
+
+
   useEffect(() => {
     if (map !== undefined && map !== null){      
       setBounds(map.getBounds())
@@ -132,7 +172,16 @@ const WebMapServiceControl = () => {
     }
   }, [map])
 
-  return tiles.map(tile => tile.leafletTile)
+
+
+
+
+  return (
+    <div>
+      {tiles.map(tile => tile.leafletTile)}
+      {position && <Marker position={position} />}
+    </div>
+  )
 
 }
 

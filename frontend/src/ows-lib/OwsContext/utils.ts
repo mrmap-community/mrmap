@@ -170,7 +170,7 @@ export const treeToList = (node: OWSResource) => {
     return flatNodes
 }
 
-export const isGetMapUrlEqual = (url1: URL, url2: URL): boolean => {
+export const isOperationUrlEqual = (url1: URL, url2: URL): boolean => {
     if (url1 === undefined || url2 === undefined) return false
     return (url1.origin === url2.origin) &&
         (url1.pathname === url2.pathname) &&
@@ -178,15 +178,19 @@ export const isGetMapUrlEqual = (url1: URL, url2: URL): boolean => {
         ((url1.searchParams.get('VERSION') ?? url1.searchParams.get('version')) === (url2.searchParams.get('VERSION') ?? url2.searchParams.get('version')))
 }
 
-export const appendLayerIdentifiers = (url1: URL, url2: URL) => {
-    const layerIdentifiers1 = (url1.searchParams.get('LAYERS') ?? url1.searchParams.get('layers'))?.split(',') ?? []
-    const layerIdentifiers2 = (url2.searchParams.get('LAYERS') ?? url2.searchParams.get('layers'))?.split(',') ?? []
+export const appendQueryParam = (param: string = "LAYERS", url1: URL, url2: URL) => {
+    const paramLower = param.toLowerCase()
+    const paramUpper = param.toUpperCase() 
+    
+    const layerIdentifiers1 = (url1.searchParams.get(paramUpper) ?? url1.searchParams.get(paramLower))?.split(',') ?? []
+    const layerIdentifiers2 = (url2.searchParams.get(paramUpper) ?? url2.searchParams.get(paramLower))?.split(',') ?? []
 
     const newLayersParam = layerIdentifiers1?.concat(layerIdentifiers2)
 
-    url1.searchParams.has('LAYERS') && url1.searchParams.set('LAYERS', newLayersParam?.join(','))
-    url1.searchParams.has('layers') && url1.searchParams.set('layers', newLayersParam?.join(','))
+    url1.searchParams.has(paramUpper) && url1.searchParams.set(paramUpper, newLayersParam?.join(','))
+    url1.searchParams.has(paramLower) && url1.searchParams.set(paramLower, newLayersParam?.join(','))
 }
+
 
 export const getFeaturesByGetMapUrl = (url: URL, features: IOWSResource[]): IOWSResource[] => {   
     const layers = url.searchParams.get('LAYERS')?.split(',') ?? []
@@ -196,7 +200,7 @@ export const getFeaturesByGetMapUrl = (url: URL, features: IOWSResource[]): IOWS
             const operationLayers = operationUrl.searchParams.get('LAYERS')?.split(',') ?? []
             return operation.code === 'GetMap' && 
                 operation.method.toLowerCase() === 'get' && 
-                isGetMapUrlEqual(operationUrl, url) &&
+                isOperationUrlEqual(operationUrl, url) &&
                 layers.some(layer => operationLayers.includes(layer))
         })
     )

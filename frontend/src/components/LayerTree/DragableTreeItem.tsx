@@ -139,7 +139,7 @@ export const DragableTreeItem = ({
         onContextMenu={onContextMenu}
       >
         {/* imaginary child node to create new childs */}
-        {!imaginary && isLeaf ? <DragableTreeItem key={node.properties.folder} itemId={node.properties.folder ?? uuidv4()}node={node} imaginary={true}></DragableTreeItem>: null}
+        {!imaginary && isLeaf ? <DragableTreeItem key={`${node.properties.folder}-imaginary`} itemId={node.properties.folder ? `${node.properties.folder}-imaginary` : uuidv4()} node={node} imaginary={true} /> : null}
         {/* append all origin children too */}
         {props.children}
       </TreeItem>

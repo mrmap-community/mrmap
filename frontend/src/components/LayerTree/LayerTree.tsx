@@ -270,8 +270,9 @@ const TreeViews = (
         <SimpleTreeView
           key={tree.id}
           onItemExpansionToggle={onItemExpansionToggle}
-          expandedItems={expanded}                 
-
+          onItemSelectionToggle={onItemSelectionToggle}
+          expandedItems={expanded}
+          //selectedItems={selectedItems.length > 0 ? selectedItems : null}
         >
           {renderTree(tree)}
         </SimpleTreeView>

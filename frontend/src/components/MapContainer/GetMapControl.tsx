@@ -4,7 +4,7 @@ import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContex
 
 import proj4 from 'proj4'
 
-import type { LatLng } from 'leaflet'
+import { point, type LatLng } from 'leaflet'
 import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
@@ -48,8 +48,25 @@ const WebMapServiceControl = () => {
 
   const [bounds, setBounds] = useState(map?.getBounds())
   const [size, setSize] = useState(map?.getSize())
-
   const { selectedCrs } = useMapViewerBase()
+
+  const bbox = useMemo<[number, number,number, number]>(()=>{
+    console.log('new bbox')
+
+    const sw = bounds?.getSouthWest()
+    const ne = bounds?.getNorthEast()
+    let minXy = point(sw.lng, sw.lat)
+    let maxXy = point(ne.lng, ne.lat)
+
+    if (selectedCrs.stringRepresentation !== 'EPSG:4326') {
+      const proj = proj4('EPSG:4326', selectedCrs.wkt)
+      minXy = proj.forward(minXy)
+      maxXy = proj.forward(maxXy)
+    }
+
+    return [minXy.x, minXy.y, maxXy.x, maxXy.y]
+
+  }, [bounds, selectedCrs])
 
   // Helper function to get auth headers for a GetMap URL
   const getAuthForGetMapUrl = (getMapUrl: string) => {
@@ -82,19 +99,10 @@ const WebMapServiceControl = () => {
     if (bounds === undefined || size === undefined) {
       return _tiles
     }
-    const sw = bounds.getSouthWest()
-    const ne = bounds.getNorthEast()
-    let minXy = {x: sw.lng, y: sw.lat}
-    let maxXy = {x: ne.lng, y: ne.lat}
 
     const getMapUrls = [...atomicGetMapUrls].reverse()
 
-    if (selectedCrs.stringRepresentation !== 'EPSG:4326') {
-      const proj = proj4('EPSG:4326', selectedCrs.wkt)
-      minXy = proj.forward(minXy)
-      maxXy = proj.forward(maxXy)
-    }
-
+  
     getMapUrls.forEach((atomicGetMapUrl, index) => {
       const params = atomicGetMapUrl.searchParams
       const version = params.get('version') ?? params.get('VERSION')
@@ -102,15 +110,15 @@ const WebMapServiceControl = () => {
       if (version === '1.3.0') {
         if (selectedCrs.isXyOrder) {
           // no axis order correction needed.
-          updateOrAppendSearchParam(params, 'BBOX', `${minXy.x},${minXy.y},${maxXy.x},${maxXy.y}`)
+          updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
         } else {
-          updateOrAppendSearchParam(params, 'BBOX',  `${minXy.y},${minXy.x},${maxXy.y},${maxXy.x}`)
+          updateOrAppendSearchParam(params, 'BBOX',  `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]}`)
         }
         updateOrAppendSearchParam(params, 'CRS',  selectedCrs.stringRepresentation)
 
       } else {
         // always minx,miny,maxx,maxy (minLng,minLat,maxLng,maxLat)
-        updateOrAppendSearchParam(params, 'BBOX', `${minXy.x},${minXy.y},${maxXy.x},${maxXy.y}`)
+        updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
         updateOrAppendSearchParam(params, 'SRS',  selectedCrs.stringRepresentation)
       }
       updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
@@ -132,37 +140,71 @@ const WebMapServiceControl = () => {
     })
     
     return _tiles
-  }, [map?.getBounds(), map?.getSize(), atomicGetMapUrls, selectedCrs])
+  }, [bounds, size, atomicGetMapUrls, selectedCrs])
   
-  useMapEvent('contextmenu', (event) => {
-    setPosition(event.latlng)
-    setLayerPoint(event.layerPoint)
-  })
-  
-  useEffect(() => {
+
+  const getFeatureInfoUrls = useMemo(() => {
     if (layerPoint && position && atomicGetFeatureInfoUrls.length > 0) {
+      
       const getFeatureInfoUrls = [...atomicGetFeatureInfoUrls].reverse()
       getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl, index) => {
         const params = atomicGetFeatureInfoUrl.searchParams
-        updateOrAppendSearchParam(params, 'I', layerPoint.x.toString())
-        updateOrAppendSearchParam(params, 'J', layerPoint.y.toString())
-        updateOrAppendSearchParam(params, 'X', layerPoint.x.toString())
-        updateOrAppendSearchParam(params, 'Y', layerPoint.y.toString())
+        updateOrAppendSearchParam(params, 'I', layerPoint.x.toFixed(0).toString())
+        updateOrAppendSearchParam(params, 'J', layerPoint.y.toFixed(0).toString())
+        updateOrAppendSearchParam(params, 'X', layerPoint.x.toFixed(0).toString())
+        updateOrAppendSearchParam(params, 'Y', layerPoint.y.toFixed(0).toString())
         updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
         updateOrAppendSearchParam(params, 'HEIGHT', size.y.toString())
-        updateOrAppendSearchParam(params, 'QUERY_LAYERS', params.get('LAYERS') ?? params.get('layers') ?? '')
+        updateOrAppendSearchParam(params, 'LAYERS', params.get('QUERY_LAYERS') ?? params.get('query_layers') ?? '')
         updateOrAppendSearchParam(params, 'INFO_FORMAT', params.get('INFO_FORMAT') ?? params.get('info_format') ?? 'application/json')
         updateOrAppendSearchParam(params, 'FEATURE_COUNT', params.get('FEATURE_COUNT') ?? params.get('feature_count') ?? '10')
         updateOrAppendSearchParam(params, 'STYLES', '') // todo: shall be configureable
-        updateOrAppendSearchParam(params, 'BBOX', `${bounds?.getSouthWest().lng},${bounds?.getSouthWest().lat},${bounds?.getNorthEast().lng},${bounds?.getNorthEast().lat}`)
+        
+        const version = params.get('version') ?? params.get('VERSION')
+
+        if (version === '1.3.0') {
+          if (selectedCrs.isXyOrder) {
+            // no axis order correction needed.
+            updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
+          } else {
+            updateOrAppendSearchParam(params, 'BBOX',  `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]}`)
+          }
+          updateOrAppendSearchParam(params, 'CRS',  selectedCrs.stringRepresentation)
+
+        } else {
+          // always minx,miny,maxx,maxy (minLng,minLat,maxLng,maxLat)
+          updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
+          updateOrAppendSearchParam(params, 'SRS',  selectedCrs.stringRepresentation)
+        }
+        
       })
-      
+      return getFeatureInfoUrls
     }
-  },[])
+  },[layerPoint, atomicGetFeatureInfoUrls, size, bbox])
+
 
 
   useEffect(() => {
-    if (map !== undefined && map !== null){      
+    if (!getFeatureInfoUrls?.length) {
+      return
+    }
+
+    const fetchFeatureInfo = async () => {
+      try {
+        const responses = await Promise.all(
+          getFeatureInfoUrls.map((url) => fetch(url.toString()))
+        )
+        console.log('responses: ', responses)
+      } catch (error) {
+        console.error('Error fetching GetFeatureInfo:', error)
+      }
+    }
+
+    void fetchFeatureInfo()
+  }, [getFeatureInfoUrls])
+
+  useEffect(() => {
+    if (map !== undefined && map !== null){
       setBounds(map.getBounds())
       setSize(map.getSize())
       map.addEventListener('resize moveend zoomend', (event) => {
@@ -172,9 +214,19 @@ const WebMapServiceControl = () => {
     }
   }, [map])
 
+  useMapEvent('contextmenu', (event) => {
 
-
-
+    if (atomicGetFeatureInfoUrls.length > 0) {
+      setPosition(event.latlng)
+      setLayerPoint(event.containerPoint)
+      console.log(event.containerPoint, event.layerPoint)
+      console.log('hoho')
+    } else {
+      console.log('haha')
+      setPosition(null)
+      setLayerPoint(null)
+    }
+  })
 
   return (
     <div>

@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
-import { Marker, useMap, useMapEvent } from 'react-leaflet'
+import { Marker, Popup, Tooltip, useMap, useMapEvent } from 'react-leaflet'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 
 import proj4 from 'proj4'
 
 import { point, type LatLng } from 'leaflet'
+import { Link } from 'react-admin'
 import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
@@ -51,7 +52,6 @@ const WebMapServiceControl = () => {
   const { selectedCrs } = useMapViewerBase()
 
   const bbox = useMemo<[number, number,number, number]>(()=>{
-    console.log('new bbox')
 
     const sw = bounds?.getSouthWest()
     const ne = bounds?.getNorthEast()
@@ -142,7 +142,6 @@ const WebMapServiceControl = () => {
     return _tiles
   }, [bounds, size, atomicGetMapUrls, selectedCrs])
   
-
   const getFeatureInfoUrls = useMemo(() => {
     if (layerPoint && position && atomicGetFeatureInfoUrls.length > 0) {
       
@@ -183,26 +182,6 @@ const WebMapServiceControl = () => {
   },[layerPoint, atomicGetFeatureInfoUrls, size, bbox])
 
 
-
-  useEffect(() => {
-    if (!getFeatureInfoUrls?.length) {
-      return
-    }
-
-    const fetchFeatureInfo = async () => {
-      try {
-        const responses = await Promise.all(
-          getFeatureInfoUrls.map((url) => fetch(url.toString()))
-        )
-        console.log('responses: ', responses)
-      } catch (error) {
-        console.error('Error fetching GetFeatureInfo:', error)
-      }
-    }
-
-    void fetchFeatureInfo()
-  }, [getFeatureInfoUrls])
-
   useEffect(() => {
     if (map !== undefined && map !== null){
       setBounds(map.getBounds())
@@ -231,7 +210,17 @@ const WebMapServiceControl = () => {
   return (
     <div>
       {tiles.map(tile => tile.leafletTile)}
-      {position && <Marker position={position} />}
+      {position && <Marker position={position} >
+        <Popup>
+          {getFeatureInfoUrls?.map((url, index) => (
+              <Link to={url.href} target="_blank" rel="noopener noreferrer" key={index}>
+                {url.searchParams.get('QUERY_LAYERS') ?? url.searchParams.get('query_layers') ?? 'Feature Info'}
+              </Link>
+          ))}
+        </Popup>
+        <Tooltip direction="top">Click on the marker to see feature info</Tooltip>
+      </Marker>  
+      }
     </div>
   )
 

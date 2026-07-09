@@ -135,7 +135,6 @@ const TreeItemLabel = memo(
             })
           }
 
-          newContext.calculateCrsIntersection()
           setOwsContext(newContext)
         },
       [node.properties.folder, owsContext, setOwsContext],

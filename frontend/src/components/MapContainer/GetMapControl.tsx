@@ -23,9 +23,7 @@ const WebMapServiceControl = () => {
   const { owsContext } = useOwsContextBase()
   const [position, setPosition] = useState<LatLng | null>(null)
   const [layerPoint, setLayerPoint] = useState<{x: number, y: number} | null>(null) 
-  
-  // TODO: atomicGetMapUrls depends also on authorization.
-  
+   
   const atomicGetMapUrls = useMemo(()=>{
     return owsContext.getOptimizedUrlsByCode(
       "GetMap",
@@ -45,7 +43,6 @@ const WebMapServiceControl = () => {
   }, [owsContext])
 
   const map = useMap()
-
 
   const [bounds, setBounds] = useState(map?.getBounds())
   const [size, setSize] = useState(map?.getSize())
@@ -84,12 +81,6 @@ const WebMapServiceControl = () => {
       return false
     })
 
-    if (feature) {
-      const getCapOp = feature.getWmsOperationByCode("GetCapabilities")
-      if (getCapOp?.href && owsContext.capabilititesMap[getCapOp.href]?.headers) {
-        return owsContext.capabilititesMap[getCapOp.href].headers
-      }
-    }
     return undefined
   }
 
@@ -127,7 +118,7 @@ const WebMapServiceControl = () => {
       _tiles.push(
         {
           leafletTile: <AuthImageOverlay
-            key={(Math.random() + 1).toString(36).substring(7)}
+            key={atomicGetMapUrl.href}
             bounds={bounds}
             interactive={true}
             url={atomicGetMapUrl.href}
@@ -183,25 +174,25 @@ const WebMapServiceControl = () => {
 
 
   useEffect(() => {
-    if (map !== undefined && map !== null){
+    if (!map) return
+
+    const updateBounds = () => {
       setBounds(map.getBounds())
       setSize(map.getSize())
-      map.addEventListener('resize moveend zoomend', (event) => {
-        setBounds(map.getBounds())
-        setSize(map.getSize())
-      })
+    }
+
+    updateBounds()
+    map.on('resize moveend zoomend', updateBounds)
+    return () => {
+      map.off('resize moveend zoomend', updateBounds)
     }
   }, [map])
 
   useMapEvent('contextmenu', (event) => {
-
     if (atomicGetFeatureInfoUrls.length > 0) {
       setPosition(event.latlng)
       setLayerPoint(event.containerPoint)
-      console.log(event.containerPoint, event.layerPoint)
-      console.log('hoho')
     } else {
-      console.log('haha')
       setPosition(null)
       setLayerPoint(null)
     }

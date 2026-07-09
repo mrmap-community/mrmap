@@ -19,10 +19,6 @@ export type OwsContextLoadingTimings = Partial<{
 }>
 
 export interface OwsContextBaseType {
-  // TODO: crs handling
-  //crsIntersection: MrMapCRS[]
-  //selectedCrs: MrMapCRS
-  //setSelectedCrs: (crs: MrMapCRS) => void
   owsContext: OWSContext
   setOwsContext: (owsContext: OWSContext) => void
   updateOwsContext: (owsContext: OWSContext) => void
@@ -266,10 +262,13 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
         throw new Error('Invalid OWSContext JSON structure: features array is required')
       }
       const newOwsContext = OWSContext.fromPlainObject(json)
-      const initializeStart = performance.now()
-      await newOwsContext.initialize()
-      timings.initialize = performance.now() - initializeStart
-      setLoadingTimings((previous) => ({ ...previous, initialize: timings.initialize }))
+      // initialize may not be typed on OWSContext in some builds; call if available
+      if (typeof (newOwsContext as any).initialize === 'function') {
+        const initializeStart = performance.now()
+        await (newOwsContext as any).initialize()
+        timings.initialize = performance.now() - initializeStart
+        setLoadingTimings((previous) => ({ ...previous, initialize: timings.initialize }))
+      }
       setOwsContext(newOwsContext)
       timings.total = performance.now() - totalStart
       setLoadingTimings((previous) => ({ ...previous, total: timings.total }))

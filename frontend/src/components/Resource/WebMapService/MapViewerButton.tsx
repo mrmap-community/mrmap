@@ -1,10 +1,14 @@
 import PublicIcon from '@mui/icons-material/Public';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, RaRecord, useGetOne, useRecordContext } from 'react-admin';
 import { useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from 'uuid';
 import { OWSContext } from '../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
+import { getAuthToken } from '../../../providers/authProvider';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
+
+
 
 export interface MapViewerButtonProps {
   wmsRecord?: RaRecord
@@ -17,7 +21,6 @@ const MapViewerButton = (
     capabilititesUrl
   }: MapViewerButtonProps
 ): ReactNode => {
-  
   const navigate = useNavigate();
   const { addWMSByUrl, resetContext, owsContext } = useOwsContextBase()
   const record = useRecordContext(wmsRecord)
@@ -28,6 +31,13 @@ const MapViewerButton = (
     })?.url)
   const [getCapaibilitesUrl, setGetCapaibilitesUrl] = useState()
   const [clicked, setClicked] = useState(false)
+
+  const authHeader = useMemo(()=>({
+      id: uuidv4(),
+      name: "Authorization",
+      value: `Token ${getAuthToken()?.token}`,
+    }
+  ),[])
 
   const {data: wmsRecordWithUrl, isLoading, refetch } = useGetOne(
     "WebMapService",
@@ -52,10 +62,22 @@ const MapViewerButton = (
     setClicked(true)
   }, [])
 
-  const injectMrMapIds = useCallback((context: OWSContext, treeId: number)=>{
+  const beforeSetHook = useCallback((context: OWSContext, treeId: number)=>{
+    
+    const authHeaders = Array.isArray(context.authenticationHeaders)
+      ? context.authenticationHeaders
+      : []
+    context.authenticationHeaders = authHeaders
+    authHeaders.push(authHeader)
+    
     const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
 
     addedFeatures.forEach(feature => {
+      feature.properties.offerings?.forEach(offering => {
+        offering.operations?.forEach(operation => {
+          operation["x-authentication-id"] = authHeader.id
+        })
+      })
       const operation = feature.getWmsOperationByCode("GetMap")
       if (operation !== undefined) {
         operation["x-mrmap-service-id"] = wmsRecordWithUrl?.id
@@ -104,7 +126,12 @@ const MapViewerButton = (
     ){
       // wait until context is reset and then add wms by url
       const url = prepareGetCapabilititesUrl(initialGetCapabilitiesUrl.current || getCapaibilitesUrl, "wms")
-      addWMSByUrl(url.href, undefined, injectMrMapIds)
+      
+      addWMSByUrl(
+        url.href, 
+        new Headers({"Authorization": `Token ${authHeader.value}`}), 
+        beforeSetHook
+      )
       navigate('/viewer')
       setClicked(false)
     }

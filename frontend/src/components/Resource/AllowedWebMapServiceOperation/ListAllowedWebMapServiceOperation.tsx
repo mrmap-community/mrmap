@@ -7,7 +7,6 @@ import MapViewerButton from "../WebMapService/MapViewerButton"
 import AllowedWebMapServiceOperationFields from "./AllowedWebMapServiceOperationFields"
 import CreateAllowedWebMapServiceOperationDialogButton from "./CreateDialogButton"
 
-
 const ListActionsAllowedWebMapServiceOperation = (
   { 
     ...props

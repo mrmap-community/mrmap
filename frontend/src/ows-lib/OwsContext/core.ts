@@ -3,11 +3,16 @@ import { BBox, Geometry } from 'geojson';
 import { v4 as uuidv4 } from 'uuid';
 import { parseWms } from '../XMLParser/parseCapabilities';
 import { Position } from './enums';
-import { OWSContext as IOWSContext, OWSResource as IOWSResource, Offering, OWSContextProperties, OWSResourceProperties } from './types';
+import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties } from './types';
 import { appendQueryParam, getFeatureFolderIndex, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 
 const VALID_PATH = new RegExp('(\/\d*)+')
 
+
+export interface OptimizedUrlsMap {
+  url: URL, 
+  operations: Operation[]
+}
 
 export class OWSResource implements IOWSResource {
   properties: OWSResourceProperties;
@@ -134,6 +139,18 @@ export class OWSContext implements IOWSContext {
         ctx.bbox,
         ctx.properties,
     );
+
+    // Preserve any additional properties from the input object
+    if (ctx.date) {
+      context.date = ctx.date;
+    }
+
+    // Copy any other custom properties that aren't part of the standard interface
+    for (const [key, value] of Object.entries(ctx)) {
+      if (!['id', 'features', 'bbox', 'properties', 'date', 'type', 'folderToResource'].includes(key)) {
+        (context as Record<string, unknown>)[key] = value;
+      }
+    }
 
     return context;
   }
@@ -577,13 +594,12 @@ export class OWSContext implements IOWSContext {
   getOptimizedUrlsByCode(
     code: string, 
     featureFilter?: (feature: OWSResource) => boolean,
-    offeringCompareFn?: (index: number, offeringA: Offering, offeringB: Offering) => boolean,
-  ): URL[] {
+    operationCompareFn?: (index: number, offeringA: Operation, offeringB: Operation) => boolean,
+  ): OptimizedUrlsMap[] {
     const trees = this.treeify()
-    const offerings: Offering[] = []
-    const urls: URL[] = []
+    const urls: OptimizedUrlsMap[] = []
     const queryParam = code === 'GetMap' ? 'LAYERS' : 'QUERY_LAYERS'
-
+    
     /** 
      * every tree is 1..* atomic wms
      */
@@ -595,30 +611,29 @@ export class OWSContext implements IOWSContext {
       // keep a parallel array of authentication ids for pushed URLs so we only merge
       // layers when the authentication context matches
       activeWmsFeatures.forEach((feature, index) => {
-
-        const offering = feature.properties.offerings?.find(offering =>
+        const operation = feature.properties.offerings?.find(offering =>
           offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation =>
             operation.code === code && operation.method.toLowerCase() === 'get')
 
-        if (offering?.href === undefined) return
+        if (operation?.href === undefined) return
 
-        const operationUrl = new URL(offering.href)
-        const lastOffering = offerings.slice(-1)?.[0]
+        const operationUrl = new URL(operation.href)
         const lastUrl = urls.slice(-1)?.[0]
-        if(typeof offeringCompareFn === 'function' && lastOffering !== undefined) {
-          // TODO: use offeringCompareFn instead of default behavior to determine if offerings are mergeable
-          offeringCompareFn(index, lastOffering, offering)
-        }
+        const lastOperation = lastUrl?.operations.slice(-1)?.[0]
         
+        // Determine if offerings are mergeable using custom function if provided, otherwise use default behavior
+        const areOfferingsMergeable = typeof operationCompareFn === 'function' && lastOperation !== undefined
+          ? operationCompareFn(index, lastOperation, operation)
+          : lastOperation && isOperationUrlEqual(new URL(lastOperation.href), operationUrl)
 
-        if (index === 0 || !isOperationUrlEqual(lastUrl, operationUrl)) {
+        if (index === 0 || !areOfferingsMergeable) {
           // index 0 signals always a root node ==> just push it; nothing else to do here
-          // index > 0 and last url not equals current => define new atomic wms; not mergeable resources
-          offerings.push(offering)
-          urls.push(operationUrl)
+          // index > 0 and offerings are not mergeable => define new atomic wms; not mergeable resources
+          urls.push({url: operationUrl, operations: [operation]})
         }
-        else if (isOperationUrlEqual(lastUrl, operationUrl)) {
-          appendQueryParam(queryParam, lastUrl, operationUrl)
+        else if (areOfferingsMergeable) {
+          lastUrl.operations.push(operation)
+          appendQueryParam(queryParam, lastUrl.url, operationUrl)
         }
       })
     })

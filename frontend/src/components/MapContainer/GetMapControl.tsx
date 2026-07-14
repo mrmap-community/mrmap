@@ -6,7 +6,9 @@ import proj4 from 'proj4'
 
 import { point, type LatLng } from 'leaflet'
 import { Link } from 'react-admin'
-import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
+import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
+import { Operation } from '../../ows-lib/OwsContext/types'
+import { isOperationUrlEqual, updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
 
@@ -18,6 +20,18 @@ export interface Tile {
 }
 
 
+const compareOfferingByAuth = (index: number, lastOperation: Operation, operation: Operation) => {
+
+  if (index === 0) {
+    return true
+  }
+  // Check if all offeringA.operations and offeringB.operations have the same "x-authentication-id" value
+  const authIdsA = lastOperation['x-authentication-id']
+  const authIdsB = operation['x-authentication-id']
+  return authIdsA === authIdsB && isOperationUrlEqual(new URL(lastOperation.href), new URL(operation.href))
+}
+    
+
 const WebMapServiceControl = () => {
   
   const { owsContext } = useOwsContextBase()
@@ -27,16 +41,17 @@ const WebMapServiceControl = () => {
   const atomicGetMapUrls = useMemo(()=>{
     return owsContext.getOptimizedUrlsByCode(
       "GetMap",
-      (feature)=>(
+      (feature) => (
         feature.getWmsOperationByCode("GetMap")?.active === true
-      )
+      ),
+      compareOfferingByAuth
     )
   }, [owsContext])
-
+  console.log(atomicGetMapUrls)
   const atomicGetFeatureInfoUrls = useMemo(()=>{
     return owsContext.getOptimizedUrlsByCode(
       "GetFeatureInfo",
-      (feature)=>(
+      (feature) => (
         feature.getWmsOperationByCode("GetFeatureInfo")?.active === true
       )
     )
@@ -66,22 +81,16 @@ const WebMapServiceControl = () => {
   }, [bounds, selectedCrs])
 
   // Helper function to get auth headers for a GetMap URL
-  const getAuthForGetMapUrl = (getMapUrl: string) => {
-    const getMapUrlObj = new URL(getMapUrl)
-    const getMapBase = `${getMapUrlObj.origin}${getMapUrlObj.pathname}`
-
-    // Find the feature that contains this GetMap URL
-    const feature = owsContext.features.find(f => {
-      const wmsMeta = f.getWmsOperationByCode("GetMap")
-      if (wmsMeta?.href) {
-        const wmsUrlObj = new URL(wmsMeta.href)
-        const wmsBase = `${wmsUrlObj.origin}${wmsUrlObj.pathname}`
-        return wmsBase === getMapBase
-      }
-      return false
-    })
-
-    return undefined
+  const getAuthForGetMapUrl = (getMapUrl: OptimizedUrlsMap) => {
+    const authId = getMapUrl.operations[0]["x-authentication-id"]
+    const authenticationHeaders = owsContext.authenticationHeaders as []
+    const authHeader = authenticationHeaders.find((header: any) => header.id === authId) as any
+    
+    const headerInit :any = {}
+    headerInit[authHeader.name] = authHeader.value
+    console.log(new Headers(headerInit))
+    return new Headers(headerInit)
+    
   }
 
   const tiles = useMemo(() => {
@@ -95,7 +104,7 @@ const WebMapServiceControl = () => {
 
   
     getMapUrls.forEach((atomicGetMapUrl, index) => {
-      const params = atomicGetMapUrl.searchParams
+      const params = atomicGetMapUrl.url.searchParams
       const version = params.get('version') ?? params.get('VERSION')
 
       if (version === '1.3.0') {
@@ -118,13 +127,13 @@ const WebMapServiceControl = () => {
       _tiles.push(
         {
           leafletTile: <AuthImageOverlay
-            key={atomicGetMapUrl.href}
+            key={atomicGetMapUrl.url.href}
             bounds={bounds}
             interactive={true}
-            url={atomicGetMapUrl.href}
-            auth={getAuthForGetMapUrl(atomicGetMapUrl.href)}            
+            url={atomicGetMapUrl.url.href}
+            auth={getAuthForGetMapUrl(atomicGetMapUrl)}            
           />,
-          getMapUrl: atomicGetMapUrl,
+          getMapUrl: atomicGetMapUrl.url,
           getFeatureinfoUrl: undefined
         }
       )

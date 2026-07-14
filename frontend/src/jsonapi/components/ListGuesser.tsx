@@ -51,7 +51,7 @@ const ListGuesser = ({
   updateFieldDefinitions,
   refetchInterval=false,
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
-  sparseFieldsets= undefined,
+  sparseFieldsets = undefined,
   ActionsComponent=ListActions,
   ...props
 }: ListGuesserProps): ReactElement => {

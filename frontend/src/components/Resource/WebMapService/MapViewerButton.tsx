@@ -1,6 +1,6 @@
 import PublicIcon from '@mui/icons-material/Public';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button, RaRecord, useGetOne, useRecordContext } from 'react-admin';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Button, ButtonProps, RaRecord, useGetOne, useRecordContext } from 'react-admin';
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
 import { OWSContext } from '../../../ows-lib/OwsContext/core';
@@ -10,7 +10,7 @@ import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsCon
 
 
 
-export interface MapViewerButtonProps {
+export interface MapViewerButtonProps extends ButtonProps{
   wmsRecord?: RaRecord
   capabilititesUrl?: string
 }
@@ -18,26 +18,33 @@ export interface MapViewerButtonProps {
 const MapViewerButton = (
   {
     wmsRecord, 
-    capabilititesUrl
+    capabilititesUrl,
+    children,
+    ...rest
   }: MapViewerButtonProps
 ): ReactNode => {
   const navigate = useNavigate();
   const { addWMSByUrl, resetContext, owsContext } = useOwsContextBase()
   const record = useRecordContext(wmsRecord)
 
-  const initialGetCapabilitiesUrl = useRef(capabilititesUrl || record?.operationUrls?.find(
-    (opUrl: RaRecord) => {
-      return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
-    })?.url)
-  const [getCapaibilitesUrl, setGetCapaibilitesUrl] = useState()
+  const [getCapaibilitesUrl, setGetCapaibilitesUrl] = useState(
+    capabilititesUrl || record?.operationUrls?.find(
+      (opUrl: RaRecord) => {
+        return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
+      })?.url
+  )
+
   const [clicked, setClicked] = useState(false)
 
-  const authHeader = useMemo(()=>({
+  const authHeader = useMemo(()=>(
+    getCapaibilitesUrl && new URL(getCapaibilitesUrl).hostname === window.location.hostname ? {
       id: uuidv4(),
       name: "Authorization",
       value: `Token ${getAuthToken()?.token}`,
-    }
-  ),[])
+    } : undefined
+  ),[getCapaibilitesUrl])
+
+  console.log(rest.label,authHeader , getCapaibilitesUrl && new URL(getCapaibilitesUrl).hostname, window.location.hostname )
 
   const {data: wmsRecordWithUrl, isLoading, refetch } = useGetOne(
     "WebMapService",
@@ -63,19 +70,20 @@ const MapViewerButton = (
   }, [])
 
   const beforeSetHook = useCallback((context: OWSContext, treeId: number)=>{
-    
-    const authHeaders = Array.isArray(context.authenticationHeaders)
+    if (authHeader !== undefined) {
+      const authHeaders = Array.isArray(context.authenticationHeaders)
       ? context.authenticationHeaders
       : []
-    context.authenticationHeaders = authHeaders
-    authHeaders.push(authHeader)
+      context.authenticationHeaders = authHeaders
+      authHeaders.push(authHeader)
+    }
     
     const addedFeatures = context.features.filter(feature => feature.properties.folder?.startsWith(`/${treeId}`))
 
     addedFeatures.forEach(feature => {
-      feature.properties.offerings?.forEach(offering => {
+      authHeader && feature.properties.offerings?.forEach(offering => {
         offering.operations?.forEach(operation => {
-          operation["x-authentication-id"] = authHeader.id
+          operation["x-authentication-id"] = authHeader?.id
         })
       })
       const operation = feature.getWmsOperationByCode("GetMap")
@@ -90,6 +98,7 @@ const MapViewerButton = (
         }
       }
     })
+    console.log(context)
     return context
   }, [wmsRecordWithUrl])
 
@@ -98,7 +107,7 @@ const MapViewerButton = (
       (opUrl: RaRecord) => {
         return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
       })?.url
-      if (url !== undefined){
+      if (url !== undefined && getCapaibilitesUrl === undefined){
         setGetCapaibilitesUrl(url)
       }
   },[wmsRecordWithUrl])
@@ -106,30 +115,29 @@ const MapViewerButton = (
   useEffect(() => {
     if (
       clicked && 
-      (initialGetCapabilitiesUrl.current !== undefined || getCapaibilitesUrl !== undefined)
+      getCapaibilitesUrl !== undefined
     ){
       resetContext()
     } else if (
       clicked &&
-      initialGetCapabilitiesUrl.current === undefined && 
       getCapaibilitesUrl === undefined
     ) {
       refetch()
     }
-  },[initialGetCapabilitiesUrl, getCapaibilitesUrl, clicked])
+  },[getCapaibilitesUrl, clicked])
 
   useEffect(() => {
     if (
       clicked && 
       owsContext.features.length === 0 && 
-      (initialGetCapabilitiesUrl.current !== undefined || getCapaibilitesUrl !== undefined)
+      getCapaibilitesUrl !== undefined
     ){
       // wait until context is reset and then add wms by url
-      const url = prepareGetCapabilititesUrl(initialGetCapabilitiesUrl.current || getCapaibilitesUrl, "wms")
+      const url = prepareGetCapabilititesUrl(getCapaibilitesUrl, "wms")
       
       addWMSByUrl(
         url.href, 
-        new Headers({"Authorization": `Token ${authHeader.value}`}), 
+        authHeader && new Headers({"Authorization": `Token ${authHeader?.value}`}), 
         beforeSetHook
       )
       navigate('/viewer')
@@ -144,8 +152,9 @@ const MapViewerButton = (
       label={'resources.WebMapService.actions.showInViewer'}
       loading={isLoading}
       disabled={isLoading}
+      {...rest}
     >
-      <PublicIcon />
+      {children || <PublicIcon />} 
     </Button>
   )
 }

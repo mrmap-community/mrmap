@@ -3,10 +3,10 @@ import datetime
 import re
 from functools import cached_property
 from io import BytesIO
-from registry.ows_lib.request.utils import update_queryparams
 
 from django.contrib.auth import authenticate, get_user_model
-from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist, PermissionDenied
+from django.core.exceptions import (BadRequest, ImproperlyConfigured,
+                                    ObjectDoesNotExist, PermissionDenied)
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import HttpResponse, StreamingHttpResponse
@@ -15,11 +15,13 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
+from knox.auth import TokenAuthentication
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import OgcService
 from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.request.ogc_request import OGCRequest
+from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.response.exceptions import (
     DisabledException, ForbiddenException, MissingRequestParameterException,
     MissingVersionParameterException)
@@ -29,10 +31,36 @@ from registry.settings import SECURE_ABLE_OPERATIONS_LOWER
 from requests import Request
 from requests.exceptions import ConnectionError as ConnectionErrorException
 from requests.exceptions import ConnectTimeout as ConnectTimeoutException
+from rest_framework.views import APIView
+
+
+class Http423(Exception):
+    pass
+
+
+def exception_handler(exc, context):
+    match exc:
+        case Http404() | PermissionDenied():
+            return ForbiddenException(service_type=context["view"].ogc_request.service_type.lower(),
+                                      service_version=context["view"].ogc_request.service_version,
+                                      message="You don't have permission to test as other users. Contact an administrator.")
+        case BadRequest():
+            return exc.response_cls(service_type=context["view"].ogc_request.service_type.lower(),
+                                    service_version=context["view"].ogc_request.service_version,)
+        case Http423():
+            return DisabledException(service_type=context["view"].ogc_request.service_type.lower(),
+                                     service_version=context["view"].ogc_request.service_version)
+        case NotImplementedError():
+            return MrMapNotImplementedError(
+                service_type=context["view"].ogc_request.service_type.lower(),
+                service_version=context["view"].ogc_request.service_version)
+        case _:
+            return ForbiddenException(service_type=context["view"].ogc_request.service_type.lower(),
+                                      service_version=context["view"].ogc_request.service_version)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class OgcServiceProxyView(View):
+class OgcServiceProxyView(APIView):
     """Security proxy facade to secure registered services spatial by there operations and for sets of users.
     :attr service:  :class:`registry.models.service.Service` the requested service which was found by the pk.
     :attr remote_service: :class:`registry.ows_client.request_builder.WebService` the request builder to get
@@ -43,6 +71,7 @@ class OgcServiceProxyView(View):
     bbox = None
     start_time = None
     test_context = None
+    authentication_classes = (TokenAuthentication,)
 
     @property
     def is_get_request(self) -> bool:
@@ -75,46 +104,32 @@ class OgcServiceProxyView(View):
         """hook method to do adittional stuff in child classes"""
         pass
 
-    def basic_auth(self):
-        """hook method to do basic auth in child classes"""
-        authorization = self.request.headers.get("authorization", "")
-        if not authorization.startswith("Basic "):
-            return
-        try:
-            credentials = base64.b64decode(
-                authorization.replace("Basic ", "", 1)).decode("utf-8")
-            username, password = credentials.split(":", 1)
-            user = authenticate(username=username, password=password)
-            self.request.user = user
-        except (ValueError, UnicodeDecodeError) as e:
-            i = 0
+    def get_exception_handler(self):
+        return exception_handler
 
-    def dispatch(self, request, *args, **kwargs):
+    def initial(self, request, *args, **kwargs):
         self.start_time = datetime.datetime.now()
-        self.basic_auth()
+        super().initial(request, *args, **kwargs)
         self.ogc_request = OGCRequest.from_django_request(request)
         # Apply test-as-user context if provided
-        try:
-            self.test_context = self._apply_test_as_user_context(request)
-        except (Http404, PermissionDenied) as e:
-            return ForbiddenException(service_type=self.ogc_request.service_type.lower(),
-                                      service_version=self.ogc_request.service_version,
-                                      message=str(e))
+
+        self.test_context = self._apply_test_as_user_context(request)
 
         exception = self.check_request()
         if exception:
             return exception
         self.analyze_request()
 
-        return self.get_and_post(request=request, *args, **kwargs)
-
     def check_request(self):
         if not self.ogc_request.operation:
-            return MissingRequestParameterException(service_type=self.ogc_request.service_type.lower(),
-                                                    service_version=self.ogc_request.service_version)
+            raise BadRequest(
+                response_cls=MissingRequestParameterException
+            )
+
         elif not self.ogc_request.service_version:
-            return MissingVersionParameterException(service_type=self.ogc_request.service_type.lower(),
-                                                    service_version=self.service.version)
+            raise BadRequest(
+                response_cls=MissingVersionParameterException
+            )
 
     def _extract_test_user_param(self) -> str | None:
         """Extract test user parameter from request (multiple sources)."""
@@ -151,10 +166,7 @@ class OgcServiceProxyView(View):
 
         # Step 1: Verify requesting user is admin/has permission to test
         if not self._can_test_as_user():
-            raise ForbiddenException(service_type=self.ogc_request.service_type.lower(),
-                                     service_version=self.ogc_request.service_version,
-                                     message="You don't have permission to test as other users. Contact an administrator."
-                                     )
+            raise PermissionDenied
 
         # Step 2: Retrieve the test user
         User = get_user_model()
@@ -164,9 +176,7 @@ class OgcServiceProxyView(View):
             raise Http404(f"User '{test_user_identifier}' not found")
 
         if not test_user.is_active:
-            raise ForbiddenException(service_type=self.ogc_request.service_type.lower(),
-                                     service_version=self.ogc_request.service_version,
-                                     message=f"User '{test_user_identifier}' is inactive")
+            raise PermissionDenied
 
         # Step 3: Swap user context and record original
         original_user = request.user
@@ -210,7 +220,7 @@ class OgcServiceProxyView(View):
         if self.ogc_request.is_get_capabilities_request:
             return self.get_capabilities()
         elif not self.service.is_active:
-            return DisabledException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
+            raise Http423
         # elif self.service.is_unknown_layer:
         #     return LayerNotDefined()
         elif (
@@ -228,17 +238,11 @@ class OgcServiceProxyView(View):
         elif (
             self.service.is_spatial_secured and self.service.is_user_principle_entitled
         ):
-            try:
-                return self.secure_request()
-            except NotImplementedError:
-                return MrMapNotImplementedError(
-                    service_type=self.ogc_request.service_type.lower(),
-                    service_version=self.ogc_request.service_version)
+
+            return self.secure_request()
+
         else:
-            return ForbiddenException(
-                service_type=self.ogc_request.service_type.lower(),
-                service_version=self.ogc_request.service_version
-            )
+            raise PermissionDenied
 
     def get_capabilities(self):
         """Return the camouflaged capabilities document of the founded service.

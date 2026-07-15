@@ -71,7 +71,7 @@ class OgcServiceProxyView(APIView):
     bbox = None
     start_time = None
     test_context = None
-    authentication_classes = (TokenAuthentication,)
+    # authentication_classes = (TokenAuthentication,)
 
     @property
     def is_get_request(self) -> bool:
@@ -122,14 +122,13 @@ class OgcServiceProxyView(APIView):
 
     def check_request(self):
         if not self.ogc_request.operation:
-            raise BadRequest(
-                response_cls=MissingRequestParameterException
-            )
-
+            exc = BadRequest()
+            exc.response_cls = MissingRequestParameterException
+            raise exc
         elif not self.ogc_request.service_version:
-            raise BadRequest(
-                response_cls=MissingVersionParameterException
-            )
+            exc = BadRequest()
+            exc.response_cls = MissingVersionParameterException
+            raise exc
 
     def _extract_test_user_param(self) -> str | None:
         """Extract test user parameter from request (multiple sources)."""

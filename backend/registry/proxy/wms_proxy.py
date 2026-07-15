@@ -426,9 +426,9 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
     def get_and_post(self, request, *args, **kwargs):
         if self.ogc_request.is_get_map_request and self.service.is_unknown_layer:
-            raise BadRequest(
-                response_cls=LayerNotDefined
-            )
+            exc = BadRequest()
+            exc.response_cls = LayerNotDefined
+            raise exc
         return super().get_and_post(request, *args, **kwargs)
 
     def secure_request(self):

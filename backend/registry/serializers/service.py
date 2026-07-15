@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 from accounts.models.groups import Organization
 from accounts.serializers.users import UserSerializer
 from django.utils.translation import gettext_lazy as _
@@ -189,7 +187,7 @@ class LayerSerializer(
         fields = "__all__"
 
     def _convert_dict_to_object(self, objs, Model, defaults={}):
-        if objs and isinstance(objs, List) and isinstance(objs[0], Dict):
+        if objs and isinstance(objs, list) and isinstance(objs[0], dict):
             return [Model(**defaults, **obj) for obj in objs]
         return objs
 

@@ -1,5 +1,4 @@
 import re
-from typing import List
 
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.core import OgcClient
@@ -25,7 +24,7 @@ class CatalogueServiceClient(OgcClient):
         else:
             return "type"
 
-    def get_constraint(self, record_types: List[str]):
+    def get_constraint(self, record_types: list[str]):
         type_name = self.queryable_type_name()
         record_types_filters = [
             f"<ogc:PropertyIsEqualTo><ogc:PropertyName>{type_name}</ogc:PropertyName><ogc:Literal>{record_type}</ogc:Literal></ogc:PropertyIsEqualTo>" for record_type in record_types]

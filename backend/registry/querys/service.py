@@ -303,6 +303,8 @@ class LayerQuerySet(QuerySet):
 
 
 class LayerPrefetch(Prefetch):
+    def __init__(self, request=None, to_attr=None):
+        super().__init__("layers", queryset=self.get_queryset(request), to_attr=to_attr)
 
     def get_queryset(self, request=None):
         from registry.models.service import Layer
@@ -339,14 +341,6 @@ class LayerPrefetch(Prefetch):
         )
 
         return qs
-
-    def __init__(self, request=None, *args, **kwargs):
-        super().__init__(
-            "layers",
-            queryset=self.get_queryset(request),
-            *args,
-            **kwargs
-        )
 
 
 class RequestBasedPrefetch(Prefetch):

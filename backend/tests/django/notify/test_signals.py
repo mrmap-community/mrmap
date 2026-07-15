@@ -1,5 +1,5 @@
 import asyncio
-from typing import OrderedDict
+from collections import OrderedDict
 from unittest import skip
 
 from asgiref.sync import async_to_sync

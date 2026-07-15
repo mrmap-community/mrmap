@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import OrderedDict
+from collections import OrderedDict
 
 from celery import Task
 from celery.signals import task_postrun, task_prerun

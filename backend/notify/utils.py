@@ -1,5 +1,5 @@
 import json
-from typing import OrderedDict
+from collections import OrderedDict
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer

@@ -1,4 +1,4 @@
-from typing import OrderedDict
+from collections import OrderedDict
 
 from camel_converter import to_camel
 from django.apps import apps

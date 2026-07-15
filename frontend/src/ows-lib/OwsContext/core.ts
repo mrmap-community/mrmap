@@ -2,13 +2,17 @@ import { BBox, Geometry } from 'geojson';
 
 import { v4 as uuidv4 } from 'uuid';
 import { parseWms } from '../XMLParser/parseCapabilities';
-import { Capabilites, WmsCapabilitites } from '../XMLParser/types';
 import { Position } from './enums';
-import { OWSContext as IOWSContext, OWSResource as IOWSResource, OWSContextProperties, OWSResourceProperties } from './types';
-import { collectInheritedLayerProperties, getFeatureFolderIndex, isDescendant, prepareGetCapabilititesUrl, updateFolders, wmsToOWSResources } from './utils';
+import { OWSContext as IOWSContext, OWSResource as IOWSResource, Operation, OWSContextProperties, OWSResourceProperties } from './types';
+import { appendQueryParam, getFeatureFolderIndex, isDescendant, isOperationUrlEqual, prepareGetCapabilititesUrl, treeToList, updateFolders, wmsToOWSResources } from './utils';
 
 const VALID_PATH = new RegExp('(\/\d*)+')
 
+
+export interface OptimizedUrlsMap {
+  url: URL, 
+  operations: Operation[]
+}
 
 export class OWSResource implements IOWSResource {
   properties: OWSResourceProperties;
@@ -16,39 +20,36 @@ export class OWSResource implements IOWSResource {
   type: 'Feature';
   id?: string | number;
   bbox?: BBox;
+  children?: OWSResource[] | undefined;
 
   constructor(
     properties: OWSResourceProperties,
     id: string | number = uuidv4(),
     bbox: BBox | undefined = undefined,
-    geometry: Geometry | undefined = undefined
+    geometry: Geometry | undefined = undefined,
+    children: OWSResource[] | undefined = []
   ) {
     this.properties = JSON.parse(JSON.stringify(properties))
     this.id = id
     this.bbox = bbox ? JSON.parse(JSON.stringify(bbox)) : undefined
     this.type = 'Feature'
     this.geometry = geometry ? JSON.parse(JSON.stringify(geometry)) : undefined
+    this.children = children 
   }
 
-  static fromPlainObject(resource: IOWSResource) {
-    return new OWSResource(resource.properties, resource.id, resource.bbox, resource.geometry)
+  static fromPlainObject(resource: IOWSResource): OWSResource {
+    const children = resource.children?.map(child => OWSResource.fromPlainObject(child))
+    return new OWSResource(resource.properties, resource.id, resource.bbox, resource.geometry, children)
   }
 
   getWmsOffering() {
     return this.properties.offerings?.find(offering => offering.code === "http://www.opengis.net/spec/owc/1.0/req/wms")
   }
 
-  getWmsGetMapOperation() {
+  getWmsOperationByCode(code: string) {
     const wmsOffering = this.getWmsOffering()
     if (wmsOffering !== undefined) {
-      return wmsOffering.operations?.find(operation => operation.code === "GetMap")
-    }
-  }
-
-  getWmsGetCapabilitiesOperation() {
-    const wmsOffering = this.getWmsOffering()
-    if (wmsOffering !== undefined) {
-      return wmsOffering.operations?.find(operation => operation.code === "GetCapabilities")
+      return wmsOffering.operations?.find(operation => operation.code === code)
     }
   }
 
@@ -59,6 +60,10 @@ export class OWSResource implements IOWSResource {
   getParentFolder = () => {
     if (this.properties.folder?.split('/').length === 2) return // root node
     return this.properties.folder?.split('/').slice(0, -1).join('/')
+  }
+
+  isRootNode = () => {
+    return this.properties.folder?.split('/').length === 2
   }
 
   isParentOf(child: OWSResource) {
@@ -101,60 +106,93 @@ export class OWSContext implements IOWSContext {
   date?: string;
   features: OWSResource[];
   type: 'FeatureCollection';
-
-  capabilititesMap: { [url: string]: { capabilitites: Capabilites, features: OWSResource[] } }; // map to store all capabilities which are part of this ows context
-  crsIntersection: string[]; // extension to calculate the reference systems which all active features supports
+  folderToResource: Map<string, OWSResource>;
 
   constructor(
     id: string = uuidv4(),
-    features: OWSResource[] = [],
+    features: (OWSResource | IOWSResource)[] = [],
     bbox: BBox = [-180, -90, 180, 90],
     properties: OWSContextProperties = {
       lang: 'en',
       title: 'mrmap ows context',
       updated: new Date().toISOString()
     },
-    capabilititesMap = {}
   ) {
+    this.folderToResource = new Map<string, OWSResource>();
     this.id = id;
     this.type = "FeatureCollection";
-    this.features = features;
+    this.features = features.map(feature =>
+        feature instanceof OWSResource
+            ? feature
+            : OWSResource.fromPlainObject(feature)
+    );
+    this.rebuildFolderLookup()
     this.bbox = bbox;
     this.properties = JSON.parse(JSON.stringify(properties));
-
-    this.capabilititesMap = capabilititesMap
-    this.crsIntersection = []
   }
   [name: string]: unknown;
 
-  async initialize() {
-    await this.collectWmsCapabilities()
+  static fromPlainObject(ctx: IOWSContext) {
+    const context = new OWSContext(
+        ctx.id,
+        ctx.features.map(OWSResource.fromPlainObject),
+        ctx.bbox,
+        ctx.properties,
+    );
 
+    // Preserve any additional properties from the input object
+    if (ctx.date) {
+      context.date = ctx.date;
+    }
+
+    // Copy any other custom properties that aren't part of the standard interface
+    for (const [key, value] of Object.entries(ctx)) {
+      if (!['id', 'features', 'bbox', 'properties', 'date', 'type', 'folderToResource'].includes(key)) {
+        (context as Record<string, unknown>)[key] = value;
+      }
+    }
+
+    return context;
   }
 
-  appendWms(href: string, capabilitites: string): this {
+  private rebuildFolderLookup() {
+    this.folderToResource.clear();
+
+    for (const feature of this.features) {
+      const folder = feature.properties.folder;
+      if (folder) {
+        this.folderToResource.set(folder, feature);
+      }
+    }
+  }
+
+  appendWms(href: string, capabilitites: string): number {
+
     const parsedWms = parseWms(capabilitites)
 
     const url = prepareGetCapabilititesUrl(href, 'WMS')
 
-    const additionalFeatures = wmsToOWSResources(url.href, parsedWms, this.getNextRootId()).map(resource => new OWSResource(resource.properties))
+    const treeId = this.getNextRootId()
+
+    const additionalFeatures = wmsToOWSResources(url.href, parsedWms, treeId).map(
+      resource => new OWSResource(resource.properties)
+    )
+
     this.features.push(...additionalFeatures)
 
-    if (url.href in this.capabilititesMap) {
-      this.capabilititesMap[url.href].features = [...this.capabilititesMap[url.href].features, ...additionalFeatures]
-    } else {
-      this.capabilititesMap[url.href] = { capabilitites: parsedWms, features: additionalFeatures }
-    }
+    this.rebuildFolderLookup()
 
-    return this
+    return treeId
   }
 
   appendWfs(capabilities: string): this {
     throw new Error('Method not implemented.');
   }
 
-  findResourceByFolder(folder: string) {
-    return this.features.find(feature => feature.properties.folder === folder)
+  findResourceByFolder(folder?: string) {
+    return folder
+        ? this.folderToResource.get(folder)
+        : undefined;
   }
 
   getNextRootId(): number {
@@ -217,7 +255,7 @@ export class OWSContext implements IOWSContext {
     const currentSourceParentFolder = source.getParentFolder() ?? '/'
     const currentSourceFolders = currentSourceSubtree.map(node => node.properties.folder).filter(folder => folder !== undefined)
 
-    const futureSiblings = this.getDescandantsOf(target, false).filter(descendant => !currentSourceFolders.includes(descendant.properties.folder))
+    const futureSiblings = this.getDescandantsOf(target, false).filter(descendant => descendant.properties.folder && !currentSourceFolders.includes(descendant.properties.folder))
 
     const currentTargetRightSiblingsIncludeSelf = this.getRightSiblingsOf(target, true, true).filter(feature => !currentSourceSubtree.includes(feature))
     const currentTargetRightSiblings = this.getRightSiblingsOf(target, false, true).filter(feature => {
@@ -280,6 +318,7 @@ export class OWSContext implements IOWSContext {
 
     this.sortFeaturesByFolder()
     this.validateFolderStructure()
+    this.rebuildFolderLookup()
     return this.features
   }
 
@@ -345,6 +384,7 @@ export class OWSContext implements IOWSContext {
     }
     this.sortFeaturesByFolder()
     this.validateFolderStructure()
+    this.rebuildFolderLookup()
   }
 
   sortFeaturesByFolder() {
@@ -431,15 +471,18 @@ export class OWSContext implements IOWSContext {
   }
 
   getParentOf(target: OWSResource) {
-    if (target.properties.folder === undefined) return
-    const parentFolderName = target.getParentFolder()
-    if (parentFolderName === undefined || parentFolderName === '/') return
-    return this.features.find(feature => feature.properties.folder === parentFolderName)
+      const parentFolder = target.getParentFolder();
+
+      if (!parentFolder || parentFolder === '/') {
+          return;
+      }
+
+      return this.folderToResource.get(parentFolder);
   }
 
   getAncestorsOf(target: OWSResource, include_self: boolean = false) {
     const ancestors = this.features.filter(feature => target.isDescendantOf(feature))
-    if (include_self) return [...ancestors, this]
+    if (include_self) return [...ancestors, target]
     return ancestors
   }
 
@@ -512,12 +555,15 @@ export class OWSContext implements IOWSContext {
     this.features.splice(start, stop - start + 1)
 
     updateFolders(this.features)
-
+    this.rebuildFolderLookup()
     return this.features
   }
 
-  activateFeature(target: OWSResource, active: boolean = true) {
+  activateFeature(folder?: string, active: boolean = true) {
+    const target = this.findResourceByFolder(folder)
+    if (target === undefined) return []
     target.properties.active = active
+
     // activate/deactivate all descendants
     this.getDescandantsOf(target, true).forEach(descendant => descendant.properties.active = active)
 
@@ -532,7 +578,6 @@ export class OWSContext implements IOWSContext {
     else if (active === false) {
       this.getAncestorsOf(target).forEach(ancestor => ancestor.properties.active = active)
     }
-    this.calculateCrsIntersection()
     return this.features
   }
 
@@ -540,86 +585,96 @@ export class OWSContext implements IOWSContext {
     return this.features.filter(feature => feature.properties.active === true)
   }
 
-  async collectWmsCapabilities() {
+  /**
+   * Build optimized GetMap URLs for WMS features.
+   * @param featureFilter Optional predicate to select features. If omitted,
+   * the default behavior is to include features that have a WMS offering and
+   * are marked active (`feature.properties.active === true`).
+   */
+  getOptimizedUrlsByCode(
+    code: string, 
+    featureFilter?: (feature: OWSResource) => boolean,
+    operationCompareFn?: (index: number, offeringA: Operation, offeringB: Operation) => boolean,
+  ): OptimizedUrlsMap[] {
+    const trees = this.treeify()
+    const urls: OptimizedUrlsMap[] = []
+    const queryParam = code === 'GetMap' ? 'LAYERS' : 'QUERY_LAYERS'
+    
+    /** 
+     * every tree is 1..* atomic wms
+     */
+    trees.forEach((tree) => {
+      const activeWmsFeatures = treeToList(tree).filter(feature => {
+        if (typeof featureFilter === 'function') return featureFilter(feature)
+        return feature.properties.offerings?.find(offering => offering?.code === 'http://www.opengis.net/spec/owc/1.0/req/wms') && feature.properties.active
+      })
+      // keep a parallel array of authentication ids for pushed URLs so we only merge
+      // layers when the authentication context matches
+      activeWmsFeatures.forEach((feature, index) => {
+        const operation = feature.properties.offerings?.find(offering =>
+          offering.code === 'http://www.opengis.net/spec/owc/1.0/req/wms')?.operations?.find(operation =>
+            operation.code === code && operation.method.toLowerCase() === 'get')
 
-    type CapabilitityRef = {
-      features: OWSResource[]
-      href: string
-      capabilitites?: Capabilites
-    }
+        if (operation?.href === undefined) return
 
-    const capabilitityFeatureMap = this.features.map((feature) => {
-      const getCapabilitiesOp = feature.getWmsGetCapabilitiesOperation()
-      return {
-        features: [feature],
-        href: getCapabilitiesOp?.href ?? ''
-      }
-    }).reduce<CapabilitityRef[]>((result, current) => {
-      const exists = result.find(feature => feature.href == current.href)
-      if (exists === undefined && current.href !== undefined) {
-        result.push(current)
-      } else if (exists !== undefined && current.href !== undefined) {
-        exists.features.push(...current.features)
-      }
-      return result;
-    }, [])
+        const operationUrl = new URL(operation.href)
+        const lastUrl = urls.slice(-1)?.[0]
+        const lastOperation = lastUrl?.operations.slice(-1)?.[0]
+        
+        // Determine if offerings are mergeable using custom function if provided, otherwise use default behavior
+        const areOfferingsMergeable = typeof operationCompareFn === 'function' && lastOperation !== undefined
+          ? operationCompareFn(index, lastOperation, operation)
+          : lastOperation && isOperationUrlEqual(new URL(lastOperation.href), operationUrl)
 
-    await Promise.all(capabilitityFeatureMap.map(capRequests => fetch(capRequests.href))).then(
-      responses => {
-        responses.forEach((response, index) => {
-          response.text().then(
-            rawCapabilitites => {
-              const status = response.status;
-              if (status >= 200 && status < 400 && rawCapabilitites !== undefined) {
-
-                capabilitityFeatureMap[index].capabilitites = parseWms(rawCapabilitites);
-
-                this.capabilititesMap[capabilitityFeatureMap[index].href] = {
-                  capabilitites: parseWms(rawCapabilitites),
-                  features: capabilitityFeatureMap[index].features
-                }
-              }
-            }
-          );
-        })
-      }
-    ).catch((error) => {
-      console.error('[request failed]', error.message)
+        if (index === 0 || !areOfferingsMergeable) {
+          // index 0 signals always a root node ==> just push it; nothing else to do here
+          // index > 0 and offerings are not mergeable => define new atomic wms; not mergeable resources
+          urls.push({url: operationUrl, operations: [operation]})
+        }
+        else if (areOfferingsMergeable) {
+          lastUrl.operations.push(operation)
+          appendQueryParam(queryParam, lastUrl.url, operationUrl)
+        }
+      })
     })
+    return urls
   }
 
-  getInheritedCrs(target: OWSResource) {
-    const wmsGetMapOp = target.getWmsGetMapOperation()
-    const getCapabilitiesOp = target.getWmsGetCapabilitiesOperation()
-    const referenceSystems: string[] = []
+  treeify(): OWSResource[] {
+    const trees: OWSResource[] = []
 
-    if (getCapabilitiesOp !== undefined &&
-      getCapabilitiesOp.href in this.capabilititesMap &&
-      wmsGetMapOp?.href !== undefined) {
+    this.features.forEach((feature: IOWSResource) => {
+      // by default the order of the features array may be used to visualize the layer structure.
+      // if there is a folder attribute setted; this should be used and overwrites the array order
+      // feature.properties.folder && jsonpointer.set(trees, feature.properties.folder, feature)
 
-      const getMapUrl = new URL(wmsGetMapOp.href)
-      const layers = getMapUrl.searchParams.get('LAYERS') ?? getMapUrl.searchParams.get('layers') ?? ''
-      const layerIdentifiers = layers.split(',')
+      const folders = feature.properties.folder?.split('/').splice(1)
+      const depth = folders?.length ? folders.length - 1 : 0 - 1 // -1 is signals unvalid folder definition
 
-      const capabilitites = this.capabilititesMap[getCapabilitiesOp?.href].capabilitites as WmsCapabilitites
-      
-      referenceSystems.push(
-        ...layerIdentifiers.reduce<string[]>((acc, identifier) => {
-          const inheritedProps = collectInheritedLayerProperties(capabilitites.rootLayer, identifier)
-          if (inheritedProps !== undefined) {
-            acc = [...new Set([...acc, ...inheritedProps.referenceSystems])]
+      if (depth === 0) {
+        // root node
+        trees.push(OWSResource.fromPlainObject({ ...feature, id: uuidv4(), children: [] }))
+      } else {
+        // find root node first
+        let node = trees.find(tree => tree.properties.folder === `/${folders?.[0]}`)
+
+        // TODO: just create a new node if it wasnt find
+        if (node === undefined) {
+          throw new Error('parsingerror... the context is not well ordered.')
+        }
+
+        for (let currentDepth = 2; currentDepth <= depth; currentDepth++) {
+          const currentSubFolder = `/${folders?.slice(0, currentDepth).join('/')}`
+          node = node.children?.find(n => n.properties.folder === currentSubFolder)
+          if (node === undefined) {
+            // TODO: just create a new node if it wasnt find
+            throw new Error('parsingerror... the context is not well ordered.')
           }
-          return acc
-        }, [])
-      )
-    } 
+        }
+        node.children?.push(OWSResource.fromPlainObject({ ...feature,  children: [] }))
+      }
+    })
 
-    return referenceSystems
-  }
-
-  calculateCrsIntersection() {
-    this.crsIntersection = this.getActiveFeatures().reduce<string[]>((acc, feature) => {
-      return [...new Set([...acc, ...this.getInheritedCrs(feature)])]
-    }, [])
+    return trees
   }
 }

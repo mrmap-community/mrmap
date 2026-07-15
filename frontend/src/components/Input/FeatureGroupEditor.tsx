@@ -2,12 +2,12 @@ import type { GeoJSON as GeoJSONType, MultiPolygon } from 'geojson';
 
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
-import { type ReactNode, useCallback, useEffect } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 
 
 
-import { useLeafletContext } from '@react-leaflet/core';
 import L from 'leaflet';
+import { useMap } from 'react-leaflet';
 import { GeomanControl } from '../GeomanControl';
 import Events from '../GeomanControl/Events';
 
@@ -17,12 +17,15 @@ export interface GeoEditorProps {
   editable?: boolean
 }
 
+
+
 const FeatureGroupEditor = ({
   geoJson,
   geoJsonCallback,
   editable = true,
 }: GeoEditorProps): ReactNode => {
-  const context = useLeafletContext()
+  const map = useMap()
+  const geoJsonLayerRef = useRef<L.GeoJSON | null>(null)
 
   const updateGeoJson = useCallback((event: any) => {
     const multiPolygon: MultiPolygon = {
@@ -30,7 +33,7 @@ const FeatureGroupEditor = ({
       coordinates: []
     }
 
-    context.map.eachLayer((layer) => {
+    map.eachLayer((layer) => {
       if (layer instanceof L.Polygon) {
         const geometry = layer.toGeoJSON().geometry
         if (geometry.type === 'MultiPolygon'){
@@ -41,24 +44,36 @@ const FeatureGroupEditor = ({
       }
     })
     geoJsonCallback && geoJsonCallback(multiPolygon)
-  }, [])
+  }, [map])
 
   useEffect(() => {
-    if (geoJson !== null && geoJson !== undefined) {
+    if (geoJson !== undefined) {
       try {
-        const bounds = L.geoJSON(geoJson).getBounds()
+        const geoJSONLayer = L.geoJSON(geoJson)
+        geoJsonLayerRef.current = geoJSONLayer
+        map.addLayer(geoJSONLayer)
+        const bounds = geoJSONLayer.getBounds()
         if (Object.keys(bounds).length > 1) {
-          context.map.flyToBounds(bounds, { duration: 0.3 })
+          map.flyToBounds(bounds, { duration: 0.3 })
         }
-      } catch (error){
-
+      } catch (error) {
+        console.error('Error adding GeoJSON layer:', error)
       }    
-
     }
-  }, [])
+
+    // ✅ Cleanup on unmount
+    return () => {
+      if (geoJsonLayerRef.current) {
+        map.removeLayer(geoJsonLayerRef.current)
+        geoJsonLayerRef.current = null
+      }
+    }
+  }, [map, geoJson])
+
+  // TODO: on unmount, the geoJson shall be removed from the map.
 
   return (
-    <>
+    <div>
     {editable ? 
       <GeomanControl 
         position="topright" 
@@ -78,7 +93,8 @@ const FeatureGroupEditor = ({
         onUpdate={updateGeoJson}
         onRemove={updateGeoJson}
       />: null}
-    </>
+      
+    </div>
     
   )
 }

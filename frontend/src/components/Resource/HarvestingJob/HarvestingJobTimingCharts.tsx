@@ -1,4 +1,4 @@
-import { BarChartProps, BarPlot, ChartContainer, ChartsLegend, ChartsTooltip, ChartsXAxis, ChartsYAxis } from '@mui/x-charts';
+import { BarChartProps, BarPlot, ChartsContainer, ChartsLegend, ChartsTooltip, ChartsXAxis, ChartsYAxis } from '@mui/x-charts';
 import { mangoFusionPalette } from '@mui/x-charts/colorPalettes';
 import { useCallback, useMemo } from 'react';
 import { RaRecord, useGetList, useGetRecordRepresentation, useRecordContext } from 'react-admin';
@@ -45,7 +45,7 @@ const HarvestingJobTimingCharts = (
     return getRecordRepresentation(record)
   },[getRecordRepresentation])
 
-  const timeFormatter = useCallback((seconds, short?: boolean = false) => {
+  const timeFormatter = useCallback((seconds: number, short: boolean = false) => {
       const hours = Math.floor(seconds / 3600); // 1 Stunde = 3600 Sekunden
       seconds = seconds % 3600; // Restsekunden nach Stunden
   
@@ -113,7 +113,7 @@ const HarvestingJobTimingCharts = (
   },[data])
 
   return (
-    <ChartContainer
+    <ChartsContainer
       series={props.series.filter(serie => serie.id === selectedSerie)}
       colors={mangoFusionPalette}
       height={400}
@@ -136,7 +136,7 @@ const HarvestingJobTimingCharts = (
       <ChartsYAxis
 
       />
-    </ChartContainer >
+    </ChartsContainer >
   )
 
 }

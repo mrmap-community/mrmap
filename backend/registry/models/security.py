@@ -483,6 +483,21 @@ class HttpRequestLog(models.Model):
         related_name="%(class)s_http_request_logs",
         related_query_name="%(class)shttp_request_log",
     )
+    is_test_request = models.BooleanField(
+        default=False,
+        verbose_name=_("is test request"),
+        help_text=_("indicates if this request was processed in test-as-user mode"),
+    )
+    test_user = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(class)s_test_http_request_logs",
+        related_query_name="%(class)stest_http_request_log",
+        verbose_name=_("test user"),
+        help_text=_("the user context used for testing; null if not a test request"),
+    )
 
     class Meta:
         abstract = True

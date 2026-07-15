@@ -1,5 +1,5 @@
 import OpenAPIClientAxios, { type OpenAPIV3, type Operation, type ParameterObject } from 'openapi-client-axios'
-import { ArrayField, ArrayInput, AutocompleteArrayInput, BooleanField, BooleanInput, ChipField, DateField, DateInput, DateTimeInput, EmailField, NumberField, NumberInput, ReferenceArrayField, SelectField, SelectInput, SingleFieldList, TextField, TextInput, TimeInput, UrlField, type RaRecord } from 'react-admin'
+import { ArrayField, ArrayInput, AutocompleteArrayInput, BooleanField, BooleanInput, ChipField, DateField, DateInput, DateTimeInput, EmailField, NumberField, NumberInput, SelectField, SelectInput, SingleFieldList, SortPayload, TextField, TextInput, TimeInput, UrlField, type RaRecord } from 'react-admin'
 
 import { ComponentType } from 'react'
 import {
@@ -13,6 +13,7 @@ import GeoJsonField from '../components/Field/GeoJsonField'
 import TruncatedTextField from '../components/Field/TruncatedTextField'
 import GeoJsonInput from '../components/Input/GeoJsonInput'
 import JsonApiReferenceField from './components/ReferenceField'
+import JsonApiReferenceManyField from './components/ReferenceManyField'
 import SchemaAutocompleteInput from './components/SchemaAutocompleteInput'
 import { buildChoices, getEncapsulatedSchema } from './openapi/parser'
 import { type JsonApiDocument, type JsonApiPrimaryData, type ResourceIdentifierObject, type ResourceLinkage } from './types/jsonapi'
@@ -204,6 +205,28 @@ export const getSparseFieldOptionsPerResourceType = (operation?: Operation): {[k
   
   return sparseFieldParametersPerType
 }
+
+export const getSortOptions = (operation?: Operation): SortPayload[] => {
+  const sortFieldParameters: SortPayload[] = []
+  if (operation !== undefined) {
+    const parameters = operation.parameters as ParameterObject[]
+    const sparseFieldParameterSchema = parameters?.find((parameter) => parameter.name.includes('sort'))?.schema as OpenAPIV3.ArraySchemaObject
+    const sparseFieldParameterArraySchema = sparseFieldParameterSchema?.items as OpenAPIV3.SchemaObject
+    
+    
+    const values = sparseFieldParameterArraySchema?.enum ?? []
+
+    values.forEach((value) => {
+      sortFieldParameters.push({
+        field: value.startsWith('-') ? value.substring(1) : value,
+        order: value.startsWith('-') ? 'DESC' : 'ASC'
+      });
+    });
+  }
+  
+  return sortFieldParameters
+}
+
 
 export const hasIncludedData = (record: RaRecord): boolean => (Object.entries(record).find(([name, schema]) => name !== 'id') != null)
 
@@ -544,10 +567,14 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
     }
 
     return {
-      component: forInput ? SchemaAutocompleteInput: ReferenceArrayField, 
+      component: forInput ? SchemaAutocompleteInput: JsonApiReferenceManyField, 
       props: {
         ...props,
         ...(props.defaultValue ?? {defaultValue: []}), // define an empty array as defaultValue. Otherwise it can results in to null values for this field as values, which causes TypeErrors on => undefined.map()
+        ...{
+            reference: fieldSchema.reference, 
+            target: fieldSchema.resource,
+          }
       }
     }
   }

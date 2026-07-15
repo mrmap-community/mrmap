@@ -31,7 +31,6 @@ export const WmsLayers = () => {
 
   const rightContent = useMemo(()=> {
       if (selectedLayer !== null && selectedLayer !== undefined) {
-          
             return <EditGuesser
               id={selectedLayer}
               resource='Layer'
@@ -41,7 +40,6 @@ export const WmsLayers = () => {
           />
       }
       return <Container>Select a layer to edit it</Container>
-          
   }, [selectedLayer])
     
   return (

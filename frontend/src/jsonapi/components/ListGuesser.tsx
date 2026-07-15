@@ -1,19 +1,19 @@
-import { createElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, ExportButton, FilterButton, Identifier, List, type ListProps, type RaRecord, SelectColumnsButton, ShowButton, TopToolbar, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, Identifier, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { useParams } from 'react-router-dom'
 
-import axios from 'axios'
 import { snakeCase } from 'lodash'
 
-import CreateDialogButton from '../../components/Dialog/CreateDialogButton'
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
+import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'
 import EmptyList from '../../components/Lists/Empty'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
+import useOnError from '../hooks/useOnError'
 import useResourceSchema from '../hooks/useResourceSchema'
-import { type JsonApiDocument, type JsonApiErrorObject, SparseFieldsets } from '../types/jsonapi'
+import { SparseFieldsets } from '../types/jsonapi'
 import { FieldDefinition, getIncludeOptions, getSparseFieldOptions } from '../utils'
 import RealtimeList from './Realtime/RealtimeList'
 
@@ -22,10 +22,6 @@ interface FieldWrapperProps {
   label: string
 }
 
-interface ListActionsProps {
-  filters: ReactNode[]
-  preferenceKey?: string
-}
 
 export interface ListGuesserProps extends Partial<ListProps> {
   realtime?: boolean
@@ -37,43 +33,13 @@ export interface ListGuesserProps extends Partial<ListProps> {
   updateFieldDefinitions?: FieldDefinition[];
   refetchInterval?: number | false
   defaultSelectedColumns? : string[]
-  sparseFieldsets?: SparseFieldsets[]
+  sparseFieldsets?: SparseFieldsets[],
+  ActionsComponent?: React.ComponentType<CustomListActionsProps>
 }
 
 
 const FieldWrapper = ({ children }: FieldWrapperProps): ReactNode => children
 
-const isInvalidSort = (error: JsonApiErrorObject): boolean => {
-  if (error.code === 'invalid' && error.detail.includes('sort parameter')) {
-    return true
-  }
-  return false
-}
-
-const isInvalidFilter = (error: JsonApiErrorObject): boolean => {
-  if (error.code === 'invalid' && error.detail.includes('invalid filter')) {
-    return true
-  }
-  return false
-}
-
-
-const ListActions = (
-  { 
-    filters,
-    preferenceKey,
-  }: ListActionsProps
-): ReactNode => {
-  const { hasCreate} = useResourceDefinition()
-  return (
-    <TopToolbar>
-      <SelectColumnsButton preferenceKey={preferenceKey}/>
-      <FilterButton filters={filters}/>
-      {hasCreate && <CreateDialogButton />}
-      <ExportButton />
-    </TopToolbar>
-  )
-}
 
 const ListGuesser = ({
   realtime=false,
@@ -85,7 +51,8 @@ const ListGuesser = ({
   updateFieldDefinitions,
   refetchInterval=false,
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
-  sparseFieldsets= undefined,
+  sparseFieldsets = undefined,
+  ActionsComponent=ListActions,
   ...props
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
@@ -123,11 +90,8 @@ const ListGuesser = ({
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
-
-  const [searchParams, setSearchParams] = useSearchParams()
-
-  const [listParams, setListParams] = useStore(`preferences.${preferenceKey}.listParams`, {})
-
+  const onError = useOnError(preferenceKey)
+ 
   const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !defaultSelectedColumns.includes(source)),[fieldDefinitions])
   const [initOmit, setInitOmit] = useState(false)
   const [availableColumns] = useStore<ConfigurableDatagridColumn[]>(`preferences.${preferenceKey}.availableColumns`, [])
@@ -194,43 +158,7 @@ const ListGuesser = ({
     , [sparseFieldsets, sparseFieldsQueryValue, includeQueryValue]
   )
 
-  const onError = useCallback((error: Error): void => {
-    /** Custom error handler for jsonApi bad request response
-     *
-     * possible if:
-     *   - attribute is not sortable
-     *   - attribute is not filterable
-     *   - wrong sparseField
-     *   - wrong include option
-     *
-    */
-    if (axios.isAxiosError(error)) {
-      if (error?.status === 400) {
-        const jsonApiDocument = error.response?.data as JsonApiDocument
-
-        jsonApiDocument?.errors?.forEach((apiError: JsonApiErrorObject) => {
-          if (isInvalidSort(apiError)) {
-            // remove sort from storage
-            setListParams({...listParams, sort: ''})
-
-            // remove sort from current location
-            searchParams.delete('sort')
-            setSearchParams(searchParams)
-          }
-          if (isInvalidFilter(apiError)){
-            setListParams({...listParams, filter: ''})
-            
-            searchParams.delete('filter')
-            setSearchParams(searchParams)
-          }
-        })
-      } else if (error.status === 401) {
-        // TODO
-      } else if (error.status === 403) {
-        // TODO
-      }
-    }
-  }, [])
+  
 
   if (operation === undefined || fields === undefined || fields?.length === 0) {
     // if fields are empty the table will be initial rendered only with the default index column.
@@ -243,7 +171,10 @@ const ListGuesser = ({
     <ListComponent
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
-      actions={<ListActions filters={filters} preferenceKey={preferenceKey}/>}
+      actions={<ActionsComponent
+        filters={filters} 
+        preferenceKey={preferenceKey}/>
+      }
       empty={props.empty || <EmptyList />}
       queryOptions={{
         refetchInterval,

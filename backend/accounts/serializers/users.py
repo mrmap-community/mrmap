@@ -24,7 +24,8 @@ class UserSerializer(
         many=True,
         related_link_view_name='accounts:user-groups-list',
         related_link_url_kwarg='parent_lookup_user',
-        read_only=True)
+        queryset=Group.objects
+    )
 
     class Meta:
         resource_name = 'User'

@@ -1,39 +1,40 @@
-import { useCallback, type ReactNode } from 'react'
-import { Identifier, Link, useRecordContext, useStore } from 'react-admin'
+import VpnLockIcon from '@mui/icons-material/VpnLock';
+import { type ReactNode } from 'react';
+import { useRecordContext } from 'react-admin';
+import ListGuesser from '../../jsonapi/components/ListGuesser';
+import MapViewerButton from '../Resource/WebMapService/MapViewerButton';
 
-import AccountTreeIcon from '@mui/icons-material/AccountTree'
 
-import ListGuesser from '../../jsonapi/components/ListGuesser'
-
-
-const TreeButton = (): ReactNode => {
-  const record = useRecordContext()
-  const [wmsList, setWmsList] = useStore<Identifier[]>(`mrmap.mapviewer.append.wms`, [])
-
-  const handleOnClick = useCallback(()=>{
-    if (record !== undefined){
-      const newWmsList = [...wmsList, record.id]
-      setWmsList(newWmsList)
-    }
-  }, [wmsList, setWmsList])
-
+const WmsViewerButtons = () => {
+  const record = useRecordContext();
+  console.log(record)
   return (
-    <Link
-      to={`/viewer`}
-      color="primary"
-      onClick={handleOnClick}
-      
-    >
-      <AccountTreeIcon />
-    </Link>
+    <div>
+      <MapViewerButton />
+      {
+        record?.isSecured ? 
+        <MapViewerButton 
+          capabilititesUrl={record?.xmlBackupFileSecured}
+          label={'resources.webmapservice.actions.showinviewer.secured'}
+        >
+          <VpnLockIcon/>
+        </MapViewerButton>
+        : null
+      }
+
+
+    </div>
   )
 }
 
+
 const WmsList = (): ReactNode => {
+    
   return (
     <ListGuesser
       resource='WebMapService'
-      additionalActions={<TreeButton />}
+      additionalActions={<WmsViewerButtons/>}
+      sparseFieldsets={[{type: "WebMapService", fields: ["isSecured", "xmlBackupFileSecured"]}]}
     // aside={<TaskList />}
     />
 

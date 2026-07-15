@@ -1,17 +1,15 @@
-import { useMemo, type ReactNode } from 'react';
-import { Layout, useTheme, type Identifier, type LayoutProps } from 'react-admin';
-import { ReadyState } from 'react-use-websocket';
+import { type ReactNode } from 'react';
+import { Layout, type Identifier, type LayoutProps } from 'react-admin';
 
-import { Box } from '@mui/material';
+import { Box, Card } from '@mui/material';
 import { SnackbarProvider } from 'notistack';
 
-import { useHttpClientContext } from '../../context/HttpClientContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
-import { useSystemTime } from '../../jsonapi/hooks/useSystemTime';
 import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
+import Footer from './Footer';
 import Menu from './Menu';
 
 
@@ -32,25 +30,6 @@ const MyLayout = (
     ...rest
   }: LayoutProps
 ): ReactNode => {
-  const { api, realtimeIsReady } = useHttpClientContext();
-  const systemTime = useSystemTime();
-  const theme = useTheme();
-
-  const readyStateColor = useMemo(()=>{
-    switch(realtimeIsReady){
-      case ReadyState.CONNECTING:
-        return 'warning'
-      case ReadyState.OPEN:
-        return 'success'
-      case ReadyState.CLOSING:
-      case ReadyState.CLOSED:
-        return 'error'
-      case ReadyState.UNINSTANTIATED:
-      default:
-        return 'info'
-
-    }
-  },[realtimeIsReady])
 
   return (
     <SnackbarProvider
@@ -101,7 +80,16 @@ const MyLayout = (
         >
           {children}
           {<SnackbarObserver />}
-        </Box>       
+        </Box>
+        <Card style={{
+              position: 'fixed',
+              right: 0, 
+              bottom: 0, 
+              left: 0, 
+              zIndex: 100,
+        }}>
+          <Footer/>
+        </Card>   
       </Layout>
     </SnackbarProvider>
 

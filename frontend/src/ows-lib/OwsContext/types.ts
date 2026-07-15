@@ -123,13 +123,8 @@ export interface OWSResourceProperties {
 export interface OWSResource extends Omit<Feature, "geometry"> {
     properties: OWSResourceProperties
     geometry?: Geometry // spatial extent or scope of the content of the Context resource
+    children?: OWSResource[]
 }
-
-
-export interface TreeifiedOWSResource extends OWSResource{
-    children: TreeifiedOWSResource[]
-}
-
 
 export interface OWSContext extends Omit<FeatureCollection, "features"> {
     id: string // String type that SHALL contain a URI value

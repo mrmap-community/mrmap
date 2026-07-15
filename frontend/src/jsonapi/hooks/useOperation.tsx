@@ -5,7 +5,7 @@ import { type Operation } from 'openapi-client-axios'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 
 
-const useOperation = (operationId: string): Operation | undefined => {
+const useOperation = (operationId: string| undefined): Operation | undefined => {
   const { api } = useHttpClientContext()
   const [operation, setOperation] = useState<Operation>()
 

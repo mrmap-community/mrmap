@@ -1,7 +1,7 @@
 
 import { type ReactNode } from 'react';
 import { sanitizeFieldRestProps, useFieldValue, useRecordContext, useTranslate, type TextFieldProps } from 'react-admin';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, } from 'react-leaflet';
 
 import { Box, Typography } from '@mui/material';
 
@@ -10,7 +10,6 @@ import AutoResizeMapContainer from '../MapContainer/ResizeAbleMapContainer';
 
 
 const style = {
-  width: '100wh',
   height: '200px',
 }
 
@@ -23,23 +22,23 @@ const GeoJsonField = ({
 
   const value = useFieldValue(props);
   const { className, emptyText, ...rest } = props;
-
   return (
     <div style={{width: '100%'}}>
       <Typography
-            component="span"
-            variant="body2"
-            className={className}
-            {...sanitizeFieldRestProps(rest)}
-        
+        component="span"
+        variant="body2"
+        className={className}
+        {...sanitizeFieldRestProps(rest)}
       >
         {value != null
                 ? JSON.stringify(value)
                 : value ||
                 (emptyText ? translate(emptyText, { _: emptyText }) : null)}
-  
+      
       </Typography>
-      <Box sx={{ ...style }}>
+      <Box 
+        sx={{ ...style }}
+      >
         <MapContainer
           id={`${record?.id}-mapcontainer`}
           center={[51.505, -0.09]}
@@ -54,10 +53,11 @@ const GeoJsonField = ({
           />
           <FeatureGroupEditor
             // forces rerendering on every value change for example.
-            key={(Math.random() + 1).toString(36).substring(7)}
+            //key={(Math.random() + 1).toString(36).substring(7)}
             geoJson={value}
             editable={false}
           />
+ 
         </MapContainer>
       </Box>
     </div>

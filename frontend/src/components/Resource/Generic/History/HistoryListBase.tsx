@@ -36,7 +36,7 @@ const HistoryListBase = (
   const hasStatisticalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Statistical${name}`)),[api])
 
   if (!hasStatisticalEndpoint){
-    return <></>
+    return <div></div>
   }
 
   return (

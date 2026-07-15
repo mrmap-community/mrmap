@@ -29,12 +29,12 @@ const ShowResource = ({
 
   const defaultSubheader = useMemo(() => {
     return (
-      <>
+      <div>
         <WithRecord label="createdAt" render={record => <span>Created on {record.createdAt}</span>} />
         <WithRecord label='createdBy' render={record => <span> by {<JsonApiReferenceField source='createdBy' reference='User'/>}</span>} />
         <WithRecord label="changedAt" render={record => <span> · Updated on {record.lastModifiedAt}</span>} />
         <WithRecord label='createdBy' render={record => <span> by {<JsonApiReferenceField source='lastModifiedBy' reference='User'/>}</span>} />
-      </>
+      </div>
 
     )
   },[]);

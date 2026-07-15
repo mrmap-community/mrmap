@@ -6,7 +6,7 @@ import { WmsCapabilitites } from '../../XMLParser/types'
 import { OWSResource } from '../core'
 import { Position } from '../enums'
 import { OWSResource as IOWSResource } from '../types'
-import { treeify, updateFolders, wmsToOWSResources } from '../utils'
+import { updateFolders, wmsToOWSResources } from '../utils'
 import { owsContextTest } from './test'
 
 const getOwsResource = (title:string, folder: string, id?: number): OWSResource => {
@@ -80,7 +80,7 @@ test('wmsToOWSContext', () => {
 })
 
 owsContextTest('treeify success', ({karteRp}) => {
-    const tree = treeify(karteRp.features)
+    const tree = karteRp.treeify()
 
     expect(tree.length).equals(1)
     expect(tree[0].children.length).equals(19)
@@ -93,7 +93,7 @@ owsContextTest('treeify success', ({karteRp}) => {
 owsContextTest('treeify wrong feature order', ({karteRp}) => {
     karteRp.features = karteRp.features.splice(2, 1)   
     
-    expect(() => treeify(karteRp.features)).toThrowError('parsingerror... the context is not well ordered.')
+    expect(() => karteRp.treeify()).toThrowError('parsingerror... the context is not well ordered.')
 })
 
 owsContextTest('isDescandantOf', ({karteRp}) => {

@@ -1,9 +1,8 @@
 from django.contrib.auth.models import Group
-from django.db.models import Case, CharField, Value, When
 from django.db.models.query import Prefetch
 from extras.viewsets import NestedModelViewSet
-from registry.enums.service import SecureableWMSOperationEnum
-from registry.filters.security import AllowedWebMapServiceOperationFilterSet
+from registry.filters.security import (AllowedWebMapServiceOperationFilterSet,
+                                       WebMapServiceOperationFilterSet)
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
@@ -49,10 +48,9 @@ class WebMapServiceOperationViewSetMixin:
     queryset = WebMapServiceOperation.objects.with_label()
     serializer_class = WebMapServiceOperationSerializer
     search_fields = ('value', 'label')
-    ordering_fields = ["value"]
-    filterset_fields = {
-        'value': ['exact', 'icontains', 'contains', 'in'],
-    }
+    ordering_fields = ["value", "label"]
+
+    filterset_class = WebMapServiceOperationFilterSet
 
 
 class WebMapServiceOperationViewSet(

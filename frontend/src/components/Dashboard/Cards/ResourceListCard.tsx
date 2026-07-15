@@ -49,14 +49,14 @@ const ResourceListCard = (
               icon={icon}
               title={name}
               subtitle={
-                  <WithListContext render={({ total }) => <>{total}</>} />
+                  <WithListContext render={({ total }) => <div>{total}</div>} />
               }
           > 
             
             {children}
             {
                 hasCreate ?
-                <><Divider /><CreateButton/></>: <></>
+                <div><Divider /><CreateButton/></div>: <div></div>
             }
             
             <ChangeLogList/>

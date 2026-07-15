@@ -2,23 +2,23 @@ import { useId, useState, type PropsWithChildren, type ReactNode } from 'react'
 import { type SimpleShowLayoutProps } from 'react-admin'
 import { MapContainer, ScaleControl } from 'react-leaflet'
 
-import { Box } from '@mui/material'
+import { Box, Divider, Stack } from '@mui/material'
 import { CRS, type Map } from 'leaflet'
 
 import ListGuesser from '../../jsonapi/components/ListGuesser'
-import { OwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import BottomDrawer from '../Drawer/BottomDrawer'
 import { DrawerBase } from '../Drawer/DrawerContext'
 import RightDrawer from '../Drawer/RightDrawer'
 import LayerTree from '../LayerTree/LayerTree'
-import FeatureInfoControl from '../MapContainer/FeatureInfoControl'
 import WebMapServiceControl from '../MapContainer/GetMapControl'
-import OwsContextControl from '../MapContainer/OwsContextControl'
 import { TabListBase } from '../Tab/TabListContext'
 import { Tabs } from '../Tab/Tabs'
 import MapSettingsEditor from './MapSettings'
 import { MapViewerBase } from './MapViewerBase'
 import { OwsContextActionButtons } from './OwsContextGuiActions/OwsContextActionButtons'
+import StatusBar from './StatusBar'
+
+
 const style = {
   display: 'flex',
   flexDirection: 'column',
@@ -40,7 +40,7 @@ export interface Tile {
 const MapViewerCore = (): ReactNode => {
   const containerId = useId()
   const [map, setMap] = useState<Map>()
- 
+  
   return (
       <DrawerBase>
         <TabListBase>
@@ -58,10 +58,11 @@ const MapViewerCore = (): ReactNode => {
               style={{
                 flex: 1, height: '100%', width: '100%', position: 'relative'
               }}
+              
             >
-              <OwsContextControl />
+              
               <WebMapServiceControl />
-              <FeatureInfoControl/>
+              
               <ScaleControl position="topleft" />
             </MapContainer>
           </Box>
@@ -69,8 +70,23 @@ const MapViewerCore = (): ReactNode => {
             leftComponentId={containerId}
             callback={() => map?.invalidateSize()}
           >
-            <OwsContextActionButtons />
-            <LayerTree/>
+            <Stack
+              direction="column"
+              justifyContent="space-between"
+              sx={{ height: '100%' }}
+            >
+              <Box>
+                <OwsContextActionButtons />
+                <Divider/>
+              </Box>
+              <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <LayerTree />
+              </Box>
+              <Box>
+                <Divider />
+                <StatusBar />
+              </Box>
+            </Stack>
           </RightDrawer>
           <BottomDrawer
             aboveComponentId={containerId}
@@ -106,13 +122,10 @@ const MapViewerCore = (): ReactNode => {
 
 const MapViewer = ({ children }: PropsWithChildren): ReactNode => {
   return (
-    <OwsContextBase>
       <MapViewerBase>
         <MapViewerCore />
         {children}
       </MapViewerBase>
-    </OwsContextBase>
-
   )
 }
 

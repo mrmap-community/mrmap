@@ -19,7 +19,7 @@ const I18Observer = () => {
   },[locale])
 
   return (
-    <></>
+    <div></div>
   )
 };
 

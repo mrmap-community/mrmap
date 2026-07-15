@@ -57,7 +57,7 @@ const BottomDrawer = ({
   }, [bottomDrawer, callback, setBottomDrawer])
 
   return (
-    <>
+    <div>
       <IconButton
         ref={buttonRef}
         color={'inherit'}
@@ -99,7 +99,7 @@ const BottomDrawer = ({
       >
         {children ?? bottomDrawer.children}
       </Drawer>
-    </>
+    </div>
   )
 }
 

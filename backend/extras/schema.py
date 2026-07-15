@@ -1,3 +1,4 @@
+from attrs import field
 from django.urls import resolve
 from django.urls.exceptions import Resolver404
 from drf_spectacular.plumbing import get_view_model
@@ -5,7 +6,32 @@ from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
 from extras.viewsets import NestedModelViewSet
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
-from rest_framework_json_api.utils import get_resource_name
+from rest_framework_json_api.utils import format_field_name, get_resource_name, get_resource_type_from_model
+from django.db.models import ForeignKey
+from django.core.exceptions import FieldError
+
+from django.db.models.sql.query import Query
+from django.utils.translation import gettext_lazy as _
+
+LOOKUP_LABELS = {
+    "exact": _("is exactly"),
+    "iexact": _("is exactly (case-insensitive)"),
+    "contains": _("contains"),
+    "icontains": _("contains (case-insensitive)"),
+    "startswith": _("starts with"),
+    "istartswith": _("starts with (case-insensitive)"),
+    "endswith": _("ends with"),
+    "iendswith": _("ends with (case-insensitive)"),
+    "gt": _("greater than"),
+    "gte": _("greater than or equal to"),
+    "lt": _("less than"),
+    "lte": _("less than or equal to"),
+    "in": _("is one of"),
+    "isnull": _("is empty"),
+    "range": _("is between"),
+    "regex": _("matches regex"),
+    "iregex": _("matches regex (case-insensitive)"),
+}
 
 
 class CustomOperationId(JsonApiAutoSchema):
@@ -45,6 +71,83 @@ class CustomOperationId(JsonApiAutoSchema):
             schema["format"] = "geojson"
         return schema
 
+    def _get_related_fields_of_model(self, model):
+        related_fields = {}
+        for field in model._meta.get_fields():
+            if isinstance(field, ForeignKey):
+                related_fields[field.name] = field.related_model
+        for rel in model._meta.related_objects:
+            related_fields[rel.related_query_name] = rel
+        for m2m in model._meta.local_many_to_many:
+            related_fields[m2m.name] = m2m
+        return related_fields
+
+    def _patch_extend_filter_parameter(self, field, parameter):
+        model = get_view_model(self.view)
+        # lookup_parts is an array of parts but it is limited to only one possible lookup expression
+        try:
+            fields = {
+                concrete_field.name: concrete_field
+                for concrete_field in model._meta.concrete_fields
+            }
+            reverse_rel_fields = {
+                rel.get_accessor_name(): rel
+                for rel in model._meta.related_objects
+            }
+            m2m_fields = {
+                m2m.name: m2m
+                for m2m in model._meta.local_many_to_many
+            }
+
+            fields_lookup = fields | reverse_rel_fields | m2m_fields
+            lookup_parts, field_parts, expression = Query(
+                model).solve_lookup_type(field.field_name)
+
+            if field_parts[0] in fields_lookup:
+
+                model_field = fields_lookup[field_parts[0]]
+                if hasattr(model_field, "related_model") and model_field.related_model:
+                    last_seen_model = model_field.related_model
+
+                    for idx, part in enumerate(field_parts):
+                        # analyze the full path so we get the correct resource type for the filter parameter, in case of nested relationships
+                        if idx == 0:
+                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                                part)
+                            continue
+                        related_fields = self._get_related_fields_of_model(
+                            last_seen_model)
+                        if part in related_fields:
+                            last_seen_model = related_fields[part].related_model
+                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                                related_fields[part].target_field.name)
+                        else:
+                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                                part)
+                            break
+
+                    parameter["x-jsonapi-related-resource-type"] = get_resource_type_from_model(
+                        last_seen_model)
+
+                if hasattr(field, "lookup_expr"):
+                    parameter["x-jsonapi-filter-lookup-expression"] = field.lookup_expr
+
+                parameter["x-jsonapi-field-parts"] = [
+                    format_field_name(part) for part in field_parts]
+                parameter["x-jsonapi-local-resource-field"] = format_field_name(
+                    field_parts[0])
+
+                parameter["x-jsonapi-filter-lookup-expression-label"] = LOOKUP_LABELS.get(
+                    field.lookup_expr, field.lookup_expr)
+
+                label = field.label or getattr(
+                    model_field, "verbose_name", None)
+                if label:
+                    parameter["x-jsonapi-filter-label"] = label
+
+        except FieldError:
+            pass
+
     def _get_filter_parameters(self):
         """
             fix to provide format information in case of GeometryFilter
@@ -52,18 +155,45 @@ class CustomOperationId(JsonApiAutoSchema):
         res = super()._get_filter_parameters()
         model = get_view_model(self.view)
         if model:
-
             filterset_class = getattr(self.view, "filterset_class", None)
             if filterset_class:
                 for field_name, field in filterset_class.base_filters.items():
+                    if "allowed_area" in field_name:
+                        i = 0
+                    openapiparameter = next(
+                        (param for param in res if param["name"] == f"filter[{field_name}]"), None)
+                    if not openapiparameter:
+                        continue
+
+                    self._patch_extend_filter_parameter(
+                        field, openapiparameter)
 
                     if isinstance(field, GeometryFilter):
-                        openapiparameter = next(
-                            (param for param in res if param["name"] == f"filter[{field_name}]"), None)
-                        if openapiparameter:
-                            schema = openapiparameter.get(
-                                "schema", {"type": "string"})
-                            schema["format"] = "geojson"
-                            openapiparameter["schema"] = schema
+                        schema = openapiparameter.get(
+                            "schema", {"type": "string"})
+                        schema["format"] = "geojson"
+                        openapiparameter["schema"] = schema
+        """         
+        TODO: add extension to link resource types, filteroperator, labels and help texts to the filter parameters
+         e.g.:
+         {
+            "in": "query",
+            "name": "filter[allowed_groups__user__in]",
+            "schema": {
+                "type": "array",
+                "items": {
+                "type": "string",
+                "format": "uuid"
+                }
+            },
+            "description": "Filter by related User resource IDs.",
+            "x-jsonapi-resource-type": "User",
+            "x-jsonapi-relation-path": "allowed_groups.user",
+            "x-jsonapi-filter-operator": "in",
+            "x-jsonapi-lookup-endpoint": "/api/users",
+            "style": "form",
+            "explode": false
+            }
 
+        """
         return res

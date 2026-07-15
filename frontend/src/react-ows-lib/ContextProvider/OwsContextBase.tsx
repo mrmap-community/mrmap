@@ -1,24 +1,43 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren, type ReactNode } from 'react'
 
-import { Point } from 'geojson'
-import _ from 'lodash'
 
+import { RaRecord } from 'react-admin'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { Position } from '../../ows-lib/OwsContext/enums'
-import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types'
-import { treeify } from '../../ows-lib/OwsContext/utils'
+
+export type OwsContextLoadingStatus = 'idle' | 'fetching' | 'reading' | 'parsing' | 'ready' | 'error'
+
+export type OwsContextLoadingTimings = Partial<{
+  performFetch: number
+  responseText: number
+  fromPlainObject: number
+  appendWms: number
+  beforeSetHook: number
+  jsonParse: number
+  initialize: number
+  total: number
+}>
 
 export interface OwsContextBaseType {
-  // TODO: crs handling
-  //crsIntersection: MrMapCRS[]
-  //selectedCrs: MrMapCRS
-  //setSelectedCrs: (crs: MrMapCRS) => void
   owsContext: OWSContext
-  addWMSByUrl: (url: string) => void
-  initialFromOwsContext: (url: string) => void
-  trees: TreeifiedOWSResource[]
+  setOwsContext: (owsContext: OWSContext) => void
+  updateOwsContext: (owsContext: OWSContext) => void
+  isLoading: boolean
+  isFetching: boolean
+  isReading: boolean
+  isParsing: boolean
+  loadingStatus: OwsContextLoadingStatus
+  loadingMessage?: string
+  loadingTimings: OwsContextLoadingTimings
+  errorMessage?: string
+  currentRequest: Request | undefined
+  resetContext: () => void
+  addWMSByRecord: (record: RaRecord) => void
+  addWMSByUrl: (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => void
+  initialFromOwsContext: (url: string, headers?: Headers) => void
+  trees: OWSResource[]
   activeFeatures: OWSResource[]
-  setFeatureActive: (feature: OWSResource, active: boolean) => void
+  setFeatureActive: (folder: string, active: boolean) => void
   moveFeature: (source: OWSResource, target: OWSResource, position: Position) => void
 }
 
@@ -28,144 +47,292 @@ export interface OwsContextBaseProps extends PropsWithChildren {
   initialFeatures?: OWSResource[]
 }
 
-const copyOWSContext = (owsContext: OWSContext) => {
-  return new OWSContext(
-    owsContext.id,
-    owsContext.features,
-    owsContext.bbox,
-    owsContext.properties,
-    owsContext.capabilititesMap
-  )
-}
 
 export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBaseProps): ReactNode => {
+  const [loadingStatus, setLoadingStatus] = useState<OwsContextLoadingStatus>('idle')
+  const [loadingMessage, setLoadingMessage] = useState<string | undefined>(undefined)
+  const [loadingTimings, setLoadingTimings] = useState<OwsContextLoadingTimings>({})
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
+  const [currentRequest, setCurrentRequest] = useState<Request | undefined>(undefined)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  // area of interest in crs 4326
+  const isLoading = loadingStatus === 'fetching' || loadingStatus === 'reading' || loadingStatus === 'parsing'
+  const isFetching = loadingStatus === 'fetching'
+  const isReading = loadingStatus === 'reading'
+  const isParsing = loadingStatus === 'parsing'
+
   const [owsContext, setOwsContext] = useState<OWSContext>(new OWSContext(undefined, initialFeatures, undefined, {
     lang: 'en',
     title: 'mrmap ows context',
     updated: new Date().toISOString(),
     display: {}
-  },))
-
+  }))
+  
   const trees = useMemo(() => {
-    return treeify(owsContext.features)
+    return owsContext.treeify()
   }, [owsContext])
 
   const activeFeatures = useMemo(() => {
     return owsContext.getActiveFeatures()
   }, [owsContext])
 
-
-  const addWMSByUrl = useCallback((url: string) => {
-    const request = new Request(url, {
-      method: 'GET',
-    })
-    fetch(request).then(response => response.text()).then(xmlString => {
-      const newContext = copyOWSContext(owsContext)
-      newContext.appendWms(url, xmlString)
-      setOwsContext(newContext)
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
     }
-    )
-  }, [owsContext])
-
-  const initialFromOwsContext = useCallback((url: string) => {
-    const request = new Request(url, {
-      method: 'GET',
-    })
-    fetch(request).then(response => response.json()).then(async (json: OWSContext) => {
-      // todo: check type before setting features.
-      // todo: set also other variables
-      const newOwsContext = new OWSContext(undefined, json.features.map(feature => new OWSResource(feature.properties, feature.id, feature.bbox, feature.geometry)), json.bbox ?? undefined)
-      await newOwsContext.initialize()
-
-      setOwsContext(newOwsContext)
-      // TODO: initial map with current display if exists  map?.fitBounds()
-    }
-    )
   }, [])
 
-  const setFeatureActive = useCallback((feature: OWSResource, active: boolean) => {
-    const newContext = copyOWSContext(owsContext)
-    newContext.activateFeature(feature, active)
-    setOwsContext(newContext)
-  }, [owsContext])
+  const updateOwsContext = useCallback((newContext: OWSContext) => {
+    setOwsContext(OWSContext.fromPlainObject(newContext))
+  }, [])
+
+  // Consolidated fetch logic with error handling and abort support
+  const performFetch = useCallback(async (url: string, headers?: Headers) => {
+    // Cancel any previous request
+    abortControllerRef.current?.abort()
+    
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    try {
+      const request = new Request(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal
+      })
+      setCurrentRequest(request)
+      setLoadingStatus('fetching')
+      setLoadingMessage('Downloading data...')
+      setLoadingTimings({})
+      setErrorMessage(undefined)
+
+      const response = await fetch(request)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      return response
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.debug('Fetch request was aborted')
+        setLoadingStatus('idle')
+        setLoadingMessage(undefined)
+        return null
+      }
+      const message = error instanceof Error ? error.message : String(error)
+      setLoadingStatus('error')
+      setLoadingMessage(message)
+      setErrorMessage(message)
+      console.error('Fetch error:', error)
+      throw error
+    } finally {
+      setCurrentRequest(undefined)
+      setLoadingStatus((previous) => previous === 'fetching' ? 'idle' : previous)
+      setLoadingMessage((previous) => previous === 'Downloading data...' ? undefined : previous)
+    }
+  }, [])
+
+  const addWMSByUrl = useCallback(async (url: string, headers?: Headers, beforeSetHook?: (context: OWSContext, treeId: number) => OWSContext) => {
+    const timings = {
+      performFetch: 0,
+      responseText: 0,
+      fromPlainObject: 0,
+      appendWms: 0,
+      beforeSetHook: 0,
+      total: 0
+    }
+    const totalStart = performance.now()
+
+    try {
+      setLoadingStatus('fetching')
+      setLoadingMessage('Downloading WMS capabilities...')
+      setLoadingTimings({
+        performFetch: 0,
+        responseText: 0,
+        fromPlainObject: 0,
+        appendWms: 0,
+        beforeSetHook: 0,
+        total: 0
+      })
+      setErrorMessage(undefined)
+
+      const performFetchStart = performance.now()
+      const response = await performFetch(url, headers)
+      timings.performFetch = performance.now() - performFetchStart
+      setLoadingTimings((previous) => ({ ...previous, performFetch: timings.performFetch }))
+
+      if (response === null) {
+        setLoadingStatus('idle')
+        setLoadingMessage(undefined)
+        return
+      }
+
+      setLoadingStatus('reading')
+      setLoadingMessage('Reading WMS capabilities...')
+
+      const responseTextStart = performance.now()
+      const xmlString = await response.text()
+      timings.responseText = performance.now() - responseTextStart
+      setLoadingTimings((previous) => ({ ...previous, responseText: timings.responseText }))
+
+      if (!xmlString) {
+        throw new Error('Empty WMS response')
+      }
+
+      setLoadingStatus('parsing')
+      setLoadingMessage('Parsing WMS capabilities...')
+
+      setOwsContext((prev) => {
+        const fromPlainObjectStart = performance.now()
+        let newContext = OWSContext.fromPlainObject(prev)
+        timings.fromPlainObject = performance.now() - fromPlainObjectStart
+        setLoadingTimings((previous) => ({ ...previous, fromPlainObject: timings.fromPlainObject }))
+
+        const appendWmsStart = performance.now()
+        const treeId = newContext.appendWms(url, xmlString)
+        timings.appendWms = performance.now() - appendWmsStart
+        setLoadingTimings((previous) => ({ ...previous, appendWms: timings.appendWms }))
+
+        if (beforeSetHook !== undefined) {
+          const beforeSetHookStart = performance.now()
+          newContext = beforeSetHook(newContext, treeId)
+          timings.beforeSetHook = performance.now() - beforeSetHookStart
+          setLoadingTimings((previous) => ({ ...previous, beforeSetHook: timings.beforeSetHook }))
+        }
+
+        return newContext
+      })
+
+      timings.total = performance.now() - totalStart
+      setLoadingTimings((previous) => ({ ...previous, total: timings.total }))
+      setLoadingStatus('ready')
+      setLoadingMessage('WMS capabilities loaded')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setLoadingStatus('error')
+      setLoadingMessage(message)
+      setErrorMessage(message)
+      console.error('Failed to add WMS:', error)
+    }
+  }, [performFetch])
+
+  const initialFromOwsContext = useCallback(async (url: string, headers?: Headers) => {
+    const totalStart = performance.now()
+    const timings: OwsContextLoadingTimings = {
+      performFetch: 0,
+      jsonParse: 0,
+      initialize: 0,
+      total: 0
+    }
+
+    try {
+      setLoadingStatus('fetching')
+      setLoadingMessage('Downloading OWS context...')
+      setLoadingTimings({
+        performFetch: 0,
+        jsonParse: 0,
+        initialize: 0,
+        total: 0
+      })
+      setErrorMessage(undefined)
+
+      const performFetchStart = performance.now()
+      const response = await performFetch(url, headers)
+      timings.performFetch = performance.now() - performFetchStart
+      setLoadingTimings((previous) => ({ ...previous, performFetch: timings.performFetch }))
+
+      if (response === null) {
+        setLoadingStatus('idle')
+        setLoadingMessage(undefined)
+        return
+      }
+
+      setLoadingStatus('reading')
+      setLoadingMessage('Reading OWS context...')
+      const jsonParseStart = performance.now()
+      const json = await response.json()
+      timings.jsonParse = performance.now() - jsonParseStart
+      setLoadingTimings((previous) => ({ ...previous, jsonParse: timings.jsonParse }))
+
+      setLoadingStatus('parsing')
+      setLoadingMessage('Parsing OWS context...')
+
+      if (!json || !Array.isArray(json.features)) {
+        throw new Error('Invalid OWSContext JSON structure: features array is required')
+      }
+      const newOwsContext = OWSContext.fromPlainObject(json)
+      // initialize may not be typed on OWSContext in some builds; call if available
+      if (typeof (newOwsContext as any).initialize === 'function') {
+        const initializeStart = performance.now()
+        await (newOwsContext as any).initialize()
+        timings.initialize = performance.now() - initializeStart
+        setLoadingTimings((previous) => ({ ...previous, initialize: timings.initialize }))
+      }
+      setOwsContext(newOwsContext)
+      timings.total = performance.now() - totalStart
+      setLoadingTimings((previous) => ({ ...previous, total: timings.total }))
+      setLoadingStatus('ready')
+      setLoadingMessage('OWS context ready')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setLoadingStatus('error')
+      setLoadingMessage(message)
+      setErrorMessage(message)
+      console.error('Failed to initialize from OWSContext:', error)
+    }
+  }, [performFetch])
+
+  const addWMSByRecord = useCallback((record: RaRecord) => {
+    const url = (record.url ?? record.href ?? record.wmsUrl ?? record.serviceUrl) as string | undefined
+    if (typeof url !== 'string' || url.length === 0) {
+      console.error('addWMSByRecord failed: record does not contain a valid URL', record)
+      return
+    }
+    addWMSByUrl(url)
+  }, [addWMSByUrl])
+
+  const resetContext = useCallback(() => {
+    setOwsContext(new OWSContext())
+    setLoadingStatus('idle')
+    setLoadingMessage(undefined)
+    setLoadingTimings({})
+    setErrorMessage(undefined)
+  }, [])
+
+  const setFeatureActive = useCallback((folder: string, active: boolean) => {
+    setOwsContext((prev) => {
+      const newContext = OWSContext.fromPlainObject(prev)
+      newContext.activateFeature(folder, active)
+      return newContext
+    })
+  }, [])
 
   const moveFeature = useCallback((source: OWSResource, target: OWSResource, position: Position = Position.lastChild) => {
-    const newContext = copyOWSContext(owsContext)
-    newContext.moveFeature(source, target, position)
-    setOwsContext(newContext)
-  }, [owsContext])
-
-
-  const updateDisplay = useCallback((size: Point) => {
-    const newDisplay = {
-      pixelWidth: size.coordinates[0],
-      pixelHeight: size.coordinates[1]
-    }
-    const newContext = copyOWSContext(owsContext)
-    newContext.properties.display = newDisplay
-    !_.isEqual(owsContext.properties.display, newDisplay) && setOwsContext(newContext)
-  }, [owsContext])
-
-  useEffect(() => {
-    //console.log('owsContext', owsContext)
-  }, [owsContext])
-
-  // /** crs handling*/
-  // const [selectedCrs, setSelectedCrs] = useState()
-
-  // // intersection of all reference systems
-  // const crsIntersection = useMemo(() => {
-  //   // TODO: refactor this by using the crs from the ows context resources
-  //   // let referenceSystems: MrMapCRS[] = []
-  //   /* wmsTrees.map(wms => wms.rootNode?.record.referenceSystems.filter((crs: MrMapCRS) => crs.prefix === 'EPSG')).forEach((_referenceSystems: MrMapCRS[], index) => {
-  //     if (index === 0) {
-  //       referenceSystems = referenceSystems.concat(_referenceSystems)
-  //     } else {
-  //       referenceSystems = referenceSystems.filter(crsA => _referenceSystems.some(crsB => crsA.stringRepresentation === crsB.stringRepresentation))
-  //     }
-  //   }) */
-  //   // return referenceSystems
-  // }, [owsContext])
-
-  // useEffect(() => {
-
-  //   if (selectedCrs?.bbox !== undefined) {
-  //     const bbox = JSON.parse(selectedCrs?.bbox)
-  //     const bboxGeoJSON = L.geoJSON(bbox)
-  //     const newMaxBounds = bboxGeoJSON.getBounds()
-  //     setMaxBounds(newMaxBounds)
-  //   }
-  // }, [selectedCrs])
-
-  // useEffect(() => {
-  //   if (maxBounds !== undefined && map !== undefined) {
-  //     const currentCenter = map.getCenter()
-  //     map.setMaxBounds(maxBounds)
-  //     if (maxBounds.contains(currentCenter)) {
-  //       // do nothing... the current center is part of the maximum boundary of the crs system
-  //     } else {
-  //       // current center is not part of the boundary of the crs system. We need to center the map new
-  //       map?.fitBounds(maxBounds)
-  //     }
-
-  //     // map?.setMaxBounds(maxBounds)
-  //   }
-  // }, [map, maxBounds])
-
-  // useEffect(() => {
-  //   if (crsIntersection.length > 0 && selectedCrs === undefined) {
-  //     const defaultCrs = crsIntersection.find(crs => crs.stringRepresentation === 'EPSG:4326') ?? crsIntersection[0]
-  //     setSelectedCrs(defaultCrs)
-  //   }
-  // }, [crsIntersection, selectedCrs])
-
+    setOwsContext((prev) => {
+      const newContext = OWSContext.fromPlainObject(prev)
+      newContext.moveFeature(source, target, position)
+      return newContext
+    })
+  }, [])
 
 
   const value = useMemo<OwsContextBaseType>(() => {
     return {
       owsContext,
+      setOwsContext,
+      updateOwsContext,
+      isLoading,
+      isFetching,
+      isReading,
+      isParsing,
+      loadingStatus,
+      loadingMessage,
+      loadingTimings,
+      errorMessage,
+      currentRequest,
+      resetContext,
+      addWMSByRecord,
       addWMSByUrl,
       initialFromOwsContext,
       trees,
@@ -175,6 +342,19 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
     }
   }, [
     owsContext,
+    setOwsContext,
+    updateOwsContext,
+    isLoading,
+    isFetching,
+    isReading,
+    isParsing,
+    loadingStatus,
+    loadingMessage,
+    loadingTimings,
+    errorMessage,
+    currentRequest,
+    resetContext,
+    addWMSByRecord,
     addWMSByUrl,
     initialFromOwsContext,
     trees,
@@ -184,9 +364,7 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
   ])
 
   return (
-    <context.Provider
-      value={value}
-    >
+    <context.Provider value={value}>
       {children}
     </context.Provider>
   )

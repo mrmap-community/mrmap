@@ -55,7 +55,7 @@ const MapSettingsEditor = ({ children }: PropsWithChildren): ReactNode => {
 
 
   return (
-      <>
+      <div>
         <DisplayPosition/>
 
         {/* <Select
@@ -68,7 +68,7 @@ const MapSettingsEditor = ({ children }: PropsWithChildren): ReactNode => {
         >
             {...menuItems}
         </Select> */}
-      </>
+      </div>
   )
 }
 

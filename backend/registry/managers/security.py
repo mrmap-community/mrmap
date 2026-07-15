@@ -1,4 +1,6 @@
 from abc import ABC
+from functools import reduce
+from operator import and_
 from typing import Any
 
 from django.contrib.auth.models import Group
@@ -38,31 +40,40 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
-        """Collects only the AllowedWebServiceOperation objects where all requested_entities are part of."""
+        """Filter only AllowedWebServiceOperation objects where all requested_entities are present."""
         lookup, identifiers = self.get_entity_identifiers(request=request)
-        query = Q()
-        for identifier in identifiers:
-            _query = Q(**{lookup: identifier})
-            if query:
-                query &= _query
-            else:
-                query = _query
+        if not identifiers:
+            return self.none()
+        # Build Q objects for each identifier (supports case-insensitive lookups like __iexact)
+        query = reduce(and_, [Q(**{lookup: identifier})
+                       for identifier in identifiers])
         return self.filter(query)
 
     def for_user(self, service_pk, request: OGCRequest):
-        return self.filter(
-            secured_service__pk=service_pk,
-            allowed_groups=None,
-            operations__value=OGCOperationEnum(request.operation),
-        ).filter_by_requested_entity(request=request) | self.filter(
-            secured_service__pk=service_pk,
-            allowed_groups__pk__in=Group.objects.filter(
-                user__username="AnonymouseUser"
-            ).values_list("pk", flat=True)
-            if request._djano_request.user.is_anonymous
-            else request._djano_request.user.groups.values_list("pk", flat=True),
-            operations__value=OGCOperationEnum(request.operation),
-        ).filter_by_requested_entity(request=request)
+        """Filter operations allowed for the authenticated user and service.
+
+        Args:
+            service_pk: Primary key of the service
+            request: OGCRequest object containing user and operation info
+
+        Returns:
+            QuerySet filtered for user permissions and requested entities
+        """
+        group_pks = (
+            Group.objects.filter(
+                user__username="AnonymousUser").values_list("pk", flat=True)
+            if request._django_request.user.username == "AnonymousUser"
+            else request._django_request.user.groups.values_list("pk", flat=True)
+        )
+
+        return (
+            self.filter(
+                secured_service__pk=service_pk,
+                operations__value=OGCOperationEnum(request.operation),
+            )
+            .filter(Q(allowed_groups=None) | Q(allowed_groups__pk__in=group_pks))
+            .filter_by_requested_entity(request=request)
+        )
 
     def get_allowed_areas(self, service_pk, request: HttpRequest):
         """Collect all allowed areas that are configured for all requested entities together.
@@ -70,17 +81,13 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             Returns: The subset of allowed operations that for given user and requested entities.
         """
         return (
-            self.filter(secured_service__pk=service_pk,
-                        allowed_area__isnull=False)
-            .filter_by_requested_entity(request=request)
+            self.filter(allowed_area__isnull=False)
             .for_user(service_pk=service_pk, request=request)
         )
 
     def get_empty_allowed_areas(self, service_pk, request: HttpRequest):
         return (
-            self.filter(secured_service__pk=service_pk,
-                        allowed_area__isnull=True)
-            .filter_by_requested_entity(request=request)
+            self.filter(allowed_area__isnull=True)
             .for_user(service_pk=service_pk, request=request)
         )
 
@@ -89,23 +96,25 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
 
     def is_spatial_secured(self, service_pk, request: HttpRequest) -> ExpressionWrapper:
         return ExpressionWrapper(
-            Exists(
-                self.get_allowed_areas(
-                    service_pk=service_pk, request=request
-                )
-            )
-            and ~Exists(
-                self.get_empty_allowed_areas(
-                    service_pk=service_pk, request=request
-                )
-            ),
+            Exists(self.get_allowed_areas(
+                service_pk=service_pk, request=request))
+            and ~Exists(self.get_empty_allowed_areas(service_pk=service_pk, request=request)),
             output_field=BooleanField(),
         )
 
     def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
-        """checks if the user of the request is member of any AllowedOperation object"""
-        if request._djano_request.user.is_superuser:
-            return Value(True)
+        """Check if the user of the request is entitled to access this service.
+
+        Other users must be members of an
+        AllowedOperation object matching their groups or anonymous access.
+
+        Args:
+            service_pk: Primary key of the service to check
+            request: OGCRequest object containing user information
+
+        Returns:
+            Exists or Value expression indicating user entitlement
+        """
         return Exists(self.for_user(service_pk=service_pk, request=request))
 
 
@@ -144,6 +153,11 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
         return ~Exists(self.filter(pk=service_pk, layer__identifier__in=request.requested_entities))
 
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
+        """Get a fresh QuerySet instance for allowed WMS operations.
+
+        Returns:
+            AllowedWebMapServiceOperationQuerySet: Fresh QuerySet instance
+        """
         from registry.models.security import \
             AllowedWebMapServiceOperation  # to avoid circular import
 
@@ -207,6 +221,11 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
         return ~Exists(self.filter(pk=service_pk, featuretype__identifier__in=feature_types))
 
     def get_allowed_operation_qs(self) -> AllowedWebFeatureServiceOperationQuerySet:
+        """Get a fresh QuerySet instance for allowed WFS operations.
+
+        Returns:
+            AllowedWebFeatureServiceOperationQuerySet: Fresh QuerySet instance
+        """
         from registry.models.security import \
             AllowedWebFeatureServiceOperation  # to avoid circular import
 

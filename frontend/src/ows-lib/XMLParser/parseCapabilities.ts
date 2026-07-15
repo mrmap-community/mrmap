@@ -1,177 +1,286 @@
-
 import { Polygon } from 'geojson'
-import jsonpointer from 'jsonpointer'
-import duration from 'moment'
+import moment from 'moment'
 
 import { ElevationDimension, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
 import { getDocument } from './utils'
 
-export const layerBboxToGeoJSON = (bbox: any): Polygon | undefined => {
-    if (bbox === undefined) {
-        return undefined
-    }
+const getChild = (parent: Element | Document | undefined, localName: string): Element | undefined => {
+  if (!parent) return undefined
+  return Array.from(parent.childNodes).find((node): node is Element => {
+    return node.nodeType === Node.ELEMENT_NODE && (node as Element).localName === localName
+  })
+}
+
+const getChildren = (parent: Element | Document | undefined, localName: string): Element[] => {
+  if (!parent) return []
+  return Array.from(parent.childNodes).filter((node): node is Element => {
+    return node.nodeType === Node.ELEMENT_NODE && (node as Element).localName === localName
+  })
+}
+
+const getDescendantByPath = (parent: Element | Document | undefined, path: string[]): Element | undefined => {
+  let node: Element | Document | undefined = parent
+  for (const name of path) {
+    if (!node) return undefined
+    node = getChild(node, name)
+  }
+  return node instanceof Element ? node : undefined
+}
+
+const getText = (parent: Element | Document | undefined, ...path: string[]): string | undefined => {
+  const node = getDescendantByPath(parent, path)
+  return node?.textContent?.trim() || undefined
+}
+
+const getAttribute = (element: Element | undefined, ...names: string[]): string | undefined => {
+  if (!element) return undefined
+  for (const name of names) {
+    const value = element.getAttribute(name)
+    if (value !== null) return value
+  }
+  return undefined
+}
+
+const parseLayerMetrics = {
+  count: 0,
+  totalMs: 0
+}
+
+export const layerBboxToGeoJSON = (bboxElement: Element | undefined): Polygon[] | undefined => {
+  if (!bboxElement) {
+    return undefined
+  }
+
+  const west = getText(bboxElement, 'westBoundLongitude')
+  const south = getText(bboxElement, 'southBoundLatitude')
+  const east = getText(bboxElement, 'eastBoundLongitude')
+  const north = getText(bboxElement, 'northBoundLatitude')
+
+  if (!west || !south || !east || !north) {
+    return undefined
+  }
+
+  return [{
+    type: 'Polygon',
+    coordinates: [
+      [Number(west), Number(south)],
+      [Number(east), Number(south)],
+      [Number(east), Number(north)],
+      [Number(west), Number(north)],
+      [Number(west), Number(south)]
+    ] as unknown as Polygon['coordinates']
+  } as unknown as Polygon]
+}
+
+export const parseTimeDimension = (timeDimension: Element): TimeDimension | undefined => {
+  const dimensionValue = timeDimension.textContent?.trim()
+  if (!dimensionValue) return undefined
+
+  const [start, stop, resolution] = dimensionValue.split('/')
+  return {
+    start: new Date(start),
+    stop: stop ? new Date(stop) : undefined,
+    resolution: resolution ? moment.duration(resolution) : undefined
+  }
+}
+
+export const parseDimension = (dimension: Element): TimeDimension | TempDimension | ElevationDimension | undefined => {
+  const type = getAttribute(dimension, 'name')
+  const units = getAttribute(dimension, 'units')
+  const value = dimension.textContent?.trim() ?? ''
+
+  if (type === 'time' && units === 'ISO8601') {
+    const [start, stop, resolution] = value.split('/')
     return {
-        type: 'Polygon',
-        coordinates: [
-            [bbox["westBoundLongitude"], bbox["southBoundLatitude"]],
-            [bbox["eastBoundLongitude"], bbox["southBoundLatitude"]],
-            [bbox["eastBoundLongitude"], bbox["northBoundLatitude"]],
-            [bbox["westBoundLongitude"], bbox["northBoundLatitude"]],
-            [bbox["westBoundLongitude"], bbox["southBoundLatitude"]]
-        ]
+      start: new Date(start),
+      stop: stop ? new Date(stop) : undefined,
+      resolution: resolution ? moment.duration(resolution) : undefined
     }
-}
+  }
 
-export const parseTimeDimension = (timeDimension: any) => {
-
-}
-
-export const parseDimension = (dimension: any): TimeDimension | TempDimension | ElevationDimension | undefined => {
-    const type = jsonpointer.get(dimension, '/@_name')
-    const units = jsonpointer.get(dimension, '/@_units')
-    if (type === 'time' && units === 'ISO8601') {
-        // TimeDimension handling
-        const dimensionValue = jsonpointer.get(dimension, '/#text')
-        const [start, stop, resolution] = dimensionValue.split('/')
-
-        return {
-            start: new Date(start),
-            stop: new Date(stop) ?? undefined,
-            resolution: duration(resolution) ?? undefined
-        }
-
-    } else if (type === 'temperature') {
-        // Temperature dimension handling
-        return {
-            unit: jsonpointer.get(dimension, '/units'),
-            unitSymbol: jsonpointer.get(dimension, '/unitSymbol'),
-            default: jsonpointer.get(dimension, '/default'),
-            values: jsonpointer.get(dimension, '/#text').split('/')
-        }
-    } else if (type === 'elevation') {
-        // Elevation dimension handling
-        return {
-            crs: jsonpointer.get(dimension, '/units'),
-            unitSymbol: jsonpointer.get(dimension, '/unitSymbol'),
-            default: jsonpointer.get(dimension, '/default'),
-            values: jsonpointer.get(dimension, '/#text').split('/')
-        }
-    }
-}
-
-export const parseStyle = (style: any): Style => {
+  if (type === 'temperature') {
     return {
-        metadata: {
-            name: jsonpointer.get(style, '/Name'),
-            title: jsonpointer.get(style, '/Title'),
-            abstract: jsonpointer.get(style, '/Abstract')
-        },
-        legendUrl: {
-            mimeType: jsonpointer.get(style, '/LegendURL/Format'),
-            href: jsonpointer.get(style, '/LegendURL/OnlineResource/@_href'),
-            width: jsonpointer.get(style, '/LegendURL/@_width'),
-            height: jsonpointer.get(style, '/LegendURL/@_height')
-        }
+      unit: units ?? '',
+      unitSymbol: getAttribute(dimension, 'unitSymbol') ?? '',
+      default: Number(getAttribute(dimension, 'default') ?? 0),
+      values: value.split('/').map(v => Number(v))
     }
+  }
+
+  if (type === 'elevation') {
+    return {
+      crs: units ?? '',
+      unitSymbol: getAttribute(dimension, 'unitSymbol') ?? '',
+      default: getAttribute(dimension, 'default') ?? '',
+      values: value.split('/').map(v => Number(v))
+    }
+  }
+
+  return undefined
 }
 
-export const forceArray = (obj: any): Array<any> => {
-    return Array.isArray(obj) ? obj : [obj]
+export const parseStyle = (style: Element): Style => {
+  const legendUrlElement = getChild(style, 'LegendURL')
+  const onlineResource = getChild(legendUrlElement, 'OnlineResource')
+  const hrefString = onlineResource ? getAttribute(onlineResource, 'href', 'xlink:href') : undefined
+  const hrefUrl = hrefString ? new URL(hrefString) : undefined
+
+  return {
+    metadata: {
+      name: getText(style, 'Name') ?? '',
+      title: getText(style, 'Title') ?? '',
+      abstract: getText(style, 'Abstract') ?? undefined
+    },
+    legendUrl: onlineResource && hrefUrl
+      ? {
+          mimeType: getText(legendUrlElement, 'Format') ?? '',
+          href: hrefUrl,
+          width: Number(getAttribute(legendUrlElement, 'width') ?? getAttribute(legendUrlElement, '_width') ?? 0),
+          height: Number(getAttribute(legendUrlElement, 'height') ?? getAttribute(legendUrlElement, '_height') ?? 0)
+        }
+      : undefined
+  }
 }
 
-export const parseLayer = (layer: any): WmsLayer => {
-    const abstract = jsonpointer.get(layer, '/Abstract')
-    const parsedCrsV1 = jsonpointer.get(layer, '/SRS')
-    const parsedCrsV3 = jsonpointer.get(layer, '/CRS')
-    const crs = parsedCrsV1 === undefined ? forceArray(parsedCrsV3 ?? []) : forceArray(parsedCrsV1 ?? [])
+export const forceArray = <T>(obj: T | T[] | undefined): T[] => {
+  if (obj === undefined) return []
+  return Array.isArray(obj) ? obj : [obj]
+}
 
-    const parsedStyles: any = jsonpointer.get(layer, '/Style')
-    const styles = parsedStyles === undefined ? [] : forceArray(parsedStyles).map((style: any) => parseStyle(style))
+export const parseLayer = (layer: Element): WmsLayer => {
+  const layerStart = performance.now()
+  parseLayerMetrics.count += 1
 
-    const minScaleDenominator = jsonpointer.get(layer, '/MinScaleDenomnator')
-    const maxScaleDenominator = jsonpointer.get(layer, '/MaxScaleDenomnator')
+  let abstract: string | undefined
+  const srsValues: string[] = []
+  const crsValues: string[] = []
+  const styles: Style[] = []
+  const dimensions: (TimeDimension | TempDimension | ElevationDimension)[] = []
+  let minScaleDenominator: string | undefined
+  let maxScaleDenominator: string | undefined
+  let bboxElement: Element | undefined
+  const sublayers: Element[] = []
 
-    const isQueryable = jsonpointer.get(layer, '/@_queryable')
-    const isOpaque = jsonpointer.get(layer, '/@_opaque')
-    const isCascaded = jsonpointer.get(layer, '/@_cascaded')
-
-    const layerObj: WmsLayer = {
-        metadata: {
-            title: jsonpointer.get(layer, '/Title'),
-            name: jsonpointer.get(layer, '/Name'),
-            ...(abstract && { abstract: abstract })
-        },
-        ...(crs?.length > 0 && { referenceSystems: crs }),
-        bbox: layerBboxToGeoJSON(jsonpointer.get(layer, '/EX_GeographicBoundingBox')),
-        ...(styles?.length > 0 && { styles: styles }),
-        ...(minScaleDenominator && { minScaleDenominator: Number.parseFloat(minScaleDenominator) }),
-        ...(maxScaleDenominator && { maxScaleDenominator: Number.parseFloat(maxScaleDenominator) }),
-        ...(isQueryable && { isQueryable: Boolean(Number(isQueryable)) }),
-        ...(isOpaque && { isOpaque: Boolean(Number(isOpaque)) }),
-        ...(isCascaded && { isCascaded: Boolean(Number(isCascaded)) })
+  for (const child of Array.from(layer.children)) {
+    switch (child.localName) {
+      case 'Abstract':
+        abstract = child.textContent?.trim() || undefined
+        break
+      case 'SRS':
+        srsValues.push(child.textContent?.trim() || '')
+        break
+      case 'CRS':
+        crsValues.push(child.textContent?.trim() || '')
+        break
+      case 'Style':
+        styles.push(parseStyle(child))
+        break
+      case 'Dimension': {
+        const dimension = parseDimension(child)
+        if (dimension) dimensions.push(dimension)
+        break
+      }
+      case 'MinScaleDenominator':
+        minScaleDenominator = child.textContent?.trim() || undefined
+        break
+      case 'MaxScaleDenominator':
+        maxScaleDenominator = child.textContent?.trim() || undefined
+        break
+      case 'EX_GeographicBoundingBox':
+        bboxElement = child
+        break
+      case 'Layer':
+        sublayers.push(child)
+        break
     }
+  }
 
-    const sublayer = jsonpointer.get(layer, '/Layer')
+  const crs = srsValues.length > 0 ? srsValues : crsValues
+  const isQueryable = getAttribute(layer, 'queryable')
+  const isOpaque = getAttribute(layer, 'opaque')
+  const isCascaded = getAttribute(layer, 'cascaded')
 
-    if (sublayer === undefined) {
-        // no sublayers
-    } else if (Array.isArray(sublayer)) {
-        // ancestor node ==> children are there
-        const parsedSublayers: WmsLayer[] = []
-        sublayer.forEach((sublayer) => {
-            const parsedLayer = parseLayer(sublayer)
-            if (parsedLayer !== undefined) {
-                parsedSublayers.push(parsedLayer)
-            }
-        })
-        layerObj.children = parsedSublayers
-    } else {
-        // leaf node
-        const parsedLayer = parseLayer(sublayer)
-        if (parsedLayer !== undefined) {
-            layerObj.children = [parsedLayer]
-        }
-    }
+  const layerObj: WmsLayer = {
+    metadata: {
+      title: getText(layer, 'Title') ?? '',
+      name: getText(layer, 'Name') ?? '',
+      ...(abstract ? { abstract } : {})
+    },
+    ...(crs.length > 0 && { referenceSystems: crs }),
+    ...(dimensions.length > 0 && { dimension: dimensions }),
+    ...(bboxElement ? { bbox: layerBboxToGeoJSON(bboxElement) } : {}),
+    ...(styles.length > 0 && { styles }),
+    ...(minScaleDenominator ? { minScaleDenominator: Number(minScaleDenominator) } : {}),
+    ...(maxScaleDenominator ? { maxScaleDenominator: Number(maxScaleDenominator) } : {}),
+    ...(isQueryable ? { isQueryable: Boolean(Number(isQueryable)) } : {}),
+    ...(isOpaque ? { isQpaque: Boolean(Number(isOpaque)) } : {}),
+    ...(isCascaded ? { isCascaded: Boolean(Number(isCascaded)) } : {})
+  }
 
-    return layerObj
+  if (sublayers.length > 0) {
+    layerObj.children = sublayers.map(parseLayer)
+  }
+
+  parseLayerMetrics.totalMs += performance.now() - layerStart
+  return layerObj
+}
+
+const findOperationUrl = (root: Element, operationName: string): { mimeTypes: string[]; get: string; post?: string } => {
+  const request = getDescendantByPath(root, ['Capability', 'Request', operationName])
+  const formatNode = getChild(request, 'Format')
+  const httpNode = getDescendantByPath(request, ['DCPType', 'HTTP'])
+  const getNode = getDescendantByPath(httpNode, ['Get', 'OnlineResource'])
+  const postNode = getDescendantByPath(httpNode, ['Post', 'OnlineResource'])
+
+  return {
+    mimeTypes: formatNode ? forceArray(formatNode.textContent?.trim()).filter(Boolean) : [],
+    get: getNode ? getAttribute(getNode, 'href', 'xlink:href') ?? '' : '',
+    post: postNode ? getAttribute(postNode, 'href', 'xlink:href') ?? undefined : undefined
+  }
 }
 
 export const parseWms = (xml: string): WmsCapabilitites => {
+  const parseWmsTimings = {
+    getDocument: 0,
+    rootLayer: 0,
+    total: 0,
+    layerCount: 0,
+    parseLayerTotal: 0
+  }
+  parseLayerMetrics.count = 0
+  parseLayerMetrics.totalMs = 0
+  const totalStart = performance.now()
 
-    const parsedCapabilites = getDocument(xml)
+  const getDocumentStart = performance.now()
+  const document = getDocument(xml)
+  parseWmsTimings.getDocument = performance.now() - getDocumentStart
 
-    let rootNodeName = "WMS_Capabilities"
+  const root = document.documentElement
+  const rootLayerElement = getDescendantByPath(root, ['Capability', 'Layer'])
+  if (!rootLayerElement) {
+    throw new Error('Root WMS layer element not found')
+  }
 
-    if ("WMT_MS_Capabilities" in parsedCapabilites) {
-        rootNodeName = "WMT_MS_Capabilities"
-    }
-    // TODO: implement parser for version 1.1.1 differs to 1.3.0
-    const capabilities = {
-        version: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/@_version`),
-        metadata: {
-            name: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Service/Name`),
-            title: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Service/Title`),
-            abstract: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Service/Abstract`),
-        },
-        operationUrls: {
-            getCapabilities: {
-                mimeTypes: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetCapabilities/Format`),
-                get: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetCapabilities/DCPType/HTTP/Get/OnlineResource/@_href`),
-                post: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetCapabilities/DCPType/HTTP/Post/OnlineResource/@_href`)
-            },
-            getMap: {
-                mimeTypes: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetMap/Format`),
-                get: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetMap/DCPType/HTTP/Get/OnlineResource/@_href`),
-                post: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetMap/DCPType/HTTP/Post/OnlineResource/@_href`)
-            },
-            getFeatureInfo: {
-                mimeTypes: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetFeatureInfo/Format`),
-                get: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetFeatureInfo/DCPType/HTTP/Get/OnlineResource/@_href`),
-                post: jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Request/GetFeatureInfo/DCPType/HTTP/Post/OnlineResource/@_href`)
-            }
-        },
-        rootLayer: parseLayer(jsonpointer.get(parsedCapabilites, `/${rootNodeName}/Capability/Layer`))
-    }
+  const capabilities = {
+    version: getAttribute(root, 'version') ?? '',
+    metadata: {
+      name: getText(root, 'Service', 'Name') ?? '',
+      title: getText(root, 'Service', 'Title') ?? '',
+      abstract: getText(root, 'Service', 'Abstract') ?? undefined
+    },
+    operationUrls: {
+      getCapabilities: findOperationUrl(root, 'GetCapabilities'),
+      getMap: findOperationUrl(root, 'GetMap'),
+      getFeatureInfo: findOperationUrl(root, 'GetFeatureInfo')
+    },
+    rootLayer: parseLayer(rootLayerElement ?? root)
+  }
 
-    return capabilities
+  parseWmsTimings.rootLayer = performance.now() - getDocumentStart - parseWmsTimings.getDocument
+  parseWmsTimings.layerCount = parseLayerMetrics.count
+  parseWmsTimings.parseLayerTotal = parseLayerMetrics.totalMs
+  parseWmsTimings.total = performance.now() - totalStart
+  console.debug('parseWmsTimings', parseWmsTimings)
+
+  return capabilities
 }

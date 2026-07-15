@@ -79,7 +79,7 @@ const ConfigureRelatedResource = (
         redirect={false}
       />
     )
-  return (<>{editForms}</>)
+  return (<div>{editForms}</div>)
 }
 
 export default ConfigureRelatedResource

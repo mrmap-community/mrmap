@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import { TreeItemProps } from '@mui/lab';
-import { TreeItem } from '@mui/x-tree-view';
+import { TreeItem, TreeItemProps } from '@mui/x-tree-view';
 import Sortable from 'sortablejs';
+import { v4 as uuidv4 } from 'uuid';
 
+import { OWSResource } from '../../ows-lib/OwsContext/core';
 import { Position } from '../../ows-lib/OwsContext/enums';
-import { TreeifiedOWSResource } from '../../ows-lib/OwsContext/types';
 import { getParentFolder } from '../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase';
+import { useContextMenuBase } from './ContextMenuBase';
 
 
 // TODO: typeof should be any other type
@@ -18,7 +19,7 @@ function ImaginaryIcon(props: React.PropsWithoutRef<typeof KeyboardArrowRightIco
   return <div />;
 }
 export interface DragableTreeItemProps extends TreeItemProps{
-    node: TreeifiedOWSResource
+    node: OWSResource
     sortable?: Sortable.Options
     imaginary?: boolean
   }
@@ -29,13 +30,18 @@ export const DragableTreeItem = ({
     imaginary = false,
     ...props
   }: DragableTreeItemProps): ReactNode => {
-    const ref = useRef(null)
+    const ref = useRef<HTMLLIElement | null>(null)
+    const sortableRef = useRef<Sortable | null>(null);
+    
     const { owsContext, moveFeature } = useOwsContextBase()
-  
+    const { setContextMenu } = useContextMenuBase()  
+    
+    
     const createSortable = useCallback(()=>{
-      if (ref.current === null || ref.current === undefined) return
-  
-      Sortable.create(ref.current, {
+      if (!ref.current) return null;  
+      
+      
+      return Sortable.create(ref.current, {
         group: {name: 'general',},
         animation: 150,
         fallbackOnBody: true,
@@ -52,12 +58,13 @@ export const DragableTreeItem = ({
   
           const targetFolder = evt.to.dataset.owscontextFolder
           if (targetFolder === undefined) return
+
           const target = owsContext.findResourceByFolder(targetFolder)
 
           // get the correct source object (not a shallow coppy)
           const sourceFolder = node.properties.folder
-
           if (sourceFolder === undefined) return
+
           const source = owsContext.findResourceByFolder(sourceFolder)
           if (source == undefined) return
 
@@ -66,27 +73,34 @@ export const DragableTreeItem = ({
             // move the node as child to the fictive parent
             const parentFolder = getParentFolder(targetFolder)
             if (parentFolder === undefined) return
+
             const parent = owsContext.findResourceByFolder(parentFolder)
             if (parent === undefined) return
+
             moveFeature(source, parent, Position.firstChild)          
           } else {
             const newIndex = evt.newIndex
+
             if (newIndex === 0) {
               moveFeature(source, target, Position.left)
             } else if (newIndex === 1) {
               moveFeature(source, target, Position.right)
             }
           }
-  
         },
         ...sortable
       })
   
-    }, [owsContext, ref, moveFeature])
+    }, [moveFeature, node, owsContext, sortable])
   
-    useEffect(()=>{
-      createSortable()
-    },[])
+    useEffect(() => {
+      sortableRef.current = createSortable();
+
+      return () => {
+        sortableRef.current?.destroy();
+        sortableRef.current = null;
+      };
+    }, [createSortable]);
     
 
     const isLeaf = useMemo(() => {
@@ -99,19 +113,33 @@ export const DragableTreeItem = ({
       return false
     },[owsContext, node])
 
+    const onContextMenu = useCallback((event: React.MouseEvent<HTMLLIElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setContextMenu({
+        node: node,
+        itemId: node.properties.folder,
+        isOpen: true,
+        anchorElement: event.currentTarget,
+        mouseX: event.clientX,
+        mouseY: event.clientY
+      })
+
+    }, [node, setContextMenu])
+
     return (
       <TreeItem
         ref={ref}
-        itemId={imaginary ? "id" + Math.random().toString(16).slice(2): node.properties.folder ?? "id" + Math.random().toString(16).slice(2)}
         slots={{
           expandIcon: !isLeaf ? KeyboardArrowRightIcon: ImaginaryIcon,
           collapseIcon: !isLeaf ? KeyboardArrowDownIcon: ImaginaryIcon
         }}
         {...props}
         data-owscontext-folder={imaginary ? `${node.properties.folder}/0`: node.properties.folder}
+        onContextMenu={onContextMenu}
       >
         {/* imaginary child node to create new childs */}
-        {!imaginary && isLeaf ? <DragableTreeItem node={node} imaginary={true}></DragableTreeItem>: null}
+        {!imaginary && isLeaf ? <DragableTreeItem key={`${node.properties.folder}-imaginary`} itemId={node.properties.folder ? `${node.properties.folder}-imaginary` : uuidv4()} node={node} imaginary={true} /> : null}
         {/* append all origin children too */}
         {props.children}
       </TreeItem>

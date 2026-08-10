@@ -30,7 +30,7 @@ class OGCRequest(Request):
 
     def __init__(self, django_request: DjangoRequest = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._djano_request = django_request
+        self._django_request = django_request
         self._ogc_query_params: dict = {}
         self._bbox: GEOSGeometry = None
         self._requested_entities: list[str] = []
@@ -58,7 +58,7 @@ class OGCRequest(Request):
             method=request.method,
             url=request.build_absolute_uri(),
             params={**request.GET, **request.POST},
-            data=request.body,
+            data=request.data if hasattr(request, "data") else request.body,
             cookies=request.COOKIES,
             django_request=request
         )

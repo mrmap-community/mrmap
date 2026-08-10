@@ -3,12 +3,12 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
-from django.test import Client
 from epsg_cache.utils import adjust_axis_order, get_epsg_srid
 from lxml import etree
 from MrMap.settings import BASE_DIR
 from registry.models.security import AllowedWebFeatureServiceOperation
 from registry.models.service import WebFeatureService
+from rest_framework.test import APIClient
 from tests.django.contrib import XpathTestCase
 
 
@@ -45,7 +45,7 @@ class WebMapServiceProxyTest(XpathTestCase):
         AllowedWebFeatureServiceOperation.objects.all().delete()
 
     def setUp(self):
-        self.client = Client()
+        self.client = APIClient()
         self.wfs_url = "/mrmap-proxy/wfs/73cf78c9-6605-47fd-ac4f-1be59265df65"
         self.query_params = {
             "VERSION": "2.0.0",
@@ -75,13 +75,19 @@ class WebMapServiceProxyTest(XpathTestCase):
         )
 
         response_xml = etree.fromstring(response.content)
+        try:
 
-        gml = self._get_by_xpath(
-            response_xml, "/wfs:FeatureCollection/wfs:boundedBy/gml:*")
-        gml_str = etree.tostring(
-            gml[0],
-            encoding="UTF-8"
-        )
+            gml = self._get_by_xpath(
+                response_xml,
+                "/wfs:FeatureCollection/wfs:boundedBy/gml:*"
+            )
+            gml_str = etree.tostring(
+                gml[0],
+                encoding="UTF-8"
+            )
+        except Exception as e:
+            self.fail(
+                f"Failed to parse the response xml and get the boundedBy element. Error: {e}")
 
         srs = gml[0].get("srsName")
         if srs:

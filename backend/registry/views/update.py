@@ -1,11 +1,27 @@
 from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
-from registry.filters.update import (LayerMappingFilterSet,
-                                     WebMapServiceUpdateJobFilterSet)
-from registry.models.update import LayerMapping, WebMapServiceUpdateJob
-from registry.serializers.update import (LayerMappingSerializer,
-                                         WebMapServiceUpdateJobSerializer)
+from registry.filters.update import (
+    CatalogueServiceUpdateJobFilterSet,
+    FeatureTypeMappingFilterSet,
+    LayerMappingFilterSet,
+    WebFeatureServiceUpdateJobFilterSet,
+    WebMapServiceUpdateJobFilterSet,
+)
+from registry.models import (
+    CatalogueServiceUpdateJob,
+    FeatureTypeMapping,
+    LayerMapping,
+    WebFeatureServiceUpdateJob,
+    WebMapServiceUpdateJob,
+)
+from registry.serializers.update import (
+    CatalogueServiceUpdateJobSerializer,
+    FeatureTypeMappingSerializer,
+    LayerMappingSerializer,
+    WebFeatureServiceUpdateJobSerializer,
+    WebMapServiceUpdateJobSerializer,
+)
 from rest_framework_json_api.views import ModelViewSet
 
 
@@ -80,3 +96,88 @@ class NestedLayerMappingViewSet(
         LayerMappingViewSetMixin,
         NestedModelViewSet):
     """ Nested list endpoint for resource `LayerMapping` """
+
+
+class WebFeatureServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
+    queryset = WebFeatureServiceUpdateJob.objects.all()
+    serializer_class = WebFeatureServiceUpdateJobSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    filterset_class = WebFeatureServiceUpdateJobFilterSet
+    ordering_fields = ("id", "date_created", "done_at", "status")
+    select_for_includes = {
+        "service": ["service"],
+        "update_candidate": ["update_candidate"],
+    }
+    prefetch_for_includes = {
+        "mappings": [
+            Prefetch(
+                "mappings",
+                queryset=FeatureTypeMapping.objects.select_related(
+                    "job",
+                    "new_featuretype",
+                    "old_featuretype",
+                ),
+            )
+        ],
+    }
+    prefetch_for_not_includes = {
+        "mappings": [
+            Prefetch(
+                "mappings",
+                queryset=FeatureTypeMapping.objects.only(
+                    "id",
+                    "job_id",
+                    "new_featuretype_id",
+                    "old_featuretype_id",
+                ),
+            )
+        ],
+    }
+
+
+class WebFeatureServiceUpdateJobViewSet(WebFeatureServiceUpdateJobViewSetMixin, ModelViewSet):
+    """Endpoints for resource `WebFeatureServiceUpdateJob`"""
+
+
+class NestedWebFeatureServiceUpdateJobViewSet(WebFeatureServiceUpdateJobViewSetMixin, NestedModelViewSet):
+    """Nested list endpoint for resource `WebFeatureServiceUpdateJob`"""
+
+
+class FeatureTypeMappingViewSetMixin(PreloadNotIncludesMixin):
+    queryset = FeatureTypeMapping.objects.all()
+    serializer_class = FeatureTypeMappingSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    filterset_class = FeatureTypeMappingFilterSet
+    ordering_fields = ("id", "job", "new_featuretype", "old_featuretype", "created", "is_confirmed")
+    select_for_includes = {
+        "job": ["job"],
+    }
+    http_method_names = ["get", "patch"]  # disable PUT
+
+
+class FeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, ModelViewSet):
+    """Endpoints for resource `FeatureTypeMapping`"""
+
+
+class NestedFeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, NestedModelViewSet):
+    """Nested list endpoint for resource `FeatureTypeMapping`"""
+
+
+class CatalogueServiceUpdateJobViewSetMixin:
+    queryset = CatalogueServiceUpdateJob.objects.all()
+    serializer_class = CatalogueServiceUpdateJobSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    filterset_class = CatalogueServiceUpdateJobFilterSet
+    ordering_fields = ("id", "date_created", "done_at", "status")
+    select_for_includes = {
+        "service": ["service"],
+        "update_candidate": ["update_candidate"],
+    }
+
+
+class CatalogueServiceUpdateJobViewSet(CatalogueServiceUpdateJobViewSetMixin, ModelViewSet):
+    """Endpoints for resource `CatalogueServiceUpdateJob`"""
+
+
+class NestedCatalogueServiceUpdateJobViewSet(CatalogueServiceUpdateJobViewSetMixin, NestedModelViewSet):
+    """Nested list endpoint for resource `CatalogueServiceUpdateJob`"""

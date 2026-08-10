@@ -120,6 +120,21 @@ class FeatureTypeFilterSet(GeoFilterSet):
     bbox_lat_lon__intersects = GeometryFilter(
         field_name='bbox_lat_lon', lookup_expr='intersects')
 
+    has_mapping = BooleanFilter(
+        label=_("has mapping"),
+        help_text=_("returns featuretypes that are not mapped to any featuretype mapping"),
+        field_name="mapping",
+        lookup_expr="isnull",
+        exclude=True,
+    )
+    has_reverse_mapping = BooleanFilter(
+        label=_("has reverse mapping"),
+        help_text=_("returns featuretypes that are mapped to a featuretype mapping"),
+        field_name="reverse_mapping",
+        lookup_expr="isnull",
+        exclude=True,
+    )
+
     class Meta:
         model = FeatureType
         fields = {

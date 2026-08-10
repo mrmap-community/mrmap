@@ -1,26 +1,17 @@
 from django.utils.translation import gettext_lazy as _
-from registry.models import (
-    CatalogueService,
-    FeatureType,
-    Layer,
-    WebFeatureService,
-    WebMapService,
-    CatalogueServiceUpdateJob,
-    FeatureTypeMapping,
-    LayerMapping,
-    WebFeatureServiceUpdateJob,
-    WebMapServiceUpdateJob,
-)
-from registry.serializers.service import CatalogueServiceSerializer, WebFeatureServiceSerializer, WebMapServiceSerializer
+from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
+                             FeatureType, FeatureTypeMapping, Layer,
+                             LayerMapping, WebFeatureService,
+                             WebFeatureServiceUpdateJob, WebMapService,
+                             WebMapServiceUpdateJob)
+from registry.serializers.service import (CatalogueServiceSerializer,
+                                          WebFeatureServiceSerializer,
+                                          WebMapServiceSerializer)
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (
-    BooleanField,
-    DateTimeField,
-    HyperlinkedIdentityField,
-    IntegerField,
-    ModelSerializer,
-    Serializer,
-)
+from rest_framework_json_api.serializers import (BooleanField, DateTimeField,
+                                                 HyperlinkedIdentityField,
+                                                 IntegerField, ModelSerializer,
+                                                 Serializer)
 
 
 class UpdateJobBaseSerializer(Serializer):
@@ -82,7 +73,8 @@ class LayerMappingSerializer(MappingBaseSerializer, ModelSerializer):
 
     class Meta:
         model = LayerMapping
-        fields = ("url", "job", "old_layer", "new_layer", "created", "is_confirmed")
+        fields = ("url", "job", "old_layer",
+                  "new_layer", "created", "is_confirmed")
 
 
 class FeatureTypeMappingSerializer(MappingBaseSerializer, ModelSerializer):
@@ -113,7 +105,8 @@ class FeatureTypeMappingSerializer(MappingBaseSerializer, ModelSerializer):
 
     class Meta:
         model = FeatureTypeMapping
-        fields = ("url", "job", "old_featuretype", "new_featuretype", "created", "is_confirmed")
+        fields = ("url", "job", "old_featuretype",
+                  "new_featuretype", "created", "is_confirmed")
 
 
 class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
@@ -129,7 +122,8 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
     update_candidate = ResourceRelatedField(
         source="service.webmapservice_update_candidate",
         label=_("Update Candidate"),
-        help_text=_("The web map service this update job is a candidate for updating."),
+        help_text=_(
+            "The web map service this update job is a candidate for updating."),
         model=WebMapService,
         read_only=True,
     )
@@ -149,7 +143,8 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
 
     class Meta:
         model = WebMapServiceUpdateJob
-        fields = ("url", "service", "date_created", "done_at", "status", "update_candidate", "mappings")
+        fields = ("url", "service", "date_created", "done_at",
+                  "status", "update_candidate", "mappings")
 
 
 class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
@@ -165,7 +160,8 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
     update_candidate = ResourceRelatedField(
         source="service.webfeatureservice_update_candidate",
         label=_("Update Candidate"),
-        help_text=_("The web feature service this update job is a candidate for updating."),
+        help_text=_(
+            "The web feature service this update job is a candidate for updating."),
         model=WebFeatureService,
         read_only=True,
     )
@@ -185,7 +181,8 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
 
     class Meta:
         model = WebFeatureServiceUpdateJob
-        fields = ("url", "service", "date_created", "done_at", "status", "update_candidate", "mappings")
+        fields = ("url", "service", "date_created", "done_at",
+                  "status", "update_candidate", "mappings")
 
 
 class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
@@ -201,7 +198,8 @@ class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializ
     update_candidate = ResourceRelatedField(
         source="service.catalogueservice_update_candidate",
         label=_("Update Candidate"),
-        help_text=_("The catalogue service this update job is a candidate for updating."),
+        help_text=_(
+            "The catalogue service this update job is a candidate for updating."),
         model=CatalogueService,
         read_only=True,
     )
@@ -213,3 +211,5 @@ class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializ
 
     class Meta:
         model = CatalogueServiceUpdateJob
+        fields = ("url", "service", "date_created", "done_at",
+                  "status", "update_candidate")

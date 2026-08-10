@@ -1,10 +1,9 @@
-import base64
 import datetime
 import re
 from functools import cached_property
 from io import BytesIO
 
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import get_user_model
 from django.core.exceptions import (BadRequest, ImproperlyConfigured,
                                     ObjectDoesNotExist, PermissionDenied)
 from django.core.files.base import ContentFile
@@ -14,9 +13,8 @@ from django.http.response import Http404
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic.base import View
-from knox.auth import TokenAuthentication
-from registry.enums.service import HttpMethodEnum, OGCOperationEnum
+from registry.enums.service import (HttpMethodEnum, OGCOperationEnum,
+                                    OGCServiceVersionEnum)
 from registry.models.security import HttpRequestLog, HttpResponseLog
 from registry.models.service import OgcService
 from registry.ows_lib.client.core import OgcClient
@@ -39,24 +37,36 @@ class Http423(Exception):
 
 
 def exception_handler(exc, context):
+    if hasattr(context["view"], "ogc_request"):
+        service_type = context["view"].ogc_request.service_type.lower()
+        service_version = context["view"].ogc_request.service_version
+    elif hasattr(context["view"], "service"):
+        service_type = context["view"].service.service_type.lower()
+        service_version = OGCServiceVersionEnum(
+            context["view"].service.version).label
+    else:
+        service_type = context["view"].service_type
+        service_version = context["view"].service_version
+
     match exc:
         case Http404() | PermissionDenied():
-            return ForbiddenException(service_type=context["view"].ogc_request.service_type.lower(),
-                                      service_version=context["view"].ogc_request.service_version,
-                                      message="You don't have permission to test as other users. Contact an administrator.")
+            return ForbiddenException(service_type=service_type,
+                                      service_version=service_version,
+                                      message="Permission denied")
         case BadRequest():
-            return exc.response_cls(service_type=context["view"].ogc_request.service_type.lower(),
-                                    service_version=context["view"].ogc_request.service_version,)
+            return exc.response_cls(service_type=service_type,
+                                    service_version=service_version,)
         case Http423():
-            return DisabledException(service_type=context["view"].ogc_request.service_type.lower(),
-                                     service_version=context["view"].ogc_request.service_version)
+            return DisabledException(service_type=service_type,
+                                     service_version=service_version)
         case NotImplementedError():
             return MrMapNotImplementedError(
-                service_type=context["view"].ogc_request.service_type.lower(),
-                service_version=context["view"].ogc_request.service_version)
+                service_type=service_type,
+                service_version=service_version,
+                message="The requested operation is not implemented in the proxy.")
         case _:
-            return ForbiddenException(service_type=context["view"].ogc_request.service_type.lower(),
-                                      service_version=context["view"].ogc_request.service_version)
+            return ForbiddenException(service_type=service_type,
+                                      service_version=service_version)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -71,6 +81,8 @@ class OgcServiceProxyView(APIView):
     bbox = None
     start_time = None
     test_context = None
+    service_type = None
+
     # authentication_classes = (TokenAuthentication,)
 
     @property
@@ -362,13 +374,13 @@ class OgcServiceProxyView(APIView):
                     is_test_request=is_test_request,
                     test_user=test_user,
                 )
-                if self.request.body:
+                if self.request.data:
                     content_type = self.request.content_type
                     if "/" in content_type:
                         content_type = content_type.split("/")[-1]
-                    request_log.body.save(
+                    request_log.data.save(
                         name=f'{self.start_time.strftime("%Y_%m_%d-%I_%M_%S_%p")}.{content_type}',
-                        content=ContentFile(self.request.body),
+                        content=ContentFile(self.request.data),
                     )
                 else:
                     request_log.save()

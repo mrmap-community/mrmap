@@ -37,6 +37,8 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
     service_cls = WebMapService
     access_denied_img = None
+    service_type = "WMS"
+    service_version = "1.3.0"
 
     @property
     def service(self) -> WebMapService:

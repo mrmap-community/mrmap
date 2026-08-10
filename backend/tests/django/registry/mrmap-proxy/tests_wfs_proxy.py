@@ -75,13 +75,19 @@ class WebMapServiceProxyTest(XpathTestCase):
         )
 
         response_xml = etree.fromstring(response.content)
+        try:
 
-        gml = self._get_by_xpath(
-            response_xml, "/wfs:FeatureCollection/wfs:boundedBy/gml:*")
-        gml_str = etree.tostring(
-            gml[0],
-            encoding="UTF-8"
-        )
+            gml = self._get_by_xpath(
+                response_xml,
+                "/wfs:FeatureCollection/wfs:boundedBy/gml:*"
+            )
+            gml_str = etree.tostring(
+                gml[0],
+                encoding="UTF-8"
+            )
+        except Exception as e:
+            self.fail(
+                f"Failed to parse the response xml and get the boundedBy element. Error: {e}")
 
         srs = gml[0].get("srsName")
         if srs:

@@ -58,7 +58,7 @@ class OGCRequest(Request):
             method=request.method,
             url=request.build_absolute_uri(),
             params={**request.GET, **request.POST},
-            data=request.body,
+            data=request.data if hasattr(request, "data") else request.body,
             cookies=request.COOKIES,
             django_request=request
         )

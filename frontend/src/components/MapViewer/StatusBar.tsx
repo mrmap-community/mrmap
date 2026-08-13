@@ -1,11 +1,11 @@
-import ArticleIcon from '@mui/icons-material/Article'
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
-import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
-import { Box, Stack, Typography } from "@mui/material"
-import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
+import ArticleIcon from '@mui/icons-material/Article';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import { Box, Stack, Typography } from "@mui/material";
+import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 
 const StatusBar = () => {
   const { loadingStatus, loadingMessage, loadingTimings } = useOwsContextBase()
@@ -19,9 +19,9 @@ const StatusBar = () => {
       case 'parsing':
         return <AutoFixHighIcon fontSize="small" />
       case 'ready':
-        return <CheckCircleOutlineIcon fontSize="small" color="success" />
+        return <CheckCircleOutlineOutlinedIcon fontSize="small" color="success" />
       case 'error':
-        return <ErrorOutlineIcon fontSize="small" color="error" />
+        return <ErrorOutlineOutlinedIcon fontSize="small" color="error" />
       default:
         return <HourglassEmptyIcon fontSize="small" color="disabled" />
     }

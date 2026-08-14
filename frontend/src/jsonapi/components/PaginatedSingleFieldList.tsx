@@ -47,7 +47,7 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = any>({
 
     return (
         <div>
-            <Stack sx={{direction:"row", gap:1, flexWrap:"wrap"}}>
+            <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
                 <SingleFieldList
                   data={visibleData}
                 />

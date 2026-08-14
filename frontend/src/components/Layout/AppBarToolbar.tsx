@@ -7,8 +7,7 @@ const AppBarToolbar = () => {
     const { darkTheme } = useThemesContext();
     return (
         <Stack
-            direction={"row"}
-            justifyContent={"end"}           
+            direction="row"       
         >
             {/**<SearchForm/>*/}
             {locales && locales.length > 1 ? <LocalesMenuButton /> : null}

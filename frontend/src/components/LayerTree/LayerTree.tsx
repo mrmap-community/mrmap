@@ -142,8 +142,8 @@ const TreeItemLabel = memo(
 
 
     return (
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Box display="flex" alignItems="center" >
+      <Stack sx={{direction:"row", justifyContent:"space-between", alignItems:"center"}}>
+        <Box sx={{display:"flex", alignItems:"center"}} >
          <Tooltip title="Toggle the visibility of this service">
           <Checkbox
             size="small"
@@ -176,7 +176,7 @@ const TreeItemLabel = memo(
           disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
         />
         </Tooltip>
-        <Box display="flex" alignItems="center" >
+        <Box sx={{display:"flex", alignItems:"center"}} >
  
           <Typography variant="body2">{node.properties.title}</Typography>
         </Box>

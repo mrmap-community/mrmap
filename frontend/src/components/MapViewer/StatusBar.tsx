@@ -45,8 +45,23 @@ const StatusBar = () => {
     : []
 
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ width: '100%', px: 1, py: 0.5 }}>
-      <Stack direction="row" alignItems="center" spacing={1}>
+    <Stack
+      sx={{ 
+        width: '100%', 
+        px: 1, 
+        py: 0.5,
+        direction:"row",
+        justifyContent:"space-between",
+        alignItems: "center", 
+        spacing: 1,
+      }}>
+      <Stack
+        sx={{
+          direction: "row",
+          alignItems: "center",
+          spacing: 1
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', color: loadingStatus === 'error' ? 'error.main' : 'text.primary' }}>
           {statusIcon}
         </Box>

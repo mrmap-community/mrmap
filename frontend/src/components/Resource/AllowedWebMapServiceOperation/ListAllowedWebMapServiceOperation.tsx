@@ -12,6 +12,7 @@ const ListActionsAllowedWebMapServiceOperation = (
     ...props
   }: CustomListActionsProps
 ): ReactNode => {
+  // TODO: find a way to get the record from the list context, not from the show context, because this is used in a list and not in a show view
   //const { record } = useShowContext();
   const record = useRecordContext()
   return (

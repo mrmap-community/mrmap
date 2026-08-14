@@ -1,7 +1,7 @@
 ##############################################################
 # Base build Image for Frontend
 ##############################################################
-FROM node:25-alpine3.23 AS frontend-compile-image
+FROM node:26-alpine3.24 AS frontend-compile-image
 
 ARG VITE_API_BASE_URL
 ARG VITE_API_PORT
@@ -19,7 +19,7 @@ RUN npm install && \
 # Base build Image for Backend
 ##############################################################
 
-FROM python:3.12.13-alpine3.23 AS backend-compile-image
+FROM python:3.12.14-alpine3.24 AS backend-compile-image
 ARG MRMAP_PRODUCTION
 
 RUN apk update && \
@@ -38,7 +38,7 @@ RUN /usr/local/bin/python -m pip install --upgrade pip && \
 ##############################################################
 # Final Image
 ##############################################################  
-FROM nginx:1.29.5-alpine-slim AS production-image
+FROM nginx:1.31.3-alpine-slim AS production-image
 
 COPY --from=frontend-compile-image /app/dist /var/www/mrmap/frontend/
 COPY --from=backend-compile-image ./static /var/www/mrmap/backend/

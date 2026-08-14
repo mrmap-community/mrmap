@@ -35,7 +35,7 @@ class TokenAuthMiddleware:
                     break
                 except AuthenticationFailed:
                     pass
-        return await self.inner(scope, *args, **kwargs)
+        return await self.inner(dict(scope,), *args, **kwargs)
 
 
 # Handy shortcut for applying all three layers at once

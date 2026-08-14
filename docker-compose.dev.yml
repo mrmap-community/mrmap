@@ -1,5 +1,4 @@
 # docker compose file for development useage
-version: '3.8'
 services:
 
   frontend:
@@ -163,6 +162,11 @@ services:
     ports:
       - "0.0.0.0:8001:8001"
     command: /bin/sh -c "python manage.py runserver 0.0.0.0:8001"
+    depends_on:
+      postgis:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   celery-worker:
     build:
@@ -175,6 +179,11 @@ services:
       - ./docker/backend/.mrmap.env
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q download,default,db-routines --statedb=/var/run/celery/%n-%i_worker.state"
+    depends_on:
+      postgis:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   celery-beat:
     build:
@@ -187,6 +196,11 @@ services:
       - ./docker/backend/.mrmap.env
     command: >
       /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
+    depends_on:
+      postgis:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   flower:
     ports:

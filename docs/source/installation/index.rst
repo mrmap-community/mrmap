@@ -77,7 +77,7 @@ create .env file under your mrmap path with the following variables. Please setu
     DB_PASSWORD=supersecurepassword
     DJANGO_ADMIN_USER=mrmap
     DJANGO_ADMIN_PASSWORD=supersecurepassword
-    DJANGO_SECRET_KEY=luzp7&(8_$secal3)orsbh6o^y#m(na7p=g1e$m3uu=xd8icvo
+    DJANGO_SECRET_KEY=mrmap-dev-secret-key-change-me-in-production
     OPENOBSERVE_USER=admin@example.com
     OPENOBSERVE_PASSWORD=supersecurepassword
     PGADMIN_USER=admin@example.com

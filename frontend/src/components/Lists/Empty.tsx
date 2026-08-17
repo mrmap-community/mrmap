@@ -14,17 +14,28 @@ const EmptyList = ({...rest}: EmptyListProps) => {
   const translate = useTranslate();
 
   return (
-    <Box textAlign="center" m={1}>
-      <Typography variant="h4" paragraph>
+    <Box sx={{
+      textAlign:"center",
+      m:1
+    }}>
+      <Typography 
+        sx={{
+          variant:"h4",
+          
+        }}
+        
+      >
           {translate('ra.page.empty', {name: name})}
       </Typography>
       <Typography variant="body1">
           {translate('ra.page.invite')}
       </Typography>
       <CreateDialogButton 
-        resource={resource} 
+        createDialogProps={{
+          resource: resource,
+          defaultValue: rest.defaultValue 
+        }}
         buttonProps={{variant: 'contained'}}
-        defaultValue={rest.defaultValue} 
       />
     </Box>
   )

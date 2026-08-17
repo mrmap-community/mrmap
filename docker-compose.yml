@@ -2,11 +2,11 @@
 services:
 
   postgis:
-    image: postgis/postgis:17-3.6-alpine
+    image: postgis/postgis:18-3.6-alpine
     volumes:
       - type: volume
-        source: db-data-17
-        target: /var/lib/postgresql/data
+        source: db-data-18
+        target: /var/lib/postgresql
       - type: tmpfs
         target: /dev/shm
         tmpfs:
@@ -25,7 +25,7 @@ services:
   # Done
 
   redis:
-    image: library/redis:8.6.1-alpine3.23
+    image: library/redis:8.10.0-alpine3.23
     volumes:
       - type: volume
         source: mem-db-data
@@ -34,6 +34,12 @@ services:
       - mrmap-internal
     environment:
       - loglevel=error
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 2s
 
   backend:
     build:
@@ -71,8 +77,10 @@ services:
     env_file:
       - docker/backend/.mrmap.env
     depends_on:
-      - postgis
-      - redis
+      postgis:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   celery-worker:
     build:
@@ -116,8 +124,10 @@ services:
     env_file:
       - ./docker/backend/.mrmap.env
     depends_on:
-      - postgis
-      - redis
+      postgis:
+        condition: service_started
+      redis:
+        condition: service_healthy
     cap_add:
       - SYS_PTRACE
     healthcheck:
@@ -163,8 +173,10 @@ services:
     env_file:
       - ./docker/backend/.mrmap.env
     depends_on:
-      - postgis
-      - redis
+      postgis:
+        condition: service_started
+      redis:
+        condition: service_healthy
 
   frontend:
     build:
@@ -199,7 +211,7 @@ services:
       - host.docker.internal:host-gateway
 
   openobserve:
-    image: public.ecr.aws/zinclabs/openobserve:v0.15.0-rc5
+    image: openobserve/openobserve:v0.92.1
     restart: unless-stopped
     hostname: "openobserve"
     environment:
@@ -214,7 +226,7 @@ services:
       - mrmap-internal
 
   pgadmin:
-    image: dpage/pgadmin4:9.13.0
+    image: dpage/pgadmin4:9.17
     restart: unless-stopped
     hostname: "pgadmin"
     environment:
@@ -243,6 +255,7 @@ volumes:
   celery-state: null
   db-data: null
   db-data-17: null
+  db-data-18: null
   mem-db-data: null
   openobserve-data: null
 

@@ -71,9 +71,11 @@ const MapViewerCore = (): ReactNode => {
             callback={() => map?.invalidateSize()}
           >
             <Stack
-              direction="column"
-              justifyContent="space-between"
-              sx={{ height: '100%' }}
+              sx={{ 
+                height: '100%',
+                direction: "column",
+                justifyContent: "space-between"
+              }}
             >
               <Box>
                 <OwsContextActionButtons />
@@ -97,12 +99,14 @@ const MapViewerCore = (): ReactNode => {
                 [{
                   tab: { label: 'Map Settings' },
                   tabPanel: {
+                    value: 'settings',
                     children: <MapSettingsEditor/>
                   },
                   closeable: false
                 }, {
                   tab: { label: 'WMS List' },
                   tabPanel: {
+                    value: 'wms-list',
                     children: <ListGuesser
                       resource='WebMapService'
                       onRowClick={(resource) => {

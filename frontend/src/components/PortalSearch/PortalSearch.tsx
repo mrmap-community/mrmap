@@ -52,7 +52,7 @@ const PortalSearch = (): ReactNode => {
   return (
     
     <Grid container>
-      <Grid item>
+      <Grid>
         <form onSubmit={handleSubmit}>
           <FormControl>
           <TextField 
@@ -64,7 +64,7 @@ const PortalSearch = (): ReactNode => {
         </form>
       </Grid>
 
-      <Grid item>
+      <Grid>
         <ResourceSearchAccordion name="WebMapService" filter={filter}/>
         <ResourceSearchAccordion name="DatasetMetadata" filter={filter}/>
       </Grid>

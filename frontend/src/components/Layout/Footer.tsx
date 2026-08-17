@@ -29,46 +29,47 @@ const Footer = () => {
   },[realtimeIsReady])
   return (
     <Stack
-            direction={"row"}
-            justifyContent='space-between'
-            alignItems={"center"}
+      direction="row"
+      sx={{justifyContent:"space-between", alignItems:"center"}}
+    >
+      <Box 
+        sx={{paddingLeft: 2}}
+      >
+          v.{api?.document.info.version}
+      </Box>
+      <Box  >
+        <IconButton 
+          href="https://github.com/mrmap-community" 
+          target="_blank"
+        >
+          <GitHubIcon />
+        </IconButton>
+      </Box>
+      <Stack
+        direction="row"
+        sx={{
+          justifyContent:'space-between',
+          alignItems:"center"
+        }}
+        //sx={{alignItems: "center",justifyContent:"space-between"}}
+      >
+        <Box>
+          {systemTime ?? ''}
+        </Box>
+        <Box>
+          <Tooltip title={
+            realtimeIsReady === ReadyState.OPEN 
+            ? 'Backend is connected'
+            : 'Connection to backend lost'
+            }
           >
-            <Box 
-              paddingLeft={2}
-            >
-                v.{api?.document.info.version}
-            </Box>
-            <Box  >
-              <IconButton 
-                href="https://github.com/mrmap-community" 
-                target="_blank"
-              >
-                <GitHubIcon />
-              </IconButton>
-            </Box>
-            <Stack
-              direction={"row"}
-              justifyContent='space-between'
-              alignItems={"center"}
-              //sx={{alignItems: "center",justifyContent:"space-between"}}
-            >
-              <Box>
-                {systemTime ?? ''}
-              </Box>
-              <Box>
-                <Tooltip title={
-                  realtimeIsReady === ReadyState.OPEN 
-                  ? 'Backend is connected'
-                  : 'Connection to backend lost'
-                  }
-                >
-                  <IconButton>
-                    <CircleIcon color={readyStateColor}/>
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </Stack>
-          </Stack>
+            <IconButton>
+              <CircleIcon color={readyStateColor}/>
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Stack>
+    </Stack>
   )
 }
 

@@ -1,5 +1,4 @@
 # docker compose file for development with visual studio code
-version: "3.8"
 services:
 
   backend:

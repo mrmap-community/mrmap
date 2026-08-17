@@ -10,7 +10,7 @@ import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver
 import SnackbarContentBackgroundProcess from '../Resource/BackgroundProcess/ShowShortInfoBackgroundProcess';
 import MrMapAppBar from './AppBar';
 import Footer from './Footer';
-import Menu from './Menu';
+import CustomMenu from './Menu';
 
 
 declare module 'notistack' {
@@ -43,7 +43,7 @@ const MyLayout = (
       <I18Observer/>
       <Layout
         appBar={MrMapAppBar}
-        menu={Menu}
+        menu={CustomMenu}
         sx={{
           height: '100vh',
           maxHeight: '100vh',

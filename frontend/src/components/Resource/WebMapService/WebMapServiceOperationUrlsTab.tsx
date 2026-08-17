@@ -4,10 +4,10 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import { useCallback, useState } from 'react';
+import { createElement, useCallback, useState } from 'react';
 import { DeleteButton, Edit, Form, RaRecord, RecordRepresentation, SaveButton, useNotify, useTranslate } from 'react-admin';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
-import AllowedWebMapServiceOperationFields from '../AllowedWebMapServiceOperation/AllowedWebMapServiceOperationFields';
+import useAllowedWebMapServiceOperationFieldDefinitions from '../AllowedWebMapServiceOperation/useAllowedWebMapServiceOperationFieldDefinitions';
 
 const WebMapServiceOperationUrlsListWithEdit = () => {
   
@@ -43,6 +43,9 @@ const WebMapServiceOperationUrlsListWithEdit = () => {
       undoable: false,
   });
   },[])
+
+  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
+
 
   return (
     <div>
@@ -97,7 +100,17 @@ const WebMapServiceOperationUrlsListWithEdit = () => {
               dividers={true} 
               id="scroll-dialog-description"
             >
-              <AllowedWebMapServiceOperationFields />  
+                {
+                  fieldDefinitions.map((fieldDefinition, index) =>
+                      createElement(
+                        fieldDefinition.component, 
+                        {
+                          ...fieldDefinition.props, 
+                          key:`create-allowed-web-map-service-operation-${index}`,
+                        }
+                      )
+                  )
+                }
             </DialogContent>
 
             <DialogActions style={{ justifyContent: "space-between" }}>

@@ -4,8 +4,8 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import { createElement, ReactNode, useCallback, useMemo } from 'react';
-import { Create, CreateProps, Form, RaRecord, SaveButton, useNotify, useResourceContext, useTranslate } from 'react-admin';
+import { createElement, useCallback, useMemo } from 'react';
+import { Create, CreateProps, Form, FormProps, RaRecord, SaveButton, useNotify, useResourceContext, useTranslate } from 'react-admin';
 import { useFieldsForOperation } from '../../jsonapi/hooks/useFieldsForOperation';
 import { FieldDefinition } from '../../jsonapi/utils';
 
@@ -15,8 +15,8 @@ export interface CreateDialogProps extends Partial<CreateProps>{
   onClose?: () => void
   onCreate?: (data: any) => void
   onCancel?: () => void
-  fieldComponent?: ReactNode
   updateFieldDefinitions?: FieldDefinition[];
+  formProps?: Partial<FormProps>
 }
 
 const CreateDialog = (
@@ -26,9 +26,8 @@ const CreateDialog = (
   onClose,
   onCreate,
   onCancel,
-  fieldComponent,
   updateFieldDefinitions,
-  defaultValue,
+  formProps,
   ...rest
  }: CreateDialogProps
 ) => {
@@ -38,7 +37,7 @@ const CreateDialog = (
 
   const fieldDefinitions = useFieldsForOperation(`create_${resource}`)
   const fields = useMemo(() => 
-      fieldComponent ?? fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
+      fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
         (fieldDefinition, index) => {
 
           const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
@@ -52,9 +51,8 @@ const CreateDialog = (
             }
           )
         })
-    , [fieldComponent, updateFieldDefinitions, fieldDefinitions]
+    , [updateFieldDefinitions, fieldDefinitions]
   )
-
   const onCreateSuccess = useCallback((data: RaRecord)=>{
     notify(`resources.${resource}.notifications.created`, {
       type: 'info',
@@ -70,6 +68,9 @@ const CreateDialog = (
     setIsOpen && setIsOpen(false)
   },[resource])
 
+  if (!isOpen) {
+    return null
+  }
   /* Create and Form component needed to be outside the Dialog component. 
   Otherwise the scroll feature is broken.
   See: https://github.com/mui/material-ui/issues/13253 
@@ -87,7 +88,7 @@ const CreateDialog = (
         {...rest}
       >
         <Form
-          defaultValues={defaultValue as any}
+          {...formProps}
         >
           <Dialog 
             open={isOpen}

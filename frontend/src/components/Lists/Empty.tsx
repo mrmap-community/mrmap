@@ -1,17 +1,19 @@
 import { Box, Typography } from "@mui/material";
 import { useResourceContext, useResourceDefinition, useTranslate } from "react-admin";
+import { CreateDialogProps } from "../Dialog/CreateDialog";
 import CreateDialogButton from "../Dialog/CreateDialogButton";
 
 
 export interface EmptyListProps {
-  resource?: string;
-  defaultValue?: string | number | readonly string[] | undefined;
+  createDialogProps?: CreateDialogProps  
 }
 
-const EmptyList = ({...rest}: EmptyListProps) => {
-  const resource = useResourceContext({resource: rest?.resource})
-  const { name } = useResourceDefinition({resource: resource})
+const EmptyList = ({createDialogProps}: EmptyListProps) => {
+  const resource = useResourceContext({resource: createDialogProps?.resource})
+  const { name, hasCreate } = useResourceDefinition({resource: resource})
   const translate = useTranslate();
+
+
 
   return (
     <Box sx={{
@@ -30,13 +32,11 @@ const EmptyList = ({...rest}: EmptyListProps) => {
       <Typography variant="body1">
           {translate('ra.page.invite')}
       </Typography>
-      <CreateDialogButton 
-        createDialogProps={{
-          resource: resource,
-          defaultValue: rest.defaultValue 
-        }}
+      
+      {hasCreate && <CreateDialogButton
+        createDialogProps={createDialogProps}
         buttonProps={{variant: 'contained'}}
-      />
+      />}
     </Box>
   )
 }

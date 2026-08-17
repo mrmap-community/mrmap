@@ -2,28 +2,34 @@ import { Chip, FormControl, FormHelperText, FormLabel, Paper } from '@mui/materi
 import { SimpleTreeView, TreeItem } from "@mui/x-tree-view";
 import { useMemo } from "react";
 import { Identifier, Loading, RaRecord, TextFieldProps, useGetOne, useInput } from "react-admin";
-import { useFormContext, } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import { getDescendants } from '../MapViewer/utils';
 import { getSubTree } from "../utils";
+
+
 export interface TreeSelectInputProps extends TextFieldProps{
-  wmsId: Identifier
+  wmsId?: Identifier
+  dependingFieldName?: string
+
 }
 
 
 
 const TreeSelectInput = ({
   wmsId,
+  dependingFieldName,
   source,
   ...props  
 }: TreeSelectInputProps) => {
   const { className, emptyText, ...rest } = props;
-
+  const values = useWatch()
+  const wmsIdValue = useMemo(()=> wmsId || dependingFieldName && values[dependingFieldName]?.id, [values, dependingFieldName])
   const {setValue} = useFormContext();
   const { data: record, isPending } = useGetOne(
     'WebMapService',
-    { id: wmsId , meta: {jsonApiParams: {include: 'layers'}} },
-    
-);
+    { id: wmsIdValue, meta: {jsonApiParams: {include: 'layers'}} },
+  );
+
   const layerListPreOrderd = useMemo<RaRecord[]>(()=>record?.layers.sort((a: RaRecord, b: RaRecord) => a.mpttLft > b.mpttLft) || [], [record?.layers])
   
   const tree = useMemo(()=> getSubTree(layerListPreOrderd), [layerListPreOrderd]);

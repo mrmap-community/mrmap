@@ -4,7 +4,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import { createElement, ReactNode, useCallback, useMemo } from 'react';
+import { createElement, useCallback, useMemo } from 'react';
 import { DeleteButton, Edit, EditProps, Form, RecordRepresentation, SaveButton, useNotify, useTranslate } from 'react-admin';
 import { useFieldsForOperation } from '../../jsonapi/hooks/useFieldsForOperation';
 import { FieldDefinition } from '../../jsonapi/utils';
@@ -12,7 +12,6 @@ import { FieldDefinition } from '../../jsonapi/utils';
 export interface EditDialogProps extends Partial<EditProps>{
   isOpen?: boolean
   onClose?: () => void
-  fieldComponent?: ReactNode
   updateFieldDefinitions?: FieldDefinition[];
 }
 
@@ -22,7 +21,6 @@ const EditDialog = (
   resource,
   isOpen=false,
   onClose,
-  fieldComponent,
   updateFieldDefinitions,
   ...rest
  }: EditDialogProps
@@ -33,7 +31,7 @@ const EditDialog = (
 
   const fieldDefinitions = useFieldsForOperation(`partial_update_${resource}`)
   const fields = useMemo(() => 
-      fieldComponent ?? fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
+      fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
         (fieldDefinition, index) => {
 
           const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
@@ -47,7 +45,7 @@ const EditDialog = (
             }
           )
         })
-    , [fieldComponent, updateFieldDefinitions, fieldDefinitions]
+    , [updateFieldDefinitions, fieldDefinitions]
   )
 
   const onEditSuccess = useCallback(()=>{
@@ -75,6 +73,10 @@ const EditDialog = (
       undoable: false,
   });
   },[resource])
+
+  if (!isOpen) {
+    return null
+  }
 
   /* Edit and Form component needed to be outside the Dialog component. 
   Otherwise the scroll feature is broken.

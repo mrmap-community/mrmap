@@ -1,27 +1,41 @@
 import { ReactNode } from "react"
 import { useRecordContext, useTranslate, WrapperField } from "react-admin"
 import ListGuesser, { ListGuesserProps } from "../../../jsonapi/components/ListGuesser"
+import CreateDialogButton from "../../Dialog/CreateDialogButton"
 import EditDialogButton from "../../Dialog/EditDialogButton"
 import ListActions, { CustomListActionsProps } from "../../Lists/CustomListActions"
+import EmptyList from "../../Lists/Empty"
 import MapViewerButton from "../WebMapService/MapViewerButton"
-import AllowedWebMapServiceOperationFields from "./AllowedWebMapServiceOperationFields"
-import CreateAllowedWebMapServiceOperationDialogButton from "./CreateDialogButton"
+import useAllowedWebMapServiceOperationFieldDefinitions from "./useAllowedWebMapServiceOperationFieldDefinitions"
+
 
 const ListActionsAllowedWebMapServiceOperation = (
   { 
     ...props
   }: CustomListActionsProps
 ): ReactNode => {
-  // TODO: find a way to get the record from the list context, not from the show context, because this is used in a list and not in a show view
-  //const { record } = useShowContext();
   const record = useRecordContext()
+  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
+
   return (
     <ListActions
-      createButton={<CreateAllowedWebMapServiceOperationDialogButton/>}
+      createButton={
+        <CreateDialogButton 
+          createDialogProps={{
+            updateFieldDefinitions: fieldDefinitions,
+            formProps: { 
+              defaultValues: {
+                "securedService": record
+              },
+            }
+          }}
+          
+        />
+      }
       additionalActions={
         <MapViewerButton 
           wmsRecord={undefined} 
-          //capabilititesUrl={record.xmlBackupFileSecured}
+          capabilititesUrl={record?.xmlBackupFileSecured}
         />
       }
       {...props}
@@ -31,9 +45,14 @@ const ListActionsAllowedWebMapServiceOperation = (
 
 const RowActions = () => {
   const translate = useTranslate();
+  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
+
   return (
     <WrapperField label={translate("ra.list.actions")} >
-        <EditDialogButton editDialogProps={{fieldComponent: <AllowedWebMapServiceOperationFields/>}}/>
+        <EditDialogButton editDialogProps={{
+          resource: "AllowedWebMapServiceOperation",
+          updateFieldDefinitions: fieldDefinitions
+        }}/>
     </WrapperField >
   )
 }
@@ -44,11 +63,24 @@ const ListAllowedWebMapServiceOperation = (
     ...props
   }: ListGuesserProps
 ) => {
-
+  const record = useRecordContext()
+  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
 
   return (
     <ListGuesser
       ActionsComponent={ListActionsAllowedWebMapServiceOperation}
+      empty={
+        <EmptyList
+          createDialogProps={{
+            updateFieldDefinitions: fieldDefinitions,
+            formProps: { 
+              defaultValues: {
+                "securedService": record
+              },
+            }
+          }}
+        />
+      }
       rowActions={<RowActions/>}
       {...props}
     />

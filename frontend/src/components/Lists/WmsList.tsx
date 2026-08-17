@@ -7,7 +7,6 @@ import MapViewerButton from '../Resource/WebMapService/MapViewerButton';
 
 const WmsViewerButtons = () => {
   const record = useRecordContext();
-  console.log(record)
   return (
     <div>
       <MapViewerButton />

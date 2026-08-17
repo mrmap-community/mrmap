@@ -15,13 +15,14 @@ const CreateDialogButton = ({
 }: CreateDialogButtonProps) => {
 
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
-
   return (
     <>
       <Button label="Create" onClick={()=>setDialogOpen(true)} {...buttonProps}>
         <AddIcon />
       </Button>
-      <CreateDialog isOpen={dialogOpen} setIsOpen={setDialogOpen} {...createDialogProps} />
+      {dialogOpen && (
+        <CreateDialog isOpen={dialogOpen} setIsOpen={setDialogOpen} {...createDialogProps} />
+      )}
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { type ReactElement, useCallback, useMemo, useState } from 'react';
 import { AutocompleteArrayInput, AutocompleteArrayInputProps, AutocompleteInput, GetListParams, Identifier, type RaRecord, useGetList, useRecordContext } from 'react-admin';
 
+import { useWatch } from 'react-hook-form';
 import { RelatedResource } from '../../providers/dataProvider';
 import useSchemaRecordRepresentation from '../hooks/useSchemaRecordRepresentation';
 
@@ -35,9 +36,11 @@ const SchemaAutocompleteInput = (
     ...rest
   }: SchemaAutocompleteInputProps
 ): ReactElement => {
-  const [ filter, setFilter] = useState<any>(initialFilter || {});
   const contextRecord = useRecordContext(rest)
-  const currentValues = useMemo(() => (contextRecord?.[source]), [contextRecord, source])
+  const currentRecordValues = useMemo(() => (contextRecord?.[source]), [contextRecord, source])
+  const values = useWatch()
+  const currentValues = useMemo(()=> values[source] || currentRecordValues, [values, source])
+  const [ filter, setFilter] = useState<any>(initialFilter || {});
 
   const defaultParms = useMemo<GetListParams>(()=>{
     const _defaultParms: any = {
@@ -57,9 +60,11 @@ const SchemaAutocompleteInput = (
     reference, 
     {
       ...defaultParms,
-      ...getListParams
+      ...getListParams,
+      
     },
     {
+      
       // FIXME: only fetch if the user types >1 characters
       enabled: filter?.search !== undefined, // only fetch when filter is set, which means the input is focused
     } 
@@ -67,6 +72,8 @@ const SchemaAutocompleteInput = (
 
   const mergedData = useMemo(() => {
     if (!currentValues) return data || [];
+
+
     const currentValuesArray = Array.isArray(currentValues) ? currentValues : [currentValues];
     const completedCurrentValues = currentValuesArray.map((value: any) => {
       if (typeof value === 'object' && value.id && value.string_representation) {

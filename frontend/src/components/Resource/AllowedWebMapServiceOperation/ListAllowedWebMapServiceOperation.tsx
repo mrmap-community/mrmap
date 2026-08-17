@@ -1,5 +1,5 @@
 import { ReactNode } from "react"
-import { useShowContext, useTranslate, WrapperField } from "react-admin"
+import { useRecordContext, useTranslate, WrapperField } from "react-admin"
 import ListGuesser, { ListGuesserProps } from "../../../jsonapi/components/ListGuesser"
 import EditDialogButton from "../../Dialog/EditDialogButton"
 import ListActions, { CustomListActionsProps } from "../../Lists/CustomListActions"
@@ -12,15 +12,16 @@ const ListActionsAllowedWebMapServiceOperation = (
     ...props
   }: CustomListActionsProps
 ): ReactNode => {
-  const { record } = useShowContext();
-
+  // TODO: find a way to get the record from the list context, not from the show context, because this is used in a list and not in a show view
+  //const { record } = useShowContext();
+  const record = useRecordContext()
   return (
     <ListActions
       createButton={<CreateAllowedWebMapServiceOperationDialogButton/>}
       additionalActions={
         <MapViewerButton 
           wmsRecord={undefined} 
-          capabilititesUrl={record.xmlBackupFileSecured}
+          //capabilititesUrl={record.xmlBackupFileSecured}
         />
       }
       {...props}

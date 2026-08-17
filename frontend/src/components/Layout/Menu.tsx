@@ -13,13 +13,14 @@ import PublicIcon from '@mui/icons-material/Public';
 import { Box } from '@mui/material';
 
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
+import MenuList from '@mui/material/MenuList';
 import { createElementIfDefined } from '../../utils';
 import SubMenu from './SubMenu';
 
 type MenuName = 'menuWms' | 'menuWfs' | 'menuCsw'| 'menuMetadata'| 'menuAccounts' | 'menuAdmin';
 
 
-const Menu = ({ dense = false }: MenuProps) => {
+const CustomMenu = ({ dense = false }: MenuProps) => {
     const [state, setState] = useState({
         menuWms: true,
         menuWfs: true,
@@ -74,6 +75,8 @@ const Menu = ({ dense = false }: MenuProps) => {
                     }),
             }}
         >
+            <MenuList
+            >
             <DashboardMenuItem />
             <SubMenu
                 handleToggle={() => handleToggle('menuWms')}
@@ -262,8 +265,9 @@ const Menu = ({ dense = false }: MenuProps) => {
                 leftIcon={<PublicIcon/>}
                 dense={dense}
             />
+            </MenuList>
         </Box>
     );
 };
 
-export default Menu;
+export default CustomMenu;

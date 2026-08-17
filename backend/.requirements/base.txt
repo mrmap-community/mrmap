@@ -233,7 +233,7 @@ pytz==2026.3.post1
     # via dateparser
 pyyaml==6.0.3
     # via drf-spectacular
-redis==8.1.0
+redis==7.4.1
     # via
     #   -r base.in
     #   channels-redis

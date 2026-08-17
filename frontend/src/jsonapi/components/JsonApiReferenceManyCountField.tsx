@@ -22,10 +22,10 @@ const JsonApiReferenceManyCount = <RecordType extends RaRecord = RaRecord>(
       
       return (
         <Typography
-        component="span"
-        variant="body2"
-        {...sanitizeFieldRestProps(rest)}
-    >
+          component="span"
+          variant="body2"
+          {...sanitizeFieldRestProps(rest)}
+        >
         {data.length}
     </Typography>
       )

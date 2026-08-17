@@ -42,7 +42,7 @@ const RealtimeBus = () => {
   },[readyState])
 
   return (
-    <></>
+    <div></div>
   )
 };
 

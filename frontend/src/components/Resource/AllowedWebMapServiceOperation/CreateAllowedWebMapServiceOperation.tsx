@@ -5,7 +5,6 @@ import AllowedWebMapServiceOperationFields from './AllowedWebMapServiceOperation
 const CreateAllowedWebMapServiceOperation = ({
   ...rest
 }: CreateProps) => {
-   console.log('hoho')
     return (
       <Create
         {...rest}

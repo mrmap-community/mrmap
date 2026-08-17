@@ -1,12 +1,12 @@
 import {
-  ChipField,
-  ChipFieldProps,
-  DataTable,
-  DateField,
-  List,
-  ListProps,
-  useFieldValue,
-  useResourceDefinition,
+    ChipField,
+    ChipFieldProps,
+    DataTable,
+    DateField,
+    List,
+    ListProps,
+    useFieldValue,
+    useResourceDefinition,
 } from 'react-admin';
 
 import { useMemo } from 'react';
@@ -57,7 +57,7 @@ const HistoryList = ({
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api])
   
   if (!hasHistoricalEndpoint){
-    return <></>
+    return <div></div>
   }
 
   return (

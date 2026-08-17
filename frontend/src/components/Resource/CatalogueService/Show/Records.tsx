@@ -11,7 +11,7 @@ const Records = ({
 }: RecordsProps) => {
 
   return (
-    <>
+    <div>
       <SimpleList 
         resource='DatasetMetadataRecord'
         relatedResource='CatalogueService'
@@ -20,7 +20,7 @@ const Records = ({
         resource='ServiceMetadataRecord'
         relatedResource='CatalogueService'
       />
-    </>
+    </div>
   )
 };
 

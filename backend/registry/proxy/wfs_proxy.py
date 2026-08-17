@@ -12,6 +12,28 @@ from registry.ows_lib.response.exceptions import \
 from registry.ows_lib.wfs.wfs import \
     WebFeatureServiceClient as WebFeatureServiceClient
 from registry.proxy.mixins import OgcServiceProxyView
+from rest_framework.parsers import BaseParser
+from rest_framework.views import APIView
+
+
+class GMLParser(BaseParser):
+    """Parser for GML XML content types like 'application/gml+xml; version=3.2'.
+
+    This parser accepts media types starting with 'application/gml+xml' (including
+    optional parameters such as version) and returns the raw request body as
+    bytes so downstream code (e.g. `OGCRequest`) can parse the XML.
+    """
+    media_type = "application/gml+xml"
+
+    def parse(self, stream, media_type=None, parser_context=None):
+        data = stream.read()
+        # Ensure bytes are returned (DRF may give a str in some test setups)
+        if isinstance(data, str):
+            encoding = None
+            if parser_context and isinstance(parser_context, dict):
+                encoding = parser_context.get("encoding")
+            data = data.encode(encoding or "utf-8")
+        return data
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -27,6 +49,10 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
     """
 
     service_cls = WebFeatureService
+    service_type = "WFS"
+    service_version = "2.0.0"
+    # Accept GML payloads like 'application/gml+xml; version=3.2'
+    parser_classes = [GMLParser] + APIView.parser_classes
 
     @cached_property
     def service(self) -> WebFeatureService:
@@ -60,6 +86,10 @@ class WebFeatureServiceProxy(OgcServiceProxyView):
         service.security_info_per_feature_type = security_info_per_feature_type
 
         return service
+
+    def initial(self, request, *args, **kwargs):
+        i = 0
+        return super().initial(request, *args, **kwargs)
 
     @property
     def remote_service(self) -> WebFeatureServiceClient:

@@ -52,6 +52,16 @@
     },
     {
         "model": "registry.WebFeatureServiceOperationUrl",
+        "pk": "3",
+        "fields": {
+            "method": 1,
+            "url": "http://example.com/wfs?",
+            "operation": 1,
+            "service": "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
+        }
+    },
+    {
+        "model": "registry.WebFeatureServiceOperationUrl",
         "pk": "1",
         "fields": {
             "method": 1,

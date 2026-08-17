@@ -292,7 +292,7 @@ export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
     return (
         <Show 
             queryOptions={{meta: meta}}
-            actions={<></>}
+            actions={<div></div>}
             
         >
            <WebMapServiceUpdateJobCard/>

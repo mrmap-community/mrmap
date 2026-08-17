@@ -1,8 +1,8 @@
 import { type ReactNode, useMemo } from 'react'
 import { type RaRecord, RecordRepresentation, SimpleList, type SimpleListProps, useGetList, useGetRecordRepresentation } from 'react-admin'
 
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import UpdateIcon from '@mui/icons-material/Update'
 import { Box, CardHeader, Chip, Typography } from '@mui/material'
 

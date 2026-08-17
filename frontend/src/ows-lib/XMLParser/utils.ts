@@ -1,11 +1,11 @@
-import { X2jOptions, XMLParser } from "fast-xml-parser"
+export const getDocument = (xml: string): Document => {
+    const parser = new DOMParser()
+    const document = parser.parseFromString(xml, 'application/xml')
 
-export const getDocument = (xml: string): any => {
-    const options: X2jOptions = {
-        ignoreAttributes: false,
-        attributeNamePrefix : "@_",
-        removeNSPrefix: true,
+    const parsererror = document.querySelector('parsererror')
+    if (parsererror !== null) {
+        throw new Error('Invalid XML document')
     }
-    const parser = new XMLParser(options)
-    return parser.parse(xml)
+
+    return document
 }

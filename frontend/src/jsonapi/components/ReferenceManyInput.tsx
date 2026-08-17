@@ -1,11 +1,11 @@
 import _ from 'lodash';
 import {
-  HttpError,
-  useCreate,
-  useDelete,
-  useInfiniteGetList,
-  useResourceContext,
-  useUpdate
+    HttpError,
+    useCreate,
+    useDelete,
+    useInfiniteGetList,
+    useResourceContext,
+    useUpdate
 } from 'ra-core';
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrayInput, Loading, RaRecord, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
@@ -50,7 +50,7 @@ export const RemoveButton = () => {
       onClick={() => onClick()}
       disabled={isPending}
     >
-      {isPending ? <Loading/>: <></>}
+      {isPending ? <Loading/>: <div></div>}
     </RemoveItemButton>
   )
 }

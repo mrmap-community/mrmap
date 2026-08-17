@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
             name='WebMapServiceUpdateConfig',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('config', models.JSONField(blank=True, default=registry.models.update.default_update_config)),
+                ('config', models.JSONField(blank=True, default=registry.models.update.default_wms_update_config)),
             ],
             options={
                 'verbose_name': 'Web Map Service Update Config',

@@ -8,6 +8,7 @@ from threading import Thread
 
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, Polygon
+from django.core.exceptions import BadRequest, PermissionDenied
 from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -16,8 +17,7 @@ from extras.utils import execute_threads
 from lxml import etree
 from PIL import Image, ImageDraw, ImageFont
 from registry.models.service import WebMapService
-from registry.ows_lib.response.exceptions import (ForbiddenException,
-                                                  LayerNotDefined)
+from registry.ows_lib.response.exceptions import LayerNotDefined
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.proxy.mixins import OgcServiceProxyView
@@ -37,6 +37,8 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
     service_cls = WebMapService
     access_denied_img = None
+    service_type = "WMS"
+    service_version = "1.3.0"
 
     @property
     def service(self) -> WebMapService:
@@ -316,7 +318,13 @@ class WebMapServiceProxy(OgcServiceProxyView):
             secured_image = self._create_masked_image(
                 remote_response.content, mask)
         except OSError:
-            return RuntimeError()
+            return self.return_http_response(
+                response={
+                    "status_code": 500,
+                    "code": "ImageProcessingError",
+                    "content": "Failed to process image mask.",
+                }
+            )
         return self.return_http_response(
             response={
                 "status_code": 200,
@@ -416,11 +424,13 @@ class WebMapServiceProxy(OgcServiceProxyView):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
-        return ForbiddenException(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
+        raise PermissionDenied
 
     def get_and_post(self, request, *args, **kwargs):
         if self.ogc_request.is_get_map_request and self.service.is_unknown_layer:
-            return LayerNotDefined(service_type=self.ogc_request.service_type.lower(), service_version=self.ogc_request.service_version)
+            exc = BadRequest()
+            exc.response_cls = LayerNotDefined
+            raise exc
         return super().get_and_post(request, *args, **kwargs)
 
     def secure_request(self):

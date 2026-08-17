@@ -27,7 +27,7 @@ const TestingComponent = () => {
     const { owsContext, moveFeature } = useOwsContextBase();
 
     return (
-      <>
+      <div>
         {owsContext.features.map(feature => 
             <div 
                 key={feature.properties.folder}
@@ -40,7 +40,7 @@ const TestingComponent = () => {
         <button data-testid={'move-left'} onClick={() => moveFeature(owsContext.features[10], owsContext.features[8], Position.left)}>move left</button>
         <button data-testid={'move-firstChild'} onClick={() => moveFeature(owsContext.features[10], owsContext.features[0], Position.firstChild)}>move first child</button>
 
-      </>
+      </div>
     );
   };
   

@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from django.db.models import Manager
 
 
-def timeextent_to_value(mapper, instance):
+def timeextent_to_value(mapper, el, instance):
     return instance.xml_value()
 
 

@@ -4,7 +4,7 @@
 #
 #    pip-compile --constraint=base.txt --strip-extras dev.in
 #
-asgiref==3.11.1
+asgiref==3.12.1
     # via
     #   -c base.txt
     #   django
@@ -25,33 +25,33 @@ celery-types==0.26.0
     # via -r dev.in
 colorama==0.4.6
     # via behave
-coverage==7.14.1
+coverage==7.15.4
     # via -r dev.in
-cssselect==1.4.0
+cssselect==1.5.0
     # via types-lxml
-cucumber-expressions==19.0.1
+cucumber-expressions==20.1.0
     # via behave
-cucumber-tag-expressions==9.1.0
+cucumber-tag-expressions==11.0.1
     # via behave
-django==5.2.15
+django==5.2.17
     # via
     #   -c base.txt
     #   behave-django
     #   django-debug-toolbar
     #   django-stubs
     #   django-stubs-ext
-django-debug-toolbar==6.3.0
+django-debug-toolbar==7.1.1
     # via -r dev.in
-django-stubs==6.0.5
+django-stubs==6.1.0
     # via
     #   djangorestframework-stubs
     #   types-channels
     #   types-django-filter
-django-stubs-ext==6.0.5
+django-stubs-ext==6.1.0
     # via django-stubs
 django-types==0.24.0
     # via -r dev.in
-djangorestframework-stubs==3.17.0
+djangorestframework-stubs==3.18.0
     # via -r dev.in
 parse==1.22.1
     # via
@@ -64,30 +64,30 @@ six==1.17.0
     #   -c base.txt
     #   behave
     #   parse-type
-soupsieve==2.8.4
+soupsieve==2.9.2
     # via beautifulsoup4
-sqlparse==0.5.5
+sqlparse==0.6.0
     # via
     #   -c base.txt
     #   django
     #   django-debug-toolbar
 types-channels==4.3.0.20260518
     # via -r dev.in
-types-django-filter==25.2.0.20260508
+types-django-filter==26.1.0.20260807
     # via -r dev.in
 types-html5lib==1.1.11.20260518
     # via types-lxml
 types-lxml==2026.2.16
     # via -r dev.in
-types-psycopg2==2.9.21.20260518
+types-psycopg2==2.9.21.20260724
     # via django-types
-types-pyyaml==6.0.12.20260518
+types-pyyaml==6.0.12.20260815
     # via
     #   django-stubs
     #   djangorestframework-stubs
 types-webencodings==0.5.0.20260408
     # via types-html5lib
-typing-extensions==4.15.0
+typing-extensions==4.16.0
     # via
     #   -c base.txt
     #   beautifulsoup4

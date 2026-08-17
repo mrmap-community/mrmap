@@ -63,11 +63,21 @@ const CardWithIcon = ({
                     },
                 }}
             >
-                <Box width="3em" className="icon" padding={'16px'}>
+                <Box 
+                    sx={{
+                        width:"3em",
+                        className:"icon",
+                        padding:'16px'
+                    }}
+                >
                     {icon === undefined ? null: createElement(icon, { fontSize: 'large' })}
                 </Box>
                     <Link to={to}>
-                        <Box textAlign="right" paddingRight={'16px'}>
+                        <Box 
+                        sx={{
+                            textAlign:"right", paddingRight:'16px'
+                        }}
+                            >
                             <Typography color="textSecondary">{title}</Typography>
                             <Typography variant="h5" component="h2">
                                 {subtitle || ' '}

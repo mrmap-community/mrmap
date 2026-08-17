@@ -1,45 +1,76 @@
 from django.db import models
-from django.db.models import UniqueConstraint
-from django.db.models.query_utils import Q
+from django.db.models import Q
 from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-from registry.enums.update import UpdateJobStatusEnum
+from simple_history.utils import bulk_update_with_history
+
+from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.models.service import Layer, WebMapService
-from registry.tasks.update import run_wms_update
-from simple_history.utils import bulk_update_with_history
+from registry.models.service import CatalogueService, FeatureType, Layer, WebFeatureService, WebMapService
+from registry.tasks.update import run_csw_update, run_wfs_update, run_wms_update
 
 
-def default_update_config():
+def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
     return {
         "WebMapService": {
-            "title": "overwrite",
-            "abstract": "overwrite",
-            "keywords": "overwrite",
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
         },
         "Layer": {
-            "title": "overwrite",
-            "abstract": "overwrite",
-            "identifier": "overwrite",
-            "is_queryable": "overwrite",
-            "is_opaque": "overwrite",
-            "is_cascaded": "overwrite",
-            "scale_min": "overwrite",
-            "scale_max": "overwrite",
-            "bbox_lat_lon": "overwrite",
-            "mptt_lft": "overwrite",
-            "mptt_rgt": "overwrite",
-            "mptt_depth": "overwrite",
-            "styles": "overwrite",
-            "keywords": "overwrite",
-            "reference_systems": "overwrite",
-            "time_extents": "overwrite",
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "identifier": UpdateModeEnum.OVERWRITE,
+            "is_queryable": UpdateModeEnum.OVERWRITE,
+            "is_opaque": UpdateModeEnum.OVERWRITE,
+            "is_cascaded": UpdateModeEnum.OVERWRITE,
+            "scale_min": UpdateModeEnum.OVERWRITE,
+            "scale_max": UpdateModeEnum.OVERWRITE,
+            "bbox_lat_lon": UpdateModeEnum.OVERWRITE,
+            "mptt_lft": UpdateModeEnum.OVERWRITE,
+            "mptt_rgt": UpdateModeEnum.OVERWRITE,
+            "mptt_depth": UpdateModeEnum.OVERWRITE,
+            "styles": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+            "reference_systems": UpdateModeEnum.OVERWRITE,
+            "time_extents": UpdateModeEnum.OVERWRITE,
             # TODO: datasetmetadata overwrite
-        }
+        },
+    }
+
+
+def default_wfs_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
+    return {
+        "WebFeatureService": {
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+        },
+        "FeatureType": {
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "identifier": UpdateModeEnum.OVERWRITE,
+            "bbox_lat_lon": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+            "default_reference_system": UpdateModeEnum.OVERWRITE,
+            "reference_systems": UpdateModeEnum.OVERWRITE,
+        },
+    }
+
+
+def default_csw_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
+    return {
+        "CatalogueService": {
+            "title": UpdateModeEnum.OVERWRITE,
+            "abstract": UpdateModeEnum.OVERWRITE,
+            "keywords": UpdateModeEnum.OVERWRITE,
+            "max_step_size": UpdateModeEnum.OVERWRITE,
+            "output_formats": UpdateModeEnum.OVERWRITE,
+        },
     }
 
 
@@ -51,34 +82,53 @@ class WebMapServiceUpdateConfig(models.Model):
         verbose_name=_("service"),
     )
 
-    config = models.JSONField(default=default_update_config, blank=True)
+    config = models.JSONField(default=default_wms_update_config, blank=True)
 
     class Meta:
         verbose_name = _("Web Map Service Update Config")
         verbose_name_plural = _("Web Map Service Update Configs")
 
 
-class WebMapServiceUpdateJob(models.Model):
-    service: WebMapService = models.ForeignKey(
-        to=WebMapService,
+class WebFeatureServiceUpdateConfig(models.Model):
+    service = models.OneToOneField(
+        to=WebFeatureService,
         on_delete=models.CASCADE,
-        null=False,
+        related_name="update_config",
         verbose_name=_("service"),
-        help_text=_("the wms for that this job is running"),
-        related_name="update_jobs",
-        related_query_name="update_job"
     )
-    date_created = models.DateTimeField(
-        default=now, blank=True, editable=False)
-    done_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    config = models.JSONField(default=default_wfs_update_config, blank=True)
+
+    class Meta:
+        verbose_name = _("Web Feature Service Update Config")
+        verbose_name_plural = _("Web Feature Service Update Configs")
+
+
+class CatalogueServiceUpdateConfig(models.Model):
+    service = models.OneToOneField(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        related_name="update_config",
+        verbose_name=_("service"),
+    )
+
+    config = models.JSONField(default=default_csw_update_config, blank=True)
+
+    class Meta:
+        verbose_name = _("Web Catalogue Service Update Config")
+        verbose_name_plural = _("Web Catalogue Service Update Configs")
+
+
+class ServiceUpdateJob(models.Model):
+    date_created = models.DateTimeField(auto_now_add=True, editable=False)
+    done_at = models.DateTimeField(null=True, editable=False)
     status = models.PositiveSmallIntegerField(
         choices=UpdateJobStatusEnum.choices,
-        default=UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value
+        default=UpdateJobStatusEnum.WAITING_FOR_PROCESSING.value,
     )
 
     class Meta:
-        verbose_name = _("Web Map Service Update Job")
-        verbose_name_plural = _("Web Map Service Update Jobs")
+        abstract = True
         ordering = ["-date_created"]
         get_latest_by = "-date_created"
         indexes = [
@@ -86,14 +136,20 @@ class WebMapServiceUpdateJob(models.Model):
             models.Index(fields=["done_at"]),
         ]
         constraints = [
-            UniqueConstraint(
+            models.UniqueConstraint(
                 fields=["service"],
                 condition=Q(done_at__isnull=True),
-                name="only_one_unfinished_update_per_service",
-                violation_error_message=_(
-                    "There is an existing noncompleted job for this service.")
+                name="%(app_label)s_%(class)s_only_one_unfinished_update_per_service",
+                violation_error_message=_("There is an existing noncompleted job for this service."),
             )
         ]
+
+    @atomic
+    def update(self):
+        raise NotImplementedError
+
+    def resume(self):
+        raise NotImplementedError
 
     def finish(self, status: UpdateJobStatusEnum = UpdateJobStatusEnum.NO_UPDATE_NEEDED):
         self.done_at = now()
@@ -106,12 +162,11 @@ class WebMapServiceUpdateJob(models.Model):
 
     def update_field(self, field_name, instance_a, instance_b):
         mode = self.get_field_mode(instance_a.__class__, field_name)
-        if mode == "ignore":
+        if mode == UpdateModeEnum.IGNORE:
             return
 
         m2m_fields = [m2m.name for m2m in instance_a._meta.local_many_to_many]
-        reverse_fields = [rel.get_accessor_name()
-                          for rel in instance_a._meta.related_objects]
+        reverse_fields = [rel.get_accessor_name() for rel in instance_a._meta.related_objects]
 
         # -------------------------
         # MANY-TO-MANY
@@ -120,9 +175,9 @@ class WebMapServiceUpdateJob(models.Model):
             instance_a_m2m_field = getattr(instance_a, field_name)
             instance_b_m2m_field = getattr(instance_b, field_name)
             match mode:
-                case "overwrite":
+                case UpdateModeEnum.OVERWRITE:
                     instance_a_m2m_field.set(instance_b_m2m_field.all())
-                case "merge":
+                case UpdateModeEnum.MERGE:
                     instance_a_m2m_field.add(*instance_b_m2m_field.all())
                 case _:
                     pass
@@ -135,11 +190,10 @@ class WebMapServiceUpdateJob(models.Model):
             instance_a_reverse_field = getattr(instance_a, field_name)
             instance_b_reverse_field = getattr(instance_b, field_name)
             match mode:
-                case "overwrite":
+                case UpdateModeEnum.OVERWRITE:
                     instance_a_reverse_field.all().delete()
-                    instance_a_reverse_field.set(
-                        instance_b_reverse_field.all())
-                case "merge":
+                    instance_a_reverse_field.set(instance_b_reverse_field.all())
+                case UpdateModeEnum.MERGE:
                     pass
                 case _:
                     pass
@@ -147,25 +201,41 @@ class WebMapServiceUpdateJob(models.Model):
         # -------------------------
         # SCALAR FIELDS (default)
         # -------------------------
-        if mode == "overwrite":
+        if mode == UpdateModeEnum.OVERWRITE:
             setattr(instance_a, field_name, getattr(instance_b, field_name))
 
     @cached_property
-    def update_config(self):
-        try:
-            return self.service.update_config.config
-        except WebMapServiceUpdateConfig.DoesNotExist:
-            return default_update_config()
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
+        raise NotImplementedError
 
-    def get_field_mode(self, model_cls, field_name: str) -> str:
-        return (
-            self.update_config
-            .get(model_cls.__name__, {})
-            .get(field_name, "overwrite")
-        )
+    def get_field_mode(self, model_cls, field_name: str) -> UpdateModeEnum:
+        return self.update_config.get(model_cls.__name__, {}).get(field_name, UpdateModeEnum.OVERWRITE)
 
     def get_fields_by_model(self, model_cls):
         return self.update_config.get(model_cls.__name__, {})
+
+
+class WebMapServiceUpdateJob(ServiceUpdateJob):
+    service = models.ForeignKey(
+        to=WebMapService,
+        on_delete=models.CASCADE,
+        null=False,
+        verbose_name=_("service"),
+        help_text=_("the wms this job is running for"),
+        related_name="update_jobs",
+        related_query_name="update_job",
+    )
+
+    class Meta(ServiceUpdateJob.Meta):
+        verbose_name = _("Web Map Service Update Job")
+        verbose_name_plural = _("Web Map Service Update Jobs")
+
+    @cached_property
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
+        try:
+            return self.service.update_config.config
+        except WebMapServiceUpdateConfig.DoesNotExist:
+            return default_wms_update_config()
 
     def create_initial_layer_mappings(self):
         old_layers = list(self.old_service.layers.all())
@@ -183,7 +253,7 @@ class WebMapServiceUpdateJob(models.Model):
                     job=self,
                     new_layer=new_layer,
                     old_layer=old_layer,
-                    is_confirmed=old_layer is not None  # optional
+                    is_confirmed=old_layer is not None,  # optional
                 )
             )
 
@@ -202,7 +272,7 @@ class WebMapServiceUpdateJob(models.Model):
                 "WebMapService": {
                     "update_candidate_of": self.service,
                 },
-            }
+            },
         )
         handler.persist_all()
 
@@ -224,10 +294,9 @@ class WebMapServiceUpdateJob(models.Model):
         """
         new_layers = self.new_service.layers.all()
 
-        mapped_new_layers = self.mappings.filter(
-            is_confirmed=True,
-            new_layer__isnull=False
-        ).values_list("new_layer", flat=True)
+        mapped_new_layers = self.mappings.filter(is_confirmed=True, new_layer__isnull=False).values_list(
+            "new_layer", flat=True
+        )
 
         missing_new = new_layers.exclude(id__in=mapped_new_layers).exists()
 
@@ -235,23 +304,20 @@ class WebMapServiceUpdateJob(models.Model):
 
     def deleteable_layers(self) -> models.QuerySet:
         """All layers of the old service without confirmed mapping"""
-        mapped_old_layer_ids = self.mappings.filter(
-            old_layer__isnull=False,
-            is_confirmed=True
-        ).values_list("old_layer_id", flat=True)
+        mapped_old_layer_ids = self.mappings.filter(old_layer__isnull=False, is_confirmed=True).values_list(
+            "old_layer_id", flat=True
+        )
 
         return self.old_service.layers.exclude(pk__in=mapped_old_layer_ids)
 
-    def update_layers(self,):
+    def update_layers(self):
 
         if self.are_all_layers_updateable():
             # store deleteable layers, cause after Layer moving to old service,
             # the deleteable layers query would change and we would loose the information which layers we wanted to delete
-            deleteable_layers = list(
-                self.deleteable_layers().values_list("id", flat=True))
+            deleteable_layers = list(self.deleteable_layers().values_list("id", flat=True))
 
-            old_by_identifier = {
-                layer.identifier: layer for layer in self.old_service.layers.all()}
+            old_by_identifier = {layer.identifier: layer for layer in self.old_service.layers.all()}
 
             updateable_layers = []
 
@@ -277,21 +343,23 @@ class WebMapServiceUpdateJob(models.Model):
 
                 # adjust parent
                 updateable_layer.mptt_parent = old_by_identifier.get(
-                    new_layer.mptt_parent.identifier if new_layer and new_layer.mptt_parent else "")
+                    new_layer.mptt_parent.identifier if new_layer and new_layer.mptt_parent else ""
+                )
 
                 for field_name in fields:
-                    self.update_field(
-                        field_name, updateable_layer, new_layer
-                    )
+                    self.update_field(field_name, updateable_layer, new_layer)
 
             bulk_update_with_history(
-                updateable_layers, Layer, [field.name for field in Layer._meta.concrete_fields if field.name in fields], batch_size=500)
+                updateable_layers,
+                Layer,
+                [field.name for field in Layer._meta.concrete_fields if field.name in fields],
+                batch_size=500,
+            )
 
             # clean up everthing we do not longer need
             Layer.objects.filter(id__in=deleteable_layers).delete()
 
-            WebMapService.objects.filter(
-                update_candidate_of=self.service).delete()
+            WebMapService.objects.filter(update_candidate_of=self.service).delete()
 
             self.mappings.all().delete()
 
@@ -304,8 +372,7 @@ class WebMapServiceUpdateJob(models.Model):
            Otherwise the user needs to review the processing.
         """
         for field_name in self.get_fields_by_model(WebMapService).keys():
-            self.update_field(
-                field_name, self.service, self.new_service)
+            self.update_field(field_name, self.service, self.new_service)
         self.service.save()
         return UpdateJobStatusEnum.UPDATED
 
@@ -313,7 +380,7 @@ class WebMapServiceUpdateJob(models.Model):
     def update(self):
         if self.status not in [
             UpdateJobStatusEnum.REVIEW_REQUIRED.value,
-            UpdateJobStatusEnum.UPDATED.value
+            UpdateJobStatusEnum.UPDATED.value,
         ]:
 
             self.status = UpdateJobStatusEnum.UPDATING.value
@@ -335,41 +402,331 @@ class WebMapServiceUpdateJob(models.Model):
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
-            raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
         if not self.are_all_layers_updateable():
             raise ValueError(
-                _("Cannot resume the job, because not all layers are updateable. Please review the layer mappings first."))
-        on_commit(
-            lambda: run_wms_update.apply_async(
-                kwargs={"update_job_id": self.pk}
-            )
-        )
-
-    def save(self, *args, **kwargs) -> None:
-        adding = self._state.adding
-        ret = super().save(*args, **kwargs)
-        if adding:
-            on_commit(
-                lambda: run_wms_update.apply_async(
-                    kwargs={"update_job_id": self.pk}
+                _(
+                    "Cannot resume the job, because not all layers are updateable. Please review the layer mappings first."
                 )
             )
-        return ret
+        on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
 
 
-class LayerMapping(models.Model):
+class WebFeatureServiceUpdateJob(ServiceUpdateJob):
+    service = models.ForeignKey(
+        to=WebFeatureService,
+        on_delete=models.CASCADE,
+        verbose_name=_("service"),
+        help_text=_("the WFS this job is running for"),
+        related_name="update_jobs",
+        related_query_name="update_job",
+    )
+
+    class Meta(ServiceUpdateJob.Meta):
+        verbose_name = _("Web Feature Service Update Job")
+        verbose_name_plural = _("Web Feature Service Update Jobs")
+
+    @cached_property
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
+        try:
+            return self.service.update_config.config
+        except WebFeatureServiceUpdateConfig.DoesNotExist:
+            return default_wfs_update_config()
+
+    def create_initial_featuretype_mappings(self):
+        old_featuretypes = list(self.old_service.featuretypes.all())
+        new_featuretypes = list(self.new_service.featuretypes.all())
+
+        old_by_identifier = {featuretype.identifier: featuretype for featuretype in old_featuretypes}
+
+        mappings = []
+
+        for new_featuretype in new_featuretypes:
+            old_featuretype = old_by_identifier.get(new_featuretype.identifier)
+
+            mappings.append(
+                FeatureTypeMapping(
+                    job=self,
+                    new_featuretype=new_featuretype,
+                    old_featuretype=old_featuretype,
+                    is_confirmed=old_featuretype is not None,  # optional
+                )
+            )
+
+        FeatureTypeMapping.objects.bulk_create(mappings)
+
+    def create_new_service(self, capabilitites):
+        """This will create the service from remote capabilities
+        with update_candidate_of FK set to self.service to identify the service as a temporary dummy
+        """
+        new_mapping = OGCServiceXmlMapper.from_xml(capabilitites)
+        new_mapping.xml_to_django()
+
+        handler = PersistenceHandler(
+            mapper=new_mapping,
+            defaults={
+                "WebFeatureService": {
+                    "update_candidate_of": self.service,
+                },
+            },
+        )
+        handler.persist_all()
+
+    @cached_property
+    def old_service(self):
+        return WebFeatureService.objects.prefetch_whole_service().get(pk=self.service.pk)
+
+    @cached_property
+    def new_service(self):
+        return WebFeatureService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+
+    def are_all_featuretypes_updateable(self) -> bool:
+        """checks if ther are no update conflicts
+
+        “Is there any new featuretype without mapping?” → must be False
+
+        Returns:
+            bool: _description_
+        """
+        new_featuretypes = self.new_service.featuretypes.all()
+
+        mapped_new_featuretypes = self.mappings.filter(is_confirmed=True, new_featuretype__isnull=False).values_list(
+            "new_featuretype", flat=True
+        )
+
+        missing_new = new_featuretypes.exclude(id__in=mapped_new_featuretypes).exists()
+
+        return not missing_new
+
+    def deleteable_featuretypes(self) -> models.QuerySet:
+        """All featuretypes of the old service without confirmed mapping"""
+        mapped_old_featuretypes_ids = self.mappings.filter(old_featuretype__isnull=False, is_confirmed=True).values_list(
+            "old_featuretype_id", flat=True
+        )
+
+        return self.old_service.featuretypes.exclude(pk__in=mapped_old_featuretypes_ids)
+
+    def update_featuretypes(self) -> UpdateJobStatusEnum:
+        if not self.are_all_featuretypes_updateable():
+            return UpdateJobStatusEnum.REVIEW_REQUIRED
+
+        # store deleteable featuretypes, cause after FeatureType moving to old service,
+        # the deleteable featuretypes query would change and we would loose the information which featuretypes we wanted to delete
+        deleteable_featuretypes = list(self.deleteable_featuretypes().values_list("id", flat=True))
+
+        updateable_featuretypes = []
+
+        fields = self.get_fields_by_model(FeatureType).keys()
+
+        for mapping in self.mappings.exclude(new_featuretype__isnull=True).all():
+            if mapping.old_featuretype is None:
+                # This is a new featuretype without old match. Inject it by changing the service.
+                mapping.new_featuretype.service = self.service
+                continue
+
+            # regular updating processing of an existing featuretype with old match. Update the existing featuretype by updating the fields.
+            updateable_featuretype = mapping.old_featuretype
+            new_featuretype = mapping.new_featuretype
+
+            updateable_featuretypes.append(updateable_featuretype)
+
+            for field_name in fields:
+                self.update_field(field_name, updateable_featuretype, new_featuretype)
+
+        bulk_update_with_history(
+            updateable_featuretypes,
+            FeatureType,
+            [field.name for field in FeatureType._meta.concrete_fields if field.name in fields],
+            batch_size=500,
+        )
+
+        # clean up everthing we do not longer need
+        FeatureType.objects.filter(id__in=deleteable_featuretypes).delete()
+
+        WebFeatureService.objects.filter(update_candidate_of=self.service).delete()
+
+        self.mappings.all().delete()
+
+        return UpdateJobStatusEnum.UPDATED
+
+    def update_service(self):
+        """Updates Service metadata if keep customized metadata is not configured.
+        Otherwise the user needs to review the processing.
+        """
+        for field_name in self.get_fields_by_model(WebFeatureService).keys():
+            self.update_field(field_name, self.service, self.new_service)
+        self.service.save()
+        return UpdateJobStatusEnum.UPDATED
+
+    @atomic
+    def update(self):
+        if self.status not in [
+            UpdateJobStatusEnum.REVIEW_REQUIRED.value,
+            UpdateJobStatusEnum.UPDATED.value,
+        ]:
+            self.status = UpdateJobStatusEnum.UPDATING.value
+            self.save()
+            remote_capabilities = self.old_service.remote_capabilities
+
+            if self.old_service.document_equals(remote_capabilities):
+                # no update needed, cause both capability files are equal
+                self.finish()
+                return
+
+            self.create_new_service(remote_capabilities)
+            self.create_initial_featuretype_mappings()
+
+        self.update_service()
+        status = self.update_featuretypes()
+
+        self.finish(status)
+
+    def resume(self):
+        if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
+            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
+        if not self.are_all_featuretypes_updateable():
+            raise ValueError(
+                _(
+                    "Cannot resume the job, because not all featuretypes are updateable. Please review the featuretype mappings first."
+                )
+            )
+        on_commit(lambda: run_wfs_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            on_commit(lambda: run_wfs_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+
+class CatalogueServiceUpdateJob(ServiceUpdateJob):
+    service = models.ForeignKey(
+        to=CatalogueService,
+        on_delete=models.CASCADE,
+        verbose_name=_("service"),
+        help_text=_("the CSW this job is running for"),
+        related_name="update_jobs",
+        related_query_name="update_job",
+    )
+
+    class Meta(ServiceUpdateJob.Meta):
+        verbose_name = _("Web Catalogue Service Update Job")
+        verbose_name_plural = _("Web Catalogue Service Update Jobs")
+
+    @cached_property
+    def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
+        try:
+            return self.service.update_config.config
+        except CatalogueServiceUpdateConfig.DoesNotExist:
+            return default_csw_update_config()
+
+    def create_new_service(self, capabilitites):
+        """This will create the service from remote capabilities
+        with update_candidate_of FK set to self.service to identify the service as a temporary dummy
+        """
+        new_mapping = OGCServiceXmlMapper.from_xml(capabilitites)
+        new_mapping.xml_to_django()
+
+        handler = PersistenceHandler(
+            mapper=new_mapping,
+            defaults={
+                "CatalogueService": {
+                    "update_candidate_of": self.service,
+                },
+            },
+        )
+        handler.persist_all()
+
+    @cached_property
+    def old_service(self):
+        return CatalogueService.objects.prefetch_whole_service().get(pk=self.service.pk)
+
+    @cached_property
+    def new_service(self):
+        return CatalogueService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+
+    def update_service(self):
+        """Updates Service metadata if keep customized metadata is not configured.
+        Otherwise the user needs to review the processing.
+        """
+        for field_name in self.get_fields_by_model(CatalogueService).keys():
+            self.update_field(field_name, self.service, self.new_service)
+        self.service.save()
+        return UpdateJobStatusEnum.UPDATED
+
+    @atomic
+    def update(self):
+        if self.status not in [
+            UpdateJobStatusEnum.REVIEW_REQUIRED.value,
+            UpdateJobStatusEnum.UPDATED.value,
+        ]:
+            self.status = UpdateJobStatusEnum.UPDATING.value
+            self.save()
+            remote_capabilities = self.old_service.remote_capabilities
+
+            if self.old_service.document_equals(remote_capabilities):
+                # no update needed, cause both capability files are equal
+                self.finish()
+                return
+
+            self.create_new_service(remote_capabilities)
+
+        self.update_service()
+
+        self.finish(UpdateJobStatusEnum.UPDATED)
+
+    def resume(self):
+        if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
+            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
+        on_commit(lambda: run_csw_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if adding:
+            on_commit(lambda: run_csw_update.apply_async(kwargs={"update_job_id": self.pk}))
+
+
+class ServiceElementMapping(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    is_confirmed = models.BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+        ordering = ["created"]
+        indexes = [
+            models.Index(fields=["created"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        super().save(*args, **kwargs)
+        if not adding:
+            # try to resume the job if all elements are updateable and the job is currently interrupted
+            try:
+                self.job.resume()
+            except ValueError:
+                pass  # just ignore if the job cannot be resumed, because not all elements are updateable or the job is not in the correct status
+
+
+class LayerMapping(ServiceElementMapping):
     job = models.ForeignKey(
         to=WebMapServiceUpdateJob,
         on_delete=models.CASCADE,
         related_name="mappings",
-        related_query_name="mapping"
+        related_query_name="mapping",
     )
     new_layer = models.OneToOneField(
         to=Layer,
         on_delete=models.CASCADE,
         related_name="mapping",
-        related_query_name="mapping"
+        related_query_name="mapping",
     )
     old_layer = models.OneToOneField(
         to=Layer,
@@ -377,42 +734,64 @@ class LayerMapping(models.Model):
         blank=True,
         on_delete=models.CASCADE,
         related_name="reverse_mapping",
-        related_query_name="reverse_mapping"
+        related_query_name="reverse_mapping",
     )
-    created = models.DateTimeField(default=now)
-
-    is_confirmed = models.BooleanField(default=False)
 
     objects = LayerMappingManager()
 
-    class Meta:
+    class Meta(ServiceElementMapping.Meta):
         verbose_name = _("Layer Mapping")
         verbose_name_plural = _("Layer Mappings")
-        ordering = ["created"]
-        indexes = [
-            models.Index(fields=["created"]),
-        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["job", "new_layer"],
                 name="unique_new_layer_per_job_in_mapping",
                 violation_error_message=_(
-                    "A new layer can only be mapped once. Please adjust the layer mappings accordingly.")
+                    "A new layer can only be mapped once. Please adjust the layer mappings accordingly."
+                ),
             ),
             models.CheckConstraint(
-                condition=~(Q(new_layer__isnull=True) &
-                            Q(old_layer__isnull=True)),
+                condition=~(Q(new_layer__isnull=True) & Q(old_layer__isnull=True)),
                 name="prevent_both_layers_null",
             ),
         ]
 
-    def save(self, *args, **kwargs):
-        adding = self._state.adding
-        saved = super().save(*args, **kwargs)
-        if not adding:
-            # try to resume the job if all layers are updateable and the job is currently interrupted
-            try:
-                self.job.resume()
-            except ValueError:
-                pass  # just ignore if the job cannot be resumed, because not all layers are updateable or the job is not in the correct status
-        return saved
+
+class FeatureTypeMapping(ServiceElementMapping):
+    job = models.ForeignKey(
+        to=WebFeatureServiceUpdateJob,
+        on_delete=models.CASCADE,
+        related_name="mappings",
+        related_query_name="mapping",
+    )
+    new_featuretype = models.OneToOneField(
+        to="registry.FeatureType",
+        on_delete=models.CASCADE,
+        related_name="mapping",
+        related_query_name="mapping",
+    )
+    old_featuretype = models.OneToOneField(
+        to="registry.FeatureType",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="reverse_mapping",
+        related_query_name="reverse_mapping",
+    )
+
+    class Meta(ServiceElementMapping.Meta):
+        verbose_name = _("Feature Type Mapping")
+        verbose_name_plural = _("Feature Type Mappings")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job", "new_featuretype"],
+                name="unique_new_featuretype_per_job_in_mapping",
+                violation_error_message=_(
+                    "A new feature type can only be mapped once. Please adjust the feature type mappings accordingly."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=~(Q(new_featuretype__isnull=True) & Q(old_featuretype__isnull=True)),
+                name="prevent_both_featuretypes_null",
+            ),
+        ]

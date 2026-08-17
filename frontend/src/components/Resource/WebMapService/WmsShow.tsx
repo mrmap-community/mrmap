@@ -1,9 +1,9 @@
-import { DeleteButton, EditButton, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useResourceDefinition } from 'react-admin';
+import { DeleteButton, EditButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useResourceDefinition, WithRecord } from 'react-admin';
 
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
-import { createElement, useMemo } from 'react';
+import { useMemo } from 'react';
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
-import { useFieldsForOperation } from '../../../jsonapi/hooks/useFieldsForOperation';
+import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
 import { createElementIfDefined } from '../../../utils';
 import ProxySettingsTab from './ProxySettings';
 import SpatialSecureTab from './SpatialSecureTab';
@@ -17,18 +17,10 @@ const WmsShowActions = () => (
 );
 
 
-
 export const WmsShow = (props: SimpleShowLayoutProps) => {
     const { name: layerName, icon: layerIcon } = useResourceDefinition({resource: 'Layer'})
     const { name: wmsName, icon: wmsIcon } = useResourceDefinition({resource: 'WebMapService'})
     const { name: operationUrlName, icon: operationUrlIcon } = useResourceDefinition({resource: 'WebMapServiceOperationUrl'})
-
-    const fieldDefinitions = useFieldsForOperation('partial_update_WebMapService', false, true);
-
-    const fields = useMemo(()=>(
-        fieldDefinitions.filter(fieldDef => ['title', 'abstract'].includes(fieldDef.props.source)).map(fieldDef => createElement(fieldDef.component, fieldDef.props))
-    ),[fieldDefinitions])
-
 
     const meta = useMemo(()=>{
         const jsonApiParams: any = {
@@ -46,9 +38,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
             queryOptions={{meta: meta}}
             actions={<WmsShowActions/>}
         >
-        <TabbedShowLayout
-            
-        >
+        <TabbedShowLayout>
             <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)}>
                 <EditGuesser 
                     resource='WebMapService'
@@ -59,12 +49,24 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                             <SaveButton alwaysEnable/>
                             <DeleteButton/>
                         </Toolbar>
-                    }
-                    
+                    } 
                 />
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>}>
-                <UrlField source="xmlBackupFile" content='show capabilitites'/>
+                <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
+                <WithRecord 
+                    label="show remote capabilities" 
+                    render={(record: RaRecord) => {
+                        const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
+                        url.url = prepareGetCapabilititesUrl(
+                                url.url,
+                                "WMS",
+                                record.version.toString().split('').join('.')
+                            ).href
+                        return url ? <UrlField record={url} source="url"/> : null; 
+                    }}
+                />
+                <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={operationUrlName} icon={createElementIfDefined(operationUrlIcon)} path='operation-urls'>
                 <WebMapServiceOperationUrlsTab/>

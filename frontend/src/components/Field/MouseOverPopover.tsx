@@ -52,7 +52,9 @@ const MouseOverPopover = (props: MouseOverPopoverProps): ReactElement => {
         onClose={handlePopoverClose}
         disableRestoreFocus
       >
-        <Typography sx={{ p: 1 }}>{props.content}</Typography>
+        <Typography 
+          sx={{ p: 1 }}
+        >{props.content}</Typography>
       </Popover>
     </Box>
   )

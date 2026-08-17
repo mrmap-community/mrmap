@@ -7,7 +7,7 @@ from accounts.models.users import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db.models.query_utils import Q
-from django.test import Client, TestCase
+from django.test import TestCase
 from epsg_cache.models import Origin, SpatialReference
 from epsg_cache.registry import Registry
 from lxml import etree
@@ -17,6 +17,7 @@ from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import WebMapService
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from rest_framework import status
+from rest_framework.test import APIClient
 
 
 class MockResponse:
@@ -93,7 +94,7 @@ class WebMapServiceProxyTest(TestCase):
         AllowedWebMapServiceOperation.objects.all().delete()
 
     def setUp(self):
-        self.client = Client()
+        self.client = APIClient()
         self.wms_url = "/mrmap-proxy/wms/cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"
         self.query_params = {
             "VERSION": "1.3.0",
@@ -168,6 +169,23 @@ class WebMapServiceProxyTest(TestCase):
         )
         self.client.login(username="User1", password="User1")
         self.query_params.update({"LAYERS": "node1"})
+        # wms 1.3.0
+        response = self.client.get(
+            self.wms_url,
+            self.query_params
+        )
+
+        self.assertEqual(200, response.status_code)
+
+        received_image = Image.open(BytesIO(response.content))
+        expected_image = Image.open(fp=expected_png_path)
+
+        self.assertTrue(self.are_images_equal(received_image, expected_image))
+
+        # wms 1.1.1
+        self.query_params.pop("CRS")
+        self.query_params.update(
+            {"VERSION": "1.1.1", "SRS": "EPSG:25832", "BBOX": "393340,5574710,405660,5581190", })
         response = self.client.get(
             self.wms_url,
             self.query_params
@@ -221,7 +239,7 @@ class WebMapServiceProxyTest(TestCase):
             '<?xml version="1.0" encoding="UTF-8"?>'
             '<ogc:ServiceExceptionReport xmlns:ogc="http://www.opengis.net/ogc" version="1.3.0">'
             '<ogc:ServiceException code="Forbidden">'
-            'The requesting user has no permissions to access the service.'
+            'Permission denied'
             '</ogc:ServiceException>'
             '</ogc:ServiceExceptionReport>'
         ).encode()

@@ -1,11 +1,16 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react'
-import { ImageOverlay, useMap } from 'react-leaflet'
+import { Marker, Popup, Tooltip, useMap, useMapEvent } from 'react-leaflet'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 
 import proj4 from 'proj4'
 
-import { getOptimizedGetMapUrls, updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
+import { point, type LatLng } from 'leaflet'
+import { Link } from 'react-admin'
+import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
+import { Operation } from '../../ows-lib/OwsContext/types'
+import { isOperationUrlEqual, updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
+import { AuthImageOverlay } from './AuthImageOverlay'
 
 
 export interface Tile {
@@ -15,33 +20,55 @@ export interface Tile {
 }
 
 
-const WebMapServiceControl = () => {
+const compareOfferingByAuth = (index: number, lastOperation: Operation, operation: Operation) => {
 
-  const { trees } = useOwsContextBase()
+  if (index === 0) {
+    return true
+  }
+  // Check if all offeringA.operations and offeringB.operations have the same "x-authentication-id" value
+  const authIdsA = lastOperation['x-authentication-id']
+  const authIdsB = operation['x-authentication-id']
+  return authIdsA === authIdsB && isOperationUrlEqual(new URL(lastOperation.href), new URL(operation.href))
+}
+    
+
+const WebMapServiceControl = () => {
   
+  const { owsContext } = useOwsContextBase()
+  const [position, setPosition] = useState<LatLng | null>(null)
+  const [layerPoint, setLayerPoint] = useState<{x: number, y: number} | null>(null) 
+   
   const atomicGetMapUrls = useMemo(()=>{
-    return getOptimizedGetMapUrls(trees)
-  }, [trees])
+    return owsContext.getOptimizedUrlsByCode(
+      "GetMap",
+      (feature) => (
+        feature.getWmsOperationByCode("GetMap")?.active === true
+      ),
+      compareOfferingByAuth
+    )
+  }, [owsContext])
+  console.log(atomicGetMapUrls)
+  const atomicGetFeatureInfoUrls = useMemo(()=>{
+    return owsContext.getOptimizedUrlsByCode(
+      "GetFeatureInfo",
+      (feature) => (
+        feature.getWmsOperationByCode("GetFeatureInfo")?.active === true
+      )
+    )
+  }, [owsContext])
 
   const map = useMap()
 
   const [bounds, setBounds] = useState(map?.getBounds())
   const [size, setSize] = useState(map?.getSize())
-
   const { selectedCrs } = useMapViewerBase()
 
-  const tiles = useMemo(() => {
-    const _tiles: Tile[] = []
+  const bbox = useMemo<[number, number,number, number]>(()=>{
 
-    if (bounds === undefined || size === undefined) {
-      return _tiles
-    }
-    const sw = bounds.getSouthWest()
-    const ne = bounds.getNorthEast()
-    let minXy = {x: sw.lng, y: sw.lat}
-    let maxXy = {x: ne.lng, y: ne.lat}
-
-    const getMapUrls = [...atomicGetMapUrls].reverse()
+    const sw = bounds?.getSouthWest()
+    const ne = bounds?.getNorthEast()
+    let minXy = point(sw.lng, sw.lat)
+    let maxXy = point(ne.lng, ne.lat)
 
     if (selectedCrs.stringRepresentation !== 'EPSG:4326') {
       const proj = proj4('EPSG:4326', selectedCrs.wkt)
@@ -49,22 +76,49 @@ const WebMapServiceControl = () => {
       maxXy = proj.forward(maxXy)
     }
 
+    return [minXy.x, minXy.y, maxXy.x, maxXy.y]
+
+  }, [bounds, selectedCrs])
+
+  // Helper function to get auth headers for a GetMap URL
+  const getAuthForGetMapUrl = (getMapUrl: OptimizedUrlsMap) => {
+    const authId = getMapUrl.operations[0]["x-authentication-id"]
+    const authenticationHeaders = owsContext.authenticationHeaders as []
+    const authHeader = authenticationHeaders.find((header: any) => header.id === authId) as any
+    
+    const headerInit :any = {}
+    headerInit[authHeader.name] = authHeader.value
+    console.log(new Headers(headerInit))
+    return new Headers(headerInit)
+    
+  }
+
+  const tiles = useMemo(() => {
+    const _tiles: Tile[] = []
+
+    if (bounds === undefined || size === undefined) {
+      return _tiles
+    }
+
+    const getMapUrls = [...atomicGetMapUrls].reverse()
+
+  
     getMapUrls.forEach((atomicGetMapUrl, index) => {
-      const params = atomicGetMapUrl.searchParams
+      const params = atomicGetMapUrl.url.searchParams
       const version = params.get('version') ?? params.get('VERSION')
 
       if (version === '1.3.0') {
         if (selectedCrs.isXyOrder) {
           // no axis order correction needed.
-          updateOrAppendSearchParam(params, 'BBOX', `${minXy.x},${minXy.y},${maxXy.x},${maxXy.y}`)
+          updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
         } else {
-          updateOrAppendSearchParam(params, 'BBOX',  `${minXy.y},${minXy.x},${maxXy.y},${maxXy.x}`)
+          updateOrAppendSearchParam(params, 'BBOX',  `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]}`)
         }
         updateOrAppendSearchParam(params, 'CRS',  selectedCrs.stringRepresentation)
 
       } else {
         // always minx,miny,maxx,maxy (minLng,minLat,maxLng,maxLat)
-        updateOrAppendSearchParam(params, 'BBOX', `${minXy.x},${minXy.y},${maxXy.x},${maxXy.y}`)
+        updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
         updateOrAppendSearchParam(params, 'SRS',  selectedCrs.stringRepresentation)
       }
       updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
@@ -72,37 +126,103 @@ const WebMapServiceControl = () => {
       updateOrAppendSearchParam(params, 'STYLES', '') // todo: shall be configureable
       _tiles.push(
         {
-          leafletTile: <ImageOverlay
-            key={(Math.random() + 1).toString(36).substring(7)}
+          leafletTile: <AuthImageOverlay
+            key={atomicGetMapUrl.url.href}
             bounds={bounds}
             interactive={true}
-            url={atomicGetMapUrl.href}
+            url={atomicGetMapUrl.url.href}
+            auth={getAuthForGetMapUrl(atomicGetMapUrl)}            
           />,
-          getMapUrl: atomicGetMapUrl,
+          getMapUrl: atomicGetMapUrl.url,
           getFeatureinfoUrl: undefined
         }
       )
     })
     
     return _tiles
-  }, [map?.getBounds(), map?.getSize(), atomicGetMapUrls, selectedCrs])
+  }, [bounds, size, atomicGetMapUrls, selectedCrs])
   
+  const getFeatureInfoUrls = useMemo(() => {
+    if (layerPoint && position && atomicGetFeatureInfoUrls.length > 0) {
+      
+      const getFeatureInfoUrls = [...atomicGetFeatureInfoUrls].reverse()
+      getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl, index) => {
+        const params = atomicGetFeatureInfoUrl.searchParams
+        updateOrAppendSearchParam(params, 'I', layerPoint.x.toFixed(0).toString())
+        updateOrAppendSearchParam(params, 'J', layerPoint.y.toFixed(0).toString())
+        updateOrAppendSearchParam(params, 'X', layerPoint.x.toFixed(0).toString())
+        updateOrAppendSearchParam(params, 'Y', layerPoint.y.toFixed(0).toString())
+        updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
+        updateOrAppendSearchParam(params, 'HEIGHT', size.y.toString())
+        updateOrAppendSearchParam(params, 'LAYERS', params.get('QUERY_LAYERS') ?? params.get('query_layers') ?? '')
+        updateOrAppendSearchParam(params, 'INFO_FORMAT', params.get('INFO_FORMAT') ?? params.get('info_format') ?? 'application/json')
+        updateOrAppendSearchParam(params, 'FEATURE_COUNT', params.get('FEATURE_COUNT') ?? params.get('feature_count') ?? '10')
+        updateOrAppendSearchParam(params, 'STYLES', '') // todo: shall be configureable
+        
+        const version = params.get('version') ?? params.get('VERSION')
+
+        if (version === '1.3.0') {
+          if (selectedCrs.isXyOrder) {
+            // no axis order correction needed.
+            updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
+          } else {
+            updateOrAppendSearchParam(params, 'BBOX',  `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]}`)
+          }
+          updateOrAppendSearchParam(params, 'CRS',  selectedCrs.stringRepresentation)
+
+        } else {
+          // always minx,miny,maxx,maxy (minLng,minLat,maxLng,maxLat)
+          updateOrAppendSearchParam(params, 'BBOX', `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`)
+          updateOrAppendSearchParam(params, 'SRS',  selectedCrs.stringRepresentation)
+        }
+        
+      })
+      return getFeatureInfoUrls
+    }
+  },[layerPoint, atomicGetFeatureInfoUrls, size, bbox])
 
 
   useEffect(() => {
-    if (map !== undefined && map !== null){      
+    if (!map) return
+
+    const updateBounds = () => {
       setBounds(map.getBounds())
       setSize(map.getSize())
-      map.addEventListener('resize moveend zoomend', (event) => {
-        setBounds(map.getBounds())
-        setSize(map.getSize())
-      })
+    }
+
+    updateBounds()
+    map.on('resize moveend zoomend', updateBounds)
+    return () => {
+      map.off('resize moveend zoomend', updateBounds)
     }
   }, [map])
 
+  useMapEvent('contextmenu', (event) => {
+    if (atomicGetFeatureInfoUrls.length > 0) {
+      setPosition(event.latlng)
+      setLayerPoint(event.containerPoint)
+    } else {
+      setPosition(null)
+      setLayerPoint(null)
+    }
+  })
 
-
-  return tiles.map(tile => tile.leafletTile)
+  return (
+    <div>
+      {tiles.map(tile => tile.leafletTile)}
+      {position && <Marker position={position} >
+        <Popup>
+          {getFeatureInfoUrls?.map((url, index) => (
+              <Link to={url.href} target="_blank" rel="noopener noreferrer" key={index}>
+                {url.searchParams.get('QUERY_LAYERS') ?? url.searchParams.get('query_layers') ?? 'Feature Info'}
+              </Link>
+          ))}
+        </Popup>
+        <Tooltip direction="top">Click on the marker to see feature info</Tooltip>
+      </Marker>  
+      }
+    </div>
+  )
 
 }
 

@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,8 +6,8 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from MrMap.settings import BASE_DIR
 from registry.enums.update import UpdateJobStatusEnum
-from registry.models.service import Layer, WebMapService
-from registry.models.update import WebMapServiceUpdateJob
+from registry.models.service import FeatureType, Layer, WebFeatureService, WebMapService
+from registry.models.update import WebFeatureServiceUpdateJob, WebMapServiceUpdateJob
 from requests.sessions import Session
 from rest_framework import status
 from tests.django.utils import MockResponse
@@ -27,6 +26,37 @@ ONE_REMOVED_LAYER_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_
 
 ONE_NEW_STRUCTURE_UPDATE_REMOTE_RESPONSE = MockResponse(status_code=status.HTTP_200_OK, content=Path(Path.joinpath(
     Path(__file__).parent.resolve(), '../../test_data/capabilities/wms/one_new_structure_update_fixture_1.3.0.xml')))
+
+WFS_REMOTE_RESPONSE = MockResponse(
+    status_code=status.HTTP_200_OK,
+    content=Path(Path.joinpath(Path(__file__).parent.resolve(), "../../test_data/capabilities/wfs/fixture_2.0.0.xml")),
+)
+WFS_SIMPLE_UPDATE_REMOTE_RESPONSE = MockResponse(
+    status_code=status.HTTP_200_OK,
+    content=Path(
+        Path.joinpath(
+            Path(__file__).parent.resolve(), "../../test_data/capabilities/wfs/simple_update_fixture_2.0.0.xml"
+        )
+    ),
+)
+WFS_ONE_NEW_FEATURETYPE_UPDATE_REMOTE_RESPONSE = MockResponse(
+    status_code=status.HTTP_200_OK,
+    content=Path(
+        Path.joinpath(
+            Path(__file__).parent.resolve(),
+            "../../test_data/capabilities/wfs/one_new_featuretype_update_fixture_2.0.0.xml",
+        )
+    ),
+)
+WFS_ONE_REMOVED_FEATURETYPE_UPDATE_REMOTE_RESPONSE = MockResponse(
+    status_code=status.HTTP_200_OK,
+    content=Path(
+        Path.joinpath(
+            Path(__file__).parent.resolve(),
+            "../../test_data/capabilities/wfs/one_removed_featuretype_update_fixture_2.0.0.xml",
+        )
+    ),
+)
 
 
 class AllowedWebMapServiceOperationModelTest(TestCase):
@@ -322,4 +352,137 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
                 ('node1.3.1.1', 10, 11, 3, 1)
             ],
             "MPTT Tree structure should be correct after update"
+        )
+
+
+class WfsUpdateJobTest(TestCase):
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json", "test_wfs.json"]
+
+    def setUpWfs(self):
+        self.wfs = WebFeatureService.objects.get(pk="9cc4889d-0cd4-4c3b-8975-58de6d30db41")
+        with open(f"{BASE_DIR}/tests/django/test_data/capabilities/wfs/fixture_2.0.0.xml", mode="rb") as cap_file:
+            self.wfs.xml_backup_file = SimpleUploadedFile("capabilitites.xml", cap_file.read())
+        self.wfs.save()
+
+    def setUp(self):
+        self.setUpWfs()
+
+        self.update_job = WebFeatureServiceUpdateJob.objects.create(service=self.wfs)
+
+    def test_unique_constraint(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                WebFeatureServiceUpdateJob.objects.create(service=self.wfs)
+
+    @patch.object(target=Session, attribute="send", side_effect=[WFS_REMOTE_RESPONSE])
+    def test_finish_if_document_equals(self, mock):
+        self.update_job.update()
+        self.assertEqual(self.update_job.status, UpdateJobStatusEnum.NO_UPDATE_NEEDED.value)
+
+    @patch.object(target=Session, attribute="send", side_effect=[WFS_SIMPLE_UPDATE_REMOTE_RESPONSE])
+    def test_finish_if_document_not_equals_but_simple_changes(self, mock):
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        featuretype_node3: FeatureType = self.update_job.service.featuretypes.get(identifier="node3")
+
+        self.assertEqual(
+            self.update_job.status, UpdateJobStatusEnum.UPDATED.value, "Job should be finished with status updated"
+        )
+
+        self.assertFalse(
+            WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists(),
+            "No update candidate should exist after update",
+        )
+
+        self.assertEqual(self.update_job.service.title, "DWD GeoServer WFS Neu", "Service title should be updated")
+
+        self.assertCountEqual(
+            list(self.update_job.service.keywords.values_list("keyword", flat=True)),
+            ["meteorology", "climatology", "new keyword"],
+            "Keywords should be updated",
+        )
+
+        self.assertEqual(
+            featuretype_node3.title, "2m Temperatur an RBSN Stationen Neu", "Feature type title should be updated"
+        )
+        self.assertEqual(featuretype_node3.abstract, "new abstract", "Feature type abstract should be updated")
+
+        self.assertCountEqual(
+            list(featuretype_node3.keywords.values_list("keyword", flat=True)),
+            ["Beobachtungssystem", "Geographischer Ort", "Lufttemperatur", "Meteorologie", "SYNOP"],
+            "Keywords should be updated",
+        )
+
+        self.assertEqual(
+            featuretype_node3.default_reference_system.code, "4326", "Default reference system should be updated"
+        )
+        self.assertCountEqual(
+            featuretype_node3.reference_systems.values_list("code", flat=True),
+            ["25832", "25833"],
+            "Reference systems should be updated",
+        )
+
+        self.assertEqual(
+            str(featuretype_node3.bbox_lat_lon),
+            "SRID=4326;POLYGON ((7.02439799999999 14.950565, 7.02439799999999 54.010987, 47.398578 54.010987, 47.398578 14.950565, 7.02439799999999 14.950565))",
+            "FeatureType bounding box should be updated",
+        )
+
+    @patch.object(target=Session, attribute="send", side_effect=[WFS_ONE_NEW_FEATURETYPE_UPDATE_REMOTE_RESPONSE])
+    def test_interupt_if_one_featuretype_is_added(self, mock):
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(
+            self.update_job.status,
+            UpdateJobStatusEnum.REVIEW_REQUIRED.value,
+            "Job should be interrupted with status review required",
+        )
+
+        self.assertTrue(
+            WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists(),
+            "Update candidate should exist after update",
+        )
+
+        self.assertEqual(
+            self.update_job.new_service.featuretypes.count(), 5, "There should be 5 featuretypes in the new service"
+        )
+        self.assertEqual(self.update_job.mappings.count(), 5, "There should be 5 mappings")
+
+        self.update_job.mappings.update(is_confirmed=True)
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(
+            self.update_job.status,
+            UpdateJobStatusEnum.UPDATED.value,
+            "Job should be finished with status updated after confirming the new layer",
+        )
+        self.assertFalse(
+            WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists(),
+            "Update candidate should not exist after update",
+        )
+
+        self.assertEqual(self.update_job.mappings.count(), 0, "There should be 0 mappings after update")
+
+    @patch.object(target=Session, attribute="send", side_effect=[WFS_ONE_REMOVED_FEATURETYPE_UPDATE_REMOTE_RESPONSE])
+    def test_interupt_if_one_featuretype_is_removed(self, mock):
+        self.update_job.update()
+        self.update_job.refresh_from_db()
+
+        self.assertEqual(
+            self.update_job.status,
+            UpdateJobStatusEnum.UPDATED.value,
+            "Job should be finished with status updated after confirming all featuretype mappings",
+        )
+        self.assertFalse(
+            WebFeatureService.objects.filter(update_candidate_of=self.wfs).exists(),
+            "Update candidate should not exist after update",
+        )
+        self.assertEqual(self.update_job.mappings.count(), 0, "There should be 0 mappings after update")
+        self.assertEqual(
+            self.update_job.service.featuretypes.count(),
+            3,
+            "There should be 3 featuretypes in the new service after removing one",
         )

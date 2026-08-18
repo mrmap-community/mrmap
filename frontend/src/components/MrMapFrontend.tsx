@@ -1,13 +1,12 @@
 
 import { deepmerge } from '@mui/utils';
 import { type Operation as AxiosOperation, type OpenAPIV3 } from 'openapi-client-axios';
-import { useMemo, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import {
   Admin,
   CustomRoutes,
   defaultDarkTheme,
   defaultLightTheme,
-  Loading,
   localStorageStore,
   Resource,
   type RaThemeOptions
@@ -30,6 +29,7 @@ import RESOURCES from './Resource/Definition';
 
 import Dashboard from './Dashboard/Dashboard';
 import MyLayout from './Layout/Layout';
+import LoadingOpenApi from './Loading/LoadingOpenApi';
 
 const STORE_VERSION = '1'
 const store = localStorageStore(STORE_VERSION)
@@ -43,7 +43,8 @@ const darkTheme: RaThemeOptions = deepmerge(defaultDarkTheme, {
 
 
 const MrMapFrontend = (): ReactElement => {
-  const { api, isPending, realtimeIsReady } = useHttpClientContext()
+  const [loadingAnimationComplete, setLoadingAnimationComplete] = useState(false);
+  const { api, isPending } = useHttpClientContext()
   const dataProvider = useMemo(() => {
     return api && jsonApiDataProvider({
       httpClient: api, 
@@ -108,43 +109,48 @@ const MrMapFrontend = (): ReactElement => {
         ))
   ),[resourceDefinitions])
 
-
+  const isApplicationReady =
+    !isPending &&
+    dataProvider !== undefined &&
+    resources.length > 0;
   
-  if (isPending || dataProvider === undefined || resources.length === 0) {
+  if (!loadingAnimationComplete) {
     return (
-      <Loading loadingPrimary="Initialize...." loadingSecondary='OpenApi Client is loading....' />
-    )
-  } else {
-    return (
-      <BrowserRouter>
-        
-        <Admin
-          theme={lightTheme}
-          darkTheme={darkTheme}
-          lightTheme={lightTheme}
-          dataProvider={dataProvider}
-          authProvider={authProvider}
-          i18nProvider={i18nProvider}
-          dashboard={Dashboard}
-          layout={MyLayout}
-          store={store}
-          disableTelemetry
-          requireAuth
-        >
-          {resources}
-
-          {/* ows context based mapviewer */}
-          {
-            <CustomRoutes >
-            <Route path="/csw-client" element={<CatalogueServiceClient />} />
-            <Route path="/viewer" element={<MapViewer />} />
-            <Route path="/search" element={<PortalSearch />} />
-          </CustomRoutes>
-  } 
-        </Admin>
-      </BrowserRouter>
-    )
+      <LoadingOpenApi
+        canComplete={isApplicationReady}
+        onComplete={() => setLoadingAnimationComplete(true)}
+      />
+    );
   }
+  return (
+    <BrowserRouter>
+      <Admin
+        theme={lightTheme}
+        darkTheme={darkTheme}
+        lightTheme={lightTheme}
+        dataProvider={dataProvider}
+        authProvider={authProvider}
+        i18nProvider={i18nProvider}
+        dashboard={Dashboard}
+        layout={MyLayout}
+        store={store}
+        disableTelemetry
+        requireAuth
+      >
+        {resources}
+
+        {/* ows context based mapviewer */}
+        {
+          <CustomRoutes >
+          <Route path="/csw-client" element={<CatalogueServiceClient />} />
+          <Route path="/viewer" element={<MapViewer />} />
+          <Route path="/search" element={<PortalSearch />} />
+        </CustomRoutes>
+} 
+      </Admin>
+    </BrowserRouter>
+  )
+  
 }
 
 export default MrMapFrontend

@@ -8,6 +8,7 @@ import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
 import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'
 import EmptyList from '../../components/Lists/Empty'
+import EmptyListWithFilter from '../../components/Lists/EmptyWithFilter'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
@@ -240,6 +241,7 @@ const ListGuesser = ({
         }}
         preferenceKey={preferenceKey}
         omit={defaultOmit}
+        empty={<EmptyListWithFilter />}
       >
         {...fields}
         {/**TODO: label should be translated */}

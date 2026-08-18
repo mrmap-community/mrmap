@@ -6,10 +6,20 @@ import OpenAPIClientAxios, { OpenAPIV3, OpenAPIV3_1 } from 'openapi-client-axios
 import { ReadyState } from 'react-use-websocket';
 import { JsonApiMimeType } from '../jsonapi/types/jsonapi';
 
+export enum HttpClientStatus {
+  Idle = 'idle',
+  DownloadingSchema = 'downloading-schema',
+  InitializingClient = 'initializing-client',
+  Ready = 'ready',
+  Error = 'error',
+}
+
+
 export interface HttpClientContextType {
   api?: OpenAPIClientAxios
   init: (locale: string) => void
   isPending: boolean
+  status: HttpClientStatus
   error: any
   realtimeIsReady: ReadyState
   setRealtimeIsReady: (readyState: ReadyState) => void
@@ -31,6 +41,8 @@ const AXIOS_DEFAULTS = {
   )
 }
 
+
+
 export const HttpClientContext = createContext<HttpClientContextType|undefined>(undefined)
 
 
@@ -40,7 +52,7 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
   const [error, setError] = useState<AxiosError>();
   const [isPending, setIsPending] = useState<boolean>(false)
   const [realtimeIsReady, setRealtimeIsReady] = useState<ReadyState>(ReadyState.UNINSTANTIATED)
-
+  const [status, setStatus] = useState<HttpClientStatus>(HttpClientStatus.Idle)
 
   useEffect(()=>{
     setDocument(undefined)
@@ -48,6 +60,7 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
 
   const initialize = useCallback((locale: string = "en")=>{
     setIsPending(true)
+    setStatus(HttpClientStatus.DownloadingSchema)
     const cfg = JSON.parse(JSON.stringify({
       headers: new AxiosHeaders(
       {
@@ -55,14 +68,24 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
       }
     )
     }))   
-    const httpClient = new OpenAPIClientAxios({ definition: `${API_BASE_URL}/api/schema`, axiosConfigDefaults: cfg})
-    httpClient.init().then((client) => {
+    const httpClient = new OpenAPIClientAxios({ 
+      definition: `${API_BASE_URL}/api/schema`, 
+      axiosConfigDefaults: cfg
+    })
+
+    httpClient
+    .init()
+    .then((client) => {
       setDocument(client.api.document)
     }).catch((error) => { 
       setError(error); 
-      console.error("errror during initialize axios openapi client", error)
+      setStatus(HttpClientStatus.Error)
+    
+      console.error(
+        "errror during initialize axios openapi client", 
+        error
+      )
     })
-    .finally(() => setIsPending(false))
   },[setError, setDocument])
 
   useEffect(() => {
@@ -82,26 +105,50 @@ export const HttpClientBase = ({ children }: any): ReactNode => {
   },[error])
 
   useEffect(()=>{
-    if (document !== undefined){
-      setIsPending(true)
-      new OpenAPIClientAxios({ definition: document, axiosConfigDefaults: AXIOS_DEFAULTS})
-      .init()
-      .then((client) => {
-          setApi(client.api)
-      })
-      .catch((error) => { console.error("errror during initialize axios openapi client", error)})
-      .finally(() => setIsPending(false))
+    if (document === undefined) {
+      return
     }
+
+    setIsPending(true)
+    setStatus(HttpClientStatus.InitializingClient)
+
+    new OpenAPIClientAxios({ 
+      definition: document, 
+      axiosConfigDefaults: AXIOS_DEFAULTS
+    })
+    .init()
+    .then((client) => {
+        setApi(client.api)
+        setStatus(HttpClientStatus.Ready)
+    })
+    .catch((error) => {
+      setError(error);
+      setStatus(HttpClientStatus.Error)
+      console.error(
+        "errror during initialize axios openapi client", 
+        error
+      )
+    })
+    .finally(() => setIsPending(false))
+    
   },[document])
 
-  const value = useMemo<HttpClientContextType>(()=>({ 
-      api: api, 
-      init: (locale: string) => initialize(locale),
-      isPending: isPending,
-      error: error,
-      realtimeIsReady: realtimeIsReady,
-      setRealtimeIsReady: setRealtimeIsReady,
-  }), [api, isPending, error, realtimeIsReady])
+  const value = useMemo<HttpClientContextType>(() => ({
+    api,
+    init: initialize,
+    isPending,
+    status,
+    error,
+    realtimeIsReady,
+    setRealtimeIsReady,
+  }), [
+    api,
+    isPending,
+    status,
+    error,
+    realtimeIsReady,
+    initialize,
+  ])
 
   return (
     <HttpClientContext.Provider value={value}>

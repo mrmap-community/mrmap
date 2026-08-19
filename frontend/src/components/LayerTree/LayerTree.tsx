@@ -142,52 +142,49 @@ const TreeItemLabel = memo(
 
 
     return (
-      <Stack sx={{direction:"row", justifyContent:"space-between", alignItems:"center"}}>
-        <Box sx={{display:"flex", alignItems:"center"}} >
+      <Stack direction="row" sx={{ justifyContent: "flex-start", }}>
+        <Box sx={{display:"flex", alignItems:"flex-start"}} >
          <Tooltip title="Toggle the visibility of this service">
           <Checkbox
             size="small"
             disableRipple
-          sx={{
-            p: 0.25,
-            mr: 0.25,
-            
-          }}
-          onClick={(event)  => event.stopPropagation()}
-          checked={node?.getWmsOperationByCode("GetMap")?.active as boolean ?? false}
-          indeterminate={indeterminateVisibility}
-          onChange={toggle('GetMap')}
-        />
+            sx={{
+              p: 0.25,
+              mr: 0.25,
+              
+            }}
+            onClick={(event)  => event.stopPropagation()}
+            checked={node?.getWmsOperationByCode("GetMap")?.active as boolean ?? false}
+            indeterminate={indeterminateVisibility}
+            onChange={toggle('GetMap')}
+          />
         </Tooltip>
-               <Tooltip title="Toggle the queryability of this service">
-
-        <Checkbox
-          size="small"
-          disableRipple
-          sx={{
-            p: 0.25,
-            mr: 0.25,
-            
-          }}
-          onClick={(event)  => event.stopPropagation()}
-          checked={node?.getWmsOperationByCode("GetFeatureInfo")?.active as boolean ?? false}
-          indeterminate={indeterminateQueryability}
-          onChange={toggle('GetFeatureInfo')}
-          disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
-        />
+        <Tooltip title="Toggle the queryability of this service">
+          <Checkbox
+            size="small"
+            disableRipple
+            sx={{
+              p: 0.25,
+              mr: 0.25,
+            }}
+            onClick={(event)  => event.stopPropagation()}
+            checked={node?.getWmsOperationByCode("GetFeatureInfo")?.active as boolean ?? false}
+            indeterminate={indeterminateQueryability}
+            onChange={toggle('GetFeatureInfo')}
+            disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
+          />
         </Tooltip>
         <Box sx={{display:"flex", alignItems:"center"}} >
- 
           <Typography variant="body2">{node.properties.title}</Typography>
         </Box>
       </Box>
 
-      <Box>
+      <Stack direction="row" sx={{ justifyContent: "flex-end", alignItems:"center", ml: "auto"}}>
         <NodeIcons
           isActive={layerProperties?.isActive}
           isSpatialSecured={layerProperties?.isSpatialSecured}
         />
-      </Box>
+      </Stack>
     </Stack>
     )
   }

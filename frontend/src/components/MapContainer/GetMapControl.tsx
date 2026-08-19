@@ -47,7 +47,7 @@ const WebMapServiceControl = () => {
       compareOfferingByAuth
     )
   }, [owsContext])
-  console.log(atomicGetMapUrls)
+
   const atomicGetFeatureInfoUrls = useMemo(()=>{
     return owsContext.getOptimizedUrlsByCode(
       "GetFeatureInfo",
@@ -84,12 +84,11 @@ const WebMapServiceControl = () => {
   const getAuthForGetMapUrl = (getMapUrl: OptimizedUrlsMap) => {
     const authId = getMapUrl.operations[0]["x-authentication-id"]
     const authenticationHeaders = owsContext.authenticationHeaders as []
-    const authHeader = authenticationHeaders.find((header: any) => header.id === authId) as any
+    const authHeader = authenticationHeaders?.find((header: any) => header.id === authId) as any
     
     const headerInit :any = {}
-    headerInit[authHeader.name] = authHeader.value
-    console.log(new Headers(headerInit))
-    return new Headers(headerInit)
+    headerInit[authHeader?.name] = authHeader?.value
+    return headerInit && new Headers(headerInit)
     
   }
 

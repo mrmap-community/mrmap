@@ -137,7 +137,7 @@ const MapViewerButton = (
       
       addWMSByUrl(
         url.href, 
-        authHeader && new Headers({"Authorization": `Token ${authHeader?.value}`}), 
+        authHeader && new Headers({"Authorization": authHeader?.value}), 
         beforeSetHook
       )
       navigate('/viewer')

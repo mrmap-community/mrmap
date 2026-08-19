@@ -43,6 +43,45 @@ export interface OwsContextBaseType {
 
 export const context = createContext<OwsContextBaseType | undefined>(undefined)
 
+const getOgcServiceExceptionMessage = (responseText: string): string | undefined => {
+  if (!responseText || !responseText.trim().startsWith('<')) {
+    return undefined
+  }
+
+  try {
+    const parser = new DOMParser()
+    const document = parser.parseFromString(responseText, 'application/xml')
+    const parserError = document.querySelector('parsererror')
+    if (parserError) {
+      return undefined
+    }
+
+    const exceptionNodes = Array.from(document.getElementsByTagName('*')).filter((element) => {
+      return element.localName === 'ServiceException'
+    })
+
+    if (exceptionNodes.length === 0) {
+      return undefined
+    }
+
+    const firstException = exceptionNodes[0]
+    const code = firstException.getAttribute('code')
+    const message = firstException.textContent?.trim()
+
+    if (code && message) {
+      return `${code}: ${message}`
+    }
+
+    if (message) {
+      return message
+    }
+
+    return 'OGC service exception'
+  } catch {
+    return undefined
+  }
+}
+
 export interface OwsContextBaseProps extends PropsWithChildren {
   initialFeatures?: OWSResource[]
 }
@@ -109,6 +148,11 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
 
       const response = await fetch(request)
       if (!response.ok) {
+        const errorText = await response.text().catch(() => '')
+        const serviceExceptionMessage = getOgcServiceExceptionMessage(errorText)
+        if (serviceExceptionMessage) {
+          throw new Error(serviceExceptionMessage)
+        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
@@ -180,35 +224,60 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
         throw new Error('Empty WMS response')
       }
 
+      const serviceExceptionMessage = getOgcServiceExceptionMessage(xmlString)
+      if (serviceExceptionMessage) {
+        setLoadingStatus('error')
+        setLoadingMessage(serviceExceptionMessage)
+        setErrorMessage(serviceExceptionMessage)
+        console.error('OGC ServiceException:', serviceExceptionMessage)
+        return
+      }
+
       setLoadingStatus('parsing')
       setLoadingMessage('Parsing WMS capabilities...')
 
+      let parseError: Error | undefined
       setOwsContext((prev) => {
-        const fromPlainObjectStart = performance.now()
-        let newContext = OWSContext.fromPlainObject(prev)
-        timings.fromPlainObject = performance.now() - fromPlainObjectStart
-        setLoadingTimings((previous) => ({ ...previous, fromPlainObject: timings.fromPlainObject }))
+        try {
+          const fromPlainObjectStart = performance.now()
+          let newContext = OWSContext.fromPlainObject(prev)
+          timings.fromPlainObject = performance.now() - fromPlainObjectStart
+          setLoadingTimings((previous) => ({ ...previous, fromPlainObject: timings.fromPlainObject }))
 
-        const appendWmsStart = performance.now()
-        const treeId = newContext.appendWms(url, xmlString)
-        timings.appendWms = performance.now() - appendWmsStart
-        setLoadingTimings((previous) => ({ ...previous, appendWms: timings.appendWms }))
+          const appendWmsStart = performance.now()
+          const treeId = newContext.appendWms(url, xmlString)
+          timings.appendWms = performance.now() - appendWmsStart
+          setLoadingTimings((previous) => ({ ...previous, appendWms: timings.appendWms }))
 
-        if (beforeSetHook !== undefined) {
-          const beforeSetHookStart = performance.now()
-          newContext = beforeSetHook(newContext, treeId)
-          timings.beforeSetHook = performance.now() - beforeSetHookStart
-          setLoadingTimings((previous) => ({ ...previous, beforeSetHook: timings.beforeSetHook }))
+          if (beforeSetHook !== undefined) {
+            const beforeSetHookStart = performance.now()
+            newContext = beforeSetHook(newContext, treeId)
+            timings.beforeSetHook = performance.now() - beforeSetHookStart
+            setLoadingTimings((previous) => ({ ...previous, beforeSetHook: timings.beforeSetHook }))
+          }
+
+          return newContext
+        } catch (error) {
+          parseError = error instanceof Error ? error : new Error(String(error))
+          const message = parseError.message
+          setLoadingStatus('error')
+          setLoadingMessage(message)
+          setErrorMessage(message)
+          console.error('Failed to parse WMS capabilities:', error)
+          return prev
         }
-
-        return newContext
       })
+
+      if (parseError) {
+        return
+      }
 
       timings.total = performance.now() - totalStart
       setLoadingTimings((previous) => ({ ...previous, total: timings.total }))
       setLoadingStatus('ready')
       setLoadingMessage('WMS capabilities loaded')
     } catch (error) {
+      
       const message = error instanceof Error ? error.message : String(error)
       setLoadingStatus('error')
       setLoadingMessage(message)
@@ -251,7 +320,13 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setLoadingStatus('reading')
       setLoadingMessage('Reading OWS context...')
       const jsonParseStart = performance.now()
-      const json = await response.json()
+      const responseText = await response.text()
+      const serviceExceptionMessage = getOgcServiceExceptionMessage(responseText)
+      if (serviceExceptionMessage) {
+        throw new Error(serviceExceptionMessage)
+      }
+
+      const json = JSON.parse(responseText)
       timings.jsonParse = performance.now() - jsonParseStart
       setLoadingTimings((previous) => ({ ...previous, jsonParse: timings.jsonParse }))
 

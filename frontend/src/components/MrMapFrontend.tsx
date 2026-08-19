@@ -142,11 +142,11 @@ const MrMapFrontend = (): ReactElement => {
         {/* ows context based mapviewer */}
         {
           <CustomRoutes >
-          <Route path="/csw-client" element={<CatalogueServiceClient />} />
-          <Route path="/viewer" element={<MapViewer />} />
-          <Route path="/search" element={<PortalSearch />} />
-        </CustomRoutes>
-} 
+            <Route path="/csw-client" element={<CatalogueServiceClient />} />
+            <Route path="/viewer" element={<MapViewer />} />
+            <Route path="/search" element={<PortalSearch />} />
+          </CustomRoutes>
+        } 
       </Admin>
     </BrowserRouter>
   )

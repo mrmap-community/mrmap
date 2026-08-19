@@ -21,9 +21,10 @@ const RightDrawer = ({
 }: RightDrawerProps): ReactNode => {
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  const { rightDrawer, setRightDrawer } = useDrawerContext()
+  const { bottomDrawer,rightDrawer, setRightDrawer } = useDrawerContext()
   const [appBarOffset, setAppBarOffset] = useState('0px')
   const theme = useTheme()
+  
   useEffect(() => {
     const appBar = document.querySelector<HTMLElement>('.MuiAppBar-root, header[role="banner"]')
 
@@ -49,8 +50,7 @@ const RightDrawer = ({
       window.removeEventListener('resize', updateAppBarOffset)
     }
   }, [])
-
-  const drawerHeight = rightDrawer.height === '100%' ? '100%' : `calc(${rightDrawer.height} - ${appBarOffset})`
+  const drawerHeight = bottomDrawer.isOpen ? `calc(100% - ${bottomDrawer.height} - ${appBarOffset})` : `calc(100% - ${appBarOffset})`
 
   // adjust padding of map div
   useEffect(() => {
@@ -74,21 +74,22 @@ const RightDrawer = ({
     <div>
       <Button
         ref={buttonRef}
-        color='primary'
-        size='large'
+        color='info'
+        variant='contained'
+        size='small'
         onClick={toggleVisible}
         sx={{
           position: 'absolute',
-          top: '50%',
+          top: '50%', 
+          transform: `translateY(50% ${rightDrawer.isOpen ? '- 50px' : '0'})`,
           zIndex: 1000,
           padding: 0,
           right: `${rightDrawer.isOpen ? rightDrawer.width : '0px'}`,
           transition: 'all 0.2s cubic-bezier(0.23, 1, 0.32, 1)',
-          //width: '30px',
           height: '60px',
-          backgroundColor: theme.palette.background.paper
-        }
-        }
+          minWidth: '0px',
+          width: '25px',
+        }}
       >
         {rightDrawer.isOpen ? <ChevronRight /> : <ChevronLeft />}
       </Button >
@@ -101,9 +102,10 @@ const RightDrawer = ({
           {
             '& .MuiDrawer-paper': {
               width: rightDrawer.width,
-              top: appBarOffset,
+              paddingTop: appBarOffset,
+
               height: drawerHeight,
-              backgroundColor: theme.palette.background.default
+              backgroundColor: theme.palette.background.default,
             }
           }
         }

@@ -20,11 +20,7 @@ import StatusBar from './StatusBar'
 
 
 const style = {
-  display: 'flex',
-  flexDirection: 'column',
-  width: '100%',
   height: '100%',
-  flex: 1
 }
 
 export interface WMSLayerTreeProps extends Partial<SimpleShowLayoutProps> {
@@ -58,11 +54,8 @@ const MapViewerCore = (): ReactNode => {
               style={{
                 flex: 1, height: '100%', width: '100%', position: 'relative'
               }}
-              
             >
-              
               <WebMapServiceControl />
-              
               <ScaleControl position="topleft" />
             </MapContainer>
           </Box>
@@ -74,7 +67,7 @@ const MapViewerCore = (): ReactNode => {
               sx={{ 
                 height: '100%',
                 direction: "column",
-                justifyContent: "space-between"
+                justifyContent: "space-between",
               }}
             >
               <Box>

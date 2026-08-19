@@ -2,8 +2,9 @@ import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef } from 'react'
 
 import { ExpandLess, ExpandMore } from '@mui/icons-material'
-import { Drawer, type DrawerProps, IconButton } from '@mui/material'
+import { Drawer, type DrawerProps } from '@mui/material'
 
+import { Button, useTheme } from '@mui/material'
 import { type DrawerState, useDrawerContext } from './DrawerContext'
 
 export interface BottomDrawerProps extends DrawerProps {
@@ -23,6 +24,7 @@ const BottomDrawer = ({
   const { bottomDrawer, setBottomDrawer, rightDrawer, setRightDrawer } = useDrawerContext()
   const lastRightDrawerState = useRef<DrawerState>(rightDrawer)
   const bottomDrawerIsOpenRef = useRef<boolean>(bottomDrawer.isOpen)
+  const theme = useTheme()
 
   // adjust padding of map div
   useEffect(() => {
@@ -43,7 +45,7 @@ const BottomDrawer = ({
     if (bottomDrawer.isOpen !== bottomDrawerIsOpenRef.current) {
       bottomDrawerIsOpenRef.current = bottomDrawer.isOpen
       if (bottomDrawer.isOpen) {
-        setRightDrawer({ ...rightDrawer, height: `100%` })
+        setRightDrawer({ ...rightDrawer, height: `calc(100% - ${bottomDrawer.height})` })
       } else {
         setRightDrawer({ ...rightDrawer, height: lastRightDrawerState?.current?.height })
       }
@@ -57,42 +59,42 @@ const BottomDrawer = ({
   }, [bottomDrawer, callback, setBottomDrawer])
 
   return (
-    <div>
-      <IconButton
+    <div
+    
+      
+    >
+      <Button
         ref={buttonRef}
-        color={'inherit'}
-        edge="start"
-        // className={`rules-drawer-toggle-button ${isVisible ? 'expanded' : 'collapsed'}`}
+        color='info'
+        variant='contained'
+        size='small'
         onClick={toggleVisible}
+        startIcon={bottomDrawer.isOpen ? <ExpandMore /> : <ExpandLess />}
         sx={{
           position: 'absolute',
           left: '50%',
+          transform: 'translateX(50%)',
           zIndex: 1000,
-          //padding: 0,
-          bottom: `${bottomDrawer.isOpen ? bottomDrawer.height : '40px'}`,
-          transition: 'all 225 cubic-bezier(0.4, 0, 0.6, 1) 0ms !important',
-          border: 'unset',
-          borderRadius: '5px 5px 0 0',
+          padding: 0,
+          bottom: bottomDrawer.isOpen ? `calc(${bottomDrawer.height} + 40px)` : '40px',
+          transition: 'all 0.2s cubic-bezier(0.23, 1, 0.32, 1)',
           width: '60px',
-          height: '30px',
-          color: 'white',
-          backgroundColor: '#002140'
+          minWidth: '0px',
+          height: '25px',
         }}
       >
-        {bottomDrawer.isOpen ? <ExpandMore /> : <ExpandLess />}
-      </IconButton >
+      </Button >
       <Drawer
         anchor="bottom"
         open={bottomDrawer.isOpen}
         variant="persistent"
-        style={{ top: '100px' }}
         sx={{
           '& .MuiDrawer-paper': {
             height: bottomDrawer.height,
-            zIndex: 1001,
             width: bottomDrawer.width,
             marginLeft: bottomDrawer.marginLeft,
-            transition: 'all 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms !important;'
+            backgroundColor: theme.palette.background.default,
+            bottom: '40px',
           }
         }}
         {...rest}

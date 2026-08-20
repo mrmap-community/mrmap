@@ -7,8 +7,7 @@ import proj4 from 'proj4'
 import { point, type LatLng } from 'leaflet'
 import { Link } from 'react-admin'
 import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
-import { Operation } from '../../ows-lib/OwsContext/types'
-import { isOperationUrlEqual, updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
+import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
 
@@ -20,48 +19,15 @@ export interface Tile {
 }
 
 
-const compareOfferingByAuth = (index: number, lastOperation: Operation, operation: Operation) => {
-
-  if (index === 0) {
-    return true
-  }
-  // Check if all offeringA.operations and offeringB.operations have the same "x-authentication-id" value
-  const authIdsA = lastOperation['x-authentication-id']
-  const authIdsB = operation['x-authentication-id']
-  return authIdsA === authIdsB && isOperationUrlEqual(new URL(lastOperation.href), new URL(operation.href))
-}
-    
 
 const WebMapServiceControl = () => {
-  
-  const { owsContext } = useOwsContextBase()
-  const [position, setPosition] = useState<LatLng | null>(null)
-  const [layerPoint, setLayerPoint] = useState<{x: number, y: number} | null>(null) 
-   
-  const atomicGetMapUrls = useMemo(()=>{
-    return owsContext.getOptimizedUrlsByCode(
-      "GetMap",
-      (feature) => (
-        feature.getWmsOperationByCode("GetMap")?.active === true
-      ),
-      compareOfferingByAuth
-    )
-  }, [owsContext])
-
-  const atomicGetFeatureInfoUrls = useMemo(()=>{
-    return owsContext.getOptimizedUrlsByCode(
-      "GetFeatureInfo",
-      (feature) => (
-        feature.getWmsOperationByCode("GetFeatureInfo")?.active === true
-      )
-    )
-  }, [owsContext])
-
   const map = useMap()
-
   const [bounds, setBounds] = useState(map?.getBounds())
   const [size, setSize] = useState(map?.getSize())
-  const { selectedCrs } = useMapViewerBase()
+  const { owsContext } = useOwsContextBase()
+  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls } = useMapViewerBase()
+  const [position, setPosition] = useState<LatLng | null>(null)
+  const [layerPoint, setLayerPoint] = useState<{x: number, y: number} | null>(null) 
 
   const bbox = useMemo<[number, number,number, number]>(()=>{
 
@@ -146,7 +112,7 @@ const WebMapServiceControl = () => {
       
       const getFeatureInfoUrls = [...atomicGetFeatureInfoUrls].reverse()
       getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl, index) => {
-        const params = atomicGetFeatureInfoUrl.searchParams
+        const params = atomicGetFeatureInfoUrl.url.searchParams
         updateOrAppendSearchParam(params, 'I', layerPoint.x.toFixed(0).toString())
         updateOrAppendSearchParam(params, 'J', layerPoint.y.toFixed(0).toString())
         updateOrAppendSearchParam(params, 'X', layerPoint.x.toFixed(0).toString())
@@ -212,8 +178,8 @@ const WebMapServiceControl = () => {
       {position && <Marker position={position} >
         <Popup>
           {getFeatureInfoUrls?.map((url, index) => (
-              <Link to={url.href} target="_blank" rel="noopener noreferrer" key={index}>
-                {url.searchParams.get('QUERY_LAYERS') ?? url.searchParams.get('query_layers') ?? 'Feature Info'}
+              <Link to={url.url.href} target="_blank" rel="noopener noreferrer" key={index}>
+                {url.url.searchParams.get('QUERY_LAYERS') ?? url.url.searchParams.get('query_layers') ?? 'Feature Info'}
               </Link>
           ))}
         </Popup>

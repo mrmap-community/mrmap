@@ -20,6 +20,7 @@ import { ContextMenuBase } from './ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
 
 import { v4 as uuidv4 } from 'uuid'
+import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 
 
 
@@ -64,7 +65,19 @@ const TreeItemLabel = memo(
     node
   }: TreeItemLabelProps) => {
     const layerProperties = node?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-properties"] as LayerProperties | undefined;
-    const {  owsContext, setOwsContext } = useOwsContextBase()
+    const {  owsContext, setOwsContext,  } = useOwsContextBase()
+    const {mapLoading, atomicGetMapUrls} = useMapViewerBase()
+
+
+    node.properties.folder
+    const hasError = useMemo(()=>{
+      // this is the atomicGetMapUrl where this node is part of
+      const atomicGetMapUrl = atomicGetMapUrls.find((atomicGetMapUrls) => atomicGetMapUrls.features.some((feature)=> feature.properties.folder === node.properties.folder))
+      const hasError = atomicGetMapUrl && Object.keys(mapLoading.errors).some((errorId) => {errorId.includes(atomicGetMapUrl?.url.href) })
+      hasError && console.log('hasError', hasError)
+      return hasError
+    }, [mapLoading.errors, node.properties.folder])
+
 
     const indeterminateVisibility = useMemo(() => {
       const mapOperations = owsContext

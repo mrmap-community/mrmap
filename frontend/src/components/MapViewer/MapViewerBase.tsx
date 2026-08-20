@@ -2,8 +2,12 @@ import { Dispatch, PropsWithChildren, ReactNode, SetStateAction, createContext, 
 
 import { Map } from "leaflet";
 
+import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { boundsToGeoJSON, featuresToCollection, latLngToGeoJSON } from './utils';
 
+import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
+import { Operation } from "../../ows-lib/OwsContext/types";
+import { isOperationUrlEqual } from '../../ows-lib/OwsContext/utils';
 
 export interface CRS {
   stringRepresentation: string
@@ -11,22 +15,54 @@ export interface CRS {
   wkt: string
 }
 
+export type MapLoadingStatus = 'idle' | 'loading' | 'ready' | 'error'
+
+export interface MapLoadingState {
+  status: MapLoadingStatus
+  loaded: number
+  total: number
+  errors: Record<string, string>
+  timings: Record<string, number>
+}
+
 export interface MapViewerBaseType {
-  map: Map
-  setMap: Dispatch<SetStateAction<Map>>
+  map?: Map
+  setMap: Dispatch<SetStateAction<Map | undefined>>
   selectedCrs: CRS
   setSelectedCrs: Dispatch<SetStateAction<CRS>>
-  featureCollection: string
+  featureCollection: string | undefined
+  atomicGetMapUrls: OptimizedUrlsMap[]
+  atomicGetFeatureInfoUrls: OptimizedUrlsMap[]
+  mapLoading: MapLoadingState
+  reportMapLoading: (id: string, status: MapLoadingStatus, error?: string, timing?: number) => void
+  removeMapLoading: (id: string) => void
 }
+
+
+
+
+const compareOfferingByAuth = (index: number, lastOperation: Operation, operation: Operation) => {
+
+  if (index === 0) {
+    return true
+  }
+  // Check if all offeringA.operations and offeringB.operations have the same "x-authentication-id" value
+  const authIdsA = lastOperation['x-authentication-id']
+  const authIdsB = operation['x-authentication-id']
+  return authIdsA === authIdsB && isOperationUrlEqual(new URL(lastOperation.href), new URL(operation.href))
+}
+
 
 export const context = createContext<MapViewerBaseType | undefined>(undefined)
 
 
 export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
+  const { owsContext } = useOwsContextBase()
 
   const [map, setMap] = useState<Map>()
   const [position, setPosition] = useState(() => map?.getCenter())
   const [bounds, setBounds] = useState(() => map?.getBounds())
+  const [mapRequests, setMapRequests] = useState<Record<string, { status: MapLoadingStatus, error?: string, timing?: number }>>({})
 
   const [selectedCrs, setSelectedCrs] = useState<CRS>({stringRepresentation: 'EPSG:4326', isXyOrder: false, wkt: 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]'})
 
@@ -53,6 +89,75 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
     return featuresToCollection(features)
   }, [position, bounds])
 
+  const mapLoading = useMemo<MapLoadingState>(() => {
+    const requests = Object.entries(mapRequests)
+    const errors: Record<string, string> = {}
+    const timings: Record<string, number> = {}
+
+    requests.forEach(([id, request]) => {
+      if (request.error) errors[id] = request.error
+      if (request.timing !== undefined) timings[id] = request.timing
+    })
+
+    const loaded = requests.filter(([, request]) => request.status === 'ready').length
+    const hasLoading = requests.some(([, request]) => request.status === 'loading')
+    const status: MapLoadingStatus = hasLoading
+      ? 'loading'
+      : Object.keys(errors).length > 0
+        ? 'error'
+        : requests.length > 0 && loaded === requests.length
+          ? 'ready'
+          : 'idle'
+
+    return { status, loaded, total: requests.length, errors, timings }
+  }, [mapRequests])
+
+  const reportMapLoading = useCallback((id: string, status: MapLoadingStatus, error?: string, timing?: number) => {
+    setMapRequests((previous) => {
+      const nextRequest = { status, error, timing }
+      const previousRequest = previous[id]
+
+      if (
+        previousRequest?.status === nextRequest.status &&
+        previousRequest.error === nextRequest.error &&
+        previousRequest.timing === nextRequest.timing
+      ) {
+        return previous
+      }
+
+      return {
+        ...previous,
+        [id]: nextRequest
+      }
+    })
+  }, [])
+
+  const removeMapLoading = useCallback((id: string) => {
+    setMapRequests((previous) => {
+      const next = { ...previous }
+      delete next[id]
+      return next
+    })
+  }, [])
+     
+  const atomicGetMapUrls = useMemo(()=>{
+    return owsContext.getOptimizedUrlsByCode(
+      "GetMap",
+      (feature) => (
+        feature.getWmsOperationByCode("GetMap")?.active === true
+      ),
+      compareOfferingByAuth
+    )
+  }, [owsContext])
+
+  const atomicGetFeatureInfoUrls = useMemo(()=>{
+    return owsContext.getOptimizedUrlsByCode(
+      "GetFeatureInfo",
+      (feature) => (
+        feature.getWmsOperationByCode("GetFeatureInfo")?.active === true
+      )
+    )
+  }, [owsContext])
 
   const onMove = useCallback(() => {
     if (map !== undefined) {
@@ -67,14 +172,24 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
       setMap,
       selectedCrs,
       setSelectedCrs,
-      featureCollection
+      featureCollection,
+      atomicGetMapUrls,
+      atomicGetFeatureInfoUrls,
+      mapLoading,
+      reportMapLoading,
+      removeMapLoading
     }
   }, [
     map,
     setMap,
     selectedCrs,
     setSelectedCrs,
-    featureCollection
+    featureCollection,
+    atomicGetMapUrls,
+    atomicGetFeatureInfoUrls,
+    mapLoading,
+    reportMapLoading,
+    removeMapLoading
   ])
 
   useEffect(() => {

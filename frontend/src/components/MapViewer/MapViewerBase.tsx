@@ -1,11 +1,11 @@
-import { Dispatch, PropsWithChildren, ReactNode, SetStateAction, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { Map } from "leaflet";
 
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { boundsToGeoJSON, featuresToCollection, latLngToGeoJSON } from './utils';
 
-import { OptimizedUrlsMap } from "../../ows-lib/OwsContext/core";
+import { OptimizedUrlsMap, OWSResource } from "../../ows-lib/OwsContext/core";
 import { Operation } from "../../ows-lib/OwsContext/types";
 import { isOperationUrlEqual } from '../../ows-lib/OwsContext/utils';
 
@@ -17,12 +17,24 @@ export interface CRS {
 
 export type MapLoadingStatus = 'idle' | 'loading' | 'ready' | 'error'
 
+export interface MapLoadingError {
+  message: string
+  features?: OWSResource[]
+}
+
 export interface MapLoadingState {
   status: MapLoadingStatus
   loaded: number
   total: number
-  errors: Record<string, string>
+  errors: MapLoadingError[]
   timings: Record<string, number>
+  failedFeatures: OWSResource[]
+}
+
+export interface MapRequest {
+  status: MapLoadingStatus
+  error?: MapLoadingError
+  timing?: number
 }
 
 export interface MapViewerBaseType {
@@ -34,12 +46,9 @@ export interface MapViewerBaseType {
   atomicGetMapUrls: OptimizedUrlsMap[]
   atomicGetFeatureInfoUrls: OptimizedUrlsMap[]
   mapLoading: MapLoadingState
-  reportMapLoading: (id: string, status: MapLoadingStatus, error?: string, timing?: number) => void
+  reportMapLoading: (id: string, status: MapLoadingStatus, error?: MapLoadingError, timing?: number) => void
   removeMapLoading: (id: string) => void
 }
-
-
-
 
 const compareOfferingByAuth = (index: number, lastOperation: Operation, operation: Operation) => {
 
@@ -62,7 +71,7 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
   const [map, setMap] = useState<Map>()
   const [position, setPosition] = useState(() => map?.getCenter())
   const [bounds, setBounds] = useState(() => map?.getBounds())
-  const [mapRequests, setMapRequests] = useState<Record<string, { status: MapLoadingStatus, error?: string, timing?: number }>>({})
+  const [mapRequests, setMapRequests] = useState<Record<string, MapRequest>>({})
 
   const [selectedCrs, setSelectedCrs] = useState<CRS>({stringRepresentation: 'EPSG:4326', isXyOrder: false, wkt: 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]'})
 
@@ -91,32 +100,37 @@ export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
 
   const mapLoading = useMemo<MapLoadingState>(() => {
     const requests = Object.entries(mapRequests)
-    const errors: Record<string, string> = {}
     const timings: Record<string, number> = {}
 
-    requests.forEach(([id, request]) => {
-      if (request.error) errors[id] = request.error
-      if (request.timing !== undefined) timings[id] = request.timing
-    })
+    const errors = requests.map((([id, request]) => request.error)).filter(error => error !== undefined)
 
     const loaded = requests.filter(([, request]) => request.status === 'ready').length
     const hasLoading = requests.some(([, request]) => request.status === 'loading')
+    const hasError = errors.length > 0
+    
     const status: MapLoadingStatus = hasLoading
       ? 'loading'
-      : Object.keys(errors).length > 0
+      : hasError
         ? 'error'
         : requests.length > 0 && loaded === requests.length
           ? 'ready'
           : 'idle'
 
-    return { status, loaded, total: requests.length, errors, timings }
+    const failedFeatures = requests.filter(([id, request]) => request.error !== undefined).flatMap(([id, request]) => request.error?.features || [])
+
+
+    return { status, loaded, total: requests.length, errors, timings, failedFeatures }
   }, [mapRequests])
 
-  const reportMapLoading = useCallback((id: string, status: MapLoadingStatus, error?: string, timing?: number) => {
-    setMapRequests((previous) => {
-      const nextRequest = { status, error, timing }
-      const previousRequest = previous[id]
+  const reportMapLoading = useCallback((id: string, status: MapLoadingStatus, error?: MapLoadingError, timing?: number) => {
+    const nextRequest: MapRequest  = {
+      status:status,
+      timing: timing,
+      error: error
+    }
 
+    setMapRequests((previous) => {
+      const previousRequest = previous[id]
       if (
         previousRequest?.status === nextRequest.status &&
         previousRequest.error === nextRequest.error &&

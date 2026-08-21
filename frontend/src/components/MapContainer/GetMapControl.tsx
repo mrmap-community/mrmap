@@ -95,7 +95,7 @@ const WebMapServiceControl = () => {
             key={atomicGetMapUrl.url.href}
             bounds={bounds}
             interactive={true}
-            url={atomicGetMapUrl.url.href}
+            optimiuedUrl={atomicGetMapUrl}
             auth={getAuthForGetMapUrl(atomicGetMapUrl)}            
           />,
           getMapUrl: atomicGetMapUrl.url,

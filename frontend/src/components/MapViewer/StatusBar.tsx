@@ -11,7 +11,7 @@ import { useMapViewerBase } from './MapViewerBase';
 const StatusBar = () => {
   const { loadingStatus, loadingMessage, loadingTimings } = useOwsContextBase()
   const { mapLoading } = useMapViewerBase()
-  const mapErrorMessage = Object.values(mapLoading.errors)[0]
+  const mapErrorMessage = Object.values(mapLoading.errors)[0]?.message
   const effectiveStatus = mapLoading.status === 'error' || mapLoading.status === 'loading'
     ? mapLoading.status
     : loadingStatus

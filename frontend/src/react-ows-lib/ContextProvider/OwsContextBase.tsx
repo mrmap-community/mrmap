@@ -159,7 +159,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       return response
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        console.debug('Fetch request was aborted')
         setLoadingStatus('idle')
         setLoadingMessage(undefined)
         return null
@@ -168,7 +167,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setLoadingStatus('error')
       setLoadingMessage(message)
       setErrorMessage(message)
-      console.error('Fetch error:', error)
       throw error
     } finally {
       setCurrentRequest(undefined)
@@ -229,7 +227,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
         setLoadingStatus('error')
         setLoadingMessage(serviceExceptionMessage)
         setErrorMessage(serviceExceptionMessage)
-        console.error('OGC ServiceException:', serviceExceptionMessage)
         return
       }
 
@@ -263,7 +260,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
           setLoadingStatus('error')
           setLoadingMessage(message)
           setErrorMessage(message)
-          console.error('Failed to parse WMS capabilities:', error)
           return prev
         }
       })
@@ -282,7 +278,6 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setLoadingStatus('error')
       setLoadingMessage(message)
       setErrorMessage(message)
-      console.error('Failed to add WMS:', error)
     }
   }, [performFetch])
 
@@ -354,14 +349,12 @@ export const OwsContextBase = ({ initialFeatures = [], children }: OwsContextBas
       setLoadingStatus('error')
       setLoadingMessage(message)
       setErrorMessage(message)
-      console.error('Failed to initialize from OWSContext:', error)
     }
   }, [performFetch])
 
   const addWMSByRecord = useCallback((record: RaRecord) => {
     const url = (record.url ?? record.href ?? record.wmsUrl ?? record.serviceUrl) as string | undefined
     if (typeof url !== 'string' || url.length === 0) {
-      console.error('addWMSByRecord failed: record does not contain a valid URL', record)
       return
     }
     addWMSByUrl(url)

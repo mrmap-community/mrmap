@@ -65,19 +65,15 @@ const TreeItemLabel = memo(
     node
   }: TreeItemLabelProps) => {
     const layerProperties = node?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-properties"] as LayerProperties | undefined;
-    const {  owsContext, setOwsContext,  } = useOwsContextBase()
-    const {mapLoading, atomicGetMapUrls} = useMapViewerBase()
+    const {  owsContext, setOwsContext} = useOwsContextBase()
+    const { mapLoading } = useMapViewerBase()
 
-
-    node.properties.folder
     const hasError = useMemo(()=>{
-      // this is the atomicGetMapUrl where this node is part of
-      const atomicGetMapUrl = atomicGetMapUrls.find((atomicGetMapUrls) => atomicGetMapUrls.features.some((feature)=> feature.properties.folder === node.properties.folder))
-      const hasError = atomicGetMapUrl && Object.keys(mapLoading.errors).some((errorId) => {errorId.includes(atomicGetMapUrl?.url.href) })
-      hasError && console.log('hasError', hasError)
-      return hasError
+      const hasError = mapLoading.failedFeatures.some(feature => feature.properties.folder === node.properties.folder)
+      if (hasError) {
+        return mapLoading.errors.find(error => error.features?.some(feature => feature.properties.folder === node.properties.folder))?.message || ''
+      }
     }, [mapLoading.errors, node.properties.folder])
-
 
     const indeterminateVisibility = useMemo(() => {
       const mapOperations = owsContext
@@ -188,7 +184,15 @@ const TreeItemLabel = memo(
           />
         </Tooltip>
         <Box sx={{display:"flex", alignItems:"center"}} >
+          {hasError !== undefined ? 
+             <Tooltip
+                title={`Requesting Layer failed: ${hasError}`}
+              >
+            <Typography variant="body2" color='warning'>{node.properties.title}</Typography>
+          </Tooltip>:
           <Typography variant="body2">{node.properties.title}</Typography>
+        }
+         
         </Box>
       </Box>
 
@@ -282,6 +286,7 @@ const TreeViews = (
           onItemSelectionToggle={onItemSelectionToggle}
           expandedItems={expanded}
           //selectedItems={selectedItems.length > 0 ? selectedItems : null}
+          disableSelection
         >
           {renderTree(tree)}
         </SimpleTreeView>

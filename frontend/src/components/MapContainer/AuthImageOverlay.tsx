@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type L from 'leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ImageOverlay, ImageOverlayProps } from 'react-leaflet'
+import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 
 
@@ -10,9 +11,9 @@ export interface AuthOptions {
   credentials?: RequestCredentials
 }
 
-export interface AuthImageOverlayProps extends ImageOverlayProps{
+export interface AuthImageOverlayProps extends Partial<ImageOverlayProps>{
   bounds: L.LatLngBounds
-  url: string
+  optimiuedUrl: OptimizedUrlsMap
   interactive?: boolean
   auth?: AuthOptions | (() => AuthOptions) | Headers
 }
@@ -77,7 +78,7 @@ const getServiceExceptionMessage = (xml: string): string | undefined => {
 
 export const AuthImageOverlay = ({
   bounds,
-  url,
+  optimiuedUrl,
   interactive = true,
   auth,
   ...rest
@@ -88,12 +89,14 @@ export const AuthImageOverlay = ({
   const startedAt = useRef(performance.now())
 
   const authOptions = useMemo(()=>getAuthOptions(auth),[auth])
+  const url = optimiuedUrl.url.href
 
   const loadingId = `image:${url}`
 
   const { data, isFetching, error } = useQuery({
     queryKey: ['remoteImage', url, authOptions.headers, authOptions.credentials],
     retry: false,
+    retryOnMount: false,
     queryFn: async () => {
       const response = await fetch(url, {
         headers: authOptions.headers,
@@ -118,7 +121,11 @@ export const AuthImageOverlay = ({
     if (isFetching) {
       reportMapLoading(loadingId, 'loading')
     } else if (error) {
-      reportMapLoading(loadingId, 'error', error instanceof Error ? error.message : String(error), timing)
+      const mapError = {
+        message: error instanceof Error ? error.message : String(error),
+        features: optimiuedUrl.features
+      }
+      reportMapLoading(loadingId, 'error', mapError, timing)
     } else if (data) {
       reportMapLoading(loadingId, 'ready', undefined, timing)
     }
@@ -144,7 +151,6 @@ export const AuthImageOverlay = ({
 
 
   if (error) {
-    console.error('AuthImageOverlay error:', error)
     return null
   }
 

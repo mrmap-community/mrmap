@@ -280,7 +280,6 @@ export const parseWms = (xml: string): WmsCapabilitites => {
   parseWmsTimings.layerCount = parseLayerMetrics.count
   parseWmsTimings.parseLayerTotal = parseLayerMetrics.totalMs
   parseWmsTimings.total = performance.now() - totalStart
-  console.debug('parseWmsTimings', parseWmsTimings)
 
   return capabilities
 }

@@ -11,8 +11,6 @@ services:
         target: /dev/shm
         tmpfs:
           size: 134217728 # 128*2^20 bytes = 128Mb
-    networks:
-      - mrmap-internal
     environment:
       POSTGRES_USER: "${DB_USER:?Please configure DB_USER in the .env file}"
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
@@ -30,8 +28,6 @@ services:
       - type: volume
         source: mem-db-data
         target: /data
-    networks:
-      - mrmap-internal
     environment:
       - loglevel=error
     healthcheck:
@@ -64,8 +60,6 @@ services:
       - type: volume
         source: backend-import
         target: /var/mrmap/import
-    networks:
-      - mrmap-internal
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
@@ -112,8 +106,6 @@ services:
       - type: volume
         source: celery-state
         target: /var/run/celery
-    networks:
-      - mrmap-internal
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
@@ -161,8 +153,6 @@ services:
       - type: volume
         source: backend-import
         target: /var/mrmap/import
-    networks:
-      - mrmap-internal
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
@@ -205,8 +195,6 @@ services:
       - "${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}:80"
     depends_on:
       - backend
-    networks:
-      - mrmap-internal
     extra_hosts:
       - host.docker.internal:host-gateway
 
@@ -222,8 +210,6 @@ services:
       - type: volume 
         source: openobserve-data
         target: /data
-    networks:
-      - mrmap-internal
 
   pgadmin:
     image: dpage/pgadmin4:9.17
@@ -238,13 +224,9 @@ services:
       - type: bind
         source: ./docker/pgadmin/servers.json
         target: /pgadmin4/servers.json
-    networks:
-      - mrmap-internal    
   flower:
     image: mher/flower:2.0
     command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555", "--url_prefix=flower"]
-    networks:
-      - mrmap-internal
 
 volumes:
   frontend-static: null
@@ -258,6 +240,3 @@ volumes:
   db-data-18: null
   mem-db-data: null
   openobserve-data: null
-
-networks:
-  mrmap-internal: null

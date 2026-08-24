@@ -20,8 +20,6 @@ services:
       context: ./docker/inspire-validator
     ports:
       - "5557:8080"
-    networks:
-      - mrmap-internal
     extra_hosts:
       - host.docker.internal:host-gateway
 
@@ -38,8 +36,6 @@ services:
         target: /etc/mapserver/shapefiles
     ports:
       - "8090:80"
-    networks:
-      - mrmap-internal
 
   pre-commit-check:
     build:
@@ -61,8 +57,6 @@ services:
       - type: bind
         source: ./backend
         target: /opt/mrmap
-    networks:
-      - mrmap-internal
     env_file:
       - ./docker/backend/.mrmap.env
     depends_on:
@@ -86,8 +80,6 @@ services:
       - type: bind
         source: ./backend
         target: /opt/mrmap
-    networks:
-      - mrmap-internal
     env_file:
       - ./docker/backend/.mrmap.env
 
@@ -121,8 +113,6 @@ services:
       - type: bind
         source: ./backend
         target: /opt/mrmap
-    networks:
-      - mrmap-internal
     env_file:
       - ./docker/backend/.mrmap.env
     environment:

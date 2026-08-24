@@ -10,7 +10,6 @@ from django.db import models
 from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
                               OuterRef, QuerySet, Subquery)
 from django.db.models import Value as V
-from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
@@ -44,10 +43,11 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         lookup, identifiers = self.get_entity_identifiers(request=request)
         if not identifiers:
             return self.none()
-        # Build Q objects for each identifier (supports case-insensitive lookups like __iexact)
-        query = reduce(and_, [Q(**{lookup: identifier})
-                       for identifier in identifiers])
-        return self.filter(query)
+        # Build filter for each identifier (supports case-insensitive lookups like __iexact)
+        qs = self
+        for identifier in identifiers:
+            qs = qs.filter(**{lookup: identifier})
+        return qs.distinct()
 
     def for_user(self, service_pk, request: OGCRequest):
         """Filter operations allowed for the authenticated user and service.

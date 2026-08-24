@@ -12,6 +12,8 @@ import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
 
 
+const VIEWPORT_DEBOUNCE_MS = 300
+
 export interface Tile {
   leafletTile: ReactNode
   getMapUrl?: URL
@@ -155,10 +157,21 @@ const WebMapServiceControl = () => {
       setSize(map.getSize())
     }
 
+    let viewportUpdateTimeout: ReturnType<typeof setTimeout> | undefined
+    const scheduleViewportUpdate = () => {
+      if (viewportUpdateTimeout) {
+        clearTimeout(viewportUpdateTimeout)
+      }
+      viewportUpdateTimeout = setTimeout(updateBounds, VIEWPORT_DEBOUNCE_MS)
+    }
+
     updateBounds()
-    map.on('resize moveend zoomend', updateBounds)
+    map.on('viewreset moveend zoomend', scheduleViewportUpdate)
     return () => {
-      map.off('resize moveend zoomend', updateBounds)
+      map.off('viewreset moveend zoomend', scheduleViewportUpdate)
+      if (viewportUpdateTimeout) {
+        clearTimeout(viewportUpdateTimeout)
+      }
     }
   }, [map])
 

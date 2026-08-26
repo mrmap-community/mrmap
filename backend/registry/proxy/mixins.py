@@ -212,8 +212,8 @@ class OgcServiceProxyView(APIView):
             * service is active. If not return ``423 - Service is disabled.``
             * request query parameter is provided. If not return ``400 - Request param is missing``
         **Service is not secured condition**:
-            * service.is_secured == False ``OR``
-            * service.is_spatial_secured == False and service.is_user_principle_entitled == True ``OR``
+            * is_secured == False ``OR``
+            * is_spatial_secured == False and service.is_user_principle_entitled == True ``OR``
             * request query parameter not in ['GetMap', 'GetFeatureType', 'GetFeature']
             If one condition matches, return the response from the remote service.
         **Service is secured condition**:
@@ -228,12 +228,14 @@ class OgcServiceProxyView(APIView):
         :return: the computed response based on some principle decisions.
         :rtype: dict or :class:`requests.models.Request`
         """
+        is_secured = len(self.service.relevant_allowed_operations) > 0
+        is_spatial_secured = len(filter(
+            lambda ao: ao.allowed_area != None, self.service.relevant_allowed_operations)) > 0
+
         if self.ogc_request.is_get_capabilities_request:
             return self.get_capabilities()
         elif not self.service.is_active:
             raise Http423
-        # elif self.service.is_unknown_layer:
-        #     return LayerNotDefined()
         elif (
             self.ogc_request.operation.lower() not in SECURE_ABLE_OPERATIONS_LOWER
         ):
@@ -241,15 +243,14 @@ class OgcServiceProxyView(APIView):
             # is_spatial_secured, is_user_principle_entitled...
             return self.return_http_response(response=self.get_remote_response())
         elif (
-            not self.service.is_secured
-            or not self.service.is_spatial_secured
-            and self.service.is_user_principle_entitled
+            not is_secured
+            or not is_spatial_secured
+
         ):
             return self.return_http_response(response=self.get_remote_response())
         elif (
-            self.service.is_spatial_secured and self.service.is_user_principle_entitled
+            is_spatial_secured
         ):
-
             return self.secure_request()
 
         else:

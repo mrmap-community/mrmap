@@ -7,7 +7,7 @@ from queue import Queue
 from threading import Thread
 
 from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry, Polygon
+from django.contrib.gis.geos import GeometryCollection, GEOSGeometry, Polygon
 from django.core.exceptions import BadRequest, PermissionDenied
 from django.db import connection
 from django.utils.decorators import method_decorator
@@ -76,17 +76,16 @@ class WebMapServiceProxy(OgcServiceProxyView):
         draw = ImageDraw.Draw(mask)
 
         try:
-            geom: Polygon = self.service.allowed_area_union
-            if geom is None or geom.empty:
+            if self.geom is None or self.geom.empty:
                 return mask.convert("RGB")
 
             # Transform geometry to bbox SRID if needed
-            if geom.srid != request_bbox.srid:
-                geom = geom.transform(request_bbox.srid, clone=True)
+            if self.geom.srid != request_bbox.srid:
+                self.geom = self.geom.transform(request_bbox.srid, clone=True)
 
             # Clip allowed area to request bbox
-            geom = geom.intersection(request_bbox)
-            if geom.empty:
+            self.geom = self.geom.intersection(request_bbox)
+            if self.geom.empty:
                 return mask.convert("RGB")
 
             # Convert world coordinates to pixel coordinates
@@ -96,11 +95,12 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 return (px, py)
 
             # Draw exterior (allowed area = black)
-            exterior_coords = [world_to_pixel(x, y) for x, y in geom[0].coords]
+            exterior_coords = [world_to_pixel(x, y)
+                               for x, y in self.geom[0].coords]
             draw.polygon(exterior_coords, fill=0)
 
             # Draw interiors (holes) as white
-            for interior_ring in geom[1:]:
+            for interior_ring in self.geom[1:]:
                 hole_coords = [world_to_pixel(x, y)
                                for x, y in interior_ring.coords]
                 draw.polygon(hole_coords, fill=255)
@@ -211,6 +211,11 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
         return img
 
+    @cached_property
+    def service(self) -> OgcService:
+        # TODO: self.geom: Polygon = GeometryCollection(*self.service.relevant_allowed_operations).unary_union
+        pass
+
     def _image_to_bytes(self, image):
         out_bytes_stream = io.BytesIO()
         try:
@@ -260,58 +265,11 @@ class WebMapServiceProxy(OgcServiceProxyView):
             :rtype: dict
         """
 
-        # if not self.service.is_spatial_secured_and_intersects:
-        #     # TODO: return transparent image
-        #     get_params = self.remote_service.get_get_params(
-        #         query_params=self.request.query_parameters
-        #     )
-        #     width = int(get_params.get(self.remote_service.WIDTH_QP))
-        #     height = int(get_params.get(self.remote_service.HEIGHT_QP))
-        #     image = Image.new("RGBA", (width, height), (0, 0, 0))
-        #     image.format = 'png'
-        #     return self.return_http_response(
-        #         {
-        #             "status_code": 200,
-        #             "content": self._image_to_bytes(image=image),
-        #             "content-type": "image/png"
-        #         }
-        #     )
+        remote_response = self.get_remote_response()
+        mask = self._create_secured_service_mask()
+        self.geom: Polygon = GeometryCollection(
+            *self.service.relevant_allowed_operations).unary_union
 
-        # we fetch the map image as it is and mask it, using our secured operations geometry.
-        # To improve the performance here, we use a multithreaded approach, where the original map image and the
-        # mask are generated at the same time. This speed up the process by ~30%!
-        # TODO: secured_service_mask is now generated with PIL. Check if multithreading is still needed.
-        thread_list = []
-        results = Queue()
-        # to differ the results we return a dict for the remote response
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    {"response": self.get_remote_response()}, connection.close()
-                ),
-                args=(results,),
-            )
-        )
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    self._create_secured_service_mask(), connection.close()
-                ),
-                args=(results,),
-            )
-        )
-        execute_threads(thread_list)
-
-        # Since we have no idea which result will be on which position in the query
-        remote_response = None
-        mask = None
-        while not results.empty():
-            result = results.get()
-            if isinstance(result, dict):
-                # the img response!
-                remote_response = result.get("response")
-            else:
-                mask = result
         if isinstance(remote_response, dict):
             return self.return_http_response(response=remote_response)
         try:

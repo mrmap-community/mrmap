@@ -71,11 +71,10 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             .filter(_matched_count=len(identifiers))
         )
 
-    def filter_by_service_and_request(self, service_pk, request: OGCRequest):
+    def filter_by_request(self, request: OGCRequest):
         """Filter operations allowed for the authenticated user and service.
 
         Args:
-            service_pk: Primary key of the service
             request: OGCRequest object containing user and operation info
 
         Returns:
@@ -96,33 +95,6 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             .filter_by_requested_entity(request=request)
         )
 
-    def get_allowed_areas(self, service_pk, request: HttpRequest):
-        """Collect all allowed areas that are configured for all requested entities together.
-
-            Returns: The subset of allowed operations that for given user and requested entities.
-        """
-        return (
-            self.filter(allowed_area__isnull=False)
-            .filter_by_service_and_request(service_pk=service_pk, request=request)
-        )
-
-    def get_empty_allowed_areas(self, service_pk, request: HttpRequest):
-        return (
-            self.filter(allowed_area__isnull=True)
-            .filter_by_service_and_request(service_pk=service_pk, request=request)
-        )
-
-    def is_service_secured(self, service_pk) -> Exists:
-        return Exists(self.filter(secured_service__pk=service_pk))
-
-    def is_spatial_secured(self, service_pk, request: HttpRequest) -> ExpressionWrapper:
-        return ExpressionWrapper(
-            Exists(self.get_allowed_areas(
-                service_pk=service_pk, request=request))
-            & ~Exists(self.get_empty_allowed_areas(service_pk=service_pk, request=request)),
-            output_field=BooleanField(),
-        )
-
     def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
         """Check if the user of the request is entitled to access this service.
 
@@ -137,6 +109,21 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             Exists or Value expression indicating user entitlement
         """
         return Exists(self.filter_by_service_and_request(service_pk=service_pk, request=request))
+
+    def for_service(self, service_pk):
+        return self.filter(secured_service_id=service_pk)
+
+    def is_service_secured(self, service_pk) -> Exists:
+        return Exists(self.for_service(service_pk))
+
+    def is_service_spatial_secured(self, service_pk) -> ExpressionWrapper:
+        service_qs = self.for_service(service_pk)
+
+        return ExpressionWrapper(
+            Exists(service_qs)
+            & ~Exists(service_qs.filter(allowed_area__isnull=True)),
+            output_field=BooleanField(),
+        )
 
 
 class AllowedWebMapServiceOperationQuerySet(WebMapServiceQuerySet, AllowedOgcServiceOperationQuerySet):
@@ -160,35 +147,6 @@ class AllowedWebMapServiceOperationQuerySet(WebMapServiceQuerySet, AllowedOgcSer
                 secured_service__pk=service_pk,
                 allowed_area__intersects=request.bbox,
             )
-        )
-
-    def for_service(self, service_pk, request):
-        return self.filter_by_service_and_request(
-            service_pk=service_pk,
-            request=request
-        ).annotate(
-            # no longer needed, cause if the returned list is empty by the filter above,
-            # the service is not secured.
-            # is_secured=self.is_service_secured(
-            #    service_pk=service_pk
-            # ),
-            # we do it in python?
-            # is_spatial_secured=self.is_spatial_secured(
-            #    service_pk=service_pk, request=request
-            # ),
-            # if the list provides elements, the user is principle entitled
-            # so this is not needed
-            # is_user_principle_entitled=self.is_user_entitled(
-            #    service_pk=service_pk, request=request
-            # ),
-            # we do it in python?
-            # is_spatial_secured_and_covers=self.is_spatial_secured_and_covers(
-            #    service_pk=service_pk, request=request
-            # ),
-            # we do it in python?
-            # allowed_area_union=self.get_allowed_areas(
-            #    service_pk=service_pk, request=request
-            # ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom')
         )
 
 
@@ -233,8 +191,7 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
         else:
             allowed_operations_prefetch = Prefetch(
                 "allowed_operations",
-                queryset=self.get_allowed_operation_qs().filter_by_service_and_request(
-                    service_pk="dummy_tobe_removed",
+                queryset=self.get_allowed_operation_qs().filter_by_request(
                     request=request),
                 to_attr="relevant_allowed_operations"
             )
@@ -251,6 +208,10 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_layer=self.is_unknown_layer(
                         service_pk=OuterRef("pk"), request=request),
+                    is_secured=self.get_allowed_operation_qs(
+                    ).is_service_secured(OuterRef("pk")),
+                    is_spatial_secured=self.get_allowed_operation_qs(
+                    ).is_service_spatial_secured(OuterRef("pk")),
                 )
             )
 

@@ -228,9 +228,6 @@ class OgcServiceProxyView(APIView):
         :return: the computed response based on some principle decisions.
         :rtype: dict or :class:`requests.models.Request`
         """
-        is_secured = len(self.service.relevant_allowed_operations) > 0
-        is_spatial_secured = len(filter(
-            lambda ao: ao.allowed_area != None, self.service.relevant_allowed_operations)) > 0
 
         if self.ogc_request.is_get_capabilities_request:
             return self.get_capabilities()
@@ -242,17 +239,14 @@ class OgcServiceProxyView(APIView):
             # seperated from elif below, cause security.for_security_facade does not fill the fields like is_secured,
             # is_spatial_secured, is_user_principle_entitled...
             return self.return_http_response(response=self.get_remote_response())
-        elif (
-            not is_secured
-            or not is_spatial_secured
 
-        ):
+        if not self.service.is_secured:
             return self.return_http_response(response=self.get_remote_response())
         elif (
-            is_spatial_secured
+            (self.service.is_secured or
+             self.service.is_spatial_secured) and len(self.service.relevant_allowed_operations) > 0
         ):
             return self.secure_request()
-
         else:
             raise PermissionDenied
 

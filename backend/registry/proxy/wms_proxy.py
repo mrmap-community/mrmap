@@ -41,10 +41,6 @@ class WebMapServiceProxy(OgcServiceProxyView):
     service_version = "1.3.0"
 
     @property
-    def service(self) -> WebMapService:
-        return super().service
-
-    @property
     def remote_service(self) -> WebMapServiceClient:
         return super().remote_service
 
@@ -53,7 +49,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         Create a security mask for WMS GetMap using PIL.
         White (255) = masked/restricted
         Black (0) = allowed
-        Assumes self.service.allowed_area_union is always a Polygon.
+        Assumes self.geom is always a Polygon.
         Uses ogc_request.bbox as the clipping polygon (correct axis order).
         """
 
@@ -211,11 +207,6 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
         return img
 
-    @cached_property
-    def service(self) -> OgcService:
-        # TODO: self.geom: Polygon = GeometryCollection(*self.service.relevant_allowed_operations).unary_union
-        pass
-
     def _image_to_bytes(self, image):
         out_bytes_stream = io.BytesIO()
         try:
@@ -267,8 +258,6 @@ class WebMapServiceProxy(OgcServiceProxyView):
 
         remote_response = self.get_remote_response()
         mask = self._create_secured_service_mask()
-        self.geom: Polygon = GeometryCollection(
-            *self.service.relevant_allowed_operations).unary_union
 
         if isinstance(remote_response, dict):
             return self.return_http_response(response=remote_response)
@@ -349,8 +338,12 @@ class WebMapServiceProxy(OgcServiceProxyView):
         :return: the GetFeatureInfo response
         :rtype: :class:`request.models.Response` or dict if the request is not allowed.
         """
+        is_spatial_secured_and_covers = len(list(filter(
+            lambda ao: ao.allowed_area.covers(self.ogc_request.bbox),
+            self.service.relevant_allowed_operations
+        ))) > 0
 
-        if self.service.is_spatial_secured_and_covers:
+        if is_spatial_secured_and_covers:
             return self.return_http_response(response=self.get_remote_response())
         else:
             try:
@@ -378,7 +371,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 if axis_order_correction:
                     geometry = adjust_axis_order(geometry)
 
-                if self.service.allowed_area_union.contains(geometry.convex_hull):
+                if self.geom.contains(geometry.convex_hull):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
@@ -396,6 +389,12 @@ class WebMapServiceProxy(OgcServiceProxyView):
         :return: the correct handler function for the given request param.
         :rtype: function
         """
+        srid = self.service.relevant_allowed_operations[
+            0].allowed_area.srid if self.service.relevant_allowed_operations and not self.service.relevant_allowed_operations[0].allowed_area.empty else 4326
+        self.geom: Polygon = GeometryCollection(
+            *[aop.allowed_area for aop in self.service.relevant_allowed_operations],
+            srid=srid
+        ).unary_union
         if self.ogc_request.is_get_map_request:
             return self.handle_secured_get_map()
         elif self.ogc_request.is_get_feature_info_request:

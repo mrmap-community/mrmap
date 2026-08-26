@@ -559,11 +559,11 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": True,
         },
-        "django.db.backends": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
+        # "django.db.backends": {
+        #    "handlers": ["console"],
+        #    "level": "DEBUG",
+        #    "propagate": False,
+        # },
     },
 }
 try:

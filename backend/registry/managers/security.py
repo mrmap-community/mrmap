@@ -347,10 +347,18 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
                     data_type__in=GEOMETRY_DATA_TYPES
                 )[:1].values("name"))
             )
-
+            allowed_operations_prefetch = Prefetch(
+                "allowed_operations",
+                queryset=self.get_allowed_operation_qs().filter_by_request(
+                    request=request),
+                to_attr="relevant_allowed_operations"
+            )
             return (
                 qs
                 .select_related("auth")
+                .prefetch_related(
+                    allowed_operations_prefetch
+                )
                 .annotate(
                     camouflage=Coalesce(
                         F("proxy_setting__camouflage"), V(False)),
@@ -358,15 +366,10 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_feature_type=self.is_unknown_feature_type(
                         service_pk=OuterRef("pk"), feature_types=request.requested_entities),
-                    is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
-                    is_secured=self.get_allowed_operation_qs().is_service_secured(
-                        service_pk=OuterRef("pk")
-                    ),
-                    is_user_principle_entitled=self.get_allowed_operation_qs().is_user_entitled(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
+                    is_secured=self.get_allowed_operation_qs(
+                    ).is_service_secured(OuterRef("pk")),
+                    is_spatial_secured=self.get_allowed_operation_qs(
+                    ).is_service_spatial_secured(OuterRef("pk")),
                     security_info_per_feature_type=ArraySubquery(
                         security_info.values(json=JSONObject(
                             type_name=F("identifier"),

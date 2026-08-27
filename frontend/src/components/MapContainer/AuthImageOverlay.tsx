@@ -99,8 +99,8 @@ export const AuthImageOverlay = ({
     retryOnMount: false,
     queryFn: async () => {
       const response = await fetch(url, {
-        headers: authOptions.headers,
-        credentials: authOptions.credentials
+        ...(authOptions.headers && { headers: authOptions.headers }),
+        ...(authOptions.credentials && { credentials: authOptions.credentials }),
       })
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)

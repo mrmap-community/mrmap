@@ -3,18 +3,23 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
 import { IconButton, List, ListItem } from '@mui/material';
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import MenuList from '@mui/material/MenuList';
+import proj4 from 'proj4';
 import { useMemo } from "react";
+import { Authentication } from '../../ows-lib/OwsContext/contrib';
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
 import { useDialogContextBase } from '../Dialog/DialogContextBase';
+import { useMapViewerBase } from '../MapViewer/MapViewerBase';
 import { useContextMenuBase } from "./ContextMenuBase";
 
 
 const ManageAuthenticationItem = () => {
   const { owsContext } = useOwsContextBase()
-  const { open, close } = useDialogContextBase()
+  const { open } = useDialogContextBase()
   const { node } = useContextMenuBase()
 
   const feature = useMemo(()=> {
@@ -24,10 +29,16 @@ const ManageAuthenticationItem = () => {
   feature?.getWmsOperationByCode("GetCapabilities")?.authenticationId
   feature?.getWmsOperationByCode("GetMap")?.authenticationId
 
+  const authHeaders: Authentication[] = Array.isArray(owsContext.authenticationHeaders) 
+      ? owsContext.authenticationHeaders
+      : []
+
   const content = useMemo(()=>{
     return (
       <List>
-        {owsContext.authentications.map(authentication => {
+        {
+        
+        authHeaders?.map((authenticationHeader) => {
           return <ListItem
             secondaryAction={
               <IconButton edge="end" aria-label="delete">
@@ -35,14 +46,18 @@ const ManageAuthenticationItem = () => {
               </IconButton>
             }
             >
-              {authentication.id}
-              {authentication.type}
+              {authenticationHeader.id}
+              {authenticationHeader.name}
+              {authenticationHeader.value}
             </ListItem>
         })}
       </List>
     )
 
   },[owsContext])
+
+  if (authHeaders.length < 1)
+    {return}
 
   return (
     <MenuItem
@@ -56,9 +71,68 @@ const ManageAuthenticationItem = () => {
 }
 
 
+const ZoomToLayerItem = () => {
+  const { owsContext } = useOwsContextBase()
+  const { map } = useMapViewerBase()
+  const { node, close } = useContextMenuBase()
+
+  const feature = node?.properties?.folder
+    ? owsContext.findResourceByFolder(node.properties.folder)
+    : undefined
+
+  if (!feature?.bbox || feature.bbox.length !== 4) {
+    return null
+  }
+
+  return (
+    <MenuItem
+      onClick={() => {
+        const [minX, minY, maxX, maxY] = feature.bbox as [
+          number,
+          number,
+          number,
+          number
+        ]
+
+        const layerCrs = 'EPSG:4326' // feature.properties.referenceSystems?.[0] ?? referenceSystems per layer are not implemented yet
+
+        let sw: [number, number]
+        let ne: [number, number]
+
+        if (layerCrs === 'EPSG:4326') {
+          sw = [minY, minX]
+          ne = [maxY, maxX]
+        } else {
+          const projection = proj4(layerCrs, 'EPSG:4326')
+
+          const [swLng, swLat] = projection.forward([minX, minY])
+          const [neLng, neLat] = projection.forward([maxX, maxY])
+
+          sw = [swLat, swLng]
+          ne = [neLat, neLng]
+        }
+        map?.flyToBounds(
+          [sw, ne],
+          {
+            padding: [20, 20],
+            maxZoom: 12,
+            duration: 1,
+            animate: false,
+
+          }
+        )
+
+        close()
+      }}
+    >
+      <SearchIcon fontSize="small" />
+      Zoom to layer
+    </MenuItem>
+  )
+}
+
 const MenuItems = () => {
-  const { owsContext, moveFeature } = useOwsContextBase()
-  
+  const { owsContext } = useOwsContextBase()
   const { node } = useContextMenuBase()
 
   const feature = useMemo(()=> {
@@ -68,25 +142,25 @@ const MenuItems = () => {
   if (node === undefined || feature === undefined) return null
 
   return (
-    <div>
+    <MenuList
+    >
       {!feature?.isRootNode() ? <MenuItem
         onClick={() => {
           console.log("move up:", node );
-          
         }}
       >
         <ArrowUpwardIcon fontSize="small"/> move up
-      </MenuItem> : <div></div>}
-      {node?.children.length > 0 ? <MenuItem
+      </MenuItem> : null}
+      {node?.children?.length ?? 0 > 0 ? <MenuItem
         onClick={() => {
           console.log("move down:", node );
-          
         }}
       >
         <ArrowDownwardIcon fontSize="small"/> move down
-      </MenuItem> : <div></div>}
+      </MenuItem> : null}
       <ManageAuthenticationItem/>
-    </div>
+      <ZoomToLayerItem/>
+    </MenuList>
   )
 }
 

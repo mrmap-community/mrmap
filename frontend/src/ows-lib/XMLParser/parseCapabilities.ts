@@ -4,6 +4,8 @@ import moment from 'moment'
 import { ElevationDimension, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
 import { getDocument } from './utils'
 
+
+
 const getChild = (parent: Element | Document | undefined, localName: string): Element | undefined => {
   if (!parent) return undefined
   return Array.from(parent.childNodes).find((node): node is Element => {
@@ -46,30 +48,65 @@ const parseLayerMetrics = {
   totalMs: 0
 }
 
-export const layerBboxToGeoJSON = (bboxElement: Element | undefined): Polygon[] | undefined => {
-  if (!bboxElement) {
+export const getExtentFromPolygonBbox = (
+  bbox: Polygon[] | undefined,
+  inherited?: [number, number, number, number]
+): [number, number, number, number] | undefined => {
+  if (!bbox || bbox.length === 0) {
+    return inherited
+  }
+
+  const coords = bbox[0].coordinates?.[0] as [number, number][] | undefined
+  if (!coords || coords.length < 4) {
+    return inherited
+  }
+
+  const xs = coords.map(([x]) => x)
+  const ys = coords.map(([, y]) => y)
+
+  return [
+    Math.min(...xs),
+    Math.min(...ys),
+    Math.max(...xs),
+    Math.max(...ys),
+  ]
+}
+
+export const getLayerBoundsFromBbox = (
+  bboxElement: Element | undefined
+): [number, number, number, number] | undefined => {
+  if (!bboxElement) return undefined
+
+  const west = Number(getText(bboxElement, 'westBoundLongitude'))
+  const south = Number(getText(bboxElement, 'southBoundLatitude'))
+  const east = Number(getText(bboxElement, 'eastBoundLongitude'))
+  const north = Number(getText(bboxElement, 'northBoundLatitude'))
+
+  if ([west, south, east, north].some(value => !Number.isFinite(value))) {
     return undefined
   }
 
-  const west = getText(bboxElement, 'westBoundLongitude')
-  const south = getText(bboxElement, 'southBoundLatitude')
-  const east = getText(bboxElement, 'eastBoundLongitude')
-  const north = getText(bboxElement, 'northBoundLatitude')
+  return [west, south, east, north]
+}
 
-  if (!west || !south || !east || !north) {
-    return undefined
-  }
+export const layerBboxToGeoJSON = (
+  bboxElement: Element | undefined
+): Polygon[] | undefined => {
+  const bounds = getLayerBoundsFromBbox(bboxElement)
+  if (!bounds) return undefined
+
+  const [west, south, east, north] = bounds
 
   return [{
     type: 'Polygon',
-    coordinates: [
-      [Number(west), Number(south)],
-      [Number(east), Number(south)],
-      [Number(east), Number(north)],
-      [Number(west), Number(north)],
-      [Number(west), Number(south)]
-    ] as unknown as Polygon['coordinates']
-  } as unknown as Polygon]
+    coordinates: [[
+      [west, south],
+      [east, south],
+      [east, north],
+      [west, north],
+      [west, south]
+    ]]
+  }] as unknown as Polygon[]
 }
 
 export const parseTimeDimension = (timeDimension: Element): TimeDimension | undefined => {
@@ -147,7 +184,10 @@ export const forceArray = <T>(obj: T | T[] | undefined): T[] => {
   return Array.isArray(obj) ? obj : [obj]
 }
 
-export const parseLayer = (layer: Element): WmsLayer => {
+export const parseLayer = (
+  layer: Element,
+  inheritedExtent?: [number, number, number, number]
+): WmsLayer => {
   const layerStart = performance.now()
   parseLayerMetrics.count += 1
 
@@ -194,6 +234,9 @@ export const parseLayer = (layer: Element): WmsLayer => {
         break
     }
   }
+  
+  const rawBbox = bboxElement ? layerBboxToGeoJSON(bboxElement) : undefined
+  const effectiveExtent = getExtentFromPolygonBbox(rawBbox, inheritedExtent)
 
   const crs = srsValues.length > 0 ? srsValues : crsValues
   const isQueryable = getAttribute(layer, 'queryable')
@@ -208,7 +251,7 @@ export const parseLayer = (layer: Element): WmsLayer => {
     },
     ...(crs.length > 0 && { referenceSystems: crs }),
     ...(dimensions.length > 0 && { dimension: dimensions }),
-    ...(bboxElement ? { bbox: layerBboxToGeoJSON(bboxElement) } : {}),
+    ...(effectiveExtent && { bbox: effectiveExtent }),
     ...(styles.length > 0 && { styles }),
     ...(minScaleDenominator ? { minScaleDenominator: Number(minScaleDenominator) } : {}),
     ...(maxScaleDenominator ? { maxScaleDenominator: Number(maxScaleDenominator) } : {}),
@@ -217,8 +260,9 @@ export const parseLayer = (layer: Element): WmsLayer => {
     ...(isCascaded ? { isCascaded: Boolean(Number(isCascaded)) } : {})
   }
 
+
   if (sublayers.length > 0) {
-    layerObj.children = sublayers.map(parseLayer)
+    layerObj.children = sublayers.map(child => parseLayer(child, effectiveExtent))
   }
 
   parseLayerMetrics.totalMs += performance.now() - layerStart

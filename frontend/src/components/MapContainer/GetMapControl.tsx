@@ -56,7 +56,7 @@ const WebMapServiceControl = () => {
     
     const headerInit :any = {}
     headerInit[authHeader?.name] = authHeader?.value
-    return headerInit && new Headers(headerInit)
+    return authHeader && new Headers(headerInit)
     
   }
 

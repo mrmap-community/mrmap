@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Button, ButtonProps, RaRecord, useGetOne, useRecordContext } from 'react-admin';
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
+import { Authentication } from '../../../ows-lib/OwsContext/contrib';
 import { OWSContext } from '../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
 import { getAuthToken } from '../../../providers/authProvider';
@@ -36,9 +37,10 @@ const MapViewerButton = (
 
   const [clicked, setClicked] = useState(false)
 
-  const authHeader = useMemo(()=>(
+  const authHeader = useMemo<Authentication | undefined>(()=>(
     getCapaibilitesUrl && new URL(getCapaibilitesUrl).hostname === window.location.hostname ? {
       id: uuidv4(),
+      type: "header",
       name: "Authorization",
       value: `Token ${getAuthToken()?.token}`,
     } : undefined
@@ -69,7 +71,7 @@ const MapViewerButton = (
 
   const beforeSetHook = useCallback((context: OWSContext, treeId: number)=>{
     if (authHeader !== undefined) {
-      const authHeaders = Array.isArray(context.authenticationHeaders)
+      const authHeaders = Array.isArray(context.authenticationHeaders) 
       ? context.authenticationHeaders
       : []
       context.authenticationHeaders = authHeaders

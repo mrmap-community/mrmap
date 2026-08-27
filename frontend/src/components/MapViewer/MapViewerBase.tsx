@@ -14,6 +14,7 @@ export interface CRS {
   isXyOrder: boolean
   wkt: string
 }
+type SetMapRef = (instance: Map | null) => void
 
 export type MapLoadingStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -39,7 +40,7 @@ export interface MapRequest {
 
 export interface MapViewerBaseType {
   map?: Map
-  setMap: Dispatch<SetStateAction<Map | undefined>>
+  setMap: SetMapRef
   selectedCrs: CRS
   setSelectedCrs: Dispatch<SetStateAction<CRS>>
   featureCollection: string | undefined
@@ -68,12 +69,16 @@ export const context = createContext<MapViewerBaseType | undefined>(undefined)
 export const MapViewerBase = ({children}: PropsWithChildren): ReactNode => {
   const { owsContext } = useOwsContextBase()
 
-  const [map, setMap] = useState<Map>()
+  const [map, setMapState] = useState<Map>()
   const [position, setPosition] = useState(() => map?.getCenter())
   const [bounds, setBounds] = useState(() => map?.getBounds())
   const [mapRequests, setMapRequests] = useState<Record<string, MapRequest>>({})
-
   const [selectedCrs, setSelectedCrs] = useState<CRS>({stringRepresentation: 'EPSG:4326', isXyOrder: false, wkt: 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]'})
+
+  const setMap: SetMapRef = useCallback((instance) => {
+    setMapState(instance ?? undefined)
+  }, [])
+
 
   const positionGeoJSON = useMemo(()=>{
     return position ? latLngToGeoJSON(position): undefined

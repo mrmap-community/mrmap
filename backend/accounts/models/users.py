@@ -47,7 +47,8 @@ class User(AbstractUser):
         verbose_name_plural = _('Users')
 
     def __str__(self):
-        return f"{self.username} ({self.first_name}, {self.last_name})"
+        full_name = " ".join(filter(None, (self.first_name, self.last_name)))
+        return f"{self.username} ({full_name})" if full_name else self.username
 
     def natural_key(self):
         return (self.username,)

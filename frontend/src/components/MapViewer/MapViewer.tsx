@@ -1,9 +1,9 @@
-import { useId, useState, type PropsWithChildren, type ReactNode } from 'react'
+import { useId, type PropsWithChildren, type ReactNode } from 'react'
 import { type SimpleShowLayoutProps } from 'react-admin'
 import { MapContainer, ScaleControl } from 'react-leaflet'
 
 import { Box, Divider, Stack } from '@mui/material'
-import { CRS, type Map } from 'leaflet'
+import { CRS } from 'leaflet'
 
 import ListGuesser from '../../jsonapi/components/ListGuesser'
 import BottomDrawer from '../Drawer/BottomDrawer'
@@ -14,7 +14,7 @@ import WebMapServiceControl from '../MapContainer/GetMapControl'
 import { TabListBase } from '../Tab/TabListContext'
 import { Tabs } from '../Tab/Tabs'
 import MapSettingsEditor from './MapSettings'
-import { MapViewerBase } from './MapViewerBase'
+import { MapViewerBase, useMapViewerBase } from './MapViewerBase'
 import { OwsContextActionButtons } from './OwsContextGuiActions/OwsContextActionButtons'
 import StatusBar from './StatusBar'
 
@@ -35,7 +35,7 @@ export interface Tile {
 
 const MapViewerCore = (): ReactNode => {
   const containerId = useId()
-  const [map, setMap] = useState<Map>()
+  const {map, setMap} = useMapViewerBase()
   
   return (
       <DrawerBase>
@@ -49,7 +49,6 @@ const MapViewerCore = (): ReactNode => {
               maxZoom={20}
               minZoom={0}
               maxBoundsViscosity={0.8}
-              continuousWorld={true}
               scrollWheelZoom={true}
               style={{
                 flex: 1, height: '100%', width: '100%', position: 'relative'

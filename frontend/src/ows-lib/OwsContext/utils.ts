@@ -83,9 +83,9 @@ export const prepareGetFeatureInfoUrl = (
 
 export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCapabilitites, node: WmsLayer, folder: string): OWSResource => {
     const getFeatureInfoUrl = prepareGetFeatureInfoUrl(capabilities, node)
-
     return OWSResource.fromPlainObject({
         type: "Feature",
+        bbox: node.bbox,
         properties: {
             title: node.metadata.title,
             updated: new Date().toISOString(),
@@ -124,7 +124,7 @@ export const layerToFeature = (getCapabilitiesHref: string, capabilities: WmsCap
                     }),
                 }],
                 ...(node.minScaleDenominator && { minscaledenominator: node.minScaleDenominator }),
-                ...(node.maxScaleDenominator && { maxscaledenominator: node.maxScaleDenominator })
+                ...(node.maxScaleDenominator && { maxscaledenominator: node.maxScaleDenominator }),
             }),
             folder: folder
         }
@@ -154,7 +154,7 @@ export const deflatLayerTree = (
     return features
 }
 
-export const wmsToOWSResources = (href: string, capabilities: WmsCapabilitites, treeId: number = 0): IOWSResource[] => {
+export const wmsToOWSResources = (href: string, capabilities: WmsCapabilitites, treeId: number = 0): OWSResource[] => {
     return deflatLayerTree(
         href,
         [],

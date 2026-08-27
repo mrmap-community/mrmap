@@ -50,7 +50,8 @@ export interface Style {
 export interface WmsLayer {
     metadata: Metadata
     referenceSystems?: string[]
-    bbox?: Polygon[]
+    bbox?: [number, number, number, number]
+    bboxBounds?: [number, number, number, number]
     dimension?: (TimeDimension | TempDimension | ElevationDimension)[]
     children?: WmsLayer[]
     parent?: WmsLayer

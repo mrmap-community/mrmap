@@ -176,7 +176,7 @@ export class OWSContext implements IOWSContext {
     const treeId = this.getNextRootId()
 
     const additionalFeatures = wmsToOWSResources(url.href, parsedWms, treeId).map(
-      resource => new OWSResource(resource.properties)
+      resource => new OWSResource(resource.properties, resource.id, resource.bbox, resource.geometry, resource.children)
     )
 
     this.features.push(...additionalFeatures)

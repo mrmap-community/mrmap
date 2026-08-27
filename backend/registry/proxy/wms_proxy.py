@@ -47,63 +47,147 @@ class WebMapServiceProxy(OgcServiceProxyView):
     def _create_secured_service_mask(self):
         """
         Create a security mask for WMS GetMap using PIL.
-        White (255) = masked/restricted
+
+        White (255) = masked / restricted
         Black (0) = allowed
-        Assumes self.geom is always a Polygon.
-        Uses ogc_request.bbox as the clipping polygon (correct axis order).
+
+        The requested bbox is used as clipping geometry and for
+        world-to-pixel transformation.
+
+        Supports Polygon, MultiPolygon and GeometryCollection results
+        after clipping. Non-area geometries are ignored.
         """
 
         width = int(self.ogc_request.ogc_query_params["WIDTH"])
         height = int(self.ogc_request.ogc_query_params["HEIGHT"])
 
-        # Get the requested bbox polygon (already a GEOSGeometry)
         request_bbox: GEOSGeometry = self.ogc_request.bbox
 
-        if request_bbox.empty:
-            # fallback to fully masked if bbox is missing
-            return Image.new("RGB", (width, height), (255, 255, 255))
+        # Fail closed: everything is restricted by default.
+        mask = Image.new("L", (width, height), 255)
 
-        # Get bounds for world->pixel conversion
-        # (xmin, ymin, xmax, ymax)
+        if request_bbox is None or request_bbox.empty:
+            return mask.convert("RGB")
+
         minx, miny, maxx, maxy = request_bbox.extent
 
-        # Fully masked by default
-        mask = Image.new("L", (width, height), 255)
-        draw = ImageDraw.Draw(mask)
+        # Prevent division by zero for degenerate bboxes.
+        if maxx == minx or maxy == miny:
+            return mask.convert("RGB")
 
         try:
-            if self.geom is None or self.geom.empty:
+            geom = self.geom
+
+            if geom is None or geom.empty:
                 return mask.convert("RGB")
 
-            # Transform geometry to bbox SRID if needed
-            if self.geom.srid != request_bbox.srid:
-                self.geom = self.geom.transform(request_bbox.srid, clone=True)
+            # Transform allowed geometry into the CRS of the request bbox.
+            if geom.srid != request_bbox.srid:
+                geom = geom.transform(
+                    request_bbox.srid,
+                    clone=True,
+                )
 
-            # Clip allowed area to request bbox
-            self.geom = self.geom.intersection(request_bbox)
-            if self.geom.empty:
+            # Clip the allowed geometry to the requested extent.
+            geom = geom.intersection(request_bbox)
+
+            if geom.empty:
                 return mask.convert("RGB")
 
-            # Convert world coordinates to pixel coordinates
-            def world_to_pixel(x, y):
+            draw = ImageDraw.Draw(mask)
+
+            def world_to_pixel(coord):
+                """
+                Convert a GEOS coordinate into image coordinates.
+
+                coord may be:
+                    (x, y)
+                    (x, y, z)
+                """
+                x, y = coord[:2]
+
                 px = (x - minx) / (maxx - minx) * width
-                py = height - (y - miny) / (maxy - miny) * height  # flip Y
-                return (px, py)
+                py = height - (
+                    (y - miny) / (maxy - miny) * height
+                )
 
-            # Draw exterior (allowed area = black)
-            exterior_coords = [world_to_pixel(x, y)
-                               for x, y in self.geom[0].coords]
-            draw.polygon(exterior_coords, fill=0)
+                return px, py
 
-            # Draw interiors (holes) as white
-            for interior_ring in self.geom[1:]:
-                hole_coords = [world_to_pixel(x, y)
-                               for x, y in interior_ring.coords]
-                draw.polygon(hole_coords, fill=255)
+            def ring_to_pixels(ring):
+                return [
+                    world_to_pixel(coord)
+                    for coord in ring.coords
+                ]
 
-        except Exception as e:
-            logging.exception("Error creating secured mask: %s", e)
-            mask = Image.new("L", (width, height), 255)
+            def draw_polygon(polygon):
+                """
+                Draw one polygon.
+
+                Exterior:
+                    allowed -> black
+
+                Interior rings / holes:
+                    restricted -> white
+                """
+
+                # polygon[0] is the exterior ring
+                exterior = ring_to_pixels(polygon[0])
+
+                if len(exterior) >= 3:
+                    draw.polygon(
+                        exterior,
+                        fill=0,
+                    )
+
+                # polygon[1:] are interior rings / holes
+                for interior_ring in polygon[1:]:
+                    hole = ring_to_pixels(interior_ring)
+
+                    if len(hole) >= 3:
+                        draw.polygon(
+                            hole,
+                            fill=255,
+                        )
+
+            def draw_geometry(geometry):
+                """
+                Recursively draw all polygonal components.
+
+                intersection() may return:
+                    Polygon
+                    MultiPolygon
+                    GeometryCollection
+
+                Points and lines are ignored because they have no area
+                in the resulting mask.
+                """
+
+                if geometry is None or geometry.empty:
+                    return
+
+                if geometry.geom_type == "Polygon":
+                    draw_polygon(geometry)
+
+                elif geometry.geom_type in (
+                    "MultiPolygon",
+                    "GeometryCollection",
+                ):
+                    for child in geometry:
+                        draw_geometry(child)
+
+            draw_geometry(geom)
+
+        except Exception:
+            logging.exception(
+                "Error creating secured service mask"
+            )
+
+            # Fail closed in case anything goes wrong.
+            mask = Image.new(
+                "L",
+                (width, height),
+                255,
+            )
 
         return mask.convert("RGB")
 

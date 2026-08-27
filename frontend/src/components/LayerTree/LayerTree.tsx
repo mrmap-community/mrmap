@@ -20,6 +20,7 @@ import { ContextMenuBase } from './ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
 
 import { v4 as uuidv4 } from 'uuid'
+import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 
 
 
@@ -64,7 +65,15 @@ const TreeItemLabel = memo(
     node
   }: TreeItemLabelProps) => {
     const layerProperties = node?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-properties"] as LayerProperties | undefined;
-    const {  owsContext, setOwsContext } = useOwsContextBase()
+    const {  owsContext, setOwsContext} = useOwsContextBase()
+    const { mapLoading } = useMapViewerBase()
+
+    const hasError = useMemo(()=>{
+      const hasError = mapLoading.failedFeatures.some(feature => feature.properties.folder === node.properties.folder)
+      if (hasError) {
+        return mapLoading.errors.find(error => error.features?.some(feature => feature.properties.folder === node.properties.folder))?.message || ''
+      }
+    }, [mapLoading.errors, node.properties.folder])
 
     const indeterminateVisibility = useMemo(() => {
       const mapOperations = owsContext
@@ -142,52 +151,57 @@ const TreeItemLabel = memo(
 
 
     return (
-      <Stack sx={{direction:"row", justifyContent:"space-between", alignItems:"center"}}>
-        <Box sx={{display:"flex", alignItems:"center"}} >
+      <Stack direction="row" sx={{ justifyContent: "flex-start", }}>
+        <Box sx={{display:"flex", alignItems:"flex-start"}} >
          <Tooltip title="Toggle the visibility of this service">
           <Checkbox
             size="small"
             disableRipple
-          sx={{
-            p: 0.25,
-            mr: 0.25,
-            
-          }}
-          onClick={(event)  => event.stopPropagation()}
-          checked={node?.getWmsOperationByCode("GetMap")?.active as boolean ?? false}
-          indeterminate={indeterminateVisibility}
-          onChange={toggle('GetMap')}
-        />
+            sx={{
+              p: 0.25,
+              mr: 0.25,
+              
+            }}
+            onClick={(event)  => event.stopPropagation()}
+            checked={node?.getWmsOperationByCode("GetMap")?.active as boolean ?? false}
+            indeterminate={indeterminateVisibility}
+            onChange={toggle('GetMap')}
+          />
         </Tooltip>
-               <Tooltip title="Toggle the queryability of this service">
-
-        <Checkbox
-          size="small"
-          disableRipple
-          sx={{
-            p: 0.25,
-            mr: 0.25,
-            
-          }}
-          onClick={(event)  => event.stopPropagation()}
-          checked={node?.getWmsOperationByCode("GetFeatureInfo")?.active as boolean ?? false}
-          indeterminate={indeterminateQueryability}
-          onChange={toggle('GetFeatureInfo')}
-          disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
-        />
+        <Tooltip title="Toggle the queryability of this service">
+          <Checkbox
+            size="small"
+            disableRipple
+            sx={{
+              p: 0.25,
+              mr: 0.25,
+            }}
+            onClick={(event)  => event.stopPropagation()}
+            checked={node?.getWmsOperationByCode("GetFeatureInfo")?.active as boolean ?? false}
+            indeterminate={indeterminateQueryability}
+            onChange={toggle('GetFeatureInfo')}
+            disabled={node.getWmsOffering()?.operations?.find(op => op.code === 'GetFeatureInfo') === undefined}
+          />
         </Tooltip>
         <Box sx={{display:"flex", alignItems:"center"}} >
- 
+          {hasError !== undefined ? 
+             <Tooltip
+                title={`Requesting Layer failed: ${hasError}`}
+              >
+            <Typography variant="body2" color='warning'>{node.properties.title}</Typography>
+          </Tooltip>:
           <Typography variant="body2">{node.properties.title}</Typography>
+        }
+         
         </Box>
       </Box>
 
-      <Box>
+      <Stack direction="row" sx={{ justifyContent: "flex-end", alignItems:"center", ml: "auto"}}>
         <NodeIcons
           isActive={layerProperties?.isActive}
           isSpatialSecured={layerProperties?.isSpatialSecured}
         />
-      </Box>
+      </Stack>
     </Stack>
     )
   }
@@ -272,6 +286,7 @@ const TreeViews = (
           onItemSelectionToggle={onItemSelectionToggle}
           expandedItems={expanded}
           //selectedItems={selectedItems.length > 0 ? selectedItems : null}
+          disableSelection
         >
           {renderTree(tree)}
         </SimpleTreeView>

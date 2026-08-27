@@ -7,7 +7,7 @@ from queue import Queue
 from threading import Thread
 
 from django.conf import settings
-from django.contrib.gis.geos import GEOSGeometry, Polygon
+from django.contrib.gis.geos import GeometryCollection, GEOSGeometry, Polygon
 from django.core.exceptions import BadRequest, PermissionDenied
 from django.db import connection
 from django.utils.decorators import method_decorator
@@ -41,73 +41,153 @@ class WebMapServiceProxy(OgcServiceProxyView):
     service_version = "1.3.0"
 
     @property
-    def service(self) -> WebMapService:
-        return super().service
-
-    @property
     def remote_service(self) -> WebMapServiceClient:
         return super().remote_service
 
     def _create_secured_service_mask(self):
         """
         Create a security mask for WMS GetMap using PIL.
-        White (255) = masked/restricted
+
+        White (255) = masked / restricted
         Black (0) = allowed
-        Assumes self.service.allowed_area_union is always a Polygon.
-        Uses ogc_request.bbox as the clipping polygon (correct axis order).
+
+        The requested bbox is used as clipping geometry and for
+        world-to-pixel transformation.
+
+        Supports Polygon, MultiPolygon and GeometryCollection results
+        after clipping. Non-area geometries are ignored.
         """
 
         width = int(self.ogc_request.ogc_query_params["WIDTH"])
         height = int(self.ogc_request.ogc_query_params["HEIGHT"])
 
-        # Get the requested bbox polygon (already a GEOSGeometry)
         request_bbox: GEOSGeometry = self.ogc_request.bbox
 
-        if request_bbox.empty:
-            # fallback to fully masked if bbox is missing
-            return Image.new("RGB", (width, height), (255, 255, 255))
+        # Fail closed: everything is restricted by default.
+        mask = Image.new("L", (width, height), 255)
 
-        # Get bounds for world->pixel conversion
-        # (xmin, ymin, xmax, ymax)
+        if request_bbox is None or request_bbox.empty:
+            return mask.convert("RGB")
+
         minx, miny, maxx, maxy = request_bbox.extent
 
-        # Fully masked by default
-        mask = Image.new("L", (width, height), 255)
-        draw = ImageDraw.Draw(mask)
+        # Prevent division by zero for degenerate bboxes.
+        if maxx == minx or maxy == miny:
+            return mask.convert("RGB")
 
         try:
-            geom: Polygon = self.service.allowed_area_union
+            geom = self.geom
+
             if geom is None or geom.empty:
                 return mask.convert("RGB")
 
-            # Transform geometry to bbox SRID if needed
+            # Transform allowed geometry into the CRS of the request bbox.
             if geom.srid != request_bbox.srid:
-                geom = geom.transform(request_bbox.srid, clone=True)
+                geom = geom.transform(
+                    request_bbox.srid,
+                    clone=True,
+                )
 
-            # Clip allowed area to request bbox
+            # Clip the allowed geometry to the requested extent.
             geom = geom.intersection(request_bbox)
+
             if geom.empty:
                 return mask.convert("RGB")
 
-            # Convert world coordinates to pixel coordinates
-            def world_to_pixel(x, y):
+            draw = ImageDraw.Draw(mask)
+
+            def world_to_pixel(coord):
+                """
+                Convert a GEOS coordinate into image coordinates.
+
+                coord may be:
+                    (x, y)
+                    (x, y, z)
+                """
+                x, y = coord[:2]
+
                 px = (x - minx) / (maxx - minx) * width
-                py = height - (y - miny) / (maxy - miny) * height  # flip Y
-                return (px, py)
+                py = height - (
+                    (y - miny) / (maxy - miny) * height
+                )
 
-            # Draw exterior (allowed area = black)
-            exterior_coords = [world_to_pixel(x, y) for x, y in geom[0].coords]
-            draw.polygon(exterior_coords, fill=0)
+                return px, py
 
-            # Draw interiors (holes) as white
-            for interior_ring in geom[1:]:
-                hole_coords = [world_to_pixel(x, y)
-                               for x, y in interior_ring.coords]
-                draw.polygon(hole_coords, fill=255)
+            def ring_to_pixels(ring):
+                return [
+                    world_to_pixel(coord)
+                    for coord in ring.coords
+                ]
 
-        except Exception as e:
-            logging.exception("Error creating secured mask: %s", e)
-            mask = Image.new("L", (width, height), 255)
+            def draw_polygon(polygon):
+                """
+                Draw one polygon.
+
+                Exterior:
+                    allowed -> black
+
+                Interior rings / holes:
+                    restricted -> white
+                """
+
+                # polygon[0] is the exterior ring
+                exterior = ring_to_pixels(polygon[0])
+
+                if len(exterior) >= 3:
+                    draw.polygon(
+                        exterior,
+                        fill=0,
+                    )
+
+                # polygon[1:] are interior rings / holes
+                for interior_ring in polygon[1:]:
+                    hole = ring_to_pixels(interior_ring)
+
+                    if len(hole) >= 3:
+                        draw.polygon(
+                            hole,
+                            fill=255,
+                        )
+
+            def draw_geometry(geometry):
+                """
+                Recursively draw all polygonal components.
+
+                intersection() may return:
+                    Polygon
+                    MultiPolygon
+                    GeometryCollection
+
+                Points and lines are ignored because they have no area
+                in the resulting mask.
+                """
+
+                if geometry is None or geometry.empty:
+                    return
+
+                if geometry.geom_type == "Polygon":
+                    draw_polygon(geometry)
+
+                elif geometry.geom_type in (
+                    "MultiPolygon",
+                    "GeometryCollection",
+                ):
+                    for child in geometry:
+                        draw_geometry(child)
+
+            draw_geometry(geom)
+
+        except Exception:
+            logging.exception(
+                "Error creating secured service mask"
+            )
+
+            # Fail closed in case anything goes wrong.
+            mask = Image.new(
+                "L",
+                (width, height),
+                255,
+            )
 
         return mask.convert("RGB")
 
@@ -260,58 +340,9 @@ class WebMapServiceProxy(OgcServiceProxyView):
             :rtype: dict
         """
 
-        # if not self.service.is_spatial_secured_and_intersects:
-        #     # TODO: return transparent image
-        #     get_params = self.remote_service.get_get_params(
-        #         query_params=self.request.query_parameters
-        #     )
-        #     width = int(get_params.get(self.remote_service.WIDTH_QP))
-        #     height = int(get_params.get(self.remote_service.HEIGHT_QP))
-        #     image = Image.new("RGBA", (width, height), (0, 0, 0))
-        #     image.format = 'png'
-        #     return self.return_http_response(
-        #         {
-        #             "status_code": 200,
-        #             "content": self._image_to_bytes(image=image),
-        #             "content-type": "image/png"
-        #         }
-        #     )
+        remote_response = self.get_remote_response()
+        mask = self._create_secured_service_mask()
 
-        # we fetch the map image as it is and mask it, using our secured operations geometry.
-        # To improve the performance here, we use a multithreaded approach, where the original map image and the
-        # mask are generated at the same time. This speed up the process by ~30%!
-        # TODO: secured_service_mask is now generated with PIL. Check if multithreading is still needed.
-        thread_list = []
-        results = Queue()
-        # to differ the results we return a dict for the remote response
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    {"response": self.get_remote_response()}, connection.close()
-                ),
-                args=(results,),
-            )
-        )
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    self._create_secured_service_mask(), connection.close()
-                ),
-                args=(results,),
-            )
-        )
-        execute_threads(thread_list)
-
-        # Since we have no idea which result will be on which position in the query
-        remote_response = None
-        mask = None
-        while not results.empty():
-            result = results.get()
-            if isinstance(result, dict):
-                # the img response!
-                remote_response = result.get("response")
-            else:
-                mask = result
         if isinstance(remote_response, dict):
             return self.return_http_response(response=remote_response)
         try:
@@ -391,8 +422,12 @@ class WebMapServiceProxy(OgcServiceProxyView):
         :return: the GetFeatureInfo response
         :rtype: :class:`request.models.Response` or dict if the request is not allowed.
         """
+        is_spatial_secured_and_covers = len(list(filter(
+            lambda ao: ao.allowed_area.covers(self.ogc_request.bbox),
+            self.service.relevant_allowed_operations
+        ))) > 0
 
-        if self.service.is_spatial_secured_and_covers:
+        if is_spatial_secured_and_covers:
             return self.return_http_response(response=self.get_remote_response())
         else:
             try:
@@ -420,7 +455,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                 if axis_order_correction:
                     geometry = adjust_axis_order(geometry)
 
-                if self.service.allowed_area_union.contains(geometry.convex_hull):
+                if self.geom.contains(geometry.convex_hull):
                     return self.return_http_response(response=requested_response)
             except Exception:
                 pass
@@ -438,6 +473,12 @@ class WebMapServiceProxy(OgcServiceProxyView):
         :return: the correct handler function for the given request param.
         :rtype: function
         """
+        srid = self.service.relevant_allowed_operations[
+            0].allowed_area.srid if self.service.relevant_allowed_operations and not self.service.relevant_allowed_operations[0].allowed_area.empty else 4326
+        self.geom: Polygon = GeometryCollection(
+            *[aop.allowed_area for aop in self.service.relevant_allowed_operations],
+            srid=srid
+        ).unary_union
         if self.ogc_request.is_get_map_request:
             return self.handle_secured_get_map()
         elif self.ogc_request.is_get_feature_info_request:

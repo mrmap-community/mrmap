@@ -1,16 +1,13 @@
 from abc import ABC
-from functools import reduce
-from operator import and_
 from typing import Any
 
 from django.contrib.auth.models import Group
 from django.contrib.gis.db.models import Union
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db import models
-from django.db.models import (BooleanField, Exists, ExpressionWrapper, F,
-                              OuterRef, QuerySet, Subquery)
+from django.db.models import (BooleanField, Count, Exists, ExpressionWrapper,
+                              F, OuterRef, Prefetch, QuerySet, Subquery)
 from django.db.models import Value as V
-from django.db.models.expressions import Value
 from django.db.models.functions import Coalesce, JSONObject
 from django.db.models.query_utils import Q
 from django.http import HttpRequest
@@ -40,20 +37,44 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         raise NotImplementedError
 
     def filter_by_requested_entity(self, request):
-        """Filter only AllowedWebServiceOperation objects where all requested_entities are present."""
+        """Filter only AllowedWebServiceOperation objects where all
+        requested_entities are present.
+
+        Previous implementation applied one filter per identifier which
+        produced repeated self-joins on the related "secured_layers"/
+        "secured_feature_types" tables and exploded the planner's
+        join combinations. Instead, count matching related items and
+        require the distinct match count to equal the number of
+        requested identifiers. This uses a single join with
+        conditional aggregation and avoids the Cartesian blowup.
+        """
         lookup, identifiers = self.get_entity_identifiers(request=request)
         if not identifiers:
             return self.none()
-        # Build Q objects for each identifier (supports case-insensitive lookups like __iexact)
-        query = reduce(and_, [Q(**{lookup: identifier})
-                       for identifier in identifiers])
-        return self.filter(query)
 
-    def for_user(self, service_pk, request: OGCRequest):
+        # The related field name is the part before the lookup suffix
+        # e.g. "secured_layers__identifier__iexact" -> "secured_layers"
+        related_field = lookup.split("__")[0]
+
+        # Annotate how many distinct related entities match any of the
+        # requested identifiers, then require the count to equal the
+        # number of requested identifiers (i.e. all are present).
+        return (
+            self.annotate(
+                _matched_count=Count(
+                    related_field,
+                    filter=Q(
+                        **{f"{related_field}__identifier__in": identifiers}),
+                    distinct=True,
+                )
+            )
+            .filter(_matched_count=len(identifiers))
+        )
+
+    def filter_by_request(self, request: OGCRequest):
         """Filter operations allowed for the authenticated user and service.
 
         Args:
-            service_pk: Primary key of the service
             request: OGCRequest object containing user and operation info
 
         Returns:
@@ -68,38 +89,10 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
 
         return (
             self.filter(
-                secured_service__pk=service_pk,
                 operations__value=OGCOperationEnum(request.operation),
             )
             .filter(Q(allowed_groups=None) | Q(allowed_groups__pk__in=group_pks))
             .filter_by_requested_entity(request=request)
-        )
-
-    def get_allowed_areas(self, service_pk, request: HttpRequest):
-        """Collect all allowed areas that are configured for all requested entities together.
-
-            Returns: The subset of allowed operations that for given user and requested entities.
-        """
-        return (
-            self.filter(allowed_area__isnull=False)
-            .for_user(service_pk=service_pk, request=request)
-        )
-
-    def get_empty_allowed_areas(self, service_pk, request: HttpRequest):
-        return (
-            self.filter(allowed_area__isnull=True)
-            .for_user(service_pk=service_pk, request=request)
-        )
-
-    def is_service_secured(self, service_pk) -> Exists:
-        return Exists(self.filter(secured_service__pk=service_pk))
-
-    def is_spatial_secured(self, service_pk, request: HttpRequest) -> ExpressionWrapper:
-        return ExpressionWrapper(
-            Exists(self.get_allowed_areas(
-                service_pk=service_pk, request=request))
-            and ~Exists(self.get_empty_allowed_areas(service_pk=service_pk, request=request)),
-            output_field=BooleanField(),
         )
 
     def is_user_entitled(self, service_pk, request: OGCRequest) -> Exists:
@@ -115,7 +108,22 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         Returns:
             Exists or Value expression indicating user entitlement
         """
-        return Exists(self.for_user(service_pk=service_pk, request=request))
+        return Exists(self.filter_by_service_and_request(service_pk=service_pk, request=request))
+
+    def for_service(self, service_pk):
+        return self.filter(secured_service_id=service_pk)
+
+    def is_service_secured(self, service_pk) -> Exists:
+        return Exists(self.for_service(service_pk))
+
+    def is_service_spatial_secured(self, service_pk) -> ExpressionWrapper:
+        service_qs = self.for_service(service_pk)
+
+        return ExpressionWrapper(
+            Exists(service_qs)
+            & ~Exists(service_qs.filter(allowed_area__isnull=True)),
+            output_field=BooleanField(),
+        )
 
 
 class AllowedWebMapServiceOperationQuerySet(WebMapServiceQuerySet, AllowedOgcServiceOperationQuerySet):
@@ -181,8 +189,18 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
                     F("proxy_setting__log_response"), V(False))
             )
         else:
+            allowed_operations_prefetch = Prefetch(
+                "allowed_operations",
+                queryset=self.get_allowed_operation_qs().filter_by_request(
+                    request=request),
+                to_attr="relevant_allowed_operations"
+            )
+
             return (
                 qs.select_related("auth")
+                .prefetch_related(
+                    allowed_operations_prefetch
+                )
                 .annotate(
                     camouflage=Coalesce(
                         F("proxy_setting__camouflage"), V(False)),
@@ -190,24 +208,10 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_layer=self.is_unknown_layer(
                         service_pk=OuterRef("pk"), request=request),
-                    is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
-                    is_secured=self.get_allowed_operation_qs().is_service_secured(
-                        service_pk=OuterRef("pk")
-                    ),
-                    is_user_principle_entitled=self.get_allowed_operation_qs().is_user_entitled(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
-                    is_spatial_secured_and_covers=self.get_allowed_operation_qs().is_spatial_secured_and_covers(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
-                    is_spatial_secured_and_intersects=self.get_allowed_operation_qs().is_spatial_secured_and_intersects(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
-                    allowed_area_union=self.get_allowed_operation_qs().get_allowed_areas(
-                        service_pk=OuterRef("pk"), request=request
-                    ).values('secured_service__pk').annotate(geom=Union('allowed_area')).values('geom')
+                    is_secured=self.get_allowed_operation_qs(
+                    ).is_service_secured(OuterRef("pk")),
+                    is_spatial_secured=self.get_allowed_operation_qs(
+                    ).is_service_spatial_secured(OuterRef("pk")),
                 )
             )
 
@@ -343,10 +347,18 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
                     data_type__in=GEOMETRY_DATA_TYPES
                 )[:1].values("name"))
             )
-
+            allowed_operations_prefetch = Prefetch(
+                "allowed_operations",
+                queryset=self.get_allowed_operation_qs().filter_by_request(
+                    request=request),
+                to_attr="relevant_allowed_operations"
+            )
             return (
                 qs
                 .select_related("auth")
+                .prefetch_related(
+                    allowed_operations_prefetch
+                )
                 .annotate(
                     camouflage=Coalesce(
                         F("proxy_setting__camouflage"), V(False)),
@@ -354,15 +366,10 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_feature_type=self.is_unknown_feature_type(
                         service_pk=OuterRef("pk"), feature_types=request.requested_entities),
-                    is_spatial_secured=self.get_allowed_operation_qs().is_spatial_secured(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
-                    is_secured=self.get_allowed_operation_qs().is_service_secured(
-                        service_pk=OuterRef("pk")
-                    ),
-                    is_user_principle_entitled=self.get_allowed_operation_qs().is_user_entitled(
-                        service_pk=OuterRef("pk"), request=request
-                    ),
+                    is_secured=self.get_allowed_operation_qs(
+                    ).is_service_secured(OuterRef("pk")),
+                    is_spatial_secured=self.get_allowed_operation_qs(
+                    ).is_service_spatial_secured(OuterRef("pk")),
                     security_info_per_feature_type=ArraySubquery(
                         security_info.values(json=JSONObject(
                             type_name=F("identifier"),

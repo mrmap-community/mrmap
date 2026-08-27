@@ -6,13 +6,20 @@ import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import { Box, Stack, Typography } from "@mui/material";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
+import { useMapViewerBase } from './MapViewerBase';
 
 const StatusBar = () => {
   const { loadingStatus, loadingMessage, loadingTimings } = useOwsContextBase()
+  const { mapLoading } = useMapViewerBase()
+  const mapErrorMessage = Object.values(mapLoading.errors)[0]?.message
+  const effectiveStatus = mapLoading.status === 'error' || mapLoading.status === 'loading'
+    ? mapLoading.status
+    : loadingStatus
 
   const statusIcon = (() => {
-    switch (loadingStatus) {
+    switch (effectiveStatus) {
       case 'fetching':
+      case 'loading':
         return <CloudDownloadIcon fontSize="small" />
       case 'reading':
         return <ArticleIcon fontSize="small" />
@@ -28,6 +35,9 @@ const StatusBar = () => {
   })()
 
   const statusText = (() => {
+    if (mapLoading.status === 'error') {
+      return mapErrorMessage || 'Map load error'
+    }
     if (loadingStatus === 'idle') {
       return 'Ready'
     }
@@ -37,8 +47,14 @@ const StatusBar = () => {
     return loadingMessage ? `${loadingMessage}` : 'Loading...'
   })()
 
-  const timingEntries = loadingTimings && Object.keys(loadingTimings).length > 0
-    ? Object.entries(loadingTimings).map(([key, value]) => ({
+  const timingEntries = [
+    ...Object.entries(loadingTimings ?? {}),
+    ...Object.entries(mapLoading.timings).map(([key, value]) => [`map:${key}`, value] as const)
+  ].length > 0
+    ? [
+      ...Object.entries(loadingTimings ?? {}),
+      ...Object.entries(mapLoading.timings).map(([key, value]) => [`map:${key}`, value] as const)
+    ].map(([key, value]) => ({
         key,
         value: `${typeof value === 'number' ? Math.round(value) : value}ms`
       }))
@@ -62,11 +78,13 @@ const StatusBar = () => {
           spacing: 1
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', color: loadingStatus === 'error' ? 'error.main' : 'text.primary' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', color: effectiveStatus === 'error' ? 'error.main' : 'text.primary' }}>
           {statusIcon}
         </Box>
-        <Typography variant="body2" color={loadingStatus === 'error' ? 'error.main' : 'text.primary'}>
-          {statusText}
+        <Typography variant="body2" color={effectiveStatus === 'error' ? 'error.main' : 'text.primary'}>
+          {mapLoading.status === 'loading'
+            ? `Loading map (${mapLoading.loaded}/${mapLoading.total})`
+            : statusText}
         </Typography>
       </Stack>
 

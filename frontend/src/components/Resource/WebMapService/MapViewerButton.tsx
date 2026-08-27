@@ -44,8 +44,6 @@ const MapViewerButton = (
     } : undefined
   ),[getCapaibilitesUrl])
 
-  console.log(rest.label,authHeader , getCapaibilitesUrl && new URL(getCapaibilitesUrl).hostname, window.location.hostname )
-
   const {data: wmsRecordWithUrl, isLoading, refetch } = useGetOne(
     "WebMapService",
     {
@@ -98,7 +96,6 @@ const MapViewerButton = (
         }
       }
     })
-    console.log(context)
     return context
   }, [wmsRecordWithUrl])
 
@@ -137,7 +134,7 @@ const MapViewerButton = (
       
       addWMSByUrl(
         url.href, 
-        authHeader && new Headers({"Authorization": `Token ${authHeader?.value}`}), 
+        authHeader && new Headers({"Authorization": authHeader?.value}), 
         beforeSetHook
       )
       navigate('/viewer')

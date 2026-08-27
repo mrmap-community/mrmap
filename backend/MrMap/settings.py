@@ -541,7 +541,7 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "simple",
-            "level": "INFO"
+            "level": "DEBUG"
         },
     },
     "loggers": {
@@ -558,7 +558,12 @@ LOGGING = {
         "celery": {
             "handlers": ["console"],
             "propagate": True,
-        }
+        },
+        # "django.db.backends": {
+        #    "handlers": ["console"],
+        #    "level": "DEBUG",
+        #    "propagate": False,
+        # },
     },
 }
 try:

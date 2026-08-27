@@ -7,11 +7,12 @@ import proj4 from 'proj4'
 import { point, type LatLng } from 'leaflet'
 import { Link } from 'react-admin'
 import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
-import { Operation } from '../../ows-lib/OwsContext/types'
-import { isOperationUrlEqual, updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
+import { updateOrAppendSearchParam } from '../../ows-lib/OwsContext/utils'
 import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 import { AuthImageOverlay } from './AuthImageOverlay'
 
+
+const VIEWPORT_DEBOUNCE_MS = 300
 
 export interface Tile {
   leafletTile: ReactNode
@@ -20,48 +21,15 @@ export interface Tile {
 }
 
 
-const compareOfferingByAuth = (index: number, lastOperation: Operation, operation: Operation) => {
-
-  if (index === 0) {
-    return true
-  }
-  // Check if all offeringA.operations and offeringB.operations have the same "x-authentication-id" value
-  const authIdsA = lastOperation['x-authentication-id']
-  const authIdsB = operation['x-authentication-id']
-  return authIdsA === authIdsB && isOperationUrlEqual(new URL(lastOperation.href), new URL(operation.href))
-}
-    
 
 const WebMapServiceControl = () => {
-  
-  const { owsContext } = useOwsContextBase()
-  const [position, setPosition] = useState<LatLng | null>(null)
-  const [layerPoint, setLayerPoint] = useState<{x: number, y: number} | null>(null) 
-   
-  const atomicGetMapUrls = useMemo(()=>{
-    return owsContext.getOptimizedUrlsByCode(
-      "GetMap",
-      (feature) => (
-        feature.getWmsOperationByCode("GetMap")?.active === true
-      ),
-      compareOfferingByAuth
-    )
-  }, [owsContext])
-  console.log(atomicGetMapUrls)
-  const atomicGetFeatureInfoUrls = useMemo(()=>{
-    return owsContext.getOptimizedUrlsByCode(
-      "GetFeatureInfo",
-      (feature) => (
-        feature.getWmsOperationByCode("GetFeatureInfo")?.active === true
-      )
-    )
-  }, [owsContext])
-
   const map = useMap()
-
   const [bounds, setBounds] = useState(map?.getBounds())
   const [size, setSize] = useState(map?.getSize())
-  const { selectedCrs } = useMapViewerBase()
+  const { owsContext } = useOwsContextBase()
+  const { selectedCrs, atomicGetMapUrls, atomicGetFeatureInfoUrls } = useMapViewerBase()
+  const [position, setPosition] = useState<LatLng | null>(null)
+  const [layerPoint, setLayerPoint] = useState<{x: number, y: number} | null>(null) 
 
   const bbox = useMemo<[number, number,number, number]>(()=>{
 
@@ -84,12 +52,11 @@ const WebMapServiceControl = () => {
   const getAuthForGetMapUrl = (getMapUrl: OptimizedUrlsMap) => {
     const authId = getMapUrl.operations[0]["x-authentication-id"]
     const authenticationHeaders = owsContext.authenticationHeaders as []
-    const authHeader = authenticationHeaders.find((header: any) => header.id === authId) as any
+    const authHeader = authenticationHeaders?.find((header: any) => header.id === authId) as any
     
     const headerInit :any = {}
-    headerInit[authHeader.name] = authHeader.value
-    console.log(new Headers(headerInit))
-    return new Headers(headerInit)
+    headerInit[authHeader?.name] = authHeader?.value
+    return headerInit && new Headers(headerInit)
     
   }
 
@@ -130,7 +97,7 @@ const WebMapServiceControl = () => {
             key={atomicGetMapUrl.url.href}
             bounds={bounds}
             interactive={true}
-            url={atomicGetMapUrl.url.href}
+            optimiuedUrl={atomicGetMapUrl}
             auth={getAuthForGetMapUrl(atomicGetMapUrl)}            
           />,
           getMapUrl: atomicGetMapUrl.url,
@@ -147,7 +114,7 @@ const WebMapServiceControl = () => {
       
       const getFeatureInfoUrls = [...atomicGetFeatureInfoUrls].reverse()
       getFeatureInfoUrls.forEach((atomicGetFeatureInfoUrl, index) => {
-        const params = atomicGetFeatureInfoUrl.searchParams
+        const params = atomicGetFeatureInfoUrl.url.searchParams
         updateOrAppendSearchParam(params, 'I', layerPoint.x.toFixed(0).toString())
         updateOrAppendSearchParam(params, 'J', layerPoint.y.toFixed(0).toString())
         updateOrAppendSearchParam(params, 'X', layerPoint.x.toFixed(0).toString())
@@ -190,10 +157,21 @@ const WebMapServiceControl = () => {
       setSize(map.getSize())
     }
 
+    let viewportUpdateTimeout: ReturnType<typeof setTimeout> | undefined
+    const scheduleViewportUpdate = () => {
+      if (viewportUpdateTimeout) {
+        clearTimeout(viewportUpdateTimeout)
+      }
+      viewportUpdateTimeout = setTimeout(updateBounds, VIEWPORT_DEBOUNCE_MS)
+    }
+
     updateBounds()
-    map.on('resize moveend zoomend', updateBounds)
+    map.on('viewreset moveend zoomend', scheduleViewportUpdate)
     return () => {
-      map.off('resize moveend zoomend', updateBounds)
+      map.off('viewreset moveend zoomend', scheduleViewportUpdate)
+      if (viewportUpdateTimeout) {
+        clearTimeout(viewportUpdateTimeout)
+      }
     }
   }, [map])
 
@@ -213,8 +191,8 @@ const WebMapServiceControl = () => {
       {position && <Marker position={position} >
         <Popup>
           {getFeatureInfoUrls?.map((url, index) => (
-              <Link to={url.href} target="_blank" rel="noopener noreferrer" key={index}>
-                {url.searchParams.get('QUERY_LAYERS') ?? url.searchParams.get('query_layers') ?? 'Feature Info'}
+              <Link to={url.url.href} target="_blank" rel="noopener noreferrer" key={index}>
+                {url.url.searchParams.get('QUERY_LAYERS') ?? url.url.searchParams.get('query_layers') ?? 'Feature Info'}
               </Link>
           ))}
         </Popup>

@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import type L from 'leaflet'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ImageOverlay, ImageOverlayProps } from 'react-leaflet'
-import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
+import { OptimizedUrlsMap } from '../../ows-lib/OwsContext/core'
+import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 
 
 export interface AuthOptions {
@@ -10,9 +11,9 @@ export interface AuthOptions {
   credentials?: RequestCredentials
 }
 
-export interface AuthImageOverlayProps extends ImageOverlayProps{
+export interface AuthImageOverlayProps extends Partial<ImageOverlayProps>{
   bounds: L.LatLngBounds
-  url: string
+  optimiuedUrl: OptimizedUrlsMap
   interactive?: boolean
   auth?: AuthOptions | (() => AuthOptions) | Headers
 }
@@ -55,42 +56,105 @@ const getAuthOptions = (auth?: AuthOptions | (() => AuthOptions) | Headers): Aut
   return {}
 }
 
+const getServiceExceptionMessage = (xml: string): string | undefined => {
+  if (!xml.trimStart().startsWith('<')) return undefined
+
+  try {
+    const document = new DOMParser().parseFromString(xml, 'application/xml')
+    const exception = Array.from(document.getElementsByTagName('*'))
+      .find((element) => element.localName === 'ServiceException')
+
+    if (!exception) return undefined
+
+    const code = exception.getAttribute('code')
+    const message = exception.textContent?.trim()
+
+    if (code && message) return `${code}: ${message}`
+    return message || code || 'OGC service exception'
+  } catch {
+    return undefined
+  }
+}
+
 export const AuthImageOverlay = ({
   bounds,
-  url,
+  optimiuedUrl,
   interactive = true,
   auth,
   ...rest
 }: AuthImageOverlayProps) => {
-  const {  owsContext } = useOwsContextBase()
+  
+  const { reportMapLoading, removeMapLoading } = useMapViewerBase()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const startedAt = useRef(performance.now())
 
   const authOptions = useMemo(()=>getAuthOptions(auth),[auth])
+  const url = optimiuedUrl.url.href
 
-  const { data,  isFetching, error } = useQuery({
-    queryKey: ['remoteImage'],
-    queryFn: () => fetch(url, {
-      headers: authOptions.headers,
-      credentials: authOptions.credentials
-    }).then(r => r.blob()),
+  const loadingId = `image:${url}`
+
+  const { data, isFetching, error } = useQuery({
+    queryKey: ['remoteImage', url, authOptions.headers, authOptions.credentials],
+    retry: false,
+    retryOnMount: false,
+    queryFn: async () => {
+      const response = await fetch(url, {
+        headers: authOptions.headers,
+        credentials: authOptions.credentials
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const blob = await response.blob()
+      const serviceExceptionMessage = getServiceExceptionMessage(await blob.text())
+      if (serviceExceptionMessage) {
+        throw new Error(serviceExceptionMessage)
+      }
+
+      return blob
+    },
   })
 
   useEffect(() => {
-    if (data){
-      imageUrl && URL.revokeObjectURL(imageUrl)
-      setImageUrl(URL.createObjectURL(data))
+    const timing = performance.now() - startedAt.current
+    if (isFetching) {
+      reportMapLoading(loadingId, 'loading')
+    } else if (error) {
+      const mapError = {
+        message: error instanceof Error ? error.message : String(error),
+        features: optimiuedUrl.features
+      }
+      reportMapLoading(loadingId, 'error', mapError, timing)
+    } else if (data) {
+      reportMapLoading(loadingId, 'ready', undefined, timing)
     }
+  }, [data, error, isFetching, loadingId, reportMapLoading])
+
+  useEffect(() => {
+    return () => removeMapLoading(loadingId)
+  }, [loadingId, removeMapLoading])
+
+  useEffect(() => {
+    if (!data) {
+      setImageUrl(null)
+      return
+    }
+
+    const nextImageUrl = URL.createObjectURL(data)
+    setImageUrl(nextImageUrl)
+
     return () => {
-      imageUrl && URL.revokeObjectURL(imageUrl)
+      URL.revokeObjectURL(nextImageUrl)
     }
   }, [data])
 
-  if (isFetching || !imageUrl) {
+
+  if (error) {
     return null
   }
 
-  if (error) {
-    console.error('AuthImageOverlay error:', error)
+  if (isFetching || !imageUrl) {
     return null
   }
 

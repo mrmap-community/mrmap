@@ -10,6 +10,7 @@ const VALID_PATH = new RegExp('(\/\d*)+')
 
 
 export interface OptimizedUrlsMap {
+  features: OWSResource[]
   url: URL, 
   operations: Operation[]
 }
@@ -629,10 +630,12 @@ export class OWSContext implements IOWSContext {
         if (index === 0 || !areOfferingsMergeable) {
           // index 0 signals always a root node ==> just push it; nothing else to do here
           // index > 0 and offerings are not mergeable => define new atomic wms; not mergeable resources
-          urls.push({url: operationUrl, operations: [operation]})
+          urls.push({features: [feature], url: operationUrl, operations: [operation]})
+          
         }
         else if (areOfferingsMergeable) {
           lastUrl.operations.push(operation)
+          lastUrl.features.push(feature)
           appendQueryParam(queryParam, lastUrl.url, operationUrl)
         }
       })

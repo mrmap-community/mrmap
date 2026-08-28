@@ -473,7 +473,8 @@ class WebMapServiceProxy(OgcServiceProxyView):
             exc = BadRequest()
             exc.response_cls = LayerNotDefined
             raise exc
-        elif not self.service.are_all_layers_active:
+
+        elif not self.ogc_request.is_get_capabilities_request and not self.service.are_all_layers_active:
             raise Http423
         return super().get_and_post(request, *args, **kwargs)
 

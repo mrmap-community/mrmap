@@ -165,7 +165,7 @@ def reverse_parse_operation_urls(
     # 1️⃣ Ensure OnlineResource exists
     online_resource = xml_element.xpath(
         f".//{"wms:" if "wms" in nsmap else ""}OnlineResource", namespaces=nsmap)
-    if online_resource is None:
+    if online_resource is None or len(online_resource) == 0:
         # Typically OnlineResource is under wms:HTTP (Get/Post)
         xpath = f"{{{nsmap["wms"]}}}OnlineResource" if nsmap and "wms" in nsmap else "OnlineResource"
         online_resource = etree.SubElement(

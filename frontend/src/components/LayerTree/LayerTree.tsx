@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { memo, useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
@@ -10,13 +10,13 @@ import Checkbox from '@mui/material/Checkbox'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
-import { useGetMany } from 'react-admin'
+import { Identifier, ListContextProvider, ListControllerResult, RaRecord, RecordContextProvider, useGetMany, useRecordContext } from 'react-admin'
 import { OWSContext, OWSResource } from '../../ows-lib/OwsContext/core'
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase'
 import Dialog from '../Dialog/Dialog'
 import { DialogBase } from '../Dialog/DialogContextBase'
-import ContextMenu from './ContextMenu'
-import { ContextMenuBase } from './ContextMenuBase'
+import ContextMenu from './ContextMenu/ContextMenu'
+import { ContextMenuBase } from './ContextMenu/ContextMenuBase'
 import { DragableTreeItem } from './DragableTreeItem'
 
 import { v4 as uuidv4 } from 'uuid'
@@ -25,7 +25,8 @@ import { useMapViewerBase } from '../MapViewer/MapViewerBase'
 
 
 export interface LayerTreeProps {
-  initialExpanded?: string[]
+  initialExpanded?: string[],
+  layers?: RaRecord[]
 }
 
 export interface LayerProperties {
@@ -64,8 +65,8 @@ const TreeItemLabel = memo(
   ({
     node
   }: TreeItemLabelProps) => {
-    const layerProperties = node?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-properties"] as LayerProperties | undefined;
-    const {  owsContext, setOwsContext} = useOwsContextBase()
+    const record = useRecordContext()
+    const { owsContext, setOwsContext } = useOwsContextBase()
     const { mapLoading } = useMapViewerBase()
 
     const hasError = useMemo(()=>{
@@ -198,8 +199,8 @@ const TreeItemLabel = memo(
 
       <Stack direction="row" sx={{ justifyContent: "flex-end", alignItems:"center", ml: "auto"}}>
         <NodeIcons
-          isActive={layerProperties?.isActive}
-          isSpatialSecured={layerProperties?.isSpatialSecured}
+          isActive={record?.isActive}
+          isSpatialSecured={record?.isSpatialSecured}
         />
       </Stack>
     </Stack>
@@ -208,12 +209,13 @@ const TreeItemLabel = memo(
 );
 
 const TreeViews = (
-  { initialExpanded = [] }: LayerTreeProps
+  { 
+    initialExpanded = [],
+    layers
+  }: LayerTreeProps
 ) => {
   const { trees, owsContext, setFeatureActive } = useOwsContextBase()
   const defaultExpandedNodes = useMemo(()=> owsContext.getLeafNodes().map(feature => feature.properties.folder ?? ''),[owsContext])
-  const selectedItems = useMemo(() => owsContext.getActiveFeatures().map(feature => feature.properties.folder ?? ''),[owsContext])
-
   const [expanded, setExpanded] = useState<string[] >([...initialExpanded, ...defaultExpandedNodes])
 
   const onItemExpansionToggle = useCallback(
@@ -257,26 +259,32 @@ const TreeViews = (
     //   - offering (title)
     //     - operation (GetMap, GetFeatureInfo, etc.)
     //     - styles
+    const layerId = node?.getWmsOperationByCode("GetMap")?.["x-mrmap-layer-id"] as Identifier
+    const layerRecord = layerId ? layers?.find(layer => layer.id === layerId) : undefined
 
     return node !== undefined ? (
-        <DragableTreeItem
-          node={node}                    
-          key={node.properties.folder}
-          itemId={itemId}
-          label={
-            <TreeItemLabel
-              node={node}
-            />
-          }
+        <RecordContextProvider
+          value={layerRecord}
         >
-          {
-            Array.isArray(node.children)
-              ? node.children.map((node) => { return renderTree(node) })
-              : null
-          }
-        </DragableTreeItem >
+          <DragableTreeItem
+            node={node}                    
+            key={node.properties.folder}
+            itemId={itemId}
+            label={
+              <TreeItemLabel
+                node={node}
+              />
+            }
+          >
+            {
+              Array.isArray(node.children)
+                ? node.children.map((node) => { return renderTree(node) })
+                : null
+            }
+          </DragableTreeItem >
+        </RecordContextProvider>
       ) : <div></div>
-  },[])
+  },[layers])
 
   return trees?.map(tree => {
       return (
@@ -298,7 +306,7 @@ const TreeViews = (
 const LayerTree = ({ 
   initialExpanded = [] 
 }: LayerTreeProps): ReactNode => {
-  const { owsContext, setOwsContext } = useOwsContextBase()
+  const { owsContext } = useOwsContextBase()
   
   const mrmapLayers = useMemo(()=>(
     [
@@ -315,6 +323,7 @@ const LayerTree = ({
 
   const {
     data,
+    refetch
   } = useGetMany(
     "Layer", 
     {
@@ -329,33 +338,34 @@ const LayerTree = ({
       enabled: mrmapLayers.length > 0
     }
   )
-  useEffect(()=>{
-    if (!data) return
-    const newContext = OWSContext.fromPlainObject(owsContext)
-    const offerings = newContext.features.flatMap(
-      feature => feature.properties.offerings ?? []
-    ).flatMap(
-      offering => offering.operations ?? []
-    )
-    
-    data?.forEach(layer => {
-      const offering = offerings.find(offering => offering["x-mrmap-layer-id"] === layer.id)
-      if (offering !== undefined) {
-        offering["x-mrmap-layer-properties"] = {...layer}
-      }
+
+  const listContext = useMemo(() => {
+    const ids = Array.isArray(data) ? data.map(d => d.id as Identifier) : []
+    const dataObject: Record<string, RaRecord> = {}
+    data?.forEach((d: RaRecord) => {
+      if (d && d.id !== undefined) dataObject[d.id as Identifier] = d
     })
 
-    setOwsContext(newContext)
-    
-  },[data])
+    return {
+      ids,
+      data: dataObject,
+      total: ids.length,
+      page: 1,
+      perPage: ids.length || 0,
+      loaded: !!data,
+      refetch,
+    }
+  }, [data, refetch]) as unknown as ListControllerResult
 
   return (
     <DialogBase>
-      <ContextMenuBase>
-        <TreeViews initialExpanded={initialExpanded} />
-        <ContextMenu />
-        <Dialog/>
-      </ContextMenuBase>
+      <ListContextProvider value={listContext}>
+        <ContextMenuBase>
+          <TreeViews initialExpanded={initialExpanded} layers={data} />
+          <ContextMenu />
+          <Dialog/>
+        </ContextMenuBase>
+      </ListContextProvider>
     </DialogBase>
   )
 }

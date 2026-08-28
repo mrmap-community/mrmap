@@ -55,7 +55,7 @@ const MapViewerButton = (
           "include": "operationUrls,layers",
           "fields[WebMapService]": "operation_urls,version,layers",
           "fields[WebMapServiceOperationUrl]": "url,method,operation",
-          "fields[Layer]": "identifier,is_spatial_secured",
+          "fields[Layer]": "identifier,is_spatial_secured,is_active",
         }
       }
     },
@@ -95,6 +95,7 @@ const MapViewerButton = (
         const dbLayer = wmsRecordWithUrl?.layers?.find((layer: RaRecord) => layer.identifier === identifier)
         if (dbLayer !== undefined){
           operation["x-mrmap-layer-id"] = dbLayer?.id
+          operation["x-mrmap-layer-properties"] = {...dbLayer}
         }
       }
     })
@@ -102,6 +103,10 @@ const MapViewerButton = (
   }, [wmsRecordWithUrl])
 
   useEffect(() => {
+    if (capabilititesUrl !== undefined) {
+      // url is allready set by props
+      return
+    }
      const url = wmsRecordWithUrl?.operationUrls?.find(
       (opUrl: RaRecord) => {
         return (opUrl.method === 1 || opUrl.method === "Get") && (opUrl.operation ===1 || opUrl.operation === "GetCapabilities")
@@ -113,15 +118,16 @@ const MapViewerButton = (
 
   useEffect(() => {
     if (
+      (clicked &&
+      getCapaibilitesUrl === undefined) ||
+      wmsRecordWithUrl === undefined
+    ) {
+      refetch()
+    } else if (
       clicked && 
       getCapaibilitesUrl !== undefined
     ){
       resetContext()
-    } else if (
-      clicked &&
-      getCapaibilitesUrl === undefined
-    ) {
-      refetch()
     }
   },[getCapaibilitesUrl, clicked])
 

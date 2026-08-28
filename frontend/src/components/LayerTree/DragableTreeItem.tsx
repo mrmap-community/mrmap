@@ -6,11 +6,12 @@ import { TreeItem, TreeItemProps } from '@mui/x-tree-view';
 import Sortable from 'sortablejs';
 import { v4 as uuidv4 } from 'uuid';
 
+import { useRecordContext } from 'react-admin';
 import { OWSResource } from '../../ows-lib/OwsContext/core';
 import { Position } from '../../ows-lib/OwsContext/enums';
 import { getParentFolder } from '../../ows-lib/OwsContext/utils';
 import { useOwsContextBase } from '../../react-ows-lib/ContextProvider/OwsContextBase';
-import { useContextMenuBase } from './ContextMenuBase';
+import { useContextMenuBase } from './ContextMenu/ContextMenuBase';
 
 
 // TODO: typeof should be any other type
@@ -35,7 +36,7 @@ export const DragableTreeItem = ({
     
     const { owsContext, moveFeature } = useOwsContextBase()
     const { setContextMenu } = useContextMenuBase()  
-    
+    const record = useRecordContext()
     
     const createSortable = useCallback(()=>{
       if (!ref.current) return null;  
@@ -118,6 +119,7 @@ export const DragableTreeItem = ({
       event.stopPropagation()
       setContextMenu({
         node: node,
+        record: record,
         itemId: node.properties.folder,
         isOpen: true,
         anchorElement: event.currentTarget,

@@ -287,7 +287,7 @@ class OGCRequest(Request):
                           "outputSchema", "startPosition", "maxRecords", "schemaLanguage",
                           "ElementSetName", "ElementName", "typeNames", "CONSTRAINTLANGUAGE",
                           "Constraint", "SortBy", "DistributedSearch",
-                          "hopCount", "ResponseHandler", "Id"]
+                          "hopCount", "ResponseHandler", "Id", "STYLES"]
 
             for key in query_keys:
                 value = self.params.get(key, self.params.get(key.lower(), ""))

@@ -160,6 +160,9 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
     def is_unknown_layer(self, service_pk, request: HttpRequest) -> QuerySet:
         return ~Exists(self.filter(pk=service_pk, layer__identifier__in=request.requested_entities))
 
+    def are_all_layers_active(self, service_pk, request: HttpRequest) -> QuerySet:
+        return ~Exists(self.filter(pk=service_pk, layer__identifier__in=request.requested_entities, layer__is_active=False))
+
     def get_allowed_operation_qs(self) -> AllowedWebMapServiceOperationQuerySet:
         """Get a fresh QuerySet instance for allowed WMS operations.
 
@@ -207,6 +210,8 @@ class WebMapServiceSecurityManager(models.Manager.from_queryset(AllowedWebMapSer
                     log_response=Coalesce(
                         F("proxy_setting__log_response"), V(False)),
                     is_unknown_layer=self.is_unknown_layer(
+                        service_pk=OuterRef("pk"), request=request),
+                    are_all_layers_active=self.are_all_layers_active(
                         service_pk=OuterRef("pk"), request=request),
                     is_secured=self.get_allowed_operation_qs(
                     ).is_service_secured(OuterRef("pk")),

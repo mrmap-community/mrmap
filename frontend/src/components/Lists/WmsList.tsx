@@ -13,6 +13,7 @@ const WmsViewerButtons = () => {
       {
         record?.isSecured ? 
         <MapViewerButton 
+          wmsRecord={record}
           capabilititesUrl={record?.xmlBackupFileSecured}
           label={'resources.webmapservice.actions.showinviewer.secured'}
         >

@@ -1,11 +1,13 @@
 
 import { Dispatch, PropsWithChildren, ReactNode, SetStateAction, createContext, useContext, useMemo, useState } from "react";
-import { OWSResource } from "../../ows-lib/OwsContext/core";
+import { RaRecord } from "react-admin";
+import { OWSResource } from "../../../ows-lib/OwsContext/core";
 
 
 
 export interface ContextMenuBaseProps {
   node: OWSResource;
+  record?: RaRecord;
   itemId?: string;
   isOpen: boolean;
   anchorElement: HTMLElement | null;
@@ -28,16 +30,20 @@ export const ContextMenuBase = ({children}: PropsWithChildren): ReactNode => {
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null)
   const [mouseX, setMouseX] = useState<number | undefined>()
   const [mouseY, setMouseY] = useState<number | undefined>()
+  const [record, setRecord] = useState<RaRecord | undefined>()
+
   const value = useMemo<ContextMenuBaseType>(() => {
     return {
       node: node,
+      record: record,
       itemId: itemId,
       isOpen: isOpen,
       anchorElement: anchorElement,
       mouseX: mouseX,
       mouseY: mouseY,
-      setContextMenu: ({node, itemId, isOpen, anchorElement, mouseX, mouseY}: ContextMenuBaseProps) => {
+      setContextMenu: ({node, record, itemId, isOpen, anchorElement, mouseX, mouseY}: ContextMenuBaseProps) => {
         setNode(node)
+        setRecord(record)
         setItemId(itemId)
         setIsOpen(isOpen)
         setAnchorElement(anchorElement)
@@ -54,11 +60,11 @@ export const ContextMenuBase = ({children}: PropsWithChildren): ReactNode => {
     
 
   return (
-    <context.Provider
-      value={value}
-    >
-      {children}
-    </context.Provider>
+      <context.Provider
+        value={value}
+      >
+        {children}
+      </context.Provider>
   )
 
 };

@@ -73,7 +73,6 @@ const WebMapServiceControl = () => {
     getMapUrls.forEach((atomicGetMapUrl, index) => {
       const params = atomicGetMapUrl.url.searchParams
       const version = params.get('version') ?? params.get('VERSION')
-
       if (version === '1.3.0') {
         if (selectedCrs.isXyOrder) {
           // no axis order correction needed.
@@ -90,7 +89,7 @@ const WebMapServiceControl = () => {
       }
       updateOrAppendSearchParam(params, 'WIDTH', size.x.toString())
       updateOrAppendSearchParam(params, 'HEIGHT', size.y.toString())
-      updateOrAppendSearchParam(params, 'STYLES', '') // todo: shall be configureable
+      updateOrAppendSearchParam(params, 'STYLES', "") // todo: shall be configureable
       _tiles.push(
         {
           leafletTile: <AuthImageOverlay

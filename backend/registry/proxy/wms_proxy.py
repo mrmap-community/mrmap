@@ -20,7 +20,7 @@ from registry.models.service import WebMapService
 from registry.ows_lib.response.exceptions import LayerNotDefined
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
-from registry.proxy.mixins import OgcServiceProxyView
+from registry.proxy.mixins import Http423, OgcServiceProxyView
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -341,6 +341,12 @@ class WebMapServiceProxy(OgcServiceProxyView):
         """
 
         remote_response = self.get_remote_response()
+
+        if "xml" in remote_response.headers.get("Content-Type", "") and "ServiceException" in remote_response.text:
+            return self.return_http_response(
+                response=remote_response
+            )
+
         mask = self._create_secured_service_mask()
 
         if isinstance(remote_response, dict):
@@ -348,7 +354,8 @@ class WebMapServiceProxy(OgcServiceProxyView):
         try:
             secured_image = self._create_masked_image(
                 remote_response.content, mask)
-        except OSError:
+        except OSError as e:
+            logging.error(e, exc_info=True)
             return self.return_http_response(
                 response={
                     "status_code": 500,
@@ -466,6 +473,8 @@ class WebMapServiceProxy(OgcServiceProxyView):
             exc = BadRequest()
             exc.response_cls = LayerNotDefined
             raise exc
+        elif not self.service.are_all_layers_active:
+            raise Http423
         return super().get_and_post(request, *args, **kwargs)
 
     def secure_request(self):

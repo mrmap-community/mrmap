@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import IO, Union
+from xml.sax.saxutils import escape as xml_escape
 
 from django.apps import apps
 from django.contrib.postgres.fields import DateTimeRangeField
@@ -12,7 +13,6 @@ from django.db.models.fields.related import ForeignObjectRel
 from django.utils.timezone import get_default_timezone, is_naive, make_aware
 from lxml import etree
 from psycopg.types.range import Range
-from xml.sax.saxutils import escape as xml_escape
 
 
 def load_function(path: str):
@@ -329,22 +329,58 @@ def build_concrete_xpath(mapper, spec: dict, instance: "models.Model") -> str:
             )
 
     # Normalize relative paths
-    if identifier_xpath.startswith("./"):
-        identifier_xpath = identifier_xpath[2:]
-    elif identifier_xpath == ".":
-        identifier_xpath = ""
     if identifier_xpath:
         return identifier_xpath
 
     # Fallback to _base_xpath if no identifier was found
     base_xpath = spec.get("_base_xpath", ".")
-    if base_xpath.startswith("./"):
-        return base_xpath[2:]
+
     return base_xpath
 
 
 def split_parent_and_leaf(xpath: str):
-    parts = xpath.strip("/").split("/")
+    s = xpath.strip("/")
+    if not s:
+        raise ValueError("Invalid XPath")
+
+    parts = []
+    buf = []
+    bracket_depth = 0
+    in_single = False
+    in_double = False
+
+    for ch in s:
+        # toggle quote states (ignore when inside the other quote type)
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            buf.append(ch)
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+            buf.append(ch)
+            continue
+
+        # track predicate depth only when not inside quotes
+        if not in_single and not in_double:
+            if ch == "[":
+                bracket_depth += 1
+                buf.append(ch)
+                continue
+            if ch == "]":
+                bracket_depth = max(0, bracket_depth - 1)
+                buf.append(ch)
+                continue
+            # split on slashes only at top level (not inside predicates)
+            if ch == "/" and bracket_depth == 0:
+                parts.append("".join(buf))
+                buf = []
+                continue
+
+        buf.append(ch)
+
+    if buf:
+        parts.append("".join(buf))
+
     if not parts:
         raise ValueError("Invalid XPath")
 
@@ -402,28 +438,31 @@ def ensure_element_for_instance(
     Ensure that the XML element for a Django instance exists
     and return it.
     """
-    # Use base_xpath for element creation instead of identifier xpath
-    # The identifier may contain complex predicates with special characters
-    # (e.g., URLs with / and &) that break path splitting logic
-    xpath_for_creation = spec.get("_base_xpath", spec.get("xpath", "."))
+    try:
+        xpath_for_creation = build_concrete_xpath(mapper, spec, instance)
 
-    parent_parts, leaf_part = split_parent_and_leaf(xpath_for_creation)
-    leaf_tag = extract_tag_name(leaf_part)
+        parent_parts, leaf_part = split_parent_and_leaf(xpath_for_creation)
+        leaf_tag = extract_tag_name(leaf_part)
 
-    # Ensure the parent path exists
-    parent_xpath = "/".join(parent_parts)
-    parent_elem, _ = ensure_path(parent, parent_xpath, nsmap)
+        # Ensure the parent path exists
+        parent_xpath = "/".join(parent_parts)
+        parent_elem, _ = ensure_path(parent, parent_xpath, nsmap)
 
-    # Resolve namespace-aware tag
-    if ":" in leaf_tag:
-        prefix, local = leaf_tag.split(":", 1)
-        ns_uri = nsmap[prefix]
-        tag = f"{{{ns_uri}}}{local}"
-    else:
-        tag = leaf_tag
+        # Resolve namespace-aware tag
+        if ":" in leaf_tag:
+            prefix, local = leaf_tag.split(":", 1)
+            ns_uri = nsmap[prefix]
+            tag = f"{{{ns_uri}}}{local}"
+        else:
+            tag = leaf_tag
 
-    # ALWAYS create a new leaf element
-    return etree.SubElement(parent_elem, tag)
+        # ALWAYS create a new leaf element
+
+        return etree.SubElement(parent_elem, tag)
+    except Exception as e:
+        i = 0
+
+        raise e
 
 
 def normalize_key_value(field, value):

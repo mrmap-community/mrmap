@@ -1,4 +1,5 @@
 import datetime
+import logging
 import re
 from functools import cached_property
 from io import BytesIO
@@ -47,7 +48,6 @@ def exception_handler(exc, context):
     else:
         service_type = context["view"].service_type
         service_version = context["view"].service_version
-
     match exc:
         case Http404() | PermissionDenied():
             return ForbiddenException(service_type=service_type,
@@ -60,11 +60,13 @@ def exception_handler(exc, context):
             return DisabledException(service_type=service_type,
                                      service_version=service_version)
         case NotImplementedError():
+            logging.error(exc, exc_info=True)
             return MrMapNotImplementedError(
                 service_type=service_type,
                 service_version=service_version,
                 message="The requested operation is not implemented in the proxy.")
         case _:
+            logging.error(exc, exc_info=True)
             return ForbiddenException(service_type=service_type,
                                       service_version=service_version)
 

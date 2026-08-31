@@ -53,7 +53,7 @@ channels[daphne]==4.3.2
 # adds redis cache backend implementation for channels package
 channels-redis==4.3.0
 django-cte==3.0.0
-drf-spectacular-jsonapi==0.6.0
+drf-spectacular-jsonapi==0.6.2
 camel-converter==5.1.0
 django-rest-knox==5.1.0
 django-pgviews-redux==1.2.0

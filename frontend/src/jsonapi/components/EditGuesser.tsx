@@ -1,7 +1,9 @@
 import { createElement, type ReactElement, useMemo } from 'react';
 import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, Toolbar, ToolbarClasses, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
+import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
+import SchemaAutocompleteInput from './SchemaAutocompleteInput';
 
 
 export interface EditGuesserProps<RecordType extends RaRecord = any>
@@ -72,16 +74,43 @@ const EditGuesser = (
   referenceInputs,
   ...props
 }: EditGuesserProps): ReactElement => {
-  const { options } = useResourceDefinition(props)
+  const { name, options } = useResourceDefinition(props)
   
+  const {schema, sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
+  const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
+  
+  const meta = useMemo(()=>{
+    const neededIncludes = fieldDefinitions.filter(
+      fieldDefinition => !fieldDefinition.props.disabled && fieldDefinition.component === SchemaAutocompleteInput 
+    ).map(fieldDefinition => ({
+      source: fieldDefinition.props.source, 
+      reference: fieldDefinition.props.reference
+    })).filter(include => includeAbleResources?.includes(include.source))
+
+    const jsonApiParams: any = {
+      include: neededIncludes.map(include => include.source).join(','),
+    }
+    const _meta = {
+      type: options?.type,
+      jsonApiParams: jsonApiParams
+    }
+
+    sparseFieldsPerResource && neededIncludes.forEach(include => {
+      jsonApiParams[`fields[${include.reference}]`] = 'id,string_representation'
+    })
+    
+    return _meta
+  },[ fieldDefinitions, options?.type, sparseFieldsPerResource, includeAbleResources])
+  
+
   return (
     <Edit
       queryOptions={{
         refetchOnReconnect: true,
-        meta: { type: options?.type}
+        meta: meta
       }}
       mutationOptions={{
-        meta: { type: options?.type }
+        meta: meta
       }}
       mutationMode='pessimistic'
       

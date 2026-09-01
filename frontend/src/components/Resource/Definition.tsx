@@ -20,6 +20,7 @@ import EditAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/E
 import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import { WmsShow } from './WebMapService/WmsShow';
 
+import ContactsIcon from '@mui/icons-material/Contacts';
 import HttpIcon from '@mui/icons-material/Http';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import UpdateIcon from '@mui/icons-material/Update';
@@ -33,6 +34,7 @@ import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapS
 import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
+
 
 const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapService", icon: MapIcon, list: WmsList, show: WmsShow},
@@ -57,7 +59,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "HarvestingLog"},
   {name: "PeriodicHarvestingJob", icon: UpdateIcon, list: ListPeriodicHarvestingJob },
 
-
+  {name: "MetadataContact", icon: ContactsIcon},
   {name: "Keyword", icon: LocalOfferIcon},
   {name: "DatasetMetadataRecord", icon: DatasetIcon, show: ShowDatasetMetadataRecord},
   {name: "ServiceMetadataRecord", icon: DatasetIcon},

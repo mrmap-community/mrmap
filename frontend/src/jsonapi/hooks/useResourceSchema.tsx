@@ -4,7 +4,7 @@ import { type OpenAPIV3, type Operation } from 'openapi-client-axios'
 
 import { SortPayload } from 'react-admin'
 import { getEncapsulatedSchema } from '../openapi/parser'
-import { getSortOptions, getSparseFieldOptionsPerResourceType } from '../utils'
+import { getIncludeOptions, getSortOptions, getSparseFieldOptionsPerResourceType } from '../utils'
 import useOperation from './useOperation'
 
 export interface OperationSchema {
@@ -12,12 +12,14 @@ export interface OperationSchema {
   operation?: Operation,
   sortValues?: SortPayload[],
   sparseFieldsPerResource?: {[key: string]: string[]}
+  includeAbleResources?: string[]
 }
 
 const useResourceSchema = (operationId: string | undefined): OperationSchema => {
   const [schema, setSchema] = useState<OpenAPIV3.NonArraySchemaObject>()
   const [sortValues, setSortValues] = useState<SortPayload[]>([])
   const [sparseFieldsPerResource, setsparseFieldsPerResource] = useState<{[key: string]: string[]}>()
+  const [includeAbleResources, setIncludeAbleResources] = useState<string[]>()
 
   const operation = useOperation(operationId)
 
@@ -26,6 +28,7 @@ const useResourceSchema = (operationId: string | undefined): OperationSchema => 
 
       setSortValues(getSortOptions(operation))
       setsparseFieldsPerResource(getSparseFieldOptionsPerResourceType(operation))
+      setIncludeAbleResources(getIncludeOptions(operation))
 
       if (operation === undefined) {
         setSchema(undefined)
@@ -38,7 +41,7 @@ const useResourceSchema = (operationId: string | undefined): OperationSchema => 
     }
   }, [operation])
 
-  return { schema, operation, sortValues, sparseFieldsPerResource }
+  return { schema, operation, sortValues, sparseFieldsPerResource, includeAbleResources }
 }
 
 export default useResourceSchema

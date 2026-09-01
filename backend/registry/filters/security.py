@@ -65,6 +65,22 @@ class AllowedWebMapServiceOperationFilterSet(GeoFilterSet):
             'returns rules with allowed area that intersects the passed geometry'),
         field_name='allowed_area',
         lookup_expr='intersects')
+    id__in = NumberInFilter(
+        label=_("primary key in"),
+        field_name="pk",
+        lookup_expr="in")
+    id__exact = NumberInFilter(
+        label=_("primary key exact"),
+        field_name="pk",
+        lookup_expr="exact")
+    id__icontains = NumberInFilter(
+        label=_("primary key icontains"),
+        field_name="pk",
+        lookup_expr="icontains")
+    id__contains = NumberInFilter(
+        label=_("primary key contains"),
+        field_name="pk",
+        lookup_expr="contains")
 
     class Meta:
         model = AllowedWebMapServiceOperation

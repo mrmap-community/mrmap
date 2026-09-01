@@ -8,8 +8,8 @@ from extras.serializers import (HistoryInformationSerializer,
 from extras.validators import validate_get_capablities_uri
 from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
-                                      TimeExtent, MetadataContact,
-                                      ReferenceSystem, Style)
+                                      MetadataContact, ReferenceSystem, Style,
+                                      TimeExtent)
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication,
@@ -24,7 +24,8 @@ from registry.serializers.metadata import (KeywordSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            StyleSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import BooleanField, IntegerField, SerializerMethodField, URLField
+from rest_framework.fields import (BooleanField, IntegerField,
+                                   SerializerMethodField, URLField)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
     ResourceRelatedField, SerializerMethodResourceRelatedField)
@@ -236,11 +237,11 @@ class WebMapServiceListSerializer(
         related_link_url_kwarg="parent_lookup_webmapservice_metadata",
     )
     allowed_operations = ResourceRelatedField(
-        queryset=AllowedWebMapServiceOperation.objects,
+        model=AllowedWebMapServiceOperation,
         many=True,
         related_link_view_name="registry:wms-allowedwmsoperation-list",
         related_link_url_kwarg="parent_lookup_secured_service",
-        # meta_attrs={'keyword_count': 'count'}
+        read_only=True
     )
     operation_urls = ResourceRelatedField(
         label=_("operation urls"),

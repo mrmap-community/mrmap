@@ -367,6 +367,7 @@ const dataProvider = ({
         // Therewhile the parent object isnt created and the getList is called with an undefined id. This results in 404 requests.
         return { data: []}
       }
+
       const operationId = 
       relatedResource === undefined 
       ? `list_${resource}` 
@@ -374,17 +375,25 @@ const dataProvider = ({
 
       checkOperationExists(httpClient, operationId)
       
-
       let page = 1
       let hasNextPage = true
       const pageSize = Math.max(params.ids.length, 1000)
       const gathered = []
 
       while(hasNextPage){
-        const parameters = buildQueryParams({
+        // create a mutable copy and remove `ids` when using related routes
+        const queryParams: any = {
           ...params,
           pagination: { page: page, perPage: pageSize },
-        })
+        }
+        if (relatedResource !== undefined) {
+          // if the code reaches this point, nested route will be used,
+          // which already filters the results by the related resource.
+          // No additional id filter is needed in this case. The backend will successfully return
+          // the filtered results for the related resource in an efficient way, even if the ids are not provided in the request.
+          delete queryParams.ids
+        }
+        const parameters = buildQueryParams(queryParams)
         const conf = httpClient.getAxiosConfigForOperation(
           operationId, 
           [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)]

@@ -1,6 +1,5 @@
 import { type ReactElement, useCallback, useMemo, useState } from 'react';
-import { AutocompleteArrayInput, AutocompleteArrayInputProps, AutocompleteInput, GetListParams, Identifier, type RaRecord, useGetList, useRecordContext } from 'react-admin';
-
+import { AutocompleteArrayInput, AutocompleteArrayInputProps, AutocompleteInput, GetListParams, Identifier, type RaRecord, useGetList, useGetMany, useRecordContext } from 'react-admin';
 import { useWatch } from 'react-hook-form';
 import { RelatedResource } from '../../providers/dataProvider';
 import useSchemaRecordRepresentation from '../hooks/useSchemaRecordRepresentation';
@@ -15,12 +14,13 @@ export interface SchemaAutocompleteInputProps extends AutocompleteArrayInputProp
   initialFilter?: any
 }
 
+
 /**
  * DataRequest Workflow:
  * 1. check if record has initial data
  * 2. IF there are initial data, look for completed relation data ({id: 1, stringRepresentation: keyword, keyword: dop40} for example) inside the RaRecord which was collected by the json:api `include` query parameter in any component before
  * 3. IF there is no completed data, collect the information from remote api
- * 4. Fetch available choices on input focus
+ * 4. Fetch available choices on input search (with filter) and merge with the initial data (if any)
  * 5. Merge available choices and completed initial data
  */
 const SchemaAutocompleteInput = (
@@ -36,71 +36,112 @@ const SchemaAutocompleteInput = (
     ...rest
   }: SchemaAutocompleteInputProps
 ): ReactElement => {
-  const contextRecord = useRecordContext(rest)
-  const currentRecordValues = useMemo(() => (contextRecord?.[source]), [contextRecord, source])
-  const values = useWatch()
-  const currentValues = useMemo(()=> values[source] || currentRecordValues, [values, source])
-  const [ filter, setFilter] = useState<any>(initialFilter || {});
 
+  const [ filter, setFilter ] = useState<any>(initialFilter || {});
   const defaultParms = useMemo<GetListParams>(()=>{
     const _defaultParms: any = {
-      filter: filter, 
       sort: {field: '', order: 'DESC'}, 
       meta: {
         relatedResource: relatedResource,
         jsonApiParams: {}
       },
-      ...params
     }
     _defaultParms.meta.jsonApiParams[`fields[${reference}]`] = 'id,string_representation';
     return _defaultParms
-  }, [filter])
+  }, [reference, relatedResource])
 
-  const { data, isFetching } = useGetList(
+
+  const optionText = useSchemaRecordRepresentation({resource: reference})
+
+  const relatedRecord = useRecordContext(rest)
+  const formValues: RaRecord | RaRecord[] = useWatch({name: source})
+
+  const includedObjects = useMemo(() => {
+    if (formValues === undefined) return []
+    const valuesArray = Array.isArray(formValues) ? formValues : [formValues];
+    return valuesArray.map((value: any) => {
+        if (typeof value === 'object' && value.id && value.stringRepresentation) {
+          return value; // already has completed data
+        }
+      }).filter((value: any) => value !== undefined)
+    }
+  , [formValues, relatedRecord, source])
+
+  const missingObjects = useMemo(() => {
+    if (formValues === undefined) return []
+    const valuesArray = Array.isArray(formValues) ? formValues : [formValues];
+    return valuesArray.filter(value => value.id && !includedObjects?.find(obj => obj.id === value.id))
+  }, [])
+
+  if (missingObjects && missingObjects.length > 0){
+    console.warn(
+      `No included objects found for ${source} in record ${relatedRecord?.id}.
+      This may indicate that the related resource is not included in the API response. 
+      Please check the API response and ensure that the related resource is included.
+      Otherwise, the autocomplete input needs to fetch the data from the API, 
+      which may result in additional requests and slower performance.`
+    )
+  }
+
+  const { data: searchResults, isFetching: searchResultIsFetching, isLoading: searchResultIsLoading } = useGetList(
     reference, 
     {
+      filter: filter, 
       ...defaultParms,
-      ...getListParams,
-      
+      ...getListParams, 
+      ...params
     },
     {
-      
-      // FIXME: only fetch if the user types >1 characters
-      enabled: filter?.search !== undefined, // only fetch when filter is set, which means the input is focused
+      enabled: !!filter?.search, // only fetch when filter is set, which means the input is focused
     } 
   );
 
+  const { data: getManyData, isFetching: isFetchingGetMany, isLoading: isloadingGetMany } = useGetMany(
+    reference,
+    {
+      ids: missingObjects.map(value => value.id),
+      ...defaultParms,
+    },
+    {
+      enabled: missingObjects.length > 0, // only fetch when there are missing objects
+    }
+  );
+
+
   const mergedData = useMemo(() => {
-    if (!currentValues) return data || [];
+    if (!formValues || !getManyData) return searchResults || [];
 
-
-    const currentValuesArray = Array.isArray(currentValues) ? currentValues : [currentValues];
-    const completedCurrentValues = currentValuesArray.map((value: any) => {
-      if (typeof value === 'object' && value.id && value.string_representation) {
+    const currentValuesArray = Array.isArray(formValues) ? formValues : [formValues];
+    return currentValuesArray.map((value: any) => {
+      if (typeof value === 'object' && value.id && value.stringRepresentation) {
         return value; // already has completed data
       }
-      const matched = data?.find((item: any) => item.id === (typeof value === 'object' ? value.id : value));
+
+      const matched = [...(getManyData || [])]?.find(
+        (item: any) => item.id === (typeof value === 'object' ? value.id : value)
+      );
+
       return matched || { id: typeof value === 'object' ? value.id : value }; // fallback to basic object if no match found
     });
-    const merged = [...(data || []), ...completedCurrentValues.filter((cv: any) => !data?.some((d: any) => d.id === cv.id))];
-    return merged;
-  }, [data, currentValues]);
+
+
+  }, [searchResults, formValues, getManyData]);
  
+  const choices = useMemo(() => [...mergedData, ...(searchResults||[])], [mergedData, searchResults]);
+
   const search = useCallback((searchText: string) => {
     setFilter((prev: any) => ({ ...prev, search: searchText }));
   }, [])
-
-  const optionText = useSchemaRecordRepresentation({resource: reference})
 
   // TODO: check if the resource has create endpoint; if so, we add an create component here
   if (multiple){
     return (
         <AutocompleteArrayInput 
           setFilter={(searchText: string) => search(searchText)}
-          onOpen={() => search(filter.search || '')}
           source={source}
-          choices={mergedData}
-          isFetching={isFetching}
+          choices={choices}
+          isLoading={searchResultIsLoading || isloadingGetMany}
+          isFetching={searchResultIsFetching || isFetchingGetMany}
           optionText={optionText}
           parse={(value: Identifier[]) => { return value?.map(identifier => ({id: identifier})) }} // form input value (string) ---> parse ---> form state value
           format={(value: RaRecord[]) => value?.map(record => (record.id))}
@@ -109,12 +150,12 @@ const SchemaAutocompleteInput = (
       )
   } else {
     return (
-      <AutocompleteInput 
+      <AutocompleteInput
         setFilter={(searchText: string) => search(searchText)}
-        onOpen={() => search(filter.search || '')}
         source={source}
-        choices={mergedData}
-        isFetching={isFetching}
+        choices={choices}
+        isLoading={searchResultIsLoading || isloadingGetMany}
+        isFetching={searchResultIsFetching || isFetchingGetMany}
         optionText={optionText}
         parse={(value: Identifier) => { return { id: value } }} // form input value (string) ---> parse ---> form state value
         format={(value: RaRecord) => value?.id}

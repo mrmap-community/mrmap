@@ -4,40 +4,54 @@ import {
 } from 'react-admin';
 
 import AgricultureIcon from '@mui/icons-material/Agriculture';
+import ContactsIcon from '@mui/icons-material/Contacts';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 import DatasetIcon from '@mui/icons-material/Dataset';
+import HttpIcon from '@mui/icons-material/Http';
 import LayersIcon from '@mui/icons-material/Layers';
+import LegendToggleIcon from '@mui/icons-material/LegendToggle';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import MapIcon from '@mui/icons-material/Map';
+import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import NotListedLocationIcon from '@mui/icons-material/NotListedLocation';
 import CustomerIcon from '@mui/icons-material/Person';
 import PlagiarismIcon from '@mui/icons-material/Plagiarism';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import WmsList from '../Lists/WmsList';
 import CreateAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/CreateAllowedWebMapServiceOperation';
 import EditAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/EditAllowedWebMapServiceOperation';
-import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
-import { WmsShow } from './WebMapService/WmsShow';
-
-import ContactsIcon from '@mui/icons-material/Contacts';
-import HttpIcon from '@mui/icons-material/Http';
-import LegendToggleIcon from '@mui/icons-material/LegendToggle';
-import MultipleStopIcon from '@mui/icons-material/MultipleStop';
-import UpdateIcon from '@mui/icons-material/Update';
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
+import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
 import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import WmsViewerButtons from './WebMapService/ListActions';
+import { WmsShow } from './WebMapService/WmsShow';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
 
+
 const RESOURCES: Array<ResourceProps> = [
-  {name: "WebMapService", icon: MapIcon, list: WmsList, show: WmsShow, options: { menu: { group: "WMS", order: 10 } }},
+  {
+    name: "WebMapService", 
+    icon: MapIcon, 
+    show: WmsShow, 
+    options: { 
+      menu: { group: "WMS", order: 10 },
+      list: { 
+        perPage: 25,
+        sort: { field: 'title', order: 'ASC' },
+        defaultSelectedColumns: ["id", "title", "abstract", "username", "actions", ],
+        sparseFieldsets: [{type: "WebMapService", fields: ["isSecured", "xmlBackupFileSecured"]}],
+        additionalActions: WmsViewerButtons
+      }
+    }
+  },
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, options: { menu: { group: "WMS", order: 30 } }},
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
@@ -67,6 +81,7 @@ const RESOURCES: Array<ResourceProps> = [
   // update
   {name: "WebMapServiceUpdateJob", icon: UpdateIcon, show: ShowWebMapServiceUpdate, options: { menu: { group: "WMS", order: 40 } }},
   {name: "LayerMapping", icon: SyncAltIcon},
+
 
   // monitoring
   {
@@ -118,7 +133,7 @@ const RESOURCES: Array<ResourceProps> = [
 
   // System
   {name: "SystemInfo", options: { menu: { group: "Admin", order: 10 } }},
-  {name: "CrontabSchedule"},
+  {name: "CrontabSchedule",},
   {name: "PeriodicTask", options: { menu: { group: "Admin", order: 20 }}},
 ];
 

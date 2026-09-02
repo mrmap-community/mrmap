@@ -39,7 +39,6 @@ const HarvestButton = (): ReactNode => {
         label={"Harvest"}
         state={{ record: { service: record, harvestDatasets: true, harvestServices: true, stepSize: 500}}}
       />
-        
     )
   }
 }

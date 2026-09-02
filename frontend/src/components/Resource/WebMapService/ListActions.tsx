@@ -1,8 +1,6 @@
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import { type ReactNode } from 'react';
 import { useRecordContext } from 'react-admin';
-import ListGuesser from '../../jsonapi/components/ListGuesser';
-import MapViewerButton from '../Resource/WebMapService/MapViewerButton';
+import MapViewerButton from './MapViewerButton';
 
 
 const WmsViewerButtons = () => {
@@ -28,17 +26,4 @@ const WmsViewerButtons = () => {
 }
 
 
-const WmsList = (): ReactNode => {
-    
-  return (
-    <ListGuesser
-      resource='WebMapService'
-      additionalActions={<WmsViewerButtons/>}
-      sparseFieldsets={[{type: "WebMapService", fields: ["isSecured", "xmlBackupFileSecured"]}]}
-    // aside={<TaskList />}
-    />
-
-  )
-}
-
-export default WmsList
+export default WmsViewerButtons

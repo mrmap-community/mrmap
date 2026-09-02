@@ -57,7 +57,11 @@ const ListGuesser = ({
   ...props
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
-  const { name, hasShow, hasEdit } = useResourceDefinition(props)
+  const { name, hasShow, hasEdit, options } = useResourceDefinition(props)
+  const listOptions = useMemo(()=>{
+    return options.list
+  },[options])
+
   const { api } = useHttpClientContext()
   const [open] = useSidebarState()
 
@@ -127,26 +131,26 @@ const ListGuesser = ({
   const jsonApiQuery = useMemo(
     () => {
       const query: any = {}
+      const _sparseFieldsets = sparseFieldsets || listOptions?.sparseFieldsets || []
+      console.log(sparseFieldsets, listOptions?.sparseFieldsets, _sparseFieldsets, sparseFieldsQueryValue)
+      _sparseFieldsets.forEach(sf => {
+        if (name === sf.type){
 
-      if (sparseFieldsets !== undefined) {
-        sparseFieldsets.forEach(sf => {
-          if (name === sf.type){
+          const fields = [...new Set([
+            ...sf.fields.map(value =>
+              // TODO: django jsonapi has an open issue where no snake to cammel case translation are made
+              // See https://github.com/django-json-api/django-rest-framework-json-api/issues/1053
+              snakeCase(value)), 
+            ...sparseFieldsQueryValue || []
+          ])]
+          query[`fields[${sf.type}]`] = fields.join(',')
+        } else {
+          query[`fields[${sf.type}]`] = sf.fields.join(',')
+        }
+      })
+      
 
-            const fields = [...new Set([
-              ...sf.fields.map(value =>
-                // TODO: django jsonapi has an open issue where no snake to cammel case translation are made
-                // See https://github.com/django-json-api/django-rest-framework-json-api/issues/1053
-                snakeCase(value)), 
-              ...sparseFieldsQueryValue || []
-            ])]
-            query[`fields[${sf.type}]`] = fields.join(',')
-          } else {
-            query[`fields[${sf.type}]`] = sf.fields.join(',')
-          }
-        })
-      }
-
-      if (sparseFieldsets === undefined && sparseFieldsQueryValue !== undefined) {
+      if (_sparseFieldsets === undefined && sparseFieldsQueryValue !== undefined) {
         query[`fields[${name}]`] = sparseFieldsQueryValue.join(',')
       }
 
@@ -156,7 +160,7 @@ const ListGuesser = ({
 
       return query
     }
-    , [sparseFieldsets, sparseFieldsQueryValue, includeQueryValue]
+    , [sparseFieldsets, listOptions?.sparseFieldsets,sparseFieldsQueryValue, includeQueryValue]
   )
 
   
@@ -249,7 +253,7 @@ const ListGuesser = ({
           rowActions || <FieldWrapper label="Actions" >
               {hasShow && <ShowButton />}
               {hasEdit && <EditButton />}
-              {additionalActions}
+              {additionalActions || createElement(listOptions?.additionalActions)}
             </FieldWrapper >
         }
       </DatagridConfigurable >

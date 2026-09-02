@@ -88,17 +88,16 @@ const MrMapFrontend = (): ReactElement => {
           children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={resource.name}> </ListGuesser>}></Route>)
         }) as ReactElement[],
         ...(resource.recordRepresentation ? {recordRepresentation: resource.recordRepresentation}: {recordRepresentation: defaultRecordRepresentation}),
+        ...resource,
         ...({options: {
-              ...resource.options, 
               showOperationName: showOperationName,
               createOperationName: createOperationName,
               editOperationName: editOperationName,
               listOperationName: listOperationName,
               hasDelete: !!deleteOperation,
               label: resource.name,
+              ...resource.options, 
             }}),
-        ...resource,
-        
       }
     })
   }, [api])

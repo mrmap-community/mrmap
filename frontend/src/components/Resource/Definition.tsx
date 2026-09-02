@@ -22,6 +22,7 @@ import { WmsShow } from './WebMapService/WmsShow';
 
 import ContactsIcon from '@mui/icons-material/Contacts';
 import HttpIcon from '@mui/icons-material/Http';
+import LegendToggleIcon from '@mui/icons-material/LegendToggle';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 import UpdateIcon from '@mui/icons-material/Update';
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
@@ -35,46 +36,45 @@ import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServi
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
 
-
 const RESOURCES: Array<ResourceProps> = [
-  {name: "WebMapService", icon: MapIcon, list: WmsList, show: WmsShow},
-  {name: "WebMapServiceProxySetting", icon: MultipleStopIcon},
+  {name: "WebMapService", icon: MapIcon, list: WmsList, show: WmsShow, options: { menu: { group: "WMS", order: 10 } }},
+  {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, options: { menu: { group: "WMS", order: 30 } }},
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
-
   {name: "HistoricalWebMapService"},
-  
-  {name: "Layer", icon: LayersIcon},
-  
-  
-  {name: "WebFeatureService", icon: TravelExploreIcon},
-  {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
-  {name: "FeatureType", icon: NotListedLocationIcon},
+  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
   
   
-  {name: "CatalogueService", icon: PlagiarismIcon, show: ShowCatalogueService, list: CatalogueServiceList},
+  {name: "WebFeatureService", icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
+  {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon, options: { menu: { group: "WFS", order: 20 } }},
+  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
+  
+  
+  {name: "CatalogueService", icon: PlagiarismIcon, show: ShowCatalogueService, list: CatalogueServiceList, options: { menu: { group: "CSW", order: 10 } }},
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
 
-  {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob},
+  {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob, options: { menu: { group: "CSW", order: 20 } }},
   {name: "TemporaryMdMetadataFile"},
   {name: "HarvestingLog"},
   {name: "PeriodicHarvestingJob", icon: UpdateIcon, list: ListPeriodicHarvestingJob },
 
   {name: "MetadataContact", icon: ContactsIcon},
-  {name: "Keyword", icon: LocalOfferIcon},
-  {name: "DatasetMetadataRecord", icon: DatasetIcon, show: ShowDatasetMetadataRecord},
-  {name: "ServiceMetadataRecord", icon: DatasetIcon},
+  {name: "Keyword", icon: LocalOfferIcon, options: { menu: { group: "Metadata", order: 30 } }},
+  {name: "DatasetMetadataRecord", icon: DatasetIcon, show: ShowDatasetMetadataRecord, options: { menu: { group: "Metadata", order: 10 } }},
+  {name: "ServiceMetadataRecord", icon: DatasetIcon, options: { menu: { group: "Metadata", order: 20 } }},
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
 
 
   // update
-  {name: "WebMapServiceUpdateJob", icon: UpdateIcon, show: ShowWebMapServiceUpdate},
+  {name: "WebMapServiceUpdateJob", icon: UpdateIcon, show: ShowWebMapServiceUpdate, options: { menu: { group: "WMS", order: 40 } }},
   {name: "LayerMapping", icon: SyncAltIcon},
 
   // monitoring
   {
     name: "WebMapServiceMonitoringSetting", 
+    icon: LegendToggleIcon,
     create: CreateWebMapServiceMonitoringSetting,
     edit: EditWebMapServiceMonitoringSetting,
+    options: { menu: { group: "WMS", order: 50 } }
   },
   {name: "GetCapabilitiesProbe"},
   {name: "GetMapProbe"},
@@ -99,15 +99,16 @@ const RESOURCES: Array<ResourceProps> = [
     icon: VpnLockIcon, 
     create: CreateAllowedWebMapServiceOperation, 
     edit: EditAllowedWebMapServiceOperation,
-    list: ListAllowedWebMapServiceOperation
+    list: ListAllowedWebMapServiceOperation,
+    options: { menu: { group: "WMS", order: 50 } }
     
   },
   {name: "WebMapServiceOperation",},
-  {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon},
+  {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon, options: { menu: { group: "WFS", order: 40 } }},
   {name: "WebFeatureServiceOperation",},
 
-  {name: "User", icon: CustomerIcon},
-  {name: "Organization", icon: CorporateFareIcon },
+  {name: "User", icon: CustomerIcon, options: { menu: { group: "Accounts", order: 10 } }},
+  {name: "Organization", icon: CorporateFareIcon, options: { menu: { group: "Accounts", order: 20 } }},
   {name: "Group", icon: CorporateFareIcon },
 
 
@@ -116,9 +117,9 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   // System
-  {name: "SystemInfo"},
+  {name: "SystemInfo", options: { menu: { group: "Admin", order: 10 } }},
   {name: "CrontabSchedule"},
-  {name: "PeriodicTask"},
+  {name: "PeriodicTask", options: { menu: { group: "Admin", order: 20 }}},
 ];
 
 export default RESOURCES;

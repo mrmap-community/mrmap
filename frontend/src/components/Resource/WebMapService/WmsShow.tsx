@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
 import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
 import { createElementIfDefined } from '../../../utils';
+import { MonitoringSettingsTab } from './MonitoringSettingsTab';
 import ProxySettingsTab from './ProxySettings';
 import SpatialSecureTab from './SpatialSecureTab';
 import WebMapServiceOperationUrlsTab from './WebMapServiceOperationUrlsTab';
@@ -79,11 +80,14 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 <ProxySettingsTab/>
             </TabbedShowLayout.Tab>
             
-            <TabbedShowLayout.Tab label="spatial secure" path='spatial-secure'>
+            <TabbedShowLayout.Tab label="Security Rules" path='security-rules'>
                 <SpatialSecureTab/>
             </TabbedShowLayout.Tab>
 
-            {/** Monitoring settings */}
+            <TabbedShowLayout.Tab label="Monitoring Settings" path='monitoring-settings'>
+                <MonitoringSettingsTab/>
+            </TabbedShowLayout.Tab>
+
         </TabbedShowLayout>
         </Show>
     )

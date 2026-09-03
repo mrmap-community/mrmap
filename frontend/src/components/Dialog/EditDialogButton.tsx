@@ -1,4 +1,4 @@
-import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
 import { ButtonOwnProps } from '@mui/material';
 import { useState } from "react";
 import { Button, useRecordContext } from "react-admin";
@@ -23,7 +23,7 @@ const EditDialogButton = ({
   return (
     <div>
       <Button label="Edit" onClick={()=>setDialogOpen(true)} {...buttonProps}>
-        <AddIcon />
+        <EditIcon />
       </Button>
       <EditDialog id={record?.id} isOpen={dialogOpen} setIsOpen={setDialogOpen} onClose={()=>setDialogOpen(false)}{...editDialogProps} />
     </div>

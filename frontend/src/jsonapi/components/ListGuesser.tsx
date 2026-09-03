@@ -56,6 +56,7 @@ const ListGuesser = ({
   ActionsComponent=ListActions,
   ...props
 }: ListGuesserProps): ReactElement => {
+
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit, options } = useResourceDefinition(props)
   const listOptions = useMemo(()=>{
@@ -132,7 +133,6 @@ const ListGuesser = ({
     () => {
       const query: any = {}
       const _sparseFieldsets = sparseFieldsets || listOptions?.sparseFieldsets || []
-      console.log(sparseFieldsets, listOptions?.sparseFieldsets, _sparseFieldsets, sparseFieldsQueryValue)
       _sparseFieldsets.forEach(sf => {
         if (name === sf.type){
 
@@ -163,7 +163,6 @@ const ListGuesser = ({
     , [sparseFieldsets, listOptions?.sparseFieldsets,sparseFieldsQueryValue, includeQueryValue]
   )
 
-  
 
   if (operation === undefined || fields === undefined || fields?.length === 0) {
     // if fields are empty the table will be initial rendered only with the default index column.
@@ -196,7 +195,6 @@ const ListGuesser = ({
             jsonApiParams: { ...jsonApiQuery }
           }
       }}
-      
       sx={
         {
           '& .RaList-main': {

@@ -1,7 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
 
-from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon

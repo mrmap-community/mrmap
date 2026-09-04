@@ -1,5 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
+from uuid import uuid4
 
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
@@ -45,6 +46,9 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
             }
         if not self.pk and not self.queue:
             self.queue = "monitoring"
+        if not self.pk and not self.name:
+            # max 200 chars for name field
+            self.name = uuid4()
 
 
 class WebMapServiceMonitoringRun(models.Model):

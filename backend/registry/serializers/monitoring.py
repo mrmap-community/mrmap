@@ -162,7 +162,7 @@ class WebMapServiceMonitoringSettingSerializer(
 
     class Meta:
         model = WebMapServiceMonitoringSetting
-        fields = ('url', 'name', 'service', 'schedule_interval',
+        fields = ('url', 'service', 'schedule_interval',
                   "get_capabilitites_probes", "get_map_probes")
 
 

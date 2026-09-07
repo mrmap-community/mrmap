@@ -57,12 +57,12 @@ const EditFormGuesser = ({
 
   return (
     <SimpleForm
-        toolbar={defaultToolbar || toolbar}
+        toolbar={toolbar ?? defaultToolbar}
         sanitizeEmptyValues
       >
-        {fields}
-        {referenceInputs}
-      </SimpleForm>
+      {fields}
+      {referenceInputs}
+    </SimpleForm>
   )
 
 }

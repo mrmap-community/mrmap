@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, Identifier, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore } from 'react-admin'
+import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, Identifier, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 import { snakeCase } from 'lodash'
@@ -39,8 +39,6 @@ export interface ListGuesserProps extends Partial<ListProps> {
 }
 
 
-const FieldWrapper = ({ children }: FieldWrapperProps): ReactNode => children
-
 
 const ListGuesser = ({
   realtime=false,
@@ -56,13 +54,13 @@ const ListGuesser = ({
   ActionsComponent=ListActions,
   ...props
 }: ListGuesserProps): ReactElement => {
-
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit, options } = useResourceDefinition(props)
   const listOptions = useMemo(()=>{
     return options.list
   },[options])
 
+  
   const { api } = useHttpClientContext()
   const [open] = useSidebarState()
 
@@ -248,11 +246,11 @@ const ListGuesser = ({
         {...fields}
         {/**TODO: label should be translated */}
         {
-          rowActions || <FieldWrapper label="Actions" >
-              {hasShow && <ShowButton />}
-              {hasEdit && <EditButton />}
-              {additionalActions || createElement(listOptions?.additionalActions)}
-            </FieldWrapper >
+          rowActions || <WrapperField label={"ra.list.actions"} >
+            {hasShow && <ShowButton />}
+            {hasEdit && <EditButton />}
+            {additionalActions || listOptions?.additionalActions && createElement(listOptions?.additionalActions)}
+          </WrapperField >
         }
       </DatagridConfigurable >
 

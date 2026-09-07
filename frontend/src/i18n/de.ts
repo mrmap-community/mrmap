@@ -3,6 +3,9 @@ import { TranslationMessages } from "ra-core";
 // @ts-ignore
 const germanMessages: TranslationMessages = {
   ra: {
+    list: {
+      actions: "Aktionen",
+    },
     action: {
       active: '%{name} aktivieren',
       add_filter: "Filter hinzufügen",

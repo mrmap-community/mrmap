@@ -9,6 +9,7 @@ const EditWebMapServiceMonitoringSetting = () => {
   // id of the WebMapServiceMonitoringSetting record
   const { id: settingId } = useParams()
   
+
   return (
     <EditGuesser 
       resource='WebMapServiceMonitoringSetting'
@@ -16,13 +17,21 @@ const EditWebMapServiceMonitoringSetting = () => {
       redirect={false}      
       toolbar={
         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <SaveButton alwaysEnable/>
-            <DeleteButton/>
+          <SaveButton alwaysEnable={true}/>
+          <DeleteButton/>
         </Toolbar>
       }
       referenceInputs={[
-        <ReferenceManyInput key='getCapabilitiesProbes' reference='GetCapabilitiesProbe' target='setting'/>,
-        <ReferenceManyInput key='getMapProbes' reference='GetMapProbe' target='setting'/>
+        <ReferenceManyInput 
+          key='getCapabilitiesProbes' 
+          reference='GetCapabilitiesProbe' 
+          target='setting'
+        />,
+        <ReferenceManyInput
+          key='getMapProbes' 
+          reference='GetMapProbe' 
+          target='setting'
+        />
       ]}
     />
   )

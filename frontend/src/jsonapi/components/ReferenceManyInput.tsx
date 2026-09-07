@@ -1,17 +1,37 @@
 import _ from 'lodash';
 import {
-    HttpError,
-    useCreate,
-    useDelete,
-    useInfiniteGetList,
-    useResourceContext,
-    useUpdate
+  HttpError,
+  useCreate,
+  useCreateController,
+  useDelete,
+  useEditContext,
+  useInfiniteGetList,
+
+  useResourceContext,
+  useUpdate
 } from 'ra-core';
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrayInput, Loading, RaRecord, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
+import { AddItemButton, ArrayInput, Loading, RaRecord, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useFieldArray, useForm, useFormContext } from 'react-hook-form';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 
+export const AddButton = () => {
+  const { add } = useSimpleFormIterator();
+  const { getValues } = useFormContext();
+
+
+  const onClick = useCallback(()=>{
+    add()
+
+
+  },[add])
+
+  return (
+    <AddItemButton
+      onClick={onClick}
+    />
+  )
+}
 
 export const RemoveButton = () => {
   const { source } = useSimpleFormIterator();
@@ -47,7 +67,8 @@ export const RemoveButton = () => {
 
   return (
     <RemoveItemButton 
-      onClick={() => onClick()}
+      // @ts-expect-error TS2322: onClick will be passed to child anyway
+      onClick={() => onClick()}  
       disabled={isPending}
     >
       {isPending ? <Loading/>: <div></div>}
@@ -70,8 +91,8 @@ export const ReferenceManyInput = (
   const source = useMemo(()=> `${reference}s`, [reference])
   const resource = useResourceContext();
 
-  const { getValues: getValuesParent, formState: formStateParent } = useFormContext();
 
+  const { getValues: getValuesParent, formState: formStateParent } = useFormContext();
   const [targetValue, setTargetValue] = useState({id: getValuesParent('id')});
   const [simpleFormInteratorKey, setSimpleFormInteratorKey] = useState((Math.random() + 1).toString(36).substring(7));
 
@@ -94,10 +115,33 @@ export const ReferenceManyInput = (
     name: source, // unique name for your Field Array
   });
 
-  const { setError, setValue } = methods;
+  const { setError, setValue,  } = methods;
+
+
+  /*
+  const middleware = useCallback(async (
+      resource: string | undefined,
+      params: Partial<CreateParams<Partial<any>>> | undefined,
+      next: any
+  ) => {
+
+    // Call the next middleware
+    const result = await next(resource, params);
+
+    // TODO: call save on this if needed
+    console.log('huhu', result)
+
+
+    return result
+  }, []);
+
+  useRegisterMutationMiddleware(middleware);*/
+
 
   const [ create ] = useCreate();
   const [ update ] = useUpdate();
+
+  const {save} = useCreateController({resource: reference, record: });
   
   const fieldDefinitions = useFieldsForOperation(`create_${reference}`)
 
@@ -192,11 +236,12 @@ export const ReferenceManyInput = (
           inline
           disableReordering
           removeButton={<RemoveButton/>}
+          
         >
             {
               fieldDefinitions.map(
                 (fieldDefinition, index) => {
-                  const props = {
+                  const props: any = {
                     key: `${reference}-${fieldDefinition.props.source}`,
                     ...fieldDefinition.props,
                   }

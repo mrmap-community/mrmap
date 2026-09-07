@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
-import { useRecordContext } from 'react-admin';
+
+import { UseCreateMutateParams, useRecordContext } from 'react-admin';
 import CreateGuesser from '../../../jsonapi/components/CreateGuesser';
+import ListGuesser from '../../../jsonapi/components/ListGuesser';
 import SchemaAutocompleteInput from '../../../jsonapi/components/SchemaAutocompleteInput';
 import CronInput from '../../Input/CronInput';
 import WizardForm from '../../WizardForm/WizardForm';
@@ -10,8 +12,13 @@ import { useWizardFormContext } from '../../WizardForm/WizardFormContext';
 const FirstStep = () => {
   const record = useRecordContext();
   const {steps, activeStep, setErrors, setStepCompleted} = useWizardFormContext();
-  const onSuccess = useCallback(()=>{
-    setStepCompleted(steps[activeStep].id, true)
+  const onSuccess = useCallback((
+    data: any, 
+    variables: Partial<UseCreateMutateParams<any>>, 
+    onMutateResult: unknown, 
+    context: any
+  )=>{
+    setStepCompleted(steps[activeStep].id, true, data)
   },[steps, activeStep, setStepCompleted])
 
   const onError = useCallback((error: Error)=>{
@@ -26,6 +33,7 @@ const FirstStep = () => {
     <CreateGuesser
       resource='WebMapServiceMonitoringSetting'
       mutationOptions={{onSuccess, onError}}
+      
       defaultValues={{
         "service": record
       }}
@@ -46,9 +54,21 @@ const FirstStep = () => {
   )
 }
 
+const SecondStep = () => {
+  const {steps, activeStep,} = useWizardFormContext();
+  
+  return (
+    <ListGuesser
+      resource='GetCapabilitiesProbe'
+      relatedResource='WebMapServiceMonitoringSetting'
+      relatedResourceId={steps[activeStep-1].completedData?.id}
+      
+    />
+  )
+}
+
 
 export const MonitoringSettingsTab = () => {
-  const record = useRecordContext();
 
   return (
     <WizardForm
@@ -58,6 +78,11 @@ export const MonitoringSettingsTab = () => {
             id: 'aa',
             label: 'Monitoring Settings',
             content: <FirstStep/>
+          },
+          {
+            id: '2',
+            label: 'GetCapabilities Probes',
+            content: <SecondStep/>
           }
         ]
       }

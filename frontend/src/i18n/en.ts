@@ -9,7 +9,11 @@ const en = lodashMerge(
       action: {
         active: 'Click to activate %{name}',
         deactive: 'Click to deactivate %{name}',
-        show_all: 'Show all %{name}',       
+        show_all: 'Show all %{name}',      
+        add: 'Add %{name}'
+      },
+      list: {
+        actions: "Actions"
       }
     },
     resources: {

@@ -38,7 +38,8 @@ djangorestframework-gis==1.3.0
 # adds jsonapi implementation on top of django rest framework
 djangorestframework-jsonapi==8.1.0
 # adds redis cache backed
-redis==8.1.0
+# BLOCKING: websockets (channels) are timedout
+redis==7.4.1
 # adds background task processing 
 celery==5.6.3
 # BLOCKING: django-celery-beat 2.9.0 depends on Django<6.1 and >=2.2

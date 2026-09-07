@@ -1,9 +1,11 @@
+import uuid
 from collections import OrderedDict
 
 from camel_converter import to_camel
 from django.apps import apps
+from django.core.exceptions import ValidationError
 from django.db.models.query import Prefetch, QuerySet
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.views.generic.detail import BaseDetailView
 from django_celery_results.models import TaskResult
 from extras.utils import get_sparse_fields
@@ -15,7 +17,6 @@ from rest_framework.reverse import reverse
 from rest_framework.settings import api_settings
 from rest_framework.test import APIRequestFactory
 from rest_framework.viewsets import GenericViewSet
-from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_json_api.utils import (get_included_resources,
                                            get_resource_name)
 from rest_framework_json_api.views import (AutoPrefetchMixin,
@@ -295,6 +296,47 @@ class SparseFieldMixin:
     def check_sparse_fields_contains(self, fieldname):
         fields = self.get_sparse_fields(self.queryset.model.__name__)
         return not fields or fieldname in fields
+
+
+class NestedViewSetMixin:
+    def get_queryset(self):
+        return self.filter_queryset_by_parents_lookups(
+            super().get_queryset()
+        )
+
+    def filter_queryset_by_parents_lookups(self, queryset):
+        parents_query_dict = self.get_parents_query_dict()
+        if parents_query_dict:
+            try:
+                # Try to validate UUID fields before filtering
+                cleaned_dict = {}
+                for key, value in parents_query_dict.items():
+                    if 'uuid' in key.lower() or key.endswith('_code'):
+                        try:
+                            # Try to validate as UUID
+                            cleaned_dict[key] = uuid.UUID(str(value))
+                        except ValueError:
+                            raise Http404
+                    else:
+                        cleaned_dict[key] = value
+                return queryset.filter(**cleaned_dict)
+            except (ValueError, ValidationError):
+                raise Http404
+        else:
+            return queryset
+
+    def get_parents_query_dict(self):
+        result = {}
+        for kwarg_name, kwarg_value in self.kwargs.items():
+            if kwarg_name.startswith('parent_lookup_'):
+                query_lookup = kwarg_name.replace(
+                    'parent_lookup_',
+                    '',
+                    1
+                )
+                query_value = kwarg_value
+                result[query_lookup] = query_value
+        return result
 
 
 class NestedModelViewSet(

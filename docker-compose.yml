@@ -25,7 +25,7 @@ services:
   # Done
 
   redis:
-    image: library/redis:8.10.0-alpine3.23
+    image: library/redis:8.10.1-alpine3.23
     volumes:
       - type: volume
         source: mem-db-data
@@ -211,7 +211,7 @@ services:
       - host.docker.internal:host-gateway
 
   openobserve:
-    image: openobserve/openobserve:v0.92.1
+    image: openobserve/openobserve:v0.92.2
     restart: unless-stopped
     hostname: "openobserve"
     environment:

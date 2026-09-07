@@ -1,9 +1,9 @@
+from extras.routers import NestedDefaultRouter
 from notify import views
-from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'notify'
 
-router = ExtendedSimpleRouter(trailing_slash=False)
+router = NestedDefaultRouter(trailing_slash=False)
 background_process_routes = router.register(
     r'background-processes', views.BackgroundProcessViewSet, basename='backgroundprocess')
 background_process_routes.register(r'logs', views.NestedBackgroundProcessLogViewSet,

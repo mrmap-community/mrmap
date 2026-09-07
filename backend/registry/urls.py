@@ -1,4 +1,5 @@
 from django.urls import path
+from extras.routers import NestedDefaultRouter
 from registry.views import harvesting as harvesting_views
 from registry.views import historical as historical_views
 from registry.views import mapcontext as mapcontext_views
@@ -8,11 +9,10 @@ from registry.views import security as security_views
 from registry.views import service as service_views
 from registry.views import statistical as stats_views
 from registry.views import update as update_views
-from rest_framework_extensions.routers import ExtendedSimpleRouter
 
 app_name = 'registry'
 
-router = ExtendedSimpleRouter(trailing_slash=False)
+router = NestedDefaultRouter(trailing_slash=False)
 wms_routes = router.register(
     r'wms', service_views.WebMapServiceViewSet, basename='wms')
 wms_routes.register(r'layers', service_views.NestedLayerViewSet,

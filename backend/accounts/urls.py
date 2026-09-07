@@ -2,11 +2,11 @@ from accounts.views import auth as auth_views
 from accounts.views import groups as group_views
 from accounts.views import users as user_views
 from django.urls import path
-from rest_framework_extensions.routers import ExtendedSimpleRouter
+from extras.routers import NestedDefaultRouter
 
 app_name = 'accounts'
 
-router = ExtendedSimpleRouter(trailing_slash=False)
+router = NestedDefaultRouter(trailing_slash=False)
 
 users_routes = router.register(
     r'users', user_views.UserViewSet, basename='user')

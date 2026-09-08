@@ -23,13 +23,15 @@ const EditWebMapServiceMonitoringSetting = () => {
       }
       referenceInputs={[
         <ReferenceManyInput 
-          key='getCapabilitiesProbes' 
+          key='getCapabilititesProbes' 
           reference='GetCapabilitiesProbe' 
+          source='getCapabilititesProbes'
           target='setting'
         />,
         <ReferenceManyInput
           key='getMapProbes' 
-          reference='GetMapProbe' 
+          reference='GetMapProbe'
+          source='getMapProbes'
           target='setting'
         />
       ]}

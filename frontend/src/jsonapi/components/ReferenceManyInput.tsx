@@ -1,29 +1,24 @@
 import _ from 'lodash';
 import {
   HttpError,
+  RaRecord,
   useCreate,
-  useCreateController,
   useDelete,
-  useEditContext,
   useInfiniteGetList,
-
+  useRecordContext,
   useResourceContext,
   useUpdate
 } from 'ra-core';
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AddItemButton, ArrayInput, Loading, RaRecord, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
-import { FormProvider, useFieldArray, useForm, useFormContext } from 'react-hook-form';
+import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
+import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 
 export const AddButton = () => {
   const { add } = useSimpleFormIterator();
-  const { getValues } = useFormContext();
-
 
   const onClick = useCallback(()=>{
     add()
-
-
   },[add])
 
   return (
@@ -79,81 +74,83 @@ export const RemoveButton = () => {
 
 interface ReferenceManyInputProps {
   reference: string
+  source: string
   target: string
 }
 
 export const ReferenceManyInput = (
   {
     reference,
+    source,
     target,
   }: ReferenceManyInputProps
 ) => {
-  const source = useMemo(()=> `${reference}s`, [reference])
+  const initialized = useRef(false);
+  // sourounding parent form/resource stuff
   const resource = useResourceContext();
-
-
-  const { getValues: getValuesParent, formState: formStateParent } = useFormContext();
+  const record = useRecordContext();
+  const currentRecordValues = record?.[source]
+  const { getValues: getValuesParent, formState: formStateParent,  } = useFormContext();
   const [targetValue, setTargetValue] = useState({id: getValuesParent('id')});
-  const [simpleFormInteratorKey, setSimpleFormInteratorKey] = useState((Math.random() + 1).toString(36).substring(7));
 
+  const createFieldDefinitions = useFieldsForOperation(`create_${reference}`)
+  const editFieldDefinitions = useFieldsForOperation(`edit_${reference}`)
+  const fieldDefinitions = targetValue === undefined ? createFieldDefinitions : editFieldDefinitions
+  
+  const includedObjects = useMemo<RaRecord[]>(() => {
+      if (currentRecordValues === undefined) return []
+      return currentRecordValues.map((value: RaRecord) => {
+          // FIXME: check if all needed field values are contained
+          if (typeof value === 'object' && value.id && value.stringRepresentation) {
+            return value; // already has completed data
+          }
+        }).filter((value: any) => value !== undefined)
+      }
+    , [currentRecordValues])
+  
+  const missingObjects = useMemo(() => {
+    if (currentRecordValues === undefined) return []
+    return currentRecordValues.filter((value: RaRecord) => value.id && !includedObjects?.find(obj => obj.id === value.id))
+  }, [currentRecordValues, includedObjects])
+
+  if (!initialized.current && missingObjects.length > 0){
+    console.debug(
+      `No included objects found for ${source} in record.
+      This may indicate that the related resource is not included in the API response. 
+      Please check the API response and ensure that the related resource is included.
+      Otherwise, the autocomplete input needs to fetch the data from the API, 
+      which may result in additional requests and slower performance.`
+    )
+  }
+
+  // dataprovider stuff
   const {
-    data
+    data,
+    isFetched,
+    isFetching,
+    isPending
   } = useInfiniteGetList(
       reference,
       {
-        pagination: { page: 1, perPage: 10 },
+        pagination: { page: 1, perPage: 20 },
         meta: { relatedResource: { resource: resource, ...(targetValue.id && targetValue)}},
+      },
+      {
+        enabled: missingObjects.length > 0 && !initialized.current,
       }
   );
 
-  const methods = useForm();
-  const values: RaRecord[] = methods.watch(source);
-  const valuesRef = useRef(values);
-
-  const { append: appendValue } = useFieldArray({
-    control: methods.control, // control props comes from useForm (optional: if you are using FormProvider)
-    name: source, // unique name for your Field Array
-  });
-
-  const { setError, setValue,  } = methods;
-
-
-  /*
-  const middleware = useCallback(async (
-      resource: string | undefined,
-      params: Partial<CreateParams<Partial<any>>> | undefined,
-      next: any
-  ) => {
-
-    // Call the next middleware
-    const result = await next(resource, params);
-
-    // TODO: call save on this if needed
-    console.log('huhu', result)
-
-
-    return result
-  }, []);
-
-  useRegisterMutationMiddleware(middleware);*/
-
+  // underlying form to controll references
+  const {setError, setValue, clearErrors, watch, ...rest} = useForm();
+  const values = watch(source) 
+  const valuesRef = useRef(values)
 
   const [ create ] = useCreate();
   const [ update ] = useUpdate();
 
-  const {save} = useCreateController({resource: reference, record: });
-  
-  const fieldDefinitions = useFieldsForOperation(`create_${reference}`)
-
-  if (fieldDefinitions.length > 0 && !fieldDefinitions.find(def => def.props.source === target)) {
-    throw new Error(
-        `Wrong configured ReferenceManyInput: ${target} is not a field of ${reference}`
-    );
-  }
-
   const onError = useCallback((index: number, error: unknown) => {
     const httpError = error as HttpError 
-    Object.entries(httpError?.body?.errors).forEach(([key, value]) => {    
+    httpError?.body?.errors && Object.entries(httpError?.body?.errors).forEach(([key, value]) => {    
       setError(
         `${source}.${index}.${key}`,
         {message: value as string}
@@ -161,85 +158,85 @@ export const ReferenceManyInput = (
     });    
   },[source])
 
+
+  if (
+    (fieldDefinitions.length > 0 && !fieldDefinitions.find(def => def.props.source === target))
+  ) {
+    throw new Error(
+        `Wrong configured ReferenceManyInput: ${target} is not a field of ${reference}`
+    );
+  }
+
+  /** update values ref on changes */
   useEffect(()=> {
     if (!_.isEqual(values, valuesRef.current)){
       valuesRef.current = values
     }
-  },[values])
+  }, [values])
 
+  /** update values ref on changes */
   useEffect(()=>{
-    if (Array.isArray(data?.pages) && data?.pages.length > 0) {
-      
-      data?.pages.forEach((page, pageIndex) => {
-        page.data.forEach((record, index) => {
-
-          const exists = values?.find((existing: RaRecord) => existing.id === record.id) !== undefined
-          !exists && appendValue(record)
-        })
-      })
-
-      setSimpleFormInteratorKey((Math.random() + 1).toString(36).substring(7))
-
+    if (isFetched && Array.isArray(data?.pages)) {    
+      setValue(source, data?.pages?.flatMap(page => page.data))
+      initialized.current = true
     }
-  }, [data])
+  }, [data, isFetched])
 
   useEffect(()=>{
     if (!formStateParent.isSubmitting && formStateParent.isSubmitSuccessful){
       
       setTargetValue({ id: getValuesParent('id') })
-
-      setValue(source, values?.map((element: any) => {
+      // update all records fk field
+      /*setValue(source, values?.map((element: any) => {
         element[target] = {id: getValuesParent('id')}
         return element;
-      }))
+      }))*/
       
-      methods.clearErrors()
+      clearErrors()
 
-      values?.forEach((resource, index) => { 
-        if (resource.id === undefined){
-          create(
-            reference, 
-            { 
-              data: resource 
-            }, 
-            { 
-              onError: (error, variables, context) => onError(index, error)
-            }
-          )
-        } else {
-          const previousData = valuesRef.current?.find((value: RaRecord) => value.id === resource.id)
-          update(
-            reference, 
-            { 
-              id: resource.id, 
-              data: resource,
-              previousData: previousData
-            }, 
-            { 
-              onError: (error, variables, context) => onError(index, error)
-            }
-          )
+      values?.forEach((record: RaRecord, index: number) => {
+        const options = {
+          onError: (error: unknown) => onError(index, error),
         }
+        record[target] = {id: getValuesParent('id')}
+
+        if (record.id === undefined) {
+          create(reference, { data: record }, options)
+          return
+        }
+
+        update(
+          reference,
+          {
+            id: record.id,
+            data: record,
+            previousData: valuesRef.current?.find((value: RaRecord) => value.id === record.id),
+          },
+          options
+        )
       })
+
    }
   }, [formStateParent.isSubmitSuccessful, formStateParent.isSubmitting])
 
+
+
   return (
     targetValue.id === undefined ? null:
-    <FormProvider {...methods} >
+    <FormProvider setValue={setValue} clearErrors={clearErrors} setError={setError} watch={watch} {...rest} >
       <ArrayInput
        source={source}
        resource={reference}
-       key={simpleFormInteratorKey}
+       //isFetching={missingObjects.length === 0 ? false: isFetching}
+       //isPending={missingObjects.length === 0 ? false: isPending}
       >
         <SimpleFormIterator
           inline
           disableReordering
           removeButton={<RemoveButton/>}
-          
         >
             {
-              fieldDefinitions.map(
+              createFieldDefinitions.map(
                 (fieldDefinition, index) => {
                   const props: any = {
                     key: `${reference}-${fieldDefinition.props.source}`,

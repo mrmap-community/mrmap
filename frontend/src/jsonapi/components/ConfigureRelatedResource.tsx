@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { RaRecord, SaveButton, Toolbar, useNotify, useShowController, useTranslate } from 'react-admin';
 import CreateGuesser from './CreateGuesser';
 import EditGuesser from './EditGuesser';
@@ -59,13 +59,13 @@ const ConfigureRelatedResource = (
         key={`edit-${relatedResource}-${obj?.id}`}
         resource={relatedResource}
         id={obj?.id}
-        toolbar={<CustomToolbar/>}
+        simpleFormProps={{toolbar:<CustomToolbar/>}}
         redirect={false}
       /> 
     )) : <EditGuesser 
           resource={relatedResource}
           id={relatedObject?.id}
-          toolbar={<CustomToolbar/>}
+          simpleFormProps={{toolbar:<CustomToolbar/>}}
           redirect={false}
         /> 
   ), [isMultiple])
@@ -79,7 +79,7 @@ const ConfigureRelatedResource = (
         redirect={false}
       />
     )
-  return (<div>{editForms}</div>)
+  return (<Fragment>{editForms}</Fragment>)
 }
 
 export default ConfigureRelatedResource

@@ -1,6 +1,6 @@
 import { EditButton, Identifier, RaRecord, RecordRepresentation, Show, SimpleShowLayoutProps, useGetOne, useRecordContext, WrapperField } from 'react-admin';
 
-import { useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import WmsTreeView from '../WebMapService/WmsTreeView';
 
 import { Box, Drawer, Stack } from '@mui/material';
@@ -109,7 +109,7 @@ const DiffWmsLayerTree = (
         };
     }, [diffMap])
     
-    if (isPending) return <div>Loading...</div>
+    if (isPending) return <Fragment>Loading...</Fragment>
     
     return (
         <WmsTreeView
@@ -292,7 +292,7 @@ export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
     return (
         <Show 
             queryOptions={{meta: meta}}
-            actions={<div></div>}
+            actions={<Fragment></Fragment>}
             
         >
            <WebMapServiceUpdateJobCard/>

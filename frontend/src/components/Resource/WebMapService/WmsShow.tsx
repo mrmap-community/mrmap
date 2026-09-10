@@ -45,12 +45,14 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                     resource='WebMapService'
                     //id={settingId}
                     redirect={false}
-                    toolbar={
+                    simpleFormProps={{
+                        toolbar:
                         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
                             <SaveButton alwaysEnable/>
                             <DeleteButton/>
                         </Toolbar>
-                    } 
+                    
+                    }}
                 />
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>}>

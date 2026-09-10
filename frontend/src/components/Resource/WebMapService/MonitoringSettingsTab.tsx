@@ -1,91 +1,68 @@
-import { useCallback } from 'react';
-
-import { UseCreateMutateParams, useRecordContext } from 'react-admin';
-import CreateGuesser from '../../../jsonapi/components/CreateGuesser';
+import { useMemo } from 'react';
+import { useRecordContext, WrapperField } from 'react-admin';
 import ListGuesser from '../../../jsonapi/components/ListGuesser';
-import SchemaAutocompleteInput from '../../../jsonapi/components/SchemaAutocompleteInput';
-import CronInput from '../../Input/CronInput';
-import WizardForm from '../../WizardForm/WizardForm';
-import { useWizardFormContext } from '../../WizardForm/WizardFormContext';
+import { ReferenceManyInput } from '../../../jsonapi/components/ReferenceManyInput';
+import EditDialogButton from '../../Dialog/EditDialogButton';
+import useWebMapServiceMonitoringSettingFieldDefinitions from '../Monitoring/Wms/useWebMapServiceMonitoringSettingFieldDefinitions';
 
 
-const FirstStep = () => {
-  const record = useRecordContext();
-  const {steps, activeStep, setErrors, setStepCompleted} = useWizardFormContext();
-  const onSuccess = useCallback((
-    data: any, 
-    variables: Partial<UseCreateMutateParams<any>>, 
-    onMutateResult: unknown, 
-    context: any
-  )=>{
-    setStepCompleted(steps[activeStep].id, true, data)
-  },[steps, activeStep, setStepCompleted])
+const useGuesserProps = () => {
+  const record = useRecordContext()
 
-  const onError = useCallback((error: Error)=>{
-    setErrors((currentErrors) => {
-      const newErrors = currentErrors.filter(([key]) => key !== steps[activeStep].id);
-      newErrors.push([steps[activeStep].id, error.message]);
-      return newErrors;
-    });
-  },[setErrors])
+  const fieldDefinitions = useWebMapServiceMonitoringSettingFieldDefinitions()
+  const guesserProps = useMemo(()=> ({
+    resource: "WebMapServiceMonitoringSetting",
+    updateFieldDefinitions: fieldDefinitions,
+    defaultValues:{
+      service: record
+    },
+    referenceInputs: [
+      <ReferenceManyInput 
+        key='getCapabilititesProbes' 
+        reference='GetCapabilitiesProbe' 
+        source='getCapabilititesProbes'
+        target='setting'
+      />,
+      <ReferenceManyInput
+        key='getMapProbes' 
+        reference='GetMapProbe'
+        source='getMapProbes'
+        target='setting'
+      />
+    ]            
+  }),[
+    fieldDefinitions
+  ])
+  return guesserProps
+}
 
+
+const RowActions = () => {
+  const guesserProps = useGuesserProps()
   return (
-    <CreateGuesser
-      resource='WebMapServiceMonitoringSetting'
-      mutationOptions={{onSuccess, onError}}
-      
-      defaultValues={{
-        "service": record
-      }}
-
-      updateFieldDefinitions={
-        [
-          {
-            component: CronInput, 
-            props: {source: "scheduleInterval"}
-          },
-          {
-            component: SchemaAutocompleteInput, 
-            props: {source: "service", hidden: true}
-          },
-        ]
-      }
-    />
+    <WrapperField label={"ra.list.actions"} >
+        <EditDialogButton 
+          guesserProps={guesserProps}
+        />
+    </WrapperField >
   )
 }
 
-const SecondStep = () => {
-  const {steps, activeStep,} = useWizardFormContext();
-  
-  return (
-    <ListGuesser
-      resource='GetCapabilitiesProbe'
-      relatedResource='WebMapServiceMonitoringSetting'
-      relatedResourceId={steps[activeStep-1].completedData?.id}
-      
-    />
-  )
-}
+
 
 
 export const MonitoringSettingsTab = () => {
-
+  const guesserProps = useGuesserProps()
   return (
-    <WizardForm
-      steps={
-        [
-          {
-            id: 'aa',
-            label: 'Monitoring Settings',
-            content: <FirstStep/>
-          },
-          {
-            id: '2',
-            label: 'GetCapabilities Probes',
-            content: <SecondStep/>
-          }
-        ]
-      }
+    <ListGuesser
+      resource='WebMapServiceMonitoringSetting'
+      relatedResource='WebMapService'
+      dialogGuesserProps={{guesserProps}}
+
+      //defaultSelectedColumns={["allowedArea", "description", "allowedGroups", "operations"]}
+      
+      rowActions={<RowActions/>}
+     // {...props}
     />
   )
 }

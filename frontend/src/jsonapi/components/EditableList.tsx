@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Identifier, RaRecord, useListController, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 
@@ -25,8 +25,8 @@ const EditableDatagrid = (
 
   const [editRows, setEditRows] = useState<Identifier[]>([])
 
-  const showFields = useFieldsForOperation(definition.options?.editOperationName ?? '', true, false)
-  const editFields = useFieldsForOperation(definition.options?.editOperationName ?? '')
+  const showFields = useFieldsForOperation({operationId: definition.options?.editOperationName ?? '',forInput: true, ignoreId: false})
+  const editFields = useFieldsForOperation({operationId: definition.options?.editOperationName ?? ''})
 
   const onEditRowClicked = useCallback((record: RaRecord)=>{
     setEditRows(_.union(editRows, [record.id]))
@@ -51,7 +51,7 @@ const EditableDatagrid = (
 
   return (
     
-          <div></div>
+          <Fragment></Fragment>
   )
 }
 

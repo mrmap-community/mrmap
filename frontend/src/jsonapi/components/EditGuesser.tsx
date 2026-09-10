@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, useMemo } from 'react';
-import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, Toolbar, ToolbarClasses, useRecordContext, useResourceDefinition } from 'react-admin';
+import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
@@ -7,23 +7,23 @@ import SchemaAutocompleteInput from './SchemaAutocompleteInput';
 
 
 export interface EditGuesserProps<RecordType extends RaRecord = any>
-    extends Omit<EditProps<RecordType>, 'children'> {
-  toolbar?: ReactElement | false;
+    extends Partial<EditProps<RecordType>> {
   updateFieldDefinitions?: FieldDefinition[];
   referenceInputs?: ReactElement[]
+  simpleFormProps?: Partial<SimpleFormProps>
 }
 
 const EditFormGuesser = ({
-  toolbar,
   updateFieldDefinitions,
   referenceInputs,
+  simpleFormProps,
   ...props
 }: EditGuesserProps): ReactElement => {
   const { name, options } = useResourceDefinition(props)
 
   const record = useRecordContext(props)
   
-  const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
+  const fieldDefinitions = useFieldsForOperation({operationId: `partial_update_${name}`})
   const fields = useMemo(
     () => 
       fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
@@ -57,8 +57,9 @@ const EditFormGuesser = ({
 
   return (
     <SimpleForm
-        toolbar={toolbar ?? defaultToolbar}
+        toolbar={simpleFormProps?.toolbar ?? defaultToolbar}
         sanitizeEmptyValues
+        {...simpleFormProps}
       >
       {fields}
       {referenceInputs}
@@ -69,15 +70,15 @@ const EditFormGuesser = ({
 
 const EditGuesser = (
 {
-  toolbar,
   updateFieldDefinitions,
   referenceInputs,
+  simpleFormProps,
   ...props
 }: EditGuesserProps): ReactElement => {
   const { name, options } = useResourceDefinition(props)
   
   const {schema, sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
-  const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
+  const fieldDefinitions = useFieldsForOperation({operationId: `partial_update_${name}`})
   
   const meta = useMemo(()=>{
     const neededIncludes = fieldDefinitions.filter(
@@ -107,19 +108,20 @@ const EditGuesser = (
     <Edit
       queryOptions={{
         refetchOnReconnect: true,
+        refetchOnMount:false,
         meta: meta
       }}
       mutationOptions={{
         meta: meta
       }}
       mutationMode='pessimistic'
-      
       {...props}
     >
       <EditFormGuesser
         toolbar={toolbar}
         updateFieldDefinitions={updateFieldDefinitions}
         referenceInputs ={referenceInputs}
+        simpleFormProps={simpleFormProps}
         {...props}
       />
     </Edit>

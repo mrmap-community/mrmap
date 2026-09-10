@@ -1,4 +1,4 @@
-import { type ReactElement } from 'react'
+import { Fragment, type ReactElement } from 'react'
 import { TextField, TextFieldProps } from 'react-admin'
 
 import Typography from '@mui/material/Typography'
@@ -23,14 +23,14 @@ const TruncatedTextField = (
 
   if (value?.length > 100) {
     return (
-    <div>
+    <Fragment>
       <Typography>{value.slice(0, 100)}</Typography>
       <MouseOverPopover
         content={value}
       >
         <span>...</span>
       </MouseOverPopover>
-    </div>
+    </Fragment>
    
   )
   } else {

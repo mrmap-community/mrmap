@@ -12,7 +12,7 @@ import {
     useResourceContext,
     type RaRecord
 } from 'ra-core';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Fragment, useEffect, useMemo, useState } from 'react';
 import { Pagination, SingleFieldList } from 'react-admin';
 
 interface PaginatedSingleFieldListProps<RecordType extends RaRecord = any> {
@@ -46,7 +46,7 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = any>({
     },[data, visibleData])
 
     return (
-        <div>
+        <Fragment>
             <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
                 <SingleFieldList
                   data={visibleData}
@@ -89,6 +89,6 @@ export const PaginatedSingleFieldList = <RecordType extends RaRecord = any>({
                     <Button onClick={() => setOpenModal(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
-        </div>
+        </Fragment>
     );
 };

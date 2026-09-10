@@ -6,7 +6,7 @@ import {
 import ChangeCircleIcon from '@mui/icons-material/ChangeCircle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Accordion, AccordionDetails, AccordionSummary, Divider } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useHttpClientContext } from '../../../context/HttpClientContext';
 import HistoryList from '../../Resource/Generic/History/HistoryList';
 
@@ -23,10 +23,10 @@ const ChangeLogList = (
   const [expanded, setExpanded] = useState(false);
   
   if (!hasHistoricalEndpoint){
-    return <div></div>
+    return <Fragment></Fragment>
   }
   return (
-      <div>
+      <Fragment>
         <Divider />
         <Accordion 
           slotProps={{ heading: { component: 'h2' } }}
@@ -45,7 +45,7 @@ const ChangeLogList = (
             {expanded ? <HistoryList disableSyncWithLocation/>: null}
           </AccordionDetails>
         </Accordion>
-      </div>
+      </Fragment>
   );
 };
 

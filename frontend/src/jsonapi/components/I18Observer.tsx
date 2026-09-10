@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { useLocaleState } from "react-admin";
 
 import { useHttpClientContext } from "../../context/HttpClientContext";
@@ -19,7 +19,7 @@ const I18Observer = () => {
   },[locale])
 
   return (
-    <div></div>
+    <Fragment></Fragment>
   )
 };
 

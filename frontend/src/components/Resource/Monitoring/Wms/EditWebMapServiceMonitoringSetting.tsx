@@ -2,6 +2,8 @@ import { DeleteButton, SaveButton, Toolbar } from 'react-admin';
 import { useParams } from 'react-router-dom';
 import EditGuesser from '../../../../jsonapi/components/EditGuesser';
 import { ReferenceManyInput } from '../../../../jsonapi/components/ReferenceManyInput';
+import SchemaAutocompleteInput from '../../../../jsonapi/components/SchemaAutocompleteInput';
+import CronInput from '../../../Input/CronInput';
 
 
 const EditWebMapServiceMonitoringSetting = () => {
@@ -13,13 +15,25 @@ const EditWebMapServiceMonitoringSetting = () => {
   return (
     <EditGuesser 
       resource='WebMapServiceMonitoringSetting'
-      id={settingId}
+     // id={settingId}
       redirect={false}      
-      toolbar={
+      simpleFormProps={{toolbar:
         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <SaveButton alwaysEnable={true}/>
           <DeleteButton/>
-        </Toolbar>
+        </Toolbar>}
+      }
+      updateFieldDefinitions={
+        [
+          {
+            component: CronInput, 
+            props: {source: "scheduleInterval"}
+          },
+          {
+            component: SchemaAutocompleteInput, 
+            props: {source: "service", hidden: true}
+          },
+        ]
       }
       referenceInputs={[
         <ReferenceManyInput 

@@ -548,7 +548,9 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
             target: fieldSchema.name, 
             link: 'edit', 
             ...(hasCreate && {
-              create: <CreateSuggestionDialog isOpen resource={fieldSchema.reference}/>,
+              create: <CreateSuggestionDialog guesserProps={{
+                resource: fieldSchema.reference
+              }}/>,
               createLabel: 'type something to create a new object', // TODO: use translate
               sort:{ field: 'name', order: 'ASC' }
             })

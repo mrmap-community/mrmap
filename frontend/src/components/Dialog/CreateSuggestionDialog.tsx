@@ -1,16 +1,22 @@
 import { useCreateSuggestionContext } from "react-admin";
-import CreateDialog, { CreateDialogProps } from "./CreateDialog";
+import CreateDialogButton, { CreateDialogButtonProps } from "./CreateDialogButton";
 
 const CreateSuggestionDialog = (
-  props: CreateDialogProps
+  props: CreateDialogButtonProps
 ) => {
 
   const { onCancel, onCreate } = useCreateSuggestionContext();
-
+  
   return (
-    <CreateDialog
-      onCancel={onCancel}
-      onCreate={onCreate}
+    <CreateDialogButton
+      guesserProps={{
+        mutationOptions: {
+          onSuccess: (data) => {
+            onCreate(data);
+          }
+        }
+        
+      }}
       {...props}
     />
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import AddIcon from '@mui/icons-material/Add';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
@@ -31,7 +31,7 @@ export const OwsContextActionButtons = () => {
     const { isLoading } = useOwsContextBase()
   
     return (
-    <div>
+    <Fragment>
         <Grid 
             container 
             spacing={1}
@@ -80,6 +80,6 @@ export const OwsContextActionButtons = () => {
         
        
         
-    </div>
+    </Fragment>
     )
 }

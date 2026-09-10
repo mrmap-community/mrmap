@@ -4,6 +4,8 @@ import { useParams } from 'react-router-dom'
 
 import { snakeCase } from 'lodash'
 
+import { CreateDialogButtonProps } from '../../components/Dialog/CreateDialogButton'
+import { EditDialogButtonProps } from '../../components/Dialog/EditDialogButton'
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
 import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'
@@ -18,10 +20,6 @@ import { SparseFieldsets } from '../types/jsonapi'
 import { FieldDefinition, getIncludeOptions, getSparseFieldOptions } from '../utils'
 import RealtimeList from './Realtime/RealtimeList'
 
-interface FieldWrapperProps {
-  children: ReactNode[]
-  label: string
-}
 
 
 export interface ListGuesserProps extends Partial<ListProps> {
@@ -36,6 +34,7 @@ export interface ListGuesserProps extends Partial<ListProps> {
   defaultSelectedColumns? : string[]
   sparseFieldsets?: SparseFieldsets[],
   ActionsComponent?: React.ComponentType<CustomListActionsProps>
+  dialogGuesserProps?: CreateDialogButtonProps | EditDialogButtonProps
 }
 
 
@@ -52,6 +51,8 @@ const ListGuesser = ({
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
   sparseFieldsets = undefined,
   ActionsComponent=ListActions,
+  dialogGuesserProps,
+
   ...props
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
@@ -70,7 +71,7 @@ const ListGuesser = ({
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource !== '' ?`list_related_${name}_of_${relatedResource}`: `list_${name}`, [relatedResource, name])
   const { operation } = useResourceSchema(operationId)
 
-  const fieldDefinitions = useFieldsForOperation(operationId, false, false)
+  const fieldDefinitions = useFieldsForOperation({operationId: operationId, forInput:false, ignoreId:false})
   const fields = useMemo(
     () => fieldDefinitions.map(fieldDefinition => {
       const update = updateFieldDefinitions?.find(def => def.props.source === fieldDefinition.props.source)
@@ -131,7 +132,7 @@ const ListGuesser = ({
     () => {
       const query: any = {}
       const _sparseFieldsets = sparseFieldsets || listOptions?.sparseFieldsets || []
-      _sparseFieldsets.forEach(sf => {
+      _sparseFieldsets.forEach((sf: SparseFieldsets) => {
         if (name === sf.type){
 
           const fields = [...new Set([
@@ -175,9 +176,11 @@ const ListGuesser = ({
       storeKey={`preferences.${preferenceKey}.listParams`}
       actions={<ActionsComponent
         filters={filters} 
-        preferenceKey={preferenceKey}/>
+        preferenceKey={preferenceKey}
+        dialogGuesserProps={dialogGuesserProps as CreateDialogButtonProps}
+        />
       }
-      empty={props.empty || <EmptyList />}
+      empty={props.empty || <EmptyList createDialogButtonProps={dialogGuesserProps as CreateDialogButtonProps | undefined}/>}
       queryOptions={{
         refetchInterval,
         onError,

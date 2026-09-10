@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react'
 import { Marker, Popup, Tooltip, useMap, useMapEvent } from 'react-leaflet'
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase"
 
@@ -185,7 +185,7 @@ const WebMapServiceControl = () => {
   })
 
   return (
-    <div>
+    <Fragment>
       {tiles.map(tile => tile.leafletTile)}
       {position && <Marker position={position} >
         <Popup>
@@ -198,7 +198,7 @@ const WebMapServiceControl = () => {
         <Tooltip direction="top">Click on the marker to see feature info</Tooltip>
       </Marker>  
       }
-    </div>
+    </Fragment>
   )
 
 }

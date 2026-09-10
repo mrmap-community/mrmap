@@ -1,4 +1,4 @@
-import { type ReactNode, type SyntheticEvent, useCallback, useMemo } from 'react'
+import { Fragment, type ReactNode, type SyntheticEvent, useCallback, useMemo } from 'react'
 
 import CancelIcon from '@mui/icons-material/Cancel'
 import TabContext from '@mui/lab/TabContext'
@@ -43,7 +43,7 @@ export const Tabs = ({
           ? <IconButton onClick={(event) => { handleTabClose(event, index) }}>
             <CancelIcon />
           </IconButton>
-          : <div></div>
+          : <Fragment></Fragment>
         }
       />
   )), [defaultTabs, tabList.tabs, handleTabClose])

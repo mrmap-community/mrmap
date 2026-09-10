@@ -30,11 +30,11 @@ const CreateWebMapServiceMonitoringSetting = () => {
       resource='WebMapServiceMonitoringSetting'
       id={settingId}
       redirect={false}      
-      toolbar={
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+      simpleFormProps={{
+        toolbar: <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <SaveButton alwaysEnable/>
             <DeleteButton/>
-        </Toolbar>
+        </Toolbar>}
       }
       referenceInputs={[
         <ReferenceManyInput key='getCapabilitiesProbes' reference='GetCapabilitiesProbe' target='setting'/>,

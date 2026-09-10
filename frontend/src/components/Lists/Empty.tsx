@@ -5,19 +5,18 @@ import {
   useTranslate,
 } from 'react-admin';
 
-import { CreateDialogProps } from '../Dialog/CreateDialog';
-import CreateDialogButton from '../Dialog/CreateDialogButton';
+import CreateDialogButton, { CreateDialogButtonProps } from '../Dialog/CreateDialogButton';
 
 export interface EmptyListProps {
-  createDialogProps?: CreateDialogProps;
+  createDialogButtonProps?: CreateDialogButtonProps;
 }
 
-const EmptyList = ({ createDialogProps }: EmptyListProps) => {
+const EmptyList = ({ createDialogButtonProps }: EmptyListProps) => {
   const resource = useResourceContext({
-    resource: createDialogProps?.resource,
+    resource: createDialogButtonProps?.guesserProps?.resource,
   });
 
-  const { name, hasCreate } = useResourceDefinition({
+  const { name } = useResourceDefinition({
     resource,
   });
 
@@ -69,14 +68,14 @@ const EmptyList = ({ createDialogProps }: EmptyListProps) => {
         {translate('ra.page.invite')}
       </Typography>
 
-      {hasCreate && (
-        <CreateDialogButton
-          createDialogProps={createDialogProps}
-          buttonProps={{
-            variant: 'contained',
-          }}
-        />
-      )}
+      
+      <CreateDialogButton
+        buttonProps={{
+          variant: 'contained',
+        }}
+        {...createDialogButtonProps}
+      />
+      
     </Box>
   );
 };

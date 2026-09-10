@@ -9,7 +9,7 @@ import {
   useResourceContext,
   useUpdate
 } from 'ra-core';
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
@@ -66,7 +66,7 @@ export const RemoveButton = () => {
       onClick={() => onClick()}  
       disabled={isPending}
     >
-      {isPending ? <Loading/>: <div></div>}
+      {isPending ? <Loading/>: <Fragment></Fragment>}
     </RemoveItemButton>
   )
 }
@@ -91,10 +91,13 @@ export const ReferenceManyInput = (
   const record = useRecordContext();
   const currentRecordValues = record?.[source]
   const { getValues: getValuesParent, formState: formStateParent,  } = useFormContext();
+  //FIXME: shall not comes from outer form.. 
+  // If this one is created and not edited, 
+  // this will be undefined and no value update is done on rerendering processes...
   const [targetValue, setTargetValue] = useState({id: getValuesParent('id')});
 
-  const createFieldDefinitions = useFieldsForOperation(`create_${reference}`)
-  const editFieldDefinitions = useFieldsForOperation(`edit_${reference}`)
+  const createFieldDefinitions = useFieldsForOperation({operationId: `create_${reference}`})
+  const editFieldDefinitions = useFieldsForOperation({operationId: `edit_${reference}`})
   const fieldDefinitions = targetValue === undefined ? createFieldDefinitions : editFieldDefinitions
   
   const includedObjects = useMemo<RaRecord[]>(() => {
@@ -222,7 +225,7 @@ export const ReferenceManyInput = (
 
 
   return (
-    targetValue.id === undefined ? null:
+    
     <FormProvider setValue={setValue} clearErrors={clearErrors} setError={setError} watch={watch} {...rest} >
       <ArrayInput
        source={source}

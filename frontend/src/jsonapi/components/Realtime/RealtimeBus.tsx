@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo } from "react";
 import { useAuthState, useDataProvider } from "react-admin";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useHttpClientContext } from "../../../context/HttpClientContext";
@@ -42,7 +42,7 @@ const RealtimeBus = () => {
   },[readyState])
 
   return (
-    <div></div>
+    <Fragment></Fragment>
   )
 };
 

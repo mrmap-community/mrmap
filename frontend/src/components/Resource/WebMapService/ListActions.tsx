@@ -1,12 +1,13 @@
 import VpnLockIcon from '@mui/icons-material/VpnLock';
 import { useRecordContext } from 'react-admin';
+import { Fragment } from 'react/jsx-runtime';
 import MapViewerButton from './MapViewerButton';
 
 
 const WmsViewerButtons = () => {
   const record = useRecordContext();
   return (
-    <div>
+    <Fragment>
       <MapViewerButton />
       {
         record?.isSecured ? 
@@ -21,7 +22,7 @@ const WmsViewerButtons = () => {
       }
 
 
-    </div>
+    </Fragment>
   )
 }
 

@@ -12,7 +12,7 @@ import MenuItem from "@mui/material/MenuItem";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TextInputProps, useInput } from "react-admin";
 
 
@@ -45,6 +45,13 @@ const CronInput = ({
   );
   
   const [open, setOpen] = useState(false);
+  const [minute, setMinute] = useState<string[]>(["*"]);
+  const [hour, setHour] = useState<string[]>(["*"]);
+  const [day, setDay] = useState<string[]>(["*"]);
+  const [month, setMonth] = useState<string[]>(["*"]);
+  const [weekday, setWeekday] = useState<string[]>(["*"]);
+  const [preview, setPreview] = useState<string>(value);
+  const lastSyncedValue = useRef<string>(value);
 
   const parse = (cron: string) => {
     const parts = cron.trim().split(/\s+/);
@@ -52,29 +59,26 @@ const CronInput = ({
     return { m, h, d, mo, w };
   };
 
-  const [minute, setMinute] = useState<string[]>(["*"]);
-  const [hour, setHour] = useState<string[]>(["*"]);
-  const [day, setDay] = useState<string[]>(["*"]);
-  const [month, setMonth] = useState<string[]>(["*"]);
-  const [weekday, setWeekday] = useState<string[]>(["*"]);
-
-
+  // Initialize state from value when it changes externally
   useEffect(() => {
-    const p = parse(value);
-    setMinute(p.m === "*" ? ["*"] : p.m.split(","));
-    setHour(p.h === "*" ? ["*"] : p.h.split(","));
-    setDay(p.d === "*" ? ["*"] : p.d.split(","));
-    setMonth(p.mo === "*" ? ["*"] : p.mo.split(","));
-    setWeekday(p.w === "*" ? ["*"] : p.w.split(","));
+    if (value !== lastSyncedValue.current) {
+      const p = parse(value);
+      setMinute(p.m === "*" ? ["*"] : p.m.split(","));
+      setHour(p.h === "*" ? ["*"] : p.h.split(","));
+      setDay(p.d === "*" ? ["*"] : p.d.split(","));
+      setMonth(p.mo === "*" ? ["*"] : p.mo.split(","));
+      setWeekday(p.w === "*" ? ["*"] : p.w.split(","));
+      setPreview(value);
+      lastSyncedValue.current = value;
+    }
   }, [value]);
 
   const build = () => `${joinPart(minute)} ${joinPart(hour)} ${joinPart(day)} ${joinPart(month)} ${joinPart(weekday)}`;
 
   useEffect(() => {
-    // sync text when parts change
+    // sync preview when parts change (only for internal updates)
     const cron = build();
-    onChange?.(cron);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPreview(cron);
   }, [minute.join(), hour.join(), day.join(), month.join(), weekday.join()]);
 
   const handleSelect = (setter: (v: string[]) => void) => (event: any) => {
@@ -108,7 +112,6 @@ const CronInput = ({
     </FormControl>
   );
 
-  console.log(value)
   return (
     <>
       <TextField
@@ -124,18 +127,18 @@ const CronInput = ({
         <DialogTitle>Edit Cron Expression</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid >{renderSelect("Minute", minute, setMinute, minuteOptions)}</Grid>
+            <Grid>{renderSelect("Minute", minute, setMinute, minuteOptions)}</Grid>
             <Grid>{renderSelect("Hour", hour, setHour, hourOptions)}</Grid>
             <Grid>{renderSelect("Day of Month", day, setDay, dayOptions)}</Grid>
             <Grid>{renderSelect("Month", month, setMonth, monthOptions)}</Grid>
             <Grid>{renderSelect("Weekday (0=Sun)", weekday, setWeekday, weekdayOptions)}</Grid>
             <Grid>
-              <TextField
-                label="Preview / manual edit"
-                value={value}
-                //onChange={(e) => setText(e.target.value)}
-                fullWidth
-              />
+      <TextField
+        label="Preview / manual edit"
+        value={preview}
+        onChange={(e) => setPreview(e.target.value)}
+        fullWidth
+      />
             </Grid>
           </Grid>
         </DialogContent>
@@ -143,13 +146,16 @@ const CronInput = ({
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button
             onClick={() => {
-              // apply parsed text
-              const p = parse(value);
+              // validate and apply the preview text
+              const p = parse(preview);
               setMinute(p.m === "*" ? ["*"] : p.m.split(","));
               setHour(p.h === "*" ? ["*"] : p.h.split(","));
               setDay(p.d === "*" ? ["*"] : p.d.split(","));
               setMonth(p.mo === "*" ? ["*"] : p.mo.split(","));
               setWeekday(p.w === "*" ? ["*"] : p.w.split(","));
+              // update the form field
+              onChange?.(preview);
+              lastSyncedValue.current = preview;
               setOpen(false);
             }}
             variant="contained"

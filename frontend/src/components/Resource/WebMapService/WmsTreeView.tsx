@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RaRecord, RecordRepresentation, useRecordContext, useShowContext } from 'react-admin';
 
 import { Tooltip } from '@mui/material';
@@ -61,12 +61,12 @@ const LayerLabel = ({
   ),[record])
 
   return (
-      <div>
+      <Fragment>
           {toggleIsActive}
           {toggleIsSearchable}
           {record.isSpatialSecured ? <Tooltip title="Layer spatial secured"><VpnLockIcon color='info'/></Tooltip>: null}
           <RecordRepresentation record={record}/>
-      </div>
+      </Fragment>
   )
 };
 

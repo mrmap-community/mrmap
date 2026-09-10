@@ -21,13 +21,12 @@ const ListActionsAllowedWebMapServiceOperation = (
     <ListActions
       createButton={
         <CreateDialogButton 
-          createDialogProps={{
+
+          guesserProps={{
             updateFieldDefinitions: fieldDefinitions,
-            formProps: { 
-              defaultValues: {
-                "securedService": record
-              },
-            }
+            simpleFormProps: {defaultValues: {
+              "securedService": record
+            },}
           }}
           
         />
@@ -49,10 +48,14 @@ const RowActions = () => {
 
   return (
     <WrapperField label={translate("ra.list.actions")} >
-        <EditDialogButton editDialogProps={{
-          resource: "AllowedWebMapServiceOperation",
-          updateFieldDefinitions: fieldDefinitions
-        }}/>
+        <EditDialogButton 
+          guesserProps={
+            {
+              resource: "AllowedWebMapServiceOperation",
+            updateFieldDefinitions: fieldDefinitions
+            }
+          }
+        />
     </WrapperField >
   )
 }
@@ -71,14 +74,13 @@ const ListAllowedWebMapServiceOperation = (
       ActionsComponent={ListActionsAllowedWebMapServiceOperation}
       empty={
         <EmptyList
-          createDialogProps={{
-            updateFieldDefinitions: fieldDefinitions,
-            formProps: { 
-              defaultValues: {
+          createDialogButtonProps={{
+            guesserProps:{
+              updateFieldDefinitions: fieldDefinitions,
+              simpleFormProps: {defaultValues: {
                 "securedService": record
-              },
-            }
-          }}
+              },}}
+            }}
         />
       }
       rowActions={<RowActions/>}

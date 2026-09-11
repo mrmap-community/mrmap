@@ -24,7 +24,6 @@ const CustomListActions = (
     dialogGuesserProps,
   }: CustomListActionsProps
 ): ReactNode => {
-  console.log('huhu', dialogGuesserProps)
   return (
     <TopToolbar>
       {isConfigureable && <SelectColumnsButton preferenceKey={preferenceKey}/>}

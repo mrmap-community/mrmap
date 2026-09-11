@@ -1,17 +1,22 @@
 import _ from 'lodash';
 import {
+  CreateMutationFunction,
+  CreateParams,
   HttpError,
   RaRecord,
   useCreate,
+  useCreateContext,
+  useCreateController,
   useDelete,
   useInfiniteGetList,
   useRecordContext,
+  useRegisterMutationMiddleware,
   useResourceContext,
   useUpdate
 } from 'ra-core';
-import { createElement, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, Fragment, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
+import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 
 export const AddButton = () => {
@@ -89,16 +94,14 @@ export const ReferenceManyInput = (
   // sourounding parent form/resource stuff
   const resource = useResourceContext();
   const record = useRecordContext();
+  const {record: createdRecord, } = useCreateController()
+  const {record: cR} = useCreateContext()
+  const parentForm = useFormContext();
   const currentRecordValues = record?.[source]
-  const { getValues: getValuesParent, formState: formStateParent,  } = useFormContext();
-  //FIXME: shall not comes from outer form.. 
-  // If this one is created and not edited, 
-  // this will be undefined and no value update is done on rerendering processes...
-  const [targetValue, setTargetValue] = useState({id: getValuesParent('id')});
-
+  console.log('cR', cR)
   const createFieldDefinitions = useFieldsForOperation({operationId: `create_${reference}`})
   const editFieldDefinitions = useFieldsForOperation({operationId: `edit_${reference}`})
-  const fieldDefinitions = targetValue === undefined ? createFieldDefinitions : editFieldDefinitions
+  const fieldDefinitions = record?.id === undefined ? createFieldDefinitions : editFieldDefinitions
   
   const includedObjects = useMemo<RaRecord[]>(() => {
       if (currentRecordValues === undefined) return []
@@ -129,14 +132,12 @@ export const ReferenceManyInput = (
   // dataprovider stuff
   const {
     data,
-    isFetched,
-    isFetching,
-    isPending
+    isFetched
   } = useInfiniteGetList(
       reference,
       {
         pagination: { page: 1, perPage: 20 },
-        meta: { relatedResource: { resource: resource, ...(targetValue.id && targetValue)}},
+        meta: { relatedResource: { resource: resource, id: record?.id}},
       },
       {
         enabled: missingObjects.length > 0 && !initialized.current,
@@ -144,8 +145,9 @@ export const ReferenceManyInput = (
   );
 
   // underlying form to controll references
-  const {setError, setValue, clearErrors, watch, ...rest} = useForm();
-  const values = watch(source) 
+  const formMethods = useForm();
+  const {setError, setValue, clearErrors} = formMethods;
+  const values = useWatch({control: formMethods.control, name: source});
   const valuesRef = useRef(values)
 
   const [ create ] = useCreate();
@@ -161,6 +163,43 @@ export const ReferenceManyInput = (
     });    
   },[source])
 
+  const memoizedMiddleWare = useCallback(async (
+      resource: string| undefined,
+      params: CreateParams,
+      next: CreateMutationFunction
+  ) => {
+      // Do something before the mutation
+
+      // Call the next middleware
+      const result = await next(resource, params);
+      await Promise.all(values?.map((record: RaRecord, index: number) => {
+        const options = {
+          onError: (error: unknown) => onError(index, error),
+          returnPromise: true as const,
+        }
+        record[target] = {id: result.data.id}
+
+        if (record.id === undefined) {
+          return create(reference, { data: record }, options)
+        }
+
+        return update(
+          reference,
+          {
+            id: record.id,
+            data: record,
+            previousData: valuesRef.current?.find((value: RaRecord) => value.id === record.id),
+          },
+          options
+        )
+      }) ?? [])
+
+      // Do something after the mutation
+      // Always return the result
+      return result;
+    }, [create, onError, reference, target, update, values]);
+  
+  useRegisterMutationMiddleware(memoizedMiddleWare);
 
   if (
     (fieldDefinitions.length > 0 && !fieldDefinitions.find(def => def.props.source === target))
@@ -173,9 +212,11 @@ export const ReferenceManyInput = (
   /** update values ref on changes */
   useEffect(()=> {
     if (!_.isEqual(values, valuesRef.current)){
+      clearErrors(source)
+      parentForm.clearErrors()
       valuesRef.current = values
     }
-  }, [values])
+  }, [clearErrors, source, values])
 
   /** update values ref on changes */
   useEffect(()=>{
@@ -185,48 +226,12 @@ export const ReferenceManyInput = (
     }
   }, [data, isFetched])
 
-  useEffect(()=>{
-    if (!formStateParent.isSubmitting && formStateParent.isSubmitSuccessful){
-      
-      setTargetValue({ id: getValuesParent('id') })
-      // update all records fk field
-      /*setValue(source, values?.map((element: any) => {
-        element[target] = {id: getValuesParent('id')}
-        return element;
-      }))*/
-      
-      clearErrors()
-
-      values?.forEach((record: RaRecord, index: number) => {
-        const options = {
-          onError: (error: unknown) => onError(index, error),
-        }
-        record[target] = {id: getValuesParent('id')}
-
-        if (record.id === undefined) {
-          create(reference, { data: record }, options)
-          return
-        }
-
-        update(
-          reference,
-          {
-            id: record.id,
-            data: record,
-            previousData: valuesRef.current?.find((value: RaRecord) => value.id === record.id),
-          },
-          options
-        )
-      })
-
-   }
-  }, [formStateParent.isSubmitSuccessful, formStateParent.isSubmitting])
-
+  
 
 
   return (
     
-    <FormProvider setValue={setValue} clearErrors={clearErrors} setError={setError} watch={watch} {...rest} >
+    <FormProvider {...formMethods} >
       <ArrayInput
        source={source}
        resource={reference}
@@ -248,7 +253,7 @@ export const ReferenceManyInput = (
                   
                   if (fieldDefinition.props.source === target) {
                     props.hidden = true
-                    props.defaultValue = targetValue
+                    props.defaultValue = record?.id
                   }
                   return createElement(
                     fieldDefinition.component, 

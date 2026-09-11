@@ -40,6 +40,9 @@ const DefaultActions = (
   const resource = useResourceContext();
   const notify = useNotify();
   const {close} = useDialogContextBase();
+  
+  
+
   const onSuccess = useCallback(()=>{
       refetch()
       close()
@@ -69,7 +72,6 @@ const CreateDialogButtonCore = ({
 
 }: CreateDialogButtonProps) => {
   const {open} = useDialogContextBase();
-  console.log(guesserProps)
   return (
     <Fragment>
       <Button label="ra.action.create" onClick={() => open(<DefaultTitle/>, null, <DefaultActions/>)} {...buttonProps}>

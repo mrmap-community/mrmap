@@ -37,8 +37,8 @@ const CreateWebMapServiceMonitoringSetting = () => {
         </Toolbar>}
       }
       referenceInputs={[
-        <ReferenceManyInput key='getCapabilitiesProbes' reference='GetCapabilitiesProbe' target='setting'/>,
-        <ReferenceManyInput key='getMapProbes' reference='GetMapProbe' target='setting'/>
+        <ReferenceManyInput key='getCapabilitiesProbes' source='getCapabilitiesProbes' reference='GetCapabilitiesProbe' target='setting'/>,
+        <ReferenceManyInput key='getMapProbes' source='getMapProbes' reference='GetMapProbe' target='setting'/>
       ]}
     />
   )

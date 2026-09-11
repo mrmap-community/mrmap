@@ -58,14 +58,20 @@ const CreateGuesser = (
 
   // be clear that json:api type is always part of mutationOptions so that the dataprovider has all information he needs
   const _mutationOptions = useMemo(() => {
-    return (mutationOptions != null) ? { ...mutationOptions, meta: { type: options?.type } } : { meta: { type: options?.type } }
+    const mut = (mutationOptions != null) ? { ...mutationOptions, meta: { type: options?.type } } : { meta: { type: options?.type } }   
+    
+    mut.onSuccess = (data, variables, onMutationResult, context) => {
+      console.log('data', data, variables, onMutationResult, context)
+    }
+    
+    return mut
   }, [mutationOptions])
-  console.log(referenceInputs, simpleFormProps)
 
   return (
     <Create
       redirect="list" // default is edit... but this is not possible on async created resources
       mutationOptions={_mutationOptions}
+      
       {...rest}
     >
       <SimpleForm

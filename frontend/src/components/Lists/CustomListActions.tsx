@@ -7,7 +7,7 @@ export interface CustomListActionsProps extends Omit<Partial<ListActionsProps>, 
   isExportable?: boolean
   createButton?: ReactNode
   preferenceKey?: string
-  filters: ReactNode[]
+  filters?: ReactNode[]
   additionalActions?: ReactNode
   dialogGuesserProps?: CreateDialogButtonProps
 }
@@ -27,7 +27,7 @@ const CustomListActions = (
   return (
     <TopToolbar>
       {isConfigureable && <SelectColumnsButton preferenceKey={preferenceKey}/>}
-      {filters && <FilterButton filters={filters}/>}
+      {<FilterButton filters={filters}/>}
       {createButton ?? <CreateDialogButton  {...dialogGuesserProps}/>}
       {isExportable && <ExportButton />}
       {additionalActions}

@@ -1,8 +1,7 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { type ConfigurableDatagridColumn, DatagridConfigurable, EditButton, Identifier, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
+import { DatagridConfigurable, EditButton, Identifier, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
-import { snakeCase } from 'lodash'
 
 import { CreateDialogButtonProps } from '../../components/Dialog/CreateDialogButton'
 import { EditDialogButtonProps } from '../../components/Dialog/EditDialogButton'
@@ -14,10 +13,10 @@ import EmptyListWithFilter from '../../components/Lists/EmptyWithFilter'
 import { useHttpClientContext } from '../../context/HttpClientContext'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
+import useJsonApiQuery from '../hooks/useJsonApiQuery'
 import useOnError from '../hooks/useOnError'
 import useResourceSchema from '../hooks/useResourceSchema'
-import { SparseFieldsets } from '../types/jsonapi'
-import { FieldDefinition, getIncludeOptions, getSparseFieldOptions } from '../utils'
+import { FieldDefinition } from '../utils'
 import RealtimeList from './Realtime/RealtimeList'
 
 
@@ -32,7 +31,6 @@ export interface ListGuesserProps extends Partial<ListProps> {
   updateFieldDefinitions?: FieldDefinition[];
   refetchInterval?: number | false
   defaultSelectedColumns? : string[]
-  sparseFieldsets?: SparseFieldsets[],
   ActionsComponent?: React.ComponentType<CustomListActionsProps>
   dialogGuesserProps?: CreateDialogButtonProps | EditDialogButtonProps
 }
@@ -49,7 +47,6 @@ const ListGuesser = ({
   updateFieldDefinitions,
   refetchInterval=false,
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
-  sparseFieldsets = undefined,
   ActionsComponent=ListActions,
   dialogGuesserProps,
 
@@ -57,11 +54,8 @@ const ListGuesser = ({
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
   const { name, hasShow, hasEdit, options } = useResourceDefinition(props)
-  const listOptions = useMemo(()=>{
-    return options.list
-  },[options])
+  const listOptions = useMemo(()=>(options.list),[options])
 
-  
   const { api } = useHttpClientContext()
   const [open] = useSidebarState()
 
@@ -89,9 +83,6 @@ const ListGuesser = ({
   const fieldSchemas = useFilterInputForOperation(operationId)
   const filters = useMemo(() => fieldSchemas.map(def => createElement(def.component, def.props)), [fieldSchemas])
   
-  const includeOptions = useMemo(() => (operation !== undefined) ? getIncludeOptions(operation) : [], [operation])
-  const sparseFieldOptions = useMemo(() => (operation !== undefined) ? getSparseFieldOptions(operation) : [], [operation])
-
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
@@ -99,9 +90,7 @@ const ListGuesser = ({
  
   const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !defaultSelectedColumns.includes(source)),[fieldDefinitions])
   const [initOmit, setInitOmit] = useState(false)
-  const [availableColumns] = useStore<ConfigurableDatagridColumn[]>(`preferences.${preferenceKey}.availableColumns`, [])
-  const [omit, setOmit] = useStore<string[]>(`preferences.${preferenceKey}.omit`)
-  const [selectedColumnsIdxs] = useStore<string[]>(`preferences.${preferenceKey}.columns`, [])
+  const [_, setOmit] = useStore<string[]>(`preferences.${preferenceKey}.omit`)
   
   useEffect(()=>{
     if(defaultOmit.length > 0 && !initOmit){
@@ -111,56 +100,7 @@ const ListGuesser = ({
   },[defaultOmit])
 
 
-  const sparseFieldsQueryValue = useMemo(
-    () => availableColumns.filter(column => {
-      if (column.source === undefined) return false
-      
-      return sparseFieldOptions.includes(column.source) &&
-      selectedColumnsIdxs.length > 0 ? selectedColumnsIdxs.includes(column.index): !(omit || []).includes(column.source)
-     }
-      ).map(column =>
-      // TODO: django jsonapi has an open issue where no snake to cammel case translation are made
-      // See https://github.com/django-json-api/django-rest-framework-json-api/issues/1053
-      snakeCase(column.source)
-    ), [sparseFieldOptions, availableColumns, selectedColumnsIdxs])
-
-  const includeQueryValue = useMemo(
-    () => includeOptions.filter(includeOption => sparseFieldsQueryValue.includes(includeOption)), 
-    [sparseFieldsQueryValue, includeOptions])
-
-  const jsonApiQuery = useMemo(
-    () => {
-      const query: any = {}
-      const _sparseFieldsets = sparseFieldsets || listOptions?.sparseFieldsets || []
-      _sparseFieldsets.forEach((sf: SparseFieldsets) => {
-        if (name === sf.type){
-
-          const fields = [...new Set([
-            ...sf.fields.map(value =>
-              // TODO: django jsonapi has an open issue where no snake to cammel case translation are made
-              // See https://github.com/django-json-api/django-rest-framework-json-api/issues/1053
-              snakeCase(value)), 
-            ...sparseFieldsQueryValue || []
-          ])]
-          query[`fields[${sf.type}]`] = fields.join(',')
-        } else {
-          query[`fields[${sf.type}]`] = sf.fields.join(',')
-        }
-      })
-      
-
-      if (_sparseFieldsets === undefined && sparseFieldsQueryValue !== undefined) {
-        query[`fields[${name}]`] = sparseFieldsQueryValue.join(',')
-      }
-
-      if (includeQueryValue !== undefined) {
-        query.include = includeQueryValue.join(',')
-      }
-
-      return query
-    }
-    , [sparseFieldsets, listOptions?.sparseFieldsets,sparseFieldsQueryValue, includeQueryValue]
-  )
+  const jsonApiQuery = useJsonApiQuery({relatedResource})
 
 
   if (operation === undefined || fields === undefined || fields?.length === 0) {
@@ -175,7 +115,7 @@ const ListGuesser = ({
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
       actions={<ActionsComponent
-        filters={filters} 
+        //filters={filters} 
         preferenceKey={preferenceKey}
         dialogGuesserProps={dialogGuesserProps as CreateDialogButtonProps}
         />
@@ -251,7 +191,7 @@ const ListGuesser = ({
         {
           rowActions || <WrapperField label={"ra.list.actions"} >
             {hasShow && <ShowButton />}
-            {hasEdit && <EditButton />}
+            {<EditButton />}
             {additionalActions || listOptions?.additionalActions && createElement(listOptions?.additionalActions)}
           </WrapperField >
         }

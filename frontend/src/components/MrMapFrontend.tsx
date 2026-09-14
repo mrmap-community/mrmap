@@ -14,7 +14,6 @@ import {
 import { BrowserRouter, Route } from 'react-router-dom';
 import { useHttpClientContext } from '../context/HttpClientContext';
 import CreateGuesser from '../jsonapi/components/CreateGuesser';
-import EditGuesser from '../jsonapi/components/EditGuesser';
 import ListGuesser from '../jsonapi/components/ListGuesser';
 import { getResourceSchema } from '../jsonapi/openapi/parser';
 import authProviderFunc from '../providers/authProvider';
@@ -82,7 +81,7 @@ const MrMapFrontend = (): ReactElement => {
       return {
         ...(resource.create || createOperation && {create: CreateGuesser, hasCreate: true}),
         ...(resource.list || listOperation && {list: ListGuesser, hasList: true}),
-        ...(resource.edit || editOperation && {edit: EditGuesser, hasEdit: true}),
+        //...(resource.edit || editOperation && {edit: EditGuesser, hasEdit: true}),
         // TODO: merge children and related_list_operations paths
         ...(resource.children || related_list_operations && { 
           children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={resource.name}> </ListGuesser>}></Route>)

@@ -1,11 +1,11 @@
 import _ from 'lodash';
 import {
+  CreateContext,
   CreateMutationFunction,
   CreateParams,
   HttpError,
   RaRecord,
   useCreate,
-  useCreateContext,
   useCreateController,
   useDelete,
   useInfiniteGetList,
@@ -14,7 +14,7 @@ import {
   useResourceContext,
   useUpdate
 } from 'ra-core';
-import { createElement, Fragment, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createElement, Fragment, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
@@ -95,10 +95,10 @@ export const ReferenceManyInput = (
   const resource = useResourceContext();
   const record = useRecordContext();
   const {record: createdRecord, } = useCreateController()
-  const {record: cR} = useCreateContext()
+  const context = useContext(CreateContext);
   const parentForm = useFormContext();
   const currentRecordValues = record?.[source]
-  console.log('cR', cR)
+  console.log('cR', context)
   const createFieldDefinitions = useFieldsForOperation({operationId: `create_${reference}`})
   const editFieldDefinitions = useFieldsForOperation({operationId: `edit_${reference}`})
   const fieldDefinitions = record?.id === undefined ? createFieldDefinitions : editFieldDefinitions
@@ -166,7 +166,8 @@ export const ReferenceManyInput = (
   const memoizedMiddleWare = useCallback(async (
       resource: string| undefined,
       params: CreateParams,
-      next: CreateMutationFunction
+      next: CreateMutationFunction,
+      ...rest: any
   ) => {
       // Do something before the mutation
 
@@ -180,7 +181,13 @@ export const ReferenceManyInput = (
         record[target] = {id: result.data.id}
 
         if (record.id === undefined) {
-          return create(reference, { data: record }, options)
+          return create(
+            reference, 
+            { 
+              data: record 
+            }, 
+            options
+          )
         }
 
         return update(

@@ -48,7 +48,6 @@ const CatalogueServiceList = (): ReactNode => {
     <ListGuesser
       resource='CatalogueService'
       additionalActions={<HarvestButton />}
-      sparseFieldsets={[{type: 'CatalogueService', fields: ['runningHarvestingJob']}]}
     // aside={<TaskList />}
     />
 

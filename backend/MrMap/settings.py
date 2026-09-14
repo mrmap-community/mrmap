@@ -385,7 +385,11 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "hosts": [{
+                "host": REDIS_HOST,
+                "port": REDIS_PORT,
+                "socket_timeout": 6,
+            }],
             "capacity": 1500,  # default 100
             "expiry": 10,  # default 60
         },

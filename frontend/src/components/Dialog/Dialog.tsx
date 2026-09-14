@@ -5,7 +5,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { Fragment } from 'react/jsx-runtime';
 import { useDialogContextBase } from './DialogContextBase';
 
-export interface ContextBasedDialog extends Omit<DialogProps,'open'> {
+export interface ContextBasedDialogProps extends Omit<DialogProps,'open'> {
 
 }
 
@@ -37,7 +37,7 @@ const ContextBasedDialog = (
 {
   children = <DefaultChildren/>,
   ...rest
-}: ContextBasedDialog
+}: ContextBasedDialogProps
 ) => {
   const {isOpen, close, title, actions} = useDialogContextBase()
   

@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, useMemo } from 'react';
-import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, useRecordContext, useResourceDefinition } from 'react-admin';
+import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, useParams, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
@@ -75,9 +75,10 @@ const EditGuesser = (
   simpleFormProps,
   ...props
 }: EditGuesserProps): ReactElement => {
+  const { id: routeId } = useParams<{ id?: string }>();
   const { name, options } = useResourceDefinition(props)
   
-  const {schema, sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
+  const {sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
   const fieldDefinitions = useFieldsForOperation({operationId: `partial_update_${name}`})
   
   const meta = useMemo(()=>{
@@ -103,7 +104,10 @@ const EditGuesser = (
     return _meta
   },[ fieldDefinitions, options?.type, sparseFieldsPerResource, includeAbleResources])
   
-
+  if (routeId === undefined && props.id === undefined) {
+    return <></>
+  }
+  
   return (
     <Edit
       queryOptions={{

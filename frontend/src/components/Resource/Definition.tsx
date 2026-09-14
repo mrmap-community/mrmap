@@ -19,6 +19,7 @@ import PlagiarismIcon from '@mui/icons-material/Plagiarism';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
+import ListWithDialogs from '../../jsonapi/components/ListWithDialogs';
 import CreateAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/CreateAllowedWebMapServiceOperation';
 import EditAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/EditAllowedWebMapServiceOperation';
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
@@ -55,7 +56,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, options: { menu: { group: "WMS", order: 30 } }},
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
-  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
+  {name: "Layer", icon: LayersIcon, list: ListWithDialogs, options: { menu: { group: "WMS", order: 20 } }},
   
   
   {name: "WebFeatureService", icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
@@ -63,7 +64,18 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
   
   
-  {name: "CatalogueService", icon: PlagiarismIcon, show: ShowCatalogueService, list: CatalogueServiceList, options: { menu: { group: "CSW", order: 10 } }},
+  {
+    name: "CatalogueService", 
+    icon: PlagiarismIcon, 
+    show: ShowCatalogueService, 
+    list: CatalogueServiceList, 
+    options: { 
+      menu: { group: "CSW", order: 10 },
+      list: {
+        sparseFieldsets: [{type: 'CatalogueService', fields: ['runningHarvestingJob']}]
+      }
+    }
+  },
   {name: "CatalogueServiceOperationUrl", icon: HttpIcon},
 
   {name: "HarvestingJob", icon: AgricultureIcon, show: ShowHarvestingJob, options: { menu: { group: "CSW", order: 20 } }},

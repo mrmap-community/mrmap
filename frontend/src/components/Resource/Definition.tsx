@@ -19,7 +19,6 @@ import PlagiarismIcon from '@mui/icons-material/Plagiarism';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import ListWithDialogs from '../../jsonapi/components/ListWithDialogs';
 import CreateAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/CreateAllowedWebMapServiceOperation';
 import EditAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/EditAllowedWebMapServiceOperation';
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
@@ -29,8 +28,7 @@ import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
-import CreateWebMapServiceMonitoringSetting from './Monitoring/Wms/CreateWebMapServiceMonitoringSetting';
-import EditWebMapServiceMonitoringSetting from './Monitoring/Wms/EditWebMapServiceMonitoringSetting';
+import ListWebMapServiceMonitoringSetting from './Monitoring/Wms/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import WmsViewerButtons from './WebMapService/ListActions';
 import { WmsShow } from './WebMapService/WmsShow';
@@ -56,7 +54,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, options: { menu: { group: "WMS", order: 30 } }},
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
-  {name: "Layer", icon: LayersIcon, list: ListWithDialogs, options: { menu: { group: "WMS", order: 20 } }},
+  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
   
   
   {name: "WebFeatureService", icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
@@ -99,8 +97,9 @@ const RESOURCES: Array<ResourceProps> = [
   {
     name: "WebMapServiceMonitoringSetting", 
     icon: LegendToggleIcon,
-    create: CreateWebMapServiceMonitoringSetting,
-    edit: EditWebMapServiceMonitoringSetting,
+    list: ListWebMapServiceMonitoringSetting,
+    //create: CreateWebMapServiceMonitoringSetting,
+    //edit: EditWebMapServiceMonitoringSetting,
     options: { menu: { group: "WMS", order: 50 } }
   },
   {name: "GetCapabilitiesProbe"},

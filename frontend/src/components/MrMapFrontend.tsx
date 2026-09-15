@@ -13,7 +13,6 @@ import {
 } from 'react-admin';
 import { BrowserRouter, Route } from 'react-router-dom';
 import { useHttpClientContext } from '../context/HttpClientContext';
-import CreateGuesser from '../jsonapi/components/CreateGuesser';
 import ListGuesser from '../jsonapi/components/ListGuesser';
 import { getResourceSchema } from '../jsonapi/openapi/parser';
 import authProviderFunc from '../providers/authProvider';
@@ -26,6 +25,7 @@ import defaultRecordRepresentation from './Resource/defaultRecordRepresentation'
 import RESOURCES from './Resource/Definition';
 
 
+import ListWithDialogs from '../jsonapi/components/ListWithDialogs';
 import Dashboard from './Dashboard/Dashboard';
 import MyLayout from './Layout/Layout';
 import LoadingOpenApi from './Loading/LoadingOpenApi';
@@ -79,12 +79,12 @@ const MrMapFrontend = (): ReactElement => {
       }) ?? []
 
       return {
-        ...(resource.create || createOperation && {create: CreateGuesser, hasCreate: true}),
-        ...(resource.list || listOperation && {list: ListGuesser, hasList: true}),
-        //...(resource.edit || editOperation && {edit: EditGuesser, hasEdit: true}),
+        ...(resource.create || createOperation && { hasCreate: true}),
+        ...(resource.list || listOperation && {list: ListWithDialogs, hasList: true}),
+        ...(resource.edit || editOperation && { hasEdit: true}),
         // TODO: merge children and related_list_operations paths
         ...(resource.children || related_list_operations && { 
-          children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={resource.name}> </ListGuesser>}></Route>)
+          children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:${relatedResource}id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={resource.name}> </ListGuesser>}></Route>)
         }) as ReactElement[],
         ...(resource.recordRepresentation ? {recordRepresentation: resource.recordRepresentation}: {recordRepresentation: defaultRecordRepresentation}),
         ...resource,

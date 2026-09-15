@@ -58,12 +58,7 @@ const CreateGuesser = (
 
   // be clear that json:api type is always part of mutationOptions so that the dataprovider has all information he needs
   const _mutationOptions = useMemo(() => {
-    const mut = (mutationOptions != null) ? { ...mutationOptions, meta: { type: options?.type } } : { meta: { type: options?.type } }   
-    
-    mut.onSuccess = (data, variables, onMutationResult, context) => {
-      console.log('data', data, variables, onMutationResult, context)
-    }
-    
+    const mut = (mutationOptions != null) ? { ...mutationOptions, meta: { type: options?.type } } : { meta: { type: options?.type } }       
     return mut
   }, [mutationOptions])
 

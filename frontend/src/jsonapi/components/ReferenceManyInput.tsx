@@ -1,20 +1,23 @@
 import _ from 'lodash';
 import {
-  CreateContext,
   CreateMutationFunction,
   CreateParams,
   HttpError,
   RaRecord,
+  UpdateMutationFunction,
+  UpdateParams,
   useCreate,
-  useCreateController,
+  UseCreateOptions,
   useDelete,
   useInfiniteGetList,
   useRecordContext,
+  useRedirect,
   useRegisterMutationMiddleware,
   useResourceContext,
-  useUpdate
+  useUpdate,
+  UseUpdateOptions
 } from 'ra-core';
-import { createElement, Fragment, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { createElement, Fragment, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
@@ -94,11 +97,10 @@ export const ReferenceManyInput = (
   // sourounding parent form/resource stuff
   const resource = useResourceContext();
   const record = useRecordContext();
-  const {record: createdRecord, } = useCreateController()
-  const context = useContext(CreateContext);
   const parentForm = useFormContext();
   const currentRecordValues = record?.[source]
-  console.log('cR', context)
+
+
   const createFieldDefinitions = useFieldsForOperation({operationId: `create_${reference}`})
   const editFieldDefinitions = useFieldsForOperation({operationId: `edit_${reference}`})
   const fieldDefinitions = record?.id === undefined ? createFieldDefinitions : editFieldDefinitions
@@ -153,6 +155,8 @@ export const ReferenceManyInput = (
   const [ create ] = useCreate();
   const [ update ] = useUpdate();
 
+  const redirect = useRedirect();
+
   const onError = useCallback((index: number, error: unknown) => {
     const httpError = error as HttpError 
     httpError?.body?.errors && Object.entries(httpError?.body?.errors).forEach(([key, value]) => {    
@@ -164,47 +168,125 @@ export const ReferenceManyInput = (
   },[source])
 
   const memoizedMiddleWare = useCallback(async (
-      resource: string| undefined,
-      params: CreateParams,
-      next: CreateMutationFunction,
-      ...rest: any
+      resource: string | undefined,
+      params: CreateParams | UpdateParams,
+      next: CreateMutationFunction | UpdateMutationFunction,
   ) => {
       // Do something before the mutation
 
+
       // Call the next middleware
       const result = await next(resource, params);
-      await Promise.all(values?.map((record: RaRecord, index: number) => {
-        const options = {
-          onError: (error: unknown) => onError(index, error),
-          returnPromise: true as const,
-        }
-        record[target] = {id: result.data.id}
 
-        if (record.id === undefined) {
-          return create(
-            reference, 
-            { 
-              data: record 
-            }, 
-            options
-          )
+      if (!record?.id){
+        console.log('create new instance', params, result)
+      }else{
+        console.log('update', params, result)
+      }
+
+      // create/update all nested records and wait for all to finish
+      const promises = (values ?? []).map((rec: RaRecord, index: number) => {
+        // ensure target relation points to parent result
+        const data = { ...rec, [target]: { id: result.data.id } } as RaRecord;
+
+        // ask react-admin to return a promise for the mutation
+        const createOpts: UseCreateOptions = { returnPromise: true as const } as any;
+        const updateOpts: UseUpdateOptions = { returnPromise: true as const } as any;
+
+        if (rec.id === undefined) {
+          return create(reference, { data }, createOpts as any);
         }
 
         return update(
           reference,
           {
-            id: record.id,
-            data: record,
-            previousData: valuesRef.current?.find((value: RaRecord) => value.id === record.id),
+            id: rec.id,
+            data,
+            previousData: valuesRef.current?.find((v: RaRecord) => v.id === rec.id),
           },
-          options
-        )
-      }) ?? [])
+          updateOpts as any
+        );
+      });
 
+      const results = await Promise.allSettled(promises);
+      // collect field errors from rejected or fulfilled nested mutations
+      const nestedErrors: Array<{ name: string; error: { message: string } }> = [];
+      results.forEach((r, idx) => {
+        if (r.status === 'rejected') {
+          const reason: any = r.reason;
+          const httpError = reason as HttpError | undefined;
+          const body = httpError?.body ?? reason?.body ?? reason?.response?.body ?? reason;
+          const candidateErrors = body?.errors ?? body?.error ?? body?.errors?.errors;
+          if (candidateErrors && typeof candidateErrors === 'object') {
+            Object.entries(candidateErrors).forEach(([key, value]) => {
+              nestedErrors.push({ name: `${source}.${idx}.${key}`, error: { message: value as string } });
+            });
+          } else {
+            nestedErrors.push({ name: `${source}.${idx}`, error: { message: (reason && reason.message) || 'Unknown error' } });
+          }
+        } else if (r.status === 'fulfilled') {
+          const value: any = r.value;
+          // react-admin may resolve with a payload that still contains validation errors
+          const body = value?.body ?? value?.data ?? value;
+          const candidateErrors = body?.errors ?? body?.error ?? body?.validationErrors;
+          if (candidateErrors && typeof candidateErrors === 'object') {
+            Object.entries(candidateErrors).forEach(([key, value]) => {
+              nestedErrors.push({ name: `${source}.${idx}.${key}`, error: { message: value as string } });
+            });
+          }
+        }
+      });
+        
+
+      if (nestedErrors.length > 0) {
+        console.log('huhu')
+        // set form errors so user sees field-level messages
+        //nestedErrors.forEach(e => setError(e.name, e.error as any));
+
+        if (!record?.id){
+          // collect created/updated nested resources so the redirected
+          // edit view receives the reference-many items as part of the
+          // parent resource payload (so fields show up immediately)
+          const nestedSavedItems = results.map(r => {
+            if (r.status === 'fulfilled') {
+              const v: any = r.value;
+              return v?.data ?? v?.body ?? v;
+            }
+            return undefined;
+          }).filter((x): x is any => x !== undefined && x !== null);
+
+          /*redirect(
+            'edit',
+            resource,
+            result.data.id,
+            undefined,
+            {
+              ...result.data,
+              [source]: nestedSavedItems,
+              __nestedErrors: nestedErrors,
+            },
+
+          )*/
+        }
+
+        // also throw to indicate the parent mutation should be considered failed
+        //throw new Error('One or more nested resources failed to save');
+      }
       // Do something after the mutation
+
+
       // Always return the result
-      return result;
-    }, [create, onError, reference, target, update, values]);
+      console.log('result',result)
+      const ruu = {
+        ...result,
+        errors: [...(result.errors ?? []),...nestedErrors]
+      };
+      console.log(
+        'ruu',ruu
+      )
+      // this console.log is not printed?!
+      return ruu
+    }, [create,  reference, target, update, values, record]);
   
   useRegisterMutationMiddleware(memoizedMiddleWare);
 

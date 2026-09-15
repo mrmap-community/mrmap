@@ -1,9 +1,30 @@
 import { createElement, type ReactElement, useMemo } from 'react';
-import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, useParams, useRecordContext, useResourceDefinition } from 'react-admin';
+import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, useLocation, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
 import SchemaAutocompleteInput from './SchemaAutocompleteInput';
+
+
+import { useEffect } from 'react';
+import { useFormContext } from 'react-hook-form';
+
+const StateUpdater = () => {
+  const location = useLocation();
+  const { setError } = useFormContext();
+  console.log(location)
+  useEffect(() => {
+    const nested = location.state?.__nestedErrors;
+    if (Array.isArray(nested)) {
+      nested.forEach((e: { name: string; error: { message: string } }) => {
+        setError(e.name, { message: e.error.message });
+      });
+    }
+  }, [location, setError]);
+
+  return null;
+};
+
 
 
 export interface EditGuesserProps<RecordType extends RaRecord = any>
@@ -63,6 +84,7 @@ const EditFormGuesser = ({
       >
       {fields}
       {referenceInputs}
+      <StateUpdater/>
     </SimpleForm>
   )
 
@@ -75,9 +97,7 @@ const EditGuesser = (
   simpleFormProps,
   ...props
 }: EditGuesserProps): ReactElement => {
-  const { id: routeId } = useParams<{ id?: string }>();
   const { name, options } = useResourceDefinition(props)
-  
   const {sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
   const fieldDefinitions = useFieldsForOperation({operationId: `partial_update_${name}`})
   
@@ -104,9 +124,6 @@ const EditGuesser = (
     return _meta
   },[ fieldDefinitions, options?.type, sparseFieldsPerResource, includeAbleResources])
   
-  if (routeId === undefined && props.id === undefined) {
-    return <></>
-  }
   
   return (
     <Edit

@@ -114,12 +114,12 @@ const ListGuesser = ({
     <ListComponent
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
-      actions={<ActionsComponent
+      //actions={<ActionsComponent
         //filters={filters} 
-        preferenceKey={preferenceKey}
-        dialogGuesserProps={dialogGuesserProps as CreateDialogButtonProps}
-        />
-      }
+      //  preferenceKey={preferenceKey}
+      //  dialogGuesserProps={dialogGuesserProps as CreateDialogButtonProps}
+      //  />
+     // }
       empty={props.empty || <EmptyList createDialogButtonProps={dialogGuesserProps as CreateDialogButtonProps | undefined}/>}
       queryOptions={{
         refetchInterval,

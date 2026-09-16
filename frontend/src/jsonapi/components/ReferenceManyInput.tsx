@@ -10,6 +10,8 @@ import {
   UseCreateOptions,
   useDelete,
   useInfiniteGetList,
+  useLocation,
+  useNavigate,
   useRecordContext,
   useRedirect,
   useRegisterMutationMiddleware,
@@ -21,6 +23,7 @@ import { createElement, Fragment, useCallback, useEffect, useMemo, useRef } from
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
+import { ReferenceManyError, useReferenceManyErrors } from './ReferenceManyErrorsProvider';
 
 export const AddButton = () => {
   const { add } = useSimpleFormIterator();
@@ -93,13 +96,14 @@ export const ReferenceManyInput = (
     target,
   }: ReferenceManyInputProps
 ) => {
+  const initializing = useRef(false);
   const initialized = useRef(false);
   // sourounding parent form/resource stuff
   const resource = useResourceContext();
   const record = useRecordContext();
   const parentForm = useFormContext();
   const currentRecordValues = record?.[source]
-
+  const { addErrors } = useReferenceManyErrors();
 
   const createFieldDefinitions = useFieldsForOperation({operationId: `create_${reference}`})
   const editFieldDefinitions = useFieldsForOperation({operationId: `edit_${reference}`})
@@ -151,7 +155,9 @@ export const ReferenceManyInput = (
   const {setError, setValue, clearErrors} = formMethods;
   const values = useWatch({control: formMethods.control, name: source});
   const valuesRef = useRef(values)
-
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const [ create ] = useCreate();
   const [ update ] = useUpdate();
 
@@ -172,19 +178,11 @@ export const ReferenceManyInput = (
       params: CreateParams | UpdateParams,
       next: CreateMutationFunction | UpdateMutationFunction,
   ) => {
-      // Do something before the mutation
-
 
       // Call the next middleware
       const result = await next(resource, params);
 
-      if (!record?.id){
-        console.log('create new instance', params, result)
-      }else{
-        console.log('update', params, result)
-      }
-
-      // create/update all nested records and wait for all to finish
+       // create/update all nested records and wait for all to finish
       const promises = (values ?? []).map((rec: RaRecord, index: number) => {
         // ensure target relation points to parent result
         const data = { ...rec, [target]: { id: result.data.id } } as RaRecord;
@@ -210,83 +208,89 @@ export const ReferenceManyInput = (
 
       const results = await Promise.allSettled(promises);
       // collect field errors from rejected or fulfilled nested mutations
-      const nestedErrors: Array<{ name: string; error: { message: string } }> = [];
-      results.forEach((r, idx) => {
-        if (r.status === 'rejected') {
-          const reason: any = r.reason;
-          const httpError = reason as HttpError | undefined;
-          const body = httpError?.body ?? reason?.body ?? reason?.response?.body ?? reason;
-          const candidateErrors = body?.errors ?? body?.error ?? body?.errors?.errors;
-          if (candidateErrors && typeof candidateErrors === 'object') {
-            Object.entries(candidateErrors).forEach(([key, value]) => {
-              nestedErrors.push({ name: `${source}.${idx}.${key}`, error: { message: value as string } });
+      const nestedErrors: ReferenceManyError[] = [];
+      results.forEach((result, index) => {
+        let candidateErrors: Record<string, string> | undefined;
+
+        if (result.status === 'rejected') {
+            const reason: any = result.reason;
+            const httpError = reason as HttpError | undefined;
+
+            const body =
+                httpError?.body ??
+                reason?.body ??
+                reason?.response?.body ??
+                reason;
+
+            candidateErrors =
+                body?.errors ??
+                body?.error ??
+                body?.validationErrors;
+        } else {
+            const value: any = result.value;
+
+            const body =
+                value?.body ??
+                value?.data ??
+                value;
+
+            candidateErrors =
+                body?.errors ??
+                body?.error ??
+                body?.validationErrors;
+        }
+
+        if (
+            candidateErrors &&
+            typeof candidateErrors === 'object'
+        ) {
+            nestedErrors.push({
+                source,
+                index,
+                record: values?.[index],
+                errors: Object.fromEntries(
+                    Object.entries(candidateErrors).map(
+                        ([key, value]) => [
+                            key,
+                            { message: value as string },
+                        ]
+                    )
+                ),
             });
-          } else {
-            nestedErrors.push({ name: `${source}.${idx}`, error: { message: (reason && reason.message) || 'Unknown error' } });
-          }
-        } else if (r.status === 'fulfilled') {
-          const value: any = r.value;
-          // react-admin may resolve with a payload that still contains validation errors
-          const body = value?.body ?? value?.data ?? value;
-          const candidateErrors = body?.errors ?? body?.error ?? body?.validationErrors;
-          if (candidateErrors && typeof candidateErrors === 'object') {
-            Object.entries(candidateErrors).forEach(([key, value]) => {
-              nestedErrors.push({ name: `${source}.${idx}.${key}`, error: { message: value as string } });
+        } else if (result.status === 'rejected') {
+            nestedErrors.push({
+                source,
+                index,
+                record: values?.[index],
+                errors: {
+                    root: {
+                        message:
+                            (result.reason as any)?.message ??
+                            'Unknown error',
+                    },
+                },
             });
-          }
         }
       });
         
-
       if (nestedErrors.length > 0) {
-        console.log('huhu')
-        // set form errors so user sees field-level messages
-        //nestedErrors.forEach(e => setError(e.name, e.error as any));
+          nestedErrors.forEach(({ index, errors }) => {
+              Object.entries(errors).forEach(([field, error]) => {
+                  setError(
+                      `${source}.${index}.${field}`,
+                      error
+                  );
+              });
+          });
 
-        if (!record?.id){
-          // collect created/updated nested resources so the redirected
-          // edit view receives the reference-many items as part of the
-          // parent resource payload (so fields show up immediately)
-          const nestedSavedItems = results.map(r => {
-            if (r.status === 'fulfilled') {
-              const v: any = r.value;
-              return v?.data ?? v?.body ?? v;
-            }
-            return undefined;
-          }).filter((x): x is any => x !== undefined && x !== null);
-
-          /*redirect(
-            'edit',
-            resource,
-            result.data.id,
-            undefined,
-            {
-              ...result.data,
-              [source]: nestedSavedItems,
-              __nestedErrors: nestedErrors,
-            },
-
-          )*/
-        }
-
-        // also throw to indicate the parent mutation should be considered failed
-        //throw new Error('One or more nested resources failed to save');
+          
+          addErrors(nestedErrors);
+          
       }
-      // Do something after the mutation
-
 
       // Always return the result
-      console.log('result',result)
-      const ruu = {
-        ...result,
-        errors: [...(result.errors ?? []),...nestedErrors]
-      };
-      console.log(
-        'ruu',ruu
-      )
-      // this console.log is not printed?!
-      return ruu
-    }, [create,  reference, target, update, values, record]);
+      return result
+    }, [navigate, location, create,  reference, target, update, values, record]);
   
   useRegisterMutationMiddleware(memoizedMiddleWare);
 
@@ -297,23 +301,82 @@ export const ReferenceManyInput = (
         `Wrong configured ReferenceManyInput: ${target} is not a field of ${reference}`
     );
   }
+  /** update values ref on changes */
+  useEffect(() => {
+      if (initializing.current) {
+          return;
+      }
+
+      if (!_.isEqual(values, valuesRef.current)) {
+          clearErrors(source);
+          parentForm.clearErrors();
+          valuesRef.current = values;
+      }
+  }, [
+      clearErrors,
+      parentForm,
+      source,
+      values,
+  ]);
 
   /** update values ref on changes */
-  useEffect(()=> {
-    if (!_.isEqual(values, valuesRef.current)){
-      clearErrors(source)
-      parentForm.clearErrors()
-      valuesRef.current = values
-    }
-  }, [clearErrors, source, values])
+  useEffect(() => {
+      if (initialized.current) {
+          return;
+      }
 
-  /** update values ref on changes */
-  useEffect(()=>{
-    if (isFetched && Array.isArray(data?.pages)) {    
-      setValue(source, data?.pages?.flatMap(page => page.data))
-      initialized.current = true
-    }
-  }, [data, isFetched])
+      let serverValues: RaRecord[];
+
+      if (missingObjects.length > 0) {
+          if (!isFetched || !Array.isArray(data?.pages)) {
+              return;
+          }
+
+          serverValues =
+              data.pages.flatMap(page => page.data);
+      } else {
+          serverValues = includedObjects;
+      }
+
+      const referenceManyErrors: ReferenceManyError[] =
+          location.state?.referenceManyErrors ?? [];
+
+      const sourceErrors = referenceManyErrors
+          .filter(error => error.source === source)
+          .sort((a, b) => a.index - b.index);
+
+      const restoredValues = [...serverValues];
+
+      sourceErrors.forEach(({ index, record }) => {
+          restoredValues.splice(index, 0, record);
+      });
+
+      initializing.current = true;
+
+      setValue(source, restoredValues);
+
+      sourceErrors.forEach(({ index, errors }) => {
+          Object.entries(errors).forEach(([field, error]) => {
+              setError(
+                  `${source}.${index}.${field}`,
+                  error
+              );
+          });
+      });
+
+      valuesRef.current = restoredValues;
+      initialized.current = true;
+      initializing.current = false;
+  }, [
+      data,
+      isFetched,
+      includedObjects,
+      missingObjects.length,
+      location.state,
+      source,
+      setValue,
+      setError,
+  ]);
 
   
 

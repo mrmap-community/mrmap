@@ -81,32 +81,6 @@ const DialogRoute = (
 }
 
 
-const EditDialog = () => {
-  return (
-    <EditGuesser
-      simpleFormProps={
-        {
-          component: DialogRoute,
-          toolbar: false
-        }
-      }
-    />
-  )
-}
-
-const CreateDialog = () => {
-  return (
-    <CreateGuesser
-      simpleFormProps={
-        {
-          component: DialogRoute,
-          toolbar: false
-        }
-      }
-    />
-  )
-}
-
 export interface ListWithDialogsProps {
   listGuesserProps?: ListGuesserProps
   editGuesserProps?: EditGuesserProps
@@ -121,7 +95,6 @@ const ListWithDialogs = (
   }: ListWithDialogsProps
 ) => {
   const {hasEdit, hasCreate} = useResourceDefinition()
-
   return (
     <Fragment>
       <ListGuesser

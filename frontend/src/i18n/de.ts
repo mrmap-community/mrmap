@@ -152,7 +152,9 @@ const germanMessages: TranslationMessages = {
     },
     notification: {
       updated: "Element aktualisiert |||| %{smart_count} Elemente aktualisiert",
+      updated_with_errors: "Element aktualisiert, aber einige zugehörige Elemente konnten nicht gespeichert werden |||| %{smart_count} Elemente aktualisiert, aber einige zugehörige Elemente konnten nicht gespeichert werden",
       created: "Element erstellt",
+      created_with_errors: "Element erstellt, aber einige zugehörige Elemente konnten nicht gespeichert werden |||| %{smart_count} Elemente erstellt, aber einige zugehörige Elemente konnten nicht gespeichert werden",
       deleted: "Element gelöscht |||| %{smart_count} Elemente gelöscht",
       bad_item: "Fehlerhaftes Element",
       item_doesnt_exist: "Element existiert nicht",

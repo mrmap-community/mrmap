@@ -14,7 +14,11 @@ const en = lodashMerge(
       },
       list: {
         actions: "Actions"
-      }
+      },
+      notification: {
+        updated_with_errors: "Element updated, but some related items could not be saved |||| %{smart_count} elements updated, but some related items could not be saved",
+        created_with_errors: "Element created, but some related items could not be saved |||| %{smart_count} elements created, but some related items could not be saved",
+      },
     },
     resources: {
       ChangeLog: {

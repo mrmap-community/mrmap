@@ -53,7 +53,7 @@ const ListGuesser = ({
   ...props
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
-  const { name, hasShow, hasEdit, options } = useResourceDefinition(props)
+  const { name, hasShow, options } = useResourceDefinition(props)
   const listOptions = useMemo(()=>(options.list),[options])
 
   const { api } = useHttpClientContext()
@@ -114,12 +114,11 @@ const ListGuesser = ({
     <ListComponent
       filters={filters}
       storeKey={`preferences.${preferenceKey}.listParams`}
-      //actions={<ActionsComponent
-        //filters={filters} 
-      //  preferenceKey={preferenceKey}
-      //  dialogGuesserProps={dialogGuesserProps as CreateDialogButtonProps}
-      //  />
-     // }
+      actions={<ActionsComponent
+        filters={filters} 
+        preferenceKey={preferenceKey}
+        />
+      }
       empty={props.empty || <EmptyList createDialogButtonProps={dialogGuesserProps as CreateDialogButtonProps | undefined}/>}
       queryOptions={{
         refetchInterval,

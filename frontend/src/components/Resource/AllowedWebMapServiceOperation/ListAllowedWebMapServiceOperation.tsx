@@ -1,92 +1,39 @@
-import { ReactNode } from "react"
-import { useRecordContext, useTranslate, WrapperField } from "react-admin"
-import ListGuesser, { ListGuesserProps } from "../../../jsonapi/components/ListGuesser"
-import CreateDialogButton from "../../Dialog/CreateDialogButton"
-import EditDialogButton from "../../Dialog/EditDialogButton"
-import ListActions, { CustomListActionsProps } from "../../Lists/CustomListActions"
-import EmptyList from "../../Lists/Empty"
+import { useRecordContext } from "react-admin"
+import ListWithDialogs, { ListWithDialogsProps } from "../../../jsonapi/components/ListWithDialogs"
+import CustomListActions from "../../Lists/CustomListActions"
 import MapViewerButton from "../WebMapService/MapViewerButton"
-import useAllowedWebMapServiceOperationFieldDefinitions from "./useAllowedWebMapServiceOperationFieldDefinitions"
+import useGuesserProps from "./useGuesserProps"
 
-
-const ListActionsAllowedWebMapServiceOperation = (
-  { 
-    ...props
-  }: CustomListActionsProps
-): ReactNode => {
-  const record = useRecordContext()
-  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
-
-  return (
-    <ListActions
-      createButton={
-        <CreateDialogButton 
-
-          guesserProps={{
-            updateFieldDefinitions: fieldDefinitions,
-            simpleFormProps: {defaultValues: {
-              "securedService": record
-            },}
-          }}
-          
-        />
-      }
-      additionalActions={
-        <MapViewerButton 
-          wmsRecord={undefined} 
-          capabilititesUrl={record?.xmlBackupFileSecured}
-        />
-      }
-      {...props}
-    />
-  )
-}
-
-const RowActions = () => {
-  const translate = useTranslate();
-  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
-
-  return (
-    <WrapperField label={translate("ra.list.actions")} >
-        <EditDialogButton 
-          guesserProps={
-            {
-              resource: "AllowedWebMapServiceOperation",
-            updateFieldDefinitions: fieldDefinitions
-            }
-          }
-        />
-    </WrapperField >
-  )
-}
 
 
 const ListAllowedWebMapServiceOperation = (
   {
     ...props
-  }: ListGuesserProps
+  }: ListWithDialogsProps
 ) => {
   const record = useRecordContext()
-  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
+  const guesserProps = useGuesserProps()
 
   return (
-    <ListGuesser
-      ActionsComponent={ListActionsAllowedWebMapServiceOperation}
-      empty={
-        <EmptyList
-          createDialogButtonProps={{
-            guesserProps:{
-              updateFieldDefinitions: fieldDefinitions,
-              simpleFormProps: {defaultValues: {
-                "securedService": record
-              },}}
-            }}
+    <ListWithDialogs
+      editGuesserProps={guesserProps}
+      createGuesserProps={guesserProps}
+      listGuesserProps={{
+        actions: <CustomListActions
+          additionalActions={
+            <MapViewerButton 
+          wmsRecord={undefined} 
+          capabilititesUrl={record?.xmlBackupFileSecured}
         />
-      }
-      rowActions={<RowActions/>}
+          }
+        />,
+        defaultSelectedColumns:["allowedArea", "description", "allowedGroups", "operations"],
+        
+      }}
       {...props}
     />
   )
+
 
 }
 

@@ -2,7 +2,6 @@ import { ResourceContext } from 'react-admin';
 import ListWebMapServiceMonitoringSetting from '../Monitoring/Wms/ListWebMapServiceMonitoringSetting';
 
 
-
 export const MonitoringSettingsTab = () => {
   return (
     <ResourceContext

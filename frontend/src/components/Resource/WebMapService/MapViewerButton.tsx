@@ -1,6 +1,6 @@
 import PublicIcon from '@mui/icons-material/Public';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Button, ButtonProps, RaRecord, useGetOne, useRecordContext } from 'react-admin';
+import { Button, ButtonProps, RaRecord, useGetOne, useRecordContext, useTranslate } from 'react-admin';
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
 import { Authentication } from '../../../ows-lib/OwsContext/contrib';
@@ -27,6 +27,7 @@ const MapViewerButton = (
   const navigate = useNavigate();
   const { addWMSByUrl, resetContext, owsContext } = useOwsContextBase()
   const record = useRecordContext(wmsRecord)
+  const translate = useTranslate()
 
   const [getCapaibilitesUrl, setGetCapaibilitesUrl] = useState(
     capabilititesUrl || record?.operationUrls?.find(
@@ -154,12 +155,12 @@ const MapViewerButton = (
     <Button
       color="primary"
       onClick={handleOnClick}
-      label={'resources.WebMapService.actions.showInViewer'}
+      label={translate('ra.action.mapviewer')}
       loading={isLoading}
       disabled={isLoading}
       {...rest}
     >
-      {children || <PublicIcon />} 
+      {children || <PublicIcon /> }
     </Button>
   )
 }

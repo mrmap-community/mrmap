@@ -46,7 +46,8 @@ const germanMessages: TranslationMessages = {
       move_down: "Nach unten",
       open: "Öffnen",
       toggle_theme: "Theme wechseln",
-      select_columns: "Spalten"
+      select_columns: "Spalten",
+      mapviewer: 'Kartenbetrachter'
     },
     boolean: {
       true: "Ja",

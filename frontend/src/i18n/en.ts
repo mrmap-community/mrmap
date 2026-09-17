@@ -10,7 +10,8 @@ const en = lodashMerge(
         active: 'Click to activate %{name}',
         deactive: 'Click to deactivate %{name}',
         show_all: 'Show all %{name}',      
-        add: 'Add %{name}'
+        add: 'Add %{name}',
+        mapviewer: 'Mapviewer'
       },
       list: {
         actions: "Actions"

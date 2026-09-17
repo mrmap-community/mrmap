@@ -1,6 +1,5 @@
 import { ReactNode } from "react"
-import { ExportButton, FilterButton, ListActionsProps, SelectColumnsButton, TopToolbar } from "react-admin"
-import CreateDialogButton, { CreateDialogButtonProps } from "../Dialog/CreateDialogButton"
+import { CreateButton, ExportButton, FilterButton, ListActionsProps, SelectColumnsButton, TopToolbar } from "react-admin"
 
 export interface CustomListActionsProps extends Omit<Partial<ListActionsProps>, "filters"> {
   isConfigureable?: boolean
@@ -9,7 +8,6 @@ export interface CustomListActionsProps extends Omit<Partial<ListActionsProps>, 
   preferenceKey?: string
   filters?: ReactNode[]
   additionalActions?: ReactNode
-  dialogGuesserProps?: CreateDialogButtonProps
 }
 
 
@@ -21,14 +19,13 @@ const CustomListActions = (
     filters,
     preferenceKey,
     additionalActions,
-    dialogGuesserProps,
   }: CustomListActionsProps
 ): ReactNode => {
   return (
     <TopToolbar>
       {isConfigureable && <SelectColumnsButton preferenceKey={preferenceKey}/>}
       {<FilterButton filters={filters}/>}
-      {createButton ?? <CreateDialogButton  {...dialogGuesserProps}/>}
+      {createButton ?? <CreateButton />}
       {isExportable && <ExportButton />}
       {additionalActions}
     </TopToolbar>

@@ -73,7 +73,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
     const { name: operationUrlName, icon: operationUrlIcon } = useResourceDefinition({resource: 'WebMapServiceOperationUrl'})
 
     const { pathname } = useLocation()
-    const monitoringSettingsBasename = useMemo(() => {
+    const tabBasename = useMemo(() => {
         const tabPath = '/show'
         const tabPathIndex = pathname.indexOf(tabPath)
 
@@ -140,13 +140,16 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 <ProxySettingsTab/>
             </TabbedShowLayout.Tab>
             
-            <TabbedShowLayout.Tab label="Security Rules" path='security-rules'>
-                <SpatialSecureTab/>
+            <TabbedShowLayout.Tab label="Security Rules" path='AllowedWebMapServiceOperation/*'>
+                <BasenameContextProvider
+                    basename={tabBasename}
+                >
+                    <SpatialSecureTab/>
+                </BasenameContextProvider>
             </TabbedShowLayout.Tab>
-
             <TabbedShowLayout.Tab label="Monitoring Settings" path='WebMapServiceMonitoringSetting/*'>
                 <BasenameContextProvider
-                    basename={monitoringSettingsBasename}
+                    basename={tabBasename}
                 >
                     <MonitoringSettingsTab/>
                 </BasenameContextProvider>

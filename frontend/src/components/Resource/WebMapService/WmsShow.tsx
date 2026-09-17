@@ -1,7 +1,8 @@
-import { DeleteButton, EditButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useResourceDefinition, WithRecord } from 'react-admin';
+import { BasenameContextProvider, DeleteButton, EditButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useLocation, useResourceDefinition, WithRecord } from 'react-admin';
 
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
-import { useMemo } from 'react';
+import { Tabs, TabsProps } from '@mui/material';
+import { Children, cloneElement, isValidElement, ReactElement, ReactNode, useMemo } from 'react';
 import EditGuesser from '../../../jsonapi/components/EditGuesser';
 import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
 import { createElementIfDefined } from '../../../utils';
@@ -17,12 +18,69 @@ const WmsShowActions = () => (
     </TopToolbar>
 );
 
+interface WmsShowTabsProps extends Omit<TabsProps, 'value'> {
+    children?: ReactNode;
+    syncWithLocation?: boolean;
+    value?: number | string;
+}
+
+interface WmsShowTabProps {
+    context?: 'header' | 'content';
+    path?: string;
+    syncWithLocation?: boolean;
+    to?: unknown;
+    value?: number | string;
+}
+
+const WmsShowTabs = ({ children, syncWithLocation = true, value, ...rest }: WmsShowTabsProps) => {
+    const location = useLocation();
+    const showBase = location.pathname.split('/show/')[0] + '/show';
+    const activePath = location.pathname
+        .slice(showBase.length)
+        .replace(/^\/+/, '')
+        .split('/')[0] ?? '';
+
+    return (
+        <Tabs value={syncWithLocation ? activePath : value} {...rest}>
+            {Children.map(children, (tab, index) => {
+                if (!isValidElement(tab)) {
+                    return null;
+                }
+
+                const tabProps = (tab as ReactElement<WmsShowTabProps>).props;
+                const path = typeof tabProps.path === 'string'
+                    ? tabProps.path.replace(/\/\*$/, '')
+                    : index > 0 ? index : '';
+
+                return cloneElement(tab as ReactElement<WmsShowTabProps>, {
+                    context: 'header',
+                    value: syncWithLocation ? path : index,
+                    syncWithLocation,
+                    to: {
+                        ...location,
+                        pathname: `${showBase}/${path}`,
+                    },
+                });
+            })}
+        </Tabs>
+    );
+};
+
 
 export const WmsShow = (props: SimpleShowLayoutProps) => {
     const { name: layerName, icon: layerIcon } = useResourceDefinition({resource: 'Layer'})
     const { name: wmsName, icon: wmsIcon } = useResourceDefinition({resource: 'WebMapService'})
     const { name: operationUrlName, icon: operationUrlIcon } = useResourceDefinition({resource: 'WebMapServiceOperationUrl'})
 
+    const { pathname } = useLocation()
+    const monitoringSettingsBasename = useMemo(() => {
+        const tabPath = '/show'
+        const tabPathIndex = pathname.indexOf(tabPath)
+
+        return tabPathIndex === -1
+            ? pathname
+            : pathname.slice(0, tabPathIndex + tabPath.length)
+    }, [pathname])
     const meta = useMemo(()=>{
         const jsonApiParams: any = {
                 include: 'layers,operationUrls',
@@ -39,8 +97,8 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
             queryOptions={{meta: meta}}
             actions={<WmsShowActions/>}
         >
-        <TabbedShowLayout>
-            <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)}>
+        <TabbedShowLayout tabs={<WmsShowTabs />}>
+            <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)} path="edit">
                 <EditGuesser 
                     resource='WebMapService'
                     //id={settingId}
@@ -55,7 +113,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                     }}
                 />
             </TabbedShowLayout.Tab>
-            <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>}>
+            <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>} path="interfaces">
                 <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
                 <WithRecord 
                     label="show remote capabilities" 
@@ -86,8 +144,12 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 <SpatialSecureTab/>
             </TabbedShowLayout.Tab>
 
-            <TabbedShowLayout.Tab label="Monitoring Settings" path='monitoring-settings'>
-                <MonitoringSettingsTab/>
+            <TabbedShowLayout.Tab label="Monitoring Settings" path='WebMapServiceMonitoringSetting/*'>
+                <BasenameContextProvider
+                    basename={monitoringSettingsBasename}
+                >
+                    <MonitoringSettingsTab/>
+                </BasenameContextProvider>
             </TabbedShowLayout.Tab>
 
         </TabbedShowLayout>

@@ -34,7 +34,10 @@ interface WmsShowTabProps {
 
 const WmsShowTabs = ({ children, syncWithLocation = true, value, ...rest }: WmsShowTabsProps) => {
     const location = useLocation();
-    const showBase = location.pathname.split('/show/')[0] + '/show';
+    const showPathIndex = location.pathname.search(/\/show(?:\/|$)/);
+    const showBase = showPathIndex === -1
+        ? `${location.pathname}/show`
+        : location.pathname.slice(0, showPathIndex + '/show'.length);
     const activePath = location.pathname
         .slice(showBase.length)
         .replace(/^\/+/, '')
@@ -98,7 +101,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
             actions={<WmsShowActions/>}
         >
         <TabbedShowLayout tabs={<WmsShowTabs />}>
-            <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)} path="edit">
+            <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)}>
                 <EditGuesser 
                     resource='WebMapService'
                     //id={settingId}
@@ -129,15 +132,23 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 />
                 <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
             </TabbedShowLayout.Tab>
-            <TabbedShowLayout.Tab label={operationUrlName} icon={createElementIfDefined(operationUrlIcon)} path='operation-urls'>
-                <WebMapServiceOperationUrlsTab/>
+            <TabbedShowLayout.Tab label={operationUrlName} icon={createElementIfDefined(operationUrlIcon)} path='WebMapServiceOperationUrl/*'>
+                <BasenameContextProvider
+                    basename={tabBasename}
+                >
+                    <WebMapServiceOperationUrlsTab/>
+                </BasenameContextProvider>
             </TabbedShowLayout.Tab>   
             <TabbedShowLayout.Tab label={layerName} icon={createElementIfDefined(layerIcon)} path='layers' >
                 
                 <WmsLayers/>
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label="proxy settings" path='ProxySetting'>
-                <ProxySettingsTab/>
+                <BasenameContextProvider
+                    basename={tabBasename}
+                >
+                    <ProxySettingsTab/>
+                </BasenameContextProvider>
             </TabbedShowLayout.Tab>
             
             <TabbedShowLayout.Tab label="Security Rules" path='AllowedWebMapServiceOperation/*'>

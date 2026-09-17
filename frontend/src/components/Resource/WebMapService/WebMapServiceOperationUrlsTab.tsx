@@ -1,17 +1,21 @@
-import { useRecordContext } from 'react-admin';
-import ListGuesser from '../../../jsonapi/components/ListGuesser';
-import EditDialogButton from '../../Dialog/EditDialogButton';
+import { ResourceContext, useRecordContext } from 'react-admin';
+import ListWithDialogs from '../../../jsonapi/components/ListWithDialogs';
 
 
 export const WebMapServiceOperationUrlsTab = () => {
   const record = useRecordContext();
   return (
-      <ListGuesser 
-        resource='WebMapServiceOperationUrl'
-        relatedResource='WebMapService'
-        relatedResourceId={record?.id}
-        rowActions={<EditDialogButton editDialogProps={{resource: 'WebMapServiceOperationUrl'}}/>}
-      />
+    <ResourceContext
+          value='WebMapServiceOperationUrl'
+        >
+      <ListWithDialogs
+        listGuesserProps={{
+          relatedResource: 'WebMapService',
+          relatedResourceId: record?.id,
+          defaultSelectedColumns:["operation", "url", "method"],
+        }}
+              />
+      </ResourceContext>
   )
 }
 

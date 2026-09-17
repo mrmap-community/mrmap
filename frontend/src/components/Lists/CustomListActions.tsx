@@ -1,5 +1,5 @@
 import { ReactNode } from "react"
-import { CreateButton, ExportButton, FilterButton, ListActionsProps, SelectColumnsButton, TopToolbar } from "react-admin"
+import { CreateButton, ExportButton, FilterButton, ListActionsProps, SelectColumnsButton, TopToolbar, useResourceDefinition } from "react-admin"
 
 export interface CustomListActionsProps extends Omit<Partial<ListActionsProps>, "filters"> {
   isConfigureable?: boolean
@@ -21,11 +21,12 @@ const CustomListActions = (
     additionalActions,
   }: CustomListActionsProps
 ): ReactNode => {
+  const {hasCreate} = useResourceDefinition()
   return (
     <TopToolbar>
       {isConfigureable && <SelectColumnsButton preferenceKey={preferenceKey}/>}
       {<FilterButton filters={filters}/>}
-      {createButton ?? <CreateButton />}
+      {createButton ?? hasCreate ? <CreateButton />: null}
       {isExportable && <ExportButton />}
       {additionalActions}
     </TopToolbar>

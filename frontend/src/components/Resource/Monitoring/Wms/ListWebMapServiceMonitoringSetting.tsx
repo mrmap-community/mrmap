@@ -8,6 +8,11 @@ const ListWebMapServiceMonitoringSetting = ( ) => {
     <ListWithDialogs
       editGuesserProps={guesserProps}
       createGuesserProps={guesserProps}
+      listGuesserProps={
+        {
+          defaultSelectedColumns:["scheduleInterval", "getCapabilititesProbes", "getMapProbes", ]
+        }
+      }
     />
   )
 }

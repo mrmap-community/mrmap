@@ -19,8 +19,6 @@ import PlagiarismIcon from '@mui/icons-material/Plagiarism';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import UpdateIcon from '@mui/icons-material/Update';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
-import CreateAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/CreateAllowedWebMapServiceOperation';
-import EditAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/EditAllowedWebMapServiceOperation';
 import ListAllowedWebMapServiceOperation from './AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
 import ListBackgroundProcess from './BackgroundProcess/ListBackgroundProcess';
 import ShowBackgroundProcess from './BackgroundProcess/ShowBackgroundProcess';
@@ -123,8 +121,6 @@ const RESOURCES: Array<ResourceProps> = [
   {
     name: "AllowedWebMapServiceOperation", 
     icon: VpnLockIcon, 
-    create: CreateAllowedWebMapServiceOperation, 
-    edit: EditAllowedWebMapServiceOperation,
     list: ListAllowedWebMapServiceOperation,
     options: { menu: { group: "WMS", order: 50 } }
     

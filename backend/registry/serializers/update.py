@@ -11,7 +11,8 @@ from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, CharField,
                                                  DateTimeField,
                                                  HyperlinkedIdentityField,
-                                                 ModelSerializer, Serializer)
+                                                 IntegerField, ModelSerializer,
+                                                 Serializer)
 
 
 class UpdateJobBaseSerializer(Serializer):
@@ -23,6 +24,13 @@ class UpdateJobBaseSerializer(Serializer):
     done_at = DateTimeField(
         label=_("Done"),
         help_text=_("The date and time when this update job was completed."),
+        read_only=True,
+    )
+    status_code = IntegerField(
+        source="status",
+        label=_("Status Code"),
+        help_text=_(
+            "The current status of the update job. (Internal Representation)"),
         read_only=True,
     )
     status = CharField(
@@ -145,7 +153,7 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
     class Meta:
         model = WebMapServiceUpdateJob
         fields = ("url", "service", "date_created", "done_at",
-                  "status", "update_candidate", "mappings")
+                  "status", "status_code", "update_candidate", "mappings")
 
 
 class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
@@ -183,7 +191,7 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
     class Meta:
         model = WebFeatureServiceUpdateJob
         fields = ("url", "service", "date_created", "done_at",
-                  "status", "update_candidate", "mappings")
+                  "status", "status_code", "update_candidate", "mappings")
 
 
 class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):

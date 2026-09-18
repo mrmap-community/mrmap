@@ -10,9 +10,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
 import { TreeItemProps } from '@mui/x-tree-view/TreeItem';
-import SimpleUpdateButton from '../../../jsonapi/components/SimpleUpdateButton';
-import { getAnchestors } from '../../MapViewer/utils';
-import { getSubTree, useQueryParam } from '../../utils';
+import SimpleUpdateButton from '../../../../jsonapi/components/SimpleUpdateButton';
+import { getAnchestors } from '../../../MapViewer/utils';
+import { getSubTree, useQueryParam } from '../../../utils';
 
 export interface WmsTreeViewProps extends Omit<SimpleTreeViewProps, 'children'> {
   getLayerProps?: (record: RaRecord) => TreeItemProps;
@@ -30,14 +30,18 @@ const LayerLabel = ({
 }: LayerLabelProps) => {
   const { refetch } = useShowContext();
 
+  const hasIsActive = Object.prototype.hasOwnProperty.call(record, 'isActive');
+  const hasIsSearchable = Object.prototype.hasOwnProperty.call(record, 'isSearchable');
+
+
   const toggleIsActive = useMemo(()=>(
     <SimpleUpdateButton
       resource='Layer'
       size='small'
       record={record}
       data={{isActive: !record.isActive}}
-
-      color={record.isActive ? 'success': 'warning'}
+      disabled={!hasIsActive}
+      color={hasIsActive && record.isActive ? 'success' : 'warning'}
       label={'ra.action.toggle'}
       options={{onSuccess: () => refetch()}}
     >
@@ -51,8 +55,8 @@ const LayerLabel = ({
       size='small'
       record={record}
       data={{isSearchable: !record.isSearchable}}
-
-      color={record.isSearchable ? 'success': 'warning'}
+      disabled={!hasIsSearchable}
+      color={hasIsSearchable && record.isSearchable ? 'success' : 'warning'}
       label={'ra.action.toggle'}
       options={{onSuccess: () => refetch()}}
     >

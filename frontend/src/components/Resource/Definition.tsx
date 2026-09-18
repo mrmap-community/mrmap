@@ -28,8 +28,8 @@ import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetada
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ListWebMapServiceMonitoringSetting from './Monitoring/Wms/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
-import WmsViewerButtons from './WebMapService/ListActions';
-import { WmsShow } from './WebMapService/WmsShow';
+import WmsViewerButtons from './WebMapService/Button/ListActions';
+import { WmsShow } from './WebMapService/Show/WmsShow';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
 
 
@@ -49,14 +49,14 @@ const RESOURCES: Array<ResourceProps> = [
       }
     }
   },
-  {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, options: { menu: { group: "WMS", order: 30 } }},
+  {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, },
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
   {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 } }},
   
   
   {name: "WebFeatureService", icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 } }},
-  {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon, options: { menu: { group: "WFS", order: 20 } }},
+  {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
   {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 } }},
   
   

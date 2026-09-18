@@ -1,7 +1,7 @@
 import { EditButton, Identifier, RaRecord, RecordRepresentation, Show, SimpleShowLayoutProps, useGetOne, useRecordContext, WrapperField } from 'react-admin';
 
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import WmsTreeView from '../WebMapService/WmsTreeView';
+import WmsTreeView from '../WebMapService/TreeView/WmsTreeView';
 
 import { Box, Drawer, Stack } from '@mui/material';
 import ListGuesser, { ListGuesserProps } from '../../../jsonapi/components/ListGuesser';

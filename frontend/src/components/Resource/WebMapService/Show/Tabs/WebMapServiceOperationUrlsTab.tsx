@@ -1,5 +1,5 @@
 import { ResourceContext, useRecordContext } from 'react-admin';
-import ListWithDialogs from '../../../jsonapi/components/ListWithDialogs';
+import ListWithDialogs from '../../../../../jsonapi/components/ListWithDialogs';
 
 
 export const WebMapServiceOperationUrlsTab = () => {

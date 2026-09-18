@@ -2,17 +2,15 @@ import { useCallback, useMemo } from 'react';
 import { RaRecord, useNotify, useShowContext } from 'react-admin';
 
 import { Container, Grid } from '@mui/material';
-
-import EditGuesser from '../../../jsonapi/components/EditGuesser';
-import { useQueryParam } from '../../utils';
-import WmsTreeView from './WmsTreeView';
+import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
+import { useQueryParam } from '../../../../utils';
+import WmsTreeView from '../../TreeView/WmsTreeView';
 
 
 export const WmsLayers = () => {
 
   const {  refetch } = useShowContext();
   const notify = useNotify(); 
-
   const [selectedLayer] = useQueryParam('selectedLayer');
 
 

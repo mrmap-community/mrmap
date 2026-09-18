@@ -1,22 +1,16 @@
-import { BasenameContextProvider, DeleteButton, EditButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, TopToolbar, UrlField, useLocation, useResourceDefinition, WithRecord } from 'react-admin';
-
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
 import { Tabs, TabsProps } from '@mui/material';
 import { Children, cloneElement, isValidElement, ReactElement, ReactNode, useMemo } from 'react';
-import EditGuesser from '../../../jsonapi/components/EditGuesser';
-import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
-import { createElementIfDefined } from '../../../utils';
-import { MonitoringSettingsTab } from './MonitoringSettingsTab';
-import ProxySettingsTab from './ProxySettings';
-import SpatialSecureTab from './SpatialSecureTab';
-import WebMapServiceOperationUrlsTab from './WebMapServiceOperationUrlsTab';
-import WmsLayers from './WmsLayerTab';
+import { BasenameContextProvider, DeleteButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, UrlField, useLocation, useResourceDefinition, WithRecord } from 'react-admin';
+import EditGuesser from '../../../../jsonapi/components/EditGuesser';
+import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
+import { createElementIfDefined } from '../../../../utils';
+import MonitoringSettingsTab from './Tabs/MonitoringSettingsTab';
+import ProxySettingsTab from './Tabs/ProxySettingsTab';
+import SpatialSecureTab from './Tabs/SpatialSecureTab';
+import { WebMapServiceOperationUrlsTab } from './Tabs/WebMapServiceOperationUrlsTab';
+import WmsLayers from './Tabs/WmsLayerTab';
 
-const WmsShowActions = () => (
-    <TopToolbar>
-        <EditButton/>
-    </TopToolbar>
-);
 
 interface WmsShowTabsProps extends Omit<TabsProps, 'value'> {
     children?: ReactNode;
@@ -91,14 +85,14 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
         const _meta = {
             jsonApiParams: jsonApiParams
         }
-        jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation'
+        jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,is_active,is_searchable'
         return _meta
     },[])
 
     return (
         <Show 
             queryOptions={{meta: meta}}
-            actions={<WmsShowActions/>}
+            actions={false}
         >
         <TabbedShowLayout tabs={<WmsShowTabs />}>
             <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)}>
@@ -106,6 +100,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                     resource='WebMapService'
                     //id={settingId}
                     redirect={false}
+                    actions={false}
                     simpleFormProps={{
                         toolbar:
                         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>

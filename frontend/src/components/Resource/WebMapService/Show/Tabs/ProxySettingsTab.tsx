@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import { SaveButton, Toolbar, useNotify, useShowController, useTranslate } from 'react-admin';
-import CreateGuesser from '../../../jsonapi/components/CreateGuesser';
-import EditGuesser from '../../../jsonapi/components/EditGuesser';
-import SchemaAutocompleteInput from '../../../jsonapi/components/SchemaAutocompleteInput';
+import CreateGuesser from '../../../../../jsonapi/components/CreateGuesser';
+import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
+import SchemaAutocompleteInput from '../../../../../jsonapi/components/SchemaAutocompleteInput';
+
 
 const CustomToolbar = () => (
   <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>

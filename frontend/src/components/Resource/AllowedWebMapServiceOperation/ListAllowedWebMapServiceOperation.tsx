@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { useRecordContext } from "react-admin"
 import ListWithDialogs, { ListWithDialogsProps } from "../../../jsonapi/components/ListWithDialogs"
 import CustomListActions from "../../Lists/CustomListActions"
-import MapViewerButton from "../WebMapService/MapViewerButton"
+import MapViewerButton from "../WebMapService/Button/MapViewerButton"
 import useGuesserProps from "./useGuesserProps"
 
 

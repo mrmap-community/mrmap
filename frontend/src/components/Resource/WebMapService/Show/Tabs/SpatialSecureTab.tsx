@@ -1,5 +1,5 @@
 import { ResourceContext } from 'react-admin';
-import ListAllowedWebMapServiceOperation from '../AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
+import ListAllowedWebMapServiceOperation from '../../../AllowedWebMapServiceOperation/ListAllowedWebMapServiceOperation';
 
 
 export const SpatialSecureTab = () => {
@@ -7,9 +7,7 @@ export const SpatialSecureTab = () => {
     <ResourceContext
       value='AllowedWebMapServiceOperation'
     >
-      <ListAllowedWebMapServiceOperation 
-        
-      />       
+      <ListAllowedWebMapServiceOperation/>       
     </ResourceContext>
   )
 }

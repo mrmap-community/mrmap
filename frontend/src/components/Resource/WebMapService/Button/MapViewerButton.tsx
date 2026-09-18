@@ -3,11 +3,11 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Button, ButtonProps, RaRecord, useGetOne, useRecordContext, useTranslate } from 'react-admin';
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
-import { Authentication } from '../../../ows-lib/OwsContext/contrib';
-import { OWSContext } from '../../../ows-lib/OwsContext/core';
-import { prepareGetCapabilititesUrl } from '../../../ows-lib/OwsContext/utils';
-import { getAuthToken } from '../../../providers/authProvider';
-import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
+import { Authentication } from '../../../../ows-lib/OwsContext/contrib';
+import { OWSContext } from '../../../../ows-lib/OwsContext/core';
+import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
+import { getAuthToken } from '../../../../providers/authProvider';
+import { useOwsContextBase } from '../../../../react-ows-lib/ContextProvider/OwsContextBase';
 
 
 

@@ -3,8 +3,6 @@ import { DatagridConfigurable, EditButton, Identifier, List, type ListProps, typ
 import { useParams } from 'react-router-dom'
 
 
-import { CreateDialogButtonProps } from '../../components/Dialog/CreateDialogButton'
-import { EditDialogButtonProps } from '../../components/Dialog/EditDialogButton'
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
 import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'
@@ -32,7 +30,6 @@ export interface ListGuesserProps extends Partial<ListProps> {
   refetchInterval?: number | false
   defaultSelectedColumns? : string[]
   ActionsComponent?: React.ComponentType<CustomListActionsProps>
-  dialogGuesserProps?: CreateDialogButtonProps | EditDialogButtonProps
 }
 
 
@@ -48,8 +45,6 @@ const ListGuesser = ({
   refetchInterval=false,
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
   ActionsComponent=ListActions,
-  dialogGuesserProps,
-
   ...props
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
@@ -119,7 +114,7 @@ const ListGuesser = ({
         preferenceKey={preferenceKey}
         />
       }
-      empty={props.empty || <EmptyList createDialogButtonProps={dialogGuesserProps as CreateDialogButtonProps | undefined}/>}
+      empty={props.empty || <EmptyList />}
       queryOptions={{
         refetchInterval,
         onError,

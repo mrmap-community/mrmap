@@ -8,6 +8,7 @@ import { createElementIfDefined } from '../../../../utils';
 import MonitoringSettingsTab from './Tabs/MonitoringSettingsTab';
 import ProxySettingsTab from './Tabs/ProxySettingsTab';
 import SpatialSecureTab from './Tabs/SpatialSecureTab';
+import UpdateJobTab from './Tabs/UpdateJobTab';
 import { WebMapServiceOperationUrlsTab } from './Tabs/WebMapServiceOperationUrlsTab';
 import WmsLayers from './Tabs/WmsLayerTab';
 
@@ -158,6 +159,13 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                     basename={tabBasename}
                 >
                     <MonitoringSettingsTab/>
+                </BasenameContextProvider>
+            </TabbedShowLayout.Tab>
+            <TabbedShowLayout.Tab label="Update Jobs" path='WebMapServiceUpdateJob/*'>
+                <BasenameContextProvider
+                    basename={tabBasename}
+                >
+                    <UpdateJobTab/>
                 </BasenameContextProvider>
             </TabbedShowLayout.Tab>
 

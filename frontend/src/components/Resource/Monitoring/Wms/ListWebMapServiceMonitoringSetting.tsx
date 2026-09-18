@@ -10,7 +10,7 @@ const ListWebMapServiceMonitoringSetting = ( ) => {
       createGuesserProps={guesserProps}
       listGuesserProps={
         {
-          defaultSelectedColumns:["scheduleInterval", "getCapabilititesProbes", "getMapProbes", ]
+          defaultSelectedColumns: ["scheduleInterval", "getCapabilititesProbes", "getMapProbes", ]
         }
       }
     />

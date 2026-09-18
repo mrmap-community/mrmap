@@ -8,10 +8,10 @@ from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (BooleanField, DateTimeField,
+from rest_framework_json_api.serializers import (BooleanField, CharField,
+                                                 DateTimeField,
                                                  HyperlinkedIdentityField,
-                                                 IntegerField, ModelSerializer,
-                                                 Serializer)
+                                                 ModelSerializer, Serializer)
 
 
 class UpdateJobBaseSerializer(Serializer):
@@ -25,7 +25,8 @@ class UpdateJobBaseSerializer(Serializer):
         help_text=_("The date and time when this update job was completed."),
         read_only=True,
     )
-    status = IntegerField(
+    status = CharField(
+        source="get_status_display",
         label=_("Status"),
         help_text=_("The current status of the update job."),
         read_only=True,

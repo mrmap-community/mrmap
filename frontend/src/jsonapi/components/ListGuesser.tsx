@@ -130,22 +130,7 @@ const ListGuesser = ({
             jsonApiParams: { ...jsonApiQuery }
           }
       }}
-      sx={
-        {
-          '& .RaList-main': {
-            width: `calc(${open ? '60vw' : '80vw'} - ${open ? '240px' : '50px - 2em'})`,
-            //maxHeight: 'calc(50vh - 174px )', // 174px ==> 50 appbar, 52 pagination, 64 table actions, 8 top padding
-            overfloxX: 'hidden',
-            marginLeft: "1em",
-            marginRight: "1em",
-            marginBottom: "1em",
-          },
-          '& .RaDatagrid-tableWrapper': {
-            overflowX: 'scroll',
-            margin: "1em",
-          }
-        }
-      }
+      
 
       aside={
         hasHistoricalEndpoint ?

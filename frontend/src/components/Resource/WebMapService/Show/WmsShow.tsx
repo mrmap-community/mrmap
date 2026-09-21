@@ -1,17 +1,18 @@
+import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import LinearScaleIcon from '@mui/icons-material/LinearScale';
-import { Tabs, TabsProps } from '@mui/material';
-import { Children, cloneElement, isValidElement, ReactElement, ReactNode, useMemo } from 'react';
-import { BasenameContextProvider, DeleteButton, RaRecord, SaveButton, Show, SimpleShowLayoutProps, TabbedShowLayout, Toolbar, UrlField, useLocation, useResourceDefinition, WithRecord } from 'react-admin';
-import EditGuesser from '../../../../jsonapi/components/EditGuesser';
+import { Badge, Tabs, TabsProps } from '@mui/material';
+import { Children, cloneElement, Fragment, isValidElement, ReactElement, ReactNode, useMemo } from 'react';
+import { BasenameContextProvider, RaRecord, Show, SimpleShowLayoutProps, TabbedShowLayout, UrlField, useLocation, useResourceDefinitions, useTranslate, WithRecord } from 'react-admin';
 import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
 import { createElementIfDefined } from '../../../../utils';
+import MetadataEditTab from './Tabs/MetadataEditTab';
 import MonitoringSettingsTab from './Tabs/MonitoringSettingsTab';
+import OverviewtTab from './Tabs/OverviewTab';
 import ProxySettingsTab from './Tabs/ProxySettingsTab';
 import SpatialSecureTab from './Tabs/SpatialSecureTab';
-import UpdateJobTab from './Tabs/UpdateJobTab';
+import UpdateSettingTab from './Tabs/UpdateSettingTab';
 import { WebMapServiceOperationUrlsTab } from './Tabs/WebMapServiceOperationUrlsTab';
 import WmsLayers from './Tabs/WmsLayerTab';
-
 
 interface WmsShowTabsProps extends Omit<TabsProps, 'value'> {
     children?: ReactNode;
@@ -39,7 +40,12 @@ const WmsShowTabs = ({ children, syncWithLocation = true, value, ...rest }: WmsS
         .split('/')[0] ?? '';
 
     return (
-        <Tabs value={syncWithLocation ? activePath : value} {...rest}>
+        <Tabs
+            value={syncWithLocation ? activePath : value}
+            variant="scrollable"
+            scrollButtons="auto"
+            {...rest}
+        >
             {Children.map(children, (tab, index) => {
                 if (!isValidElement(tab)) {
                     return null;
@@ -64,11 +70,44 @@ const WmsShowTabs = ({ children, syncWithLocation = true, value, ...rest }: WmsS
     );
 };
 
+interface TabHeaderIcon {
+    icon: ReactNode
+    countAttr?: string
+}
+
+const TabHeaderIcon = (
+    {
+        icon,
+        countAttr
+    }: TabHeaderIcon
+) => {
+
+    return (
+        <Fragment>
+            {createElementIfDefined(icon)}
+            <WithRecord 
+                label="author" 
+                render={
+                    record => {
+                        const  content = countAttr ? record[countAttr]?.length: 0
+                        return ( 
+                            <Badge
+                                badgeContent={content}
+                                color="secondary"
+                                //max={maxVisibleNotifications}
+                            ></Badge>
+                        )
+                    }
+                } 
+            />
+        </Fragment>
+    )
+}
 
 export const WmsShow = (props: SimpleShowLayoutProps) => {
-    const { name: layerName, icon: layerIcon } = useResourceDefinition({resource: 'Layer'})
-    const { name: wmsName, icon: wmsIcon } = useResourceDefinition({resource: 'WebMapService'})
-    const { name: operationUrlName, icon: operationUrlIcon } = useResourceDefinition({resource: 'WebMapServiceOperationUrl'})
+    const translate = useTranslate()
+    
+    const resourceDefinitions = useResourceDefinitions();
 
     const { pathname } = useLocation()
     const tabBasename = useMemo(() => {
@@ -79,6 +118,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
             ? pathname
             : pathname.slice(0, tabPathIndex + tabPath.length)
     }, [pathname])
+    
     const meta = useMemo(()=>{
         const jsonApiParams: any = {
                 include: 'layers,operationUrls',
@@ -90,33 +130,30 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
         return _meta
     },[])
 
+
     return (
         <Show 
             queryOptions={{meta: meta}}
             actions={false}
+
         >
-        <TabbedShowLayout tabs={<WmsShowTabs />}>
-            <TabbedShowLayout.Tab label={wmsName} icon={createElementIfDefined(wmsIcon)}>
-                <EditGuesser 
-                    resource='WebMapService'
-                    //id={settingId}
-                    redirect={false}
-                    actions={false}
-                    simpleFormProps={{
-                        toolbar:
-                        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <SaveButton alwaysEnable/>
-                            <DeleteButton/>
-                        </Toolbar>
-                    
-                    }}
-                />
+        <TabbedShowLayout tabs={<WmsShowTabs />} >
+            <TabbedShowLayout.Tab label={translate('ra.page.dashboard')} icon={<AutoGraphIcon/>} >
+                <OverviewtTab/>
+            </TabbedShowLayout.Tab>
+            <TabbedShowLayout.Tab 
+                label={resourceDefinitions["WebMapService"].name} 
+                icon={createElementIfDefined(resourceDefinitions["WebMapService"].icon)} 
+                path="metadata"
+            >
+                <MetadataEditTab/>
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>} path="interfaces">
                 <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
                 <WithRecord 
                     label="show remote capabilities" 
                     render={(record: RaRecord) => {
+                        console.log(record)
                         const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
                         url.url = prepareGetCapabilititesUrl(
                                 url.url,
@@ -128,18 +165,28 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 />
                 <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
             </TabbedShowLayout.Tab>
-            <TabbedShowLayout.Tab label={operationUrlName} icon={createElementIfDefined(operationUrlIcon)} path='WebMapServiceOperationUrl/*'>
+            <TabbedShowLayout.Tab 
+                label={resourceDefinitions["WebMapServiceOperationUrl"].name} 
+                icon={<TabHeaderIcon icon={resourceDefinitions["WebMapServiceOperationUrl"].icon} countAttr='operationUrls'/>} 
+                path='WebMapServiceOperationUrl/*'
+            >
                 <BasenameContextProvider
                     basename={tabBasename}
                 >
                     <WebMapServiceOperationUrlsTab/>
                 </BasenameContextProvider>
             </TabbedShowLayout.Tab>   
-            <TabbedShowLayout.Tab label={layerName} icon={createElementIfDefined(layerIcon)} path='layers' >
-                
+            <TabbedShowLayout.Tab 
+                label={resourceDefinitions["Layer"].name} 
+                icon={<TabHeaderIcon icon={resourceDefinitions["Layer"].icon} countAttr='layers'/>} 
+                path='layers' 
+            >    
                 <WmsLayers/>
             </TabbedShowLayout.Tab>
-            <TabbedShowLayout.Tab label="proxy settings" path='ProxySetting'>
+            <TabbedShowLayout.Tab 
+                label="proxy settings" 
+                path='ProxySetting'
+            >
                 <BasenameContextProvider
                     basename={tabBasename}
                 >
@@ -147,25 +194,36 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 </BasenameContextProvider>
             </TabbedShowLayout.Tab>
             
-            <TabbedShowLayout.Tab label="Security Rules" path='AllowedWebMapServiceOperation/*'>
+            <TabbedShowLayout.Tab 
+                label={resourceDefinitions["AllowedWebMapServiceOperation"].name}
+                icon={<TabHeaderIcon icon={resourceDefinitions["AllowedWebMapServiceOperation"].icon} countAttr='allowedOperations'/>} 
+                path='AllowedWebMapServiceOperation/*'
+            >
                 <BasenameContextProvider
                     basename={tabBasename}
                 >
                     <SpatialSecureTab/>
                 </BasenameContextProvider>
             </TabbedShowLayout.Tab>
-            <TabbedShowLayout.Tab label="Monitoring Settings" path='WebMapServiceMonitoringSetting/*'>
+            <TabbedShowLayout.Tab 
+                label={resourceDefinitions["WebMapServiceMonitoringSetting"].name}
+                icon={<TabHeaderIcon icon={resourceDefinitions["WebMapServiceMonitoringSetting"].icon} countAttr='webMapServiceMonitoringSettings'/>} 
+                path='WebMapServiceMonitoringSetting/*'
+            >
                 <BasenameContextProvider
                     basename={tabBasename}
                 >
                     <MonitoringSettingsTab/>
                 </BasenameContextProvider>
             </TabbedShowLayout.Tab>
-            <TabbedShowLayout.Tab label="Update Jobs" path='WebMapServiceUpdateJob/*'>
+            <TabbedShowLayout.Tab 
+                label={resourceDefinitions["WebMapServiceUpdateSetting"].name}
+                icon={<TabHeaderIcon icon={resourceDefinitions["WebMapServiceUpdateSetting"].icon} countAttr='webMapServiceUpdateSettings'/>}
+                path='WebMapServiceUpdateSetting/*'>
                 <BasenameContextProvider
                     basename={tabBasename}
                 >
-                    <UpdateJobTab/>
+                    <UpdateSettingTab/>
                 </BasenameContextProvider>
             </TabbedShowLayout.Tab>
 

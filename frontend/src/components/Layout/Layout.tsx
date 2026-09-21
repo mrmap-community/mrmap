@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Layout, type Identifier, type LayoutProps } from 'react-admin';
+import { Layout, useSidebarState, type Identifier, type LayoutProps } from 'react-admin';
 
 import { Box, Card } from '@mui/material';
 import { SnackbarProvider } from 'notistack';
@@ -31,6 +31,8 @@ const MyLayout = (
     ...rest
   }: LayoutProps
 ): ReactNode => {
+  const [open] = useSidebarState()
+
 
   return (
     <SnackbarProvider
@@ -67,6 +69,26 @@ const MyLayout = (
             minHeight: 0,
             marginBottom: '40px',
           },
+          '& .RaList-main': {
+            width: `calc(${open ? '60vw' : '80vw'} - ${open ? '240px' : '50px'} - 3em)`,
+            //maxHeight: 'calc(50vh - 174px )', // 174px ==> 50 appbar, 52 pagination, 64 table actions, 8 top padding
+            overfloxX: 'hidden',
+            marginLeft: "1em",
+            marginRight: "1em",
+            marginBottom: "1em",
+          },
+          '& .RaShow-main': {
+            width: `calc(${open ? '100vw' : '100vw'} - ${open ? '240px' : '50px'}  - 3em)`,
+            //maxHeight: 'calc(50vh - 174px )', // 174px ==> 50 appbar, 52 pagination, 64 table actions, 8 top padding
+            overfloxX: 'hidden',
+            marginLeft: "1em",
+            marginRight: "1em",
+            marginBottom: "1em",
+          },
+          '& .RaDatagrid-tableWrapper': {
+            overflowX: 'scroll',
+            margin: "1em",
+          }
         }}
         {...rest}
       >

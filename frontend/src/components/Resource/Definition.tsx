@@ -87,6 +87,7 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   // update
+  {name: "WebMapServiceUpdateSetting", icon: UpdateIcon},
   {name: "WebMapServiceUpdateJob", icon: UpdateIcon, show: ShowWebMapServiceUpdate, options: { menu: { group: "WMS", order: 40 } }},
   {name: "LayerMapping", icon: SyncAltIcon},
 

@@ -376,6 +376,18 @@ CELERY_QUEUES = (
         routing_key="db-routines",
         max_priority=6,
     ),
+    Queue(
+        name="monitoring",
+        exchange=Exchange("monitoring"),
+        routing_key="monitoring",
+        max_priority=5,
+    ),
+    Queue(
+        name="update",
+        exchange=Exchange("update"),
+        routing_key="update",
+        max_priority=4,
+    ),
 )
 
 ################################################################

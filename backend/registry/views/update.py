@@ -1,28 +1,42 @@
 from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet, PreloadNotIncludesMixin
-from registry.filters.update import (
-    CatalogueServiceUpdateJobFilterSet,
-    FeatureTypeMappingFilterSet,
-    LayerMappingFilterSet,
-    WebFeatureServiceUpdateJobFilterSet,
-    WebMapServiceUpdateJobFilterSet,
-)
-from registry.models import (
-    CatalogueServiceUpdateJob,
-    FeatureTypeMapping,
-    LayerMapping,
-    WebFeatureServiceUpdateJob,
-    WebMapServiceUpdateJob,
-)
-from registry.serializers.update import (
-    CatalogueServiceUpdateJobSerializer,
-    FeatureTypeMappingSerializer,
-    LayerMappingSerializer,
-    WebFeatureServiceUpdateJobSerializer,
-    WebMapServiceUpdateJobSerializer,
-)
+from registry.filters.update import (CatalogueServiceUpdateJobFilterSet,
+                                     FeatureTypeMappingFilterSet,
+                                     LayerMappingFilterSet,
+                                     WebFeatureServiceUpdateJobFilterSet,
+                                     WebMapServiceUpdateJobFilterSet)
+from registry.models import (CatalogueServiceUpdateJob, FeatureTypeMapping,
+                             LayerMapping, WebFeatureServiceUpdateJob,
+                             WebMapServiceUpdateJob,
+                             WebMapServiceUpdateSetting)
+from registry.serializers.update import (CatalogueServiceUpdateJobSerializer,
+                                         FeatureTypeMappingSerializer,
+                                         LayerMappingSerializer,
+                                         WebFeatureServiceUpdateJobSerializer,
+                                         WebMapServiceUpdateJobSerializer,
+                                         WebMapServiceUpdateSettingSerializer)
 from rest_framework_json_api.views import ModelViewSet
+
+
+class WebMapServiceUpdateSettingViewSetMixing(PreloadNotIncludesMixin):
+    queryset = WebMapServiceUpdateSetting.objects.all()
+    serializer_class = WebMapServiceUpdateSettingSerializer
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    filterset_fields = ('service', )
+    ordering_fields = ("id", "service")
+
+
+class WebMapServiceUpdateSettingViewSet(
+        WebMapServiceUpdateSettingViewSetMixing,
+        ModelViewSet):
+    """ Endpoints for resource `WebMapServiceUpdateSetting`"""
+
+
+class NestedWebMapServiceUpdateSettingViewSet(
+        WebMapServiceUpdateSettingViewSetMixing,
+        NestedModelViewSet):
+    """ Nested list endpoint for resource `WebMapServiceUpdateSetting` """
 
 
 class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
@@ -148,7 +162,8 @@ class FeatureTypeMappingViewSetMixin(PreloadNotIncludesMixin):
     serializer_class = FeatureTypeMappingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     filterset_class = FeatureTypeMappingFilterSet
-    ordering_fields = ("id", "job", "new_featuretype", "old_featuretype", "created", "is_confirmed")
+    ordering_fields = ("id", "job", "new_featuretype",
+                       "old_featuretype", "created", "is_confirmed")
     select_for_includes = {
         "job": ["job"],
     }

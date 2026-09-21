@@ -29,10 +29,14 @@ wms_routes.register(r'allowed-wms-operations', security_views.NestedAllowedWebMa
                     basename='wms-allowedwmsoperation', parents_query_lookups=['secured_service'])
 wms_routes.register(r'operation-urls', service_views.NestedWebMapServiceOperationUrlViewSet,
                     basename='wms-operationurls', parents_query_lookups=['service'])
+wms_routes.register(r'update-settings', update_views.NestedWebMapServiceUpdateSettingViewSet,
+                    basename='wms-update-settings', parents_query_lookups=['service'])
 wms_routes.register(r'update-jobs', update_views.NestedWebMapServiceUpdateJobViewSet,
                     basename='wms-update-jobs', parents_query_lookups=['service'])
 wms_routes.register(r'monitoring-settings', monitoring_views.NestedWebMapServiceMonitoringSettingViewSet,
                     basename='wms-monitoringsetting', parents_query_lookups=['service'])
+wms_routes.register(r'monitoring-runs', monitoring_views.NestedWebMapServiceMonitoringRunViewSet,
+                    basename='wms-monitoringrun', parents_query_lookups=['setting__service'])
 
 wms_op_urls_routes = router.register(
     r'wms-operation-urls', service_views.WebMapServiceOperationUrlViewSet, basename='wms-operationurl')
@@ -207,10 +211,12 @@ router.register(r'security/wfs-proxy-settings',
                 security_views.WebFeatureServiceProxySettingViewSet, basename='webfeatureserviceproxysetting')
 
 # updating
-wms_updating_routes = router.register(r'update/webmapservice-update-jobs',
-                                      update_views.WebMapServiceUpdateJobViewSet, basename='webmapserviceupdatejob')
-wms_updating_routes.register(r'layer-mappings', update_views.NestedLayerMappingViewSet,
-                             basename='wms-update-jobs-layer-mappings', parents_query_lookups=['job'])
+router.register(r'update/webmapservice-update-settings',
+                update_views.WebMapServiceUpdateSettingViewSet, basename='webmapserviceupdatesetting')
+wms_update_jobs_routes = router.register(r'update/webmapservice-update-jobs',
+                                         update_views.WebMapServiceUpdateJobViewSet, basename='webmapserviceupdatejob')
+wms_update_jobs_routes.register(r'layer-mappings', update_views.NestedLayerMappingViewSet,
+                                basename='wms-update-jobs-layer-mappings', parents_query_lookups=['job'])
 router.register(r'update/layer-mappings',
                 update_views.LayerMappingViewSet, basename='layermapping')
 

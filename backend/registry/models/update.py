@@ -1,17 +1,21 @@
+from uuid import uuid4
+
 from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-from simple_history.utils import bulk_update_with_history
-
+from django_celery_beat.models import PeriodicTask
 from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
-from registry.models.service import CatalogueService, FeatureType, Layer, WebFeatureService, WebMapService
-from registry.tasks.update import run_csw_update, run_wfs_update, run_wms_update
+from registry.models.service import (CatalogueService, FeatureType, Layer,
+                                     WebFeatureService, WebMapService)
+from registry.tasks.update import (run_csw_update, run_wfs_update,
+                                   run_wms_update)
+from simple_history.utils import bulk_update_with_history
 
 
 def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
@@ -72,6 +76,27 @@ def default_csw_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
             "output_formats": UpdateModeEnum.OVERWRITE,
         },
     }
+
+
+class WebMapServiceUpdateSetting(PeriodicTask):
+    service: WebMapService = models.ForeignKey(
+        to=WebMapService,
+        on_delete=models.CASCADE,
+        related_name="web_map_service_update_settings",
+        related_query_name="web_map_service_update_setting",
+        verbose_name=_("web map service"),
+        help_text=_("this is the service which shall be updated"))
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not self.pk and not self.task:
+            self.task = "registry.tasks.update.create_wms_update_job"
+
+        if not self.pk and not self.queue:
+            self.queue = "update"
+        if not self.pk and not self.name:
+            # max 200 chars for name field
+            self.name = uuid4()
 
 
 class WebMapServiceUpdateConfig(models.Model):
@@ -140,7 +165,8 @@ class ServiceUpdateJob(models.Model):
                 fields=["service"],
                 condition=Q(done_at__isnull=True),
                 name="%(app_label)s_%(class)s_only_one_unfinished_update_per_service",
-                violation_error_message=_("There is an existing noncompleted job for this service."),
+                violation_error_message=_(
+                    "There is an existing noncompleted job for this service."),
             )
         ]
 
@@ -166,7 +192,8 @@ class ServiceUpdateJob(models.Model):
             return
 
         m2m_fields = [m2m.name for m2m in instance_a._meta.local_many_to_many]
-        reverse_fields = [rel.get_accessor_name() for rel in instance_a._meta.related_objects]
+        reverse_fields = [rel.get_accessor_name()
+                          for rel in instance_a._meta.related_objects]
 
         # -------------------------
         # MANY-TO-MANY
@@ -192,7 +219,8 @@ class ServiceUpdateJob(models.Model):
             match mode:
                 case UpdateModeEnum.OVERWRITE:
                     instance_a_reverse_field.all().delete()
-                    instance_a_reverse_field.set(instance_b_reverse_field.all())
+                    instance_a_reverse_field.set(
+                        instance_b_reverse_field.all())
                 case UpdateModeEnum.MERGE:
                     pass
                 case _:
@@ -315,9 +343,13 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         if self.are_all_layers_updateable():
             # store deleteable layers, cause after Layer moving to old service,
             # the deleteable layers query would change and we would loose the information which layers we wanted to delete
-            deleteable_layers = list(self.deleteable_layers().values_list("id", flat=True))
+            deleteable_layers = list(
+                self.deleteable_layers().values_list("id", flat=True))
+            for layer in deleteable_layers:
+                layer._change_reason = f"updatejob_id: {self.pk}"
 
-            old_by_identifier = {layer.identifier: layer for layer in self.old_service.layers.all()}
+            old_by_identifier = {
+                layer.identifier: layer for layer in self.old_service.layers.all()}
 
             updateable_layers = []
 
@@ -332,13 +364,14 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
                     parent = mapping.new_layer.mptt_parent.mapping.old_layer if mapping.new_layer.mptt_parent else None
                     mapping.new_layer.mptt_parent = parent
                     mapping.new_layer.mptt_tree = self.service.root_layer.mptt_tree
+                    mapping._change_reason = f"updatejob_id: {self.pk}"
                     mapping.new_layer.save()
                     continue
 
                 # regular updating processing of an existing layer with old match. Update the existing layer by adjusting the parent and updating the fields.
                 updateable_layer = mapping.old_layer
                 new_layer = mapping.new_layer
-
+                updateable_layer._change_reason = f"updatejob_id: {self.pk}"
                 updateable_layers.append(updateable_layer)
 
                 # adjust parent
@@ -359,7 +392,8 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             # clean up everthing we do not longer need
             Layer.objects.filter(id__in=deleteable_layers).delete()
 
-            WebMapService.objects.filter(update_candidate_of=self.service).delete()
+            WebMapService.objects.filter(
+                update_candidate_of=self.service).delete()
 
             self.mappings.all().delete()
 
@@ -373,6 +407,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         """
         for field_name in self.get_fields_by_model(WebMapService).keys():
             self.update_field(field_name, self.service, self.new_service)
+        self.service._change_reason = f"updatejob_id: {self.pk}"
         self.service.save()
         return UpdateJobStatusEnum.UPDATED
 
@@ -402,20 +437,23 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
-            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
+            raise ValueError(
+                _("Can only resume a job with status REVIEW_REQUIRED"))
         if not self.are_all_layers_updateable():
             raise ValueError(
                 _(
                     "Cannot resume the job, because not all layers are updateable. Please review the layer mappings first."
                 )
             )
-        on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
+        on_commit(lambda: run_wms_update.apply_async(
+            kwargs={"update_job_id": self.pk}))
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if adding:
-            on_commit(lambda: run_wms_update.apply_async(kwargs={"update_job_id": self.pk}))
+            on_commit(lambda: run_wms_update.apply_async(
+                kwargs={"update_job_id": self.pk}))
 
 
 class WebFeatureServiceUpdateJob(ServiceUpdateJob):
@@ -443,7 +481,8 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
         old_featuretypes = list(self.old_service.featuretypes.all())
         new_featuretypes = list(self.new_service.featuretypes.all())
 
-        old_by_identifier = {featuretype.identifier: featuretype for featuretype in old_featuretypes}
+        old_by_identifier = {
+            featuretype.identifier: featuretype for featuretype in old_featuretypes}
 
         mappings = []
 
@@ -500,7 +539,8 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             "new_featuretype", flat=True
         )
 
-        missing_new = new_featuretypes.exclude(id__in=mapped_new_featuretypes).exists()
+        missing_new = new_featuretypes.exclude(
+            id__in=mapped_new_featuretypes).exists()
 
         return not missing_new
 
@@ -518,7 +558,8 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
 
         # store deleteable featuretypes, cause after FeatureType moving to old service,
         # the deleteable featuretypes query would change and we would loose the information which featuretypes we wanted to delete
-        deleteable_featuretypes = list(self.deleteable_featuretypes().values_list("id", flat=True))
+        deleteable_featuretypes = list(
+            self.deleteable_featuretypes().values_list("id", flat=True))
 
         updateable_featuretypes = []
 
@@ -537,7 +578,8 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             updateable_featuretypes.append(updateable_featuretype)
 
             for field_name in fields:
-                self.update_field(field_name, updateable_featuretype, new_featuretype)
+                self.update_field(
+                    field_name, updateable_featuretype, new_featuretype)
 
         bulk_update_with_history(
             updateable_featuretypes,
@@ -549,7 +591,8 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
         # clean up everthing we do not longer need
         FeatureType.objects.filter(id__in=deleteable_featuretypes).delete()
 
-        WebFeatureService.objects.filter(update_candidate_of=self.service).delete()
+        WebFeatureService.objects.filter(
+            update_candidate_of=self.service).delete()
 
         self.mappings.all().delete()
 
@@ -589,20 +632,23 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
-            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
+            raise ValueError(
+                _("Can only resume a job with status REVIEW_REQUIRED"))
         if not self.are_all_featuretypes_updateable():
             raise ValueError(
                 _(
                     "Cannot resume the job, because not all featuretypes are updateable. Please review the featuretype mappings first."
                 )
             )
-        on_commit(lambda: run_wfs_update.apply_async(kwargs={"update_job_id": self.pk}))
+        on_commit(lambda: run_wfs_update.apply_async(
+            kwargs={"update_job_id": self.pk}))
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if adding:
-            on_commit(lambda: run_wfs_update.apply_async(kwargs={"update_job_id": self.pk}))
+            on_commit(lambda: run_wfs_update.apply_async(
+                kwargs={"update_job_id": self.pk}))
 
 
 class CatalogueServiceUpdateJob(ServiceUpdateJob):
@@ -683,14 +729,17 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
 
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
-            raise ValueError(_("Can only resume a job with status REVIEW_REQUIRED"))
-        on_commit(lambda: run_csw_update.apply_async(kwargs={"update_job_id": self.pk}))
+            raise ValueError(
+                _("Can only resume a job with status REVIEW_REQUIRED"))
+        on_commit(lambda: run_csw_update.apply_async(
+            kwargs={"update_job_id": self.pk}))
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if adding:
-            on_commit(lambda: run_csw_update.apply_async(kwargs={"update_job_id": self.pk}))
+            on_commit(lambda: run_csw_update.apply_async(
+                kwargs={"update_job_id": self.pk}))
 
 
 class ServiceElementMapping(models.Model):
@@ -751,7 +800,8 @@ class LayerMapping(ServiceElementMapping):
                 ),
             ),
             models.CheckConstraint(
-                condition=~(Q(new_layer__isnull=True) & Q(old_layer__isnull=True)),
+                condition=~(Q(new_layer__isnull=True) &
+                            Q(old_layer__isnull=True)),
                 name="prevent_both_layers_null",
             ),
         ]
@@ -791,7 +841,8 @@ class FeatureTypeMapping(ServiceElementMapping):
                 ),
             ),
             models.CheckConstraint(
-                condition=~(Q(new_featuretype__isnull=True) & Q(old_featuretype__isnull=True)),
+                condition=~(Q(new_featuretype__isnull=True) &
+                            Q(old_featuretype__isnull=True)),
                 name="prevent_both_featuretypes_null",
             ),
         ]

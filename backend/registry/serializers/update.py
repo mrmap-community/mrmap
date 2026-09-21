@@ -1,9 +1,13 @@
 from django.utils.translation import gettext_lazy as _
+from extras.fields import CrontabStringField
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
                              FeatureType, FeatureTypeMapping, Layer,
                              LayerMapping, WebFeatureService,
                              WebFeatureServiceUpdateJob, WebMapService,
                              WebMapServiceUpdateJob)
+from registry.models.update import WebMapServiceUpdateSetting
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
@@ -13,6 +17,31 @@ from rest_framework_json_api.serializers import (BooleanField, CharField,
                                                  HyperlinkedIdentityField,
                                                  IntegerField, ModelSerializer,
                                                  Serializer)
+
+
+class WebMapServiceUpdateSettingSerializer(
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapservicemonitoringsetting-detail',
+    )
+    service = ResourceRelatedField(
+        label=_("web map service"),
+        help_text=_("the web map service for that this settings are."),
+        queryset=WebMapService.objects,
+    )
+    schedule_interval = CrontabStringField(
+        source='crontab',
+        label=_("schedule interval"),
+        help_text=_(
+            "the schedule interval for this setting (e.g. '*/5 * * * *')."),
+    )
+
+    class Meta:
+        model = WebMapServiceUpdateSetting
+        fields = ('url', 'service', 'schedule_interval')
 
 
 class UpdateJobBaseSerializer(Serializer):

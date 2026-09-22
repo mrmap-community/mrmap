@@ -1,6 +1,7 @@
-import { useGetList, useRecordContext, useResourceContext } from "react-admin"
+import { SimpleShowLayout, useGetList, useRecordContext, useResourceContext } from "react-admin";
 
-
+import { RaRecord, UrlField, WithRecord } from 'react-admin';
+import { prepareGetCapabilititesUrl } from "../../../../../ows-lib/OwsContext/utils";
 
 const UpdateJobStats = () => {
   const record = useRecordContext()
@@ -69,7 +70,22 @@ const OverviewtTab = () => {
   )
 
   return (
-    <>huhu</>
+    <SimpleShowLayout>
+      <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
+      <WithRecord 
+          label="show remote capabilities" 
+          render={(record: RaRecord) => {
+              const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
+              url.url = prepareGetCapabilititesUrl(
+                      url.url,
+                      "WMS",
+                      record.version.toString().split('').join('.')
+                  ).href
+              return url ? <UrlField record={url} source="url"/> : null; 
+          }}
+      />
+      <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
+    </SimpleShowLayout>
   )
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { RaRecord, useNotify, useShowContext } from 'react-admin';
+import { RaRecord, useGetMany, useNotify, useRecordContext } from 'react-admin';
 
 import { Container, Grid } from '@mui/material';
 import EditGuesser from '../../../../../jsonapi/components/EditGuesser';
@@ -9,10 +9,26 @@ import WmsTreeView from '../../TreeView/WmsTreeView';
 
 export const WmsLayers = () => {
 
-  const {  refetch } = useShowContext();
+
+    const meta = useMemo(()=>{
+        const jsonApiParams: any = {}
+        const _meta = {
+            jsonApiParams: jsonApiParams
+        }
+        jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,is_active,is_searchable'
+        return _meta
+    },[])
+  const record = useRecordContext();
+  const {data, refetch} = useGetMany("Layer", {ids:record?.layers.map((layer: RaRecord) => layer.id), meta: meta});
+
   const notify = useNotify(); 
   const [selectedLayer] = useQueryParam('selectedLayer');
 
+    const wmsRecord = useMemo<RaRecord>(()=> ({
+    ...record,
+    id: record.id,
+    layers: data
+    }), [record, data])
 
   const onSuccess = useCallback((record: RaRecord)=>{
       notify(
@@ -43,7 +59,7 @@ export const WmsLayers = () => {
   return (
     <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} >
         <Grid size={2}>
-            <WmsTreeView />          
+            <WmsTreeView record={wmsRecord}/>          
         </Grid>
         <Grid size={10}>
             {rightContent}

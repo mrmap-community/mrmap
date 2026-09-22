@@ -1,9 +1,7 @@
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
-import LinearScaleIcon from '@mui/icons-material/LinearScale';
-import { Badge, Tabs, TabsProps } from '@mui/material';
-import { Children, cloneElement, Fragment, isValidElement, ReactElement, ReactNode, useMemo } from 'react';
-import { BasenameContextProvider, RaRecord, Show, SimpleShowLayoutProps, TabbedShowLayout, UrlField, useLocation, useResourceDefinitions, useTranslate, WithRecord } from 'react-admin';
-import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
+import { Badge, Stack, Tabs, TabsProps } from '@mui/material';
+import { Children, cloneElement, isValidElement, ReactElement, ReactNode, useMemo } from 'react';
+import { BasenameContextProvider, Show, SimpleShowLayoutProps, TabbedShowLayout, useLocation, useResourceDefinitions, useTranslate, WithRecord } from 'react-admin';
 import { createElementIfDefined } from '../../../../utils';
 import MetadataEditTab from './Tabs/MetadataEditTab';
 import MonitoringSettingsTab from './Tabs/MonitoringSettingsTab';
@@ -83,7 +81,13 @@ const TabHeaderIcon = (
 ) => {
 
     return (
-        <Fragment>
+        <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+                justifyContent: 'space-between'
+            }}
+        >
             {createElementIfDefined(icon)}
             <WithRecord 
                 label="author" 
@@ -92,6 +96,7 @@ const TabHeaderIcon = (
                         const  content = countAttr ? record[countAttr]?.length: 0
                         return ( 
                             <Badge
+                                showZero
                                 badgeContent={content}
                                 color="secondary"
                                 //max={maxVisibleNotifications}
@@ -100,7 +105,7 @@ const TabHeaderIcon = (
                     }
                 } 
             />
-        </Fragment>
+        </Stack>
     )
 }
 
@@ -121,7 +126,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
     
     const meta = useMemo(()=>{
         const jsonApiParams: any = {
-                include: 'layers,operationUrls',
+                include: 'operationUrls',
             }
         const _meta = {
             jsonApiParams: jsonApiParams
@@ -148,26 +153,11 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
             >
                 <MetadataEditTab/>
             </TabbedShowLayout.Tab>
-            <TabbedShowLayout.Tab label={"Interfaces"} icon={<LinearScaleIcon/>} path="interfaces">
-                <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
-                <WithRecord 
-                    label="show remote capabilities" 
-                    render={(record: RaRecord) => {
-                        console.log(record)
-                        const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
-                        url.url = prepareGetCapabilititesUrl(
-                                url.url,
-                                "WMS",
-                                record.version.toString().split('').join('.')
-                            ).href
-                        return url ? <UrlField record={url} source="url"/> : null; 
-                    }}
-                />
-                <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
-            </TabbedShowLayout.Tab>
+
             <TabbedShowLayout.Tab 
                 label={resourceDefinitions["WebMapServiceOperationUrl"].name} 
-                icon={<TabHeaderIcon icon={resourceDefinitions["WebMapServiceOperationUrl"].icon} countAttr='operationUrls'/>} 
+                icon={<TabHeaderIcon icon={resourceDefinitions["WebMapServiceOperationUrl"].icon} countAttr='operationUrls'/>}
+                
                 path='WebMapServiceOperationUrl/*'
             >
                 <BasenameContextProvider

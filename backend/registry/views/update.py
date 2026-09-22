@@ -19,7 +19,7 @@ from registry.serializers.update import (CatalogueServiceUpdateJobSerializer,
 from rest_framework_json_api.views import ModelViewSet
 
 
-class WebMapServiceUpdateSettingViewSetMixing(PreloadNotIncludesMixin):
+class WebMapServiceUpdateSettingViewSetMixing:
     queryset = WebMapServiceUpdateSetting.objects.all()
     serializer_class = WebMapServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]

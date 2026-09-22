@@ -31,6 +31,7 @@ class HistoricalViewSetMixin:
         'id': ['exact', 'in'],
         'history_relation': ['exact'],
         'history_change_reason': ['exact', 'iexact', 'icontains', 'contains'],
+        'history_date': ['exact', 'gte', 'lte', 'range'],
     }
     ordering_fields = ["id", 'history_date', 'history_user']
 

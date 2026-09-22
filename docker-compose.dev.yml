@@ -178,7 +178,7 @@ services:
     env_file:
       - ./docker/backend/.mrmap.env
     command: >
-      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q download,default,db-routines --statedb=/var/run/celery/%n-%i_worker.state"
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap worker -E -l DEBUG -Q download,default,db-routines,monitoring,update  --statedb=/var/run/celery/%n-%i_worker.state"
     depends_on:
       postgis:
         condition: service_started

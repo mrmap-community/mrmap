@@ -84,7 +84,7 @@ const MrMapFrontend = (): ReactElement => {
         ...(resource.edit || editOperation && { hasEdit: true}),
         // TODO: merge children and related_list_operations paths
         ...(resource.children || related_list_operations && { 
-          children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:${relatedResource}id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={resource.name}> </ListGuesser>}></Route>)
+          children: related_list_resources.map((relatedResource) => <Route key={`nested-${relatedResource}-of-${resource.name}`} path={`:${relatedResource}id/${relatedResource}`} element={<ListGuesser resource={relatedResource} relatedResource={{resource: resource.name}}> </ListGuesser>}></Route>)
         }) as ReactElement[],
         ...(resource.recordRepresentation ? {recordRepresentation: resource.recordRepresentation}: {recordRepresentation: defaultRecordRepresentation}),
         ...resource,

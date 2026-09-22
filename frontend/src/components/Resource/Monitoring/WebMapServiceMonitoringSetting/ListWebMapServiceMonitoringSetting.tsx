@@ -1,8 +1,15 @@
 import ListWithDialogs from "../../../../jsonapi/components/ListWithDialogs"
+import { RelatedResource } from "../../../../providers/dataProvider"
 import useGuesserProps from "./useGuesserProps"
 
 
-const ListWebMapServiceMonitoringSetting = ( ) => {
+export interface ListWebMapServiceMonitoringSettingProps {
+  relatedResource?: Partial<RelatedResource>
+}
+
+const ListWebMapServiceMonitoringSetting = ( {
+  relatedResource
+}: ListWebMapServiceMonitoringSettingProps) => {
   const guesserProps = useGuesserProps()
   return (
     <ListWithDialogs
@@ -10,6 +17,7 @@ const ListWebMapServiceMonitoringSetting = ( ) => {
       createGuesserProps={guesserProps}
       listGuesserProps={
         {
+          relatedResource: relatedResource,
           defaultSelectedColumns: ["scheduleInterval", "getCapabilititesProbes", "getMapProbes", ]
         }
       }

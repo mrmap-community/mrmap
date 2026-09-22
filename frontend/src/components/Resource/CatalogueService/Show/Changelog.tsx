@@ -41,8 +41,8 @@ return (
       >
         <ListGuesser
           resource='PeriodicHarvestingJob'
-          relatedResource='CatalogueService'
-          empty={<EmptyList defaultValue={{ service: { id: id } }} />} />
+          relatedResource={{resource: 'CatalogueService'}}
+          empty={<EmptyList  />} />
       </SimpleCard>
   </Fragment>
   )

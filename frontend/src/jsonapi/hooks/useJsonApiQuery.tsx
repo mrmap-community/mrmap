@@ -17,7 +17,7 @@ const useJsonApiQuery = ({
 
   const { name, options } = useResourceDefinition()
   const listOptions = useMemo(()=>(options.list),[options])
-
+  
   const operationId = useMemo(()=> relatedResource !== undefined && relatedResource !== '' ?`list_related_${name}_of_${relatedResource}`: `list_${name}`, [relatedResource, name])
   const { operation } = useResourceSchema(operationId)
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])

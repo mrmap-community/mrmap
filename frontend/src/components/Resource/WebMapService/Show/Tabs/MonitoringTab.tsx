@@ -3,11 +3,10 @@ import { ResourceContext, useRecordContext, useResourceContext } from 'react-adm
 import { Fragment } from 'react/jsx-runtime';
 import ListWithDialogs from '../../../../../jsonapi/components/ListWithDialogs';
 import { RelatedResource } from '../../../../../providers/dataProvider';
-import ListWebMapServiceUpdateSetting from '../../../Update/Wms/ListWebMapServiceUpdateSetting';
+import ListWebMapServiceMonitoringSetting from '../../../Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 
 
-export const UpdateSettingTab = () => {
-
+export const MonitoringTab = () => {
   const resource = useResourceContext()
   const record = useRecordContext()
 
@@ -20,15 +19,15 @@ export const UpdateSettingTab = () => {
   return (
     <Fragment>
       <ResourceContext
-        value='WebMapServiceUpdateSetting'
+        value='WebMapServiceMonitoringSetting'
       >
-        <ListWebMapServiceUpdateSetting
+        <ListWebMapServiceMonitoringSetting
           relatedResource={relatedResource}
         />
       </ResourceContext>
 
       <ResourceContext
-        value='WebMapServiceUpdateJob'
+        value='WebMapServiceMonitoringRun'
       >
         <ListWithDialogs
           listGuesserProps={
@@ -42,4 +41,4 @@ export const UpdateSettingTab = () => {
   )
 }
 
-export default UpdateSettingTab
+export default MonitoringTab

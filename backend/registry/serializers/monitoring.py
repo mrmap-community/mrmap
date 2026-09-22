@@ -115,7 +115,7 @@ class WebMapServiceMonitoringSettingSerializer(
     class Meta:
         model = WebMapServiceMonitoringSetting
         fields = ('url', 'service', 'schedule_interval',
-                  "get_capabilitites_probes", "get_map_probes")
+                  "get_capabilitites_probes", "get_map_probes", "enabled")
 
 
 class WebMapServiceMonitoringRunSerializer(
@@ -134,17 +134,17 @@ class WebMapServiceMonitoringRunSerializer(
     setting = ResourceRelatedField(
         label=_("monitoring setting"),
         help_text=_("the setting which to used for this run."),
-        queryset=WebMapService.objects,
+        queryset=WebMapServiceMonitoringSetting.objects,
     )
     get_capabilitites_probe_results = ResourceRelatedField(
-        source="registry_getcapabilitiesproberesult",
+        source="registry_getcapabilitiesproberesults",
         many=True,
         queryset=GetCapabilitiesProbeResult.objects,
         label=_("Get Capabilities Probe Results"),
         help_text=_("results for get capabilities requests"),
     )
     get_map_probe_results = ResourceRelatedField(
-        source="registry_getmapproberesult",
+        source="registry_getmapproberesults",
         many=True,
         queryset=GetMapProbeResult.objects,
         label=_("Get Map Probe Results"),
@@ -158,7 +158,9 @@ class WebMapServiceMonitoringRunSerializer(
             'success',
             'setting',
             'get_capabilitites_probe_results',
-            'get_map_probe_results'
+            'get_map_probe_results',
+            'date_created',
+            'date_done'
         )
 
 

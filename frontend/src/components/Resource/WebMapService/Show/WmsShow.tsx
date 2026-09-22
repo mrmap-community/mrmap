@@ -4,7 +4,7 @@ import { Children, cloneElement, isValidElement, ReactElement, ReactNode, useMem
 import { BasenameContextProvider, Show, SimpleShowLayoutProps, TabbedShowLayout, useLocation, useResourceDefinitions, useTranslate, WithRecord } from 'react-admin';
 import { createElementIfDefined } from '../../../../utils';
 import MetadataEditTab from './Tabs/MetadataEditTab';
-import MonitoringSettingsTab from './Tabs/MonitoringSettingsTab';
+import MonitoringTab from './Tabs/MonitoringTab';
 import OverviewtTab from './Tabs/OverviewTab';
 import ProxySettingsTab from './Tabs/ProxySettingsTab';
 import SpatialSecureTab from './Tabs/SpatialSecureTab';
@@ -203,7 +203,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
                 <BasenameContextProvider
                     basename={tabBasename}
                 >
-                    <MonitoringSettingsTab/>
+                    <MonitoringTab/>
                 </BasenameContextProvider>
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab 

@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { DatagridConfigurable, EditButton, Identifier, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
+import { DatagridConfigurable, EditButton, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 
@@ -9,6 +9,7 @@ import ListActions, { CustomListActionsProps } from '../../components/Lists/Cust
 import EmptyList from '../../components/Lists/Empty'
 import EmptyListWithFilter from '../../components/Lists/EmptyWithFilter'
 import { useHttpClientContext } from '../../context/HttpClientContext'
+import { RelatedResource } from '../../providers/dataProvider'
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation'
 import { useFilterInputForOperation } from '../hooks/useFilterInputForOperation'
 import useJsonApiQuery from '../hooks/useJsonApiQuery'
@@ -21,8 +22,7 @@ import RealtimeList from './Realtime/RealtimeList'
 
 export interface ListGuesserProps extends Partial<ListProps> {
   realtime?: boolean
-  relatedResource?: string
-  relatedResourceId?: Identifier
+  relatedResource?: Partial<RelatedResource>
   rowActions?: ReactNode
   additionalActions?: ReactNode
   onRowClick?: (clickedRecord: RaRecord) => void
@@ -36,8 +36,7 @@ export interface ListGuesserProps extends Partial<ListProps> {
 
 const ListGuesser = ({
   realtime=false,
-  relatedResource = '',
-  relatedResourceId = undefined,
+  relatedResource = undefined,
   rowActions = undefined,
   additionalActions = undefined,
   onRowClick = undefined,
@@ -57,9 +56,8 @@ const ListGuesser = ({
   const [selectedRecord, setSelectedRecord] = useState<RaRecord>()
 
   const { id } = useParams()
-  const operationId = useMemo(()=> relatedResource !== undefined && relatedResource !== '' ?`list_related_${name}_of_${relatedResource}`: `list_${name}`, [relatedResource, name])
+  const operationId = useMemo(()=> relatedResource !== undefined && relatedResource?.resource !== '' ?`list_related_${name}_of_${relatedResource?.resource}`: `list_${name}`, [relatedResource?.resource, name])
   const { operation } = useResourceSchema(operationId)
-
   const fieldDefinitions = useFieldsForOperation({operationId: operationId, forInput:false, ignoreId:false})
   const fields = useMemo(
     () => fieldDefinitions.map(fieldDefinition => {
@@ -95,8 +93,7 @@ const ListGuesser = ({
   },[defaultOmit])
 
 
-  const jsonApiQuery = useJsonApiQuery({relatedResource})
-
+  const jsonApiQuery = useJsonApiQuery( {relatedResource: relatedResource ? relatedResource.resource: undefined})
 
   if (operation === undefined || fields === undefined || fields?.length === 0) {
     // if fields are empty the table will be initial rendered only with the default index column.
@@ -104,7 +101,7 @@ const ListGuesser = ({
     // untill a new full render cyclus becomes started for the datagrid. (for example page change)
     return <div />
   }
-  
+
   return (
     <ListComponent
       filters={filters}
@@ -118,15 +115,15 @@ const ListGuesser = ({
       queryOptions={{
         refetchInterval,
         onError,
-        meta: (relatedResource !== undefined && relatedResource !== '')
+        meta: (relatedResource?.resource !== '')
           ? {
-            relatedResource: {
-              resource: relatedResource,
-              id: relatedResourceId ?? id
-            },
             jsonApiParams: { ...jsonApiQuery }
           }
           : {
+            relatedResource: {
+              resource: relatedResource?.resource,
+              id: relatedResource?.id ?? id
+            },
             jsonApiParams: { ...jsonApiQuery }
           }
       }}

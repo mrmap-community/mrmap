@@ -157,8 +157,7 @@ const LayerMappingList = (
         <ListGuesser
             title="Layer Mappings"
             resource="LayerMapping"
-            relatedResource="WebMapServiceUpdateJob"
-            relatedResourceId={contextRecord?.id}
+            relatedResource={{resource: "WebMapServiceUpdateJob", id: contextRecord?.id}}
             filterDefaultValues={{'isConfirmed': false}}
             disableSyncWithLocation
             defaultSelectedColumns={['id', 'oldLayer', 'newLayer', 'isConfirmed']}

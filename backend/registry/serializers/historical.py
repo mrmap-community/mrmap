@@ -29,7 +29,6 @@ class HistorySerializerMixin(
 
     def get_delta(self, obj):
         # TODO: results in slow sql requests
-        return None
         if hasattr(obj, "prev_prefetched_record"):
             prev_record = obj.prev_prefetched_record
         else:

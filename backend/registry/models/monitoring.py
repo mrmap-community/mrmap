@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from io import BytesIO
 from uuid import uuid4
@@ -38,17 +39,17 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if not self.pk and not self.task:
-            self.task = "registry.tasks.monitoring.create_wms_monitoring_run"
-        if not self.pk and not self.kwargs:
-            self.kwargs = {
-                "setting_pk": self.pk
-            }
-        if not self.pk and not self.queue:
-            self.queue = "monitoring"
-        if not self.pk and not self.name:
-            # max 200 chars for name field
-            self.name = uuid4()
+        if not self.pk:
+            if not self.task:
+                self.task = "registry.tasks.monitoring.create_wms_monitoring_run"
+            if not self.queue:
+                self.queue = "monitoring"
+            if not self.name:
+                self.name = str(uuid4())
+            if not self.kwargs or self.kwargs == '{}':
+                self.kwargs = json.dumps({
+                    "name": str(self.name),
+                })
 
 
 class WebMapServiceMonitoringRun(models.Model):

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useRecordContext } from 'react-admin';
-import useWebMapServiceMonitoringSettingFieldDefinitions from '../Monitoring/Wms/useWebMapServiceMonitoringSettingFieldDefinitions';
+import useWebMapServiceMonitoringSettingFieldDefinitions from '../Monitoring/WebMapServiceMonitoringSetting/useWebMapServiceMonitoringSettingFieldDefinitions';
 
 
 const useGuesserProps = () => {

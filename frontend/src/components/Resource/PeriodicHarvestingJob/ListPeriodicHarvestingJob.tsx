@@ -10,8 +10,10 @@ const ListPeriodicHarvestingJob = (): ReactNode => {
     if (record !== undefined){
       return {
         resource: 'PeriodicHarvestingJob',
-        relatedResource: 'CatalogueService',
-        relatedResourceId: record.id
+        relatedResource: {
+          resource: 'CatalogueService',
+          id: record.id
+        }
       }
     }
   },[record])
@@ -21,7 +23,7 @@ const ListPeriodicHarvestingJob = (): ReactNode => {
       resource='PeriodicHarvestingJob'
       defaultSelectedColumns={['id', 'enabled', 'scheduling', 'timeUntilNextRun']}
       sort={{field: 'id', order: 'DESC'}}
-      empty={<EmptyList defaultValue={{ service: { id: record?.id } }} />} 
+      empty={<EmptyList/>} 
       {...relatedProps}
     />
 

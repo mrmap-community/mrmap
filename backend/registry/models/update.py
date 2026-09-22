@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4
 
 from django.db import models
@@ -15,7 +16,8 @@ from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.tasks.update import (run_csw_update, run_wfs_update,
                                    run_wms_update)
-from simple_history.utils import bulk_update_with_history
+from simple_history.utils import (bulk_create_with_history,
+                                  bulk_update_with_history)
 
 
 def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
@@ -89,14 +91,17 @@ class WebMapServiceUpdateSetting(PeriodicTask):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if not self.pk and not self.task:
-            self.task = "registry.tasks.update.create_wms_update_job"
-
-        if not self.pk and not self.queue:
-            self.queue = "update"
-        if not self.pk and not self.name:
-            # max 200 chars for name field
-            self.name = uuid4()
+        if not self.pk:
+            if not self.task:
+                self.task = "registry.tasks.update.create_wms_update_job"
+            if not self.queue:
+                self.queue = "update"
+            if not self.name:
+                self.name = str(uuid4())
+            if not self.kwargs or self.kwargs == '{}':
+                self.kwargs = json.dumps({
+                    "name": str(self.name),
+                })
 
 
 class WebMapServiceUpdateConfig(models.Model):
@@ -258,6 +263,10 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         verbose_name = _("Web Map Service Update Job")
         verbose_name_plural = _("Web Map Service Update Jobs")
 
+    @property
+    def default_change_reason(self):
+        return f"updatejob_id: {self.pk}"
+
     @cached_property
     def update_config(self) -> dict[str, dict[str, UpdateModeEnum]]:
         try:
@@ -346,7 +355,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             deleteable_layers = list(
                 self.deleteable_layers().values_list("id", flat=True))
             for layer in deleteable_layers:
-                layer._change_reason = f"updatejob_id: {self.pk}"
+                layer._change_reason = self.default_change_reason
 
             old_by_identifier = {
                 layer.identifier: layer for layer in self.old_service.layers.all()}
@@ -364,14 +373,14 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
                     parent = mapping.new_layer.mptt_parent.mapping.old_layer if mapping.new_layer.mptt_parent else None
                     mapping.new_layer.mptt_parent = parent
                     mapping.new_layer.mptt_tree = self.service.root_layer.mptt_tree
-                    mapping._change_reason = f"updatejob_id: {self.pk}"
+                    mapping.new_layer._change_reason = self.default_change_reason
                     mapping.new_layer.save()
                     continue
 
                 # regular updating processing of an existing layer with old match. Update the existing layer by adjusting the parent and updating the fields.
                 updateable_layer = mapping.old_layer
                 new_layer = mapping.new_layer
-                updateable_layer._change_reason = f"updatejob_id: {self.pk}"
+                updateable_layer._change_reason = self.default_change_reason
                 updateable_layers.append(updateable_layer)
 
                 # adjust parent
@@ -383,9 +392,11 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
                     self.update_field(field_name, updateable_layer, new_layer)
 
             bulk_update_with_history(
-                updateable_layers,
-                Layer,
-                [field.name for field in Layer._meta.concrete_fields if field.name in fields],
+                objs=updateable_layers,
+                model=Layer,
+                fields=[
+                    field.name for field in Layer._meta.concrete_fields if field.name in fields],
+                default_change_reason=self.default_change_reason,
                 batch_size=500,
             )
 

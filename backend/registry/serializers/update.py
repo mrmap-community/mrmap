@@ -41,7 +41,7 @@ class WebMapServiceUpdateSettingSerializer(
 
     class Meta:
         model = WebMapServiceUpdateSetting
-        fields = ('url', 'service', 'schedule_interval')
+        fields = ('url', 'service', 'schedule_interval', 'enabled', )
 
 
 class UpdateJobBaseSerializer(Serializer):

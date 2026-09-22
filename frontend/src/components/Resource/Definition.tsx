@@ -1,6 +1,6 @@
 import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import {
-  ResourceProps
+    ResourceProps
 } from 'react-admin';
 
 import AgricultureIcon from '@mui/icons-material/Agriculture';
@@ -26,7 +26,7 @@ import CatalogueServiceList from './CatalogueService/CatalogueServiceList';
 import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
-import ListWebMapServiceMonitoringSetting from './Monitoring/Wms/ListWebMapServiceMonitoringSetting';
+import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
 import { WmsShow } from './WebMapService/Show/WmsShow';

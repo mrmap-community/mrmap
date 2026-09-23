@@ -18,28 +18,50 @@ const DialogRoute = (
   }: DialogProps
 ) => {
   const location = useLocation()
-  const { id } = useParams<{ id?: string }>();
+  const { dialogId } = useParams<{ dialogId?: string }>();
   // detect "create" route reliably: check last path segment
   const lastSegment = location.pathname.replace(/\/$/, '').split('/').pop();
-  const isCreate = id === 'create' || lastSegment === 'create';
-  
+  const isCreate = dialogId === 'create' || lastSegment === 'create';
   // Check if the current path has trailing content after the ID
   // Dialog should not open only if: path has content after /show that ends with /show
   // Examples: 
   // - /id/show → open (just show)
   // - /id/nested/item → open (no trailing show)
   // - /id/nested/item/show → DON'T open (nested structure ending with show)
-  const cleanPath = location.pathname.replace(/\/$/, '');
-  const hasShowAtEnd = cleanPath.endsWith('/show');
-  const showIndex = cleanPath.lastIndexOf('/show');
-  const pathBeforeShow = showIndex >= 0 ? cleanPath.substring(0, showIndex) : cleanPath;
-  const pathAfterID = id ? pathBeforeShow.split(id)[1] : '';
-  const hasContentBetweenIDAndShow = hasShowAtEnd && pathAfterID && pathAfterID.split('/').filter(Boolean).length > 1;
-  const hasTrailingContent = id && !isCreate && hasContentBetweenIDAndShow;
   const resource = useResourceContext()
   const {name, options} = useResourceDefinition()
   const redirect = useRedirect();
   const translate = useTranslate()
+
+
+const isCurrentResource = useMemo(() => {
+    if (resource === undefined) return false
+    const segments = location.pathname
+        .replace(/^\/|\/$/g, '')
+        .split('/');
+
+    const resourceIndex = segments.lastIndexOf(resource);
+
+    if (resourceIndex === -1) {
+        return false;
+    }
+
+    // resource/:id must exist
+    if (!segments[resourceIndex + 1]) {
+        return false;
+    }
+
+    // Everything following resource/:id
+    const trailingSegments = segments.slice(resourceIndex + 2);
+
+    // "show" belongs to the current resource
+    // but anything after "show" means we're inside a nested resource
+    if (trailingSegments[0] === 'show') {
+        return trailingSegments.length === 1;
+    }
+
+    return trailingSegments.length === 0;
+}, [location.pathname, resource]);
 
   const title = useMemo(()=>(
     isCreate ? 
@@ -57,8 +79,9 @@ const DialogRoute = (
   return (
 
     <Dialog 
-      open={open || (Boolean(id) && !hasTrailingContent) || isCreate}
-      onClose={() => redirect("list", resource, id)}
+      open={open ||
+        (isCurrentResource && (Boolean(dialogId) || isCreate))}
+      onClose={() => redirect("list", resource, dialogId)}
       scroll={'paper'}
       maxWidth={'xl'}
       fullWidth
@@ -76,7 +99,7 @@ const DialogRoute = (
           <Typography variant='h6'>
             {title}
           </Typography>
-          <IconButton onClick={() => redirect("list", resource, id)}>
+          <IconButton onClick={() => redirect("list", resource, dialogId)}>
             <CloseIcon />
           </IconButton>
         </Stack>
@@ -94,6 +117,23 @@ const DialogRoute = (
   )
 }
 
+const DialogEditRoute = ({
+    editGuesserProps,
+}: {
+    editGuesserProps?: EditGuesserProps;
+}) => {
+const { dialogId } = useParams<{ dialogId: string }>();
+return (
+  <EditGuesser
+      id={dialogId}
+      simpleFormProps={{
+          component: DialogRoute,
+          toolbar: false,
+      }}
+      {...editGuesserProps}
+  />
+);
+};
 
 export interface ListWithDialogsProps {
   listGuesserProps?: ListGuesserProps
@@ -111,6 +151,7 @@ const ListWithDialogs = (
   const {hasEdit, hasCreate} = useResourceDefinition()
   return (
     <Fragment>
+
       <ListGuesser
         {...listGuesserProps}
       />
@@ -118,33 +159,29 @@ const ListWithDialogs = (
         {
           hasEdit ?
           <Route
-            path=":id/*"
-            element={<EditGuesser
-              simpleFormProps={
-                {
-                  component: DialogRoute,
-                  toolbar: false
-                }
+              path={`:dialogId/*`}
+              element={
+                <DialogEditRoute
+                  editGuesserProps={editGuesserProps}
+                />
               }
-              {...editGuesserProps}
-            />}
           />:
           null
         }
         {
           hasCreate ?
           <Route
-            path="create"
+            path={`create`}
             element={
             <CreateGuesser
-          simpleFormProps={
-            {
-              component: DialogRoute,
-              toolbar: false
-            }
-          }
-          {...createGuesserProps}
-        />}
+              simpleFormProps={
+                {
+                  component: DialogRoute,
+                  toolbar: false
+                }
+              }
+              {...createGuesserProps}
+            />}
           />:
           null
         }

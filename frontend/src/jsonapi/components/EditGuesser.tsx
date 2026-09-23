@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, useCallback, useMemo } from 'react';
-import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, UseCreateMutateParams, useNotify, useRecordContext, useRedirect, useResourceDefinition, useTranslate } from 'react-admin';
+import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, UseCreateMutateParams, useNotify, useRecordContext, useRedirect, useResourceContext, useResourceDefinition, useTranslate } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
@@ -82,6 +82,7 @@ const EditGuesserBase = (
   const notify = useNotify();
   const redirect = useRedirect();
   const { getErrors } = useReferenceManyErrors();
+  const resource = useResourceContext({resource: props.resource})
   
   const { name, options } = useResourceDefinition(props)
   const {sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
@@ -119,7 +120,7 @@ const EditGuesserBase = (
 
     const referenceManyErrors = getErrors()
     if (referenceManyErrors.length > 0){
-      notify(`resources.${props.resource}.notifications.updated_with_errors`, {
+      notify(`resources.${resource}.notifications.updated_with_errors`, {
               type: 'warning',
               messageArgs: {
                 smart_count: 1,
@@ -131,7 +132,7 @@ const EditGuesserBase = (
       });
       redirect(
         'edit',
-        props.resource,
+        resource,
         data.id,
         undefined,
         {
@@ -141,7 +142,7 @@ const EditGuesserBase = (
     } else {
       //TODO: updated but with subprocessing errors...
       // notify with the correct message
-      notify(`resources.${props.resource}.notifications.update`, {
+      notify(`resources.${resource}.notifications.update`, {
             type: 'info',
             messageArgs: {
                 smart_count: 1,
@@ -151,11 +152,10 @@ const EditGuesserBase = (
             },
             undoable: props.mutationMode === 'undoable',
         });
-      redirect(props.redirect ?? 'list', props.resource, data.id, data)
+      redirect(props.redirect ?? 'list', resource, data.id, data)
     }
 
-  },[props.resource])
-
+  },[resource])
   // be clear that json:api type is always part of mutationOptions so that the dataprovider has all information he needs
   const _mutationOptions = useMemo(() => {
     return {
@@ -178,6 +178,7 @@ const EditGuesserBase = (
       }}
       mutationOptions={_mutationOptions}
       mutationMode='pessimistic'
+      resource={resource}
       {...props}
     >
       <EditFormGuesser
@@ -185,6 +186,7 @@ const EditGuesserBase = (
         updateFieldDefinitions={updateFieldDefinitions}
         referenceInputs ={referenceInputs}
         simpleFormProps={{...simpleFormProps}}
+        resource={resource}
         {...props}
       />
     </Edit>
@@ -193,6 +195,7 @@ const EditGuesserBase = (
 
 
 const EditGuesser = ({...rest}: EditGuesserProps) => {
+ 
   return (
     <ReferenceManyErrorsProvider>
       <EditGuesserBase {...rest}/>

@@ -1,4 +1,4 @@
-import { SimpleShowLayout, useGetList, useRecordContext, useResourceContext } from "react-admin";
+import { RecordContext, SimpleShowLayout, TextField, useGetList, useRecordContext, useResourceContext } from "react-admin";
 
 import { RaRecord, UrlField, WithRecord } from 'react-admin';
 import { prepareGetCapabilititesUrl } from "../../../../../ows-lib/OwsContext/utils";
@@ -106,32 +106,38 @@ const OverviewtTab = () => {
     }
   )
 
-  const { data: updateJobs } = useGetList(
+
+  const { data: reviewRequiered } = useGetList(
     "WebMapServiceUpdateJob", 
     {
+      filter: {"statusCode": 2},
       sort: {field: 'doneAt', order: 'DESC'},
+      pagination: { perPage: 1, page: 1 },
       meta: {
         relatedResource: {
           resource: resource,
           id: record?.id
+        },
+        jsonApiParams: {
+          include: 'mappings'
         }
       }
     }
   )
 
-  
+
 
 
   console.log(
-    "updateJobas",
-    updateJobs
+    "reviewRequiered",
+    reviewRequiered
   )
 
 
   return (
     <Fragment>
       <UpdateJobStats/>
-
+    
 
       <SimpleShowLayout>
         <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
@@ -149,6 +155,17 @@ const OverviewtTab = () => {
         />
         <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
       </SimpleShowLayout>
+
+    <RecordContext
+      value={reviewRequiered?.[0]}
+    >
+      <SimpleShowLayout
+      >
+        <TextField source="status" />
+
+      </SimpleShowLayout>
+    </RecordContext>
+
     </Fragment>
   )
 }

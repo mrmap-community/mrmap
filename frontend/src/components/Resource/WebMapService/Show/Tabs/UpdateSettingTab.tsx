@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
 import { ResourceContext, useRecordContext, useResourceContext } from 'react-admin';
-import { Fragment } from 'react/jsx-runtime';
-import ListWithDialogs from '../../../../../jsonapi/components/ListWithDialogs';
 import { RelatedResource } from '../../../../../providers/dataProvider';
 import ListWebMapServiceUpdateSetting from '../../../Update/Wms/ListWebMapServiceUpdateSetting';
 
@@ -18,7 +16,6 @@ export const UpdateSettingTab = () => {
   },[resource, record])
 
   return (
-    <Fragment>
       <ResourceContext
         value='WebMapServiceUpdateSetting'
       >
@@ -27,18 +24,6 @@ export const UpdateSettingTab = () => {
         />
       </ResourceContext>
 
-      <ResourceContext
-        value='WebMapServiceUpdateJob'
-      >
-        <ListWithDialogs
-          listGuesserProps={
-            {
-              relatedResource: relatedResource
-            }
-          }
-        />
-      </ResourceContext>
-    </Fragment>
   )
 }
 

@@ -1,5 +1,5 @@
 from django.utils.translation import gettext_lazy as _
-from django_filters.filters import CharFilter
+from django_filters.filters import NumberFilter
 from django_filters.filterset import FilterSet
 from registry.models.update import (CatalogueServiceUpdateJob,
                                     FeatureTypeMapping, LayerMapping,
@@ -9,7 +9,15 @@ from registry.models.update import (CatalogueServiceUpdateJob,
 
 class WebMapServiceUpdateJobFilterSet(FilterSet):
 
-    status_code = CharFilter(field_name="status", )
+    status_code = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+    )
+    status_code__ne = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+        exclude=True,
+    )
 
     class Meta:
         model = WebMapServiceUpdateJob

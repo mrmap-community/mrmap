@@ -1,12 +1,13 @@
-import { RecordContext, SimpleShowLayout, TextField, useGetList, useRecordContext, useResourceContext } from "react-admin";
-
-import { RaRecord, UrlField, WithRecord } from 'react-admin';
-import { prepareGetCapabilititesUrl } from "../../../../../ows-lib/OwsContext/utils";
+import { LinearProgress, useGetList, useListContext, useRecordContext, useResourceContext, useTranslate } from "react-admin";
 
 
+
+import { alpha, Card, CardContent, CardHeader, Chip, Grid, Stack, Typography } from "@mui/material";
 import Box from '@mui/material/Box';
 import { LineChart, MarkElementProps } from '@mui/x-charts/LineChart';
+import { PropsWithChildren, useMemo } from "react";
 import { Fragment } from "react/jsx-runtime";
+import ListGuesser from "../../../../../jsonapi/components/ListGuesser";
 
 const margin = { right: 24 };
 const pData = [2400, 1398, 9800, 3908, 4800, 3800, 4300];
@@ -84,6 +85,273 @@ const UpdateJobStats = () => {
 }
 
 
+const WmsOverviewHeader = () =>{
+  const record = useRecordContext()
+
+  return (
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 6, md: 3 }}>
+          <Card variant="outlined">
+              <CardContent>
+                  <Typography variant="overline" color="text.secondary">
+                      Layers
+                  </Typography>
+
+                  <Typography variant="h4">
+                      {record?.layers.length}
+                  </Typography>
+
+                  <Typography variant="caption" color="text.secondary">
+                      2 changed remotely
+                  </Typography>
+              </CardContent>
+          </Card>
+      </Grid>
+      <Grid size={{ xs: 6, md: 3 }}>
+          <Card variant="outlined">
+              <CardContent>
+                  <Typography variant="overline" color="text.secondary">
+                      Last update
+                  </Typography>
+
+                  <Typography variant="h6">
+                      Today, 08:42
+                  </Typography>
+
+                  <Typography variant="caption" color="text.secondary">
+                      Completed in 14 s
+                  </Typography>
+              </CardContent>
+          </Card>
+      </Grid>
+
+      <Grid size={{ xs: 6, md: 3 }}>
+          <Card
+              variant="outlined"
+              sx={{
+                  borderColor: 'warning.main',
+                  bgcolor: 'warning.50',
+              }}
+          >
+              <CardContent>
+                  <Typography variant="overline" color="warning.main">
+                      Needs review
+                  </Typography>
+
+                  <Typography variant="h4">
+                      2
+                  </Typography>
+
+                  <Typography variant="caption">
+                      Open update jobs
+                  </Typography>
+              </CardContent>
+          </Card>
+      </Grid>
+
+      <Grid size={{ xs: 6, md: 3 }}>
+          <Card variant="outlined">
+              <CardContent>
+                  <Typography variant="overline" color="text.secondary">
+                      Monitoring
+                  </Typography>
+
+                  <Chip
+                      size="small"
+                      color="success"
+                      label="Healthy"
+                  />
+              </CardContent>
+          </Card>
+      </Grid>
+    </Grid>
+  )
+}
+
+
+
+
+const UpdateJobsCardBase = (
+  {
+    children
+  }: PropsWithChildren
+) => {
+  const {data, isPending, error, meta } = useListContext();
+  const nestedResource = "WebMapServiceUpdateJob"
+  const translate = useTranslate()
+  const reviewRequired = useMemo(() => data?.some(record => record.statusCode === 2 || false),[data])
+  
+  console.log(data,reviewRequired)
+  return (
+    <Card 
+      variant="outlined" 
+      sx={(theme) => (reviewRequired ? {
+            border: 1,
+            borderColor: 'warning.main',
+        }: {
+          border: 1,
+          borderColor: 'success.main',
+        })}
+    >
+      <CardHeader
+        title={
+          reviewRequired ? translate(`resources.${nestedResource}.reviewRequired`): translate(`resources.${nestedResource}.lastUpdateJobs`)
+        }
+        subheader={
+          reviewRequired ? translate(`resources.${nestedResource}.reviewRequiredSubheader`): translate(`resources.${nestedResource}.lastUpdateJobsSubheader`)
+        }
+        action={
+          reviewRequired? 
+          <Chip
+            size="small"
+            color="warning"
+            label="1 open"
+          />:
+          <Chip
+            size="small"
+            color="success"
+            label={data?.[0].doneAt}
+          />
+        }
+        severity="warning"
+        sx={(theme) => (reviewRequired ?{
+            bgcolor: alpha(theme.palette.warning.main, 0.08),
+            borderColor: 'warning.main',
+        }:{
+          bgcolor: alpha(theme.palette.success.main, 0.08),
+          borderColor: 'success.main',
+        }
+      )}
+      >
+        
+      </CardHeader>
+      
+    <CardContent>
+      {children}
+     
+
+
+
+      {
+        /*
+        <List disablePadding>
+        <ListItem
+            divider
+            secondaryAction={
+                <Button
+                    variant="contained"
+                    size="small"
+                >
+                    Review changes
+                </Button>
+            }
+        >
+            <ListItemText
+                primary={
+                    <Stack direction="row" spacing={1} sx={{
+              alignItems:"center"
+            }}>
+                        <Typography >
+                            Update #1842
+                        </Typography>
+
+                        <Chip
+                            label="Manual review"
+                            size="small"
+                        />const { isPending, error, meta } = useListContext();
+                    </Stack>
+                }
+                secondary="3 layer changes · 1 new layer · metadata changed"
+            />
+        </ListItem>
+    </List>
+        */
+      }
+      </CardContent>
+
+</Card>
+  )
+}
+
+const UpdateJobsCard = () => {
+  const resource = useResourceContext()
+  const nestedResource = "WebMapServiceUpdateJob"
+  const record = useRecordContext()
+  const relatedResource = {
+    resource: resource,
+    id: record?.id
+  }
+  return (
+    <ListGuesser
+      resource={nestedResource}
+      relatedResource={relatedResource}
+      disableSyncWithLocation
+      sort={{field:"doneAt", order:"DESC"}}
+      filter={{"status_code__ne": 4}}
+      actions={<></>}
+      pagination={<></>}
+      component={UpdateJobsCardBase}
+      
+      defaultSelectedColumns={["id", "dateCreated", "doneAt", "status"]}
+    />
+  )
+}
+
+
+const MonitoringOverview = () => {
+  return (
+
+    <Stack spacing={2}>
+      <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            alignItems:"center"
+          }}
+      >
+          <Typography sx={{ width: 130 }}>
+              GetCapabilities
+          </Typography>
+
+          <LinearProgress
+              variant="determinate"
+              value={38}
+              color="success"
+              sx={{ flex: 1 }}
+          />
+
+          <Typography sx={{ width: 70, textAlign: 'right' }}>
+              462 ms
+          </Typography>
+      </Stack>
+
+      <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            alignItems:"center"
+          }}
+      >
+          <Typography sx={{ width: 130 }}>
+              GetMap
+          </Typography>
+
+          <LinearProgress
+              variant="determinate"
+              value={71}
+              color="success"
+              sx={{ flex: 1 }}
+          />
+
+          <Typography sx={{ width: 70, textAlign: 'right' }}>
+              891 ms
+          </Typography>
+      </Stack>
+    </Stack>
+  )
+}
+
+
 const OverviewtTab = () => {
 
 
@@ -107,35 +375,20 @@ const OverviewtTab = () => {
   )
 
 
-  const { data: reviewRequiered } = useGetList(
-    "WebMapServiceUpdateJob", 
-    {
-      filter: {"statusCode": 2},
-      sort: {field: 'doneAt', order: 'DESC'},
-      pagination: { perPage: 1, page: 1 },
-      meta: {
-        relatedResource: {
-          resource: resource,
-          id: record?.id
-        },
-        jsonApiParams: {
-          include: 'mappings'
-        }
-      }
-    }
-  )
 
-
-
-
-  console.log(
-    "reviewRequiered",
-    reviewRequiered
-  )
 
 
   return (
-    <Fragment>
+    <Stack spacing={3}>
+
+      <WmsOverviewHeader/>
+
+      <UpdateJobsCard/>
+      <MonitoringOverview/>
+
+
+{
+/*
       <UpdateJobStats/>
     
 
@@ -165,8 +418,9 @@ const OverviewtTab = () => {
 
       </SimpleShowLayout>
     </RecordContext>
-
-    </Fragment>
+    */
+}
+    </Stack>
   )
 }
 

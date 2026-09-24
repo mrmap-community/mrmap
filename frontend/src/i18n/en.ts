@@ -28,6 +28,12 @@ const en = lodashMerge(
         historyType: "Action",
         historyRelation: "Object",
         lastChanges: "Last Changes",
+      },
+      WebMapServiceUpdateJob: {
+        reviewRequired: "Review is required",
+        reviewRequiredSubheader: "Remote capabilities contain changes that are not applied yet.",
+        lastUpdateJobs: "Last Updatejobs",
+        lastUpdateJobsSubheader: "No action is needed."
       }
     }
   }

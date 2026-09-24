@@ -14,6 +14,7 @@ from django_celery_beat.models import PeriodicTask
 from epsg_cache.utils import adjust_axis_order
 from lxml import etree
 from PIL import Image, UnidentifiedImageError
+from registry.managers.monitoring import WebMapServiceMonitoringRunManager
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.service import Layer, WebMapService
 from requests import Response
@@ -83,6 +84,8 @@ class WebMapServiceMonitoringRun(models.Model):
         help_text=_('Datetime field when the run was done in UTC'),
         null=True,
         blank=True)
+
+    objects = WebMapServiceMonitoringRunManager()
 
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding

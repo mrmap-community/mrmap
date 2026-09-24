@@ -1,96 +1,77 @@
-import { LinearProgress, useGetList, useListContext, useRecordContext, useResourceContext, useTranslate } from "react-admin";
+import { LinearProgress, RaRecord, RecordRepresentation, ShowButton, SimpleList, UrlField, useListContext, useRecordContext, useResourceContext, useTranslate, WithRecord } from "react-admin";
 
 
-
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { alpha, Card, CardContent, CardHeader, Chip, Grid, Stack, Typography } from "@mui/material";
-import Box from '@mui/material/Box';
-import { LineChart, MarkElementProps } from '@mui/x-charts/LineChart';
-import { PropsWithChildren, useMemo } from "react";
-import { Fragment } from "react/jsx-runtime";
+import { PropsWithChildren, useCallback, useMemo } from "react";
 import ListGuesser from "../../../../../jsonapi/components/ListGuesser";
 
-const margin = { right: 24 };
-const pData = [2400, 1398, 9800, 3908, 4800, 3800, 4300];
-const xLabels = [
-  'Page A',
-  'Page B',
-  'Page C',
-  'Page D',
-  'Page E',
-  'Page F',
-  'Page G',
-];
+import { format, isToday, isYesterday } from 'date-fns';
+import { prepareGetCapabilititesUrl } from "../../../../../ows-lib/OwsContext/utils";
 
-const CustomMark = (props: MarkElementProps) => {
-  const { x, y, color } = props;
-
-  return (
-    <g>
-      <circle cx={x} cy={y} r={4} fill={color || 'currentColor'} />
-      <text
-        x={x}
-        y={Number(y) - 12}
-        style={{
-          textAnchor: 'middle',
-          dominantBaseline: 'auto',
-          fill: color || 'currentColor',
-          fontWeight: 'bold',
-          fontSize: 12,
-        }}
-      >
-        {pData[props.dataIndex].toString()}
-      </text>
-    </g>
-  );
+const getDuration = (
+  dateCreated: string,
+  dateDone?: string,
+) => {
+  const created = new Date(dateCreated);
+  return dateDone
+        ? (new Date(dateDone).getTime() - created.getTime()) / 1000
+        : undefined;
 }
 
-const CustomLabelChart = () => {
-  return (
-    <Box sx={{ width: '100%', height: 300 }}>
-      <LineChart
-        series={[{ data: pData, label: 'pv', showMark: true }]}
-        xAxis={[{ scaleType: 'point', data: xLabels }]}
-        yAxis={[{ width: 50 }]}
-        margin={margin}
-        slots={{
-          mark: CustomMark,
-        }}
-      />
-    </Box>
-  );
-}
+const formatMonitoringRun = (
+    dateCreated: string,
+    dateDone?: string,
+) => {
+    const created = new Date(dateCreated);
 
-const UpdateJobStats = () => {
-  const record = useRecordContext()
+    const dateLabel = isToday(created)
+        ? 'Today'
+        : isYesterday(created)
+          ? 'Yesterday'
+          : format(created, 'dd.MM.yyyy');
 
-  const {data} = useGetList(
-    "HistoricalLayer",
-    {
-      filter: {
-        //"history_change_reason__icontains": "updatejob_id: 2"
-        //"history_date": "2026-09-18T11:46:40.704159+02:00"
-      },
-      meta: {
-        // TODO: sparsefields
-        
-      }
-    }
-  )
+    const timeLabel = format(created, 'HH:mm');
 
-  console.log(record, "history_data",data)
+    const duration = getDuration(dateCreated, dateDone)
 
-  return (
-    <Fragment/>
-  )
-}
+    return `${dateLabel}, ${timeLabel}${
+        duration !== undefined ? ` · ${duration.toFixed(2)} s` : ''
+    }`;
+};
+
 
 
 const WmsOverviewHeader = () =>{
   const record = useRecordContext()
 
   return (
-    <Grid container spacing={2}>
-      <Grid size={{ xs: 6, md: 3 }}>
+    <Stack
+      direction={{
+        sm: "column",
+        lg: "row",
+      }}
+      sx={{
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+      }}
+    >
+      <Stack>
+        <Typography><RecordRepresentation/> <Chip variant="outlined" label={String(record?.version)?.split("").join(".")}/></Typography>
+        <WithRecord 
+          //label="show remote capabilities" 
+          render={(record: RaRecord) => {
+              const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
+              url.url = prepareGetCapabilititesUrl(
+                      url.url,
+                      "WMS",
+                      record.version.toString().split('').join('.')
+                  ).href
+              return url ? <UrlField record={url} source="url"/> : null; 
+          }}
+        />
+      </Stack>
+      <Grid  container spacing={1} direction="row" sx={{marginTop: 1, alignItems: "stretch"}}>
           <Card variant="outlined">
               <CardContent>
                   <Typography variant="overline" color="text.secondary">
@@ -106,8 +87,6 @@ const WmsOverviewHeader = () =>{
                   </Typography>
               </CardContent>
           </Card>
-      </Grid>
-      <Grid size={{ xs: 6, md: 3 }}>
           <Card variant="outlined">
               <CardContent>
                   <Typography variant="overline" color="text.secondary">
@@ -123,9 +102,7 @@ const WmsOverviewHeader = () =>{
                   </Typography>
               </CardContent>
           </Card>
-      </Grid>
 
-      <Grid size={{ xs: 6, md: 3 }}>
           <Card
               variant="outlined"
               sx={{
@@ -147,9 +124,7 @@ const WmsOverviewHeader = () =>{
                   </Typography>
               </CardContent>
           </Card>
-      </Grid>
 
-      <Grid size={{ xs: 6, md: 3 }}>
           <Card variant="outlined">
               <CardContent>
                   <Typography variant="overline" color="text.secondary">
@@ -163,8 +138,8 @@ const WmsOverviewHeader = () =>{
                   />
               </CardContent>
           </Card>
-      </Grid>
     </Grid>
+    </Stack>
   )
 }
 
@@ -181,7 +156,6 @@ const UpdateJobsCardBase = (
   const translate = useTranslate()
   const reviewRequired = useMemo(() => data?.some(record => record.statusCode === 2 || false),[data])
   
-  console.log(data,reviewRequired)
   return (
     <Card 
       variant="outlined" 
@@ -273,9 +247,231 @@ const UpdateJobsCardBase = (
   )
 }
 
+
+const UpdateJobsList = () => {
+  const changes = useCallback((record: RaRecord)=>{
+    const changes = []
+    const newLayers = record?.mappings?.filter((mapping: RaRecord) => mapping.newLayer !== undefined && mapping.oldLayer === undefined)
+    const deletedLayers = record?.mappings?.filter((mapping: RaRecord) => mapping.newLayer === undefined && mapping.oldLayer !== undefined)
+
+    deletedLayers.length > 0 && changes.push(`${deletedLayers} layer(s) are marked for deletion`)
+    newLayers.length > 0 && changes.push(`${newLayers.length || 0} new layer(s)`)
+
+    return changes.join("·")
+  },[])
+
+  return (
+    <SimpleList
+        rightIcon={(record) => <ShowButton 
+                                  label={record.status === 'Review required' ? 'Review' : 'View'}
+                                  variant="contained" 
+                                  color={record.status === 'Review required' ? 'warning' : 'primary'}
+                                  icon={false}
+                                /> 
+        }
+        primaryText={(record) => `Update #${record.id}`}
+        secondaryText={record => `${record.status} | ${changes(record)}`}
+        rowClick={false}
+        sx={{
+        p: 0,
+
+        '& .MuiListItem-root': {
+            px: 0,
+            py: 0.5,
+            minHeight: 32,
+        },
+
+        '& .MuiListItemText-root': {
+            m: 0,
+        },
+
+        '& .MuiListItemButton-root': {
+            py: 0,
+        },
+    }}
+    />
+  )
+}
+
 const UpdateJobsCard = () => {
   const resource = useResourceContext()
   const nestedResource = "WebMapServiceUpdateJob"
+  const record = useRecordContext()
+  const relatedResource = {
+    resource: resource,
+    id: record?.id
+  }
+  const queryOptions = {
+    meta: {
+      jsonApiParams: {
+        include: 'mappings'
+      }
+    }
+  }
+  return (
+    <ListGuesser
+      resource={nestedResource}
+      relatedResource={relatedResource}
+      disableSyncWithLocation
+      sort={{field:"doneAt", order:"DESC"}}
+      filter={{"status_code__ne": 4}}
+      queryOptions={queryOptions}
+      actions={<></>}
+      pagination={<></>}
+      component={UpdateJobsCardBase}
+      storeKey="wms_overview_update_jobs"
+      defaultSelectedColumns={["id", "dateCreated", "doneAt", "status"]}
+      dataGridProps={{
+        component:UpdateJobsList
+      }}
+    />
+  )
+}
+
+
+const LastMonitoringRunSummary = () => {
+  const {data } = useListContext();
+
+  const lastRun = data?.[0]
+  return (
+    <Card
+      variant="outlined"
+    >
+      <CardHeader
+        title={"Last monitoring job"}
+        subheader={lastRun?.dateCreated && formatMonitoringRun(lastRun?.dateCreated, lastRun?.dateDone)}
+        action={
+          lastRun?.success ?
+          <Chip
+            size="small"
+            color="success"
+            variant="outlined"
+            label={
+              <Stack
+                direction="row"
+                sx={{
+                  alignItems:"center"
+                }}
+              >
+                <FiberManualRecordIcon
+                  color={lastRun.success ? 'success' : 'error'}
+                  sx={{ fontSize: 12 }}
+                  /> 
+                Passed
+              </Stack>
+            }
+          />:
+          <Chip
+            size="small"
+            color="error"
+            label="Failed"
+          />
+        }
+      >
+
+      </CardHeader>
+      <CardContent>
+        <Stack spacing={2}>
+          <Stack
+              direction="row"
+              spacing={2}
+              sx={{
+                alignItems:"center"
+              }}
+          >
+              <Typography sx={{ width: 130 }}>
+                  GetCapabilities
+              </Typography>
+
+              <LinearProgress
+                  variant="determinate"
+                  value={38}
+                  color="success"
+                  sx={{ flex: 1 }}
+              />
+
+              <Typography sx={{ width: 70, textAlign: 'right' }}>
+                  462 ms
+              </Typography>
+          </Stack>
+
+          <Stack
+              direction="row"
+              spacing={2}
+              sx={{
+                alignItems:"center"
+              }}
+          >
+              <Typography sx={{ width: 130 }}>
+                  GetMap
+              </Typography>
+
+              <LinearProgress
+                  variant="determinate"
+                  value={71}
+                  color="success"
+                  sx={{ flex: 1 }}
+              />
+
+              <Typography sx={{ width: 70, textAlign: 'right' }}>
+                  891 ms
+              </Typography>
+          </Stack>
+        </Stack>
+        </CardContent>
+    </Card>
+  )
+}
+
+const MonitoringRunsCardBase = ({
+  children
+}: PropsWithChildren) => {
+  return (
+    <Stack spacing={2}>
+      <LastMonitoringRunSummary/>
+      <Card variant="outlined">
+        <CardHeader
+          title="Recent checks"
+        />
+        {children}
+      </Card>
+    </Stack>
+  )
+}
+
+const MonitoringRunsList = () => {
+  return (
+    <SimpleList
+        leftIcon={(record) => <FiberManualRecordIcon color={record.success? "success": "warning"}/>}
+        rightIcon={(record) => `${getDuration(record?.dateCreated, record?.dateDone)?.toFixed(2)} s`}
+        primaryText={(record) => formatMonitoringRun(record?.dateDone)}
+        //secondaryText={record => `${record?.getMapProbeResults?.length + record?.getCapabilititesProbeResults?.length} check(s) runned`}
+        rowClick={false}
+        sx={{
+        p: 0,
+
+        '& .MuiListItem-root': {
+            px: 0,
+            py: 0.5,
+            minHeight: 32,
+        },
+
+        '& .MuiListItemText-root': {
+            m: 0,
+        },
+
+        '& .MuiListItemButton-root': {
+            py: 0,
+        },
+    }}
+    />
+  )
+}
+
+
+const MonitoringRunsCard = () => {
+  const resource = useResourceContext()
+  const nestedResource = "WebMapServiceMonitoringRun"
   const record = useRecordContext()
   const relatedResource = {
     resource: resource,
@@ -286,140 +482,33 @@ const UpdateJobsCard = () => {
       resource={nestedResource}
       relatedResource={relatedResource}
       disableSyncWithLocation
-      sort={{field:"doneAt", order:"DESC"}}
-      filter={{"status_code__ne": 4}}
+      sort={{field:"dateDone", order:"DESC"}}
+      perPage={5}
       actions={<></>}
       pagination={<></>}
-      component={UpdateJobsCardBase}
-      
-      defaultSelectedColumns={["id", "dateCreated", "doneAt", "status"]}
+      component={MonitoringRunsCardBase}
+      storeKey="wms_overview_monitoring_runs"
+      defaultSelectedColumns={["id", "dateCreated", "dateDone", "status"]}
+      dataGridProps={{
+        component: MonitoringRunsList
+      }}      
     />
   )
 }
 
 
-const MonitoringOverview = () => {
-  return (
-
-    <Stack spacing={2}>
-      <Stack
-          direction="row"
-          spacing={2}
-          sx={{
-            alignItems:"center"
-          }}
-      >
-          <Typography sx={{ width: 130 }}>
-              GetCapabilities
-          </Typography>
-
-          <LinearProgress
-              variant="determinate"
-              value={38}
-              color="success"
-              sx={{ flex: 1 }}
-          />
-
-          <Typography sx={{ width: 70, textAlign: 'right' }}>
-              462 ms
-          </Typography>
-      </Stack>
-
-      <Stack
-          direction="row"
-          spacing={2}
-          sx={{
-            alignItems:"center"
-          }}
-      >
-          <Typography sx={{ width: 130 }}>
-              GetMap
-          </Typography>
-
-          <LinearProgress
-              variant="determinate"
-              value={71}
-              color="success"
-              sx={{ flex: 1 }}
-          />
-
-          <Typography sx={{ width: 70, textAlign: 'right' }}>
-              891 ms
-          </Typography>
-      </Stack>
-    </Stack>
-  )
-}
-
-
 const OverviewtTab = () => {
-
-
-  // Monitoring statistics
-  // Update statistics
-  // General State => isSearchable, isActive, isSecured, isSpatialSecured
-
-  const record = useRecordContext()
-  const resource = useResourceContext()
-
-  const { data: monitoringRuns } = useGetList(
-    "WebMapServiceMonitoringRun", 
-    {
-      meta: {
-        relatedResource: {
-          resource: resource,
-          id: record?.id
-        }
-      }
-    }
-  )
-
-
-
-
-
   return (
-    <Stack spacing={3}>
-
+    <Stack spacing={1}>
       <WmsOverviewHeader/>
-
-      <UpdateJobsCard/>
-      <MonitoringOverview/>
-
-
-{
-/*
-      <UpdateJobStats/>
-    
-
-      <SimpleShowLayout>
-        <UrlField source="xmlBackupFile" label='show stored capabilitites'/>
-        <WithRecord 
-            label="show remote capabilities" 
-            render={(record: RaRecord) => {
-                const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
-                url.url = prepareGetCapabilititesUrl(
-                        url.url,
-                        "WMS",
-                        record.version.toString().split('').join('.')
-                    ).href
-                return url ? <UrlField record={url} source="url"/> : null; 
-            }}
-        />
-        <UrlField source="xmlBackupFileSecured" label='show secured capabilitites'/>
-      </SimpleShowLayout>
-
-    <RecordContext
-      value={reviewRequiered?.[0]}
-    >
-      <SimpleShowLayout
-      >
-        <TextField source="status" />
-
-      </SimpleShowLayout>
-    </RecordContext>
-    */
-}
+      <Grid container spacing={2} sx={{alignItems: "stretch"}}>
+        <Grid size={{ sm: 12, md: 6 }}>
+          <UpdateJobsCard/>
+        </Grid>
+        <Grid size={{ sm: 12, md: 6 }}>
+          <MonitoringRunsCard/>
+        </Grid>
+      </Grid>
     </Stack>
   )
 }

@@ -1,8 +1,9 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useState } from 'react'
-import { DatagridConfigurable, EditButton, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
+import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 
+import { merge } from 'lodash'
 import HistoryList from '../../components/HistoryList'
 import AsideCard from '../../components/Layout/AsideCard'
 import ListActions, { CustomListActionsProps } from '../../components/Lists/CustomListActions'
@@ -30,6 +31,7 @@ export interface ListGuesserProps extends Partial<ListProps> {
   refetchInterval?: number | false
   defaultSelectedColumns? : string[]
   ActionsComponent?: React.ComponentType<CustomListActionsProps>
+  dataGridProps?: DatagridConfigurableProps
 }
 
 
@@ -44,6 +46,7 @@ const ListGuesser = ({
   refetchInterval=false,
   defaultSelectedColumns = ["stringRepresentation", "title", "abstract", "username", "actions", "id"],
   ActionsComponent=ListActions,
+  dataGridProps,
   ...props
 }: ListGuesserProps): ReactElement => {
   const ListComponent = realtime ? RealtimeList: List
@@ -112,21 +115,26 @@ const ListGuesser = ({
         />
       }
       empty={props.empty || <EmptyList />}
-      queryOptions={{
-        refetchInterval,
-        onError,
-        meta: (relatedResource?.resource !== '')
-          ? {
-            jsonApiParams: { ...jsonApiQuery }
-          }
-          : {
-            relatedResource: {
-              resource: relatedResource?.resource,
-              id: relatedResource?.id ?? id
-            },
-            jsonApiParams: { ...jsonApiQuery }
-          }
-      }}
+      queryOptions={
+        merge(
+          {
+            refetchInterval,
+            onError,
+            meta: (relatedResource?.resource !== '')
+              ? {
+                jsonApiParams: { ...jsonApiQuery }
+              }
+              : {
+                relatedResource: {
+                  resource: relatedResource?.resource,
+                  id: relatedResource?.id ?? id
+                },
+                jsonApiParams: { ...jsonApiQuery }
+              }
+          },
+          props.queryOptions
+        )
+      }
       
 
       aside={
@@ -161,6 +169,7 @@ const ListGuesser = ({
         preferenceKey={preferenceKey}
         omit={defaultOmit}
         empty={<EmptyListWithFilter />}
+        {...dataGridProps}
       >
         {...fields}
         {/**TODO: label should be translated */}

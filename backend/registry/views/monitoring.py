@@ -72,7 +72,7 @@ class WebMapServiceMonitoringRunViewSetMixin:
             Endpoint to remove a registered `WebMapServiceMonitoringRun` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = WebMapServiceMonitoringRun.objects.all()
+    queryset = WebMapServiceMonitoringRun.objects.with_success()
     serializer_class = WebMapServiceMonitoringRunSerializer
     select_for_includes = {
         "setting": ["setting"],
@@ -100,7 +100,7 @@ class WebMapServiceMonitoringRunViewSetMixin:
 
     }
     search_fields = ("id", "success", "setting__service__title")
-    ordering_fields = ["id", "success"]
+    ordering_fields = ["id", "success", "date_done", "date_created"]
 
 
 class WebMapServiceMonitoringRunViewSet(

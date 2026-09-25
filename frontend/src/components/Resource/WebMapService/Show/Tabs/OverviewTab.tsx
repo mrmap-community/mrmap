@@ -1,4 +1,4 @@
-import { LinearProgress, RaRecord, RecordRepresentation, ShowButton, SimpleList, UrlField, useListContext, useRecordContext, useResourceContext, useTranslate, WithRecord } from "react-admin";
+import { RaRecord, RecordRepresentation, ShowButton, SimpleList, UrlField, useListContext, useRecordContext, useResourceContext, useResourceDefinition, useTranslate, WithRecord } from "react-admin";
 
 
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
@@ -8,6 +8,7 @@ import ListGuesser from "../../../../../jsonapi/components/ListGuesser";
 
 import { format, isToday, isYesterday } from 'date-fns';
 import { prepareGetCapabilititesUrl } from "../../../../../ows-lib/OwsContext/utils";
+import HistoryList from "../../../../HistoryList";
 
 const getDuration = (
   dateCreated: string,
@@ -44,7 +45,7 @@ const formatMonitoringRun = (
 
 const WmsOverviewHeader = () =>{
   const record = useRecordContext()
-
+  const {name} = useResourceDefinition()
   return (
     <Stack
       direction={{
@@ -71,74 +72,12 @@ const WmsOverviewHeader = () =>{
           }}
         />
       </Stack>
-      <Grid  container spacing={1} direction="row" sx={{marginTop: 1, alignItems: "stretch"}}>
-          <Card variant="outlined">
-              <CardContent>
-                  <Typography variant="overline" color="text.secondary">
-                      Layers
-                  </Typography>
-
-                  <Typography variant="h4">
-                      {record?.layers.length}
-                  </Typography>
-
-                  <Typography variant="caption" color="text.secondary">
-                      2 changed remotely
-                  </Typography>
-              </CardContent>
-          </Card>
-          <Card variant="outlined">
-              <CardContent>
-                  <Typography variant="overline" color="text.secondary">
-                      Last update
-                  </Typography>
-
-                  <Typography variant="h6">
-                      Today, 08:42
-                  </Typography>
-
-                  <Typography variant="caption" color="text.secondary">
-                      Completed in 14 s
-                  </Typography>
-              </CardContent>
-          </Card>
-
-          <Card
-              variant="outlined"
-              sx={{
-                  borderColor: 'warning.main',
-                  bgcolor: 'warning.50',
-              }}
-          >
-              <CardContent>
-                  <Typography variant="overline" color="warning.main">
-                      Needs review
-                  </Typography>
-
-                  <Typography variant="h4">
-                      2
-                  </Typography>
-
-                  <Typography variant="caption">
-                      Open update jobs
-                  </Typography>
-              </CardContent>
-          </Card>
-
-          <Card variant="outlined">
-              <CardContent>
-                  <Typography variant="overline" color="text.secondary">
-                      Monitoring
-                  </Typography>
-
-                  <Chip
-                      size="small"
-                      color="success"
-                      label="Healthy"
-                  />
-              </CardContent>
-          </Card>
-    </Grid>
+      <HistoryList
+        resource={`Historical${name ?? ''}`}
+        related={name ?? ''}
+        record={record}
+        
+      />
     </Stack>
   )
 }
@@ -151,7 +90,7 @@ const UpdateJobsCardBase = (
     children
   }: PropsWithChildren
 ) => {
-  const {data, isPending, error, meta } = useListContext();
+  const {data } = useListContext();
   const nestedResource = "WebMapServiceUpdateJob"
   const translate = useTranslate()
   const reviewRequired = useMemo(() => data?.some(record => record.statusCode === 2 || false),[data])
@@ -159,13 +98,14 @@ const UpdateJobsCardBase = (
   return (
     <Card 
       variant="outlined" 
-      sx={(theme) => (reviewRequired ? {
-            border: 1,
-            borderColor: 'warning.main',
+      sx={(theme) => ({
+        border: 1,
+        ...(reviewRequired ? {
+          borderColor: 'warning.main',
         }: {
-          border: 1,
           borderColor: 'success.main',
-        })}
+        })})
+      }
     >
       <CardHeader
         title={
@@ -196,54 +136,11 @@ const UpdateJobsCardBase = (
           borderColor: 'success.main',
         }
       )}
-      >
-        
-      </CardHeader>
-      
-    <CardContent>
-      {children}
-     
-
-
-
-      {
-        /*
-        <List disablePadding>
-        <ListItem
-            divider
-            secondaryAction={
-                <Button
-                    variant="contained"
-                    size="small"
-                >
-                    Review changes
-                </Button>
-            }
-        >
-            <ListItemText
-                primary={
-                    <Stack direction="row" spacing={1} sx={{
-              alignItems:"center"
-            }}>
-                        <Typography >
-                            Update #1842
-                        </Typography>
-
-                        <Chip
-                            label="Manual review"
-                            size="small"
-                        />const { isPending, error, meta } = useListContext();
-                    </Stack>
-                }
-                secondary="3 layer changes · 1 new layer · metadata changed"
-            />
-        </ListItem>
-    </List>
-        */
-      }
+      />      
+      <CardContent>
+        {children}
       </CardContent>
-
-</Card>
+    </Card>
   )
 }
 
@@ -329,111 +226,69 @@ const UpdateJobsCard = () => {
 }
 
 
-const LastMonitoringRunSummary = () => {
-  const {data } = useListContext();
-
-  const lastRun = data?.[0]
-  return (
-    <Card
-      variant="outlined"
-    >
-      <CardHeader
-        title={"Last monitoring job"}
-        subheader={lastRun?.dateCreated && formatMonitoringRun(lastRun?.dateCreated, lastRun?.dateDone)}
-        action={
-          lastRun?.success ?
-          <Chip
-            size="small"
-            color="success"
-            variant="outlined"
-            label={
-              <Stack
-                direction="row"
-                sx={{
-                  alignItems:"center"
-                }}
-              >
-                <FiberManualRecordIcon
-                  color={lastRun.success ? 'success' : 'error'}
-                  sx={{ fontSize: 12 }}
-                  /> 
-                Passed
-              </Stack>
-            }
-          />:
-          <Chip
-            size="small"
-            color="error"
-            label="Failed"
-          />
-        }
-      >
-
-      </CardHeader>
-      <CardContent>
-        <Stack spacing={2}>
-          <Stack
-              direction="row"
-              spacing={2}
-              sx={{
-                alignItems:"center"
-              }}
-          >
-              <Typography sx={{ width: 130 }}>
-                  GetCapabilities
-              </Typography>
-
-              <LinearProgress
-                  variant="determinate"
-                  value={38}
-                  color="success"
-                  sx={{ flex: 1 }}
-              />
-
-              <Typography sx={{ width: 70, textAlign: 'right' }}>
-                  462 ms
-              </Typography>
-          </Stack>
-
-          <Stack
-              direction="row"
-              spacing={2}
-              sx={{
-                alignItems:"center"
-              }}
-          >
-              <Typography sx={{ width: 130 }}>
-                  GetMap
-              </Typography>
-
-              <LinearProgress
-                  variant="determinate"
-                  value={71}
-                  color="success"
-                  sx={{ flex: 1 }}
-              />
-
-              <Typography sx={{ width: 70, textAlign: 'right' }}>
-                  891 ms
-              </Typography>
-          </Stack>
-        </Stack>
-        </CardContent>
-    </Card>
-  )
-}
 
 const MonitoringRunsCardBase = ({
   children
 }: PropsWithChildren) => {
+  const {data } = useListContext();
+  const translate = useTranslate();
+
+  const lastRun = data?.[0]
   return (
     <Stack spacing={2}>
-      <LastMonitoringRunSummary/>
-      <Card variant="outlined">
+      <Card 
+        variant="outlined"
+         sx={(theme) => (lastRun?.success ? {
+            border: 1,
+            borderColor: 'success.main',
+        }: {
+          border: 1,
+          borderColor: 'warning.main',
+        })}
+      >
         <CardHeader
-          title="Recent checks"
+          title={"Last monitoring runs"}
+          subheader={lastRun?.dateCreated && formatMonitoringRun(lastRun?.dateCreated, lastRun?.dateDone)}
+          action={
+            lastRun?.success ?
+            <Chip
+              size="small"
+              color="success"
+              variant="outlined"
+              label={
+                <Stack
+                  direction="row"
+                  sx={{
+                    alignItems:"center"
+                  }}
+                >
+                  <FiberManualRecordIcon
+                    color={lastRun?.success ? 'success' : 'error'}
+                    sx={{ fontSize: 12 }}
+                    /> 
+                  Passed
+                </Stack>
+              }
+            />:
+            <Chip
+              size="small"
+              color="error"
+              label="Failed"
+            />
+          }
+          sx={(theme) => (lastRun?.success ?{
+              bgcolor: alpha(theme.palette.success.main, 0.08),
+              borderColor: 'success.main',
+            }:{
+              bgcolor: alpha(theme.palette.success.main, 0.08),
+              borderColor: 'warning.main',
+          }
+          )}
         />
-        {children}
+         <CardContent>
+          {children}
+        </CardContent>
+        
       </Card>
     </Stack>
   )
@@ -443,9 +298,8 @@ const MonitoringRunsList = () => {
   return (
     <SimpleList
         leftIcon={(record) => <FiberManualRecordIcon color={record.success? "success": "warning"}/>}
-        rightIcon={(record) => `${getDuration(record?.dateCreated, record?.dateDone)?.toFixed(2)} s`}
-        primaryText={(record) => formatMonitoringRun(record?.dateDone)}
-        //secondaryText={record => `${record?.getMapProbeResults?.length + record?.getCapabilititesProbeResults?.length} check(s) runned`}
+        rightIcon={(record) => `${record?.getMapProbeResults?.length + record?.getCapabilititesProbeResults?.length} checks, in ${getDuration(record?.dateCreated, record?.dateDone)?.toFixed(2)} s`}
+        primaryText={(record) => `${formatMonitoringRun(record?.dateDone)}`}
         rowClick={false}
         sx={{
         p: 0,
@@ -501,11 +355,18 @@ const OverviewtTab = () => {
   return (
     <Stack spacing={1}>
       <WmsOverviewHeader/>
-      <Grid container spacing={2} sx={{alignItems: "stretch"}}>
-        <Grid size={{ sm: 12, md: 6 }}>
-          <UpdateJobsCard/>
+      <Grid 
+        container
+        direction={"row"}
+        sx={{
+          alignItems: "stretch",
+          justifyContent: "center",
+        }}
+      >
+        <Grid size={6}>
+          <UpdateJobsCard />
         </Grid>
-        <Grid size={{ sm: 12, md: 6 }}>
+        <Grid size={6}>
           <MonitoringRunsCard/>
         </Grid>
       </Grid>

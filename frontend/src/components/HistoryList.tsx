@@ -1,10 +1,10 @@
 import { type ReactNode, useMemo } from 'react'
-import { type RaRecord, RecordRepresentation, SimpleList, type SimpleListProps, useGetList, useGetRecordRepresentation } from 'react-admin'
+import { List, type RaRecord, RecordRepresentation, SimpleList, type SimpleListProps, useGetRecordRepresentation } from 'react-admin'
 
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import UpdateIcon from '@mui/icons-material/Update'
-import { Box, CardHeader, Chip, Typography } from '@mui/material'
+import { Box, Chip, Typography } from '@mui/material'
 
 const getIcon = (record: RaRecord): ReactNode => {
   if (record.historyType === 'created') {
@@ -17,8 +17,17 @@ const getIcon = (record: RaRecord): ReactNode => {
 }
 
 const getTertiaryText = (record: RaRecord): ReactNode => {
-   
-  return `${new Date(record.historyDate).toLocaleString('de-DE')}, by ${record.historyUser?.username}`
+  const date =  `${new Date(record.historyDate).toLocaleString('de-DE')}`
+  const username = record.historyUser?.username
+  const match = record.historyChangeReason?.match(/^updatejob_id:\s*(\d+)$/);
+
+  const updateJobId = match ? Number(match[1]) : undefined; 
+  if (updateJobId !== undefined) {
+    return date.concat(`, by UpdateJob #${updateJobId}`)
+  }
+
+
+  return username ? date.concat(`, by ${username}`): date
 }
 
 export interface PrimaryTextProps {
@@ -71,47 +80,39 @@ const HistoryList = ({
     const params: any = { include: 'historyUser' }
     // params[`fields[${related ?? ''}]`] = 'title'
     params['fields[User]'] = 'username,string_representation'
-    params['fields[HistoricalLayer]'] = 'history_type,history_date,history_user'
+   // params['fields[HistoricalLayer]'] = 'history_type,history_date,history_user'
     if (selectedRecord !== undefined && selectedRecord.id !== undefined) {
       params['filter[historyRelation]'] = selectedRecord.id
     }
     return params
   }, [props.resource, selectedRecord])
 
-  const { data, total, isLoading } = useGetList(
-    props.resource ?? '',
-    {
-      pagination: { page: 1, perPage: 10 },
-      sort: { field: 'historyDate', order: 'DESC' },
-      meta: { jsonApiParams }
-    }
 
-  )
+  //console.log(data)
   const getRecordRepresentation = useGetRecordRepresentation(related)
 
   return (
-
-      <CardHeader
-        title={(selectedRecord === undefined) ? 'Last 10 events' : getRecordRepresentation(selectedRecord)}
-        subheader={
-          <SimpleList
-            leftIcon={record => getIcon(record)}
-            primaryText={record => <PrimaryText record={record} related={related} selectedRecord={selectedRecord} />}
-            tertiaryText={record => getTertiaryText(record)}
-            linkType={false}
-            // rowSx={record => ({ backgroundColor: record.historyType === 'created' ? '#efe' : 'white' })}
-            data={data}
-            isLoading={isLoading}
-            total={total}
-            // sx={{ overflowY: 'scroll' }}
-            
-            {...props}
-          />
-        }
-      >
-
-      </CardHeader>
-
+    <List
+      resource={props.resource ?? ''}
+      perPage={10}
+      sort={{ field: 'historyDate', order: 'DESC' }}
+      queryOptions={{
+        meta: { jsonApiParams }
+      }}
+    >
+    <SimpleList
+      leftIcon={record => getIcon(record)}
+      primaryText={record => <PrimaryText record={record} related={related} selectedRecord={selectedRecord} />}
+      tertiaryText={record => getTertiaryText(record)}
+      linkType={false}
+      // rowSx={record => ({ backgroundColor: record.historyType === 'created' ? '#efe' : 'white' })}
+      //data={data}
+      //isLoading={isLoading}
+      //total={total}
+      // sx={{ overflowY: 'scroll' }}      
+      {...props}
+    />
+    </List>
   )
 }
 

@@ -28,6 +28,9 @@ const en = lodashMerge(
         historyType: "Action",
         historyRelation: "Object",
         lastChanges: "Last Changes",
+        created: "create",
+        deleted: "deleted",
+        updated: "updated"
       },
       WebMapServiceUpdateJob: {
         reviewRequired: "Review is required",

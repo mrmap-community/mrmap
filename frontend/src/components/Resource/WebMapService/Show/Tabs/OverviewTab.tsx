@@ -8,7 +8,7 @@ import ListGuesser from "../../../../../jsonapi/components/ListGuesser";
 
 import { format, isToday, isYesterday } from 'date-fns';
 import { prepareGetCapabilititesUrl } from "../../../../../ows-lib/OwsContext/utils";
-import HistoryList from "../../../../HistoryList";
+import HistoryList from "../HistoryList";
 
 const getDuration = (
   dateCreated: string,
@@ -48,13 +48,10 @@ const WmsOverviewHeader = () =>{
   const {name} = useResourceDefinition()
   return (
     <Stack
-      direction={{
-        sm: "column",
-        lg: "row",
-      }}
+      direction={"column"}
       sx={{
         justifyContent: "space-between",
-        alignItems: "flex-start",
+        alignItems: "stretch",
       }}
     >
       <Stack>
@@ -76,7 +73,6 @@ const WmsOverviewHeader = () =>{
         resource={`Historical${name ?? ''}`}
         related={name ?? ''}
         record={record}
-        
       />
     </Stack>
   )
@@ -353,7 +349,10 @@ const MonitoringRunsCard = () => {
 
 const OverviewtTab = () => {
   return (
-    <Stack spacing={1}>
+    <Stack 
+      spacing={1}
+
+    >
       <WmsOverviewHeader/>
       <Grid 
         container

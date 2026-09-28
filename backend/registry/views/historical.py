@@ -30,7 +30,7 @@ class HistoricalViewSetMixin:
     filterset_fields = {
         'id': ['exact', 'in'],
         'history_relation': ['exact'],
-        'history_change_reason': ['exact', 'iexact', 'icontains', 'contains'],
+        'history_change_reason': ['exact', 'iexact', 'icontains', 'contains', 'in'],
         'history_date': ['exact', 'gte', 'lte', 'range'],
     }
     ordering_fields = ["id", 'history_date', 'history_user']
@@ -137,6 +137,10 @@ class LayerHistoricalViewSet(
     queryset = Layer.change_log.all()
     serializer_classes = {
         "default": LayerHistorySerializer,
+    }
+    filterset_fields = {
+        **HistoricalViewSetMixin.filterset_fields,
+        "service": ["exact"]
     }
     prefetch_for_includes = {
         "history_relation": [

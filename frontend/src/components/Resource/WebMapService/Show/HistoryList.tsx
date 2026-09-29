@@ -1,5 +1,5 @@
 import { type ReactNode, useMemo, useState } from 'react'
-import { type RaRecord, RecordContext, type SimpleListProps, useGetList, useRecordContext, useTranslate } from 'react-admin'
+import { Loading, type RaRecord, RecordContext, type SimpleListProps, useGetList, useRecordContext, useTranslate } from 'react-admin'
 
 import CheckIcon from '@mui/icons-material/Check'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -267,6 +267,10 @@ const HistoryList = ({
   ...props
 }: HistoryListProps): ReactNode => {
 
+  type ChangeType = 'all' | 'WebMapService' | 'Layer';
+
+  const [changeType, setChangeType] =
+      useState<ChangeType>('all');
   const translate = useTranslate()
   const recordContext = useRecordContext(record)
   
@@ -292,7 +296,7 @@ const HistoryList = ({
   }, [recordContext])
 
 
-  const {data: wmsChanges} = useGetList(
+  const {data: wmsChanges, isLoading: wmsIsLoading} = useGetList(
     "HistoricalWebMapService",
     {
       filter: {
@@ -309,9 +313,12 @@ const HistoryList = ({
       meta: {
         jsonApiParams: wmsJsonApiParams
       }
+    },
+    {
+      enabled: changeType=== "all" || changeType === "WebMapService"
     }
   )
-  const {data: layerChanges} = useGetList(
+  const {data: layerChanges, isLoading: layerIsLoading} = useGetList(
     "HistoricalLayer",
     {
       filter: {
@@ -328,21 +335,22 @@ const HistoryList = ({
       meta: {
         jsonApiParams: layerJsonApiParams
       }
+    },
+    {
+      enabled: changeType=== "all" || changeType === "Layer"
     }
   )
 
 const mixedChanges = useMemo(() => {
   return [
     ...(wmsChanges
-      ?.filter(record => (record.delta?.length || 0) > 0 || record.historyType === "created")
-      .map(record => ({
+      ?.map(record => ({
         ...record,
         _type: 'WebMapService' as const,
       })) ?? []),
 
     ...(layerChanges
-      ?.filter(record => (record.delta?.length || 0) > 0  || record.historyType === "deleted")
-      .map(record => ({
+      ?.map(record => ({
         ...record,
         _type: 'Layer' as const,
       })) ?? []),
@@ -353,10 +361,6 @@ const mixedChanges = useMemo(() => {
   );
 }, [wmsChanges, layerChanges]);
 
-  type ChangeType = 'all' | 'WebMapService' | 'Layer';
-
-  const [changeType, setChangeType] =
-      useState<ChangeType>('all');
 
   const filteredChanges = useMemo(
       () =>
@@ -417,6 +421,7 @@ const mixedChanges = useMemo(() => {
         )}
       />      
       <CardContent>
+        {(layerIsLoading || wmsIsLoading) ? <Loading/>:
         <Timeline position="left">
           {
             filteredChanges?.map((record: RaRecord) => (
@@ -426,6 +431,8 @@ const mixedChanges = useMemo(() => {
             ))
           }
     </Timeline>
+        }
+        
       </CardContent>
     </Card>
     

@@ -2,7 +2,7 @@ import { RaRecord, RecordRepresentation, ShowButton, SimpleList, UrlField, useLi
 
 
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
-import { alpha, Card, CardContent, CardHeader, Chip, Grid, Stack, Typography } from "@mui/material";
+import { alpha, Box, Card, CardContent, CardHeader, Chip, Grid, Stack } from "@mui/material";
 import { PropsWithChildren, useCallback, useMemo } from "react";
 import ListGuesser from "../../../../../jsonapi/components/ListGuesser";
 
@@ -55,7 +55,7 @@ const WmsOverviewHeader = () =>{
       }}
     >
       <Stack>
-        <Typography><RecordRepresentation/> <Chip variant="outlined" label={String(record?.version)?.split("").join(".")}/></Typography>
+        <Box><RecordRepresentation/> <Chip variant="outlined" label={String(record?.version)?.split("").join(".")}/></Box>
         <WithRecord 
           //label="show remote capabilities" 
           render={(record: RaRecord) => {

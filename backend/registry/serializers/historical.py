@@ -1,3 +1,4 @@
+from logging import Logger
 from operator import itemgetter
 
 from accounts.serializers.users import UserSerializer
@@ -28,10 +29,12 @@ class HistorySerializerMixin(
             return "deleted"
 
     def get_delta(self, obj):
-        # TODO: results in slow sql requests
         if hasattr(obj, "prev_prefetched_record"):
             prev_record = obj.prev_prefetched_record
         else:
+            Logger.warning(
+                "prev_prefetched_record not present, using fallback prev_record"
+            )
             prev_record = obj.prev_record
         if prev_record:
             model_delta = obj.diff_against(prev_record)

@@ -1,10 +1,11 @@
-import { PropsWithChildren, type ReactNode, useMemo } from 'react'
-import { List, type RaRecord, RecordContext, type SimpleListProps, useGetList, useListContext, useRecordContext, useTranslate } from 'react-admin'
+import { type ReactNode, useMemo, useState } from 'react'
+import { type RaRecord, RecordContext, type SimpleListProps, useGetList, useRecordContext, useTranslate } from 'react-admin'
 
 import CheckIcon from '@mui/icons-material/Check'
+import DeleteIcon from '@mui/icons-material/Delete'
 import UpdateIcon from '@mui/icons-material/Update'
 
-import { alpha, Box, Card, CardContent, CardHeader, Chip, Typography } from '@mui/material'
+import { alpha, Box, Card, CardContent, CardHeader, Chip, FormControl, MenuItem, Select, Typography } from '@mui/material'
 
 import { TimelineDot, TimelineOppositeContent } from '@mui/lab'
 import Timeline from '@mui/lab/Timeline'
@@ -195,6 +196,28 @@ const ChangelogEntry = () => {
   const record = useRecordContext()
   const date = new Date(record?.historyDate)
 
+  const icon = useMemo(()=>{
+    switch(record?.historyType){
+      case "created":
+        return <CheckIcon fontSize="small" />
+      case "updated":
+        return <UpdateIcon fontSize="small" />
+      default:
+        return <DeleteIcon fontSize="small"/>
+    }
+  },[record?.historyType])
+
+  const color = useMemo(()=>{
+    switch(record?.historyType){
+      case "created":
+        return "success"
+      case "updated":
+        return "info"
+      default:
+        return "error"
+    }
+  },[record?.historyType])
+
   return (
     <TimelineItem>
       <TimelineOppositeContent
@@ -225,12 +248,9 @@ const ChangelogEntry = () => {
         
          <TimelineDot
             variant="outlined"
-            color={record?.historyType === 'created' ? 'success' : 'info'}
+            color={color}
           >
-              {record?.historyType === 'created'
-                  ? <CheckIcon fontSize="small" />
-                  : <UpdateIcon fontSize="small" />
-              }
+              {icon}
           </TimelineDot>
 
         <TimelineConnector />
@@ -242,26 +262,42 @@ const ChangelogEntry = () => {
   )
 }
 
+const HistoryList = ({
+  record,
+  ...props
+}: HistoryListProps): ReactNode => {
 
-const Changelog = () => {
-  const record = useRecordContext()
-  const jsonApiParams = useMemo(() => {
+  const translate = useTranslate()
+  const recordContext = useRecordContext(record)
+  
+  const wmsJsonApiParams = useMemo(() => {
+    const params: any = { include: 'historyUser' }
+    params['fields[User]'] = 'username,string_representation'
+    if (recordContext !== undefined && recordContext.id !== undefined) {
+      params['filter[historyRelation]'] = recordContext.id
+    }
+    return params
+  }, [recordContext])
+
+  const layerJsonApiParams = useMemo(() => {
     const params: any = { 
       include: 'historyUser' 
     }
-    params['fields[HistoricalLayer]'] = 'history_type,delta,history_date'
+    params['fields[HistoricalLayer]'] = 'history_type,delta,history_date,history_relation,title'
     params['fields[User]'] = 'username,string_representation'
-    if (record !== undefined && record.id !== undefined) {
-      params['filter[service]'] = record.id
+    if (recordContext !== undefined && recordContext.id !== undefined) {
+      params['filter[service]'] = recordContext.id
     }
     return params
-  }, [record])
+  }, [recordContext])
 
 
-  const {data: wmsChanges} = useListContext()
-  const {data: layerChanges} = useGetList(
-    "HistoricalLayer",
+  const {data: wmsChanges} = useGetList(
+    "HistoricalWebMapService",
     {
+      filter: {
+        "changed_or_created": true,
+      },
       sort: {
         field: "historyDate", 
         order: "DESC"
@@ -271,7 +307,26 @@ const Changelog = () => {
         perPage: 100
       },
       meta: {
-        jsonApiParams
+        jsonApiParams: wmsJsonApiParams
+      }
+    }
+  )
+  const {data: layerChanges} = useGetList(
+    "HistoricalLayer",
+    {
+      filter: {
+        "changed_or_deleted": true,
+      },
+      sort: {
+        field: "historyDate", 
+        order: "DESC"
+      },
+      pagination: {
+        page: 1,
+        perPage: 100
+      },
+      meta: {
+        jsonApiParams: layerJsonApiParams
       }
     }
   )
@@ -286,7 +341,7 @@ const mixedChanges = useMemo(() => {
       })) ?? []),
 
     ...(layerChanges
-      ?.filter(record => (record.delta?.length || 0) > 0)
+      ?.filter(record => (record.delta?.length || 0) > 0  || record.historyType === "deleted")
       .map(record => ({
         ...record,
         _type: 'Layer' as const,
@@ -298,25 +353,21 @@ const mixedChanges = useMemo(() => {
   );
 }, [wmsChanges, layerChanges]);
 
-  return(
-    <Timeline position="left">
-      {mixedChanges?.map((record: RaRecord) => (
-        <RecordContext value={record}>
-          <ChangelogEntry/>
-        </RecordContext>
-      ))}
-    </Timeline>
-  )
-}
+  type ChangeType = 'all' | 'WebMapService' | 'Layer';
 
+  const [changeType, setChangeType] =
+      useState<ChangeType>('all');
 
-const ChangelogCardBase = (
-  {
-    children
-  }: PropsWithChildren
-) => {
-  const translate = useTranslate()
-  
+  const filteredChanges = useMemo(
+      () =>
+          mixedChanges.filter(
+              change =>
+                  changeType === 'all' ||
+                  change._type === changeType
+          ),
+      [mixedChanges, changeType]
+  );
+
   return (
     <Card 
       variant="outlined" 
@@ -336,7 +387,27 @@ const ChangelogCardBase = (
         }
         avatar={<UpdateIcon/>}
         action={
-          "TODO Button"
+          <FormControl size="small">
+            <Select
+                value={changeType}
+                onChange={event =>
+                    setChangeType(event.target.value as ChangeType)
+                }
+                sx={{ minWidth: 180 }}
+            >
+                <MenuItem value="all">
+                    All changes ({mixedChanges.length})
+                </MenuItem>
+
+                <MenuItem value="WebMapService">
+                    Service changes ({wmsChanges?.length || 0})
+                </MenuItem>
+
+                <MenuItem value="Layer">
+                    Layer changes ({layerChanges?.length || 0})
+                </MenuItem>
+            </Select>
+        </FormControl>
         }
         severity="secondary"
         sx={(theme) => ({
@@ -346,29 +417,25 @@ const ChangelogCardBase = (
         )}
       />      
       <CardContent>
-        {children}
+        <Timeline position="left">
+          {
+            filteredChanges?.map((record: RaRecord) => (
+              <RecordContext value={record}>
+                <ChangelogEntry />
+              </RecordContext>
+            ))
+          }
+    </Timeline>
       </CardContent>
     </Card>
+    
   )
 }
 
 
-const HistoryList = ({
-  record,
-  ...props
-}: HistoryListProps): ReactNode => {
-
-  const jsonApiParams = useMemo(() => {
-    const params: any = { include: 'historyUser' }
-    params['fields[User]'] = 'username,string_representation'
-    if (record !== undefined && record.id !== undefined) {
-      params['filter[historyRelation]'] = record.id
-    }
-    return params
-  }, [record])
-
-  return (
-    <List
+/**
+ * 
+ * <List
       resource={props.resource ?? ''}
       perPage={10}
       sort={{ field: 'historyDate', order: 'DESC' }}
@@ -381,7 +448,5 @@ const HistoryList = ({
     >
       <Changelog/>
     </List>
-  )
-}
-
+ */
 export default HistoryList

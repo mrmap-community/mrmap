@@ -11,6 +11,7 @@ from registry.models.update import WebMapServiceUpdateSetting
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
+from rest_framework.fields import SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, CharField,
                                                  DateTimeField,
@@ -84,6 +85,23 @@ class MappingBaseSerializer(Serializer):
 
 
 class LayerMappingSerializer(MappingBaseSerializer, ModelSerializer):
+    delta = SerializerMethodField()
+
+    def get_delta(self, obj):
+        if obj.old_layer_id is None:
+            return None
+
+        changes = []
+        for field in (
+            "title", "abstract", "is_queryable", "is_opaque",
+            "scale_min", "scale_max",
+        ):
+            old = getattr(obj.old_layer, field)
+            new = getattr(obj.new_layer, field)
+            if old != new:
+                changes.append({"field": field, "old": old, "new": new})
+        return changes
+
     url = HyperlinkedIdentityField(
         view_name="registry:layermapping-detail",
         read_only=True,
@@ -112,7 +130,7 @@ class LayerMappingSerializer(MappingBaseSerializer, ModelSerializer):
     class Meta:
         model = LayerMapping
         fields = ("url", "job", "old_layer",
-                  "new_layer", "created", "is_confirmed")
+                  "new_layer", "created", "is_confirmed", "delta")
 
 
 class FeatureTypeMappingSerializer(MappingBaseSerializer, ModelSerializer):
@@ -148,6 +166,9 @@ class FeatureTypeMappingSerializer(MappingBaseSerializer, ModelSerializer):
 
 
 class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
+    class JSONAPIMeta:
+        included_resources = ["mappings"]
+
     url = HyperlinkedIdentityField(
         view_name="registry:webmapserviceupdatejob-detail",
         read_only=True,

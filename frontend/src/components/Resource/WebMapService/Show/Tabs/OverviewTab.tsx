@@ -148,12 +148,14 @@ const UpdateJobsCardBase = (
 const UpdateJobsList = () => {
   const changes = useCallback((record: RaRecord)=>{
     const changes = []
+    const layersChanged = record?.mappings.filter((mapping: RaRecord) => mapping.delta?.length > 0)
     const newLayers = record?.mappings?.filter((mapping: RaRecord) => mapping.newLayer !== undefined && mapping.oldLayer === undefined)
     const deletedLayers = record?.mappings?.filter((mapping: RaRecord) => mapping.newLayer === undefined && mapping.oldLayer !== undefined)
-
+    console.log(layersChanged)
+    layersChanged.length > 0 && changes.push(`${layersChanged.length || 0} layer(s) changed`)
     deletedLayers.length > 0 && changes.push(`${deletedLayers} layer(s) are marked for deletion`)
     newLayers.length > 0 && changes.push(`${newLayers.length || 0} new layer(s)`)
-
+    
     return changes.join("·")
   },[])
 
@@ -166,7 +168,11 @@ const UpdateJobsList = () => {
                                 icon={false}
                               />
       }
-      primaryText={(record) => `Update #${record.id}`}
+      primaryText={(record) => `Update #${record.id} ${new Date(record.doneAt).toLocaleDateString(undefined, {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}`}
       secondaryText={record => `${record.status} | ${changes(record)}`}
       rowClick={false}
     />
@@ -174,13 +180,8 @@ const UpdateJobsList = () => {
 }
 
 const UpdateJobsCard = () => {
-  const resource = useResourceContext()
   const nestedResource = "WebMapServiceUpdateJob"
   const record = useRecordContext()
-  const relatedResource = {
-    resource: resource,
-    id: record?.id
-  }
   const queryOptions = {
     meta: {
       jsonApiParams: {
@@ -191,10 +192,12 @@ const UpdateJobsCard = () => {
   return (
     <ListGuesser
       resource={nestedResource}
-      relatedResource={relatedResource}
       disableSyncWithLocation
       sort={{field:"doneAt", order:"DESC"}}
-      filter={{"status_code__ne": 4}}
+      filter={{
+        "service": record?.id,
+        "status_code__ne": 4
+      }}
       queryOptions={queryOptions}
       actions={false}
       filters={undefined}

@@ -53,12 +53,9 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
         "mappings": [
             Prefetch(
                 "mappings",
-                queryset=LayerMapping.objects.select_related(
-                    "job", "new_layer", "old_layer")
-            )
-
+                queryset=LayerMapping.objects.select_related("job", "new_layer", "old_layer"),
+            ),
         ],
-
     }
     prefetch_for_not_includes = {
         "mappings": [
@@ -70,7 +67,7 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
                     "new_layer_id",
                     "old_layer_id",
                 ),
-            )
+            ),
         ],
     }
 
@@ -88,7 +85,7 @@ class NestedWebMapServiceUpdateJobViewSet(
 
 
 class LayerMappingViewSetMixin(PreloadNotIncludesMixin):
-    queryset = LayerMapping.objects.all()
+    queryset = LayerMapping.objects.select_related("old_layer", "new_layer")
     serializer_class = LayerMappingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     filterset_class = LayerMappingFilterSet

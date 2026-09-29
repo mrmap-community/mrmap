@@ -1,459 +1,203 @@
-import { type ReactNode, useMemo, useState } from 'react'
-import { Loading, type RaRecord, RecordContext, type SimpleListProps, useGetList, useRecordContext, useTranslate } from 'react-admin'
-
-import CheckIcon from '@mui/icons-material/Check'
-import DeleteIcon from '@mui/icons-material/Delete'
-import UpdateIcon from '@mui/icons-material/Update'
-
-import { alpha, Box, Card, CardContent, CardHeader, Chip, FormControl, MenuItem, Select, Typography } from '@mui/material'
-
-import { TimelineDot, TimelineOppositeContent } from '@mui/lab'
-import Timeline from '@mui/lab/Timeline'
-import TimelineConnector from '@mui/lab/TimelineConnector'
-import TimelineContent from '@mui/lab/TimelineContent'
-import TimelineItem from '@mui/lab/TimelineItem'
-import TimelineSeparator from '@mui/lab/TimelineSeparator'
-
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import UpdateIcon from "@mui/icons-material/Update";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Stack
-} from '@mui/material'
-
-
-export interface PrimaryTextProps {
-  record: RaRecord
-  related: string
-  selectedRecord: RaRecord | undefined
-}
-
+  Alert,
+  alpha,
+  Card,
+  CardHeader,
+  FormControl,
+  MenuItem,
+  Select,
+} from "@mui/material";
+import { useMemo, useState } from "react";
+import {
+  Loading,
+  type RaRecord,
+  type SimpleListProps,
+  useGetList,
+  useRecordContext,
+  useTranslate,
+} from "react-admin";
+import HistoryTimeline, { type HistoryRecord } from "./HistoryTimeline";
 
 export interface HistoryListProps extends SimpleListProps {
-  related: string
-  record: RaRecord | undefined
-}
-export interface Change {
-    field: string;
-    oldValue?: string | null;
-    newValue?: string | null;
-}
-interface ChangeCardProps {
-    defaultExpanded?: boolean;
+  related: string;
+  record: RaRecord | undefined;
 }
 
+type ChangeType = "all" | "WebMapService" | "Layer";
 
-interface DiffValueProps {
-    label: string;
-    value?: string | null;
-    color: 'error' | 'success';
-}
-
-const DiffValue = ({
-    label,
-    value,
-    color,
-}: DiffValueProps) => (
-    <Box
-        sx={{
-            flex: 1,
-            minWidth: 0,
-            p: 2,
-            borderRadius: 1,
-            bgcolor: theme =>
-                color === 'error'
-                    ? `${theme.palette.error.main}0D`
-                    : `${theme.palette.success.main}0D`,
-        }}
-    >
-        <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              display:"block",
-              mb:0.5
-            }}
-        >
-            {label}
-        </Typography>
-
-        <Box
-            sx={{
-                p: 1,
-                borderRadius: 0.5,
-                bgcolor: theme =>
-                    color === 'error'
-                        ? `${theme.palette.error.main}18`
-                        : `${theme.palette.success.main}18`,
-                color: `${color}.main`,
-                fontFamily: 'monospace',
-                whiteSpace: 'pre-wrap',
-                overflowWrap: 'anywhere',
-            }}
-        >
-            {String(value) ?? '—'}
-        </Box>
-    </Box>
-);
-
-const ChangeDiff = ({ change }: { change: Change }) => (
-  
-    <Box>
-        <Chip
-            label={change.field}
-            size="small"
-            sx={{ mb: 1 }}
-        />
-
-        <Stack
-            direction={{
-                xs: 'column',
-                md: 'row',
-            }}
-            spacing={2}
-        >
-            <DiffValue
-                label="Previous value"
-                value={change.oldValue}
-                color="error"
-            />
-
-            <DiffValue
-                label="New value"
-                value={change.newValue}
-                color="success"
-            />
-        </Stack>
-    </Box>
-);
-
-export const ChangeCard = ({
-    defaultExpanded = false,
-}: ChangeCardProps) => {
-    const record = useRecordContext()
-
-    const changes = useMemo<Change[]>(
-      () => (record?.delta?.map((change: any, index: number) => ({field: change.field, oldValue: change.old, newValue: change.new})) ?? []),
-    [record])
-
-    return (<Accordion
-        defaultExpanded={defaultExpanded}
-        disableGutters
-        variant="outlined"
-        sx={{
-            borderRadius: 1,
-            '&:before': {
-                display: 'none',
-            },
-            '&:first-of-type': {
-                borderRadius: 1,
-            },
-            '&:last-of-type': {
-                borderRadius: 1,
-            },
-        }}
-    >
-        <AccordionSummary
-          expandIcon={
-           changes.length > 0 ? 
-           <ExpandMoreIcon /> :
-           null
-          }
-        >
-          <Box>
-              <Typography variant="subtitle1" sx={{fontWeight:600}}>
-                  {record?._type} ({record?.historyRelation?.id})
-              </Typography>
-              {
-                changes.length > 0 ?
-                <Typography variant="body2" color="text.secondary">
-                    {`${changes.length} ${changes.length === 1 ? 'change' : 'changes'}`}
-                </Typography>:
-                null
-              } 
-          </Box>
-        </AccordionSummary>
-
-        {changes.length > 0 && (
-            <AccordionDetails>
-                <Stack spacing={2}>
-                    {changes.map(change => (
-                        <ChangeDiff
-                            key={change.field}
-                            change={change}
-                        />
-                    ))}
-                </Stack>
-            </AccordionDetails>
-        )}
-    </Accordion>
-    )
-};
-
-
-const ChangelogEntry = () => {
-  const record = useRecordContext()
-  const date = new Date(record?.historyDate)
-
-  const icon = useMemo(()=>{
-    switch(record?.historyType){
-      case "created":
-        return <CheckIcon fontSize="small" />
-      case "updated":
-        return <UpdateIcon fontSize="small" />
-      default:
-        return <DeleteIcon fontSize="small"/>
-    }
-  },[record?.historyType])
-
-  const color = useMemo(()=>{
-    switch(record?.historyType){
-      case "created":
-        return "success"
-      case "updated":
-        return "info"
-      default:
-        return "error"
-    }
-  },[record?.historyType])
-
-  return (
-    <TimelineItem>
-      <TimelineOppositeContent
-            color="text.secondary"
-            sx={{
-                flex: 0.12,
-                minWidth: 130,
-                pt: 1.5,
-            }}
-        >
-            <Typography variant="body2">
-                {date.toDateString()}
-            </Typography>
-
-            <Typography variant="caption">
-                {date.toLocaleTimeString()}
-            </Typography>
-            {
-              record?.historyUser ?
-              <Typography variant="caption"sx={{ display:"block"}}>
-                by {record?.historyUser?.username}
-            </Typography>: null
-            }
-            
-        </TimelineOppositeContent>
-      
-      <TimelineSeparator>
-        
-         <TimelineDot
-            variant="outlined"
-            color={color}
-          >
-              {icon}
-          </TimelineDot>
-
-        <TimelineConnector />
-      </TimelineSeparator>
-      <TimelineContent sx={{ pb: 3 }}>
-         <ChangeCard/>
-      </TimelineContent>
-    </TimelineItem>
-  )
-}
-
-const HistoryList = ({
-  record,
-  ...props
-}: HistoryListProps): ReactNode => {
-
-  type ChangeType = 'all' | 'WebMapService' | 'Layer';
-
-  const [changeType, setChangeType] =
-      useState<ChangeType>('all');
-  const translate = useTranslate()
-  const recordContext = useRecordContext(record)
+const HistoryList = ({ record }: HistoryListProps) => {
+  const [changeType, setChangeType] = useState<ChangeType>("all");
+  const translate = useTranslate();
+  const recordContext = useRecordContext(record);
   
   const wmsJsonApiParams = useMemo(() => {
-    const params: any = { include: 'historyUser' }
-    params['fields[User]'] = 'username,string_representation'
+    const params: Record<string, string | number> = { include: "historyUser" };
+    params["fields[User]"] = "username,string_representation";
     if (recordContext !== undefined && recordContext.id !== undefined) {
-      params['filter[historyRelation]'] = recordContext.id
+      params["filter[historyRelation]"] = recordContext.id;
     }
-    return params
-  }, [recordContext])
+    return params;
+  }, [recordContext]);
 
   const layerJsonApiParams = useMemo(() => {
-    const params: any = { 
-      include: 'historyUser' 
-    }
-    params['fields[HistoricalLayer]'] = 'history_type,delta,history_date,history_relation,title'
-    params['fields[User]'] = 'username,string_representation'
+    const params: Record<string, string | number> = {
+      include: "historyUser",
+    };
+    params["fields[HistoricalLayer]"] =
+      "history_type,delta,history_date,history_relation,title";
+    params["fields[User]"] = "username,string_representation";
     if (recordContext !== undefined && recordContext.id !== undefined) {
-      params['filter[service]'] = recordContext.id
+      params["filter[service]"] = recordContext.id;
     }
-    return params
-  }, [recordContext])
+    return params;
+  }, [recordContext]);
 
-
-  const {data: wmsChanges, isLoading: wmsIsLoading} = useGetList(
+  const {
+    data: wmsChanges,
+    isLoading: wmsIsLoading,
+    error: wmsError,
+  } = useGetList<HistoryRecord>(
     "HistoricalWebMapService",
     {
       filter: {
-        "changed_or_created": true,
+        changed_or_created: true,
       },
       sort: {
-        field: "historyDate", 
-        order: "DESC"
+        field: "historyDate",
+        order: "DESC",
       },
       pagination: {
         page: 1,
-        perPage: 100
+        perPage: 100,
       },
       meta: {
-        jsonApiParams: wmsJsonApiParams
-      }
+        jsonApiParams: wmsJsonApiParams,
+      },
     },
     {
-      enabled: changeType=== "all" || changeType === "WebMapService"
-    }
-  )
-  const {data: layerChanges, isLoading: layerIsLoading} = useGetList(
+      enabled:
+        recordContext?.id != null &&
+        (changeType === "all" || changeType === "WebMapService"),
+    },
+  );
+  const {
+    data: layerChanges,
+    isLoading: layerIsLoading,
+    error: layerError,
+  } = useGetList<HistoryRecord>(
     "HistoricalLayer",
     {
       filter: {
-        "changed_or_deleted": true,
+        changed_or_deleted: true,
       },
       sort: {
-        field: "historyDate", 
-        order: "DESC"
+        field: "historyDate",
+        order: "DESC",
       },
       pagination: {
         page: 1,
-        perPage: 100
+        perPage: 100,
       },
       meta: {
-        jsonApiParams: layerJsonApiParams
-      }
+        jsonApiParams: layerJsonApiParams,
+      },
     },
     {
-      enabled: changeType=== "all" || changeType === "Layer"
-    }
-  )
-
-const mixedChanges = useMemo(() => {
-  return [
-    ...(wmsChanges
-      ?.map(record => ({
-        ...record,
-        _type: 'WebMapService' as const,
-      })) ?? []),
-
-    ...(layerChanges
-      ?.map(record => ({
-        ...record,
-        _type: 'Layer' as const,
-      })) ?? []),
-  ].sort(
-    (a, b) =>
-      new Date(b.historyDate).getTime() -
-      new Date(a.historyDate).getTime()
+      enabled:
+        recordContext?.id != null &&
+        (changeType === "all" || changeType === "Layer"),
+    },
   );
-}, [wmsChanges, layerChanges]);
 
+  const mixedChanges = useMemo(() => {
+    return [
+      ...(wmsChanges?.map((record) => ({
+        ...record,
+        _type: "WebMapService" as const,
+      })) ?? []),
+
+      ...(layerChanges?.map((record) => ({
+        ...record,
+        _type: "Layer" as const,
+      })) ?? []),
+    ].sort(
+      (a, b) =>
+        new Date(b.historyDate).getTime() - new Date(a.historyDate).getTime(),
+    );
+  }, [wmsChanges, layerChanges]);
 
   const filteredChanges = useMemo(
-      () =>
-          mixedChanges.filter(
-              change =>
-                  changeType === 'all' ||
-                  change._type === changeType
-          ),
-      [mixedChanges, changeType]
+    () =>
+      mixedChanges.filter(
+        (change) => changeType === "all" || change._type === changeType,
+      ),
+    [mixedChanges, changeType],
   );
 
+  const loading =
+    (changeType !== "Layer" && wmsIsLoading) ||
+    (changeType !== "WebMapService" && layerIsLoading);
+  const error =
+    (changeType !== "Layer" && wmsError) ||
+    (changeType !== "WebMapService" && layerError);
+
   return (
-    <Card 
-      variant="outlined" 
-      
+    <Card
+      variant="outlined"
       sx={{
-        border: 1,
-        borderColor: 'secondary.main',
-        
+        borderColor: "secondary.main",
+        minWidth: 0,
+        maxWidth: "100%",
+        height: "100%"
       }}
     >
       <CardHeader
-        title={
-          translate(`resources.ChangeLog.lastChanges`)
-        }
-        subheader={
-          "Changes to this Web Map Service and related resources."
-        }
-        avatar={<UpdateIcon/>}
+        title={translate("resources.ChangeLog.lastChanges")}
+        subheader="Select an event to inspect its details."
+        avatar={<UpdateIcon />}
         action={
           <FormControl size="small">
             <Select
-                value={changeType}
-                onChange={event =>
-                    setChangeType(event.target.value as ChangeType)
-                }
-                sx={{ minWidth: 180 }}
+              value={changeType}
+              onChange={(event) =>
+                setChangeType(event.target.value as ChangeType)
+              }
+              inputProps={{ "aria-label": "Filter history by resource" }}
+              sx={{ minWidth: 180 }}
             >
-                <MenuItem value="all">
-                    All changes ({mixedChanges.length})
-                </MenuItem>
-
-                <MenuItem value="WebMapService">
-                    Service changes ({wmsChanges?.length || 0})
-                </MenuItem>
-
-                <MenuItem value="Layer">
-                    Layer changes ({layerChanges?.length || 0})
-                </MenuItem>
+              <MenuItem value="all">
+                All changes ({mixedChanges.length})
+              </MenuItem>
+              <MenuItem value="WebMapService">
+                Service changes ({wmsChanges?.length ?? 0})
+              </MenuItem>
+              <MenuItem value="Layer">
+                Layer changes ({layerChanges?.length ?? 0})
+              </MenuItem>
             </Select>
-        </FormControl>
+          </FormControl>
         }
-        severity="secondary"
         sx={(theme) => ({
-            bgcolor: alpha(theme.palette.secondary.main, 0.08),
-            borderColor: 'secondary.main',
-          }
-        )}
-      />      
-      <CardContent>
-        {(layerIsLoading || wmsIsLoading) ? <Loading/>:
-        <Timeline position="left">
-          {
-            filteredChanges?.map((record: RaRecord) => (
-              <RecordContext value={record}>
-                <ChangelogEntry />
-              </RecordContext>
-            ))
-          }
-    </Timeline>
-        }
-        
-      </CardContent>
+          bgcolor: alpha(theme.palette.secondary.main, 0.08),
+          flexWrap: "wrap",
+          gap: 1,
+          "& .MuiCardHeader-action": { m: 0 },
+          "& .MuiCardHeader-content": { minWidth: 150 },
+        })}
+      />
+      {loading ? (
+        <Loading />
+      ) : error ? (
+        <Alert severity="error">Unable to load history.</Alert>
+      ) : (
+        <HistoryTimeline
+          key={`${recordContext?.id}:${changeType}`}
+          events={filteredChanges}
+        />
+      )}
     </Card>
-    
-  )
-}
+  );
+};
 
-
-/**
- * 
- * <List
-      resource={props.resource ?? ''}
-      perPage={10}
-      sort={{ field: 'historyDate', order: 'DESC' }}
-      queryOptions={{
-        meta: { jsonApiParams }
-      }}
-      exporter={false}
-      pagination={false}
-      component={ChangelogCardBase}
-    >
-      <Changelog/>
-    </List>
- */
-export default HistoryList
+export default HistoryList;

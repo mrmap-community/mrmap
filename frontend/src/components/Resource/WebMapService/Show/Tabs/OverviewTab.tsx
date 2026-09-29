@@ -1,8 +1,8 @@
-import { RaRecord, RecordRepresentation, ShowButton, SimpleList, UrlField, useListContext, useRecordContext, useResourceContext, useResourceDefinition, useTranslate, WithRecord } from "react-admin";
+import { Labeled, RaRecord, ShowButton, SimpleList, SimpleShowLayout, TextField, UrlField, useListContext, useRecordContext, useResourceContext, useResourceDefinition, useTranslate, WithRecord } from "react-admin";
 
 
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
-import { alpha, Box, Card, CardContent, CardHeader, Chip, Grid, Stack } from "@mui/material";
+import { alpha, Card, CardContent, CardHeader, Chip, Grid, Stack } from "@mui/material";
 import { PropsWithChildren, useCallback, useMemo } from "react";
 import ListGuesser from "../../../../../jsonapi/components/ListGuesser";
 
@@ -47,34 +47,34 @@ const WmsOverviewHeader = () =>{
   const record = useRecordContext()
   const {name} = useResourceDefinition()
   return (
-    <Stack
-      direction={"column"}
-      sx={{
-        justifyContent: "space-between",
-        alignItems: "stretch",
-      }}
-    >
-      <Stack>
-        <Box><RecordRepresentation/> <Chip variant="outlined" label={String(record?.version)?.split("").join(".")}/></Box>
-        <WithRecord 
-          //label="show remote capabilities" 
-          render={(record: RaRecord) => {
-              const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
-              url.url = prepareGetCapabilititesUrl(
-                      url.url,
-                      "WMS",
-                      record.version.toString().split('').join('.')
-                  ).href
-              return url ? <UrlField record={url} source="url"/> : null; 
-          }}
-        />
-      </Stack>
-      <HistoryList
-        resource={`Historical${name ?? ''}`}
-        related={name ?? ''}
-        record={record}
-      />
-    </Stack>
+
+      <Card
+        variant="outlined"
+        sx={{ width: "100%", minWidth: 0, height: "100%" }}
+      >
+        <SimpleShowLayout sx={{ p: 2, overflowWrap: "anywhere" }}>
+          <TextField source="id" />
+          <TextField source="title" />
+          <TextField source="abstract" />
+          <Labeled label="version">
+            <Chip variant="outlined" label={String(record?.version)?.split("").join(".")}/>
+          </Labeled>
+          <WithRecord
+            label="GetCapabilities URL"
+              //label="show remote capabilities"
+              render={(record: RaRecord) => {
+                  const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
+                  url.url = prepareGetCapabilititesUrl(
+                          url.url,
+                          "WMS",
+                          record.version.toString().split('').join('.')
+                      ).href
+                  return url ? <UrlField record={url} source="url"/> : null;
+              }}
+          />
+        </SimpleShowLayout>
+      </Card>
+
   )
 }
 
@@ -90,11 +90,15 @@ const UpdateJobsCardBase = (
   const nestedResource = "WebMapServiceUpdateJob"
   const translate = useTranslate()
   const reviewRequired = useMemo(() => data?.some(record => record.statusCode === 2 || false),[data])
-  
+
   return (
-    <Card 
-      variant="outlined" 
+    <Card
+      variant="outlined"
       sx={(theme) => ({
+        width: "100%",
+        minWidth: 0,
+        height: "100%",
+        
         border: 1,
         ...(reviewRequired ? {
           borderColor: 'warning.main',
@@ -111,7 +115,7 @@ const UpdateJobsCardBase = (
           reviewRequired ? translate(`resources.${nestedResource}.reviewRequiredSubheader`): translate(`resources.${nestedResource}.lastUpdateJobsSubheader`)
         }
         action={
-          reviewRequired? 
+          reviewRequired?
           <Chip
             size="small"
             color="warning"
@@ -132,7 +136,7 @@ const UpdateJobsCardBase = (
           borderColor: 'success.main',
         }
       )}
-      />      
+      />
       <CardContent>
         {children}
       </CardContent>
@@ -155,33 +159,16 @@ const UpdateJobsList = () => {
 
   return (
     <SimpleList
-        rightIcon={(record) => <ShowButton 
-                                  label={record.status === 'Review required' ? 'Review' : 'View'}
-                                  variant="contained" 
-                                  color={record.status === 'Review required' ? 'warning' : 'primary'}
-                                  icon={false}
-                                /> 
-        }
-        primaryText={(record) => `Update #${record.id}`}
-        secondaryText={record => `${record.status} | ${changes(record)}`}
-        rowClick={false}
-        sx={{
-        p: 0,
-
-        '& .MuiListItem-root': {
-            px: 0,
-            py: 0.5,
-            minHeight: 32,
-        },
-
-        '& .MuiListItemText-root': {
-            m: 0,
-        },
-
-        '& .MuiListItemButton-root': {
-            py: 0,
-        },
-    }}
+      rightIcon={(record) => <ShowButton
+                                label={record.status === 'Review required' ? 'Review' : 'View'}
+                                variant="contained"
+                                color={record.status === 'Review required' ? 'warning' : 'primary'}
+                                icon={false}
+                              />
+      }
+      primaryText={(record) => `Update #${record.id}`}
+      secondaryText={record => `${record.status} | ${changes(record)}`}
+      rowClick={false}
     />
   )
 }
@@ -209,8 +196,10 @@ const UpdateJobsCard = () => {
       sort={{field:"doneAt", order:"DESC"}}
       filter={{"status_code__ne": 4}}
       queryOptions={queryOptions}
-      actions={<></>}
-      pagination={<></>}
+      actions={false}
+      filters={undefined}
+      aside={undefined}
+      pagination={false}
       component={UpdateJobsCardBase}
       storeKey="wms_overview_update_jobs"
       defaultSelectedColumns={["id", "dateCreated", "doneAt", "status"]}
@@ -231,16 +220,15 @@ const MonitoringRunsCardBase = ({
 
   const lastRun = data?.[0]
   return (
-    <Stack spacing={2}>
-      <Card 
+      <Card
         variant="outlined"
-         sx={(theme) => (lastRun?.success ? {
-            border: 1,
-            borderColor: 'success.main',
-        }: {
-          border: 1,
-          borderColor: 'warning.main',
-        })}
+         sx={{
+           width: "100%",
+           minWidth: 0,
+           flex: 1,
+           border: 1,
+           borderColor: lastRun?.success ? "success.main" : "warning.main",
+         }}
       >
         <CardHeader
           title={"Last monitoring runs"}
@@ -261,7 +249,7 @@ const MonitoringRunsCardBase = ({
                   <FiberManualRecordIcon
                     color={lastRun?.success ? 'success' : 'error'}
                     sx={{ fontSize: 12 }}
-                    /> 
+                    />
                   Passed
                 </Stack>
               }
@@ -284,9 +272,8 @@ const MonitoringRunsCardBase = ({
          <CardContent>
           {children}
         </CardContent>
-        
+
       </Card>
-    </Stack>
   )
 }
 
@@ -334,42 +321,55 @@ const MonitoringRunsCard = () => {
       disableSyncWithLocation
       sort={{field:"dateDone", order:"DESC"}}
       perPage={5}
-      actions={<></>}
-      pagination={<></>}
+      actions={false}
+      filters={undefined}
+      aside={undefined}
+      pagination={false}
       component={MonitoringRunsCardBase}
       storeKey="wms_overview_monitoring_runs"
       defaultSelectedColumns={["id", "dateCreated", "dateDone", "status"]}
       dataGridProps={{
         component: MonitoringRunsList
-      }}      
+      }}
     />
   )
 }
 
 
 const OverviewtTab = () => {
+  const record = useRecordContext()
+  const {name} = useResourceDefinition()
   return (
-    <Stack 
-      spacing={1}
-
+    <Grid
+      container
+      spacing={2}
+      
+      sx={{
+        alignItems: "stretch",
+        minWidth: 0,
+        // Embedded lists fill their grid cells instead of inheriting page margins.
+        //'& > .MuiGrid-root': { display: "flex", minWidth: 0 },
+        //'& .RaList-root': { width: "100%", minWidth: 0 },
+        '&& .RaList-main': { width: "100%", minWidth: 0, m: 0 },
+      }}
     >
-      <WmsOverviewHeader/>
-      <Grid 
-        container
-        direction={"row"}
-        sx={{
-          alignItems: "stretch",
-          justifyContent: "center",
-        }}
-      >
-        <Grid size={6}>
-          <UpdateJobsCard />
-        </Grid>
-        <Grid size={6}>
-          <MonitoringRunsCard/>
-        </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <WmsOverviewHeader/>
       </Grid>
-    </Stack>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <HistoryList
+          resource={`Historical${name ?? ''}`}
+          related={name ?? ''}
+          record={record}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <UpdateJobsCard />
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <MonitoringRunsCard/>
+      </Grid>
+    </Grid>
   )
 }
 

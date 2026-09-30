@@ -4,6 +4,7 @@ import { Layout, useSidebarState, type Identifier, type LayoutProps } from 'reac
 import { Box, Card } from '@mui/material';
 import { SnackbarProvider } from 'notistack';
 
+import { SystemStatusProvider } from '../../context/SystemStatusContext';
 import I18Observer from '../../jsonapi/components/I18Observer';
 import RealtimeBus from '../../jsonapi/components/Realtime/RealtimeBus';
 import SnackbarObserver from '../../jsonapi/components/Realtime/SnackbarObserver';
@@ -35,6 +36,7 @@ const MyLayout = (
 
 
   return (
+    <SystemStatusProvider>
     <SnackbarProvider
       maxSnack={10}
       // action={SnackbarCloseButton}
@@ -126,6 +128,7 @@ const MyLayout = (
         </Card>   
       </Layout>
     </SnackbarProvider>
+    </SystemStatusProvider>
 
   )
 }

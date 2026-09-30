@@ -2,24 +2,8 @@ import {
     Alert, Box,
     Card, CardContent, Chip, LinearProgress, Stack, Typography
 } from '@mui/material';
-import { useEffect, useState } from 'react';
-import {
-    useGetOne, useTranslate,
-    type RaRecord,
-} from 'react-admin';
-
-interface Observation {
-    status: string;
-    detail: string;
-    last_seen?: string | null;
-}
-interface SystemStatusRecord extends RaRecord {
-    observedAt: string | null;
-    stale: boolean;
-    staleAfter: number;
-    components: Record<string, Observation>;
-
-}
+import { useTranslate } from 'react-admin';
+import { systemComponents, useSystemStatus, type SystemStatusRecord } from '../../../context/SystemStatusContext';
 
 const label = (value?: string | null) => value ? new Date(value).toLocaleString() : '—';
 const color = (status: string): 'success' | 'error' | 'warning' | 'default' => {
@@ -29,16 +13,9 @@ const color = (status: string): 'success' | 'error' | 'warning' | 'default' => {
     return 'default';
 };
 
-export const SystemStatusPanel = ({ data, failed = false }: { data: SystemStatusRecord; failed?: boolean }) => {
+export const SystemStatusPanel = ({ data, stale }: { data: SystemStatusRecord; stale: boolean }) => {
     const translate = useTranslate();
     const t = (key: string) => translate(`systemStatus.${key}`);
-    const [clock, setClock] = useState(Date.now());
-    useEffect(() => {
-        const timer = window.setInterval(() => setClock(Date.now()), 5000);
-        return () => window.clearInterval(timer);
-    }, []);
-    const stale = failed || data.stale || !data.observedAt ||
-        clock - Date.parse(data.observedAt) > data.staleAfter * 1000;
     return (
         <Card>
             <CardContent>
@@ -48,7 +25,7 @@ export const SystemStatusPanel = ({ data, failed = false }: { data: SystemStatus
                 </Stack>
                 {stale && <Alert severity="warning" sx={{ mb: 2 }}>{t('stale')}</Alert>}
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
-                    {['workers', 'beat', 'redis', 'database'].map(name => {
+                    {systemComponents.map(name => {
                         const component = data.components[name];
                         const status = stale ? 'unknown' : component?.status ?? 'unknown';
                         return <Box key={name} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}>
@@ -66,24 +43,11 @@ export const SystemStatusPanel = ({ data, failed = false }: { data: SystemStatus
 
 const SystemStatus = () => {
     const translate = useTranslate();
-    const { data, error, isPending } = useGetOne<SystemStatusRecord>(
-        'SystemStatus', { id: 'current' },
-        {
-            refetchInterval: query => {
-                const error = query.state.error as { response?: { status?: number }; status?: number } | null;
-                const status = error?.response?.status ?? error?.status;
-                return status === 401 || status === 403 ? false : 15000;
-            },
-            refetchIntervalInBackground: true, retry: false,
-        },
-    );
-    // The endpoint enforces staff access. Non-staff dashboards simply omit this panel.
-    const status = (error as { status?: number; response?: { status?: number } } | null)?.response?.status ??
-        (error as { status?: number } | null)?.status;
-    if (status === 403 || status === 401) return null;
+    const { data, isPending, forbidden, stale } = useSystemStatus();
+    if (forbidden) return null;
     if (isPending) return <LinearProgress aria-label={translate('systemStatus.title')} />;
     if (!data) return <Alert severity="warning" sx={{ mb: 2 }}>{translate('systemStatus.unavailable')}</Alert>;
-    return <SystemStatusPanel data={data} failed={!!error} />;
+    return <SystemStatusPanel data={data} stale={stale} />;
 };
 
 export default SystemStatus;

@@ -16,6 +16,8 @@ const germanMessages: TranslationMessages = {
     "systemTime": "Systemzeit"
   },
   systemStatus: {
+      "checking": "Wird geprüft…",
+      "viewDetails": "Details zum Systemstatus anzeigen",
     "title": "Systemstatus",
     "observed": "Beobachtet am",
     "stale": "Die Überwachungsdaten sind veraltet oder nicht verfügbar. Der aktuelle Zustand ist unbekannt.",

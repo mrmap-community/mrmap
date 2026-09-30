@@ -19,6 +19,8 @@ const en = lodashMerge(
       "systemTime": "System time"
     },
     systemStatus: {
+      "checking": "Checking…",
+      "viewDetails": "View system status details",
       "title": "System status",
       "observed": "Observed at",
       "stale": "Monitoring data is stale or unavailable. Current health is unknown.",

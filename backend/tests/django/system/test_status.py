@@ -17,7 +17,8 @@ def inspected(state='running', health='healthy'):
     return {'Name': '/worker', 'State': {'Status': state, 'Health': {'Status': health}}}
 
 
-@override_settings(SYSTEM_STATUS_DOCKER_PROJECT='test', SYSTEM_STATUS_DOCKER_URL='http://docker-api:2375')
+@override_settings(ROOT_URLCONF='system.urls', SYSTEM_STATUS_DOCKER_PROJECT='test',
+                   SYSTEM_STATUS_DOCKER_URL='http://docker-api:2375')
 class StatusTests(SimpleTestCase):
     def test_health_and_lifecycle_mapping(self):
         for state, health, expected in [('running', 'healthy', 'healthy'),

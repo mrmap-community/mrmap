@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from django.db import models
 from django.db.models import Q
+from django.db.models.deletion import Collector
 from django.db.transaction import atomic, on_commit
 from django.utils.functional import cached_property
 from django.utils.timezone import now
@@ -358,8 +359,6 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             # the deleteable layers query would change and we would loose the information which layers we wanted to delete
             deleteable_layers = list(
                 self.deleteable_layers().values_list("id", flat=True))
-            for layer in deleteable_layers:
-                layer._change_reason = self.default_change_reason
 
             old_by_identifier = {
                 layer.identifier: layer for layer in self.old_service.layers.all()}
@@ -405,7 +404,14 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             )
 
             # clean up everthing we do not longer need
-            Layer.objects.filter(id__in=deleteable_layers).delete()
+            layers_to_delete = Layer.objects.filter(id__in=deleteable_layers)
+            collector = Collector(using=layers_to_delete.db, origin=layers_to_delete)
+            collector.collect(layers_to_delete)
+            # Set the reason on the instances passed to the history deletion signal.
+            # Keep bulk deletion: Node.delete() would adjust the updated tree again.
+            for layer in collector.data.get(Layer, ()):
+                layer._change_reason = self.default_change_reason
+            collector.delete()
 
             WebMapService.objects.filter(
                 update_candidate_of=self.service).delete()

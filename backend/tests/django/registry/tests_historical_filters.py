@@ -67,6 +67,12 @@ class HistoricalFiltersTest(TestCase):
 
     def view(self, params=None, view_class=WebMapServiceHistoricalViewSet):
         view = view_class()
+        if view.queryset.model is self.model:
+            # Proxy tests can leave audit records after deleting live services.
+            # Keep these assertions scoped to both objects created by this class.
+            view.queryset = view.queryset.filter(
+                id__in=[self.object_id, self.other.id],
+            )
         view.request = Request(APIRequestFactory().get("/", params or {}))
         view.action = "list"
         return view

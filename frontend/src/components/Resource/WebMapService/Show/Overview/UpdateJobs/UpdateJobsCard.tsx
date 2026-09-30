@@ -23,6 +23,7 @@ const UpdateJobsCard = () => {
         status_code__ne: 4,
       }}
       queryOptions={queryOptions}
+      perPage={5}
       actions={false}
       filters={undefined}
       aside={undefined}

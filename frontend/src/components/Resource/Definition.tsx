@@ -27,6 +27,7 @@ import ShowCatalogueService from './CatalogueService/Show/ShowCatalogueService';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
+import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonitoringRun';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
 import ListSystemInfo from './System/ListSystemInfo';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
@@ -106,7 +107,7 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "GetMapProbe"},
   
 
-  {name: "WebMapServiceMonitoringRun"},
+  {name: "WebMapServiceMonitoringRun", show: ShowWebMapServiceMonitoringRun},
   {name: "GetCapabilitiesProbeResult"},
   {name: "GetMapProbeResult"},
 

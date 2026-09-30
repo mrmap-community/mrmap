@@ -1,147 +1,41 @@
-import { formatMonitoringRun } from "./formatMonitoringRun";
-import {
-  Alert,
-  alpha,
-  Card,
-  CardContent,
-  CardHeader,
-  Chip,
-  Stack,
-  Typography,
-} from "@mui/material";
 import type { PropsWithChildren } from "react";
-import {
-  CreateButton,
-  Loading,
-  type RaRecord,
-  useCreatePath,
-  useGetList,
-  useListContext,
-  useRecordContext,
-  useTranslate,
-} from "react-admin";
+import { useListContext, useTranslate } from "react-admin";
 
-interface MonitoringSetting extends RaRecord {
-  enabled: boolean;
-  lastRunAt: string | null;
-  nextRunExpectedAt: string | null;
-  runOverdue: boolean;
-}
+import { Chip } from "@mui/material";
+
+import RunHistoryCard from "../RunHistoryCard";
+import { formatMonitoringRun } from "./formatMonitoringRun";
 
 const MonitoringRunsCardBase = ({ children }: PropsWithChildren) => {
-  const { data, isPending, error } = useListContext();
-  const service = useRecordContext();
-  const createPath = useCreatePath();
+  const { data } = useListContext();
   const translate = useTranslate();
   const message = (key: string) =>
     translate(`resources.WebMapServiceMonitoringRun.${key}`);
-  const hasRuns = (data?.length ?? 0) > 0;
-  const empty = !isPending && !error && data !== undefined && !hasRuns;
-  const settings = useGetList<MonitoringSetting>(
-    "WebMapServiceMonitoringSetting",
-    {
-      filter: { service__id: service?.id },
-      sort: { field: "id", order: "ASC" },
-      pagination: { page: 1, perPage: 1000 },
-    },
-    {
-      enabled: service?.id != null,
-      refetchInterval: 30_000,
-    },
-  );
-  const settingsReady =
-    !settings.isPending && !settings.error && settings.data !== undefined;
-  const noSettings = settingsReady && settings.data?.length === 0;
-  const overdue =
-    settingsReady &&
-    settings.data?.some((setting) => setting.enabled && setting.runOverdue);
   const lastRun = data?.[0];
-  const color = overdue
-    ? "warning"
-    : hasRuns
-      ? lastRun?.success
-        ? "success"
-        : "error"
-      : undefined;
-  const emptyMessage = noSettings
-    ? "noSetting"
-    : overdue
-      ? "runOverdue"
-      : settings.data?.some((setting) => setting.enabled)
-        ? "waitingForFirstRun"
-        : "settingsDisabled";
 
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        width: "100%",
-        minWidth: 0,
-        flex: 1,
-        border: 1,
-        borderColor: color ? `${color}.main` : "divider",
-      }}
-    >
-      <CardHeader
-        title={message("lastMonitoringRuns")}
-        subheader={
+    <RunHistoryCard
+      resource="WebMapServiceMonitoringRun"
+      settingsResource="WebMapServiceMonitoringSetting"
+      serviceFilter="service__id"
+      color={lastRun ? (lastRun.success ? "success" : "error") : undefined}
+      getHeader={() => ({
+        title: message("lastMonitoringRuns"),
+        subheader:
           lastRun?.dateCreated &&
-          formatMonitoringRun(lastRun.dateCreated, lastRun.dateDone)
-        }
-        action={
-          hasRuns ? (
-            <Chip
-              size="small"
-              color={lastRun?.success ? "success" : "error"}
-              variant={lastRun?.success ? "outlined" : "filled"}
-              label={message(lastRun?.success ? "passed" : "failed")}
-            />
-          ) : undefined
-        }
-        sx={(theme) => ({
-          bgcolor: color
-            ? alpha(theme.palette[color].main, 0.08)
-            : "action.hover",
-        })}
-      />
-      <CardContent>
-        {empty ? (
-          settings.error ? (
-            <Alert severity="error">{message("settingsLoadError")}</Alert>
-          ) : !settingsReady ? (
-            <Loading />
-          ) : (
-            <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
-              {overdue ? (
-                <Alert severity="warning">{message(emptyMessage)}</Alert>
-              ) : (
-                <Typography>{message(emptyMessage)}</Typography>
-              )}
-              {noSettings && service && (
-                <CreateButton
-                  resource="WebMapServiceMonitoringSetting"
-                  label={message("createSetting")}
-                  to={`${createPath({ resource: "WebMapService", id: service.id, type: "show" })}/WebMapServiceMonitoringSetting/create`}
-                />
-              )}
-            </Stack>
-          )
-        ) : (
-          <>
-            {settings.error ? (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {message("settingsLoadError")}
-              </Alert>
-            ) : overdue ? (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                {message("runOverdue")}
-              </Alert>
-            ) : null}
-            {children}
-          </>
-        )}
-      </CardContent>
-    </Card>
+          formatMonitoringRun(lastRun.dateCreated, lastRun.dateDone),
+        action: lastRun ? (
+          <Chip
+            size="small"
+            color={lastRun.success ? "success" : "error"}
+            variant={lastRun.success ? "outlined" : "filled"}
+            label={message(lastRun.success ? "passed" : "failed")}
+          />
+        ) : undefined,
+      })}
+    >
+      {children}
+    </RunHistoryCard>
   );
 };
 

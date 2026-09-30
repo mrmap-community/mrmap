@@ -79,7 +79,7 @@ const en = lodashMerge(
       WebMapServiceUpdateJob: {
         reviewRequired: "Review is required",
         reviewRequiredSubheader: "Remote capabilities contain changes that are not applied yet.",
-        lastUpdateJobs: "Last Updatejobs",
+        lastUpdateJobs: "Last update jobs",
         lastUpdateJobsSubheader: "No action is needed.",
         noSetting: "Automatic updates are not configured for this WMS.",
         createSetting: "Create update setting",

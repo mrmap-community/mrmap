@@ -14,6 +14,7 @@ router.register(r'periodic-tasks', views.PeriodicTaskViewSet,
                 basename='periodictask')
 
 urlpatterns = router.urls + [
+    path('status/<str:pk>', views.SystemStatusView.as_view(), name='system-status'),
     path(
         route=r'info',
         view=views.SystemView.as_view(),

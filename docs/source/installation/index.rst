@@ -90,3 +90,19 @@ create .env file under your mrmap path with the following variables. Please setu
 ==============
 
 Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker compose -f docker-compose.yml up --build frontend``. After that, MrMap should be reachable under http://localhost
+
+
+System status observations
+==========================
+
+The backend probes system services itself. Status requests return the latest
+observations held in that backend process's memory. When observations need
+refreshing, the request starts one background thread in the same process;
+concurrent requests keep reading the previous observations. No collector service,
+Celery task, or external cache is required.
+
+Refreshes are requested at most once every 15 seconds while the endpoint is in
+use. The first request after a backend process starts returns unknown states
+until its first collection completes. Each web worker maintains its own
+observations, which are marked stale after 45 seconds. Stopping Celery workers
+or Redis does not prevent the backend from checking the other services.

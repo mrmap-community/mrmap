@@ -1,6 +1,6 @@
 import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import {
-    ResourceProps
+  ResourceProps
 } from 'react-admin';
 
 import AgricultureIcon from '@mui/icons-material/Agriculture';
@@ -28,6 +28,7 @@ import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetada
 import ShowHarvestingJob from './HarvestingJob/ShowHarvestingJob';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import ListSystemInfo from './System/ListSystemInfo';
 import WmsViewerButtons from './WebMapService/Button/ListActions';
 import { WmsShow } from './WebMapService/Show/WmsShow';
 import { ShowWebMapServiceUpdate } from './WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob';
@@ -140,7 +141,11 @@ const RESOURCES: Array<ResourceProps> = [
 
 
   // System
-  {name: "SystemInfo", options: { menu: { group: "Admin", order: 10 } }},
+  {
+    name: "SystemInfo", 
+    list: ListSystemInfo, 
+    options: { menu: { group: "Admin", order: 10 } }
+  },
   {name: "CrontabSchedule",},
   {name: "PeriodicTask", options: { menu: { group: "Admin", order: 20 }}},
 ];

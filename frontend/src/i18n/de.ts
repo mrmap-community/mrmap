@@ -2,6 +2,56 @@ import { TranslationMessages } from "ra-core";
 
 // @ts-ignore
 const germanMessages: TranslationMessages = {
+  systemInfo: {
+    "title": "Systeminformationen",
+    "unavailable": "Systeminformationen sind nicht verfügbar.",
+    "mrmapRelease": "MrMap-Version",
+    "djangoVersion": "Django-Version",
+    "pythonVersion": "Python-Version",
+    "postgresqlVersion": "PostgreSQL-Version",
+    "databaseName": "Datenbankname",
+    "databaseSize": "Datenbankgröße",
+    "celeryWorkerCount": "Anzahl der Celery-Worker",
+    "redisUp": "Redis erreichbar",
+    "systemTime": "Systemzeit"
+  },
+  systemStatus: {
+    "title": "Systemstatus",
+    "observed": "Beobachtet am",
+    "stale": "Die Überwachungsdaten sind veraltet oder nicht verfügbar. Der aktuelle Zustand ist unbekannt.",
+    "workers": "Celery-Worker",
+    "beat": "Celery Beat",
+    "redis": "Redis",
+    "database": "PostgreSQL",
+    "noObservation": "Keine aktuelle Beobachtung",
+    "lastSeen": "Letztes Lebenszeichen",
+    "periodicTasks": "Periodische Aufgaben",
+    "scope": "Beat zeigt seine Datenbankverbindung; periodische Zeitpläne zeigen Verzögerungen. Beides belegt keinen erfolgreichen Aufgabenabschluss.",
+    "tasksUnavailable": "Keine Beobachtungen zu periodischen Aufgaben verfügbar.",
+    "limited": "%{shown} von %{total} Zeitplänen, mit Problemen zuerst.",
+    "task": "Aufgabe",
+    "state": "Zustand",
+    "nextExpected": "Nächste erwartete Einplanung",
+    "noTasks": "Keine periodischen Aufgaben konfiguriert.",
+    "flower": "Flower öffnen",
+    "unavailable": "Die Systemüberwachung ist nicht verfügbar.",
+    "states": {
+      "healthy": "In Ordnung",
+      "connected": "Verbunden",
+      "disconnected": "Nicht verbunden",
+      "unknown": "Unbekannt",
+      "degraded": "Eingeschränkt",
+      "unresponsive": "Keine Antwort",
+      "unavailable": "Nicht verfügbar",
+      "overdue": "Überfällig",
+      "disabled": "Deaktiviert",
+      "expired": "Abgelaufen",
+      "scheduled": "Eingeplant; Erfolg unbekannt",
+      "neverDispatched": "Noch nie eingeplant",
+      "oneOffDispatched": "Einmal eingeplant; Erfolg unbekannt"
+    },
+    "lastScheduled": "Zuletzt eingeplant"
+  },
   ra: {
     list: {
       actions: "Aktionen",

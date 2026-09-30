@@ -301,10 +301,13 @@ if not is_celery_process():
 # It caused more problems then benefits.
 # It happend many times, that there are old unfinished transactions in a pooled connection, which caused different sql errors..
 # So we only use pool for normal backend
+SYSTEM_STATUS_BEAT_APPLICATION_NAME = "mrmap-celery-beat"
 if is_celery_process():
     if is_this_a_celery_beat_process():
-        # Beat braucht nur eine Connection
-        DATABASES["default"]["OPTIONS"] = {}
+        # Identify Beat's existing session without a heartbeat or extra service.
+        DATABASES["default"]["OPTIONS"] = {
+            "application_name": SYSTEM_STATUS_BEAT_APPLICATION_NAME,
+        }
     else:
         # Worker: kein Pool, jede Task nutzt eigene Connection
         DATABASES["default"]["OPTIONS"] = {}

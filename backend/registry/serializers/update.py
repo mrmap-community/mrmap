@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
 from extras.serializers import (StringRepresentationSerializer,
@@ -40,9 +41,21 @@ class WebMapServiceUpdateSettingSerializer(
             "the schedule interval for this setting (e.g. '*/5 * * * *')."),
     )
 
+    last_run_at = DateTimeField(read_only=True, allow_null=True)
+    next_run_expected_at = DateTimeField(read_only=True, allow_null=True)
+    run_overdue = SerializerMethodField()
+
+    def get_run_overdue(self, obj) -> bool:
+        current_time = timezone.now()
+        if obj.expires is not None and obj.expires <= current_time:
+            return False
+        expected_at = obj.next_run_expected_at
+        return expected_at is not None and expected_at < current_time
+
     class Meta:
         model = WebMapServiceUpdateSetting
-        fields = ('url', 'service', 'schedule_interval', 'enabled', )
+        fields = ('url', 'service', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
 
 
 class UpdateJobBaseSerializer(Serializer):

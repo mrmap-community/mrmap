@@ -61,6 +61,7 @@ class PeriodicTaskSerializer(
             'queue',
             'enabled',
             'time_until_next_run',
+            'last_run_at'
         )
 
 

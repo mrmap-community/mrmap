@@ -20,7 +20,7 @@ from rest_framework_json_api.views import ModelViewSet
 
 
 class WebMapServiceUpdateSettingViewSetMixing:
-    queryset = WebMapServiceUpdateSetting.objects.all()
+    queryset = WebMapServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = WebMapServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
     filterset_fields = ('service', )

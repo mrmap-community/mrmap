@@ -87,7 +87,30 @@ const ListGuesser = ({
   const defaultOmit = useMemo(()=>fieldDefinitions.map(def => def.props.source).filter(source => !defaultSelectedColumns.includes(source)),[fieldDefinitions])
   const [initOmit, setInitOmit] = useState(false)
   const [_, setOmit] = useStore<string[]>(`preferences.${preferenceKey}.omit`)
-  
+  const jsonApiQuery = useJsonApiQuery( {relatedResource: relatedResource?.resource} )
+
+  const queryOptions = useMemo(()=>(
+    merge(
+          {
+            refetchInterval,
+            onError,
+            meta: (relatedResource?.resource !==  undefined)
+              ? {
+                relatedResource: {
+                  resource: relatedResource?.resource,
+                  id: relatedResource?.id ?? id
+                },
+                jsonApiParams: { ...jsonApiQuery }
+              }
+              : {
+                jsonApiParams: { ...jsonApiQuery }
+              }
+          },
+          props.queryOptions
+        )
+      ),[id, jsonApiQuery, relatedResource])
+
+
   useEffect(()=>{
     if(defaultOmit.length > 0 && !initOmit){
       setOmit(defaultOmit)
@@ -96,14 +119,14 @@ const ListGuesser = ({
   },[defaultOmit])
 
 
-  const jsonApiQuery = useJsonApiQuery( {relatedResource: relatedResource ? relatedResource.resource: undefined})
-
   if (operation === undefined || fields === undefined || fields?.length === 0) {
     // if fields are empty the table will be initial rendered only with the default index column.
     // when fields are filled after that render cyclus, the datagrid will be stuck with this single column
     // untill a new full render cyclus becomes started for the datagrid. (for example page change)
     return <div />
   }
+
+  console.log(queryOptions, relatedResource)
 
   return (
     <ListComponent
@@ -115,28 +138,7 @@ const ListGuesser = ({
         />
       }
       empty={props.empty || <EmptyList />}
-      queryOptions={
-        merge(
-          {
-            refetchInterval,
-            onError,
-            meta: (relatedResource?.resource !== '')
-              ? {
-                jsonApiParams: { ...jsonApiQuery }
-              }
-              : {
-                relatedResource: {
-                  resource: relatedResource?.resource,
-                  id: relatedResource?.id ?? id
-                },
-                jsonApiParams: { ...jsonApiQuery }
-              }
-          },
-          props.queryOptions
-        )
-      }
-      
-
+      queryOptions={queryOptions}
       aside={
         hasHistoricalEndpoint ?
         <AsideCard

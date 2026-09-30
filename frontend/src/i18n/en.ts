@@ -32,11 +32,28 @@ const en = lodashMerge(
         deleted: "deleted",
         updated: "updated"
       },
+      WebMapServiceMonitoringRun: {
+        lastMonitoringRuns: "Last monitoring runs",
+        passed: "Passed",
+        failed: "Failed",
+        noSetting: "Monitoring is not configured for this WMS.",
+        createSetting: "Create monitoring setting",
+        settingsDisabled: "Monitoring is disabled. Enable a monitoring setting to schedule runs.",
+        waitingForFirstRun: "No monitoring runs yet. Waiting for the first scheduled run.",
+        runOverdue: "A scheduled monitoring run is overdue. Check the monitoring scheduler.",
+        settingsLoadError: "Unable to load monitoring settings."
+      },
       WebMapServiceUpdateJob: {
         reviewRequired: "Review is required",
         reviewRequiredSubheader: "Remote capabilities contain changes that are not applied yet.",
         lastUpdateJobs: "Last Updatejobs",
-        lastUpdateJobsSubheader: "No action is needed."
+        lastUpdateJobsSubheader: "No action is needed.",
+        noSetting: "Automatic updates are not configured for this WMS.",
+        createSetting: "Create update setting",
+        settingsDisabled: "Automatic updates are disabled. Enable an update setting to schedule jobs.",
+        waitingForFirstRun: "No update jobs yet. Waiting for the first scheduled run.",
+        runOverdue: "A scheduled update job is overdue. Check the update scheduler.",
+        settingsLoadError: "Unable to load update settings."
       }
     }
   }

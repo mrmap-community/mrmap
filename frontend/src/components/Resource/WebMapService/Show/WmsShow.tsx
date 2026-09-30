@@ -5,7 +5,7 @@ import { BasenameContextProvider, Show, SimpleShowLayoutProps, TabbedShowLayout,
 import { createElementIfDefined } from '../../../../utils';
 import MetadataEditTab from './Tabs/MetadataEditTab';
 import MonitoringTab from './Tabs/MonitoringTab';
-import OverviewtTab from './Tabs/OverviewTab';
+import OverviewTab from './Tabs/OverviewTab';
 import ProxySettingsTab from './Tabs/ProxySettingsTab';
 import SpatialSecureTab from './Tabs/SpatialSecureTab';
 import UpdateSettingTab from './Tabs/UpdateSettingTab';
@@ -144,7 +144,7 @@ export const WmsShow = (props: SimpleShowLayoutProps) => {
         >
         <TabbedShowLayout tabs={<WmsShowTabs />} >
             <TabbedShowLayout.Tab label={translate('ra.page.dashboard')} icon={<AutoGraphIcon/>} >
-                <OverviewtTab/>
+                <OverviewTab/>
             </TabbedShowLayout.Tab>
             <TabbedShowLayout.Tab 
                 label={resourceDefinitions["WebMapService"].name} 

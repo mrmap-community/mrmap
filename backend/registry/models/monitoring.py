@@ -11,6 +11,7 @@ from django.db.models.fields import BooleanField, CharField
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
+from extras.scheduling import next_run_expected_at
 from epsg_cache.utils import adjust_axis_order
 from lxml import etree
 from PIL import Image, UnidentifiedImageError
@@ -30,6 +31,10 @@ def get_error_exceptions_default():
 
 
 class WebMapServiceMonitoringSetting(PeriodicTask):
+    @property
+    def next_run_expected_at(self):
+        return next_run_expected_at(self)
+
     service: WebMapService = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,

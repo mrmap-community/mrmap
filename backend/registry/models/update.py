@@ -8,6 +8,7 @@ from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
+from extras.scheduling import next_run_expected_at
 from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
@@ -16,8 +17,7 @@ from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
 from registry.tasks.update import (run_csw_update, run_wfs_update,
                                    run_wms_update)
-from simple_history.utils import (bulk_create_with_history,
-                                  bulk_update_with_history)
+from simple_history.utils import bulk_update_with_history
 
 
 def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
@@ -81,6 +81,10 @@ def default_csw_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
 
 
 class WebMapServiceUpdateSetting(PeriodicTask):
+    @property
+    def next_run_expected_at(self):
+        return next_run_expected_at(self)
+
     service: WebMapService = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,

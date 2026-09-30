@@ -1,368 +1,34 @@
-import { Labeled, RaRecord, ShowButton, SimpleList, SimpleShowLayout, TextField, UrlField, useListContext, useRecordContext, useResourceContext, useResourceDefinition, useTranslate, WithRecord } from "react-admin";
-
-
-import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
-import { alpha, Card, CardContent, CardHeader, Chip, Grid, Stack } from "@mui/material";
-import { PropsWithChildren, useCallback, useMemo } from "react";
-import ListGuesser from "../../../../../jsonapi/components/ListGuesser";
-
-import { format, isToday, isYesterday } from 'date-fns';
-import { prepareGetCapabilititesUrl } from "../../../../../ows-lib/OwsContext/utils";
+import { Grid } from "@mui/material";
+import { useRecordContext, useResourceDefinition } from "react-admin";
 import HistoryList from "../HistoryList";
+import MonitoringRunsCard from "../Overview/MonitoringRuns/MonitoringRunsCard";
+import UpdateJobsCard from "../Overview/UpdateJobs/UpdateJobsCard";
+import WmsOverviewHeader from "../Overview/WmsOverviewHeader";
 
-const getDuration = (
-  dateCreated: string,
-  dateDone?: string,
-) => {
-  const created = new Date(dateCreated);
-  return dateDone
-        ? (new Date(dateDone).getTime() - created.getTime()) / 1000
-        : undefined;
-}
-
-const formatMonitoringRun = (
-    dateCreated: string,
-    dateDone?: string,
-) => {
-    const created = new Date(dateCreated);
-
-    const dateLabel = isToday(created)
-        ? 'Today'
-        : isYesterday(created)
-          ? 'Yesterday'
-          : format(created, 'dd.MM.yyyy');
-
-    const timeLabel = format(created, 'HH:mm');
-
-    const duration = getDuration(dateCreated, dateDone)
-
-    return `${dateLabel}, ${timeLabel}${
-        duration !== undefined ? ` · ${duration.toFixed(2)} s` : ''
-    }`;
-};
-
-
-
-const WmsOverviewHeader = () =>{
-  const record = useRecordContext()
-  const {name} = useResourceDefinition()
-  return (
-
-      <Card
-        variant="outlined"
-        sx={{ width: "100%", minWidth: 0, height: "100%" }}
-      >
-        <SimpleShowLayout sx={{ p: 2, overflowWrap: "anywhere" }}>
-          <TextField source="id" />
-          <TextField source="title" />
-          <TextField source="abstract" />
-          <Labeled label="version">
-            <Chip variant="outlined" label={String(record?.version)?.split("").join(".")}/>
-          </Labeled>
-          <WithRecord
-            label="GetCapabilities URL"
-              //label="show remote capabilities"
-              render={(record: RaRecord) => {
-                  const url = record.operationUrls?.find((operationUrl: RaRecord)=> (operationUrl.operation === 1 && operationUrl.method === 1));
-                  url.url = prepareGetCapabilititesUrl(
-                          url.url,
-                          "WMS",
-                          record.version.toString().split('').join('.')
-                      ).href
-                  return url ? <UrlField record={url} source="url"/> : null;
-              }}
-          />
-        </SimpleShowLayout>
-      </Card>
-
-  )
-}
-
-
-
-
-const UpdateJobsCardBase = (
-  {
-    children
-  }: PropsWithChildren
-) => {
-  const {data } = useListContext();
-  const nestedResource = "WebMapServiceUpdateJob"
-  const translate = useTranslate()
-  const reviewRequired = useMemo(() => data?.some(record => record.statusCode === 2 || false),[data])
-
-  return (
-    <Card
-      variant="outlined"
-      sx={(theme) => ({
-        width: "100%",
-        minWidth: 0,
-        height: "100%",
-        
-        border: 1,
-        ...(reviewRequired ? {
-          borderColor: 'warning.main',
-        }: {
-          borderColor: 'success.main',
-        })})
-      }
-    >
-      <CardHeader
-        title={
-          reviewRequired ? translate(`resources.${nestedResource}.reviewRequired`): translate(`resources.${nestedResource}.lastUpdateJobs`)
-        }
-        subheader={
-          reviewRequired ? translate(`resources.${nestedResource}.reviewRequiredSubheader`): translate(`resources.${nestedResource}.lastUpdateJobsSubheader`)
-        }
-        action={
-          reviewRequired?
-          <Chip
-            size="small"
-            color="warning"
-            label="1 open"
-          />:
-          <Chip
-            size="small"
-            color="success"
-            label={data?.[0].doneAt}
-          />
-        }
-        severity="warning"
-        sx={(theme) => (reviewRequired ?{
-            bgcolor: alpha(theme.palette.warning.main, 0.08),
-            borderColor: 'warning.main',
-        }:{
-          bgcolor: alpha(theme.palette.success.main, 0.08),
-          borderColor: 'success.main',
-        }
-      )}
-      />
-      <CardContent>
-        {children}
-      </CardContent>
-    </Card>
-  )
-}
-
-
-const UpdateJobsList = () => {
-  const changes = useCallback((record: RaRecord)=>{
-    const changes = []
-    const layersChanged = record?.mappings.filter((mapping: RaRecord) => mapping.delta?.length > 0)
-    const newLayers = record?.mappings?.filter((mapping: RaRecord) => mapping.newLayer !== undefined && mapping.oldLayer === undefined)
-    const deletedLayers = record?.mappings?.filter((mapping: RaRecord) => mapping.newLayer === undefined && mapping.oldLayer !== undefined)
-    console.log(layersChanged)
-    layersChanged.length > 0 && changes.push(`${layersChanged.length || 0} layer(s) changed`)
-    deletedLayers.length > 0 && changes.push(`${deletedLayers} layer(s) are marked for deletion`)
-    newLayers.length > 0 && changes.push(`${newLayers.length || 0} new layer(s)`)
-    
-    return changes.join("·")
-  },[])
-
-  return (
-    <SimpleList
-      rightIcon={(record) => <ShowButton
-                                label={record.status === 'Review required' ? 'Review' : 'View'}
-                                variant="contained"
-                                color={record.status === 'Review required' ? 'warning' : 'primary'}
-                                icon={false}
-                              />
-      }
-      primaryText={(record) => `Update #${record.id} ${new Date(record.doneAt).toLocaleDateString(undefined, {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}`}
-      secondaryText={record => `${record.status} | ${changes(record)}`}
-      rowClick={false}
-    />
-  )
-}
-
-const UpdateJobsCard = () => {
-  const nestedResource = "WebMapServiceUpdateJob"
-  const record = useRecordContext()
-  const queryOptions = {
-    meta: {
-      jsonApiParams: {
-        include: 'mappings'
-      }
-    }
-  }
-  return (
-    <ListGuesser
-      resource={nestedResource}
-      disableSyncWithLocation
-      sort={{field:"doneAt", order:"DESC"}}
-      filter={{
-        "service": record?.id,
-        "status_code__ne": 4
-      }}
-      queryOptions={queryOptions}
-      actions={false}
-      filters={undefined}
-      aside={undefined}
-      pagination={false}
-      component={UpdateJobsCardBase}
-      storeKey="wms_overview_update_jobs"
-      defaultSelectedColumns={["id", "dateCreated", "doneAt", "status"]}
-      dataGridProps={{
-        component:UpdateJobsList
-      }}
-    />
-  )
-}
-
-
-
-const MonitoringRunsCardBase = ({
-  children
-}: PropsWithChildren) => {
-  const {data } = useListContext();
-  const translate = useTranslate();
-
-  const lastRun = data?.[0]
-  return (
-      <Card
-        variant="outlined"
-         sx={{
-           width: "100%",
-           minWidth: 0,
-           flex: 1,
-           border: 1,
-           borderColor: lastRun?.success ? "success.main" : "warning.main",
-         }}
-      >
-        <CardHeader
-          title={"Last monitoring runs"}
-          subheader={lastRun?.dateCreated && formatMonitoringRun(lastRun?.dateCreated, lastRun?.dateDone)}
-          action={
-            lastRun?.success ?
-            <Chip
-              size="small"
-              color="success"
-              variant="outlined"
-              label={
-                <Stack
-                  direction="row"
-                  sx={{
-                    alignItems:"center"
-                  }}
-                >
-                  <FiberManualRecordIcon
-                    color={lastRun?.success ? 'success' : 'error'}
-                    sx={{ fontSize: 12 }}
-                    />
-                  Passed
-                </Stack>
-              }
-            />:
-            <Chip
-              size="small"
-              color="error"
-              label="Failed"
-            />
-          }
-          sx={(theme) => (lastRun?.success ?{
-              bgcolor: alpha(theme.palette.success.main, 0.08),
-              borderColor: 'success.main',
-            }:{
-              bgcolor: alpha(theme.palette.success.main, 0.08),
-              borderColor: 'warning.main',
-          }
-          )}
-        />
-         <CardContent>
-          {children}
-        </CardContent>
-
-      </Card>
-  )
-}
-
-const MonitoringRunsList = () => {
-  return (
-    <SimpleList
-        leftIcon={(record) => <FiberManualRecordIcon color={record.success? "success": "warning"}/>}
-        rightIcon={(record) => `${record?.getMapProbeResults?.length + record?.getCapabilititesProbeResults?.length} checks, in ${getDuration(record?.dateCreated, record?.dateDone)?.toFixed(2)} s`}
-        primaryText={(record) => `${formatMonitoringRun(record?.dateDone)}`}
-        rowClick={false}
-        sx={{
-        p: 0,
-
-        '& .MuiListItem-root': {
-            px: 0,
-            py: 0.5,
-            minHeight: 32,
-        },
-
-        '& .MuiListItemText-root': {
-            m: 0,
-        },
-
-        '& .MuiListItemButton-root': {
-            py: 0,
-        },
-    }}
-    />
-  )
-}
-
-
-const MonitoringRunsCard = () => {
-  const resource = useResourceContext()
-  const nestedResource = "WebMapServiceMonitoringRun"
-  const record = useRecordContext()
-  const relatedResource = {
-    resource: resource,
-    id: record?.id
-  }
-  return (
-    <ListGuesser
-      resource={nestedResource}
-      relatedResource={relatedResource}
-      disableSyncWithLocation
-      sort={{field:"dateDone", order:"DESC"}}
-      perPage={5}
-      actions={false}
-      filters={undefined}
-      aside={undefined}
-      pagination={false}
-      component={MonitoringRunsCardBase}
-      storeKey="wms_overview_monitoring_runs"
-      defaultSelectedColumns={["id", "dateCreated", "dateDone", "status"]}
-      dataGridProps={{
-        component: MonitoringRunsList
-      }}
-    />
-  )
-}
-
-
-const OverviewtTab = () => {
-  const record = useRecordContext()
-  const {name} = useResourceDefinition()
+const OverviewTab = () => {
+  const record = useRecordContext();
+  const { name } = useResourceDefinition();
   return (
     <Grid
       container
       spacing={2}
-      
+
       sx={{
         alignItems: "stretch",
         minWidth: 0,
-        // Embedded lists fill their grid cells instead of inheriting page margins.
-        //'& > .MuiGrid-root': { display: "flex", minWidth: 0 },
-        //'& .RaList-root': { width: "100%", minWidth: 0 },
-        '&& .RaList-main': { width: "100%", minWidth: 0, m: 0 },
+        // Stretch the grid cells and embedded list wrappers through to each card.
+        "& > .MuiGrid-root": { display: "flex", minWidth: 0 },
+        "& > .MuiGrid-root > .list-page": { flex: 1, minWidth: 0 },
+        "&& .RaList-main": { width: "100%", minWidth: 0, m: 0 },
       }}
     >
       <Grid size={{ xs: 12, md: 6 }}>
-        <WmsOverviewHeader/>
+        <WmsOverviewHeader />
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
         <HistoryList
-          resource={`Historical${name ?? ''}`}
-          related={name ?? ''}
+          resource={`Historical${name ?? ""}`}
+          related={name ?? ""}
           record={record}
         />
       </Grid>
@@ -370,11 +36,10 @@ const OverviewtTab = () => {
         <UpdateJobsCard />
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
-        <MonitoringRunsCard/>
+        <MonitoringRunsCard />
       </Grid>
     </Grid>
-  )
-}
+  );
+};
 
-
-export default OverviewtTab
+export default OverviewTab;

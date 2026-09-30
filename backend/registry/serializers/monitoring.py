@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from extras.fields import CrontabStringField
 from extras.serializers import (StringRepresentationSerializer,
@@ -9,7 +10,7 @@ from registry.models.monitoring import (GetCapabilitiesProbe,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import Layer, WebMapService
-from rest_framework.fields import IntegerField
+from rest_framework.fields import DateTimeField, IntegerField, SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField,
                                                  HyperlinkedIdentityField,
@@ -112,10 +113,22 @@ class WebMapServiceMonitoringSettingSerializer(
         read_only=True,
     )
 
+    last_run_at = DateTimeField(read_only=True, allow_null=True)
+    next_run_expected_at = DateTimeField(read_only=True, allow_null=True)
+    run_overdue = SerializerMethodField()
+
+    def get_run_overdue(self, obj) -> bool:
+        current_time = timezone.now()
+        if obj.expires is not None and obj.expires <= current_time:
+            return False
+        expected_at = obj.next_run_expected_at
+        return expected_at is not None and expected_at < current_time
+
     class Meta:
         model = WebMapServiceMonitoringSetting
         fields = ('url', 'service', 'schedule_interval',
-                  "get_capabilitites_probes", "get_map_probes", "enabled")
+                  "get_capabilitites_probes", "get_map_probes", "enabled",
+                  "last_run_at", "next_run_expected_at", "run_overdue")
 
 
 class WebMapServiceMonitoringRunSerializer(

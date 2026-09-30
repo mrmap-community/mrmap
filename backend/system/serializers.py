@@ -88,10 +88,6 @@ class SystemStatusSerializer(Serializer):
     stale = BooleanField()
     stale_after = IntegerField()
     components = JSONField()
-    tasks = JSONField()
-    task_counts = JSONField()
-    task_total = IntegerField()
-    tasks_available = BooleanField()
 
     class Meta:
         resource_name = 'SystemStatus'

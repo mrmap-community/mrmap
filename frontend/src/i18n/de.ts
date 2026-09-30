@@ -25,32 +25,13 @@ const germanMessages: TranslationMessages = {
     "database": "PostgreSQL",
     "noObservation": "Keine aktuelle Beobachtung",
     "lastSeen": "Letztes Lebenszeichen",
-    "periodicTasks": "Periodische Aufgaben",
-    "scope": "Beat zeigt seine Datenbankverbindung; periodische Zeitpläne zeigen Verzögerungen. Beides belegt keinen erfolgreichen Aufgabenabschluss.",
-    "tasksUnavailable": "Keine Beobachtungen zu periodischen Aufgaben verfügbar.",
-    "limited": "%{shown} von %{total} Zeitplänen, mit Problemen zuerst.",
-    "task": "Aufgabe",
-    "state": "Zustand",
-    "nextExpected": "Nächste erwartete Einplanung",
-    "noTasks": "Keine periodischen Aufgaben konfiguriert.",
-    "flower": "Flower öffnen",
     "unavailable": "Die Systemüberwachung ist nicht verfügbar.",
     "states": {
       "healthy": "In Ordnung",
-      "connected": "Verbunden",
-      "disconnected": "Nicht verbunden",
+      "down": "Gestoppt",
       "unknown": "Unbekannt",
-      "degraded": "Eingeschränkt",
-      "unresponsive": "Keine Antwort",
-      "unavailable": "Nicht verfügbar",
-      "overdue": "Überfällig",
-      "disabled": "Deaktiviert",
-      "expired": "Abgelaufen",
-      "scheduled": "Eingeplant; Erfolg unbekannt",
-      "neverDispatched": "Noch nie eingeplant",
-      "oneOffDispatched": "Einmal eingeplant; Erfolg unbekannt"
-    },
-    "lastScheduled": "Zuletzt eingeplant"
+      "degraded": "Eingeschränkt"
+    }
   },
   ra: {
     list: {

@@ -1,7 +1,6 @@
 import {
     Alert, Box,
-    Card, CardContent, Chip, LinearProgress, Stack, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, Typography
+    Card, CardContent, Chip, LinearProgress, Stack, Typography
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import {
@@ -14,28 +13,18 @@ interface Observation {
     detail: string;
     last_seen?: string | null;
 }
-interface TaskObservation extends Observation {
-    id: string;
-    name: string;
-    queue?: string;
-    next_expected_at?: string | null;
-    last_scheduled_at?: string | null;
-}
 interface SystemStatusRecord extends RaRecord {
     observedAt: string | null;
     stale: boolean;
     staleAfter: number;
     components: Record<string, Observation>;
-    tasks: TaskObservation[];
-    taskCounts: Record<string, number>;
-    taskTotal: number;
-    tasksAvailable: boolean;
+
 }
 
 const label = (value?: string | null) => value ? new Date(value).toLocaleString() : '—';
 const color = (status: string): 'success' | 'error' | 'warning' | 'default' => {
-    if (status === 'healthy' || status === 'connected') return 'success';
-    if (['unavailable', 'unresponsive', 'overdue', 'disconnected'].includes(status)) return 'error';
+    if (status === 'healthy') return 'success';
+    if (['down'].includes(status)) return 'error';
     if (['degraded'].includes(status)) return 'warning';
     return 'default';
 };
@@ -70,32 +59,6 @@ export const SystemStatusPanel = ({ data, failed = false }: { data: SystemStatus
                         </Box>;
                     })}
                 </Box>
-                <Typography variant="h6" sx={{ mt: 2 }}>{t('periodicTasks')}</Typography>
-                <Typography variant="body2" color="text.secondary">{t('scope')}</Typography>
-                {!data.tasksAvailable && <Alert severity="warning" sx={{ mt: 1 }}>{t('tasksUnavailable')}</Alert>}
-                {!stale && <Stack direction="row" sx={{ my: 1, flexWrap: "wrap", gap: 1 }}>
-                    {Object.entries(data.taskCounts).map(([state, count]) => <Chip key={state} size="small" color={color(state)} label={`${t(`states.${state}`)}: ${count}`} />)}
-                </Stack>}
-                {data.taskTotal > data.tasks.length && <Alert severity="info">{translate('systemStatus.limited', { shown: data.tasks.length, total: data.taskTotal })}</Alert>}
-                <TableContainer>
-                    <Table size="small" aria-label={t('periodicTasks')}>
-                        <TableHead><TableRow>
-                            {['task', 'state', 'lastScheduled', 'nextExpected'].map(key => <TableCell key={key}>{t(key)}</TableCell>)}
-                        </TableRow></TableHead>
-                        <TableBody>
-                            {data.tasks.map(task => <TableRow key={task.id}>
-                                <TableCell>{task.name}<Typography variant="caption" sx={{ display: "block" }}>{task.queue}</Typography></TableCell>
-                                <TableCell>
-                                    <Chip size="small" color={color(stale ? 'unknown' : task.status)} label={t(`states.${stale ? 'unknown' : task.status}`)} />
-                                    {!stale && <Typography variant="caption" sx={{ display: "block" }}>{task.detail}</Typography>}
-                                </TableCell>
-                                <TableCell>{label(task.last_scheduled_at)}</TableCell>
-                                <TableCell>{label(task.next_expected_at)}</TableCell>
-                            </TableRow>)}
-                            {data.tasksAvailable && data.tasks.length === 0 && <TableRow><TableCell colSpan={4}>{t('noTasks')}</TableCell></TableRow>}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
             </CardContent>
         </Card>
     );

@@ -675,3 +675,7 @@ if not MRMAP_PRODUCTION:
 
 
 APPEND_SLASH = False
+
+# Docker access is restricted to container list/inspect by the private API proxy.
+SYSTEM_STATUS_DOCKER_URL = os.environ.get("SYSTEM_STATUS_DOCKER_URL", "http://docker-api:2375")
+SYSTEM_STATUS_DOCKER_PROJECT = os.environ.get("SYSTEM_STATUS_DOCKER_PROJECT", "")

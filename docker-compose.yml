@@ -17,6 +17,12 @@ services:
       POSTGRES_USER: "${DB_USER:?Please configure DB_USER in the .env file}"
       POSTGRES_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
       POSTGRES_DB: "${POSTGRES_DB:-mrmap}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
   # migration guide:
   # 1. backup current db => docker exec -it `container_id` pg_dumpall -U mrmap  > .upgrade_backup.sql
   # 2. call pg_extract script => backend/.bash_scripts/pg_extract.sh .upgrade_backup.sql mrmap >> upgrade_backup_mydb.sql
@@ -40,6 +46,19 @@ services:
       timeout: 3s
       retries: 10
       start_period: 2s
+
+  docker-api:
+    image: haproxy:3.2-alpine
+    user: "0:0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/docker-api/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - docker-status
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
 
   backend:
     build:
@@ -66,7 +85,10 @@ services:
         target: /var/mrmap/import
     networks:
       - mrmap-internal
+      - docker-status
     environment:
+      SYSTEM_STATUS_DOCKER_PROJECT: "${COMPOSE_PROJECT_NAME}"
+      SYSTEM_STATUS_DOCKER_URL: "http://docker-api:2375"
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
@@ -77,6 +99,8 @@ services:
     env_file:
       - docker/backend/.mrmap.env
     depends_on:
+      docker-api:
+        condition: service_started
       postgis:
         condition: service_started
       redis:
@@ -95,7 +119,6 @@ services:
     # Do not activate tty!!!!! This will freeze the worker process in case of console spamming. 
     # See: https://stackoverflow.com/questions/48021772/docker-process-hangs-on-write-system-call-to-stdout
     #tty: true # To support colorized log output.
-    hostname: "celery-worker"
     volumes:
       - type: bind
         source: ./backend
@@ -131,8 +154,8 @@ services:
     cap_add:
       - SYS_PTRACE
     healthcheck:
-      test: celery -A MrMap inspect ping || exit 1
-      interval: 1m
+      test: ["CMD-SHELL", "celery -A MrMap inspect ping --destination celery@$$HOSTNAME --timeout 2"]
+      interval: 15s
       timeout: 10s
       retries: 3
       start_period: 40s
@@ -145,7 +168,7 @@ services:
       args:
         MRMAP_PRODUCTION: "True"
     command: >
-      /bin/sh -c "celery -A MrMap beat --loglevel INFO --scheduler django"
+      /bin/sh -c "celery -A MrMap beat --loglevel INFO --scheduler system.scheduler:HealthcheckScheduler --max-interval 10"
     tty: true # To support colorized log output.
     hostname: "mrmap-celery-beat"
     volumes:
@@ -177,6 +200,13 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import pathlib,time; p=pathlib.Path('/tmp/mrmap-beat-heartbeat'); raise SystemExit(0 if p.exists() and 0 <= time.time()-p.stat().st_mtime < 30 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
 
   frontend:
     build:
@@ -260,4 +290,6 @@ volumes:
   openobserve-data: null
 
 networks:
+  docker-status:
+    internal: true
   mrmap-internal: null

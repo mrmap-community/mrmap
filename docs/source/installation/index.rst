@@ -92,17 +92,33 @@ create .env file under your mrmap path with the following variables. Please setu
 Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker compose -f docker-compose.yml up --build frontend``. After that, MrMap should be reachable under http://localhost
 
 
-System status observations
-==========================
+Docker health reporting
+=======================
 
-The backend probes system services itself. Status requests return the latest
-observations held in that backend process's memory. When observations need
-refreshing, the request starts one background thread in the same process;
-concurrent requests keep reading the previous observations. No collector service,
-Celery task, or external cache is required.
+The status API reads container lifecycle and healthcheck results from Docker.
+It does not run probes, maintain a background thread, or retrieve periodic tasks.
+Periodic tasks remain available through their existing JSON:API resource.
 
-Refreshes are requested at most once every 15 seconds while the endpoint is in
-use. The first request after a backend process starts returns unknown states
-until its first collection completes. Each web worker maintains its own
-observations, which are marked stale after 45 seconds. Stopping Celery workers
-or Redis does not prevent the backend from checking the other services.
+The private ``docker-api`` proxy permits only GET requests to container list and
+inspect endpoints. Only the proxy mounts the Docker socket; no proxy port is
+published on the host. The backend connects over the internal ``docker-status``
+network. Container inspection includes configuration metadata, so keep access to
+this network restricted to the backend. The read-only socket mount itself is
+not the authorization boundary: the proxy's method/path allowlist is.
+
+Compose passes its project name to the backend as ``SYSTEM_STATUS_DOCKER_PROJECT``.
+Containers are selected by Compose project/service labels, including stopped
+containers and worker replicas, excluding one-off commands. Each worker uses
+its unique container hostname and checks only its own Celery node. PostgreSQL
+uses ``pg_isready`` and Redis uses ``PING``. Beat writes a local heartbeat after
+successful scheduler iterations; its Docker healthcheck checks the file's age.
+
+Recreate the backend, database, Redis, worker, and Beat containers to apply the
+healthchecks and networking. Start ``docker-api`` before the backend. Recreating
+workers or the database should be scheduled around active work; no schema
+migration is required. Containers not yet recreated may show unknown health.
+
+Missing containers or healthchecks report unknown; exited containers report
+down; unhealthy or partially failed replicas report degraded. Docker API failure
+reports unknown. Detection latency follows healthcheck intervals and retries;
+a reported healthy container does not prove task execution succeeded.

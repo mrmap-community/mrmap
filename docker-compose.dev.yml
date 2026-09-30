@@ -195,7 +195,7 @@ services:
     env_file:
       - ./docker/backend/.mrmap.env
     command: >
-      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler django"
+      /bin/sh -c "watchmedo auto-restart --directory=./ --pattern=*.py --recursive -- celery -A MrMap beat --loglevel INFO --scheduler system.scheduler:HealthcheckScheduler --max-interval 10"
     depends_on:
       postgis:
         condition: service_started

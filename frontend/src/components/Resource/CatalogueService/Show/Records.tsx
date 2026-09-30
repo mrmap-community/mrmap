@@ -1,4 +1,5 @@
 import { ShowViewProps } from 'react-admin';
+import { Fragment } from 'react/jsx-runtime';
 import SimpleList from '../../Generic/List/SimpleList';
 
 export interface RecordsProps extends Partial<ShowViewProps> {
@@ -11,7 +12,7 @@ const Records = ({
 }: RecordsProps) => {
 
   return (
-    <div>
+    <Fragment>
       <SimpleList 
         resource='DatasetMetadataRecord'
         relatedResource='CatalogueService'
@@ -20,7 +21,7 @@ const Records = ({
         resource='ServiceMetadataRecord'
         relatedResource='CatalogueService'
       />
-    </div>
+    </Fragment>
   )
 };
 

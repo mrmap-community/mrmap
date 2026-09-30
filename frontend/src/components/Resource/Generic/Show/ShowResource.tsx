@@ -1,4 +1,4 @@
-import { ReactNode, useMemo } from 'react';
+import { Fragment, ReactNode, useMemo } from 'react';
 import { RecordRepresentation, Show, ShowProps, ShowViewProps, useResourceContext, WithRecord } from 'react-admin';
 import JsonApiReferenceField from '../../../../jsonapi/components/ReferenceField';
 import SimpleCard from '../../../MUI/SimpleCard';
@@ -29,12 +29,12 @@ const ShowResource = ({
 
   const defaultSubheader = useMemo(() => {
     return (
-      <div>
+      <Fragment>
         <WithRecord label="createdAt" render={record => <span>Created on {record.createdAt}</span>} />
         <WithRecord label='createdBy' render={record => <span> by {<JsonApiReferenceField source='createdBy' reference='User'/>}</span>} />
         <WithRecord label="changedAt" render={record => <span> · Updated on {record.lastModifiedAt}</span>} />
         <WithRecord label='createdBy' render={record => <span> by {<JsonApiReferenceField source='lastModifiedBy' reference='User'/>}</span>} />
-      </div>
+      </Fragment>
 
     )
   },[]);

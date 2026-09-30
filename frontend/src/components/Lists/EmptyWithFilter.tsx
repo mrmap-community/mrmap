@@ -1,11 +1,17 @@
 import { Box } from '@mui/material';
 import {
-  ListNoResults
+  ListNoResults,
+  useResourceDefinition,
+  useTranslate
 } from 'react-admin';
 
 
 
 const EmptyListWithFilter = () => {
+  const { name } = useResourceDefinition();
+  const translate = useTranslate();
+  
+  
   return (
     <Box
       sx={{
@@ -23,7 +29,7 @@ const EmptyListWithFilter = () => {
       <Box
         component="img"
         src="mr_map_empty_list_with_filter.png"
-        alt="Empty list"
+        alt={translate("ra.page.empty",  {name})}
         sx={{
           width: 'clamp(220px, 30vw, 420px)',
           maxWidth: '90%',

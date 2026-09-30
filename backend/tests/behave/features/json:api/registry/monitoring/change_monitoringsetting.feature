@@ -13,49 +13,9 @@ Feature: WebMapServiceMonitoringSetting Change Endpoint
                     "type": "WebMapServiceMonitoringSetting",
                     "id": 1,
                     "attributes": {
-                        "name": "some new setting",
-                        "getCapabilitiesProbes": [
-                            {
-                                "type": "GetCapabilitiesProbe",
-                                "attributes": {
-                                    "timeout": 30,
-                                    "checkResponseIsValidXml": true,
-                                    "checkResponseDoesContain": [
-                                        "title>",
-                                        "abstract>"
-                                    ]
-                                }
-                            }
-                        ],
-                        "getMapProbes": [
-                            {
-                                "type": "GetMapProbe",
-                                "attributes": {
-                                    "timeout": 30,
-                                    "height": 256,
-                                    "width": 256,
-                                    "checkResponseIsImage": true
-                                },
-                                "relationships": {
-                                    "layers": {
-                                        "data": [
-                                            {
-                                                "id": "16b93d90-6e2e-497a-b26d-cadbe60ab76e",
-                                                "type": "Layer"
-                                            }
-                                        ]
-                                    }
-                                }
-                            }
-                        ]
+                        "scheduleInterval": "*/10 * * * *"
                     },
                     "relationships": {
-                        "crontab": {
-                            "data": {
-                                "id": 1,
-                                "type": "CrontabSchedule"
-                            }
-                        },
                         "service": {
                             "data": {
                                 "id": "cd16cc1f-3abb-4625-bb96-fbe80dbe23e3",
@@ -71,6 +31,7 @@ Feature: WebMapServiceMonitoringSetting Change Endpoint
         Given I am logged in as User1 with password User1
         When I send the request with PATCH method
         Then I expect the response status is 200
+        And I expect that response json has an attribute "data.attributes.scheduleInterval" with value "*/10 * * * *"
 
     Scenario: Can't change as authenticated user without permissions
         Given I am logged in as User2 with password User2

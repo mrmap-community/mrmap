@@ -1,22 +1,29 @@
 from django.utils.translation import gettext_lazy as _
+from django_filters.filters import NumberFilter
 from django_filters.filterset import FilterSet
-from registry.models.update import (
-    CatalogueServiceUpdateJob,
-    FeatureTypeMapping,
-    LayerMapping,
-    WebFeatureServiceUpdateJob,
-    WebMapServiceUpdateJob,
-)
+from registry.models.update import (CatalogueServiceUpdateJob,
+                                    FeatureTypeMapping, LayerMapping,
+                                    WebFeatureServiceUpdateJob,
+                                    WebMapServiceUpdateJob)
 
 
 class WebMapServiceUpdateJobFilterSet(FilterSet):
+
+    status_code = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+    )
+    status_code__ne = NumberFilter(
+        field_name="status",
+        lookup_expr="exact",
+        exclude=True,
+    )
 
     class Meta:
         model = WebMapServiceUpdateJob
         fields = {
             "id": ['exact', 'icontains', 'contains', 'in'],
             "service": ['exact', ],
-            "status": ['exact', 'icontains', 'contains', 'in'],
             "date_created": ['exact', 'icontains', 'contains', 'in'],
             "done_at": ['exact', 'icontains', 'contains', 'in'],
 

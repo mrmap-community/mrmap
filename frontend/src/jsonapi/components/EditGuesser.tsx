@@ -1,29 +1,31 @@
-import { createElement, type ReactElement, useMemo } from 'react';
-import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, Toolbar, ToolbarClasses, useRecordContext, useResourceDefinition } from 'react-admin';
+import { createElement, type ReactElement, useCallback, useMemo } from 'react';
+import { DeleteButton, Edit, type EditProps, RaRecord, SaveButton, SimpleForm, SimpleFormProps, Toolbar, ToolbarClasses, UseCreateMutateParams, useNotify, useRecordContext, useRedirect, useResourceContext, useResourceDefinition, useTranslate } from 'react-admin';
 import { useFieldsForOperation } from '../hooks/useFieldsForOperation';
 import useResourceSchema from '../hooks/useResourceSchema';
 import { FieldDefinition } from '../utils';
+import { ReferenceManyErrorsProvider, useReferenceManyErrors } from './ReferenceManyErrorsProvider';
 import SchemaAutocompleteInput from './SchemaAutocompleteInput';
 
 
 export interface EditGuesserProps<RecordType extends RaRecord = any>
-    extends Omit<EditProps<RecordType>, 'children'> {
-  toolbar?: ReactElement | false;
+    extends Partial<EditProps<RecordType>> {
   updateFieldDefinitions?: FieldDefinition[];
   referenceInputs?: ReactElement[]
+  simpleFormProps?: Partial<SimpleFormProps>
 }
 
+
 const EditFormGuesser = ({
-  toolbar,
   updateFieldDefinitions,
   referenceInputs,
+  simpleFormProps,
   ...props
 }: EditGuesserProps): ReactElement => {
   const { name, options } = useResourceDefinition(props)
 
   const record = useRecordContext(props)
   
-  const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
+  const fieldDefinitions = useFieldsForOperation({operationId: `partial_update_${name}`})
   const fields = useMemo(
     () => 
       fieldDefinitions.filter(fieldDefinition => !fieldDefinition.props.disabled ).map(
@@ -57,27 +59,34 @@ const EditFormGuesser = ({
 
   return (
     <SimpleForm
-        toolbar={defaultToolbar || toolbar}
+        toolbar={simpleFormProps?.toolbar ?? defaultToolbar}
         sanitizeEmptyValues
+        {...simpleFormProps}
       >
-        {fields}
-        {referenceInputs}
-      </SimpleForm>
+      {fields}
+      {referenceInputs}
+    </SimpleForm>
   )
 
 }
 
-const EditGuesser = (
+const EditGuesserBase = (
 {
-  toolbar,
+  mutationOptions,
   updateFieldDefinitions,
   referenceInputs,
+  simpleFormProps,
   ...props
 }: EditGuesserProps): ReactElement => {
-  const { name, options } = useResourceDefinition(props)
+  const translate = useTranslate();
+  const notify = useNotify();
+  const redirect = useRedirect();
+  const { getErrors } = useReferenceManyErrors();
+  const resource = useResourceContext({resource: props.resource})
   
-  const {schema, sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
-  const fieldDefinitions = useFieldsForOperation(`partial_update_${name}`)
+  const { name, options } = useResourceDefinition(props)
+  const {sparseFieldsPerResource, includeAbleResources } = useResourceSchema(`retrieve_${name}`)
+  const fieldDefinitions = useFieldsForOperation({operationId: `partial_update_${name}`})
   
   const meta = useMemo(()=>{
     const neededIncludes = fieldDefinitions.filter(
@@ -102,28 +111,97 @@ const EditGuesser = (
     return _meta
   },[ fieldDefinitions, options?.type, sparseFieldsPerResource, includeAbleResources])
   
+  const onSuccess = useCallback((
+    data: any, 
+    variables: Partial<UseCreateMutateParams<any>>, 
+    onMutateResult: unknown, 
+    context: any
+  ) => {
 
+    const referenceManyErrors = getErrors()
+    if (referenceManyErrors.length > 0){
+      notify(`resources.${resource}.notifications.updated_with_errors`, {
+              type: 'warning',
+              messageArgs: {
+                smart_count: 1,
+                _: translate('ra.notification.updated_with_errors', {
+                    smart_count: 1,
+                }),
+              },
+              undoable: props.mutationMode === 'undoable',
+      });
+      redirect(
+        'edit',
+        resource,
+        data.id,
+        undefined,
+        {
+            referenceManyErrors: referenceManyErrors,
+        },
+      );
+    } else {
+      //TODO: updated but with subprocessing errors...
+      // notify with the correct message
+      notify(`resources.${resource}.notifications.update`, {
+            type: 'info',
+            messageArgs: {
+                smart_count: 1,
+                _: translate(`ra.notification.update`, {
+                    smart_count: 1,
+                }),
+            },
+            undoable: props.mutationMode === 'undoable',
+        });
+      redirect(props.redirect ?? 'list', resource, data.id, data)
+    }
+
+  },[resource])
+  // be clear that json:api type is always part of mutationOptions so that the dataprovider has all information he needs
+  const _mutationOptions = useMemo(() => {
+    return {
+      ...mutationOptions,
+      meta: {
+        ...meta,
+        ...mutationOptions?.meta,
+        type: options?.type,
+      },
+      onSuccess,
+    }
+  }, [meta, mutationOptions, onSuccess, options?.type])
+  
   return (
     <Edit
       queryOptions={{
         refetchOnReconnect: true,
+        refetchOnMount:false,
         meta: meta
       }}
-      mutationOptions={{
-        meta: meta
-      }}
+      mutationOptions={_mutationOptions}
       mutationMode='pessimistic'
-      
+      resource={resource}
       {...props}
     >
       <EditFormGuesser
         toolbar={toolbar}
         updateFieldDefinitions={updateFieldDefinitions}
         referenceInputs ={referenceInputs}
+        simpleFormProps={{...simpleFormProps}}
+        resource={resource}
         {...props}
       />
     </Edit>
   )
 }
+
+
+const EditGuesser = ({...rest}: EditGuesserProps) => {
+ 
+  return (
+    <ReferenceManyErrorsProvider>
+      <EditGuesserBase {...rest}/>
+    </ReferenceManyErrorsProvider>
+  )
+}
+
 
 export default EditGuesser

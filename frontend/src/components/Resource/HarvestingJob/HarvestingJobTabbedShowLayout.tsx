@@ -58,8 +58,7 @@ const HarvestingJobTabbedShowLayout = () => {
         {...getTabParams(resource, relatedResource, relatedResourceId, title, withCount)}
       >
         <ListGuesser
-          relatedResource={resource}
-          relatedResourceId={relatedResourceId}
+          relatedResource={{resource: resource, id: relatedResourceId}}
           resource={relatedResource}
           storeKey={false}
           {...defaultSelectedColumns && {defaultSelectedColumns: defaultSelectedColumns}}

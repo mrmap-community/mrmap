@@ -24,7 +24,6 @@ const EditOwsContextDialog = ({open, setOpen}: EditOwsContextDialogProps): React
   const [error, setError] = useState("");
 
   const handleSave = () => {
-    console.log("Saving OWS Context:", text);
     try {
       const parsed = JSON.parse(text);
       

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 
 import { ChevronLeft, ChevronRight } from '@mui/icons-material'
 import { Drawer, useTheme, type DrawerProps } from '@mui/material'
@@ -71,7 +71,7 @@ const RightDrawer = ({
   }, [setRightDrawer, rightDrawer, callback])
 
   return (
-    <div>
+    <Fragment>
       <Button
         ref={buttonRef}
         color='info'
@@ -114,7 +114,7 @@ const RightDrawer = ({
         {children ?? rightDrawer.children}
       </Drawer >
 
-    </div>
+    </Fragment>
   )
 }
 

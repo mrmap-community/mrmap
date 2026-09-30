@@ -1,5 +1,6 @@
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_celery_beat.models import CrontabSchedule
+from extras.fields import CrontabStringField
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from registry.models.metadata import ReferenceSystem
@@ -9,7 +10,7 @@ from registry.models.monitoring import (GetCapabilitiesProbe,
                                         WebMapServiceMonitoringRun,
                                         WebMapServiceMonitoringSetting)
 from registry.models.service import Layer, WebMapService
-from rest_framework.fields import IntegerField
+from rest_framework.fields import DateTimeField, IntegerField, SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField,
                                                  HyperlinkedIdentityField,
@@ -93,10 +94,11 @@ class WebMapServiceMonitoringSettingSerializer(
         help_text=_("the web map service for that this settings are."),
         queryset=WebMapService.objects,
     )
-    crontab = ResourceRelatedField(
-        label=_("crontab"),
-        help_text=_("the crontab configuration for this setting."),
-        queryset=CrontabSchedule.objects,
+    schedule_interval = CrontabStringField(
+        source='crontab',
+        label=_("schedule interval"),
+        help_text=_(
+            "the schedule interval for this setting (e.g. '*/5 * * * *')."),
     )
     get_capabilitites_probes = ResourceRelatedField(
         many=True,
@@ -111,10 +113,22 @@ class WebMapServiceMonitoringSettingSerializer(
         read_only=True,
     )
 
+    last_run_at = DateTimeField(read_only=True, allow_null=True)
+    next_run_expected_at = DateTimeField(read_only=True, allow_null=True)
+    run_overdue = SerializerMethodField()
+
+    def get_run_overdue(self, obj) -> bool:
+        current_time = timezone.now()
+        if obj.expires is not None and obj.expires <= current_time:
+            return False
+        expected_at = obj.next_run_expected_at
+        return expected_at is not None and expected_at < current_time
+
     class Meta:
         model = WebMapServiceMonitoringSetting
-        fields = ('url', 'name', 'service', 'crontab',
-                  "get_capabilitites_probes", "get_map_probes")
+        fields = ('url', 'service', 'schedule_interval',
+                  "get_capabilitites_probes", "get_map_probes", "enabled",
+                  "last_run_at", "next_run_expected_at", "run_overdue")
 
 
 class WebMapServiceMonitoringRunSerializer(
@@ -133,17 +147,17 @@ class WebMapServiceMonitoringRunSerializer(
     setting = ResourceRelatedField(
         label=_("monitoring setting"),
         help_text=_("the setting which to used for this run."),
-        queryset=WebMapService.objects,
+        queryset=WebMapServiceMonitoringSetting.objects,
     )
     get_capabilitites_probe_results = ResourceRelatedField(
-        source="registry_getcapabilitiesproberesult",
+        source="registry_getcapabilitiesproberesults",
         many=True,
         queryset=GetCapabilitiesProbeResult.objects,
         label=_("Get Capabilities Probe Results"),
         help_text=_("results for get capabilities requests"),
     )
     get_map_probe_results = ResourceRelatedField(
-        source="registry_getmapproberesult",
+        source="registry_getmapproberesults",
         many=True,
         queryset=GetMapProbeResult.objects,
         label=_("Get Map Probe Results"),
@@ -157,7 +171,9 @@ class WebMapServiceMonitoringRunSerializer(
             'success',
             'setting',
             'get_capabilitites_probe_results',
-            'get_map_probe_results'
+            'get_map_probe_results',
+            'date_created',
+            'date_done'
         )
 
 

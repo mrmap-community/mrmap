@@ -1,66 +1,53 @@
 import { useState } from 'react';
 import {
-    DashboardMenuItem,
-    MenuItemLink,
-    MenuProps,
-    useResourceDefinition,
-    useSidebarState
+  DashboardMenuItem,
+  MenuItemLink,
+  MenuProps,
+  useResourceDefinitions,
+  useSidebarState,
 } from 'react-admin';
 
+import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import FeedIcon from '@mui/icons-material/Feed';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import PublicIcon from '@mui/icons-material/Public';
 import { Box } from '@mui/material';
-
-import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import MenuList from '@mui/material/MenuList';
 import { createElementIfDefined } from '../../utils';
 import SubMenu from './SubMenu';
 
-type MenuName = 'menuWms' | 'menuWfs' | 'menuCsw'| 'menuMetadata'| 'menuAccounts' | 'menuAdmin';
+type MenuOption = {
+    group: string;
+    order?: number;
+};
 
+const groupIcons: Record<string, JSX.Element> = {
+    WMS: <FeedIcon />,
+    WFS: <FeedIcon />,
+    CSW: <FeedIcon />,
+    Metadata: <FeedIcon />,
+    Accounts: <PeopleAltIcon />,
+    Admin: <DisplaySettingsIcon />,
+};
 
 const CustomMenu = ({ dense = false }: MenuProps) => {
-    const [state, setState] = useState({
-        menuWms: true,
-        menuWfs: true,
-        menuCsw: true,
-        menuMetadata: true,
-        menuAccounts: true,
-        menuAdmin: true,
-    });
     const [open] = useSidebarState();
-
-    const handleToggle = (menu: MenuName) => {
-        setState(state => ({ ...state, [menu]: !state[menu] }));
-    };
-
-    const { name: wmsName, icon: wmsIcon } = useResourceDefinition({ resource: "WebMapService" })
-    const { name: layerName, icon: layerIcon } = useResourceDefinition({ resource: "Layer" })
-    const { name: allowedWmsOpName, icon: allowedWmsOpIcon } = useResourceDefinition({ resource: "AllowedWebMapServiceOperation" })
-    const { name: wmsProxySettingName, icon: wmsProxySettingIcon } = useResourceDefinition({ resource: "WebMapServiceProxySetting" })
-    const { name: wmsUpdateJobName, icon: wmsUpdateJobIcon } = useResourceDefinition({ resource: "WebMapServiceUpdateJob" })
-
-
-    const { name: wfsName, icon: wfsIcon } = useResourceDefinition({ resource: "WebFeatureService" })
-    const { name: featureTypeName, icon: featureTypeIcon } = useResourceDefinition({ resource: "FeatureType" })
-    const { name: allowedWfsOpName, icon: allowedWfsOpIcon } = useResourceDefinition({ resource: "AllowedWebFeatureServiceOperation" })
-    const { name: wfsProxySettingName, icon: wfsProxySettingIcon } = useResourceDefinition({ resource: "WebFeatureServiceProxySetting" })
-
-    const { name: cswName, icon: cswIcon } = useResourceDefinition({ resource: "CatalogueService" })
-    const { name: harvestingJobName, icon: harvestingJobIcon } = useResourceDefinition({ resource: "HarvestingJob" })
-
-    const { name: datasetName, icon: datasetIcon } = useResourceDefinition({ resource: "DatasetMetadataRecord" })
-    const { name: serviceMetadataName, icon: serviceMetadataIcon } = useResourceDefinition({ resource: "ServiceMetadataRecord" })
-    const { name: keywordName, icon: keywordIcon } = useResourceDefinition({ resource: "Keyword" })
-
-
-    const { name: userName, icon: userIcon } = useResourceDefinition({ resource: "User" })
-    const { name: organizationName, icon: organizationIcon } = useResourceDefinition({ resource: "Organization" })    
-
-    const { name: systemInfoName, icon: systemInfoIcon } = useResourceDefinition({ resource: "SystemInfo" })
-    const { name: periodicTaskName, icon: periodicTaskIcon } = useResourceDefinition({ resource: "PeriodicTask" })
-
+    const resourceDefinitions = useResourceDefinitions();
+    const menuResources = Object.values(resourceDefinitions).filter(
+        resource => resource.options?.menu
+    );
+    const groups = menuResources.reduce<Record<string, typeof menuResources>>(
+        (result, resource) => {
+            const menu = resource.options?.menu as MenuOption;
+            (result[menu.group] ??= []).push(resource);
+            return result;
+        },
+        {}
+    );
+    const groupNames = Object.keys(groups);
+    const [expanded, setExpanded] = useState<Record<string, boolean>>(
+        () => Object.fromEntries(groupNames.map(group => [group, true]))
+    );
 
     return (
         <Box
@@ -75,196 +62,47 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
                     }),
             }}
         >
-            <MenuList
-            >
-            <DashboardMenuItem />
-            <SubMenu
-                handleToggle={() => handleToggle('menuWms')}
-                isOpen={state.menuWms}
-                name={wmsName}
-                icon={createElementIfDefined(wmsIcon)}
-                dense={dense}
-            >
+            <MenuList>
+                <DashboardMenuItem />
+                {groupNames.map(group => (
+                    <SubMenu
+                        key={group}
+                        handleToggle={() =>
+                            setExpanded(current => ({
+                                ...current,
+                                [group]: !current[group],
+                            }))
+                        }
+                        isOpen={expanded[group] ?? true}
+                        name={group}
+                        icon={groupIcons[group] ?? <FeedIcon />}
+                        dense={dense}
+                    >
+                        {groups[group]
+                            .sort((first, second) => {
+                                const firstMenu = first.options?.menu as MenuOption;
+                                const secondMenu = second.options?.menu as MenuOption;
+                                return (firstMenu.order ?? 0) - (secondMenu.order ?? 0);
+                            })
+                            .map(resource => (
+                                <MenuItemLink
+                                    key={resource.name}
+                                    to={`/${resource.name}`}
+                                    state={{ _scrollToTop: true }}
+                                    primaryText={resource.options?.label ?? resource.name}
+                                    leftIcon={createElementIfDefined(resource.icon)}
+                                    dense={dense}
+                                />
+                            ))}
+                    </SubMenu>
+                ))}
                 <MenuItemLink
-                    to={`/${wmsName}`}
+                    to="/viewer"
                     state={{ _scrollToTop: true }}
-                    primaryText={wmsName}
-                    leftIcon={createElementIfDefined(wmsIcon)}
+                    primaryText="MapViewer"
+                    leftIcon={<PublicIcon />}
                     dense={dense}
                 />
-                <MenuItemLink
-                    to={`/${layerName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={layerName}
-                    leftIcon={createElementIfDefined(layerIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${allowedWmsOpName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={`Security Rules`}
-                    leftIcon={createElementIfDefined(allowedWmsOpIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${wmsProxySettingName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={`Proxy settings`}
-                    leftIcon={createElementIfDefined(wmsProxySettingIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${wmsUpdateJobName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={`Update Jobs`}
-                    leftIcon={createElementIfDefined(wmsUpdateJobIcon)}
-                    dense={dense}
-                />
-            </SubMenu>
-            <SubMenu
-                handleToggle={() => handleToggle('menuWfs')}
-                isOpen={state.menuWfs}
-                name={wfsName}
-                icon={createElementIfDefined(wfsIcon)}
-                dense={dense}
-            >
-                <MenuItemLink
-                    to={`/${wfsName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={wfsName}
-                    leftIcon={createElementIfDefined(wfsIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${featureTypeName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={featureTypeName}
-                    leftIcon={createElementIfDefined(featureTypeIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${allowedWfsOpName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={`Security Rules`}
-                    leftIcon={createElementIfDefined(allowedWfsOpIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${wfsProxySettingName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={`Proxy settings`}
-                    leftIcon={createElementIfDefined(wfsProxySettingIcon)}
-                    dense={dense}
-                />
-            </SubMenu>
-            <SubMenu
-                handleToggle={() => handleToggle('menuCsw')}
-                    isOpen={state.menuCsw}
-                    name={"CatalogueService"}
-                    icon={createElementIfDefined(cswIcon)}
-                    dense={dense}
-                >
-                <MenuItemLink
-                    to={`/${cswName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={cswName}
-                    leftIcon={createElementIfDefined(cswIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${harvestingJobName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={harvestingJobName}
-                    leftIcon={createElementIfDefined(harvestingJobIcon)}
-                    dense={dense}
-                />
-                
-            </SubMenu>       
-           
-            <SubMenu
-                handleToggle={() => handleToggle('menuMetadata')}
-                isOpen={state.menuMetadata}
-                name={"Metadata"}
-                icon={<FeedIcon/>}
-                dense={dense}
-            >
-                <MenuItemLink
-                    to={`/${datasetName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={datasetName}
-                    leftIcon={createElementIfDefined(datasetIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${serviceMetadataName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={serviceMetadataName}
-                    leftIcon={createElementIfDefined(serviceMetadataIcon) ?? <div></div>}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${keywordName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={keywordName}
-                    leftIcon={createElementIfDefined(keywordIcon)}
-                    dense={dense}
-                />
-                
-            </SubMenu>           
-            <SubMenu
-                handleToggle={() => handleToggle('menuAccounts')}
-                isOpen={state.menuAccounts}
-                name={"Accounts"}
-                icon={<PeopleAltIcon/>}
-                dense={dense}
-            >
-                <MenuItemLink
-                    to={`/${userName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={userName}
-                    leftIcon={createElementIfDefined(userIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${organizationName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={organizationName}
-                    leftIcon={createElementIfDefined(organizationIcon)}
-                    dense={dense}
-                />
-                
-            </SubMenu>
-            <SubMenu
-                handleToggle={() => handleToggle('menuAdmin')}
-                isOpen={state.menuAdmin}
-                name={"Admin"}
-                icon={<DisplaySettingsIcon/>}
-                dense={dense}
-            >
-                <MenuItemLink
-                    to={`/${systemInfoName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={systemInfoName}
-                    leftIcon={createElementIfDefined(systemInfoIcon)}
-                    dense={dense}
-                />
-                <MenuItemLink
-                    to={`/${periodicTaskName}`}
-                    state={{ _scrollToTop: true }}
-                    primaryText={periodicTaskName}
-                    leftIcon={createElementIfDefined(periodicTaskIcon)}
-                    dense={dense}
-                />
-              
-                
-            </SubMenu>  
-            <MenuItemLink
-                to={"/viewer"}
-                state={{ _scrollToTop: true }}
-                primaryText={"MapViewer"}
-                leftIcon={<PublicIcon/>}
-                dense={dense}
-            />
             </MenuList>
         </Box>
     );

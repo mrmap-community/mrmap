@@ -21,6 +21,7 @@ from registry.models import (FeatureType, Layer, WebFeatureService,
 from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword, MimeType,
                                       ReferenceSystem, Style)
+from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.security import (AllowedWebFeatureServiceOperation,
                                       AllowedWebMapServiceOperation,
                                       WebFeatureServiceProxySetting,
@@ -29,6 +30,7 @@ from registry.models.service import (CatalogueService,
                                      CatalogueServiceOperationUrl,
                                      WebFeatureServiceOperationUrl,
                                      WebMapServiceOperationUrl)
+from registry.models.update import WebMapServiceUpdateSetting
 from registry.querys.service import LayerPrefetch
 from registry.serializers.service import (
     CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
@@ -122,7 +124,21 @@ class WebMapServiceViewSet(
                 queryset=WebMapServiceProxySetting.objects.only(
                     "id", )
             )
-        ]
+        ],
+        "web_map_service_monitoring_settings": [
+            Prefetch(
+                "web_map_service_monitorings",
+                queryset=WebMapServiceMonitoringSetting.objects.only(
+                    "id", "service"),
+            )
+        ],
+        "web_map_service_update_settings": [
+            Prefetch(
+                "web_map_service_update_settings",
+                queryset=WebMapServiceUpdateSetting.objects.only(
+                    "id", "service"),
+            )
+        ],
     }
     filterset_class = WebMapServiceFilterSet
     search_fields = ("id", "title", "abstract", "keywords__keyword")

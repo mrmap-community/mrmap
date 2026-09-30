@@ -1,15 +1,15 @@
 import {
-    ChipField,
-    ChipFieldProps,
-    DataTable,
-    DateField,
-    List,
-    ListProps,
-    useFieldValue,
-    useResourceDefinition,
+  ChipField,
+  ChipFieldProps,
+  DataTable,
+  DateField,
+  List,
+  ListProps,
+  useFieldValue,
+  useResourceDefinition,
 } from 'react-admin';
 
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useHttpClientContext } from '../../../../context/HttpClientContext';
 import JsonApiReferenceField from '../../../../jsonapi/components/ReferenceField';
@@ -57,13 +57,13 @@ const HistoryList = ({
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api])
   
   if (!hasHistoricalEndpoint){
-    return <div></div>
+    return <Fragment></Fragment>
   }
 
   return (
     <List
       resource={`Historical${name}`}
-      actions={<div></div>}
+      actions={<Fragment></Fragment>}
       perPage={5}
       key={`Historical${name}`}
       storeKey={`Historical${name}`}

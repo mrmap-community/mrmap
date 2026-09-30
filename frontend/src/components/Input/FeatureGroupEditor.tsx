@@ -2,7 +2,7 @@ import type { GeoJSON as GeoJSONType, MultiPolygon } from 'geojson';
 
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
-import { type ReactNode, useCallback, useEffect, useRef } from 'react';
+import { Fragment, type ReactNode, useCallback, useEffect, useRef } from 'react';
 
 
 
@@ -73,7 +73,7 @@ const FeatureGroupEditor = ({
   // TODO: on unmount, the geoJson shall be removed from the map.
 
   return (
-    <div>
+    <Fragment>
     {editable ? 
       <GeomanControl 
         position="topright" 
@@ -94,7 +94,7 @@ const FeatureGroupEditor = ({
         onRemove={updateGeoJson}
       />: null}
       
-    </div>
+    </Fragment>
     
   )
 }

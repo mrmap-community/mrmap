@@ -5,7 +5,8 @@ from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin,
                                 TimeUntilNextRunMixin)
 from rest_framework.fields import (BooleanField, CharField, DateTimeField,
-                                   IntegerField, SerializerMethodField)
+                                   IntegerField, JSONField,
+                                   SerializerMethodField)
 from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer, Serializer)
 from system.fields import CrontabStringField
@@ -61,6 +62,7 @@ class PeriodicTaskSerializer(
             'queue',
             'enabled',
             'time_until_next_run',
+            'last_run_at'
         )
 
 
@@ -74,12 +76,18 @@ class SystemSerializer(
     postgresql_version = CharField()
     database_name = CharField()
     database_size = CharField()
-    celery_worker_count = IntegerField()
-    redis_up = BooleanField()
-
     system_time = DateTimeField()
 
     class Meta:
         resource_name = 'SystemInfo'
-        resource_name = 'SystemInfo'
-        resource_name = 'SystemInfo'
+
+
+class SystemStatusSerializer(Serializer):
+    id = CharField()
+    observed_at = DateTimeField()
+    stale = BooleanField()
+    stale_after = IntegerField()
+    components = JSONField()
+
+    class Meta:
+        resource_name = 'SystemStatus'

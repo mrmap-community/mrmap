@@ -1,4 +1,4 @@
-import { PropsWithChildren, useMemo } from 'react';
+import { Fragment, PropsWithChildren, useMemo } from 'react';
 import { ListContextProvider, ResourceContextProvider, useGetList, useList, useResourceDefinition } from 'react-admin';
 import { useHttpClientContext } from '../../../../context/HttpClientContext';
 
@@ -36,7 +36,7 @@ const HistoryListBase = (
   const hasStatisticalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Statistical${name}`)),[api])
 
   if (!hasStatisticalEndpoint){
-    return <div></div>
+    return <Fragment></Fragment>
   }
 
   return (

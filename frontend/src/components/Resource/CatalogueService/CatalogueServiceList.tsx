@@ -1,9 +1,9 @@
+import { PlayArrow } from '@mui/icons-material';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import { type ReactNode } from 'react';
 import { CreateButton, Identifier, ShowButton, useRecordContext } from 'react-admin';
+import ListWithDialogs from '../../../jsonapi/components/ListWithDialogs';
 
-import { PlayArrow } from '@mui/icons-material';
-import ListGuesser from '../../../jsonapi/components/ListGuesser';
 
 export interface ShowRunningHarvestingJobButtonProps {
   id: Identifier
@@ -39,20 +39,19 @@ const HarvestButton = (): ReactNode => {
         label={"Harvest"}
         state={{ record: { service: record, harvestDatasets: true, harvestServices: true, stepSize: 500}}}
       />
-        
     )
   }
 }
 
 const CatalogueServiceList = (): ReactNode => {
   return (
-    <ListGuesser
-      resource='CatalogueService'
-      additionalActions={<HarvestButton />}
-      sparseFieldsets={[{type: 'CatalogueService', fields: ['runningHarvestingJob']}]}
-    // aside={<TaskList />}
+    <ListWithDialogs
+      listGuesserProps={
+        {
+          additionalActions: <HarvestButton />
+        }
+      }
     />
-
   )
 }
 

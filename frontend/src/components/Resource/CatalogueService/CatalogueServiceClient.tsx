@@ -1,5 +1,5 @@
 import { FormControl, TextField } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useForm } from "react-hook-form";
 import XMLViewer from 'react-xml-viewer';
 const xml = '<hello>World</hello>';
@@ -49,7 +49,7 @@ const CatalogueServiceClient = () => {
   },[data])
 
   return (
-    <div>
+    <Fragment>
       <form onSubmit={handleSubmit((data) => setData(data))}>
         <FormControl >
           <TextField
@@ -70,7 +70,7 @@ const CatalogueServiceClient = () => {
         initialCollapsedDepth={3}
         showLineNumbers={true}
       />
-    </div>
+    </Fragment>
   );
 }
 

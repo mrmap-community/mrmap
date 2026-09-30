@@ -301,10 +301,13 @@ if not is_celery_process():
 # It caused more problems then benefits.
 # It happend many times, that there are old unfinished transactions in a pooled connection, which caused different sql errors..
 # So we only use pool for normal backend
+SYSTEM_STATUS_BEAT_APPLICATION_NAME = "mrmap-celery-beat"
 if is_celery_process():
     if is_this_a_celery_beat_process():
-        # Beat braucht nur eine Connection
-        DATABASES["default"]["OPTIONS"] = {}
+        # Identify Beat's existing session without a heartbeat or extra service.
+        DATABASES["default"]["OPTIONS"] = {
+            "application_name": SYSTEM_STATUS_BEAT_APPLICATION_NAME,
+        }
     else:
         # Worker: kein Pool, jede Task nutzt eigene Connection
         DATABASES["default"]["OPTIONS"] = {}
@@ -351,13 +354,13 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
-CELERY_DEFAULT_QUEUE = "default"
-CELERY_DEFAULT_EXCHANGE = "default"
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_DEFAULT_EXCHANGE = "default"
 
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
-CELERY_QUEUES = (
+CELERY_TASK_QUEUES = (
     Queue(
         name="default",
         exchange=Exchange("default"),
@@ -376,6 +379,18 @@ CELERY_QUEUES = (
         routing_key="db-routines",
         max_priority=6,
     ),
+    Queue(
+        name="monitoring",
+        exchange=Exchange("monitoring"),
+        routing_key="monitoring",
+        max_priority=5,
+    ),
+    Queue(
+        name="update",
+        exchange=Exchange("update"),
+        routing_key="update",
+        max_priority=4,
+    ),
 )
 
 ################################################################
@@ -385,7 +400,11 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "hosts": [{
+                "host": REDIS_HOST,
+                "port": REDIS_PORT,
+                "socket_timeout": 6,
+            }],
             "capacity": 1500,  # default 100
             "expiry": 10,  # default 60
         },
@@ -656,3 +675,7 @@ if not MRMAP_PRODUCTION:
 
 
 APPEND_SLASH = False
+
+# Docker access is restricted to container list/inspect by the private API proxy.
+SYSTEM_STATUS_DOCKER_URL = os.environ.get("SYSTEM_STATUS_DOCKER_URL", "http://docker-api:2375")
+SYSTEM_STATUS_DOCKER_PROJECT = os.environ.get("SYSTEM_STATUS_DOCKER_PROJECT", "")

@@ -1,17 +1,61 @@
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from extras.fields import CrontabStringField
+from extras.serializers import (StringRepresentationSerializer,
+                                SystemInfoSerializerMixin)
 from registry.models import (CatalogueService, CatalogueServiceUpdateJob,
                              FeatureType, FeatureTypeMapping, Layer,
                              LayerMapping, WebFeatureService,
                              WebFeatureServiceUpdateJob, WebMapService,
                              WebMapServiceUpdateJob)
+from registry.models.update import WebMapServiceUpdateSetting
 from registry.serializers.service import (CatalogueServiceSerializer,
                                           WebFeatureServiceSerializer,
                                           WebMapServiceSerializer)
+from rest_framework.fields import SerializerMethodField
 from rest_framework_json_api.relations import ResourceRelatedField
-from rest_framework_json_api.serializers import (BooleanField, DateTimeField,
+from rest_framework_json_api.serializers import (BooleanField, CharField,
+                                                 DateTimeField,
                                                  HyperlinkedIdentityField,
                                                  IntegerField, ModelSerializer,
                                                  Serializer)
+
+
+class WebMapServiceUpdateSettingSerializer(
+    StringRepresentationSerializer,
+    SystemInfoSerializerMixin,
+    ModelSerializer
+):
+    url = HyperlinkedIdentityField(
+        view_name='registry:webmapservicemonitoringsetting-detail',
+    )
+    service = ResourceRelatedField(
+        label=_("web map service"),
+        help_text=_("the web map service for that this settings are."),
+        queryset=WebMapService.objects,
+    )
+    schedule_interval = CrontabStringField(
+        source='crontab',
+        label=_("schedule interval"),
+        help_text=_(
+            "the schedule interval for this setting (e.g. '*/5 * * * *')."),
+    )
+
+    last_run_at = DateTimeField(read_only=True, allow_null=True)
+    next_run_expected_at = DateTimeField(read_only=True, allow_null=True)
+    run_overdue = SerializerMethodField()
+
+    def get_run_overdue(self, obj) -> bool:
+        current_time = timezone.now()
+        if obj.expires is not None and obj.expires <= current_time:
+            return False
+        expected_at = obj.next_run_expected_at
+        return expected_at is not None and expected_at < current_time
+
+    class Meta:
+        model = WebMapServiceUpdateSetting
+        fields = ('url', 'service', 'schedule_interval', 'enabled',
+                  'last_run_at', 'next_run_expected_at', 'run_overdue')
 
 
 class UpdateJobBaseSerializer(Serializer):
@@ -25,7 +69,15 @@ class UpdateJobBaseSerializer(Serializer):
         help_text=_("The date and time when this update job was completed."),
         read_only=True,
     )
-    status = IntegerField(
+    status_code = IntegerField(
+        source="status",
+        label=_("Status Code"),
+        help_text=_(
+            "The current status of the update job. (Internal Representation)"),
+        read_only=True,
+    )
+    status = CharField(
+        source="get_status_display",
         label=_("Status"),
         help_text=_("The current status of the update job."),
         read_only=True,
@@ -46,6 +98,23 @@ class MappingBaseSerializer(Serializer):
 
 
 class LayerMappingSerializer(MappingBaseSerializer, ModelSerializer):
+    delta = SerializerMethodField()
+
+    def get_delta(self, obj):
+        if obj.old_layer_id is None:
+            return None
+
+        changes = []
+        for field in (
+            "title", "abstract", "is_queryable", "is_opaque",
+            "scale_min", "scale_max",
+        ):
+            old = getattr(obj.old_layer, field)
+            new = getattr(obj.new_layer, field)
+            if old != new:
+                changes.append({"field": field, "old": old, "new": new})
+        return changes
+
     url = HyperlinkedIdentityField(
         view_name="registry:layermapping-detail",
         read_only=True,
@@ -74,7 +143,7 @@ class LayerMappingSerializer(MappingBaseSerializer, ModelSerializer):
     class Meta:
         model = LayerMapping
         fields = ("url", "job", "old_layer",
-                  "new_layer", "created", "is_confirmed")
+                  "new_layer", "created", "is_confirmed", "delta")
 
 
 class FeatureTypeMappingSerializer(MappingBaseSerializer, ModelSerializer):
@@ -110,6 +179,9 @@ class FeatureTypeMappingSerializer(MappingBaseSerializer, ModelSerializer):
 
 
 class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
+    class JSONAPIMeta:
+        included_resources = ["mappings"]
+
     url = HyperlinkedIdentityField(
         view_name="registry:webmapserviceupdatejob-detail",
         read_only=True,
@@ -144,7 +216,7 @@ class WebMapServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer)
     class Meta:
         model = WebMapServiceUpdateJob
         fields = ("url", "service", "date_created", "done_at",
-                  "status", "update_candidate", "mappings")
+                  "status", "status_code", "update_candidate", "mappings")
 
 
 class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):
@@ -182,7 +254,7 @@ class WebFeatureServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSeriali
     class Meta:
         model = WebFeatureServiceUpdateJob
         fields = ("url", "service", "date_created", "done_at",
-                  "status", "update_candidate", "mappings")
+                  "status", "status_code", "update_candidate", "mappings")
 
 
 class CatalogueServiceUpdateJobSerializer(UpdateJobBaseSerializer, ModelSerializer):

@@ -4,7 +4,6 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import MenuList from '@mui/material/MenuList';
 import { RecordContextProvider } from 'react-admin';
-import { useOwsContextBase } from "../../../react-ows-lib/ContextProvider/OwsContextBase";
 import ActivateLayerItem from './ActivateLayerItem';
 import { useContextMenuBase } from "./ContextMenuBase";
 import ManageAuthenticationItem from './ManageAuthenticationItem';
@@ -12,14 +11,7 @@ import ZoomToLayerItem from './ZoomToLayerItem';
 
 
 const MenuItems = () => {
-  const { owsContext } = useOwsContextBase()
   const { node } = useContextMenuBase()
-
-
-
-
-  console.log(node)
-
 
   if (node === undefined ) return null
   

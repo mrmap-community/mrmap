@@ -1,4 +1,4 @@
-import { createElement, useMemo } from 'react';
+import { createElement, Fragment, useMemo } from 'react';
 import { Loading, SimpleShowLayout, useRecordContext, useResourceDefinition } from 'react-admin';
 import { useFieldsForOperation } from '../../../../jsonapi/hooks/useFieldsForOperation';
 import { createElementIfDefined } from '../../../../utils';
@@ -22,14 +22,14 @@ const Overview = ({
   const { name: HarvestingJobName, icon: HarvestingJobIcon } = useResourceDefinition({resource: 'HarvestingJob'})
   const { name: periodicHarvestingJobName, icon: periodicHarvestingJobIcon } = useResourceDefinition({resource: 'PeriodicHarvestingJob'})
 
-  const fieldDefinitions = useFieldsForOperation('retrieve_CatalogueService', false, false);
+  const fieldDefinitions = useFieldsForOperation({operationId:'retrieve_CatalogueService', forInput:false, ignoreId:false});
   const fields = useMemo(
     () => 
       sources.map(
         source => {
           const fieldDefinition = fieldDefinitions.find(fieldDefinition => fieldDefinition.props.source === source)
           if (fieldDefinition === undefined){
-            return <div></div>
+            return <Fragment></Fragment>
           }
           return createElement(
             fieldDefinition.component, 
@@ -48,7 +48,7 @@ const Overview = ({
   }
 
   return (
-  <div>
+  <Fragment>
     <SimpleCard
       title={<span>{createElementIfDefined(cswIcon)} {cswName}</span>}
     >
@@ -67,7 +67,7 @@ const Overview = ({
     >
       <ListPeriodicHarvestingJob/>
     </SimpleCard>
-  </div>
+  </Fragment>
   )
 
 }

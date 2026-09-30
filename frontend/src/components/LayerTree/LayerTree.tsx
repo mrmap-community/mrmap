@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { Fragment, memo, useCallback, useMemo, useState, type ReactNode, type SyntheticEvent } from 'react'
 
 import { SimpleTreeView, TreeViewItemId } from '@mui/x-tree-view'
 
@@ -36,7 +36,7 @@ export interface LayerProperties {
 
 const NodeIcons = memo(
   ({ isActive, isSpatialSecured }: LayerProperties) => (
-    <div>
+    <Fragment>
       {isActive ? (
         <Tooltip title="Layer is active">
           <PowerIcon color="success" fontSize="small" />
@@ -52,7 +52,7 @@ const NodeIcons = memo(
           <VpnLockIcon color="warning" fontSize="small" />
         </Tooltip>
       )}
-    </div>
+    </Fragment>
   )
 );
 
@@ -283,7 +283,7 @@ const TreeViews = (
             }
           </DragableTreeItem >
         </RecordContextProvider>
-      ) : <div></div>
+      ) : <Fragment></Fragment>
   },[layers])
 
   return trees?.map(tree => {

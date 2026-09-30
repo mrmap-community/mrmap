@@ -1,4 +1,4 @@
-from django.db.models.query import Prefetch
+from django.db.models import Prefetch
 from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
 from extras.viewsets import NestedModelViewSet
 from registry.models.monitoring import (GetCapabilitiesProbe,
@@ -29,7 +29,7 @@ class WebMapServiceMonitoringSettingViewSetMixin:
             Endpoint to remove a registered `WebMapServiceMonitoringSetting` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = WebMapServiceMonitoringSetting.objects.all()
+    queryset = WebMapServiceMonitoringSetting.objects.select_related('crontab')
     serializer_class = WebMapServiceMonitoringSettingSerializer
     select_for_includes = {
         "service": ["service"],
@@ -72,7 +72,7 @@ class WebMapServiceMonitoringRunViewSetMixin:
             Endpoint to remove a registered `WebMapServiceMonitoringRun` from the system
     """
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    queryset = WebMapServiceMonitoringRun.objects.all()
+    queryset = WebMapServiceMonitoringRun.objects.with_success()
     serializer_class = WebMapServiceMonitoringRunSerializer
     select_for_includes = {
         "setting": ["setting"],
@@ -100,7 +100,7 @@ class WebMapServiceMonitoringRunViewSetMixin:
 
     }
     search_fields = ("id", "success", "setting__service__title")
-    ordering_fields = ["id", "success"]
+    ordering_fields = ["id", "success", "date_done", "date_created"]
 
 
 class WebMapServiceMonitoringRunViewSet(

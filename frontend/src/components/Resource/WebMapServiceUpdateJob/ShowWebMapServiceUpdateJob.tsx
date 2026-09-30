@@ -1,7 +1,7 @@
 import { EditButton, Identifier, RaRecord, RecordRepresentation, Show, SimpleShowLayoutProps, useGetOne, useRecordContext, WrapperField } from 'react-admin';
 
-import { useCallback, useMemo, useState } from 'react';
-import WmsTreeView from '../WebMapService/WmsTreeView';
+import { Fragment, useCallback, useMemo, useState } from 'react';
+import WmsTreeView from '../WebMapService/TreeView/WmsTreeView';
 
 import { Box, Drawer, Stack } from '@mui/material';
 import ListGuesser, { ListGuesserProps } from '../../../jsonapi/components/ListGuesser';
@@ -109,7 +109,7 @@ const DiffWmsLayerTree = (
         };
     }, [diffMap])
     
-    if (isPending) return <div>Loading...</div>
+    if (isPending) return <Fragment>Loading...</Fragment>
     
     return (
         <WmsTreeView
@@ -157,8 +157,7 @@ const LayerMappingList = (
         <ListGuesser
             title="Layer Mappings"
             resource="LayerMapping"
-            relatedResource="WebMapServiceUpdateJob"
-            relatedResourceId={contextRecord?.id}
+            relatedResource={{resource: "WebMapServiceUpdateJob", id: contextRecord?.id}}
             filterDefaultValues={{'isConfirmed': false}}
             disableSyncWithLocation
             defaultSelectedColumns={['id', 'oldLayer', 'newLayer', 'isConfirmed']}
@@ -292,7 +291,7 @@ export const ShowWebMapServiceUpdate = (props: SimpleShowLayoutProps) => {
     return (
         <Show 
             queryOptions={{meta: meta}}
-            actions={<div></div>}
+            actions={<Fragment></Fragment>}
             
         >
            <WebMapServiceUpdateJobCard/>

@@ -252,8 +252,18 @@ class AllowedWebMapServiceOperationModelTest(TestCase):
         side_effect=[ONE_REMOVED_LAYER_UPDATE_REMOTE_RESPONSE],
     )
     def test_interupt_if_one_layer_where_removed(self, mock):
+        removed_layer_id = self.wms.layers.get(identifier="node1.3.1").pk
+
         self.update_job.update()
         self.update_job.refresh_from_db()
+
+        self.assertFalse(Layer.objects.filter(pk=removed_layer_id).exists())
+        deletion_history = Layer.change_log.get(
+            id=removed_layer_id, history_type="-")
+        self.assertEqual(
+            deletion_history.history_change_reason,
+            self.update_job.default_change_reason,
+        )
 
         self.assertEqual(self.update_job.status,
                          UpdateJobStatusEnum.UPDATED.value,

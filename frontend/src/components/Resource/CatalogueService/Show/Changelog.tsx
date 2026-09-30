@@ -1,5 +1,6 @@
 import { SimpleShowLayout, TextField, useResourceDefinition } from 'react-admin';
 import { useParams } from 'react-router-dom';
+import { Fragment } from 'react/jsx-runtime';
 import ListGuesser from '../../../../jsonapi/components/ListGuesser';
 import { createElementIfDefined } from '../../../../utils';
 import EmptyList from '../../../Lists/Empty';
@@ -18,7 +19,7 @@ const Overview = () => {
 
 
 return (
-  <div>
+  <Fragment>
     <SimpleCard
       title={<span>{createElementIfDefined(cswIcon)} {cswName}</span>}
     >
@@ -40,10 +41,10 @@ return (
       >
         <ListGuesser
           resource='PeriodicHarvestingJob'
-          relatedResource='CatalogueService'
-          empty={<EmptyList defaultValue={{ service: { id: id } }} />} />
+          relatedResource={{resource: 'CatalogueService'}}
+          empty={<EmptyList  />} />
       </SimpleCard>
-  </div>
+  </Fragment>
   )
 
 }

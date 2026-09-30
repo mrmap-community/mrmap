@@ -23,8 +23,7 @@ const ListHarvestingJob = (): ReactNode => {
     if (record !== undefined){
       return {
         resource: 'HarvestingJob',
-        relatedResource: 'CatalogueService',
-        relatedResourceId: record.id
+        relatedResource: {resource: 'CatalogueService', id: record.id},
       }
     }
   },[record])

@@ -1,90 +1,47 @@
-import { ReactNode } from "react"
-import { useRecordContext, useTranslate, WrapperField } from "react-admin"
-import ListGuesser, { ListGuesserProps } from "../../../jsonapi/components/ListGuesser"
-import CreateDialogButton from "../../Dialog/CreateDialogButton"
-import EditDialogButton from "../../Dialog/EditDialogButton"
-import ListActions, { CustomListActionsProps } from "../../Lists/CustomListActions"
-import EmptyList from "../../Lists/Empty"
-import MapViewerButton from "../WebMapService/MapViewerButton"
-import useAllowedWebMapServiceOperationFieldDefinitions from "./useAllowedWebMapServiceOperationFieldDefinitions"
+import { useMemo } from "react"
+import { useRecordContext } from "react-admin"
+import ListWithDialogs, { ListWithDialogsProps } from "../../../jsonapi/components/ListWithDialogs"
+import CustomListActions from "../../Lists/CustomListActions"
+import MapViewerButton from "../WebMapService/Button/MapViewerButton"
+import useGuesserProps from "./useGuesserProps"
 
 
-const ListActionsAllowedWebMapServiceOperation = (
-  { 
+
+const ListAllowedWebMapServiceOperation = (
+  {
     ...props
-  }: CustomListActionsProps
-): ReactNode => {
+  }: ListWithDialogsProps
+) => {
   const record = useRecordContext()
-  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
+  
+  const guesserProps = useGuesserProps()
 
-  return (
-    <ListActions
-      createButton={
-        <CreateDialogButton 
-          createDialogProps={{
-            updateFieldDefinitions: fieldDefinitions,
-            formProps: { 
-              defaultValues: {
-                "securedService": record
-              },
-            }
-          }}
-          
-        />
-      }
+  const actions = useMemo(()=>(
+    record ? 
+    <CustomListActions
       additionalActions={
         <MapViewerButton 
           wmsRecord={undefined} 
           capabilititesUrl={record?.xmlBackupFileSecured}
         />
       }
+    />: 
+    undefined
+
+  ),[record])
+
+  return (
+    <ListWithDialogs
+      editGuesserProps={guesserProps}
+      createGuesserProps={guesserProps}
+      listGuesserProps={{
+        actions: actions,
+        defaultSelectedColumns:["allowedArea", "description", "allowedGroups", "operations"],
+      }}
       {...props}
     />
   )
-}
 
-const RowActions = () => {
-  const translate = useTranslate();
-  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
-
-  return (
-    <WrapperField label={translate("ra.list.actions")} >
-        <EditDialogButton editDialogProps={{
-          resource: "AllowedWebMapServiceOperation",
-          updateFieldDefinitions: fieldDefinitions
-        }}/>
-    </WrapperField >
-  )
-}
-
-
-const ListAllowedWebMapServiceOperation = (
-  {
-    ...props
-  }: ListGuesserProps
-) => {
-  const record = useRecordContext()
-  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
-
-  return (
-    <ListGuesser
-      ActionsComponent={ListActionsAllowedWebMapServiceOperation}
-      empty={
-        <EmptyList
-          createDialogProps={{
-            updateFieldDefinitions: fieldDefinitions,
-            formProps: { 
-              defaultValues: {
-                "securedService": record
-              },
-            }
-          }}
-        />
-      }
-      rowActions={<RowActions/>}
-      {...props}
-    />
-  )
 
 }
 

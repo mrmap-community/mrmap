@@ -1,7 +1,8 @@
+import json
 from datetime import timedelta
 from io import BytesIO
+from uuid import uuid4
 
-from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
@@ -10,9 +11,11 @@ from django.db.models.fields import BooleanField, CharField
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
+from extras.scheduling import next_run_expected_at
 from epsg_cache.utils import adjust_axis_order
 from lxml import etree
 from PIL import Image, UnidentifiedImageError
+from registry.managers.monitoring import WebMapServiceMonitoringRunManager
 from registry.models.metadata import MimeType, ReferenceSystem
 from registry.models.service import Layer, WebMapService
 from requests import Response
@@ -28,6 +31,10 @@ def get_error_exceptions_default():
 
 
 class WebMapServiceMonitoringSetting(PeriodicTask):
+    @property
+    def next_run_expected_at(self):
+        return next_run_expected_at(self)
+
     service: WebMapService = models.ForeignKey(
         to=WebMapService,
         on_delete=models.CASCADE,
@@ -38,14 +45,17 @@ class WebMapServiceMonitoringSetting(PeriodicTask):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if not self.pk and not self.task:
-            self.task = "registry.tasks.monitoring.create_wms_monitoring_run"
-        if not self.pk and not self.kwargs:
-            self.kwargs = {
-                "setting_pk": self.pk
-            }
-        if not self.pk and not self.queue:
-            self.queue = "monitoring"
+        if not self.pk:
+            if not self.task:
+                self.task = "registry.tasks.monitoring.create_wms_monitoring_run"
+            if not self.queue:
+                self.queue = "monitoring"
+            if not self.name:
+                self.name = str(uuid4())
+            if not self.kwargs or self.kwargs == '{}':
+                self.kwargs = json.dumps({
+                    "name": str(self.name),
+                })
 
 
 class WebMapServiceMonitoringRun(models.Model):
@@ -79,6 +89,8 @@ class WebMapServiceMonitoringRun(models.Model):
         help_text=_('Datetime field when the run was done in UTC'),
         null=True,
         blank=True)
+
+    objects = WebMapServiceMonitoringRunManager()
 
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding

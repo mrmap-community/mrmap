@@ -1,7 +1,12 @@
 from django.contrib.auth import get_user_model
+from django.db.models import OuterRef, Subquery
 from django.db.models.query import Prefetch
 from extras.viewsets import PreloadNotIncludesMixin, SerializerClassesMixin
 from mptt2.models import Tree
+from registry.filters.historical import (
+    CatalogueServiceHistoricalFilterSet, FeatureTypeHistoricalFilterSet,
+    LayerHistoricalFilterSet, WebFeatureServiceHistoricalFilterSet,
+    WebMapServiceHistoricalFilterSet)
 from registry.models import Layer, WebMapService
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact)
@@ -17,6 +22,8 @@ from registry.serializers.historical import (
     LayerHistorySerializer, WebFeatureServiceHistorySerializer,
     WebMapServiceHistorySerializer)
 from rest_framework_json_api.views import ModelViewSet
+from simple_history.utils import (get_app_model_primary_key_name,
+                                  get_history_manager_for_model)
 
 
 class HistoricalViewSetMixin:
@@ -26,10 +33,6 @@ class HistoricalViewSetMixin:
     select_for_includes = {
         "historyUser": ["history_user"],
         # "historyRelation": ["history_relation"]
-    }
-    filterset_fields = {
-        'id': ['exact', 'in'],
-        'history_relation': ['exact'],
     }
     ordering_fields = ["id", 'history_date', 'history_user']
 
@@ -48,7 +51,54 @@ class HistoricalViewSetMixin:
         elif include and "historyUser" in include:
             # TODO: select_for_includes setup does not work for history records...
             qs = qs.select_related("history_user")
-        return qs
+
+        # At the end of the existing get_queryset(), before returning qs:
+        original_model = qs.model.instance_type
+        key_name = get_app_model_primary_key_name(original_model)
+
+        previous_records = (
+            get_history_manager_for_model(original_model)
+            .using(qs.db)
+            .filter(
+                **{
+                    key_name: OuterRef(key_name),
+                    "history_date__lt": OuterRef("history_date"),
+                }
+            )
+            .order_by("-history_date")
+        )
+
+        return qs.annotate(
+            prev_record_id=Subquery(
+                previous_records.values("history_id")[:1]
+            )
+        )
+
+    def paginate_queryset(self, queryset):
+        page = super().paginate_queryset(queryset)
+        if page is None:
+            return None
+
+        previous_ids = {
+            record.prev_record_id
+            for record in page
+            if record.prev_record_id is not None
+        }
+
+        previous_by_id = (
+            queryset.model._default_manager
+            .using(queryset.db)
+            .in_bulk(previous_ids)
+            if previous_ids
+            else {}
+        )
+
+        for record in page:
+            record.prev_prefetched_record = previous_by_id.get(
+                record.prev_record_id
+            )
+
+        return page
 
 
 class OGCServiceHistoricalViewSetMixin(
@@ -93,6 +143,7 @@ class WebMapServiceHistoricalViewSet(
 ):
 
     queryset = WebMapService.change_log.all()
+    filterset_class = WebMapServiceHistoricalFilterSet
     serializer_classes = {
         "default": WebMapServiceHistorySerializer,
     }
@@ -133,6 +184,7 @@ class LayerHistoricalViewSet(
 ):
 
     queryset = Layer.change_log.all()
+    filterset_class = LayerHistoricalFilterSet
     serializer_classes = {
         "default": LayerHistorySerializer,
     }
@@ -189,6 +241,7 @@ class WebFeatureServiceHistoricalViewSet(
 ):
 
     queryset = WebFeatureService.change_log.all()
+    filterset_class = WebFeatureServiceHistoricalFilterSet
     serializer_classes = {
         "default": WebFeatureServiceHistorySerializer,
     }
@@ -226,6 +279,7 @@ class FeatureTypeHistoricalViewSet(
     ModelViewSet
 ):
     queryset = FeatureType.change_log.all()
+    filterset_class = FeatureTypeHistoricalFilterSet
     serializer_classes = {
         "default": FeatureTypeHistorySerializer,
     }
@@ -251,6 +305,7 @@ class CatalogueServiceHistoricalViewSet(
 ):
 
     queryset = CatalogueService.change_log.all()
+    filterset_class = CatalogueServiceHistoricalFilterSet
     serializer_classes = {
         "default": CatalogueServiceHistorySerializer,
     }

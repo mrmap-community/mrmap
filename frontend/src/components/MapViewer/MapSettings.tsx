@@ -1,6 +1,6 @@
 import type { Polygon } from 'geojson'
 
-import { type PropsWithChildren, type ReactNode } from 'react'
+import { Fragment, type PropsWithChildren, type ReactNode } from 'react'
 
 import { FormGroup } from '@mui/material'
 
@@ -20,10 +20,10 @@ const DisplayPosition = ({
 
   return (
     <FormGroup>
-      <div>
+      <Fragment>
         Current Boundary:
         {featureCollection}
-      </div>
+      </Fragment>
     </FormGroup>
   )
 }
@@ -55,7 +55,7 @@ const MapSettingsEditor = ({ children }: PropsWithChildren): ReactNode => {
 
 
   return (
-      <div>
+      <Fragment>
         <DisplayPosition/>
 
         {/* <Select
@@ -68,7 +68,7 @@ const MapSettingsEditor = ({ children }: PropsWithChildren): ReactNode => {
         >
             {...menuItems}
         </Select> */}
-      </div>
+      </Fragment>
   )
 }
 

@@ -15,7 +15,7 @@ export const EditLayerMapping = (
 
   const contextRecord = useRecordContext()
   
-  const fieldDefinitions = useFieldsForOperation(`partial_update_LayerMapping`)
+  const fieldDefinitions = useFieldsForOperation({operationId: `partial_update_LayerMapping`})
   
   const mappings = useMemo(() => contextRecord?.mappings || [], [contextRecord?.mappings])
 

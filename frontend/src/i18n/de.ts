@@ -2,7 +2,43 @@ import { TranslationMessages } from "ra-core";
 
 // @ts-ignore
 const germanMessages: TranslationMessages = {
+  systemInfo: {
+    "title": "Systeminformationen",
+    "unavailable": "Systeminformationen sind nicht verfügbar.",
+    "mrmapRelease": "MrMap-Version",
+    "djangoVersion": "Django-Version",
+    "pythonVersion": "Python-Version",
+    "postgresqlVersion": "PostgreSQL-Version",
+    "databaseName": "Datenbankname",
+    "databaseSize": "Datenbankgröße",
+    "celeryWorkerCount": "Anzahl der Celery-Worker",
+    "redisUp": "Redis erreichbar",
+    "systemTime": "Systemzeit"
+  },
+  systemStatus: {
+      "checking": "Wird geprüft…",
+      "viewDetails": "Details zum Systemstatus anzeigen",
+    "title": "Systemstatus",
+    "observed": "Beobachtet am",
+    "stale": "Die Überwachungsdaten sind veraltet oder nicht verfügbar. Der aktuelle Zustand ist unbekannt.",
+    "workers": "Celery-Worker",
+    "beat": "Celery Beat",
+    "redis": "Redis",
+    "database": "PostgreSQL",
+    "noObservation": "Keine aktuelle Beobachtung",
+    "lastSeen": "Letztes Lebenszeichen",
+    "unavailable": "Die Systemüberwachung ist nicht verfügbar.",
+    "states": {
+      "healthy": "In Ordnung",
+      "down": "Gestoppt",
+      "unknown": "Unbekannt",
+      "degraded": "Eingeschränkt"
+    }
+  },
   ra: {
+    list: {
+      actions: "Aktionen",
+    },
     action: {
       active: '%{name} aktivieren',
       add_filter: "Filter hinzufügen",
@@ -43,7 +79,8 @@ const germanMessages: TranslationMessages = {
       move_down: "Nach unten",
       open: "Öffnen",
       toggle_theme: "Theme wechseln",
-      select_columns: "Spalten"
+      select_columns: "Spalten",
+      mapviewer: 'Kartenbetrachter'
     },
     boolean: {
       true: "Ja",
@@ -149,7 +186,9 @@ const germanMessages: TranslationMessages = {
     },
     notification: {
       updated: "Element aktualisiert |||| %{smart_count} Elemente aktualisiert",
+      updated_with_errors: "Element aktualisiert, aber einige zugehörige Elemente konnten nicht gespeichert werden |||| %{smart_count} Elemente aktualisiert, aber einige zugehörige Elemente konnten nicht gespeichert werden",
       created: "Element erstellt",
+      created_with_errors: "Element erstellt, aber einige zugehörige Elemente konnten nicht gespeichert werden |||| %{smart_count} Elemente erstellt, aber einige zugehörige Elemente konnten nicht gespeichert werden",
       deleted: "Element gelöscht |||| %{smart_count} Elemente gelöscht",
       bad_item: "Fehlerhaftes Element",
       item_doesnt_exist: "Element existiert nicht",

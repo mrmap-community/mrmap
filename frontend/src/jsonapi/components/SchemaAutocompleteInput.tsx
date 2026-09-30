@@ -65,13 +65,13 @@ const SchemaAutocompleteInput = (
         }
       }).filter((value: any) => value !== undefined)
     }
-  , [formValues, relatedRecord, source])
+  , [formValues])
 
   const missingObjects = useMemo(() => {
     if (formValues === undefined) return []
     const valuesArray = Array.isArray(formValues) ? formValues : [formValues];
     return valuesArray.filter(value => value.id && !includedObjects?.find(obj => obj.id === value.id))
-  }, [])
+  }, [formValues, includedObjects])
 
   if (missingObjects && missingObjects.length > 0){
     console.warn(

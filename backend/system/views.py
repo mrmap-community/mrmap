@@ -4,12 +4,13 @@ import platform
 from django import __version__ as DJANGO_VERSION
 from django.db import ProgrammingError, connection
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
-from django_redis import get_redis_connection
 from MrMap import VERSION
-from MrMap.celery import app
+from rest_framework.permissions import IsAdminUser
 from rest_framework_json_api.views import ModelViewSet, generics
 from system.serializers import (CrontabScheduleSerializer,
-                                PeriodicTaskSerializer, SystemSerializer)
+                                PeriodicTaskSerializer, SystemSerializer,
+                                SystemStatusSerializer)
+from system.status import get_status_snapshot
 
 
 class CrontabScheduleViewSet(
@@ -107,30 +108,13 @@ class SystemView(generics.RetrieveAPIView):
         psql_version = db_name = db_size = None
         try:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT version()")
-                psql_version = cursor.fetchone()[0]
-                psql_version = psql_version.split('(')[0].strip()
-                cursor.execute("SELECT current_database()")
-                db_name = cursor.fetchone()[0]
                 cursor.execute(
-                    f"SELECT pg_size_pretty(pg_database_size('{db_name}'))")
-                db_size = cursor.fetchone()[0]
+                    "SELECT version(), current_database(), "
+                    "pg_size_pretty(pg_database_size(current_database()))")
+                psql_version, db_name, db_size = cursor.fetchone()
+                psql_version = psql_version.split('(')[0].strip()
         except (ProgrammingError, IndexError):
             pass
-
-        celery_worker_count = 0
-        try:
-            stats = app.control.inspect().stats() or {}
-            celery_worker_count = len(stats)
-        except Exception:
-            pass
-        redis_up = False
-        try:
-            c = get_redis_connection()
-            redis_up = c.ping()
-        except Exception:
-            pass
-
         return {
             'id': VERSION,
             'mrmap_release': VERSION,
@@ -139,7 +123,13 @@ class SystemView(generics.RetrieveAPIView):
             'postgresql_version': psql_version,
             'database_name': db_name,
             'database_size': db_size,
-            'celery_worker_count': celery_worker_count,
-            'redis_up': redis_up,
             'system_time': datetime.datetime.now(),
         }
+
+
+class SystemStatusView(generics.RetrieveAPIView):
+    serializer_class = SystemStatusSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_object(self):
+        return get_status_snapshot()

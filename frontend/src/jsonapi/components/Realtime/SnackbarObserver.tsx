@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect } from 'react'
+import { Fragment, type ReactNode, useCallback, useEffect } from 'react'
 import { useDataProvider } from 'react-admin'
 
 import { useSnackbar } from 'notistack'
@@ -27,7 +27,7 @@ const SnackbarObserver = (): ReactNode => {
   }, [dataProvider, handleBusEvent])
 
   return (
-    <div></div>
+    <Fragment></Fragment>
   )
 }
 

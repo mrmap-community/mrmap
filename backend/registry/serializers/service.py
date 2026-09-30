@@ -10,6 +10,7 @@ from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord, Keyword,
                                       MetadataContact, ReferenceSystem, Style,
                                       TimeExtent)
+from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.security import (AllowedWebMapServiceOperation,
                                       WebFeatureServiceAuthentication,
                                       WebMapServiceAuthentication,
@@ -19,6 +20,7 @@ from registry.models.service import (CatalogueService,
                                      Layer, WebFeatureService,
                                      WebFeatureServiceOperationUrl,
                                      WebMapService, WebMapServiceOperationUrl)
+from registry.models.update import WebMapServiceUpdateSetting
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            ReferenceSystemDefaultSerializer,
@@ -284,6 +286,21 @@ class WebMapServiceListSerializer(
         label=_("secured xml backup file"),
         help_text=_(
             "the original xml backup file as secured url to restore the xml field."),
+        read_only=True,
+    )
+    web_map_service_monitoring_settings = ResourceRelatedField(
+        source="web_map_service_monitorings",
+        label=_("monitoring settings"),
+        help_text=_("This are the configured monitoring settings."),
+        model=WebMapServiceMonitoringSetting,
+        many=True,
+        read_only=True,
+    )
+    web_map_service_update_settings = ResourceRelatedField(
+        label=_("update settings"),
+        help_text=_("This are the configured update settings."),
+        model=WebMapServiceUpdateSetting,
+        many=True,
         read_only=True,
     )
 

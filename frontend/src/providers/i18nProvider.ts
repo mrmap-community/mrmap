@@ -15,10 +15,27 @@ lodashTemplateSettings.interpolate = /%{([\s\S]+?)}/g;
 
 const i18nProvider: I18nProvider = {
   translate: (key: string, options?: any) => {
-    const translation = lodashGet(messages, key, key) as string
-    const compiled = lodashTemplate(translation)
-    const result = compiled(options)
-    return result
+    // Try to fetch the translation. If missing, lodashGet returns the key.
+    let translation = lodashGet(messages, key, key) as string;
+
+    // If the key is missing and a fallback message is provided in options ("_"), use it
+    if (translation === key && options && options._) {
+      translation = options._;
+    }
+
+    // Handle simple pluralization using the "||||" separator used by react-admin
+    // We support two forms: singular |||| plural
+    let message = translation;
+    if (typeof message === 'string' && message.indexOf('||||') !== -1) {
+      const parts = message.split('||||').map((s) => s.trim());
+      const count = options?.smart_count ?? options?.count ?? options?.smartCount;
+      const usePlural = typeof count === 'number' ? count !== 1 : false;
+      message = parts[usePlural ? 1 : 0] ?? parts[0];
+    }
+
+    const compiled = lodashTemplate(message);
+    const result = compiled(options);
+    return result;
   },
   changeLocale: (newLocale: string) => {
       messages = (newLocale === 'de') ? germanMessages : en;

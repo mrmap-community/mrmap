@@ -8,7 +8,7 @@ import {
 
 
 import { Divider } from '@mui/material';
-import { PropsWithChildren, useMemo } from 'react';
+import { Fragment, PropsWithChildren, useMemo } from 'react';
 import CardWithIcon from './CardWithIcon';
 import ChangeLogList from './ChangeLogList';
 
@@ -49,14 +49,14 @@ const ResourceListCard = (
               icon={icon}
               title={name}
               subtitle={
-                  <WithListContext render={({ total }) => <div>{total}</div>} />
+                  <WithListContext render={({ total }) => <Fragment>{total}</Fragment>} />
               }
           > 
             
             {children}
             {
                 hasCreate ?
-                <div><Divider /><CreateButton/></div>: <div></div>
+                <Fragment><Divider /><CreateButton/></Fragment>: <Fragment></Fragment>
             }
             
             <ChangeLogList/>

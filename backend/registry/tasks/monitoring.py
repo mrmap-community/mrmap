@@ -41,7 +41,7 @@ def run_wms_monitoring(self, run_pk=None, *args, **kwargs):
         "setting").get(pk=run_pk)
     get_capabilitites_probes: list[GetCapabilitiesProbe] = run.setting.registry_getcapabilitiesprobes.all(
     )
-    get_map_probes: list[GetMapProbe] = run.setting.registry_getcapabilitiesprobes.all(
+    get_map_probes: list[GetMapProbe] = run.setting.registry_getmapprobes.all(
     )
 
     tasks = []

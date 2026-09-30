@@ -101,12 +101,9 @@ class OgcClient(ABC):
             nsmap["ows"] = nsmap.pop(None)
 
         # ------------------------------------------------------------------
-        # WFS / CSW / WMS >= 1.3.0 (OWS Common OperationsMetadata)
+        # WFS / CSW (OWS Common OperationsMetadata)
         # ------------------------------------------------------------------
-        if (
-            service_type in {"WFS", "CSW"}
-            or (service_type == "WMS" and service_version != "1.1.1")
-        ):
+        if service_type in {"WFS", "CSW"}:
             operation_xpath = (
                 ".//*[local-name()='OperationsMetadata']"
                 "/*[local-name()='Operation' and @name='%s']"
@@ -137,9 +134,9 @@ class OgcClient(ABC):
             return hrefs[0]
 
         # ------------------------------------------------------------------
-        # WMS 1.1.1 (pre-OWS Common)
+        # WMS uses Capability/Request in both 1.1.1 and 1.3.0
         # ------------------------------------------------------------------
-        if service_type == "WMS" and service_version == "1.1.1":
+        if service_type == "WMS":
             operation_xpath = (
                 ".//*[local-name()='Request']"
                 "/*[local-name()='%s']"
@@ -150,7 +147,7 @@ class OgcClient(ABC):
             if not operations:
                 raise InitialError(
                     f"Operation '{operation_name.label}' not found in "
-                    "WMS 1.1.1 capabilities"
+                    f"WMS {service_version} capabilities"
                 )
 
             operation = operations[0]
@@ -163,7 +160,7 @@ class OgcClient(ABC):
             if not hrefs:
                 raise InitialError(
                     f"Operation '{operation_name.label}' does not support "
-                    f"HTTP {method_name} in WMS 1.1.1"
+                    f"HTTP {method_name} in WMS {service_version}"
                 )
 
             return hrefs[0]

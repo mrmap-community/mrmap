@@ -109,7 +109,7 @@ const SchemaAutocompleteInput = (
 
 
   const mergedData = useMemo(() => {
-    if (!formValues || !getManyData) return searchResults || [];
+    if (!formValues) return [];
 
     const currentValuesArray = Array.isArray(formValues) ? formValues : [formValues];
     return currentValuesArray.map((value: any) => {
@@ -125,9 +125,13 @@ const SchemaAutocompleteInput = (
     });
 
 
-  }, [searchResults, formValues, getManyData]);
+  }, [formValues, getManyData]);
  
-  const choices = useMemo(() => [...mergedData, ...(searchResults||[])], [mergedData, searchResults]);
+  const choices = useMemo(() => Array.from(
+    new Map<string, RaRecord>(
+      [...mergedData, ...(searchResults || [])].map((choice: RaRecord) => [String(choice.id), choice])
+    ).values()
+  ), [mergedData, searchResults]);
 
   const search = useCallback((searchText: string) => {
     setFilter((prev: any) => ({ ...prev, search: searchText }));

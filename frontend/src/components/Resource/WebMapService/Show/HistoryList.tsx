@@ -1,13 +1,5 @@
 import UpdateIcon from "@mui/icons-material/Update";
-import {
-  Alert,
-  alpha,
-  Card,
-  CardHeader,
-  FormControl,
-  MenuItem,
-  Select,
-} from "@mui/material";
+import { Alert, alpha, FormControl, MenuItem, Select } from "@mui/material";
 import { useMemo, useState } from "react";
 import {
   Loading,
@@ -17,6 +9,7 @@ import {
   useRecordContext,
   useTranslate,
 } from "react-admin";
+import SimpleCard from "../../../MUI/SimpleCard";
 import HistoryTimeline, { type HistoryRecord } from "./HistoryTimeline";
 
 export interface HistoryListProps extends SimpleListProps {
@@ -30,7 +23,7 @@ const HistoryList = ({ record }: HistoryListProps) => {
   const [changeType, setChangeType] = useState<ChangeType>("all");
   const translate = useTranslate();
   const recordContext = useRecordContext(record);
-  
+
   const wmsJsonApiParams = useMemo(() => {
     const params: Record<string, string | number> = { include: "historyUser" };
     params["fields[User]"] = "username,string_representation";
@@ -143,20 +136,24 @@ const HistoryList = ({ record }: HistoryListProps) => {
     (changeType !== "WebMapService" && layerError);
 
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        borderColor: "secondary.main",
-        minWidth: 0,
-        maxWidth: "100%",
-        height: "100%"
+    <SimpleCard
+      divider={false}
+      contentProps={false}
+      cardProps={{
+        variant: "outlined",
+        sx: {
+          borderColor: "secondary.main",
+          minWidth: 0,
+          width: "100%",
+          height: "100%",
+        },
       }}
-    >
-      <CardHeader
-        title={translate("resources.ChangeLog.lastChanges")}
-        subheader="Select an event to inspect its details."
-        avatar={<UpdateIcon />}
-        action={
+
+      title={translate("resources.ChangeLog.lastChanges")}
+      subheader="Select an event to inspect its details."
+      headerProps={{
+        avatar: <UpdateIcon />,
+        action: (
           <FormControl size="small">
             <Select
               value={changeType}
@@ -177,15 +174,16 @@ const HistoryList = ({ record }: HistoryListProps) => {
               </MenuItem>
             </Select>
           </FormControl>
-        }
-        sx={(theme) => ({
+        ),
+        sx: (theme) => ({
           bgcolor: alpha(theme.palette.secondary.main, 0.08),
           flexWrap: "wrap",
           gap: 1,
           "& .MuiCardHeader-action": { m: 0 },
           "& .MuiCardHeader-content": { minWidth: 150 },
-        })}
-      />
+        }),
+      }}
+    >
       {loading ? (
         <Loading />
       ) : error ? (
@@ -196,7 +194,7 @@ const HistoryList = ({ record }: HistoryListProps) => {
           events={filteredChanges}
         />
       )}
-    </Card>
+    </SimpleCard>
   );
 };
 

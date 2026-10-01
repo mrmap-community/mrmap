@@ -1,4 +1,5 @@
-import { Alert, Card, CardContent, LinearProgress, Typography } from '@mui/material';
+import SimpleCard from "../../MUI/SimpleCard";
+import { Alert, LinearProgress, Typography } from '@mui/material';
 import {
     DateField,
     RecordContextProvider,
@@ -27,22 +28,20 @@ const SystemView = () => {
     if (error || !data) return <Alert severity="warning" sx={{ mb: 2 }}>{translate('systemInfo.unavailable')}</Alert>;
 
     return (
-        <Card>
-            <CardContent>
-                <Typography variant="h6">{translate('systemInfo.title')}</Typography>
-                <RecordContextProvider value={data}>
-                    <SimpleShowLayout>
-                        <TextField source="mrmapRelease" label="systemInfo.mrmapRelease" />
-                        <TextField source="djangoVersion" label="systemInfo.djangoVersion" />
-                        <TextField source="pythonVersion" label="systemInfo.pythonVersion" />
-                        <TextField source="postgresqlVersion" label="systemInfo.postgresqlVersion" emptyText="—" />
-                        <TextField source="databaseName" label="systemInfo.databaseName" emptyText="—" />
-                        <TextField source="databaseSize" label="systemInfo.databaseSize" emptyText="—" />
-                        <DateField source="systemTime" label="systemInfo.systemTime" showTime />
-                    </SimpleShowLayout>
-                </RecordContextProvider>
-            </CardContent>
-        </Card>
+        <SimpleCard cardProps={{ sx: {} }}>
+            <Typography variant="h6">{translate('systemInfo.title')}</Typography>
+            <RecordContextProvider value={data}>
+                <SimpleShowLayout>
+                    <TextField source="mrmapRelease" label="systemInfo.mrmapRelease" />
+                    <TextField source="djangoVersion" label="systemInfo.djangoVersion" />
+                    <TextField source="pythonVersion" label="systemInfo.pythonVersion" />
+                    <TextField source="postgresqlVersion" label="systemInfo.postgresqlVersion" emptyText="—" />
+                    <TextField source="databaseName" label="systemInfo.databaseName" emptyText="—" />
+                    <TextField source="databaseSize" label="systemInfo.databaseSize" emptyText="—" />
+                    <DateField source="systemTime" label="systemInfo.systemTime" showTime />
+                </SimpleShowLayout>
+            </RecordContextProvider>
+        </SimpleCard>
     );
 };
 

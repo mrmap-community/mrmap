@@ -1,3 +1,4 @@
+import type { JsonApiQueryParams } from '../jsonapi/types/jsonapi';
 import { CreateResult, GetListResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin'
 
 import jsonpointer from 'jsonpointer'
@@ -45,7 +46,7 @@ export interface RelatedResource {
 export interface GetListJsonApiParams extends GetListParams {
   meta?: {
     relatedResource?: RelatedResource
-    jsonApiParams?: any
+    jsonApiParams?: JsonApiQueryParams
   }
 }
 

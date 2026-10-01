@@ -15,7 +15,7 @@ const useGuesserProps = () => {
       service: record
     },
   }),[
-    fieldDefinitions
+    fieldDefinitions, record
   ])
   return guesserProps
 }

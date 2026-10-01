@@ -22,7 +22,7 @@ export const useFieldsForOperation = (
   const { api } = useHttpClientContext()
 
   const {schema} = useResourceSchema(operationId)
-  const allFields = useMemo(()=> schema && (ignoreId ? encapsulateFields(schema).filter(name => name !== 'id'): encapsulateFields(schema)) || [], [schema])
+  const allFields = useMemo(()=> schema && (ignoreId ? encapsulateFields(schema).filter(name => name !== 'id'): encapsulateFields(schema)) || [], [schema, ignoreId])
   const fieldSchemas = useMemo<FieldSchema[]>(()=> schema && allFields.map(name => getFieldSchema(name, schema)).filter(schema => schema !== undefined) || [], [schema, allFields])
 
   const fieldDefinitions = useMemo(() =>
@@ -38,7 +38,7 @@ export const useFieldsForOperation = (
       }
     ).filter(
       fieldDefinition => fieldDefinition !== undefined
-    ), [api, fieldSchemas, overwrites]
+    ), [api, fieldSchemas, overwrites, forInput]
   )
   return fieldDefinitions
 }

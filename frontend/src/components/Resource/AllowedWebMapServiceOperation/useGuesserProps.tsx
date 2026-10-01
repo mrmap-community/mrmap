@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useRecordContext } from 'react-admin';
-import useWebMapServiceMonitoringSettingFieldDefinitions from '../Monitoring/WebMapServiceMonitoringSetting/useWebMapServiceMonitoringSettingFieldDefinitions';
+import useAllowedWebMapServiceOperationFieldDefinitions from './useAllowedWebMapServiceOperationFieldDefinitions';
 
 
 const useGuesserProps = () => {
   const record = useRecordContext()
 
-  const fieldDefinitions = useWebMapServiceMonitoringSettingFieldDefinitions()
+  const fieldDefinitions = useAllowedWebMapServiceOperationFieldDefinitions()
   const guesserProps = useMemo(()=> ({
     resource: "AllowedWebMapServiceOperation",
     updateFieldDefinitions: fieldDefinitions,
@@ -14,7 +14,7 @@ const useGuesserProps = () => {
       securedService: record
     }
   }),[
-    fieldDefinitions
+    fieldDefinitions, record
   ])
   return guesserProps
 }
